@@ -5,49 +5,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-/// <summary>
-/// Writes the skeleton of one feature across the layers, in the shape the arguments choose.
-/// </summary>
-/// <remarks>
-/// <para>
-/// What it emits is shape, never behaviour: folders, file names, namespaces, base types and the
-/// members a layer's conventions require. Every invariant it satisfies is one an architecture rule
-/// already checks, so the thing it saves is the typing and the thing it cannot save is the thinking.
-/// The option names are the choices a feature actually varies by, and nothing else is a switch:
-/// <c>--access</c> (required, no default), <c>--deletion</c> (required with <c>--access owner</c>),
-/// <c>--operations</c>, <c>--model</c> and <c>--concurrency</c>. <c>docs/ADDING-A-FEATURE.md</c> says
-/// what each one means and gives the command that corresponds to the <c>Notes</c> example.
-/// </para>
-/// <para>
-/// <b>It creates files and edits none.</b> A feature does not compose until its module registrations
-/// are written by hand, and that is deliberate everywhere else in this repository: registration is
-/// opt-in per feature so a feature nobody composes is registered nowhere and the absence is visible
-/// in the file. A generator reaching into a composition root would take that property away. The
-/// wiring and the migration step are printed instead.
-/// </para>
-/// <para>
-/// <b>Nothing is written until everything is known to be writable.</b> Names, option values, the
-/// combination of options and every path are checked first; a refusal leaves the tree as it was, and
-/// a write that fails half way removes what it had created. A file that exists is never replaced.
-/// </para>
-/// <para>
-/// <b>The product prefix is read off the tree, not assumed</b>, from the directory holding the domain
-/// project, so the tool keeps working after the template is renamed.
-/// </para>
-/// <para>
-/// <b>A manifest is written beside the code</b>, in <c>.feature-manifest/</c>: the options, and every
-/// created file with the SHA-256 of what was written, so a command that removes a feature can tell
-/// what the generator made from what has been edited since. The folder is an ordinary tracked folder
-/// of the derived project; the template ships none, so nothing excludes it.
-/// </para>
-/// <example>
-/// <code>
-/// dotnet run Tools/NewFeature.cs Widgets Widget --access shared
-/// dotnet run Tools/NewFeature.cs Notes Note --access owner --concurrency etag
-/// dotnet run Tools/NewFeature.cs --self-test
-/// </code>
-/// </example>
-/// </remarks>
 internal static class NewFeature
 {
     private const string ManifestFolder = ".feature-manifest";
@@ -72,14 +29,14 @@ internal static class NewFeature
         + "                 aggregate: one use case per operation over a domain aggregate.\n"
         + "  --concurrency  default: none, last write wins. etag: a persisted version, ETag and If-Match.\n"
         + "                 aggregate needs etag.\n"
-        + "  --root         the tree to write into, default the current directory.";
+        + "  --root         the tree to write into, default the current directory.\n"
+        + "       dotnet run Tools/NewFeature.cs --self-test";
 
     private static readonly string[] OperationNames = ["get", "list", "create", "update", "delete"];
 
     private static readonly string[] OptionNames =
         ["--access", "--deletion", "--operations", "--model", "--concurrency", "--root"];
 
-    /// <summary>Folder names a feature cannot take: each is already a segment of every namespace.</summary>
     private static readonly string[] ReservedNames =
     [
         "Access", "Api", "Application", "Auth", "Common", "Contracts", "Controllers", "Core", "Dtos",
@@ -87,10 +44,6 @@ internal static class NewFeature
         "Policies", "Ports", "Presentation", "Rows", "Services", "UseCases",
     ];
 
-    /// <summary>
-    /// Keywords that become an illegal identifier once the type's first letter is lowered, which is
-    /// how the parameters of the generated code are named.
-    /// </summary>
     private static readonly string[] Keywords =
     [
         "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
@@ -105,10 +58,8 @@ internal static class NewFeature
 
     private static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    /// <summary>One emitted file: where it goes, and what goes in it.</summary>
     private sealed record Emission(string Path, string Content);
 
-    /// <summary>What the arguments said, before any of it is checked.</summary>
     private sealed record Request(
         string? Features,
         string? Type,
@@ -119,11 +70,6 @@ internal static class NewFeature
         string? Concurrency,
         string Root);
 
-    /// <summary>
-    /// A request that passed every check, with the prefix read off the tree and the account-deleted
-    /// reaction resolved: <c>null</c> when the tree already ships it, otherwise the adapter folder
-    /// (<c>Auth</c> or <c>ExternalIdentity</c>) this feature brings it with.
-    /// </summary>
     private sealed record Spec(
         string Prefix,
         string Features,
@@ -155,11 +101,6 @@ internal static class NewFeature
         /*#if (!publicApi)*/
         return Run(args, Console.Out, Console.Error);
         /*#else
-        // Both shapes this tool writes belong to a caller: owner scopes every operation to the
-        // caller's id, shared serves any authenticated caller. This project was generated with
-        // --auth none and has no caller to give them, so writing one into it would only produce a
-        // feature that refuses every request. Only this project is refused: a tree --root names
-        // elsewhere is another project, whose callers this one cannot speak for.
         int rootOption = Array.IndexOf(args, "--root");
         string target = rootOption >= 0 && rootOption + 1 < args.Length ? args[rootOption + 1] : ".";
         string thisProject = Path.GetDirectoryName(Path.GetDirectoryName(ThisFile())!)!;
@@ -184,7 +125,6 @@ internal static class NewFeature
         #endif*/
     }
 
-    /// <summary>The whole command, over writers, so the self-test can run it against a throwaway tree.</summary>
     private static int Run(string[] args, TextWriter output, TextWriter error)
     {
         var problems = new List<string>();
@@ -240,7 +180,6 @@ internal static class NewFeature
         return 1;
     }
 
-    /// <summary>Splits the arguments into two names and the options, reporting every mistake it sees.</summary>
     private static Request Parse(string[] args, List<string> problems)
     {
         var positional = new List<string>();
@@ -312,10 +251,6 @@ internal static class NewFeature
             Option("--root") ?? ".");
     }
 
-    /// <summary>
-    /// Every check that needs nothing but the arguments and the tree's prefix, run together so one
-    /// invocation reports every mistake rather than the first.
-    /// </summary>
     private static Spec? Check(Request request, string root, List<string> problems)
     {
         string features = request.Features ?? string.Empty;
@@ -400,8 +335,6 @@ internal static class NewFeature
             return null;
         }
 
-        // The account-deleted reaction: shipped whole when a feature already owns user data, so the
-        // only tree without it is one generated with none, where the first owner feature brings it.
         string? reaction = null;
 
         if (access == "owner")
@@ -437,7 +370,6 @@ internal static class NewFeature
         return new Spec(prefix, features, type, access, deletion, operations, model, concurrency, reaction);
     }
 
-    /// <returns>The chosen operations in their canonical order, or null after reporting why not.</returns>
     private static string[]? ParseOperations(string? text, List<string> problems)
     {
         if (text is null)
@@ -469,10 +401,6 @@ internal static class NewFeature
         return valid ? [.. OperationNames.Where(name => named.Contains(name, StringComparer.Ordinal))] : null;
     }
 
-    /// <summary>
-    /// The combinations that would emit something that does not hold together. Each says what is
-    /// wrong and what to change, because an option nobody can fix is a dead end.
-    /// </summary>
     private static List<string> Contradictions(string[] operations, string model, string concurrency)
     {
         var problems = new List<string>();
@@ -541,8 +469,6 @@ internal static class NewFeature
             return problems;
         }
 
-        // The convention this repository states: folders carry the feature, file and type names
-        // carry the type. Equal names make the two indistinguishable in every path.
         if (string.Equals(features, type, StringComparison.Ordinal))
         {
             problems.Add(
@@ -575,11 +501,6 @@ internal static class NewFeature
         return problems;
     }
 
-    /// <summary>
-    /// The prefix every project of this tree shares, read off the directory that holds the domain
-    /// project.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">No such directory, so this is not that tree.</exception>
     private static string ProductPrefix(string root)
     {
         string domain = System.IO.Path.Combine(root, "Src", "Domain");
@@ -606,10 +527,8 @@ internal static class NewFeature
 
     private static bool IsVowel(char letter) => "aeiou".Contains(char.ToLowerInvariant(letter), StringComparison.Ordinal);
 
-    /// <summary>A PascalCase folder name as the route segment a caller sees: TodoLists, todo-lists.</summary>
     private static string Kebab(string pascal) => Separated(pascal, '-');
 
-    /// <summary>The same, as a PostgreSQL schema name that needs no quoting: todo_lists.</summary>
     private static string Snake(string pascal) => Separated(pascal, '_');
 
     private static string Separated(string pascal, char separator) =>
@@ -621,7 +540,6 @@ internal static class NewFeature
     private static string ProjectOf(Spec spec, string layer, string project) =>
         $"{layer}/{spec.Prefix}.{project}";
 
-    /// <summary>The files this combination of options emits, in the order a reader meets the layers.</summary>
     private static List<Emission> Plan(Spec spec, string root, out List<string> skippedTestProjects)
     {
         var flags = Flags(spec);
@@ -671,9 +589,6 @@ internal static class NewFeature
 
         string feature = "Features/%F%";
 
-        // The account-deleted reaction, only into a tree that ships none of it: a project generated
-        // with no feature gains the two ports, the sweep and the account directory with its first
-        // owner feature, because the fate of user data is not any one feature's private matter.
         if (spec.Reaction is { } adapter)
         {
             Add(applicationCore, "Common/Ports/IDeletedAccountDataPolicy.cs", Templates.DeletedAccountDataPolicy);
@@ -693,11 +608,9 @@ internal static class NewFeature
             }
         }
 
-        // Domain, aggregate only.
         Add(domain, $"{feature}/Model/Entities/%A%.cs", Templates.Aggregate, "agg");
         Add(domain, $"{feature}/Repositories/I%A%Repository.cs", Templates.RepositoryPort, "agg&wq");
 
-        // Application, both shapes.
         Add(application, $"{feature}/Model/Dtos/%A%ContentDto.cs", Templates.ContentDto, "rec&content");
         Add(application, $"{feature}/Model/Dtos/%A%Dto.cs", Templates.Dto, "dto");
         Add(application, $"{feature}/Model/Dtos/%A%SummaryDto.cs", Templates.SummaryDto, "list");
@@ -710,12 +623,10 @@ internal static class NewFeature
         Add(application, $"{feature}/Ports/%A%Store/I%A%Store.cs", Templates.StorePort, "rec&stage");
         Add(application, $"{feature}/Ports/%A%Store/%A%ChangeStatus.cs", Templates.ChangeStatus, "rec&change");
 
-        // Application, the service shape: one service holds every operation.
         Add(application, $"{feature}/Services/I%A%Service.cs", Templates.ServicePort, "rec");
         Add(application, $"{feature}/Services/%A%Service.cs", Templates.Service, "rec");
         Add(application, $"{feature}/Model/Dtos/%A%ContentDtoValidator.cs", Templates.ContentValidator, "rec&content");
 
-        // Application, the use-case shape: one use case per operation.
         Add(application, $"{feature}/Model/Mapping/%A%DtoMapping.cs", Templates.DtoMapping, "agg&content");
         Add(application, $"{feature}/Services/I%A%Service.cs", Templates.AccessServicePort, "agg&change");
         Add(application, $"{feature}/Services/%A%Service.cs", Templates.AccessService, "agg&change");
@@ -742,11 +653,8 @@ internal static class NewFeature
         Add(application, $"{commands}/Delete%A%/IDelete%A%UseCase.cs", Templates.DeleteUseCasePort, "agg&delete");
         Add(application, $"{commands}/Delete%A%/Delete%A%UseCase.cs", Templates.DeleteUseCase, "agg&delete");
 
-        // Application, the account-deleted reaction of a feature that owns user data: one consumer
-        // of the fact, both faces in one class, the same pattern the four shipped features use.
         Add(application, $"{feature}/Services/Consumers/%Verb%%A%OnAccountDeletedConsumer.cs", Templates.AccountDeletedConsumer, "owner");
 
-        // Persistence.
         Add(persistence, $"{feature}/Rows/Models/%A%Record.cs", Templates.RecordPlain, "rec");
         Add(persistence, $"{feature}/Rows/Models/%A%Record.cs", Templates.RecordAudited, "agg");
         Add(persistence, $"{feature}/Rows/Configurations/%A%RecordConfiguration.cs", Templates.Configuration);
@@ -759,7 +667,6 @@ internal static class NewFeature
         Add(persistence, $"{feature}/Access/Queries/%A%Queries.cs", Templates.Queries, "rq");
         Add(persistence, $"{feature}/Access/Queries/%A%SortMap.cs", Templates.SortMap, "list");
 
-        // Api.
         Add(api, $"{feature}/Contracts/Requests/Create%A%Request.cs", Templates.CreateRequest, "create");
         Add(api, $"{feature}/Contracts/Requests/Update%A%Request.cs", Templates.UpdateRequest, "update");
         Add(api, $"{feature}/Contracts/Requests/Get%F%Request.cs", Templates.ListRequest, "list");
@@ -768,8 +675,6 @@ internal static class NewFeature
         Add(api, $"{feature}/Controllers/%F%Controller.cs", Templates.Controller);
         Add(api, $"{feature}/Contracts/Mapping/%A%ResponseMapping.cs", Templates.ResponseMapping, "dto|list");
 
-        // Tests: the ones whose assertions hold for any feature of the chosen shape. A skeleton that
-        // asserts nothing is not written, because it would pass for any code.
         AddTest(applicationTests, $"{feature}/Model/Errors/%A%ErrorsTests.cs", Templates.ErrorsTests, "notfound");
         AddTest(applicationTests, $"{feature}/Model/Dtos/%A%ContentDtoValidatorTests.cs", Templates.ContentValidatorTests, "rec&content");
         AddTest(applicationTests, $"{feature}/Services/%A%ServiceTests.cs", Templates.ServiceTests, "rec");
@@ -795,10 +700,6 @@ internal static class NewFeature
         return emissions;
     }
 
-    /// <summary>
-    /// The facts a template's conditions are written in. Derived ones exist so a template says what a
-    /// file is for, not which operations happen to need it.
-    /// </summary>
     private static HashSet<string> Flags(Spec spec)
     {
         bool record = spec.Model == "record";
@@ -827,22 +728,15 @@ internal static class NewFeature
         When(spec.Deletion == "delete", "purge");
         When(spec.Deletion == "anonymise", "anon");
 
-        // Something is written, and something is loaded in order to be changed.
         When(create || update || delete, "wq");
         When(update || delete, "change");
         When(create || update, "content");
 
-        // A representation is answered by get, create or update.
         When(get || create || update, "dto");
 
-        // The queries port reads one: for get, and in the service shape to answer what a write stored.
-        // An owner feature also reads one way whatever its operations: the deleted-account sweep
-        // asks it which owners still hold data.
         When(get || (record && (create || update)), "single");
         When(flags.Contains("single") || list || owner, "rq");
 
-        // The store stages writes — and an owner feature stages one more write even when no
-        // operation does: the fate of the owner's rows once the account is gone.
         When(record && (create || update || delete || owner), "stage");
 
         When(get || update || delete || (record && create), "notfound");
@@ -851,7 +745,6 @@ internal static class NewFeature
         return flags;
     }
 
-    /// <summary>Every <c>%Token%</c> a template or a path may use.</summary>
     private static Dictionary<string, string> Tokens(Spec spec)
     {
         bool record = spec.Model == "record";
@@ -896,7 +789,6 @@ internal static class NewFeature
             ["Stage"] = spec.Deletion == "anonymise" ? "StageAnonymisationForOwnerAsync" : "StageRemovalForOwnerAsync",
         };
 
-        // The arguments of the service under test, in the order its constructor takes them.
         string[] serviceArguments =
         [
             .. Flags(spec).Contains("rq") ? ["_queries"] : Array.Empty<string>(),
@@ -908,8 +800,6 @@ internal static class NewFeature
 
         tokens["ServiceArgs"] = string.Join(", ", serviceArguments);
 
-        // The controller's constructor and calls differ by shape: one service, or one use case per
-        // operation.
         string[] fields = [$"get{a}", $"get{f}", $"create{a}", $"update{a}", $"delete{a}"];
 
         string Use(string operation) => operation switch
@@ -947,10 +837,6 @@ internal static class NewFeature
         return tokens;
     }
 
-    /// <summary>
-    /// Everything that would make the write wrong, read before the first byte is written: a project
-    /// that is not there, a feature that is, a file that would be overwritten.
-    /// </summary>
     private static List<string> Conflicts(string root, Spec spec, List<Emission> plan)
     {
         var problems = new List<string>();
@@ -992,8 +878,6 @@ internal static class NewFeature
                 + "so a feature of that name exists or its name would collide. Choose another, or edit that feature.");
         }
 
-        // A feature is scaffolded once. Writing next to files that are already there would merge two
-        // features into one folder without either noticing.
         string[] featureFolders =
         [
             .. projects,
@@ -1035,8 +919,6 @@ internal static class NewFeature
 
     private static byte[] Bytes(Emission emission)
     {
-        // A .cs file in this tree carries a UTF-8 BOM and LF endings; the build turns a missing BOM
-        // into an error whose message does not mention it. The manifest is JSON and carries none.
         bool source = emission.Path.EndsWith(".cs", StringComparison.Ordinal);
         string text = emission.Content.ReplaceLineEndings("\n");
 
@@ -1048,7 +930,6 @@ internal static class NewFeature
     private static string HashOf(Emission emission) =>
         Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
 
-    /// <summary>The creation manifest: the options, and every file written with its hash.</summary>
     private static (Emission Emission, int Files) ManifestOf(Spec spec, List<Emission> plan)
     {
         using var stream = new MemoryStream();
@@ -1100,10 +981,6 @@ internal static class NewFeature
         return (new Emission(ManifestPath(spec), json), plan.Count);
     }
 
-    /// <summary>
-    /// Writes every file or none. A file is created, never replaced, and a failure part way removes
-    /// what this call made, directories included.
-    /// </summary>
     private static void WriteAll(string root, List<Emission> emissions)
     {
         var files = new List<string>();
@@ -1348,13 +1225,6 @@ internal static class NewFeature
         }
     }
 
-    // ---- Self-test ------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Runs the real command, in process, against throwaway trees, and reads the trees afterwards.
-    /// Nothing here compares a template with itself: each case states what the tree must look like
-    /// from the rules in the CLI's own documentation and then looks at the files the command wrote.
-    /// </summary>
     private static int SelfTest()
     {
         string scratch = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "newfeature-selftest-" + Guid.CreateVersion7().ToString("N"));
@@ -1403,11 +1273,6 @@ internal static class NewFeature
         return problems.Count == 0 ? 0 : 1;
     }
 
-    /// <param name="reaction">
-    /// Whether the tree already ships the account-deleted reaction, as one generated with a feature
-    /// that owns user data does. A tree generated with none ships none of it — and still keeps its
-    /// accounts, which is what the adapter folder below reads.
-    /// </param>
     private static string NewTree(string scratch, bool reaction = true)
     {
         string root = System.IO.Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
@@ -1460,7 +1325,6 @@ internal static class NewFeature
         return (code, output.ToString(), error.ToString());
     }
 
-    /// <summary>Every file and directory under a root, with the hash of each file.</summary>
     private static Dictionary<string, string> Snapshot(string root) =>
         Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories)
             .ToDictionary(
@@ -1516,14 +1380,12 @@ internal static class NewFeature
             expect(Same(before, Snapshot(root)), $"[{label}] changed the tree.");
         }
 
-        // Every mistake at once, not the first one.
         var several = Invoke(root, "widgets", "widget", "--access", "everyone", "--model", "entity");
 
         expect(
             several.Error.Split('\n').Count(line => line.StartsWith("error:", StringComparison.Ordinal)) >= 4,
             "Several mistakes in one command were not all reported.");
 
-        // A tree that is not one of this template's.
         string stranger = System.IO.Path.Combine(scratch, "stranger");
         Directory.CreateDirectory(stranger);
 
@@ -1589,7 +1451,6 @@ internal static class NewFeature
         expect(controller.Contains("[Route(\"api/v{version:apiVersion}/todo-lists\")]", StringComparison.Ordinal), "The route is not the kebab-case of the folder.");
         expect(controller.Contains("namespace Acme.Api.Features.TodoLists.Controllers;", StringComparison.Ordinal), "The controller's namespace is not its project and folders.");
 
-        // Renamed tree: nothing of the template's own name may survive into what is written.
         string[] leaks = [.. Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .Where(path => File.ReadAllText(path).Contains("AppTemplate", StringComparison.Ordinal))
             .Select(path => System.IO.Path.GetRelativePath(root, path))];
@@ -1602,11 +1463,6 @@ internal static class NewFeature
         expect(result.Output.Contains("last-write-wins", StringComparison.Ordinal), "The last-write-wins consequence of --concurrency none is not printed.");
     }
 
-    /// <summary>
-    /// Every valid choice of operations under each shape, generated side by side into one tree. What
-    /// must exist is stated here from the documented behaviour of each operation, and what is written
-    /// is read back.
-    /// </summary>
     private static void SubsetCases(string scratch, Action<bool, string> expect)
     {
         string root = NewTree(scratch);
@@ -1741,7 +1597,6 @@ internal static class NewFeature
         Present(!record && Has("update"), use("Commands", $"Update{type}"));
         Present(!record && Has("delete"), use("Commands", $"Delete{type}"));
 
-        // The methods and routes are the operations, one for one.
         string Text(string suffix) =>
             created.Where(path => path.EndsWith("/" + suffix, StringComparison.Ordinal))
                 .Select(path => File.ReadAllText(System.IO.Path.Combine(root, path)))
@@ -1795,8 +1650,6 @@ internal static class NewFeature
             Contains(repository, "GetForOwnerAsync", owner, "the repository port");
         }
 
-        // The account-deleted reaction: one consumer whatever the operations, written to the declared
-        // fate, with the queries port answering the sweep.
         string consumer = Text($"Services/Consumers/{verb}{type}OnAccountDeletedConsumer.cs");
         string queriesPort = Text($"Ports/{type}Queries/I{type}Queries.cs");
 
@@ -1811,8 +1664,6 @@ internal static class NewFeature
             Contains(Text($"Model/Entities/{type}.cs"), "public void Anonymise()", true, "the aggregate");
         }
 
-        // A persisted version exists exactly when concurrency asks for one, and the owner exactly when
-        // access does.
         string stored = Text($"Models/{type}Record.cs");
 
         Contains(stored, "uint Version", etag || !record, "the persistence record");
@@ -1831,7 +1682,6 @@ internal static class NewFeature
             }
         }
 
-        // The modular rule: a generated file never names another feature, whatever the name is.
         foreach (string path in created.Where(path => !path.StartsWith("Tests/", StringComparison.Ordinal)))
         {
             string text = File.ReadAllText(System.IO.Path.Combine(root, path));
@@ -1854,7 +1704,6 @@ internal static class NewFeature
         expect(second.Code == 1 && second.Error.Contains("already exists", StringComparison.Ordinal), "Generating the same feature twice was not refused.");
         expect(Same(afterFirst, Snapshot(root)), "The refused second generation changed the tree.");
 
-        // A single file in the way, with its feature folder absent from every other project.
         string other = NewTree(scratch);
         string inTheWay = System.IO.Path.Combine(other, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Model/Errors/WidgetErrorsTests.cs");
 
@@ -1868,7 +1717,6 @@ internal static class NewFeature
         expect(Same(before, Snapshot(other)), "A refusal over an existing file changed the tree.");
         expect(File.ReadAllText(inTheWay) == "// somebody's own test\n", "An existing file was overwritten.");
 
-        // A feature whose schema or set the context already names.
         string named = NewTree(scratch);
 
         File.WriteAllText(
@@ -1936,8 +1784,6 @@ internal static class NewFeature
     {
         string root = NewTree(scratch);
 
-        // A file where the API's Features folder has to be, so the write fails after the application
-        // and persistence files are already down.
         File.WriteAllText(System.IO.Path.Combine(root, "Src/Presentation/Acme.Api/Features"), "not a folder\n");
 
         var before = Snapshot(root);
@@ -1947,16 +1793,8 @@ internal static class NewFeature
         expect(Same(before, Snapshot(root)), "A write that failed half way left files or folders behind.");
     }
 
-    /// <summary>
-    /// The account-deleted reaction against the trees the template really generates: one with a
-    /// feature that owns user data ships it whole, one generated with no feature gains it with its
-    /// first owner feature, and a tree with no accounts at all is refused rather than given a
-    /// reaction whose precondition has no authority to re-derive from.
-    /// </summary>
     private static void ReactionCases(string scratch, Action<bool, string> expect)
     {
-        // A tree that already ships the reaction: only the consumer joins the feature, and the
-        // printed edits stay six.
         string shipped = NewTree(scratch);
 
         var present = Invoke(shipped, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -1968,8 +1806,6 @@ internal static class NewFeature
         expect(present.Output.Contains("Six edits", StringComparison.Ordinal), "A tree that ships the reaction was told to edit more than six places.");
         expect(!present.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "A tree that ships the reaction was told to register its sweep again.");
 
-        // A tree generated with no feature: the first owner feature brings the ports, the sweep and
-        // the account directory with it, and the registrations are printed as edits, never written.
         string bare = NewTree(scratch, reaction: false);
         var bareTree = Snapshot(bare);
 
@@ -2001,8 +1837,6 @@ internal static class NewFeature
         expect(first.Output.Contains("Eleven edits", StringComparison.Ordinal), "The reaction's registrations were not printed as edits.");
         expect(first.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "The sweep registration was not printed.");
 
-        // The architecture tests compose the host's graph too: without the sweep and a double for
-        // the account directory there, the feature's consumer cannot be resolved and they fail.
         int eleventh = first.Output.IndexOf(" 11. ", StringComparison.Ordinal);
         string hostEdit = eleventh < 0 ? string.Empty : first.Output[eleventh..];
 
@@ -2023,8 +1857,6 @@ internal static class NewFeature
         expect(first.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "The first owner feature did not say that remove-feature holds it back while another one uses the shared files.");
         ExpectRemovable(bare, bareTree, "Widgets", 7, expect);
 
-        // A second owner feature finds the reaction the first one brought: the ports are emitted
-        // once, not per feature, and nothing of the first feature is touched.
         var second = Invoke(bare, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise");
 
         expect(second.Code == 0, $"The second owner feature was refused: {second.Error.Split('\n')[0]}");
@@ -2035,7 +1867,6 @@ internal static class NewFeature
         expect(second.Output.Contains("Six edits", StringComparison.Ordinal), "The second owner feature was told to edit more than six places.");
         expect(!second.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "A feature that brought no shared file was told that remove-feature holds it back.");
 
-        // A shared feature into a bare tree brings none of it: it owns no user data.
         string other = NewTree(scratch, reaction: false);
 
         var shared = Invoke(other, "Widgets", "Widget", "--access", "shared");
@@ -2044,8 +1875,6 @@ internal static class NewFeature
         expect(!Directory.Exists(System.IO.Path.Combine(other, "Src/Application/Acme.Application.Core")), "A shared feature brought the reaction with it.");
         expect(shared.Output.Contains("Six edits", StringComparison.Ordinal), "A shared feature was told to edit more than six places.");
 
-        // The externally authenticated template: the account directory reads the mapping, not the
-        // local accounts.
         string external = NewTree(scratch, reaction: false);
 
         Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/Auth"));
@@ -2062,8 +1891,6 @@ internal static class NewFeature
             "The external-identity account directory was not written.");
         expect(mapped.Output.Contains("ExternalAuthenticationComposition", StringComparison.Ordinal), "The external composition was not named for the registration.");
 
-        // No accounts anywhere: the reaction's precondition has no authority to re-derive from, so
-        // the feature is refused rather than given one that cannot hold.
         string publicApi = NewTree(scratch, reaction: false);
 
         Directory.Delete(System.IO.Path.Combine(publicApi, "Src/Presentation/Acme.Api/Features/Auth"), recursive: true);
@@ -2078,11 +1905,6 @@ internal static class NewFeature
 
     private const string RemovalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";
 
-    /// <summary>
-    /// The paths <c>RemoveFeature.cs</c> accepts in a manifest besides the feature's own folders, a
-    /// copy of its <c>SharedPaths</c>: the two tools share no code, so this copy is what fails when the
-    /// reaction branch of <see cref="Plan"/> emits a file the remover would refuse.
-    /// </summary>
     private static readonly Regex[] RemovableSharedPaths =
     [
         new(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
@@ -2092,7 +1914,6 @@ internal static class NewFeature
         new(@"^Src/Presentation/[^/]+\.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
     ];
 
-    /// <summary>Every file the generation wrote outside the feature's own folders is one the remover accepts.</summary>
     private static void ExpectRemovable(string root, Dictionary<string, string> before, string features, int count, Action<bool, string> expect)
     {
         var outside = Snapshot(root)
@@ -2126,7 +1947,6 @@ internal static class NewFeature
         expect(unknownFlagRefused, "A condition naming a flag that does not exist evaluated instead of failing, so a typo would silently drop a block.");
     }
 
-    /// <summary>The claims this tool makes about every file it writes.</summary>
     private static IEnumerable<string> FileProblems(string root, string relative)
     {
         string full = System.IO.Path.Combine(root, relative);
@@ -2171,7 +1991,6 @@ internal static class NewFeature
                 + $"where the file is named '{stem}'.";
         }
 
-        // One public type per file, which an architecture rule checks and a template could break.
         int declarations = Regex.Count(
             text,
             @"^(?:public |internal )(?:sealed |static |abstract )*(?:class|interface|record|enum)\s",
@@ -2182,19 +2001,215 @@ internal static class NewFeature
         {
             yield return $"{relative}: declares {declarations} top-level types, where a file holds one.";
         }
+
+        foreach (string problem in CommentProblems(relative, text))
+        {
+            yield return problem;
+        }
+    }
+
+    private static readonly HashSet<string> DocumentationElements =
+        new(["summary", "param", "response", "c", "see", "paramref"], StringComparer.Ordinal);
+
+    private static IEnumerable<string> CommentProblems(string relative, string text)
+    {
+        string[] folders = relative.Replace('\\', '/').Split('/')[..^1];
+        int api = Array.FindIndex(folders, folder => folder.EndsWith(".Api", StringComparison.Ordinal));
+        int contracts = Array.IndexOf(folders, "Contracts");
+        bool documented = api >= 0
+            && (folders[^1] == "Controllers" || (contracts > api && Array.IndexOf(folders, "Mapping", contracts) < 0));
+
+        foreach (var (line, comment) in Comments(text))
+        {
+            bool documentation = comment.StartsWith("///", StringComparison.Ordinal) && !comment.StartsWith("////", StringComparison.Ordinal);
+
+            if (!documentation || !documented)
+            {
+                yield return $"{relative}:{line}: a comment, where generated code carries none outside the API's documentation: {comment}";
+            }
+            else if (Regex.Matches(comment, "</?([A-Za-z]+)", RegexOptions.None, TimeSpan.FromSeconds(2))
+                         .Select(match => match.Groups[1].Value)
+                         .FirstOrDefault(element => !DocumentationElements.Contains(element)) is { } element)
+            {
+                yield return $"{relative}:{line}: <{element}> is not an element of the API's documentation: {comment}";
+            }
+        }
+    }
+
+    private static List<(int Line, string Text)> Comments(string text)
+    {
+        var comments = new List<(int Line, string Text)>();
+        int position = 0;
+
+        char At(int offset) => position + offset < text.Length ? text[position + offset] : '\0';
+
+        int LineOf(int index) => text.AsSpan(0, Math.Min(index, text.Length)).Count('\n') + 1;
+
+        void Code(bool insideHole)
+        {
+            int depth = 0;
+
+            while (position < text.Length)
+            {
+                char current = text[position];
+
+                if (current == '/' && At(1) is '/' or '*')
+                {
+                    int end = At(1) == '/'
+                        ? text.IndexOf('\n', position) is var newline and >= 0 ? newline : text.Length
+                        : text.IndexOf("*/", position + 2, StringComparison.Ordinal) is var close and >= 0 ? close + 2 : text.Length;
+
+                    comments.Add((LineOf(position), text[position..end].Split('\n')[0].TrimEnd()));
+                    position = end;
+                }
+                else if (current is '"' or '$' or '@' && StringAhead())
+                {
+                    Literal();
+                }
+                else if (current == '\'')
+                {
+                    position += At(1) == '\\' ? 3 : 2;
+
+                    while (position < text.Length && text[position] is not '\'' and not '\n')
+                    {
+                        position++;
+                    }
+
+                    position++;
+                }
+                else
+                {
+                    if (insideHole && current == '{')
+                    {
+                        depth++;
+                    }
+                    else if (insideHole && current == '}' && depth-- == 0)
+                    {
+                        return;
+                    }
+
+                    position++;
+                }
+            }
+        }
+
+        bool StringAhead()
+        {
+            int index = position;
+
+            while (index < text.Length && text[index] is '$' or '@')
+            {
+                index++;
+            }
+
+            return index < text.Length && text[index] == '"';
+        }
+
+        void Literal()
+        {
+            int dollars = 0;
+            bool verbatim = false;
+
+            while (text[position] is '$' or '@')
+            {
+                dollars += text[position] == '$' ? 1 : 0;
+                verbatim |= text[position] == '@';
+                position++;
+            }
+
+            int quotes = 0;
+
+            while (At(quotes) == '"')
+            {
+                quotes++;
+            }
+
+            if (!verbatim && quotes >= 3)
+            {
+                string closing = new('"', quotes);
+
+                for (position += quotes; position < text.Length;)
+                {
+                    if (string.CompareOrdinal(text, position, closing, 0, quotes) == 0)
+                    {
+                        position += quotes;
+                        return;
+                    }
+
+                    if (dollars > 0 && text[position] == '{')
+                    {
+                        int run = 0;
+
+                        while (At(run) == '{')
+                        {
+                            run++;
+                        }
+
+                        position += run;
+
+                        if (run >= dollars)
+                        {
+                            Code(insideHole: true);
+
+                            for (int closed = 0; closed < dollars && At(0) == '}'; closed++)
+                            {
+                                position++;
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    position++;
+                }
+
+                return;
+            }
+
+            for (position++; position < text.Length;)
+            {
+                char current = text[position];
+
+                if (verbatim && current == '"' && At(1) == '"')
+                {
+                    position += 2;
+                }
+                else if (current == '"')
+                {
+                    position++;
+                    return;
+                }
+                else if (!verbatim && current == '\\')
+                {
+                    position += 2;
+                }
+                else if (!verbatim && current == '\n')
+                {
+                    return;
+                }
+                else if (dollars > 0 && current == '{' && At(1) == '{')
+                {
+                    position += 2;
+                }
+                else if (dollars > 0 && current == '{')
+                {
+                    position++;
+                    Code(insideHole: true);
+                    position++;
+                }
+                else
+                {
+                    position++;
+                }
+            }
+        }
+
+        Code(insideHole: false);
+
+        return comments;
     }
 }
 
-/// <summary>
-/// The template language, and nothing cleverer: <c>%Token%</c> substitution, line directives
-/// <c>%if cond%</c>, <c>%else%</c> and <c>%end%</c>, and a marker on a <c>using</c> line that keeps it
-/// only when the file's body mentions one of the named types.
-/// </summary>
-/// <remarks>
-/// The marker is what keeps a file that uses a subset of the operations from carrying a using it
-/// does not need, which the build refuses (IDE0005 is an error here). It is a convenience, not a proof:
-/// the scratch builds of every operation subset are the proof.
-/// </remarks>
 internal static class Template
 {
     private static readonly HashSet<string> KnownFlags = new(StringComparer.Ordinal)
@@ -2216,7 +2231,6 @@ internal static class Template
         RegexOptions.None,
         TimeSpan.FromSeconds(2));
 
-    /// <summary>Whether a condition such as <c>agg&amp;wq</c> or <c>list|get</c> holds for these flags.</summary>
     internal static bool Evaluate(string condition, HashSet<string> flags) =>
         condition.Split('|').Any(group => group.Split('&').All(atom =>
         {
@@ -2232,7 +2246,6 @@ internal static class Template
             return flags.Contains(name) != negated;
         }));
 
-    /// <summary>Replaces every token, repeatedly, so a token's value may name another.</summary>
     internal static string Substitute(string text, Dictionary<string, string> tokens)
     {
         for (int pass = 0; pass < 3; pass++)
@@ -2299,10 +2312,6 @@ internal static class Template
         return Tidy(PruneUsings(Substitute(string.Join('\n', kept), tokens)));
     }
 
-    /// <summary>
-    /// Keeps a marked using only when the body names one of its types, then writes the block sorted,
-    /// the system namespaces first, which is how this repository's formatter wants it.
-    /// </summary>
     private static string PruneUsings(string text)
     {
         string[] lines = text.Split('\n');
@@ -2343,7 +2352,6 @@ internal static class Template
         return sorted.Length == 0 ? body : string.Join('\n', sorted) + "\n\n" + body;
     }
 
-    /// <summary>One blank line where there were several, none inside a brace, a single final newline.</summary>
     private static string Tidy(string text)
     {
         var lines = new List<string>();
@@ -2374,15 +2382,8 @@ internal static class Template
     }
 }
 
-/// <summary>
-/// The shapes, as text. Each is what its layer's conventions require and nothing more: no rule
-/// nobody stated, and no member for an operation nobody selected. Conditions are written in the
-/// flags <c>NewFeature.Flags</c> derives; the tokens are the ones <c>NewFeature.Tokens</c> defines.
-/// </summary>
 internal static class Templates
 {
-    // ---- Domain, aggregate shape ----------------------------------------------------------------
-
     internal const string Aggregate = """
         using %P%.Domain.Core.Common.Abstractions; //?IOwnedAggregate
         using %P%.Domain.Core.Common.Exceptions; //?DomainException
@@ -2390,23 +2391,13 @@ internal static class Templates
 
         namespace %P%.Domain.Features.%F%.Model.Entities;
 
-        /// <summary>
-        /// The aggregate root of the %F% feature and its consistency boundary: what protects the state of
-        /// %a% %L% is declared here and nowhere else.
-        /// </summary>
         public sealed class %A% : AuditableAggregateRoot<Guid>%Implements%
         {
-            /// <summary>The longest name, measured after trimming.</summary>
             public const int NameMaxLength = 200;
 
-            /// <summary>The longest description, in characters.</summary>
             public const int DescriptionMaxLength = 2_000;
         %if anon%
 
-            /// <summary>
-            /// What every text field of an anonymised %L% carries, so none keeps anything identifying
-            /// the account that owned it.
-            /// </summary>
             public const string AnonymisedText = "[deleted account]";
         %end%
 
@@ -2428,7 +2419,6 @@ internal static class Templates
             }
 
         %if owner%
-            /// <inheritdoc />
             public UserId OwnerId { get; }
 
         %end%
@@ -2443,7 +2433,6 @@ internal static class Templates
         %end%
 
         %if create%
-            /// <summary>Mints a new one. Every rule that guards a new %L% belongs here.</summary>
             public static %A% Create(
         %if owner%
                 UserId ownerId,
@@ -2459,11 +2448,6 @@ internal static class Templates
                     RequireDescription(description));
 
         %end%
-            /// <summary>
-            /// Rebuilds one from a stored row. It checks that the row is coherent, not that it is still
-            /// within today's limits: a limit applies to a write, so lowering one must not make stored
-            /// data unloadable.
-            /// </summary>
             public static %A% Rehydrate(
                 Guid id,
         %if owner%
@@ -2495,10 +2479,6 @@ internal static class Templates
 
         %end%
         %if anon%
-            /// <summary>
-            /// Rewrites this %L% so nothing identifies the account that owned it: the row stays — what
-            /// references it keeps meaning — and the text goes. The account-deleted policy's declared fate.
-            /// </summary>
             public void Anonymise()
             {
                 Name = AnonymisedText;
@@ -2542,7 +2522,6 @@ internal static class Templates
 
         namespace %P%.Domain.Features.%F%.Repositories;
 
-        /// <summary>Stated in domain types only, which is why it lives here and not one layer out.</summary>
         public interface I%A%Repository
         {
         %if change%
@@ -2550,11 +2529,6 @@ internal static class Templates
 
         %end%
         %if owner%
-            /// <summary>
-            /// Every %A% one owner holds, loaded as aggregates for the same reason a single load is: what
-            /// is done with them next — removal or anonymisation, on an account-deleted policy — goes
-            /// through the aggregate, not around it.
-            /// </summary>
             Task<IReadOnlyList<%A%>> GetForOwnerAsync(
                 UserId ownerId,
                 CancellationToken cancellationToken);
@@ -2570,31 +2544,15 @@ internal static class Templates
         }
         """;
 
-    // ---- Application, shared by both shapes -----------------------------------------------------
-
     internal const string ContentDto = """
         namespace %P%.Application.Features.%F%.Model.Dtos;
 
-        /// <summary>
-        /// What a caller may write: the text, and nothing else. The id comes from the route,
-        %if owner%
-        /// and the owner from the authenticated caller, so neither can be named in a body.
-        %else%
-        /// so a body cannot name it.
-        %end%
-        /// </summary>
         public sealed record %A%ContentDto(string Name, string Description);
         """;
 
     internal const string Dto = """
         namespace %P%.Application.Features.%F%.Model.Dtos;
 
-        /// <summary>
-        /// One %L% as a caller reads it.
-        %if etag%
-        /// The version travels beside it, not inside it.
-        %end%
-        /// </summary>
         public sealed record %A%Dto(
             Guid Id,
             string Name,
@@ -2606,7 +2564,6 @@ internal static class Templates
     internal const string SummaryDto = """
         namespace %P%.Application.Features.%F%.Model.Dtos;
 
-        /// <summary>%An% %L% inside a page: no description, so a page does not grow with the text of what is on it.</summary>
         public sealed record %A%SummaryDto(
             Guid Id,
             string Name,
@@ -2619,11 +2576,6 @@ internal static class Templates
 
         namespace %ListInputNamespace%;
 
-        /// <param name="Paging">"offset" (the default) or "cursor". Blank means offset.</param>
-        /// <param name="Page">1-based page number. Offset mode only.</param>
-        /// <param name="PageSize">Defaults to the policy's own default page size; must not exceed its ceiling.</param>
-        /// <param name="Cursor">Opaque, minted by a previous page's <c>nextCursor</c>. Cursor mode only.</param>
-        /// <param name="Sort">Comma-separated sort terms, e.g. <c>name:asc,createdAt:desc</c>. Cursor mode allows one.</param>
         public sealed record %ListInput%(
             string? Paging,
             int? Page,
@@ -2631,7 +2583,6 @@ internal static class Templates
             string? Cursor,
             string? Sort) : ICollectionQuery
         {
-            /// <summary>The common case: offset paging, nothing sorted or resumed.</summary>
             public static %ListInput% Offset(int? page, int? pageSize) => new(null, page, pageSize, null, null);
         }
         """;
@@ -2643,14 +2594,6 @@ internal static class Templates
 
         public static class %A%Errors
         {
-        %if owner%
-            /// <summary>
-            /// Also returned when the %L% belongs to somebody else: distinguishing the two would let a
-            /// caller enumerate other users' ids by comparing 403 against 404.
-            /// </summary>
-        %else%
-            /// <summary>The feature's failure vocabulary. Codes are stable; messages are not.</summary>
-        %end%
             public static Error %A%NotFound(Guid %L%Id) => Error.NotFound(
                 "%L%.notFound",
                 $"No %L% with id '{%L%Id}' was found.");
@@ -2663,7 +2606,6 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.Model.Policies;
 
-        /// <summary>The feature's own collection whitelist: both fields are non-null and indexed.</summary>
         public sealed class %A%CollectionPolicy : ICollectionPolicy
         {
             public const string NameField = "name";
@@ -2691,16 +2633,10 @@ internal static class Templates
     internal const string InputPolicy = """
         namespace %P%.Application.Features.%F%.Model.Policies;
 
-        /// <summary>
-        /// The size limits on %a% %L%'s text. With no domain model to hold them they are declared here once
-        /// and read by the validator that enforces them and by the column definitions that match.
-        /// </summary>
         public static class %A%InputPolicy
         {
-            /// <summary>The longest name, measured after trimming.</summary>
             public const int NameMaxLength = 200;
 
-            /// <summary>The longest description, in characters.</summary>
             public const int DescriptionMaxLength = 2_000;
         }
         """;
@@ -2708,10 +2644,6 @@ internal static class Templates
     internal const string Filter = """
         namespace %P%.Application.Features.%F%.Ports.%A%Queries;
 
-        /// <summary>
-        /// What a caller may narrow a page by: nothing yet. The paging foundation is generic over a
-        /// feature's filter, so the type exists for a first filterable field to be added to.
-        /// </summary>
         public sealed record %A%Filter
         {
             public static readonly %A%Filter None = new();
@@ -2727,18 +2659,9 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.Ports.%A%Queries;
 
-        /// <summary>
-        /// The read side of %a% %L%'s storage: projections onto DTOs, with nothing staged and nothing tracked.
-        %if owner%
-        /// Every method names the owner and scopes to it, which is what makes somebody else's %L% and a
-        /// missing one the same empty answer — with one exception: the sweep's owner listing, the one
-        /// read here that crosses owners, because no account is asking.
-        %end%
-        /// </summary>
         public interface I%A%Queries
         {
         %if list%
-            /// <summary>One page of %Scope%%F%. <paramref name="request"/> has already cleared the whitelist.</summary>
             Task<PagedResult<%A%SummaryDto>> %ListQuery%(
         %if owner%
                 UserId ownerId,
@@ -2748,14 +2671,6 @@ internal static class Templates
 
         %end%
         %if single%
-        %if etag%
-            /// <returns>
-            /// The %L% and the version a caller has to name to change it, read by one statement so the two
-            /// agree; or <c>null</c> when there is no such %L%.
-            /// </returns>
-        %else%
-            /// <returns>The %L%, or <c>null</c> when there is no such %L%.</returns>
-        %end%
             Task<%ReadDto%?> GetAsync(
         %if owner%
                 UserId ownerId,
@@ -2765,11 +2680,6 @@ internal static class Templates
         %end%
         %if owner%
 
-            /// <summary>
-            /// Every owner id that still holds a %L%, regardless of that account's fate: the
-            /// deleted-account sweep asks, then decides the fate itself through the account directory.
-            /// Distinct, unordered.
-            /// </summary>
             Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(CancellationToken cancellationToken = default);
         %end%
         }
@@ -2782,21 +2692,9 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.Ports.%A%Store;
 
-        /// <summary>
-        /// The write side of %a% %L%'s storage. There is no aggregate behind it: %a% %L% is data, so a write
-        /// takes the text itself.
-        %if owner%
-        /// Every method names the owner and scopes to it.
-        %end%
-        /// <para>
-        /// A write only stages. <see cref="Core.Common.Ports.IUnitOfWork"/> commits, so the caller decides
-        /// when the transaction ends.
-        /// </para>
-        /// </summary>
         public interface I%A%Store
         {
         %if create%
-            /// <summary>Stages a new %L%.</summary>
             void Add(
         %if owner%
                 UserId ownerId,
@@ -2807,10 +2705,6 @@ internal static class Templates
 
         %end%
         %if update%
-            /// <summary>Stages the replacement of %a% %L%'s text.</summary>
-            /// <returns>
-            /// <see cref="%A%ChangeStatus.Staged"/>, or why nothing was staged.
-            /// </returns>
             Task<%A%ChangeStatus> StageReplacementAsync(
         %if owner%
                 UserId ownerId,
@@ -2825,7 +2719,6 @@ internal static class Templates
 
         %end%
         %if delete%
-            /// <summary>Stages the removal of %a% %L%.</summary>
             Task<%A%ChangeStatus> StageRemovalAsync(
         %if owner%
                 UserId ownerId,
@@ -2838,26 +2731,12 @@ internal static class Templates
         %end%
         %if purge%
 
-            /// <summary>
-            /// Stages the removal of every %L% <paramref name="ownerId"/> holds: no precondition is
-            /// asked, because the account-deleted policy that calls this holds no version it could
-            /// name — it holds a fact instead.
-            /// </summary>
-            /// <returns>How many %F% were staged for removal; nothing was staged when the owner holds none.</returns>
             Task<int> StageRemovalForOwnerAsync(
                 UserId ownerId,
                 CancellationToken cancellationToken = default);
         %end%
         %if anon%
 
-            /// <summary>
-            /// Stages the anonymisation of every %L% <paramref name="ownerId"/> holds: no precondition
-            /// is asked, because the account-deleted policy that calls this holds no version it could
-            /// name — it holds a fact instead. The rows stay; what identifies the owner goes.
-            /// </summary>
-            /// <returns>
-            /// How many %F% were staged for anonymisation; nothing was staged when the owner holds none.
-            /// </returns>
             Task<int> StageAnonymisationForOwnerAsync(
                 UserId ownerId,
                 CancellationToken cancellationToken = default);
@@ -2868,27 +2747,17 @@ internal static class Templates
     internal const string ChangeStatus = """
         namespace %P%.Application.Features.%F%.Ports.%A%Store;
 
-        /// <summary>What staging a change to an existing %L% came to.</summary>
         public enum %A%ChangeStatus
         {
-            /// <summary>The change is staged and waits for the commit.</summary>
             Staged,
 
-        %if owner%
-            /// <summary>The caller has no such %L%: it does not exist, or it is somebody else's.</summary>
-        %else%
-            /// <summary>There is no such %L%.</summary>
-        %end%
             NotFound,
         %if etag%
 
-            /// <summary>The %L% exists, and it is no longer at a version the caller named.</summary>
             VersionMismatch,
         %end%
         }
         """;
-
-    // ---- Application, the service shape ---------------------------------------------------------
 
     internal const string ServicePort = """
         using %P%.Application.Core.Common.Concurrency; //?Versioned|VersionPrecondition|ConcurrencyErrors
@@ -2898,65 +2767,27 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.Services;
 
-        /// <summary>
-        /// Everything a caller can do with %Scope%%F%, one method per operation. Each answers on behalf of
-        /// the authenticated caller, which it reads itself.
-        %if owner%
-        /// No method takes an owner, so no caller can name somebody else's.
-        %else%
-        /// An anonymous caller is refused.
-        %end%
-        /// </summary>
-        /// <remarks>
-        /// A feature without rules to protect is a feature without a domain model, so this is the whole
-        /// application layer of it. Reads and writes are separate methods; the reads stage and commit
-        /// nothing, which is the only separation CQS asks for.
-        %if notfound%
-        /// %An% %L% the caller cannot see is <see cref="%A%Errors.%A%NotFound"/>.
-        %end%
-        /// </remarks>
         public interface I%A%Service
         {
         %if list%
-            /// <summary>One page of %Scope%%F%, sorted and paged.</summary>
             Task<Result<PagedResult<%A%SummaryDto>>> ListAsync(
                 %A%ListQueryDto query,
                 CancellationToken cancellationToken = default);
 
         %end%
         %if get%
-        %if etag%
-            /// <summary>One %L%, and the version a caller has to name to change it.</summary>
-        %else%
-            /// <summary>One %L%.</summary>
-        %end%
             Task<Result<%ReadDto%>> GetAsync(
                 Guid %L%Id,
                 CancellationToken cancellationToken = default);
 
         %end%
         %if create%
-            /// <summary>Creates %a% %L%.</summary>
             Task<Result<%ReadDto%>> CreateAsync(
                 %A%ContentDto content,
                 CancellationToken cancellationToken = default);
 
         %end%
         %if update%
-            /// <summary>Replaces %a% %L%'s text.</summary>
-        %if etag%
-            /// <param name="precondition">The versions the caller will accept, or <c>null</c> for an unconditional update.</param>
-            /// <returns>
-            /// The updated %L% and its new version; <see cref="%A%Errors.%A%NotFound"/>;
-            /// <see cref="ConcurrencyErrors.PreconditionFailed"/> when the %L% is no longer at a version the
-            /// caller named; or a validation failure.
-            /// </returns>
-        %else%
-            /// <returns>
-            /// The updated %L%; <see cref="%A%Errors.%A%NotFound"/>; or a validation failure. The update is
-            /// unconditional: of two concurrent writers the later one wins.
-            /// </returns>
-        %end%
             Task<Result<%ReadDto%>> UpdateAsync(
                 Guid %L%Id,
                 %A%ContentDto content,
@@ -2967,11 +2798,6 @@ internal static class Templates
 
         %end%
         %if delete%
-        %if update%
-            /// <summary>Deletes %a% %L%, on the same terms as <see cref="UpdateAsync"/>.</summary>
-        %else%
-            /// <summary>Deletes %a% %L%.</summary>
-        %end%
             Task<Result> DeleteAsync(
                 Guid %L%Id,
         %if etag%
@@ -3172,11 +2998,6 @@ internal static class Templates
 
         %end%
         %if single%
-        %if etag%
-            // The version is assigned by the database, so a write's answer is read back rather than assembled.
-        %else%
-            // A write's answer is read back, so it describes what was stored rather than what was sent.
-        %end%
             private async Task<Result<%ReadDto%>> ReadAsync(
         %if owner%
                 UserId ownerId,
@@ -3222,11 +3043,9 @@ internal static class Templates
                 RuleFor(content => content.Name)
                     .Cascade(CascadeMode.Stop)
                     .NotEmpty().WithMessage("%An% %L% name is required.")
-                    // Measured after trimming, because that is what is stored.
                     .Must(name => name.Trim().Length <= %Limits%.NameMaxLength)
                     .WithMessage($"%An% %L% name cannot exceed {%Limits%.NameMaxLength} characters.");
 
-                // An empty description is allowed; a missing one is a malformed request.
                 RuleFor(content => content.Description)
                     .Cascade(CascadeMode.Stop)
                     .NotNull().WithMessage("%An% %L% description is required; it may be empty.")
@@ -3236,8 +3055,6 @@ internal static class Templates
         }
         """;
 
-    // ---- Application, the use-case shape --------------------------------------------------------
-
     internal const string DtoMapping = """
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Features.%F%.Model.Dtos;
@@ -3245,11 +3062,6 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.Model.Mapping;
 
-        /// <summary>
-        /// Turns the aggregate a command just wrote into the DTO a read would have produced, without a
-        /// second query. Sound only because the tracker writes the store-assigned version and the audit
-        /// stamps back onto the aggregate inside <c>SaveChangesAsync</c>.
-        /// </summary>
         internal static class %A%DtoMapping
         {
             public static Versioned<%A%Dto> Detail(%A% %L%)
@@ -3271,28 +3083,12 @@ internal static class Templates
     internal const string AccessServicePort = """
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Model.Errors;
         using %P%.Domain.Features.%F%.Model.Entities;
 
         namespace %P%.Application.Features.%F%.Services;
 
-        /// <summary>
-        /// The one gate every %L% command loads its aggregate through, so every use case rejects the
-        /// same way for the same reasons instead of repeating the checks slightly differently each time.
-        /// </summary>
         public interface I%A%Service
         {
-            /// <returns>
-        %if owner%
-            /// The aggregate, or a failure: <see cref="%A%Errors.%A%NotFound"/> for an anonymous caller, an
-            /// unknown id or somebody else's, and <see cref="ConcurrencyErrors.PreconditionFailed"/> once
-            /// ownership is established but the caller named a version the aggregate no longer holds.
-        %else%
-            /// The aggregate, or a failure: <see cref="%A%Errors.%A%NotFound"/> for an anonymous caller or an
-            /// unknown id, and <see cref="ConcurrencyErrors.PreconditionFailed"/> when the caller named a
-            /// version the aggregate no longer holds.
-        %end%
-            /// </returns>
             Task<Result<%A%>> %Load%(
                 Guid %L%Id,
                 VersionPrecondition? precondition,
@@ -3339,8 +3135,6 @@ internal static class Templates
                     return Result.Failure<%A%>(%A%Errors.%A%NotFound(%L%Id));
                 }
 
-                // Compared against the aggregate just loaded, so nothing can commit between the
-                // comparison and whatever the caller does with the result.
                 return precondition is not null && !precondition.IsSatisfiedBy(aggregate.Version)
                     ? Result.Failure<%A%>(ConcurrencyErrors.PreconditionFailed)
                     : Result.Success(aggregate);
@@ -3416,10 +3210,6 @@ internal static class Templates
                     return userId.To<Versioned<%A%Dto>>();
                 }
 
-        %if owner%
-                // Ownership goes into the query, not a check afterwards: fetching first would already have
-                // pulled another user's data into memory.
-        %end%
                 var found = await queries.GetAsync(%SvcOwner%query.%A%Id, cancellationToken);
 
                 return found is null
@@ -3499,11 +3289,9 @@ internal static class Templates
                 RuleFor(command => command.Name)
                     .Cascade(CascadeMode.Stop)
                     .NotEmpty().WithMessage("%An% %L% name is required.")
-                    // Measured after trimming, like the domain measures it.
                     .Must(name => name.Trim().Length <= %A%.NameMaxLength)
                     .WithMessage($"%An% %L% name cannot exceed {%A%.NameMaxLength} characters.");
 
-                // An empty description is allowed; a missing one is a malformed request.
                 RuleFor(command => command.Description)
                     .Cascade(CascadeMode.Stop)
                     .NotNull().WithMessage("%An% %L% description is required; it may be empty.")
@@ -3578,9 +3366,6 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
 
-        /// <param name="Precondition">
-        /// The versions the caller will accept, or <c>null</c> for an unconditional update.
-        /// </param>
         public sealed record Update%A%Command(
             Guid %A%Id,
             string Name,
@@ -3604,7 +3389,6 @@ internal static class Templates
                 RuleFor(command => command.Name)
                     .Cascade(CascadeMode.Stop)
                     .NotEmpty().WithMessage("%An% %L% name is required.")
-                    // Measured after trimming, like the domain measures it.
                     .Must(name => name.Trim().Length <= %A%.NameMaxLength)
                     .WithMessage($"%An% %L% name cannot exceed {%A%.NameMaxLength} characters.");
 
@@ -3667,8 +3451,6 @@ internal static class Templates
 
                 var %L% = loaded.Value;
 
-                // No try/catch: Update only rejects what the validator above already rejected, so a
-                // DomainException here means the two disagree, which is a bug to surface.
                 %L%.Update(command.Name, command.Description);
 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -3683,9 +3465,6 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Delete%A%;
 
-        /// <param name="Precondition">
-        /// The versions the caller will accept, or <c>null</c> for an unconditional delete.
-        /// </param>
         public sealed record Delete%A%Command(Guid %A%Id, VersionPrecondition? Precondition = null);
         """;
 
@@ -3747,7 +3526,6 @@ internal static class Templates
                     return loaded;
                 }
 
-                // No projection to return: the resource is gone, so there is nothing left to describe.
                 repository.Remove(loaded.Value);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -3756,19 +3534,9 @@ internal static class Templates
         }
         """;
 
-    // ---- Persistence ----------------------------------------------------------------------------
-
     internal const string RecordPlain = """
         namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
-        /// <summary>
-        /// How %a% %L% is stored, and the only model it has: there is no aggregate and no mapper, so the
-        /// store reads and writes this row directly and projects it to DTOs.
-        /// <para>
-        /// It is not <c>IAuditable</c>: the two instants it keeps are set by the service that owns the
-        /// operation, so the audit interceptor has nothing here to stamp.
-        /// </para>
-        /// </summary>
         internal sealed class %A%Record
         {
             public Guid Id { get; set; }
@@ -3786,11 +3554,6 @@ internal static class Templates
             public DateTimeOffset? LastModifiedAt { get; set; }
         %if etag%
 
-            /// <summary>
-            /// PostgreSQL's <c>xmin</c> system column. Never written by this process: the database moves it on
-            /// every <c>UPDATE</c>, EF reads it back, and the value goes into the <c>WHERE</c> clause of the
-            /// next write.
-            /// </summary>
             public uint Version { get; set; }
         %end%
         }
@@ -3801,11 +3564,6 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
 
-        /// <summary>
-        /// How %a% %L% is stored. This is not the aggregate: it is a row, with settable properties, no
-        /// behaviour and no invariants. It implements <see cref="IAuditable"/> so the shared audit
-        /// interceptor stamps it; the stamps flow record to aggregate, never the other way.
-        /// </summary>
         internal sealed class %A%Record : IAuditable
         {
             public Guid Id { get; set; }
@@ -3818,11 +3576,6 @@ internal static class Templates
 
             public string Description { get; set; } = string.Empty;
 
-            /// <summary>
-            /// PostgreSQL's <c>xmin</c> system column. Never written by this process: the database moves it on
-            /// every <c>UPDATE</c>, EF reads it back, and the value goes into the <c>WHERE</c> clause of the
-            /// next write.
-            /// </summary>
             public uint Version { get; set; }
 
             public DateTimeOffset CreatedAt { get; set; }
@@ -3860,22 +3613,16 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Configurations;
 
-        /// <summary>
-        /// Mapping for the %L% row: column lengths and what its reads and writes need of the table.
-        /// Lengths come from <see cref="%Limits%"/>, so the column and the validator cannot drift apart.
-        /// </summary>
         internal sealed class %A%RecordConfiguration : IEntityTypeConfiguration<%A%Record>
         {
             public void Configure(EntityTypeBuilder<%A%Record> builder)
             {
                 ArgumentNullException.ThrowIfNull(builder);
 
-                // This context holds several schemas, so every table names its own rather than inheriting one.
                 builder.ToTable("%F%", AppDbContext.%F%Schema);
 
                 builder.HasKey(record => record.Id);
 
-                // Ids are UUIDv7, created before the insert: sequential enough to keep index inserts local.
                 builder.Property(record => record.Id).ValueGeneratedNever();
 
         %if owner%
@@ -3884,15 +3631,12 @@ internal static class Templates
         %end%
         %if list%
         %if owner%
-                // One index per sortable field, leading with OwnerId, which every read filters by, and
-                // ending in Id, the tiebreaker %A%SortMap always appends.
                 builder.HasIndex(record => new { record.OwnerId, record.Name, record.Id })
                     .HasDatabaseName("IX_%F%_OwnerId_Name_Id");
 
                 builder.HasIndex(record => new { record.OwnerId, record.CreatedAt, record.Id })
                     .HasDatabaseName("IX_%F%_OwnerId_CreatedAt_Id");
         %else%
-                // One index per sortable field, ending in Id, the tiebreaker %A%SortMap always appends.
                 builder.HasIndex(record => new { record.Name, record.Id })
                     .HasDatabaseName("IX_%F%_Name_Id");
 
@@ -3925,8 +3669,6 @@ internal static class Templates
         %end%
         %if etag%
 
-                // PostgreSQL's xmin system column, which already exists: EF reads it back after a write and
-                // puts it in the WHERE clause of the next UPDATE or DELETE of the row.
                 builder.Property(record => record.Version)
                     .HasColumnName("xmin")
                     .HasColumnType("xid")
@@ -3948,26 +3690,6 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Stores;
 
-        /// <summary>
-        /// The adapter for <see cref="I%A%Store"/>: it stages changes to <see cref="%A%Record"/> rows
-        /// directly, with no mapper, tracker or event source, and never commits.
-        %if change%
-        %if etag%
-        /// <para>
-        /// <b>Where a stale write is refused.</b> A change loads the row tracked, checks the caller's
-        /// versions against it, and stages the edit. EF then writes
-        /// <c>UPDATE … WHERE "Id" = @id AND xmin = @loaded</c> (or the <c>DELETE</c> likewise), and a row the
-        /// database no longer finds at that <c>xmin</c> is a rejected write, which the unit of work reports
-        /// as a conflict. The database, not the earlier read, has the last word.
-        /// </para>
-        %else%
-        /// <para>
-        /// A change loads the row tracked and stages the edit. There is no version to compare, so of two
-        /// concurrent writers the later one wins.
-        /// </para>
-        %end%
-        %end%
-        /// </summary>
         internal sealed class %A%Store(AppDbContext context) : I%A%Store
         {
         %if create%
@@ -4071,18 +3793,6 @@ internal static class Templates
 
         %end%
         %if change%
-        %if etag%
-            /// <summary>
-        %if owner%
-            /// Ownership first, then the caller's versions, in that order: %a% %L% that is not the caller's is
-            /// never reported as stale. The row stays tracked at the version it was loaded at, which is what
-            /// the commit's <c>WHERE xmin = …</c> compares.
-        %else%
-            /// The existence first, then the caller's versions. The row stays tracked at the version it was
-            /// loaded at, which is what the commit's <c>WHERE xmin = …</c> compares.
-        %end%
-            /// </summary>
-        %end%
             private async Task<(%A%ChangeStatus Status, %A%Record? Record)> LoadForChangeAsync(
         %if owner%
                 UserId ownerId,
@@ -4112,11 +3822,6 @@ internal static class Templates
         %end%
         %if purge%
 
-            /// <summary>
-            /// Stages the removal of the owner's every %L% in one load: the rows are loaded tracked so
-            /// the commit deletes them, and no version is checked because the caller of this holds
-            /// none — see the port.
-            /// </summary>
             public async Task<int> StageRemovalForOwnerAsync(
                 UserId ownerId,
                 CancellationToken cancellationToken = default)
@@ -4134,11 +3839,6 @@ internal static class Templates
         %end%
         %if anon%
 
-            /// <summary>
-            /// Stages the anonymisation of the owner's every %L% in one load: the rows are loaded
-            /// tracked so the commit rewrites them, and no version is checked because the caller of
-            /// this holds none — see the port.
-            /// </summary>
             public async Task<int> StageAnonymisationForOwnerAsync(
                 UserId ownerId,
                 CancellationToken cancellationToken = default)
@@ -4158,10 +3858,6 @@ internal static class Templates
                 return records.Count;
             }
 
-            /// <summary>
-            /// What every text field of an anonymised %L% carries, so none keeps anything identifying
-            /// the account that owned it.
-            /// </summary>
             private const string AnonymisedText = "[deleted account]";
         %end%
         }
@@ -4223,11 +3919,8 @@ internal static class Templates
                     Name = aggregate.Name,
                     Description = aggregate.Description,
 
-                    // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
-                    // total and the fidelity test can check it.
                     Version = aggregate.Version,
 
-                    // Overwritten by the audit interceptor, which runs after this.
                     CreatedAt = aggregate.CreatedAt,
                     CreatedBy = aggregate.CreatedBy,
                     LastModifiedAt = aggregate.LastModifiedAt,
@@ -4286,8 +3979,6 @@ internal static class Templates
                 {
                     var entry = context.Entry(tracked.Record);
 
-                    // A Deleted entry would resurrect columns EF is about to drop, and a Detached
-                    // one would silently take the write.
                     if (tracked.IsRemoved || entry.State is EntityState.Deleted or EntityState.Detached)
                     {
                         continue;
@@ -4297,8 +3988,6 @@ internal static class Templates
 
                     if (entry.State != EntityState.Added)
                     {
-                        // Setting the original value does not mark the property modified, so this
-                        // reaches the WHERE clause only.
                         entry.Property(record => record.Version).OriginalValue = tracked.Aggregate.Version;
                     }
                 }
@@ -4326,8 +4015,6 @@ internal static class Templates
         %if change%
             public async Task<%A%?> GetAsync(Guid id, CancellationToken cancellationToken)
             {
-                // The identity map first: two use cases in one request must get the same object, or
-                // the flush would keep whichever copy it saw last.
                 if (tracker.Find(id) is { } alreadyLoaded)
                 {
                     return alreadyLoaded;
@@ -4403,8 +4090,6 @@ internal static class Templates
         }
         """;
 
-    // ---- Application, the account-deleted reaction of a feature that owns user data -------------------
-
     internal const string AccountDeletedConsumer = """
         using %P%.Application.Core.Common.Events; //?UserAccountDeleted
         using %P%.Application.Core.Common.Ports; //?IDeletedAccountDataPolicy|IUserAccountDirectory|IUnitOfWork
@@ -4419,18 +4104,6 @@ internal static class Templates
 
         namespace %P%.Application.Features.%F%.Services.Consumers;
 
-        /// <summary>
-        /// The %F%' declared fate for the data of a deleted account: <b>%Fate%</b>. The rows are this
-        /// feature's, so the decision is made here rather than by the account that left.
-        /// <para>
-        /// This runs after the transaction that removed the account has already committed, so it owns
-        /// committing its own change through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
-        /// the same <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never
-        /// reaching this consumer, and the precondition is re-derived through
-        /// <see cref="IUserAccountDirectory"/> rather than trusted, so a redelivery — or an account
-        /// recreated under the same id — cannot touch a live owner's %F%.
-        /// </para>
-        /// </summary>
         internal sealed class %Verb%%A%OnAccountDeletedConsumer(
         %if rec%
             I%A%Store store,
@@ -4453,8 +4126,6 @@ internal static class Templates
             {
                 ArgumentNullException.ThrowIfNull(owner);
 
-                // The precondition, re-derived: an account that exists again — or never left — keeps its
-                // %F%, whatever this call was told.
                 if (await accounts.ExistsAsync(owner, cancellationToken))
                 {
                     return false;
@@ -4464,7 +4135,6 @@ internal static class Templates
         %if rec%
                 int staged = await store.StageRemovalForOwnerAsync(owner, cancellationToken);
 
-                // Also what a redelivery finds: an owner with nothing staged is simply a finished one.
                 if (staged == 0)
                 {
                     return false;
@@ -4473,8 +4143,6 @@ internal static class Templates
         %if agg%
                 var owned = await repository.GetForOwnerAsync(owner, cancellationToken);
 
-                // Also what a redelivery finds: removal is idempotent, but there is no point loading
-                // and saving nothing to prove it.
                 if (owned.Count == 0)
                 {
                     return false;
@@ -4490,7 +4158,6 @@ internal static class Templates
         %if rec%
                 int staged = await store.StageAnonymisationForOwnerAsync(owner, cancellationToken);
 
-                // Also what a redelivery finds: an owner with nothing staged is simply a finished one.
                 if (staged == 0)
                 {
                     return false;
@@ -4499,8 +4166,6 @@ internal static class Templates
         %if agg%
                 var owned = await repository.GetForOwnerAsync(owner, cancellationToken);
 
-                // Also what a redelivery finds: what is already anonymised keeps nothing that
-                // identifies anybody, but there is no point loading and saving nothing to prove it.
                 if (owned.Count == 0)
                 {
                     return false;
@@ -4524,63 +4189,15 @@ internal static class Templates
         }
         """;
 
-    // ---- The reaction a tree generated with no feature gains with its first owner feature -------------
-
     internal const string DeletedAccountDataPolicy = """
         using %P%.Domain.Core.Common.Primitives;
 
         namespace %P%.Application.Core.Common.Ports;
 
-        /// <summary>
-        /// What one feature does with the data of an account that is gone, declared by that feature and
-        /// applied by it: the fate of a deleted account's rows is their owner's decision, not the
-        /// account's, and not the sweep's.
-        /// <para>
-        /// A feature that holds user data implements this alongside its consumer of
-        /// <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/> — usually as the
-        /// same class — and registers both with its own composition. The consumer is the fast path; the
-        /// sweep is the guarantee; this port is the one path they share, which is why
-        /// <see cref="ApplyAsync"/> re-derives the whole precondition rather than assuming the account is
-        /// gone because somebody said so.
-        /// </para>
-        /// </summary>
         public interface IDeletedAccountDataPolicy
         {
-            /// <summary>
-            /// Applies this feature's policy — delete or anonymise, whichever it declared — to the data
-            /// one owner still holds here.
-            /// </summary>
-            /// <remarks>
-            /// <para>
-            /// <b>Transaction.</b> One call is one transaction of this feature's own, committed before it
-            /// returns, independent of the request that caused it: the account's deletion has already
-            /// committed, and a failure here must never be reported as a failure of that.
-            /// </para>
-            /// <para>
-            /// <b>Idempotence.</b> The precondition is re-derived through
-            /// <see cref="IUserAccountDirectory"/>: when the account exists again, or never left, nothing
-            /// is written. An owner with no data here is the same answer as one already swept.
-            /// </para>
-            /// <para>
-            /// <b>Retry.</b> A failure propagates to the caller — the event's consumer logs it, the sweep
-            /// retries the owner at its next pass — and the next attempt starts from the precondition,
-            /// never from a partial run.
-            /// </para>
-            /// </remarks>
-            /// <param name="owner">The deleted account to act on.</param>
-            /// <param name="cancellationToken">Cancels the work.</param>
-            /// <returns>
-            /// <c>true</c> when this call removed or rewrote data; <c>false</c> when there was none, or
-            /// the account names an account again.
-            /// </returns>
             Task<bool> ApplyAsync(UserId owner, CancellationToken cancellationToken = default);
 
-            /// <summary>
-            /// Every owner id that still has data here, whatever its account's fate: the sweep asks for the
-            /// ids and decides the fate itself, through the directory, so the same question is never
-            /// answered two ways in one pass.
-            /// </summary>
-            /// <param name="cancellationToken">Cancels the listing.</param>
             Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(CancellationToken cancellationToken = default);
         }
         """;
@@ -4590,21 +4207,8 @@ internal static class Templates
 
         namespace %P%.Application.Core.Common.Ports;
 
-        /// <summary>
-        /// Whether an id still names an account. The contract the account-deleted reaction rests on: a
-        /// consumer of <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/> and the
-        /// sweep behind it both re-derive from the directory rather than trust that the fact reached them,
-        /// so a delivery that is late, duplicated or replayed cannot delete the data of an account that
-        /// exists.
-        /// <para>
-        /// Accounts owns no feature here, and this port names none. The host supplies the adapter: over
-        /// the local accounts when the template keeps its own, over the external-identity mapping when it
-        /// does not — the same choice <c>ICurrentUser</c> is resolved by.
-        /// </para>
-        /// </summary>
         public interface IUserAccountDirectory
         {
-            /// <returns>Whether an account exists under <paramref name="userId"/> right now.</returns>
             Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default);
         }
         """;
@@ -4615,11 +4219,6 @@ internal static class Templates
 
         namespace %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
-        /// <summary>
-        /// Removes the data of accounts that are gone, whether or not the deletion event reached the
-        /// feature that holds it. Administrative rather than user-facing: nothing about a caller's own
-        /// request needs this. Scheduled on the maintenance timer.
-        /// </summary>
         public interface ISweepDeletedAccountDataUseCase : IUseCase<Result<int>>
         {
         }
@@ -4632,41 +4231,13 @@ internal static class Templates
 
         namespace %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
-        /// <summary>
-        /// The guarantee behind <see cref="%P%.Application.Core.Common.Events.UserAccountDeleted"/>:
-        /// a fact published in process is not a fact delivered, and a consumer that threw — or was never
-        /// reached because the process died between the commit and the publication — leaves rows owned by
-        /// an id that names no account. This pass finds them, by asking each feature for the owner ids that
-        /// still have data and letting the feature's own <see cref="IDeletedAccountDataPolicy"/> re-derive
-        /// the precondition against <see cref="IUserAccountDirectory"/>, so the sweep decides nothing a
-        /// feature did not declare.
-        /// <para>
-        /// <b>One host at a time.</b> The whole pass runs under <see cref="ILeaderLease"/>, for the reason
-        /// <c>FireDueRemindersUseCase</c> gives: two hosts sweeping the same owner are safe — each
-        /// application is idempotent and per-owner committed — but systematically duplicating every pass
-        /// is a connection spent for nothing.
-        /// </para>
-        /// <para>
-        /// <b>Resumption.</b> Each owner is one transaction of the feature's own, committed before the
-        /// next begins, so a pass that dies mid-way has kept what it did and redoes nothing. An owner
-        /// whose application throws is logged and skipped, never allowed to stop its neighbours: a poisoned
-        /// owner must not become a retention policy for everybody else's data.
-        /// </para>
-        /// <para>
-        /// <b>Cost.</b> One listing per feature and one directory lookup per listed owner, inside the
-        /// policy; the lookups are what a pass scales with. A template-scale owner count makes this
-        /// negligible, and the interval is the maintenance timer's.
-        /// </para>
-        /// </summary>
         public sealed class SweepDeletedAccountDataUseCase(
             IEnumerable<IDeletedAccountDataPolicy> policies,
             ILeaderLease lease,
             ILogger<SweepDeletedAccountDataUseCase> logger) : ISweepDeletedAccountDataUseCase
         {
-            /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
             private const string _leaseName = "apptemplate.accounts.sweep-deleted-data";
 
-            /// <inheritdoc />
             public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
             {
                 int swept = 0;
@@ -4698,8 +4269,6 @@ internal static class Templates
                     {
                         try
                         {
-                            // The policy re-derives the precondition: an account that exists again, or
-                            // never left, leaves its data alone, whatever this pass assumed.
                             if (await policy.ApplyAsync(owner, cancellationToken))
                             {
                                 swept++;
@@ -4707,7 +4276,6 @@ internal static class Templates
                         }
                         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
-                            // Shutdown, not a failed owner: end the pass instead of logging it.
                             throw;
                         }
                         catch (Exception exception)
@@ -4736,17 +4304,6 @@ internal static class Templates
 
         internal static class DeletedAccountSweepJobsExtensions
         {
-            /// <summary>
-            /// Contributes the deleted-account data sweep to the maintenance timer: the pass that
-            /// guarantees what the <c>UserAccountDeleted</c> event only makes fast.
-            /// </summary>
-            /// <remarks>
-            /// Not any one feature's purge, which is why it is not registered from a feature's own
-            /// composition: every feature that owns user data declares its policy, and this one task
-            /// sweeps them all. Registered from the background composition, gated on accounts — a host
-            /// without accounts holds no data an account's deletion could orphan. Inert on an instance
-            /// that runs no jobs, like every other contribution to the timer.
-            /// </remarks>
             internal static IServiceCollection AddDeletedAccountSweepJobs(
                 this IServiceCollection services,
                 IConfiguration configuration)
@@ -4772,15 +4329,6 @@ internal static class Templates
     internal const string DeletedAccountSweepOptions = """
         namespace %P%.Api.Features.BackgroundJobs.Jobs;
 
-        /// <summary>
-        /// The off switch of the deleted-account data sweep, read from the maintenance section next to the
-        /// other purges': <c>Jobs:Maintenance:SweepDeletedAccountsDataEnabled</c>.
-        /// <para>
-        /// A class of its own, for the same reason <c>RefreshTokenPurgeOptions</c> is: a project generated
-        /// without accounts loses the key together with the sweep. Internal, and without a section name of
-        /// its own: the section is the maintenance timer's.
-        /// </para>
-        /// </summary>
         internal sealed class DeletedAccountSweepOptions
         {
             public bool SweepDeletedAccountsDataEnabled { get; set; } = true;
@@ -4794,11 +4342,6 @@ internal static class Templates
 
         namespace %P%.Api.Features.Auth.Composition;
 
-        /// <summary>
-        /// <see cref="IUserAccountDirectory"/> over the local accounts: an id names an account exactly
-        /// when the user store still holds a profile for it. Neither the directory's contract nor the
-        /// accounts' feature names the other, so this adapter is where they meet.
-        /// </summary>
         internal sealed class AccountUserAccountDirectory(IAccountsService accounts) : IUserAccountDirectory
         {
             public async Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default)
@@ -4817,11 +4360,6 @@ internal static class Templates
 
         namespace %P%.Api.Features.ExternalIdentity.Composition;
 
-        /// <summary>
-        /// <see cref="IUserAccountDirectory"/> over the external-identity mapping: an id names an account
-        /// exactly when some provider's subject is still mapped to it. Neither the directory's contract
-        /// nor the mapping's feature names the other, so this adapter is where they meet.
-        /// </summary>
         internal sealed class ExternalIdentityUserAccountDirectory(
             IExternalIdentityService externalIdentities) : IUserAccountDirectory
         {
@@ -4848,15 +4386,6 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Queries;
 
-        /// <summary>
-        /// The read side: every method projects straight from <see cref="%A%Record"/> into a DTO, so the SQL
-        /// selects only the columns the DTO needs and nothing is tracked.
-        %if owner%
-        /// Every query names the owner, so a missing %L% and somebody else's are the same empty answer and
-        /// no row of another user is read first and compared afterwards — except the sweep's owner listing,
-        /// the one read here that crosses owners, because no account is asking.
-        %end%
-        /// </summary>
         internal sealed class %A%Queries(AppDbContext context) : I%A%Queries
         {
         %if list%
@@ -4884,12 +4413,6 @@ internal static class Templates
 
         %end%
         %if single%
-        %if etag%
-            /// <remarks>
-            /// <c>xmin</c> is selected by the same statement as the representation, so the version describes
-            /// exactly the row that was read.
-            /// </remarks>
-        %end%
             public Task<%ReadDto%?> GetAsync(
         %if owner%
                 UserId ownerId,
@@ -4921,11 +4444,6 @@ internal static class Templates
 
         %end%
         %if owner%
-            /// <remarks>
-            /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
-            /// which ids still hold data, and returns ids only. The primitive is built client-side, because
-            /// its factory validates and validation is not SQL.
-            /// </remarks>
             public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
                 CancellationToken cancellationToken = default)
             {
@@ -4964,7 +4482,6 @@ internal static class Templates
                 FeaturePageRequest<%A%Filter> request,
                 CancellationToken cancellationToken)
             {
-                // The binding refuses a multi-term sort under paging=cursor, so there is exactly one term.
                 var term = request.Sort.Terms[0];
                 int pageSize = request.Paging.PageSize;
 
@@ -4972,7 +4489,6 @@ internal static class Templates
                     ? %A%SortMap.ApplyKeyset(scoped, term, cursor)
                     : scoped;
 
-                // One row beyond the page answers "is there a next page" without a second query.
                 var items = await %A%SortMap.ApplyOrder(keysetSource, request.Sort)
                     .Take(pageSize + 1)
                     .Select(_toSummary)
@@ -5008,15 +4524,6 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Queries;
 
-        /// <summary>
-        /// Where <see cref="%A%CollectionPolicy"/>'s whitelisted names become columns. No user string
-        /// reaches an expression: every method switches on the field, and the <c>default</c> arm throws,
-        /// because the policy has already refused anything else and reaching it is a defect.
-        /// </summary>
-        /// <remarks>
-        /// The tiebreaker on <c>Id</c> runs in the direction of the last term, so keyset resumption and
-        /// ordering walk ties the same way.
-        /// </remarks>
         internal static class %A%SortMap
         {
             public static IOrderedQueryable<%A%Record> ApplyOrder(IQueryable<%A%Record> source, SortOrder sort)
@@ -5031,13 +4538,11 @@ internal static class Templates
                     ordered = ordered is null ? OrderByTerm(source, term) : ThenByTerm(ordered, term);
                 }
 
-                // sort.Terms is never empty, so ordered is always assigned here.
                 return sort.Terms[^1].Direction == SortDirection.Ascending
                     ? ordered!.ThenBy(record => record.Id)
                     : ordered!.ThenByDescending(record => record.Id);
             }
 
-            /// <summary>The keyset row comparison: <c>key &gt; k || (key == k &amp;&amp; Id &gt; id)</c>, mirrored descending.</summary>
             public static IQueryable<%A%Record> ApplyKeyset(IQueryable<%A%Record> source, SortTerm term, Cursor cursor)
             {
                 ArgumentNullException.ThrowIfNull(source);
@@ -5053,10 +4558,6 @@ internal static class Templates
                 };
             }
 
-            /// <summary>
-            /// The value the next cursor carries, read from the last row served. It reads the projected
-            /// summary, so a keyset field added later has to appear on the DTO before this switch can name it.
-            /// </summary>
             public static string KeyOf(%A%SummaryDto summary, string field)
             {
                 ArgumentNullException.ThrowIfNull(summary);
@@ -5113,7 +4614,6 @@ internal static class Templates
                 SortDirection direction,
                 Cursor cursor)
             {
-                // CursorKeys has already validated that the key parses, so failing here is a defect.
                 if (!DateTimeOffset.TryParse(
                     cursor.Key,
                     CultureInfo.InvariantCulture,
@@ -5135,22 +4635,14 @@ internal static class Templates
         }
         """;
 
-    // ---- Api ------------------------------------------------------------------------------------
-
     internal const string CreateRequest = """
         namespace %P%.Api.Features.%F%.Contracts.Requests;
 
-        /// <summary>
         %if owner%
-        /// The owner is the authenticated caller and is not a field here.
+        /// <summary>The %L% to create, whose owner is the authenticated caller.</summary>
         %else%
-        /// The body of a create: the text, and nothing else.
+        /// <summary>The %L% to create.</summary>
         %end%
-        %if update%
-        /// Deliberately not shared with <see cref="Update%A%Request"/>: creating and updating are two
-        /// operations whose bodies happen to agree today and will diverge on their own schedules.
-        %end%
-        /// </summary>
         /// <param name="Name">Required, at most 200 characters once trimmed.</param>
         /// <param name="Description">Required but may be empty, at most 2000 characters.</param>
         public sealed record Create%A%Request(string Name, string Description);
@@ -5159,7 +4651,7 @@ internal static class Templates
     internal const string UpdateRequest = """
         namespace %P%.Api.Features.%F%.Contracts.Requests;
 
-        /// <summary>Carries no %L% id: that travels in the route, so the two cannot disagree.</summary>
+        /// <summary>The new text of %a% %L%, whose id travels in the route.</summary>
         /// <param name="Name">Required, at most 200 characters once trimmed.</param>
         /// <param name="Description">Required but may be empty, at most 2000 characters.</param>
         public sealed record Update%A%Request(string Name, string Description);
@@ -5168,12 +4660,12 @@ internal static class Templates
     internal const string ListRequest = """
         namespace %P%.Api.Features.%F%.Contracts.Requests;
 
-        /// <summary>
-        /// Bound from the query string. <c>page</c> and <c>pageSize</c> are typed as <see cref="int"/>?, so a
-        /// value that is not a number is answered by model binding with <c>request.validationFailed</c>;
-        /// every other violation of the collection contract is decided by the application layer under its
-        /// own specific code.
-        /// </summary>
+        /// <summary>The paging and sorting of a list, bound from the query string.</summary>
+        /// <param name="Paging"><c>offset</c> (the default) or <c>cursor</c>.</param>
+        /// <param name="Page">The page number, in offset mode.</param>
+        /// <param name="PageSize">The number of items per page.</param>
+        /// <param name="Cursor">The previous page's <c>nextCursor</c>, in cursor mode.</param>
+        /// <param name="Sort">Comma-separated fields (<c>name</c>, <c>createdAt</c>), each optionally suffixed <c>:asc</c> or <c>:desc</c>; at most one in cursor mode.</param>
         public sealed record Get%F%Request(
             string? Paging,
             int? Page,
@@ -5186,7 +4678,7 @@ internal static class Templates
         namespace %P%.Api.Features.%F%.Contracts.Responses;
 
         %if etag%
-        /// <summary>The wire shape of one %L%. Its version is the <c>ETag</c> header, not a field.</summary>
+        /// <summary>The wire shape of one %L%, whose version travels in the <c>ETag</c> header.</summary>
         %else%
         /// <summary>The wire shape of one %L%.</summary>
         %end%
@@ -5218,10 +4710,6 @@ internal static class Templates
 
         namespace %P%.Api.Features.%F%.Contracts.Mapping;
 
-        /// <summary>
-        /// Projects the feature's application DTOs onto its wire contracts. Positional records plus
-        /// <c>TreatWarningsAsErrors</c> make a member added on either side fail the build here.
-        /// </summary>
         internal static class %A%ResponseMapping
         {
         %if dto%
@@ -5290,24 +4778,6 @@ internal static class Templates
 
         namespace %P%.Api.Features.%F%.Controllers;
 
-        /// <summary>
-        /// The HTTP surface of the %F% feature.
-        /// </summary>
-        /// <remarks>
-        %if etag%
-        /// A single %L% publishes its version as a strong <c>ETag</c>, and its writes honour <c>If-Match</c>.
-        %else%
-        /// This feature carries no version: no <c>ETag</c> is published and no <c>If-Match</c> is read, so
-        /// of two concurrent writers the later one wins.
-        %end%
-        %if owner%
-        /// Every operation is scoped to the authenticated caller, and %a% %L% that is somebody else's is
-        /// answered exactly as a missing one.
-        %else%
-        /// Every authenticated caller reaches the same records; there is no owner to scope by.
-        %end%
-        /// See <c>docs/ADDING-A-FEATURE.md</c> for the conventions this surface shares with the others.
-        /// </remarks>
         [Route("api/v{version:apiVersion}/%R%")]
         [Asp.Versioning.ApiVersion("1.0")]
         [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -5315,15 +4785,7 @@ internal static class Templates
             %CtorParams%) : ApiControllerBase
         {
         %if list%
-            /// <summary>Lists %Scope%%F%, sorted and paginated.</summary>
-            /// <remarks>
-            /// Two paging modes: <c>offset</c> (the default), addressed by <c>page</c>/<c>pageSize</c> and
-            /// answering a <c>totalCount</c>; and <c>cursor</c>, addressed by an opaque <c>cursor</c> token
-            /// minted by the previous page's <c>nextCursor</c>, which never counts the whole match set.
-            /// <c>sort</c> is a comma-separated list of whitelisted fields (<c>name</c>, <c>createdAt</c>),
-            /// each optionally suffixed <c>:asc</c>/<c>:desc</c>; cursor mode allows at most one. A page
-            /// carries names only, not descriptions.
-            /// </remarks>
+            /// <summary>Lists %Scope%%F%, sorted and paginated, names only.</summary>
             [HttpGet]
             [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<%A%SummaryResponse>))]
             [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -5357,16 +4819,7 @@ internal static class Templates
 
         %end%
         %if create%
-            /// <summary>Creates %a% %L%.</summary>
-            /// <remarks>
-        %if etag%
-            /// No <c>If-Match</c>: the resource does not exist yet, so there is no version to name.
-        %end%
-            /// Idempotent: send an <c>Idempotency-Key</c> header to make a retried request safe. Repeating
-            /// the same key with the same body returns the first response again, carrying
-            /// <c>Idempotency-Replayed: true</c>, instead of creating a second %L%; repeating it with a
-            /// different body is refused with <c>idempotency.keyReused</c>.
-            /// </remarks>
+            /// <summary>Creates %a% %L%; an <c>Idempotency-Key</c> header makes a retried request safe.</summary>
             [HttpPost]
             [Idempotent]
             [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(%A%Response))]
@@ -5384,8 +4837,6 @@ internal static class Templates
         %if etag%
                 return CreatedOrProblem(result, nameof(Get%A%), created => new { %L%Id = created.Id });
         %else%
-                // Location has to name what was created, and the overload that takes route values as a
-                // function needs a versioned result. Reading Value on a failure throws.
                 if (result.IsFailure)
                 {
                     return result.Error!.ToActionResult(HttpContext);
@@ -5397,19 +4848,10 @@ internal static class Templates
 
         %end%
         %if update%
-            /// <summary>Replaces %a% %L%'s name and description.</summary>
         %if etag%
-            /// <remarks>
-            /// Honours <c>If-Match</c>: a version the %L% no longer holds is refused with 412, and the write
-            /// itself is conditioned on the version it read, so a concurrent change that lands first is
-            /// refused with 409 rather than overwritten. Without <c>If-Match</c> the update is unconditional
-            /// unless <c>Concurrency:IfMatch</c> is <c>Required</c>.
-            /// </remarks>
+            /// <summary>Replaces %a% %L%'s name and description, on the version an <c>If-Match</c> names.</summary>
         %else%
-            /// <remarks>
-            /// Unconditional: nothing is compared with what is stored, so of two concurrent writers the later
-            /// one wins.
-            /// </remarks>
+            /// <summary>Replaces %a% %L%'s name and description; of two concurrent writers the later one wins.</summary>
         %end%
             [HttpPut("{%L%Id:guid}")]
             [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(%A%Response))]
@@ -5433,13 +4875,11 @@ internal static class Templates
                     return refusal;
                 }
 
-                // The id comes from the route, never the body, so two sources of truth cannot disagree.
                 var outcome = await %CallUpdate%;
                 var result = RequiringExistence(requiresExistence, outcome);
 
                 return UpdatedOrProblem(%A%ResponseMapping.To%A%Response(result));
         %else%
-                // The id comes from the route, never the body, so two sources of truth cannot disagree.
                 var outcome = await %CallUpdate%;
 
                 return OkOrProblem(%A%ResponseMapping.To%A%Response(outcome));
@@ -5482,8 +4922,6 @@ internal static class Templates
         %end%
         }
         """;
-
-    // ---- Tests ----------------------------------------------------------------------------------
 
     internal const string ErrorsTests = """
         using %P%.Application.Core.Common.Results;
@@ -5537,10 +4975,6 @@ internal static class Templates
             public async Task ABlankName_IsRejected(string name) =>
                 (await _validator.ValidateAsync(new %A%ContentDto(name, "Milk"), TestToken)).IsValid.ShouldBeFalse();
 
-            /// <summary>
-            /// A null reaches the validator from a body that is entirely well formed JSON, and the rules that
-            /// dereference the value must not turn it into a 500.
-            /// </summary>
             [Fact]
             public async Task ANullName_IsRejected_NotDereferenced() =>
                 (await _validator.ValidateAsync(new %A%ContentDto(null!, "Milk"), TestToken)).IsValid.ShouldBeFalse();
@@ -5614,10 +5048,6 @@ internal static class Templates
 
         namespace %P%.Application.UnitTests.Features.%F%.Services;
 
-        /// <summary>
-        /// The whole application layer of the feature, so its own tests are where the identity, scoping
-        /// and validation matrix is proven once for every operation it offers.
-        /// </summary>
         public sealed class %A%ServiceTests
         {
             private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -5667,7 +5097,6 @@ internal static class Templates
                 results.ShouldAllBe(result => result.Error!.Type == ErrorType.Unauthorized && result.Error.Code == "auth.required");
             }
 
-            /// <summary>An anonymous caller must not reach storage: loading first and authorising later reads data for nobody.</summary>
             [Fact]
             public async Task AnAnonymousCaller_ReadsAndWritesNothing()
             {
@@ -5845,17 +5274,9 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.UnitTests.Features.%F%.Rows.Configurations;
 
-        /// <summary>
-        /// Assertions against the built EF model. No database is contacted: the provider is only there so the
-        /// model carries the same relational mapping the real one has.
-        /// </summary>
         public sealed class %A%RecordConfigurationTests
         {
         %if etag%
-            /// <summary>
-            /// The concurrency token is PostgreSQL's own <c>xmin</c>, read back after every write and put into
-            /// the <c>WHERE</c> clause of the next UPDATE or DELETE. A row without it accepts a lost update.
-            /// </summary>
             [Fact]
             public void TheVersion_IsTheDatabasesOwnConcurrencyToken()
             {
@@ -5866,10 +5287,6 @@ internal static class Templates
                 version.GetColumnType().ShouldBe("xid");
             }
         %else%
-            /// <summary>
-            /// No property carries a token, which is what makes an update last-write-wins. Adding one is
-            /// the decision <c>--concurrency etag</c> stands for, so it should fail here first.
-            /// </summary>
             [Fact]
             public void NoPropertyIsAConcurrencyToken() =>
                 Entity().GetProperties().ShouldAllBe(property => !property.IsConcurrencyToken);
@@ -5882,14 +5299,6 @@ internal static class Templates
                 Entity().FindProperty(property)!.GetMaxLength().ShouldBe(expected);
 
         %if list%
-            /// <summary>
-            %if owner%
-            /// Every read filters by owner, so every index that serves a sortable field leads with it and ends
-            /// in the id the sort map appends as its tiebreaker.
-            %else%
-            /// Every index that serves a sortable field ends in the id the sort map appends as its tiebreaker.
-            %end%
-            /// </summary>
             [Fact]
             public void EverySortIndex_ServesASortableField_AndEndsWithTheId()
             {
@@ -5937,11 +5346,6 @@ internal static class Templates
 
         namespace %P%.Infrastructure.Persistence.UnitTests.Features.%F%;
 
-        /// <summary>
-        /// The guarantee that pays for keeping the persistence model apart from the domain model: nothing is
-        /// lost on the way through the mapper. Every value is set to something other than its type's default,
-        /// because comparing a default with a default passes for a property the mapper never copied.
-        /// </summary>
         public sealed class %A%MapperFidelityTests
         {
             [Fact]

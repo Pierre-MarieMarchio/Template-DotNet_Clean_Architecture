@@ -1,8 +1,2 @@
-# Line-coverage floor, in percent. Read by CI and by Tools/Tasks.cs, so the gate a developer runs
-# locally is the gate CI runs. One value, one file, no second copy to drift.
-#
-# Set from measurement, never invented: a few points under the measured value, so an honest refactor
-# has room and a real regression trips it. Measure with Docker present — both integration suites
-# contribute — and in Debug, the lower figure, before moving the number; rows measured differently
-# do not compare.
+# Line-coverage floor in percent, read by CI and Tools/Tasks.cs: set a few points under a Debug measurement with Docker present.
 90

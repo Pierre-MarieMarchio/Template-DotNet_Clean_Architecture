@@ -7,44 +7,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-/// <summary>
-/// Reports what removing a feature involves, and undoes a generated skeleton nobody has touched.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <b>The default is a report and writes nothing.</b> It lists the files the feature owns, the lines
-/// elsewhere that confirm a reference (a registration, an EF model configuration, a migration or the
-/// snapshot, a use of one of its types), the lines that merely contain its name, and the checks to
-/// run afterwards. It can be run again and again, on a dirty tree.
-/// </para>
-/// <para>
-/// <b><c>--apply</c> deletes only what <c>NewFeature.cs</c> wrote.</b> The manifest that command left
-/// in <c>.feature-manifest/</c> lists each file with its SHA-256. Every one must still match, the
-/// feature's generated folders must hold nothing else, and nothing outside them may mention the
-/// feature in a way the report calls confirmed. When any of that fails, nothing is deleted and the
-/// report says why. A feature that was composed by hand, and any shipped example, has no manifest or
-/// no longer passes, and is removed with the manual procedure.
-/// </para>
-/// <para>
-/// <b>A use is confirmed by a name the feature declares</b>: the classes, interfaces, records, structs and
-/// enums of its own files, the bare type name (<c>Order</c>, <c>Task</c>) excepted. That name as a whole
-/// word, in code outside the feature, is a confirmed use; the same word in a comment or a string
-/// literal, or any other word that merely starts like the type (<c>OrderBy</c>, <c>TaskCompletionSource</c>),
-/// is a possible match. Comments and literals are recognised line by line, which is enough for generated
-/// code and wrong for a literal spanning lines.
-/// </para>
-/// <para>
-/// A migration is never touched: whether its tables may be dropped depends on the databases that
-/// applied it, which no file in the tree can say.
-/// </para>
-/// <example>
-/// <code>
-/// dotnet run Tools/RemoveFeature.cs Widgets
-/// dotnet run Tools/RemoveFeature.cs Widgets --apply
-/// dotnet run Tools/RemoveFeature.cs --self-test
-/// </code>
-/// </example>
-/// </remarks>
 internal static class RemoveFeature
 {
     private const string ManifestFolder = ".feature-manifest";
@@ -54,7 +16,8 @@ internal static class RemoveFeature
         + "  <Features>  the folder of the feature, PascalCase and plural, e.g. Widgets\n"
         + "  --apply     delete the generated files of an untouched, uncomposed feature. Without it,\n"
         + "              the command only reports and writes nothing.\n"
-        + "  --root      the tree to read, default the current directory.";
+        + "  --root      the tree to read, default the current directory.\n"
+        + "       dotnet run Tools/RemoveFeature.cs --self-test";
 
     private const int MaxPossiblePrinted = 40;
 
@@ -90,8 +53,6 @@ internal static class RemoveFeature
 
     private sealed record Entry(string Path, string Sha256);
 
-    /// <param name="Files">Every file the manifest lists, the shared ones included.</param>
-    /// <param name="Shared">The files of <paramref name="Files"/> every owner feature shares.</param>
     private sealed record Manifest(string Type, List<Entry> Files, List<string> Shared);
 
     private sealed record Dependent(string Name, string How);
@@ -111,11 +72,6 @@ internal static class RemoveFeature
         List<Dependent> Dependents,
         List<Hit> SharedUses);
 
-    /// <summary>
-    /// The account-deleted reaction the first owner feature of a tree generated with none brings
-    /// along. Mirrors the <c>spec.Reaction</c> branch of <c>NewFeature.Plan</c>; the generator's
-    /// self-test asserts that every path that branch emits matches one of these.
-    /// </summary>
     private static readonly Regex[] SharedPaths =
     [
         Rx(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$"),
@@ -125,14 +81,11 @@ internal static class RemoveFeature
         Rx(@"^Src/Presentation/[^/]+\.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$"),
     ];
 
-    /// <summary>The folder of the sweep, which holds nothing but the shared files.</summary>
     private static readonly Regex SharedFolder = Rx(@"^(Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts)/");
 
-    /// <summary>A use of the shared files: their types, their registrations, the sweep's namespace.</summary>
     private static readonly Regex SharedUse = Rx(
         @"\b(IDeletedAccountDataPolicy|IUserAccountDirectory|I?SweepDeletedAccountDataUseCase|AddDeletedAccountSweep(Jobs)?|DeletedAccountSweepOptions|AccountUserAccountDirectory|ExternalIdentityUserAccountDirectory)\b|\.Features\.DeletedAccounts\b");
 
-    /// <summary>The feature folders the shared files live in, or that compose them: a use there is a registration.</summary>
     private static readonly HashSet<string> SharedHosts = new(StringComparer.Ordinal)
     {
         "DeletedAccounts", "Auth", "ExternalIdentity", "BackgroundJobs",
@@ -238,8 +191,6 @@ internal static class RemoveFeature
         return 1;
     }
 
-    // ---- Analysis -------------------------------------------------------------------------------
-
     private static Analysis Analyze(string root, string features)
     {
         var blockers = new List<string>();
@@ -282,7 +233,6 @@ internal static class RemoveFeature
 
         var shared = manifest?.Shared ?? [];
 
-        // A shared path holds no Features/<Features>/ segment to slice a folder out of.
         var folders = manifest is not null
             ? FeatureFolders([.. owned.Except(shared, StringComparer.Ordinal)], features)
             : DiscoverFolders(root, features);
@@ -362,10 +312,6 @@ internal static class RemoveFeature
         return new Analysis(features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, hits, blockers, shared, dependents, uses);
     }
 
-    /// <summary>
-    /// What still uses the shared files this feature's manifest brought: every other owner feature,
-    /// by its manifest or by a use in its folders, and every line elsewhere that registers them.
-    /// </summary>
     private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers)
     {
         string manifests = Path.Combine(root, ManifestFolder);
@@ -435,7 +381,6 @@ internal static class RemoveFeature
                     }
                     else if (folder != features && !dependents.Any(dependent => dependent.Name == folder))
                     {
-                        // The feature's own folders are covered by the check on files added to them.
                         dependents.Add(new Dependent(folder, "no manifest"));
                     }
                 }
@@ -532,7 +477,6 @@ internal static class RemoveFeature
         }
     }
 
-    /// <summary>The <c>.../Features/&lt;Features&gt;</c> folder of each listed file.</summary>
     private static List<string> FeatureFolders(List<string> files, string features)
     {
         string marker = $"/Features/{features}/";
@@ -597,11 +541,6 @@ internal static class RemoveFeature
                 ? "_" + char.ToLowerInvariant(character)
                 : char.ToLowerInvariant(character).ToString()));
 
-    /// <summary>
-    /// The types the feature's own files declare, minus the bare type name (<c>Order</c>, <c>Task</c>),
-    /// which is also a common word and stays a possible match. The account-deletion files every owner
-    /// feature shares are not the feature's own.
-    /// </summary>
     private static List<string> DeclaredTypes(string root, Manifest manifest, string type)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -626,11 +565,6 @@ internal static class RemoveFeature
         return [.. names.Order(StringComparer.Ordinal)];
     }
 
-    /// <summary>
-    /// The line without its comments and string literals, which is enough for generated code: line and
-    /// <c>///</c> comments, a block comment opening or continuing a line, and regular, verbatim, raw and
-    /// interpolated strings that open and close on that line. A literal spanning lines is not recognised.
-    /// </summary>
     private static string Code(string line)
     {
         string trimmed = line.TrimStart();
@@ -788,7 +722,6 @@ internal static class RemoveFeature
             {
                 string line = lines[i];
                 string code = source ? Code(line) : line;
-                // The product's own name (Acme.Notes) holds the feature's name without meaning the feature.
                 string unnamed = product is null ? line : line.Replace(product, string.Empty, StringComparison.Ordinal);
                 Kind? kind = null;
 
@@ -817,8 +750,6 @@ internal static class RemoveFeature
     }
 
     private static Regex Rx(string pattern) => new(pattern, RegexOptions.None, Timeout);
-
-    // ---- Report ---------------------------------------------------------------------------------
 
     private static void PrintReport(TextWriter output, Analysis analysis)
     {
@@ -927,8 +858,6 @@ internal static class RemoveFeature
         }
     }
 
-    // ---- Deletion -------------------------------------------------------------------------------
-
     private static int Delete(string root, Analysis analysis, TextWriter output, TextWriter error)
     {
         try
@@ -938,8 +867,6 @@ internal static class RemoveFeature
                 File.Delete(Path.Combine(root, file));
             }
 
-            // The Features/ folder above goes too once this was its last feature: a generated tree
-            // ships no empty folder, and LayoutConventionTests refuses one under Src.
             foreach (string folder in analysis.Folders)
             {
                 RemoveEmpty(Path.Combine(root, folder));
@@ -989,10 +916,6 @@ internal static class RemoveFeature
         }
     }
 
-    /// <summary>
-    /// Removes the folders above a deleted file or folder that it leaves empty, up to the first that
-    /// still holds something, and never <c>Src</c>, <c>Tests</c> or the root.
-    /// </summary>
     private static void RemoveEmptyAncestors(string root, string relative)
     {
         string? folder = Path.GetDirectoryName(relative)?.Replace('\\', '/');
@@ -1014,8 +937,6 @@ internal static class RemoveFeature
             folder = Path.GetDirectoryName(folder)?.Replace('\\', '/');
         }
     }
-
-    // ---- Self-test ------------------------------------------------------------------------------
 
     private static int SelfTest()
     {
@@ -1107,7 +1028,6 @@ internal static class RemoveFeature
         _ => "public sealed class WidgetServiceTests;\n",
     };
 
-    /// <summary>A tree with a skeleton and a manifest written the way the generator writes it, and a host to compose it in.</summary>
     private static string Skeleton(string scratch)
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
@@ -1133,7 +1053,6 @@ internal static class RemoveFeature
 
     private static void HandWrittenCases(string scratch, Action<bool, string> expect)
     {
-        // An untouched skeleton: the report writes nothing, then --apply removes exactly its files.
         string root = Skeleton(scratch);
         var before = Snapshot(root);
         var report = Invoke(root, "Widgets");
@@ -1154,7 +1073,6 @@ internal static class RemoveFeature
 
         expect(again.Code == 0 && again.Output.Contains("No feature folder", StringComparison.Ordinal), "A second --apply did not say that nothing is left.");
 
-        // A refusal leaves every byte as it was.
         void Refused(string name, Action<string> change, string expected)
         {
             string tree = Skeleton(scratch);
@@ -1179,7 +1097,6 @@ internal static class RemoveFeature
         Refused("a snapshot mentions its record", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "modelBuilder.Entity(\"Acme.WidgetRecord\", b => { });\n"), "migration or snapshot");
         Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(SkeletonFiles[0], "Src/Domain/Acme.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
 
-        // The six edits the generator prints, each by itself.
         string[] edits =
         [
             "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|public const string WidgetsSchema = \"widgets\";",
@@ -1214,7 +1131,6 @@ internal static class RemoveFeature
                 $"confirmed {expected}");
         }
 
-        // No manifest: the report reads the folders and --apply refuses.
         string bare = Skeleton(scratch);
 
         File.Delete(Path.Combine(bare, ManifestFolder, "Widgets.json"));
@@ -1226,7 +1142,6 @@ internal static class RemoveFeature
         expect(bareReport.Code == 0 && bareReport.Output.Contains("no manifest", StringComparison.Ordinal), "A feature without a manifest was not reported as such.");
         expect(bareApply.Code == 1 && Same(bareBefore, Snapshot(bare)), "A feature without a manifest was deleted, or --apply did not refuse.");
 
-        // A mention that is only text is listed, and does not stop the undo.
         string prose = Skeleton(scratch);
 
         Put(prose, "Sketches/Idea.md", "The Widgets feature is a sketch.\n");
@@ -1236,7 +1151,6 @@ internal static class RemoveFeature
 
         expect(proseApply.Code == 0 && proseApply.Output.Contains("Sketches/Idea.md:1", StringComparison.Ordinal), "A text-only mention blocked the undo, or was not listed.");
 
-        // A report on a dirty tree is still a report.
         string dirty = Skeleton(scratch);
 
         File.AppendAllText(Path.Combine(dirty, SkeletonFiles[0]), "// edited\n");
@@ -1257,7 +1171,6 @@ internal static class RemoveFeature
 
     private static string SourceFile([CallerFilePath] string path = "") => path;
 
-    /// <summary>Runs the real generator, so the manifest read here is the one it writes and not a copy of its format.</summary>
     private static int Generate(string root, params string[] args)
     {
         string generator = Path.Combine(Path.GetDirectoryName(SourceFile())!, "NewFeature.cs");
@@ -1277,11 +1190,6 @@ internal static class RemoveFeature
         return process.ExitCode;
     }
 
-    /// <summary>
-    /// The projects a feature is written into, each with its project file and, as in a tree the template
-    /// generates with no feature, no <c>Features/</c> folder: the generator creates it, and the removal of
-    /// the last feature must take it away again.
-    /// </summary>
     private static void Projects(string root)
     {
         foreach (string project in new[]
@@ -1295,11 +1203,6 @@ internal static class RemoveFeature
         }
     }
 
-    /// <summary>
-    /// A tree as the template generates it with no feature: none of the account-deleted reaction, the
-    /// account adapter's composition, the jobs module, and the event whose documentation names the
-    /// policy port in a comment.
-    /// </summary>
     private static string BareTree(string scratch, string adapter = "Auth")
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
@@ -1334,15 +1237,10 @@ internal static class RemoveFeature
         "Src/Presentation/Acme.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
     ];
 
-    /// <summary>
-    /// The first owner feature of a tree generated with none also brings the files every owner
-    /// feature shares: they go with it once nothing else uses them, and not before.
-    /// </summary>
     private static void SharedFilesCases(string scratch, Action<bool, string> expect)
     {
         string[] widgets = ["Widgets", "Widget", "--access", "owner", "--deletion", "delete"];
 
-        // (a) The only owner feature: removed with the shared files, back to the tree generated with none.
         string alone = BareTree(scratch);
         var original = Snapshot(alone);
 
@@ -1359,7 +1257,6 @@ internal static class RemoveFeature
         expect(applied.Code == 0, $"(a) the only owner feature was refused: {applied.Output}{applied.Error}");
         expect(Same(original, Snapshot(alone)), "(a) after removing the only owner feature the tree is not the bare one, or a folder was left empty.");
 
-        // A refusal leaves every byte as it was, and says why.
         void Refused(string name, string tree, string features, params string[] expected)
         {
             var snapshot = Snapshot(tree);
@@ -1383,7 +1280,6 @@ internal static class RemoveFeature
             return tree;
         }
 
-        // (b) A second owner feature uses the shared files: the first waits for it.
         string two = BareTree(scratch);
         var bare = Snapshot(two);
 
@@ -1393,7 +1289,6 @@ internal static class RemoveFeature
         expect(Invoke(two, "Widgets", "--apply").Code == 0, "(b) the first owner feature was refused once it was the only one.");
         expect(Same(bare, Snapshot(two)), "(b) after removing both owner features the tree is not the bare one.");
 
-        // (c) A shared feature owns no user data and does not hold the shared files back.
         string notes = BareTree(scratch);
         var beforeNotes = Snapshot(notes);
 
@@ -1409,7 +1304,6 @@ internal static class RemoveFeature
         expect(Invoke(notes, "Notes", "--apply").Code == 0, "(c) Notes was refused.");
         expect(Same(beforeNotes, Snapshot(notes)), "(c) after removing both features the tree is not the bare one.");
 
-        // (d) A feature composed by hand, with no manifest, that uses the ports.
         string journal = WithWidgets();
 
         Put(
@@ -1418,8 +1312,6 @@ internal static class RemoveFeature
             "// Deletes a journal when its account is.\ninternal sealed class DeleteJournalOnAccountDeletedConsumer(IUserAccountDirectory accounts) : IDeletedAccountDataPolicy;\n");
         Refused("(d) a hand-made owner feature", journal, "Widgets", "Journal (no manifest)");
 
-        // (e) Each of the five registrations of the shared files, alone: the four in the product and
-        // the architecture tests' composition, with its sweep, its double and the double's declaration.
         string[] registrations =
         [
             "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
@@ -1440,19 +1332,16 @@ internal static class RemoveFeature
             Refused($"(e) {parts[1]}", tree, "Widgets", "still register", $"{parts[0]}:2");
         }
 
-        // (f) A shared file edited since it was written.
         string edited = WithWidgets();
 
         File.AppendAllText(Path.Combine(edited, SharedFiles[1]), "// edited\n");
         Refused("(f) a shared file edited", edited, "Widgets", "edited since");
 
-        // (g) A file added beside the sweep.
         string added = WithWidgets();
 
         Put(added, "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", "x\n");
         Refused("(g) a file added beside the sweep", added, "Widgets", "added to the feature's generated folders");
 
-        // (h) The externally authenticated tree: its account directory goes the same way.
         string external = BareTree(scratch, "ExternalIdentity");
         var beforeExternal = Snapshot(external);
 
@@ -1461,13 +1350,11 @@ internal static class RemoveFeature
         expect(Invoke(external, "Widgets", "--apply").Code == 0, "(h) the only owner feature of an externally authenticated tree was refused.");
         expect(Same(beforeExternal, Snapshot(external)), "(h) after removing it the tree is not the bare one.");
 
-        // (i) A stale manifest of an owner feature whose files are gone still holds the shared files back.
         string stale = WithWidgets();
 
         Put(stale, $"{ManifestFolder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
         Refused("(i) a stale owner manifest", stale, "Widgets", "Gizmos (generated, --access owner)");
 
-        // An unreadable manifest cannot say whether its feature depends on them.
         string unreadable = WithWidgets();
 
         Put(unreadable, $"{ManifestFolder}/Gizmos.json", "{ not json\n");
@@ -1481,10 +1368,6 @@ internal static class RemoveFeature
         Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
     }
 
-    /// <summary>
-    /// Words that start like a feature's type (<c>OrderBy</c>, <c>TaskCompletionSource</c>) and the type's name
-    /// in a string or a comment are not uses; a name the feature declares, used elsewhere, is.
-    /// </summary>
     private static void NameCollisionCases(string scratch, Action<bool, string> expect)
     {
         const string Noise =
@@ -1523,7 +1406,6 @@ internal static class RemoveFeature
             }
         }
 
-        // A use of a type the feature declares is still a blocker, inside another feature or in a registration.
         string used = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
 
         Projects(used);
@@ -1569,9 +1451,6 @@ internal static class RemoveFeature
             Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
             Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
 
-            // The account-deleted reaction, as a tree generated with a feature ships it: this test is
-            // about removing a feature, and the reaction a first owner feature would bring along is
-            // the generator's own self-test's subject.
             Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
 
             var original = Snapshot(root);
@@ -1586,7 +1465,6 @@ internal static class RemoveFeature
 
             expect(report.Code == 0 && Same(generated, Snapshot(root)) && report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The report on a fresh {features} changed the tree or found a blocker: {report.Output}");
 
-            // Composed by hand: refused, and nothing is deleted.
             File.AppendAllText(Path.Combine(root, "Src/Presentation/Acme.Api/Program.cs"), $"builder.Services.Add{features}();\n");
 
             var composedSnapshot = Snapshot(root);
@@ -1594,7 +1472,6 @@ internal static class RemoveFeature
 
             expect(composed.Code == 1 && Same(composedSnapshot, Snapshot(root)), $"{features} was removed although its registration was in Program.cs.");
 
-            // Undone by hand, then applied: the tree is what it was before generation.
             Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
 
             var applied = Invoke(root, features, "--apply");

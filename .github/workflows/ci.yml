@@ -7,15 +7,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# One in-flight run per ref. A new push supersedes the previous run instead of
-# queueing behind it; runs on main are never cancelled so the default branch
-# always ends up with a conclusive result.
+# One run per ref: a new push cancels the previous one, except on main.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
-# Least privilege at the top level. Jobs that need more must opt in locally;
-# nothing here writes to the repository, publishes packages or comments on PRs.
+# Least privilege; a job that needs more opts in locally.
 permissions:
   contents: read
 
@@ -23,13 +20,12 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_NOLOGO: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
-  # Keeps NuGet's cache inside the workspace so actions/cache can see it.
+  # Inside the workspace, so actions/cache sees it.
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   CONFIGURATION: Release
   SOLUTION: AppTemplate.sln
 
 jobs:
-  # ---------------------------------------------------------------------------
   build-test:
     name: Build & test
     runs-on: ubuntu-latest
@@ -39,9 +35,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # global-json-file makes global.json the single source of truth for the SDK
-      # version. Hard-coding dotnet-version here is how a repo ends up building
-      # with an SDK it does not pin locally.
       - name: Set up .NET SDK (from global.json)
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
@@ -60,27 +53,15 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
-      # Enforces .editorconfig. Directory.Build.props already sets
-      # EnforceCodeStyleInBuild, but that only covers analyzer-backed rules;
-      # `dotnet format` also checks whitespace, using-directive ordering and the
-      # required file encoding (charset = utf-8-bom for *.cs). Runs before the
-      # build so a formatting-only failure is reported fast.
+      # Whitespace, using order and the BOM, which the build's code-style analysis does not check; before the build, to fail fast.
       - name: Verify formatting (.editorconfig)
         run: dotnet format "$SOLUTION" --verify-no-changes --no-restore --verbosity normal
 
-      # No -warnaserror flag and, deliberately, no flag that turns warnings back
-      # into warnings: TreatWarningsAsErrors=true lives in Directory.Build.props
-      # and must not be overridden from the command line. The solution builds
-      # clean; CI's job is to keep it that way.
+      # TreatWarningsAsErrors lives in Directory.Build.props, and no flag here overrides it.
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 
-      # A test suite that silently runs zero tests is worse than no test suite,
-      # because it is green. Two things are asserted before `dotnet test` runs:
-      # that test projects exist at all, and that every one of them is in the
-      # solution — the platform enumerates the test modules the solution names, so a
-      # project on disk but absent from AppTemplate.sln is never run, and nothing in
-      # the run itself says so.
+      # The platform runs only the test modules the solution names, so a project missing from it would be skipped silently.
       - name: Assert test projects exist and are in the solution
         run: |
           set -euo pipefail
@@ -90,17 +71,10 @@ jobs:
             exit 1
           fi
           echo "Found ${#projects[@]} test project(s):"
-          # A .sln records project paths with Windows separators, while `find` emits
-          # forward slashes. Normalise the solution once so the comparison below is a
-          # plain substring match on either platform's convention.
           solution_paths=$(tr '\\' '/' < "$SOLUTION")
           missing=0
           for p in "${projects[@]}"; do
-            # A here-string, not a pipe. `grep -q` exits at its first match and closes the
-            # pipe, so `printf` takes EPIPE; with `pipefail` the pipeline then reports the
-            # write error and the test below reads a project that IS in the solution as
-            # missing. Whether it happens depends on where the match falls in the file, which
-            # is why it looked like a flaky subset rather than a bug.
+            # A here-string, not a pipe: grep -q closing the pipe early fails the pipeline under pipefail.
             if grep -qF -- "$p" <<< "$solution_paths"; then
               echo "  in solution : $p"
             else
@@ -113,41 +87,11 @@ jobs:
             exit 1
           fi
 
-      # Integration tests use Testcontainers, which needs a working Docker daemon.
-      # ubuntu-latest provides one out of the box; the macOS and Windows hosted
-      # runners do NOT, so this job must stay on Linux.
-      #
-      # One invocation for the whole solution, and one is enough for three separate
-      # reasons that used to each need their own handling:
-      #
-      #   * The platform runs every test module in the solution, in parallel, in
-      #     one process tree. There is no per-project loop to keep in step with
-      #     what is on disk, and no list of projects to go stale.
-      #   * The architecture suite runs in the same invocation as everything else.
-      #     NetArchTest resolves each type it inspects through
-      #     Type.GetType(name, throwOnError: true), and that resolution fails
-      #     against a Coverlet-instrumented assembly — which is why it needed a
-      #     collector-free invocation of its own. This collector does not break it:
-      #     all 131 of its tests pass with the eleven product assemblies it inspects
-      #     instrumented. Verify that before splitting this step again.
-      #   * minimum-expected-tests is the platform's own answer to a green run that
-      #     executed nothing. It is a floor and not an exact count, so it does not
-      #     have to be edited every time a test is added; it has to be raised when
-      #     it stops being a floor. The TRX summary below still prints the real
-      #     totals, and the step after it still fails a run that produced none.
-      #
-      # The flags are Microsoft.Testing.Platform's, which is what `dotnet test`
-      # drives now that global.json names it as the runner. They are not
-      # interchangeable with the VSTest ones: there is no --logger and no --collect,
-      # and passing the coverage settings file to --settings instead of
-      # --coverage-settings is accepted and then ignored.
+      # Microsoft.Testing.Platform switches: the settings file goes through coverage-settings; the VSTest settings switch is accepted and ignored.
       - name: Test (with coverage)
         run: |
           #if (templateMaintenance)
-          # The test-count floor is this repository's own: a round number below the real total
-          # of its suite, raised by hand when it stops being a floor. A project generated
-          # with fewer options starts below any number this suite could justify, so its CI
-          # carries no floor at all.
+          # This repository's own floor, below its real total; a generated project carries none.
           minimum_tests=3000
           floor_option="--minimum-expected-tests ${minimum_tests}"
           #endif
@@ -162,16 +106,7 @@ jobs:
             --coverage-output-format cobertura \
             ${floor_option}
 
-      # Reads the TRX totals into the job summary, so a reviewer sees the counts
-      # without downloading an artifact — and so the number that ran is a figure a
-      # reviewer can read rather than a policy that merely held.
-      #
-      # This is not the same assertion as minimum-expected-tests above and does not
-      # replace it. That switch fails a run that executed fewer tests than the floor;
-      # this step states how many ran, per the files themselves, and fails a run that
-      # produced no TRX at all. The counters come from the TRX files rather than from
-      # the console, which interleaves when modules run in parallel and can splice one
-      # module's line into another's.
+      # The totals read from the TRX files; a run that produced none fails.
       - name: Summarise test results
         if: always()
         run: |
@@ -183,11 +118,7 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          # The first line that IS a number, rather than the first line that is not a comment.
-          # The two differ by one byte: a UTF-8 BOM sits in front of the leading `#`, so a
-          # `^[[:space:]]*#` filter keeps that line and the floor arrives with the whole comment
-          # glued to it. GNU grep does not skip a BOM; .NET's File.ReadLines does, so the local
-          # gate read 85 and this one read the comment — the exact drift this file exists to stop.
+          # The first line that is a number: a BOM in front of a leading # defeats a comment filter.
           minimum=$(tr -d '\r' < coverage.minimum | grep -oE '^[0-9]+(\.[0-9]+)?$' | head -n 1)
           if [ -z "$minimum" ]; then
             echo "::error title=No coverage floor::coverage.minimum states no bare number."
@@ -200,16 +131,7 @@ jobs:
             --summary "$GITHUB_STEP_SUMMARY" \
             --json TestResults/coverage-summary.json
 
-      # The coverage pattern matches the extension, not a fixed file name. The platform writes
-      # '<guid>.cobertura.xml' directly under the results directory, and 'coverage.cobertura.xml'
-      # inside a directory of its own only in some invocations; Tools/CoverageGate.cs enumerates
-      # '*.cobertura.xml' for exactly that reason, and this has to agree with it or the two disagree
-      # about what a run produced.
-      #
-      # `if-no-files-found: error` does not catch a pattern that matches nothing here: it fires only
-      # when the whole path list finds nothing, and the .trx line always matches. So a coverage
-      # pattern that is wrong costs no failure and no warning -- the artefact simply arrives with
-      # the test results and without the coverage, which is what it did.
+      # The extension, as Tools/CoverageGate.cs matches it; if-no-files-found cannot see one pattern that matches nothing.
       - name: Upload test results and coverage
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -221,20 +143,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # ---------------------------------------------------------------------------
-  # Cheap, no SDK, no Docker: catches the class of defect that only shows up when
-  # somebody follows the documentation or when a workflow finally runs.
-  #
-  # Template repository only: every gate it names is a template-maintenance tool a
-  # generated project does not receive. What a generated project carries — the
-  # scaffolders' and the coverage gate's fixtures — runs through its own `hygiene`
-  # task, which asks the filesystem which gates its tree holds.
-  #
-  # Every gate here runs its own `--self-test` before it judges the repository, and the
-  # self-test is a step of its own so that its failure is legible: a validator whose clean
-  # result was never contrasted with a dirty one proves nothing, and the claim that it was
-  # is worth no more than the fixtures that back it.
   #if (templateMaintenance)
+  # Template repository only: each gate proves it can fail before it judges the tree.
   repository-hygiene:
     name: Docs and workflows
     runs-on: ubuntu-latest
@@ -244,34 +154,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Fixtures: a citation that resolves to nothing, a bare filename that exists
-      # nowhere, an empty tree — and, against them, trees where every citation holds
-      # and a working note git ignores that must not be read at all.
       - name: The doc-path gate can fail
         run: dotnet run Tools/CheckDocPaths.cs --self-test
 
-      # A renamed or moved file leaves the prose pointing at nothing. In a template
-      # that is worse than elsewhere: the reader is following instructions, not
-      # reading code, so a wrong path costs them an hour before they doubt the docs.
       - name: Every path cited in the docs exists
         run: dotnet run Tools/CheckDocPaths.cs .
 
-      # Fixtures: one workflow per fault the checks below name, one clean workflow that
-      # carries every construction mistakable for a fault, and a `.yaml` whose dangling
-      # `needs:` is only reported if the gate reads that spelling as well as `.yml`.
       - name: The workflow gate can fail
         run: dotnet run Tools/CheckWorkflows.cs --self-test
 
-      # Structural checks a YAML parse does not make: a dangling `needs:`, an action
-      # without a SHA pin, a missing `permissions:`, a `$VAR` defined in no env block,
-      # a script referenced in a `run:` but absent from disk.
       - name: Workflows are structurally sound
         run: dotnet run Tools/CheckWorkflows.cs .
 
-      # The coverage gate runs in the test job, where the reports are; its fixtures run
-      # here, where no SDK is needed. The one that matters is a valid Cobertura report
-      # with no line in it: 0/0 reads as 100%, so a report that lost every assembly
-      # would clear any floor.
       - name: The coverage gate can fail
         run: dotnet run Tools/CoverageGate.cs --self-test
 
@@ -282,7 +176,6 @@ jobs:
         run: dotnet run Tools/CheckComments.cs .
   #endif
 
-  # ---------------------------------------------------------------------------
   vulnerable-packages:
     name: Vulnerable packages
     runs-on: ubuntu-latest
@@ -300,12 +193,7 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
-      # `dotnet list package --vulnerable` exits 0 even when it finds something,
-      # so the report has to be inspected explicitly. --include-transitive matters:
-      # most real advisories arrive through a dependency nobody referenced directly,
-      # and CentralPackageTransitivePinningEnabled is what lets Directory.Packages.props
-      # pin a patched version of one. Answer this job by pinning, never by relaxing
-      # NuGetAuditLevel.
+      # The listing exits 0 on a finding, so its report is read; answer with a pin in Directory.Packages.props, never by relaxing NuGetAuditLevel.
       - name: Audit direct and transitive dependencies
         run: |
           set -o pipefail
@@ -316,7 +204,6 @@ jobs:
           fi
           echo "No known vulnerable packages."
 
-  # ---------------------------------------------------------------------------
   docker:
     name: Docker image
     runs-on: ubuntu-latest
@@ -326,25 +213,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The BuildKit daemon this builder runs is an image too, and the action's default is the
-      # floating `moby/buildkit:buildx-stable-1`. Pinned by digest like every image in this
-      # repository; Dependabot does not read a `with:` input, so bump it by hand alongside the action.
+      # The BuildKit image, pinned by digest; Dependabot does not read a with: input, so bump it by hand.
       - name: Set up Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
 
-      # Proves the image builds from a clean checkout. This is the job that catches
-      # a stale COPY list in the Dockerfile: it names each .csproj explicitly, so
-      # adding or renaming a project breaks restore inside the image while the
-      # local build stays green. Build only, never push: this workflow has no
-      # registry credentials and permissions above are read-only.
-      #
-      # Single platform on purpose. The Dockerfile builds portable IL on the
-      # native builder arch, so linux/arm64 differs only by the runtime base image
-      # layer; adding it here would pull in QEMU for no extra signal. Build
-      # multi-arch at release time with:
-      #   docker buildx build --platform linux/amd64,linux/arm64 -f Src/Presentation/AppTemplate.Api/Dockerfile .
+      # Catches a stale COPY list in the Dockerfile; one platform, never pushed.
       - name: Build API image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -357,8 +232,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Cheap regression guard for two defects the old Dockerfile had: it ran as
-      # root, and it declared an HTTPS port nothing ever listened on.
       - name: Assert image runs unprivileged
         run: |
           user=$(docker image inspect "app-template-api:ci-${{ github.sha }}" --format '{{.Config.User}}')
@@ -377,19 +250,7 @@ jobs:
             exit 1
           fi
 
-  # ---------------------------------------------------------------------------
-  # A load smoke test, deliberately non-blocking.
-  #
-  # This template had never been observed under any concurrency: every timeout,
-  # pool size and rate limit in it was chosen by reasoning. This job is what
-  # turns "nothing came apart" from an assumption into an observation.
-  #
-  # continue-on-error is the whole design. A hosted runner's timings are not a
-  # property of this code, so a threshold tight enough to mean anything on real
-  # hardware would be noise here — and a red build nobody can act on is a red
-  # build people learn to ignore. The thresholds in the script describe a broken
-  # system (requests failing, ten-second responses), not a slow one.
-  # ---------------------------------------------------------------------------
+  # Non-blocking: a hosted runner's timings say nothing about this code, and the thresholds describe a broken system.
   load:
     name: Load smoke (non-blocking)
     runs-on: ubuntu-latest
@@ -409,9 +270,7 @@ jobs:
           #endif
           docker compose up -d --build $services
 
-      # The API applies migrations at startup in Development, so "the container
-      # is running" is not "the API is answering". Poll the liveness probe the
-      # orchestrator itself would use.
+      # Migrations run at startup, so a running container is not yet an answering API.
       - name: Wait for the API
         run: |
           set -euo pipefail
@@ -426,21 +285,7 @@ jobs:
           docker compose logs --tail 50 api
           exit 1
 
-      # Installed from Grafana's own apt repository rather than through a
-      # third-party action: every action in this workflow is pinned to a commit
-      # SHA, and one more supply-chain edge for a job that is allowed to fail is
-      # a poor trade.
-      # The release archive and its published SHA-256, not the apt repository. k6's documented
-      # install fetches a signing key from a public keyserver, which needs dirmngr and a writable
-      # GNUPGHOME under sudo; the hosted runner has neither, so it failed before k6 was ever asked
-      # to do anything:
-      #
-      #   gpg: can't connect to the dirmngr: No such file or directory
-      #   gpg: keyserver receive failed: No dirmngr
-      #
-      # A pinned tarball verified against the checksum published beside it is one network call and
-      # no daemon, and it pins the version the way every action in this file is pinned by digest.
-      # Bump both lines together — a version without its checksum is a download nothing checks.
+      # The release archive checked against its published SHA-256: bump version and checksum together.
       - name: Install k6
         run: |
           set -euo pipefail
@@ -475,18 +320,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Catches a missing variable, a typo in an interpolation, or a `${VAR:?}`
-      # guard that .env.example no longer satisfies.
       - name: Validate docker-compose.yml against .env.example
         run: |
           cp .env.example .env
           docker compose config --quiet
           echo "docker compose config parsed successfully."
 
-      # The API's healthcheck and the Dockerfile's HEALTHCHECK must both target
-      # /health — the liveness endpoint, which checks no dependency. Pointing
-      # either at /health/ready would make the orchestrator restart the API
-      # whenever the database blinked.
+      # Liveness only: a probe on /health/ready would restart the API whenever the database blinked.
       - name: Assert healthchecks target /health
         run: |
           set -euo pipefail

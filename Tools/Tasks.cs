@@ -7,48 +7,42 @@ using System.Runtime.CompilerServices;
 
 return Tasks.Run(args);
 
-/// <summary>
-/// Thin wrappers over the real dotnet and docker commands used by this repository.
-/// </summary>
-/// <remarks>
-/// <para>
-/// The .NET SDK pinned by <c>global.json</c> is the only tool this file needs. Every task shells
-/// out to <c>dotnet</c>, or to <c>docker</c> for the two compose tasks, and the hygiene gates are
-/// file-based C# apps under <c>Tools/</c> that <c>dotnet run</c> compiles and caches on the spot.
-/// Windows, Linux and macOS each run every task with nothing installed beyond that SDK, which is
-/// the one tool any machine able to build the solution already has.
-/// </para>
-/// <para>
-/// Every task prints the command it is about to run, so this file doubles as documentation: copy
-/// the printed line and you get the same result without the script. Nothing here hides a flag that
-/// changes the meaning of a build — in particular no task passes anything that would relax
-/// TreatWarningsAsErrors.
-/// </para>
-/// <para>
-/// The repository root is derived rather than assumed: the search starts at this file and climbs
-/// to the directory holding <c>AppTemplate.sln</c>, so a task behaves the same from any working
-/// directory. The compose tasks and <c>dotnet list package</c> are the deliberate exceptions —
-/// they read the working directory, exactly as they do when typed by hand.
-/// </para>
-/// <para>
-/// <c>--configuration</c> is a name <c>dotnet run</c> claims for itself, so it reaches this file
-/// only after a <c>--</c> separator. <c>--no-integration</c> and the task name need no separator.
-/// </para>
-/// <example>
-/// <code>
-/// dotnet run Tools/Tasks.cs test
-/// dotnet run Tools/Tasks.cs test --no-integration
-/// dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
-/// dotnet run Tools/Tasks.cs remove-feature Widgets
-/// dotnet run Tools/Tasks.cs remove-feature Widgets --apply
-/// dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
-/// dotnet run Tools/Tasks.cs -- build --configuration Release
-/// </code>
-/// </example>
-/// </remarks>
 internal static class Tasks
 {
-    /// <summary>The task names. An argument outside this set is refused before anything runs.</summary>
+    private const string Usage =
+        """
+        Usage: dotnet run Tools/Tasks.cs <task> [<name> [<second>]] [options]
+               dotnet run Tools/Tasks.cs help
+
+        Thin wrappers over the dotnet and docker commands of this repository. Each task prints the
+        command it runs before running it, so the printed line gives the same result without this
+        file. The repository root is the nearest directory at or above this file holding
+        AppTemplate.sln; the compose tasks and the vulnerability listing read the working directory.
+
+        Tasks:
+        <tasks>
+
+        Options:
+          --no-integration                 test: skip the projects that reference Testcontainers,
+                                           which need a running Docker daemon
+          --configuration <Debug|Release>  build, test, coverage, migration-bundle, verify; only after
+                                           a -- separator, because dotnet run claims the name
+          --access, --deletion, --operations, --model, --concurrency
+                                           new-feature: forwarded to Tools/NewFeature.cs, whose
+                                           --help says what each one means
+          --apply                          remove-feature: delete an untouched generated skeleton
+                                           instead of reporting what removing it involves
+
+        Examples:
+          dotnet run Tools/Tasks.cs test
+          dotnet run Tools/Tasks.cs test --no-integration
+          dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
+          dotnet run Tools/Tasks.cs remove-feature Widgets
+          dotnet run Tools/Tasks.cs remove-feature Widgets --apply
+          dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
+          dotnet run Tools/Tasks.cs -- build --configuration Release
+        """;
+
     private static readonly string[] KnownTasks =
     [
         "restore",
@@ -92,14 +86,16 @@ internal static class Tasks
 
     private static int Dispatch(string[] arguments)
     {
+        if (arguments is ["--help"] or ["-h"] or ["help"])
+        {
+            Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
+            return 0;
+        }
+
         string? task = null;
         string? name = null;
-
-        // Only 'new-feature' takes two: the folder in the plural and the type in the singular.
         string? second = null;
 
-        // The options of 'new-feature', forwarded as they were typed. NewFeature.cs is what knows their
-        // meaning and refuses a bad value, so this file does not copy its rules.
         List<string> featureOptions = [];
         bool noIntegration = false;
         bool apply = false;
@@ -111,12 +107,10 @@ internal static class Tasks
 
             if (argument is "--no-integration")
             {
-                // Skip the Testcontainers suite, which needs a running Docker daemon.
                 noIntegration = true;
             }
             else if (argument is "--apply")
             {
-                // The one option of 'remove-feature': without it the task only reports.
                 apply = true;
             }
             else if (argument is "--configuration")
@@ -136,7 +130,6 @@ internal static class Tasks
             {
                 featureOptions.Add(argument);
 
-                // The two-argument spelling carries its value in the next argument.
                 if (!argument.Contains('=', StringComparison.Ordinal))
                 {
                     if (i + 1 >= arguments.Length)
@@ -193,7 +186,7 @@ internal static class Tasks
         if (task is null)
         {
             throw new InvalidOperationException(
-                "A task is required. It has to be one of these:" + Environment.NewLine + TaskList());
+                "A task is required (help lists them with their options). It has to be one of these:" + Environment.NewLine + TaskList());
         }
 
         if (!KnownTasks.Contains(task, StringComparer.Ordinal))
@@ -225,7 +218,6 @@ internal static class Tasks
             case "test":
                 if (noIntegration)
                 {
-                    // Every project runs, so one red project does not hide the state of the others.
                     var failed = new List<string>();
 
                     foreach (string project in TestProjects(repoRoot, dockerFreeOnly: true))
@@ -263,15 +255,10 @@ internal static class Tasks
                 break;
 
             case "format-fix":
-                // Also rewrites *.cs without the UTF-8 BOM that .editorconfig requires. Run this
-                // after creating a file by hand, or the next 'format' task fails on encoding alone.
                 Step("dotnet", "format", solution);
                 break;
 
             case "new-feature":
-                // Two names, not one: the folder is the plural and the type is the singular. The
-                // options follow them untouched: --access, and with it --deletion, are required and
-                // NewFeature.cs says so itself.
                 Step(
                     "dotnet",
                     [
@@ -284,8 +271,6 @@ internal static class Tasks
                 break;
 
             case "remove-feature":
-                // Without --apply this only reports. With it, an untouched generated skeleton is deleted
-                // and anything else is refused, whole: RemoveFeature.cs says why.
                 List<string> applyOption = apply ? ["--apply"] : [];
                 Step(
                     "dotnet",
@@ -312,14 +297,6 @@ internal static class Tasks
                 break;
 
             case "migration-bundle":
-                // Self-contained executables that apply pending migrations. This is how a
-                // deployment migrates: the API applies migrations at startup in Development only.
-                //
-                // One per context, because one bundle covers one context: a single bundle would
-                // leave the other schema absent, and an API whose identity tables do not exist
-                // starts and then fails the first sign-in. The order they run in is not a
-                // correctness requirement -- no foreign key crosses the two schemas -- but
-                // authentication goes first, as it does in the Development bootstrap.
                 foreach ((string project, string output) in new[]
                 {
                     //#if (localAuth)
@@ -345,17 +322,10 @@ internal static class Tasks
                 break;
 
             case "compose-up":
-                // `--wait` reports a failure when any service has exited. A run-once container that
-                // exits 0 by design, such as the bucket bootstrap, is not counted because api names
-                // it under `condition: service_completed_successfully`, which tells Compose it is a
-                // step rather than a service that should still be up. A one-shot service nothing
-                // depends on would fail this task again, and should: nothing would be sequencing it
-                // either.
                 Step("docker", "compose", "up", "-d", "--wait");
                 break;
 
             case "compose-down":
-                // Volumes are kept: use `docker compose down -v` by hand to discard the database.
                 Step("docker", "compose", "down");
                 break;
 
@@ -366,17 +336,9 @@ internal static class Tasks
 
             //#endif
             case "bootstrap":
-                // The formatting first. Using directives are sorted alphabetically, so the correct
-                // order depends on where the generated project's own namespace falls among
-                // FluentValidation, Microsoft.* and the rest — which the template cannot know in
-                // advance. Until this runs, `format --verify-no-changes` fails, and that is CI's
-                // first step.
                 Step("dotnet", "format", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
 
-                // Then the local tools, which `verify` and the migration tasks run through `dotnet
-                // ef`. A restore that fails (feed, network, a broken SDK) must not take the
-                // formatting down with it, and must not pass for success either.
                 try
                 {
                     Step("dotnet", "tool", "restore");
@@ -393,25 +355,15 @@ internal static class Tasks
                 break;
 
             case "hygiene":
-                // No solution build needed. Catches a doc path that resolves to nothing, a workflow
-                // that would fail the first time it ran, and a comment that says what the code was
-                // rather than what it is — each gate running its fixtures first, because a green
-                // from a gate that cannot go red proves nothing. The coverage gate's own run needs
-                // reports, so only its fixtures belong here.
                 Gates(repoRoot);
                 break;
 
             case "verify":
-                // The full gate, in the order CI runs it: formatting first because it is the
-                // fastest to fail.
                 Gates(repoRoot);
                 Step("dotnet", "restore", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
                 Step("dotnet", "build", solution, "--configuration", configuration, "--no-restore");
                 Step("dotnet", "test", solution, "--configuration", configuration, "--no-build");
-                // Both contexts, because each has a history of its own: a model whose snapshot
-                // nobody compares is a model nobody migrates, and the other half's migrations
-                // would go on applying cleanly while this half's tables were simply absent.
                 Step(
                     "dotnet", "ef", "migrations", "has-pending-model-changes",
                     "--project", persistence,
@@ -435,17 +387,8 @@ internal static class Tasks
         return 0;
     }
 
-    /// <summary>The hygiene gates, each preceded by the fixtures that prove it can go red.</summary>
-    /// <remarks>
-    /// The scaffolders' and the coverage gate's fixtures run everywhere; the tree-auditing gates
-    /// are the template repository's own and a generated project receives none of them. Which set
-    /// a tree holds is asked of the filesystem rather than repeated as a condition, so this task
-    /// and the exclusions that shape a generated project cannot drift apart.
-    /// </remarks>
     private static void Gates(string repoRoot)
     {
-        // The scaffolder is not a gate over the tree, but its self-test is what keeps its templates
-        // from drifting away from the shapes the rules below check.
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", "--self-test");
@@ -457,7 +400,6 @@ internal static class Tasks
         OptionalGate(repoRoot, "CheckComments.cs", repoRoot);
     }
 
-    /// <summary>Runs one gate's command when the tree carries the gate, and skips it when it does not.</summary>
     private static void OptionalGate(string repoRoot, string fileName, params string[] arguments)
     {
         string path = Path.Combine(repoRoot, "Tools", fileName);
@@ -476,14 +418,6 @@ internal static class Tasks
             Directory.Delete(results, recursive: true);
         }
 
-        // The whole solution in one invocation, architecture suite included: the platform runs
-        // every test module the solution names, and this collector does not break the type
-        // resolution NetArchTest does through Type.GetType(name, throwOnError: true). Discovery
-        // per project is not needed here and would be a second copy of what the solution states.
-        //
-        // The switches are the platform's, and the coverage ones only look like the VSTest
-        // spellings: '--settings' is accepted and then ignored, so the settings file has to arrive
-        // through '--coverage-settings' or every exclusion in it goes silently unapplied.
         Step(
             "dotnet",
             "test", solution,
@@ -493,7 +427,6 @@ internal static class Tasks
             "--coverage-settings", runsettings,
             "--coverage-output-format", "cobertura");
 
-        // Same floor CI enforces, read from the same file.
         string minimum = CoverageMinimum(Path.Combine(repoRoot, "coverage.minimum"));
 
         Step(
@@ -503,41 +436,8 @@ internal static class Tasks
     }
 
     //#if (sonar)
-    /// <summary>
-    /// The local Sonar analysis: a server and a scanner, both in containers.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// No JRE on the machine, which is the whole reason this is a task rather than a paragraph
-    /// telling you to install one. SonarScanner for .NET is a .NET tool that shells out to Java,
-    /// and <c>Tools/sonar-scanner.Dockerfile</c> is where that Java lives, so the prerequisites
-    /// stay what <c>docs/BUILD-AND-CI.md</c> says they are: the SDK from <c>global.json</c>, and Docker.
-    /// </para>
-    /// <para>
-    /// Build output goes to <c>artifacts/sonar</c>, which is gitignored: the per-project
-    /// <c>bin/</c> and <c>obj/</c> the host build owns are left alone, so an analysis does not
-    /// leave the tree holding paths that exist only inside a container and the next build on the
-    /// machine still works. It stays <em>inside</em> the checkout, and that part is not a detail --
-    /// the architecture suite finds the repository root by climbing from its own assembly, looking
-    /// for the directory holding both <c>Directory.Packages.props</c> and <c>Src</c>. Built to a
-    /// path outside the checkout, all of it fails in the type initialiser before a single rule
-    /// runs.
-    /// </para>
-    /// <para>
-    /// The token is never read here: Compose takes it from <c>.env</c> and refuses to start with a
-    /// message saying where to generate one, which beats an authentication error raised deep inside
-    /// the scanner.
-    /// </para>
-    /// <para>
-    /// What the container writes is handed back to the owner of the checkout before it exits. The
-    /// SDK image runs as root, so without that the two directories an analysis creates are owned by
-    /// root inside a developer's own tree, and removing them needs sudo.
-    /// </para>
-    /// </remarks>
     private static void Sonar(string repoRoot)
     {
-        // Waited on, not assumed. A first boot builds the database and the search indices, and an
-        // analysis sent before the API is ready fails in a way that reads like a bad token.
         Step("docker", "compose", "--profile", "sonar", "up", "--detach", "--wait", "sonarqube");
 
         Step(
@@ -546,27 +446,6 @@ internal static class Tasks
             "/bin/sh", "-c", ScanScript(repoRoot));
     }
 
-    /// <summary>
-    /// The analysis, in the one order the scanner accepts: <c>begin</c>, a build it can watch, then
-    /// <c>end</c>. The scanner learns which file belongs to which project by observing MSBuild, so
-    /// a build that already happened is invisible to it and nothing here may skip one.
-    /// </summary>
-    /// <remarks>
-    /// SCM is off here and on in CI, which is not an oversight in either place. Locally it buys
-    /// nothing -- blame dates, issue authorship and a new-code baseline are noise on a throwaway
-    /// instance -- and it costs correctness: in a git worktree, <c>.git</c> is a file naming an
-    /// absolute path on the host, so the scanner's git client finds no repository inside the
-    /// container and fails the whole run at the very end, after the build and the tests. CI
-    /// analyses a plain clone with full history, where blame is the thing that makes "new code"
-    /// mean anything.
-    /// </remarks>
-    /// <remarks>
-    /// The Testcontainers suite is left out, and the coverage this reports is lower than CI's
-    /// because of it. There is no Docker daemon inside the scanner container, so those tests cannot
-    /// run there at all; the set is the same one <c>test --no-integration</c> uses, derived from
-    /// the projects themselves rather than listed. CI runs the whole suite, and
-    /// <c>.github/workflows/sonarqube.yml</c> is what reports the real figure.
-    /// </remarks>
     private static string ScanScript(string repoRoot)
     {
         IEnumerable<string> tests = TestProjects(repoRoot, dockerFreeOnly: true)
@@ -584,35 +463,14 @@ internal static class Tasks
 
         return $"""
             set -eu
-            # The name carries no braces on purpose. This script is built from a C# interpolated
-            # raw string, so a brace opens an interpolation hole rather than a shell expansion, and
-            # the braced spelling does not compile. Compose always defines SONAR_TOKEN, defaulting
-            # it to empty, so the plain form is safe under `set -u`.
             if [ -z "$SONAR_TOKEN" ]; then
               echo "SONAR_TOKEN is empty. Open http://localhost:9111, generate a token under" >&2
               echo "My Account > Security, and set SONAR_TOKEN in .env." >&2
               exit 1
             fi
-            # The image is the .NET SDK's, whose user is root, so everything written through the
-            # mount lands owned by root -- inside the developer's own checkout. Left that way,
-            # artifacts/sonar and .sonarqube cannot be deleted, `git clean` fails on them, and the
-            # tree needs sudo to tidy. The owner of the checkout is read off a file that is
-            # certainly in it, and the outputs are handed back on the way out.
-            #
-            # artifacts and not artifacts/sonar: the parent is created by the same root process and
-            # stays root-owned otherwise, which blocks removing the directory just as effectively.
-            # Anything else already under artifacts belongs to that owner, so it is chowned to what
-            # it already is.
-            #
-            # A trap and not a last line: the build or the tests failing is exactly when this is
-            # skipped otherwise, and `set -e` would leave the mess behind on the runs that already
-            # went badly.
             trap 'chown -R "$(stat -c %u:%g /repo/AppTemplate.sln)" /repo/artifacts /repo/.sonarqube 2>/dev/null || true' EXIT
             dotnet tool restore
             dotnet restore AppTemplate.sln --artifacts-path artifacts/sonar
-            # The flags match .github/workflows/sonarqube.yml, duplication exclusion included, for
-            # the reasons stated there. A local run reaching a different verdict from CI's would be
-            # a second analysis rather than a preview of the one that decides.
             dotnet sonarscanner begin \
               /k:"$SONAR_PROJECT_KEY" \
               /d:sonar.token="$SONAR_TOKEN" \
@@ -630,7 +488,6 @@ internal static class Tasks
     //#endif
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
-    /// <summary>The options <c>NewFeature.cs</c> takes besides the two names and <c>--root</c>.</summary>
     private static readonly string[] FeatureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
 
     private static string TaskList() => "  " + string.Join(", ", KnownTasks);
@@ -657,16 +514,6 @@ internal static class Tasks
         return name;
     }
 
-    /// <summary>
-    /// The floor is the first line of <c>coverage.minimum</c> that <em>is</em> a number. CI reads the
-    /// same file with a POSIX shell, so the gate a developer runs locally is the gate CI runs — and
-    /// "the first line that is a number" is the one definition both can hold to.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately not "the first line that is not a comment", which the two cannot agree on: a
-    /// UTF-8 BOM sits in front of a leading <c>#</c>, and <c>File.ReadLines</c> strips it while GNU
-    /// grep does not — so that definition read 85 here and the whole comment line in CI.
-    /// </remarks>
     private static string CoverageMinimum(string path)
     {
         foreach (string line in File.ReadLines(path))
@@ -682,13 +529,6 @@ internal static class Tasks
         throw new InvalidOperationException($"'{path}' states no coverage floor: no line is a bare number.");
     }
 
-    /// <summary>
-    /// Test projects are discovered from disk rather than listed, so a project added under
-    /// <c>Tests/</c> runs without an edit here. The Docker-free set is selected by the property
-    /// that actually makes a project need Docker — a Testcontainers package reference in its
-    /// csproj — so a project that adopts Testcontainers leaves the <c>--no-integration</c> set on
-    /// its own.
-    /// </summary>
     private static string[] TestProjects(string repoRoot, bool dockerFreeOnly = false)
     {
         string tests = Path.Combine(repoRoot, "Tests");
@@ -712,10 +552,6 @@ internal static class Tasks
         return paths;
     }
 
-    /// <summary>
-    /// The repository root is the nearest directory at or above this file that holds
-    /// <c>AppTemplate.sln</c>.
-    /// </summary>
     private static string ResolveRepoRoot()
     {
         string start = Path.GetDirectoryName(SourceFile()) ?? string.Empty;
@@ -747,20 +583,6 @@ internal static class Tasks
         Console.ForegroundColor = previous;
     }
 
-    /// <summary>
-    /// Prints the command, runs it, and stops the task on a non-zero exit code with a message that
-    /// names both the command and the code. The child inherits stdout and stderr, so a build or a
-    /// test run scrolls past live rather than arriving in a block at the end.
-    /// </summary>
-    /// <summary>
-    /// The vulnerability listing, read rather than trusted.
-    /// </summary>
-    /// <remarks>
-    /// <c>dotnet list package --vulnerable</c> exits zero whether or not it finds anything, so a
-    /// step that only inspects the exit code passes for every input and asserts nothing. The
-    /// sentence it prints when it has something to report is the only signal it gives, which is
-    /// why CI greps for it and why this does the same rather than running the command for show.
-    /// </remarks>
     private static void VulnerablePackages(string solution)
     {
         const string marker = "has the following vulnerable packages";

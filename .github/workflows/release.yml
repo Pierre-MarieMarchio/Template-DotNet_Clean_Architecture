@@ -1,11 +1,6 @@
 ﻿name: Release
 
-# Tag-driven. `v1.2.3` publishes 1.2.3, 1.2, 1 and latest; `v1.2.3-rc.1` publishes only the
-# full prerelease tag and never moves `latest`.
-#
-# No secret to create: GITHUB_TOKEN authenticates against GHCR for the repository that owns the
-# workflow. If you push somewhere else, add a registry credential and change the `login` step —
-# do not widen `permissions` to compensate.
+# Tag-driven: v1.2.3 publishes 1.2.3, 1.2, 1 and latest; a prerelease tag never moves latest.
 on:
   push:
     tags:
@@ -17,8 +12,6 @@ on:
         required: true
         type: string
 
-# Nothing here may write to the repository contents. Each job asks for exactly what it needs and
-# no job inherits another's grant.
 permissions:
   contents: read
 
@@ -27,11 +20,11 @@ env:
   DOTNET_NOLOGO: 1
   CONFIGURATION: Release
   SOLUTION: AppTemplate.sln
+  # GITHUB_TOKEN pushes here; for another registry change the login step, never widen permissions.
   REGISTRY: ghcr.io
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # A tag is not a licence to skip the gate. Everything below depends on this.
+  # A tag does not skip the gate: every job below depends on this one.
   verify:
     name: Verify
     runs-on: ubuntu-latest
@@ -56,15 +49,11 @@ jobs:
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 
-      # No coverage at release time: the floor is a gate on a change, and this
-      # workflow runs on a tag that already passed it.
+      # No coverage at release time: the floor gates a change, and this tag already passed it.
       - name: Test
         run: |
           #if (templateMaintenance)
-          # The test-count floor is this repository's own, a round number below the real total
-          # of its suite matching ci.yml: a release built from a solution that ran no tests is
-          # the one release nobody would question, and a project generated with fewer options
-          # starts below any number this suite could justify, so its release carries no floor.
+          # This repository's own floor, as in ci.yml; a generated project carries none.
           minimum_tests=3000
           floor_option="--minimum-expected-tests ${minimum_tests}"
           #endif
@@ -82,13 +71,7 @@ jobs:
             exit 1
           fi
 
-  # ---------------------------------------------------------------------------
-  # The migration bundle. This is what a deployment runs against the database;
-  # the API applies migrations at startup in Development only.
-  #
-  # Built here rather than in a deploy job so that the artifact is produced from
-  # the same commit as the image, and so applying migrations never needs the SDK
-  # or the source tree on the target.
+  # What a deployment runs against the database, built from the same commit as the image.
   migration-bundle:
     name: Migration bundle
     needs: verify
@@ -105,22 +88,12 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Self-contained bundles with no connection string: run ./efbundle --connection as a principal with DDL rights, not the application's user.
       - name: Install dotnet-ef
         run: dotnet tool restore
 
-      # --self-contained so the target needs no .NET runtime at all: the bundle is
-      # the single thing you copy to run pending migrations.
-      #
-      # The bundle embeds no connection string. Supply one at run time:
-      #   ./efbundle --connection "$CONNECTION_STRING"
-      # Use a migration-time principal with DDL rights, NOT the application's
-      # runtime user — the app should not be able to alter its own schema.
       #if (localAuth)
-      # One bundle per context, and both, because one bundle covers one context. A release
-      # carrying only the business bundle leaves the `identity` schema absent, and an API whose
-      # identity tables do not exist starts and then fails the first sign-in. The two are
-      # independent -- no foreign key crosses the schemas -- so the order below is for consistency
-      # with the Development bootstrap rather than a correctness requirement.
+      # One bundle per context: a release without this one leaves the identity schema absent.
       - name: Build the identity bundle
         run: |
           dotnet ef migrations bundle \
@@ -144,8 +117,6 @@ jobs:
             --force \
             --output efbundle
 
-      # Both, named: a job that asserted one of them would go green on the release that shipped
-      # half a schema, which is the failure this step exists to catch.
       - name: Assert both bundles exist and are executable
         run: |
           #if (localAuth)
@@ -176,14 +147,12 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  # ---------------------------------------------------------------------------
   image:
     name: Container image (${{ matrix.component }})
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # One image: the API, which serves HTTP and runs the periodic jobs. A separate runner process,
-    # if one is ever extracted, earns its own entry here rather than a second copy of the API's.
+    # One image, the API, which also runs the periodic jobs.
     strategy:
       fail-fast: false
       matrix:
@@ -201,17 +170,13 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
-      # The emulators are installed from an image, and the action's default is the floating
-      # `tonistiigi/binfmt:latest` — run privileged, on the runner that holds the push credentials.
-      # Pinned by digest; Dependabot does not read a `with:` input, so bump it by hand.
+      # The binfmt image, pinned by digest; Dependabot does not read a with: input, so bump it by hand.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
         with:
           image: tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
 
-      # The BuildKit daemon this builder runs is an image too, and the action's default is the
-      # floating `moby/buildkit:buildx-stable-1`. Pinned by digest like every image in this
-      # repository; Dependabot does not read a `with:` input, so bump it by hand alongside the action.
+      # The BuildKit image, pinned by digest and bumped by hand like the binfmt image.
       - name: Set up Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
@@ -224,14 +189,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The image name must be lowercase; a repository with capitals in its name
-      # would otherwise fail at push with an unhelpful error.
+      # Lowercase, as the registry requires.
       - name: Compute image name
         id: name
         run: echo "image=${REGISTRY}/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')/${{ matrix.component }}" >> "$GITHUB_OUTPUT"
 
-      # `latest` is attached only for a stable semver tag: the enable expression
-      # excludes anything with a prerelease suffix, so an rc never becomes latest.
       - name: Compute tags and labels
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -253,19 +215,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # An SBOM and a provenance record travel with the image rather than in a
-          # separate artifact nobody correlates afterwards.
-          # The SBOM is produced by a scanner image BuildKit runs over the build; `true` would
-          # select the floating `docker/buildkit-syft-scanner:stable-1`. Named and pinned instead,
-          # by hand like the two images above.
+          # The SBOM scanner image, pinned and bumped by hand like the two above.
           sbom: generator=docker/buildkit-syft-scanner:1.12.0@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Signed provenance linking the digest to this workflow run and commit.
-      # `docker/build-push-action` records provenance inside the image; this makes it
-      # independently verifiable with `gh attestation verify`.
+      # Signed provenance, verifiable with gh attestation verify.
       - name: Attest provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

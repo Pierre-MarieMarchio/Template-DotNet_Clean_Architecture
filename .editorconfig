@@ -45,10 +45,6 @@ csharp_style_prefer_pattern_matching = true:suggestion
 csharp_style_null_propagation = true:warning
 dotnet_style_coalesce_expression = true:warning
 
-# Unused code must not accumulate silently. Reporting an unused using during a build needs
-# GenerateDocumentationFile, which Directory.Build.props turns on for the sake of checking
-# cref targets; suppressing CS1591 and CS1573 there keeps documentation optional, so the
-# rule below costs nothing it should not.
 dotnet_diagnostic.IDE0005.severity = warning
 dotnet_diagnostic.CS8618.severity = error      # non-nullable not initialised
 dotnet_diagnostic.CS8602.severity = error      # dereference of possibly null
@@ -86,153 +82,100 @@ dotnet_naming_symbols.private_field_symbol.applicable_accessibilities = private
 dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 
-#### Generated code ####
-
-#### Targeted, justified suppressions ####
-# Each entry below is scoped to a single file and states why the rule does not apply.
-# Never add a repo-wide NoWarn instead of an entry here.
+#### Suppressions: one section per file, with its reason; never a repository-wide NoWarn ####
 
 [Src/Application/AppTemplate.Application.Core/Common/Results/Error.cs]
-# CA1716 warns that the type name `Error` collides with a VB.NET reserved keyword, so that
-# VB consumers would need bracket-escaping. This template is a C#-only ASP.NET Core API
-# with no cross-language consumers, and `Error` is the established name for this concept in
-# the Result pattern — it is already consumed by every vertical. Renaming would cost
-# clarity to satisfy a constraint that does not exist here.
+# CA1716: a C#-only API; `Error` is the Result pattern's name for the concept.
 dotnet_diagnostic.CA1716.severity = none
 
 [Src/Application/AppTemplate.Application.Core/Common/Results/Result.cs]
-# CA1000 discourages public static members on a generic type because callers must name the
-# type argument (`Result<Foo>.Success(x)`). The type-inferring entry points already exist on
-# the non-generic `Result` (`Result.Success<T>` / `Result.Failure<T>`), plus an implicit
-# conversion from a value; the statics on `Result<T>` are the standard implementation of the
-# pattern. Removing them would break the contract both infrastructure modules build against.
+# CA1000, S4136: the type-inferring entry points live on Result; the overloads pair non-generic with generic.
 dotnet_diagnostic.CA1000.severity = none
-# S4136 asks that the `Success` and `Failure` overloads each be adjacent. They are ordered as two
-# pairs instead -- non-generic, then generic -- because each member's own documentation names the
-# other half of its pair as its counterpart. Grouping by name would break both readings.
 dotnet_diagnostic.S4136.severity = none
 
 [Src/Domain/AppTemplate.Domain.Core/Common/Exceptions/DomainException.cs]
-# CA1032 asks every exception type to offer the three standard constructors, including a
-# parameterless one. This exception reports a violated domain invariant, and the message is
-# the only thing that tells a caller which invariant it was; an instance carrying no message
-# would be unactionable at the catch site and useless in a log. The two message-bearing
-# constructors are deliberately the whole surface.
+# CA1032: an invariant violation without a message would be unactionable.
 dotnet_diagnostic.CA1032.severity = none
 
 #if (localAuth)
 [Src/Application/AppTemplate.Application.Auth/Features/ExternalLogins/UseCases/Commands/SignInWithExternalProvider/SignInWithExternalProviderUseCase.cs]
-# S107 counts eight constructor parameters. They are eight distinct collaborators -- a token
-# verifier, the external-login store, accounts, access tokens, refresh grants, the two-factor
-# challenge, the security log and the validator -- and this use case needs each exactly once. A
-# parameter object would group them by nothing, and the one grouping that is real (the token pair)
-# cannot live here: `AppTemplate.Application.Auth` registers no service, which
-# `LayoutConventionTests` enforces and states the reason for.
+# S107: eight distinct collaborators, each needed once.
 dotnet_diagnostic.S107.severity = none
 
 #endif
 #if (reminders)
 [Src/Application/AppTemplate.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueRemindersUseCase.cs]
-# S107 counts eight constructor parameters: the repository, the target queries, the notifier, the
-# diagnostics, the unit of work, the clock, the leader lease and the logger. Each is used on a
-# different line of one pass, and no two of them share a subject -- any parameter object here would
-# be a bag named after its own arity.
+# S107: eight distinct collaborators, each needed once.
 dotnet_diagnostic.S107.severity = none
 #endif
 
 [Src/Domain/AppTemplate.Domain.Core/Common/Primitives/Entity.cs]
-# S4035 asks that a class implementing IEquatable<T> be sealed, because a derived type inheriting
-# the comparison can break symmetry. `Equals` compares `GetType() == other.GetType()` before the
-# ids, which is exactly the guard the rule is protecting -- and this is the abstract base every
-# aggregate derives from, so sealing it is not available.
+# S4035: the abstract base of every aggregate; Equals compares the runtime type first.
 dotnet_diagnostic.S4035.severity = none
 
 [Src/Domain/AppTemplate.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs]
-# S3267 suggests `Where`. The loop it names throws on the first character that is not a lowercase
-# hexadecimal digit; `Where` collects rather than refuses, and this value object stays off
-# `IEnumerable<char>` deliberately -- the file beside it uses `AsSpan().ContainsAny`.
+# S3267: the loop refuses on the first bad character; Where would collect.
 dotnet_diagnostic.S3267.severity = none
 
 #if (files)
 [Src/Domain/AppTemplate.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs]
-# S3267 suggests `Where` for a loop that throws on the first control character. A query would
-# collect them; nothing here wants the set, only the refusal.
+# S3267: the loop refuses on the first control character; Where would collect.
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (localAuth)
 [Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs]
-# S6672 asks that an injected `ILogger<T>` name its enclosing type. The base class
-# `DataProtectorTokenProvider<AppUser>` declares its constructor parameter as
-# `ILogger<DataProtectorTokenProvider<AppUser>>` and accepts no other type, so the rule asks for a
-# signature ASP.NET Core Identity does not offer.
+# S6672: the logger's type argument is fixed by DataProtectorTokenProvider<AppUser>.
 dotnet_diagnostic.S6672.severity = none
 
 [Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs]
-# S6672, and the same constraint as the provider beside it: the logger's type argument is fixed by
-# `DataProtectorTokenProvider<AppUser>`'s constructor, not chosen here.
+# S6672: the logger's type argument is fixed by DataProtectorTokenProvider<AppUser>.
 dotnet_diagnostic.S6672.severity = none
 
 #endif
 [Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs]
-# S2068 sees the word `password` in a string literal. The literal is the local compose database's
-# design-time fallback, documented as such three lines above it: it picks a provider when a
-# migration is scaffolded and never reaches a server. A visible local default is the point --
-# hiding it would suggest it is a secret.
+# S2068: the local compose database's design-time fallback, not a secret.
 dotnet_diagnostic.S2068.severity = none
 
 [Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs]
-# S2326 reports `TContext` as unused. Being unused is what it is for: it makes one closed generic
-# per context so a container can register a commit boundary per context, which the `<remarks>` on
-# the interface explains at length. A marker type parameter is the mechanism, not an oversight.
+# S2326: TContext is a marker that makes one closed generic per context.
 dotnet_diagnostic.S2326.severity = none
 
 [Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs]
-# S3267 suggests `Select(tracked => tracked.Aggregate)`. The loop it names drains each aggregate's
-# events and then clears them, so a projection would do neither of the two things the loop is for.
+# S3267: the loop drains and clears each aggregate's events; a projection would do neither.
 dotnet_diagnostic.S3267.severity = none
 
 #if (files)
 [Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs]
-# S3267 suggests `Where`. Each iteration of the reconciliation removes a tag from a dictionary and
-# adds a row -- two side effects, which is what makes it a reconciliation rather than a filter.
+# S3267: a reconciliation with two side effects, not a filter.
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (todoLists)
 [Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs]
-# S3267 suggests `Where` for the same two-sided reconciliation the file-store mapper runs: remove
-# from the dictionary, add a row, and record that the structure changed.
+# S3267: a reconciliation with two side effects, not a filter.
 dotnet_diagnostic.S3267.severity = none
 #endif
 
 [Src/Presentation/AppTemplate.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs]
-# S2139 refuses logging an exception and rethrowing it. Both are wanted here and the comment at the
-# catch says why: a development host that cannot reach its database says so critically, once, at the
-# boundary that knows it is the database bootstrap, and then fails to start rather than serving.
+# S2139: the database bootstrap logs critically once, then fails the start.
 dotnet_diagnostic.S2139.severity = none
 
 [Src/Presentation/AppTemplate.Api/Common/Hosting/HttpPipelineModule.cs]
-# AV0011 reports that the default API version is stated explicitly as 1.0. In a template, reading
-# the version off a library's default is the less legible of the two -- the call site is where a
-# derived project looks for it.
+# AV0011: the default API version is stated where a derived project looks for it.
 dotnet_diagnostic.AV0011.severity = none
 
 [Src/Presentation/AppTemplate.Api/Common/Controllers/ApiControllerBase.cs]
-# S4136 asks that the `OkOrProblem` overloads be adjacent. The private helper between them carries
-# the `DeclaredType` argument that makes the first one correct, and sits under its only caller;
-# moving it away to group the overloads would separate the explanation from what it explains.
+# S4136: the private helper sits under its only caller, between the overloads.
 dotnet_diagnostic.S4136.severity = none
 
 [Src/Presentation/AppTemplate.Api/Common/Errors/ProblemTypes.cs]
-# S1075 reports a hard-coded URI. It is the default base for a `ProblemDetails` `type` member, on
-# the reserved `.example` TLD, and `ProblemTypeOptions.BaseUri` replaces it in any deployment that
-# publishes its own problem documents.
+# S1075: the default problem-type base on the reserved .example TLD; ProblemTypeOptions.BaseUri replaces it.
 dotnet_diagnostic.S1075.severity = none
+
 [**/Migrations/*.cs]
 generated_code = true
 dotnet_diagnostic.IDE0005.severity = none
 
 [Tests/**/*.cs]
-# Test classes are instantiated by the runner; unused-parameter analysis is noisy there.
 dotnet_diagnostic.CA1707.severity = none   # underscores in test method names are intentional

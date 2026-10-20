@@ -2,31 +2,6 @@
 #:property ManagePackageVersionsCentrally=false
 #:package YamlDotNet@16.*
 
-// Structural validation of the GitHub workflows, for a repository whose CI has never run.
-//
-// Checks the failure modes that a YAML parse alone does not catch:
-//   - `needs:` naming a job that does not exist
-//   - a step referencing an action without a SHA pin
-//   - a container image named without a digest: a job's `container:` or `services:`, and the images
-//     the Docker actions pull on a step's behalf — the binfmt image, the BuildKit daemon, the SBOM
-//     scanner — whose defaults float when the step leaves them unnamed
-//   - `permissions:` missing at both workflow and job level
-//   - a `run:` block referencing an `env:` key that is defined nowhere
-//   - a referenced local file (script, Dockerfile, settings) that is absent from disk
-//
-// Two properties the checks above depend on.
-//
-// **Both spellings are workflows.** GitHub Actions reads `.yml` and `.yaml` alike, so a gate that
-// globs one of them declares a whole file sound without opening it.
-//
-// **The gate refuses to pass on nothing.** A directory with no workflow in it establishes no
-// candidate set, and reporting success over it is the vacuity `docs/TESTING.md` bans for the
-// architecture rules, where `RuleAssertions.RequireTypes` enforces the same thing. So the count is
-// printed and a zero is a failure.
-//
-//     dotnet run Tools/CheckWorkflows.cs .
-//     dotnet run Tools/CheckWorkflows.cs --self-test
-
 using System.Text;
 using System.Text.RegularExpressions;
 using YamlDotNet.Core;
@@ -38,7 +13,12 @@ try
 }
 catch (IOException)
 {
-    // A console that refuses an encoding change still prints; the default is already UTF-8 here.
+}
+
+if (args is ["--help"] or ["-h"])
+{
+    Console.WriteLine(WorkflowGate.Help);
+    return 0;
 }
 
 if (args.Contains("--self-test"))
@@ -48,15 +28,33 @@ if (args.Contains("--self-test"))
 
 return WorkflowGate.Run(Path.GetFullPath(args.Length > 0 ? args[0] : "."));
 
-/// <summary>The gate itself: discovery, the structural checks, and the report.</summary>
 internal static class WorkflowGate
 {
-    /// <summary>GitHub Actions accepts either spelling, so both are workflows and both are checked.</summary>
+    internal const string Help =
+        """
+        Usage: dotnet run Tools/CheckWorkflows.cs [<root>]
+               dotnet run Tools/CheckWorkflows.cs --self-test
+               dotnet run Tools/CheckWorkflows.cs -- --help
+
+        Checks every workflow under <root>/.github/workflows, .yml and .yaml alike, for what a YAML
+        parse does not catch:
+          - a needs: naming a job that does not exist
+          - an action referenced without a SHA pin
+          - a container image without a digest: a job's container: or services:, and the images
+            the Docker actions pull on a step's behalf (binfmt, the BuildKit daemon, the SBOM
+            scanner), whose defaults float when the step leaves them unnamed
+          - permissions: missing at both workflow and job level
+          - a run: block reading an env: key that is defined nowhere
+          - a local file a step names (script, Dockerfile, settings) that is absent from disk
+
+        Exit code 0 when every workflow is sound; 1 on a problem, and on a directory holding no
+        workflow, which proves nothing.
+        """;
+
     private static readonly string[] WorkflowSuffixes = [".yml", ".yaml"];
 
     private static readonly Regex ShaPin = new(@"^[\w\-./]+@[0-9a-f]{40}$", RegexOptions.Compiled);
 
-    /// <summary>`name:tag@sha256:digest` — the tag for the reader, the digest for the pull.</summary>
     private static readonly Regex DigestPin = new(
         @"^[a-z0-9][a-z0-9._/:-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$",
         RegexOptions.Compiled);
@@ -67,12 +65,6 @@ internal static class WorkflowGate
         @"\$\{?\{?\s*env\.([A-Za-z_][A-Za-z0-9_]*)|\$([A-Z_][A-Z0-9_]*)|\$\{([A-Z_][A-Z0-9_]*)\}",
         RegexOptions.Compiled);
 
-    /// <summary>
-    /// Local paths the workflows hand to a tool; each must exist or the step dies at run time.
-    /// "Dockerfile" must be preceded by a path separator: the bare word also appears inside
-    /// `::error title=Dockerfile ...` messages, which are strings, not paths. `csproj` is offered
-    /// to the alternation ahead of `cs`, so that a project file is matched whole.
-    /// </summary>
     private static readonly Regex FileRef = new(
         @"(?:\./)?("
         + @"(?:\.github/scripts/|Src/|Tests/|Tools/)[\w\-./]+\.(?:py|csproj|cs|xml)"
@@ -81,13 +73,8 @@ internal static class WorkflowGate
         + @")",
         RegexOptions.Compiled);
 
-    /// <summary>
-    /// Go template actions inside `--format '{{...}}'` declare their own variables ($p, $_);
-    /// they are not shell parameters and must not be checked against env blocks.
-    /// </summary>
     private static readonly Regex GoTemplate = new(@"\{\{.*?\}\}", RegexOptions.Singleline | RegexOptions.Compiled);
 
-    /// <summary>Shell variables that are always present, plus anything GitHub injects.</summary>
     private static readonly HashSet<string> ShellBuiltins = new(StringComparer.Ordinal)
     {
         "GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT", "GITHUB_ENV", "GITHUB_PATH",
@@ -113,7 +100,6 @@ internal static class WorkflowGate
             .ToList();
     }
 
-    /// <summary>Returns the problems that fail the gate, and the notes that only inform.</summary>
     public static (List<string> Problems, List<string> Notes) Validate(string repo, string name, string text)
     {
         var problems = new List<string>();
@@ -123,7 +109,6 @@ internal static class WorkflowGate
 
         try
         {
-            // `on:` parses as boolean True in YAML 1.1 -- that is expected, not a bug.
             var stream = new YamlStream();
             stream.Load(new StringReader(text));
             document = stream.Documents.Count > 0 ? stream.Documents[0].RootNode : null;
@@ -146,7 +131,6 @@ internal static class WorkflowGate
 
         var jobNames = new HashSet<string>(Keys(jobs), StringComparer.Ordinal);
 
-        // Workflow-level env plus per-job env, for the shell-variable check.
         var workflowEnv = new HashSet<string>(Keys(Get(root, "env")), StringComparer.Ordinal);
 
         var topPermissions = Get(root, "permissions");
@@ -161,7 +145,6 @@ internal static class WorkflowGate
                 continue;
             }
 
-            // needs: must resolve
             foreach (var dependency in Needs(job))
             {
                 if (!jobNames.Contains(dependency))
@@ -221,8 +204,6 @@ internal static class WorkflowGate
                 var run = runScalar.Value ?? "";
                 var stepName = StepName(step);
 
-                // GitHub expressions and Go template actions both use {{...}}; strip them so
-                // their internal variables are not mistaken for shell parameters.
                 var runShell = GoTemplate.Replace(run, "");
 
                 foreach (Match match in EnvRef.Matches(runShell))
@@ -243,7 +224,6 @@ internal static class WorkflowGate
                         continue;
                     }
 
-                    // Loop variables and locals assigned in the same block.
                     var assignment =
                         $@"(?:^|\n)\s*(?:for\s+{variable}\b|{variable}=|read -r[^\n]*\b{variable}\b|mapfile[^\n]*\b{variable}\b)";
                     if (Regex.IsMatch(run, assignment))
@@ -293,7 +273,6 @@ internal static class WorkflowGate
         Console.WriteLine($"Validated {workflows.Count} workflow(s): {listed}");
         Console.WriteLine();
 
-        // A glob that matched nothing reports success, which is the failure this gate prevents.
         if (workflows.Count == 0)
         {
             Console.WriteLine("PROBLEM: no workflow file was examined, so this check proves nothing.");
@@ -336,14 +315,6 @@ internal static class WorkflowGate
         Console.WriteLine("No structural problems found.");
         return 0;
     }
-
-    // --- Self-test -------------------------------------------------------------------------------
-    //
-    // The two halves a gate needs in order to be worth its place in CI: proof that each check fires on
-    // a workflow carrying the fault it names, and proof that none of them fires on a workflow that is
-    // merely shaped like one. The clean fixture carries, on purpose, every construction that a naive
-    // reading mistakes for a fault: a loop variable, a Go template's own `$P`, and a local script that
-    // does exist.
 
     private const string CleanFixture = """
         name: Clean
@@ -467,14 +438,9 @@ internal static class WorkflowGate
         ),
     ];
 
-    /// <summary>
-    /// The spelling that a `*.yml` glob declares sound without ever opening it. The fault inside is a
-    /// real one, so a green result here means the file was never read.
-    /// </summary>
     private static readonly (string Name, string Text) UnreadSpelling =
         ("release.yaml", CleanFixture.Replace("    runs-on:", "    needs: absent\n    runs-on:"));
 
-    /// <summary>The minimum tree the file-existence check needs in order to have an answer.</summary>
     private static void FixtureRepo(string root)
     {
         var tools = Path.Combine(root, "Tools");
@@ -529,8 +495,6 @@ internal static class WorkflowGate
             Directory.Delete(fixtures, recursive: true);
         }
 
-        // Discovery is its own claim: a fault the validator catches is still missed when the file is
-        // never handed to it, and an empty directory is a green that rests on nothing.
         var discovery = Directory.CreateTempSubdirectory().FullName;
         try
         {
@@ -584,9 +548,6 @@ internal static class WorkflowGate
         return 0;
     }
 
-    // --- Container images ------------------------------------------------------------------------
-
-    /// <summary>The images a job itself runs in or beside: `container:` and each of `services:`.</summary>
     private static IEnumerable<(string Where, string Image)> JobImages(YamlMappingNode job)
     {
         var container = Get(job, "container");
@@ -609,10 +570,6 @@ internal static class WorkflowGate
         }
     }
 
-    /// <summary>
-    /// The images three Docker actions pull on the step's behalf. Each has a floating default, so an
-    /// input left out is as unpinned as a tag written out.
-    /// </summary>
     private static IEnumerable<string> ActionImageProblems(string? uses, YamlNode? with)
     {
         string action = uses?.Split('@')[0].Trim() ?? "";
@@ -652,8 +609,6 @@ internal static class WorkflowGate
         }
     }
 
-    // --- YAML helpers ----------------------------------------------------------------------------
-
     private static YamlNode? Get(YamlNode? node, string key)
     {
         if (node is not YamlMappingNode mapping)
@@ -672,7 +627,6 @@ internal static class WorkflowGate
         return null;
     }
 
-    /// <summary>An absent key and an empty value are the same absence to every check here.</summary>
     private static bool IsNull(YamlNode? node)
         => node is null
             || (node is YamlScalarNode scalar
@@ -763,9 +717,6 @@ internal static class WorkflowGate
         };
     }
 
-    // --- Plumbing --------------------------------------------------------------------------------
-
-    /// <summary>Line endings are normalised so that the shell patterns see the text a shell would.</summary>
     private static string ReadText(string path)
         => File.ReadAllText(path).Replace("\r\n", "\n").Replace("\r", "\n");
 

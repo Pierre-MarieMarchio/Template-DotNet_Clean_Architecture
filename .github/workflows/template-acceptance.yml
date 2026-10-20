@@ -1,16 +1,6 @@
 name: Template acceptance
 
-# The repository is a `dotnet new` template as well as a working solution, and the jobs
-# here prove the packaged template is what it claims: `sourceName` substitution, the
-# derived kebab-case symbols, the regenerated GUIDs and every condition an option
-# switches only run when `dotnet new` runs, and a template that generates a broken
-# project is worse than a repository to clone. Each leg installs the template from the
-# checkout, generates a project under a name that is not "AppTemplate", and builds,
-# tests and gates exactly what an adopter would get.
-#
-# Template repository only: `dotnet new install .` of a generated project is a sentence
-# that cannot be true, so this workflow does not ship with one.
-
+# Template repository only: each leg installs the template from this checkout, generates under another name and gates what an adopter would get.
 on:
   push:
     branches: [main]
@@ -18,15 +8,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# One in-flight run per ref. A new push supersedes the previous run instead of
-# queueing behind it; runs on main are never cancelled so the default branch
-# always ends up with a conclusive result.
+# One run per ref: a new push cancels the previous one, except on main.
 concurrency:
   group: template-acceptance-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
-# Least privilege at the top level. Jobs that need more must opt in locally;
-# nothing here writes to the repository.
+# Least privilege; nothing here writes to the repository.
 permissions:
   contents: read
 
@@ -36,9 +23,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
 
 jobs:
-  # The legs are the combinations that exercise a different shape, not the cross product of
-  # every option. `auth_context` says whether the generated solution has the Auth DbContext,
-  # which only `--auth local` generates.
+  # The legs are the shapes the options produce, not their cross product; auth_context says whether the Auth DbContext exists.
   template:
     name: Template acceptance (${{ matrix.name }})
     runs-on: ubuntu-latest
@@ -79,11 +64,7 @@ jobs:
       - name: Install the template from this checkout
         run: dotnet new install .
 
-      # A name unrelated to "AppTemplate" on purpose — same class of name a real
-      # adopter would pick, and different enough in shape and length to catch a
-      # substitution that only happens to work for the template's own name. The options
-      # are deliberately unquoted: they are several arguments, and they come from the
-      # matrix above, not from anything a pull request can write.
+      # A name unlike AppTemplate's in shape and length; the options stay unquoted, being several arguments from the matrix.
       - name: Generate a project under a different name
         env:
           OPTIONS: ${{ matrix.options }}
@@ -92,9 +73,6 @@ jobs:
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" $OPTIONS
 
-      # The template's name must survive nowhere: not in a file's content, not in a path.
-      # A substitution that missed a file the options left in would otherwise only show up
-      # in an adopter's repository.
       - name: Assert the template's own name leaked nowhere
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -107,9 +85,7 @@ jobs:
             exit 1
           fi
 
-      # A condition that leaves a comma before a closing brace still loads in ASP.NET Core,
-      # which tolerates it, and fails in jq, in editors' schema validation and in any strict
-      # parser. Every generated JSON file is therefore parsed strictly, in every leg.
+      # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -123,14 +99,7 @@ jobs:
           done < <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.json' -print0)
           exit "$status"
 
-      # Proves the documented first step, and proves it is *sufficient*. Sorted using
-      # directives are ordered alphabetically, so the correct order depends on where the
-      # generated project's own namespace falls among FluentValidation, Microsoft.* and
-      # the rest — which no single committed ordering can satisfy for every possible name.
-      # A generated project therefore fails the format check until formatted once, and the
-      # docs/USING-THE-TEMPLATE.md tells an adopter to run `dotnet run Tools/Tasks.cs bootstrap`
-      # first. If that
-      # one run ever stopped being enough, this step is what would say so.
+      # Using order depends on the generated name, so one bootstrap run must be enough: docs/USING-THE-TEMPLATE.md.
       - name: Bootstrap formatting, then verify it is stable
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -145,13 +114,7 @@ jobs:
           dotnet restore Sample.Generated.Project.sln
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
-      # The Docker-free subset, selected by the property that actually decides it — a
-      # Testcontainers reference in the csproj — rather than by a name pattern. Naming
-      # `*IntegrationTests*` would silently include Identity.UnitTests, which also runs
-      # against a real PostgreSQL. The suites that need a database are a property of the
-      # generated *code*, already proved by build-test against this same source; this
-      # job's narrower question is whether the generated project is what it claims to be
-      # under a fresh name and under each option set.
+      # Selected by a Testcontainers reference in the csproj, not by a name pattern.
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -167,8 +130,6 @@ jobs:
             echo "::endgroup::"
           done
 
-      # One comparison per DbContext the options generate, the way the `verify` task does
-      # it: a model whose snapshot nobody compares is a model nobody migrates.
       - name: Assert no context has a pending model change
         working-directory: ${{ runner.temp }}/generated
         env:
@@ -190,11 +151,7 @@ jobs:
             echo "::endgroup::"
           done
 
-      # The generated project's own gates, through the task an adopter runs: the
-      # scaffolders' self-tests and the coverage gate's fixtures. The tree-auditing
-      # gates are the template repository's own and do not ship; the task asks the
-      # filesystem which gates its project carries, so this step cannot drift from
-      # the exclusion that removes one.
+      # The gates the generated tree carries, as its hygiene task finds them.
       - name: Run the generated project's hygiene gates
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
@@ -203,10 +160,7 @@ jobs:
         if: always()
         run: dotnet new uninstall .
 
-  # The options that cannot be combined must be refused, and refused before anything is
-  # written. `--auth none` alone and with `--examples notes` leave the hidden required
-  # parameters unmet; a template that generated anyway would hand an adopter a project
-  # whose example features have no authentication to stand on.
+  # A refused combination must exit non-zero and write nothing.
   template-refusals:
     name: Template refuses unsupported options
     runs-on: ubuntu-latest
@@ -245,4 +199,3 @@ jobs:
       - name: Uninstall the template
         if: always()
         run: dotnet new uninstall .
-

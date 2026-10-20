@@ -90,37 +90,57 @@ public sealed class RequestEmailChangeUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The password matched, but the store has nothing to send — the address is already taken. The
-    /// answer must be indistinguishable from a token that really was minted, or this endpoint tells
-    /// a caller which addresses are registered.
-    /// </summary>
     [Fact]
-    public async Task AnAlreadyTakenAddress_SendsNothingAndStillSucceeds()
+    public async Task AnAlreadyTakenAddress_IsSentTheNotice_AndStillSucceeds()
     {
-        GivenTheOutcomeIs(EmailChangeRequestOutcome.Suppressed);
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.AddressAlreadyRegistered);
+        _emailFactory.CreateAlreadyRegisteredAsync("new@example.com", Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("You already have an account", "<html>notice</html>"));
 
         var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        _emailFactory.ReceivedCalls().ShouldBeEmpty();
-        _emailSender.ReceivedCalls().ShouldBeEmpty();
+        await _emailSender.Received(1).SendAsync(
+            "new@example.com",
+            "You already have an account",
+            "<html>notice</html>",
+            Arg.Any<CancellationToken>());
+        await _emailFactory.DidNotReceive().CreateEmailChangeAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<CancellationToken>());
     }
 
-    /// <summary>A minted token and a suppressed one must answer identically once the password matched.</summary>
     [Fact]
-    public async Task AnIssuedTokenAndASuppressedOne_AreAnsweredIdentically()
+    public async Task AFreeAddressAndATakenOne_AreAnsweredIdentically()
     {
         GivenTheOutcomeIs(EmailChangeRequestOutcome.Issued("the-token"));
         _emailFactory.CreateEmailChangeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new AccountEmail("Confirm your new email address", "<html>the body</html>"));
-        var forIssued = await UseCase().ExecuteAsync(ARequest(), TestToken);
+        var forFree = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        GivenTheOutcomeIs(EmailChangeRequestOutcome.Suppressed);
-        var forSuppressed = await UseCase().ExecuteAsync(ARequest(), TestToken);
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.AddressAlreadyRegistered);
+        _emailFactory.CreateAlreadyRegisteredAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("You already have an account", "<html>notice</html>"));
+        var forTaken = await UseCase().ExecuteAsync(ARequest(), TestToken);
 
-        forSuppressed.IsSuccess.ShouldBe(forIssued.IsSuccess);
-        forSuppressed.Error.ShouldBe(forIssued.Error);
+        forTaken.IsSuccess.ShouldBe(forFree.IsSuccess);
+        forTaken.Error.ShouldBe(forFree.Error);
+        _emailSender.ReceivedCalls().Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task AFailedNotice_StillSucceeds()
+    {
+        GivenTheOutcomeIs(EmailChangeRequestOutcome.AddressAlreadyRegistered);
+        _emailFactory.CreateAlreadyRegisteredAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new AccountEmail("You already have an account", "<html>notice</html>"));
+        _emailSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("The relay is unreachable."));
+
+        var result = await UseCase().ExecuteAsync(ARequest(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
     }
 
     [Fact]

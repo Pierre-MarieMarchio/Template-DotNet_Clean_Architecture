@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -42,6 +43,20 @@ public sealed class PasskeyFlowTests(ApiFixture fixture) : IntegrationTestBase(f
         var listed = (await ApiJson.ReadAsync<SessionsResponse>(sessions, TestToken)).Sessions;
         listed.Count.ShouldBe(2);
         listed.Count(listedSession => listedSession.Current).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheSignInOptions_TakeNoAddress_AndNameNoCredential()
+    {
+        var (client, user, _) = await SignInAsync();
+        using var authenticator = new SoftwareAuthenticator();
+        await PasskeyTestSupport.RegisterAsync(client, authenticator, user.Password, TestToken);
+
+        var options = await PasskeyTestSupport.BeginSignInAsync(CreateClient(), TestToken);
+        var publicKey = JsonNode.Parse(options.SignInOptions)!.AsObject();
+
+        (publicKey["allowCredentials"]?.AsArray().Count ?? 0).ShouldBe(0);
+        options.SignInOptions.ShouldNotContain(user.Email, Case.Insensitive);
     }
 
     /// <summary>The creation date is Identity's, read from the machine's clock rather than the suite's.</summary>

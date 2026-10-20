@@ -104,13 +104,8 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
         stillWorks.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    /// <summary>
-    /// The anti-enumeration property and the no-plaintext-logging one, together, on the address being
-    /// moved <em>to</em> rather than the caller's own: a request naming an address already registered
-    /// to someone else must answer exactly as a request naming a free one does.
-    /// </summary>
     [Fact]
-    public async Task RequestEmailChange_ToAnAlreadyRegisteredAddress_AnswersIdenticallyAndSendsNothing()
+    public async Task RequestEmailChange_ToAnAlreadyRegisteredAddress_AnswersIdentically_AndMailsTheNoticeThere()
     {
         var registrationClient = CreateClient();
         var target = await RegisterConfirmedUserAsync(registrationClient, "already-taken");
@@ -124,8 +119,6 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
             TestToken);
         toFreeAddress.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // Proof the free-address branch really sent something, so the silence checked below means
-        // "suppressed" rather than "nothing was ever going to be checked".
         RequireLastEmailTo(freeAddress).Subject.ShouldBe("Confirm your new email address");
         Emails.Clear();
 
@@ -135,8 +128,11 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
             TestToken);
 
         toTakenAddress.StatusCode.ShouldBe(toFreeAddress.StatusCode);
+        (await toTakenAddress.Content.ReadAsStringAsync(TestToken))
+            .ShouldBe(await toFreeAddress.Content.ReadAsStringAsync(TestToken));
 
-        Emails.Snapshot().ShouldBeEmpty("A request naming an address already taken must send nothing.");
+        Emails.Snapshot().ShouldHaveSingleItem().Recipient.ShouldBe(target.Email);
+        RequireLastEmailTo(target.Email).Subject.ShouldBe("You already have an account");
 
         Fixture.Logs.Snapshot()
             .Where(record => record.Message.Contains(target.Email, StringComparison.Ordinal))

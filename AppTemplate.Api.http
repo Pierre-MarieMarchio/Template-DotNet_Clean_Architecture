@@ -566,7 +566,8 @@ Content-Type: application/json
 ###
 # 33f. Start an email change. Authenticated, and the current password is presented again for the
 #      same reason as 33b. 204 whether or not the new address is already registered: the response
-#      must not say which addresses exist. The token is mailed to the new address, not the old one.
+#      must not say which addresses exist. The new address, not the old one, receives the mail: the
+#      confirmation link when it is free, a "you already have an account" notice when it is not.
 POST {{api}}/auth/change-email
 Authorization: Bearer {{freshAccessToken}}
 Content-Type: application/json

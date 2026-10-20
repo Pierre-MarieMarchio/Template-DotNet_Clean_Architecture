@@ -317,6 +317,7 @@ jobs:
           }
           refuse alone --auth none
           refuse notes --auth none --examples notes
+          refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
 
       - name: Uninstall the template
         if: always()

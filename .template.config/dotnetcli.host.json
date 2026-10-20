@@ -14,6 +14,15 @@
     "webName": {
       "longName": "web-name",
       "shortName": ""
+    },
+    "adminWebNeedsAccounts": {
+      "longName": "admin-web-needs-accounts",
+      "shortName": "",
+      "isHidden": true
+    },
+    "webAudience": {
+      "longName": "web-audience",
+      "shortName": ""
     }
   }
 }

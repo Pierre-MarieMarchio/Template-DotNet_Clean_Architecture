@@ -116,22 +116,25 @@ The same walkthrough, executable and with the variables already wired, is
 mailpit, confirm, sign in, create a list, add and complete an item, rotate the token pair, log out.
 It works in the VS Code REST Client and in Visual Studio's `.http` editor.
 
-By hand, against the host path above. `jq` is optional; it only reads the token out of the
-response.
+By hand. The API answers on **5187** when you run it on the host (`dotnet run`, above) and on
+**8080** when it runs in the Compose stack; the commands read their address from `API`, so set it to
+the one you started. `jq` is optional; it only reads the token out of the response.
 
 ```bash
+API=http://localhost:5187     # host run; http://localhost:8080 under Compose
+
 # 1. create an account (200; confirmationEmailSent tells you whether the mail went out)
-curl -s -X POST http://localhost:5187/api/v1/auth/register \
+curl -s -X POST "$API/api/v1/auth/register" \
   -H 'Content-Type: application/json' \
   -d '{"userName":"alice","email":"alice@example.com","password":"Passw0rd!x"}'
 
 # 2. open http://localhost:8025, click the confirmation mail, and POST what it carries
-curl -s -X POST http://localhost:5187/api/v1/auth/confirm-email \
+curl -s -X POST "$API/api/v1/auth/confirm-email" \
   -H 'Content-Type: application/json' \
-  -d '{"email":"alice@example.com","token":"<token from the link fragment>"}'      # 204
+  -d '{"email":"alice@example.com","token":"<token from the link fragment, URL-decoded>"}'  # 204
 
 # 3. sign in — the body is tagged {"status":"authenticated","tokens":{…}}
-TOKEN=$(curl -s -X POST http://localhost:5187/api/v1/auth/login \
+TOKEN=$(curl -s -X POST "$API/api/v1/auth/login" \
   -H 'Content-Type: application/json' \
   -d '{"email":"alice@example.com","password":"Passw0rd!x"}' | jq -r .tokens.accessToken)
 ```
@@ -139,33 +142,41 @@ TOKEN=$(curl -s -X POST http://localhost:5187/api/v1/auth/login \
 <!--#if (todoLists)-->
 ```bash
 # 4. use the API
-curl -s -X POST http://localhost:5187/api/v1/todo-lists \
+curl -s -X POST "$API/api/v1/todo-lists" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"name":"Groceries"}'                                                        # 201 + Location
 
 curl -s -H "Authorization: Bearer $TOKEN" \
-  'http://localhost:5187/api/v1/todo-lists?page=1&pageSize=20'
+  "$API/api/v1/todo-lists?page=1&pageSize=20"
 ```
 <!--#endif-->
 <!--#if (todoLists || !notes)-->
 <!--#else
 ```bash
 # 4. use the API
-curl -s -X POST http://localhost:5187/api/v1/notes \
+curl -s -X POST "$API/api/v1/notes" \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"title":"Groceries","body":"Milk, eggs"}'                                   # 201 + Location
 
 curl -s -H "Authorization: Bearer $TOKEN" \
-  'http://localhost:5187/api/v1/notes?page=1&pageSize=20'
+  "$API/api/v1/notes?page=1&pageSize=20"
 ```
 #endif-->
 <!--#if (todoLists || notes)-->
 <!--#else
 ```bash
 # 4. use the API: the caller's own profile, the one route every project has
-curl -s -H "Authorization: Bearer $TOKEN" http://localhost:5187/api/v1/auth/me
+curl -s -H "Authorization: Bearer $TOKEN" "$API/api/v1/auth/me"
 ```
 #endif-->
+
+The mail carries the token percent-encoded in the link's fragment (`+` is `%2B`, `/` is `%2F`,
+`=` is `%3D`), and the API expects it decoded. Posted as it appears, it answers `400`
+`auth.confirmEmail.invalid`, which reads as an expired link and is not one. Decode it first:
+
+```bash
+python3 -c 'import sys, urllib.parse as u; print(u.unquote(sys.argv[1]))' '<token from the link>'
+```
 
 Skip step 2 and the sign-in fails with `auth.login.invalidCredentials`:
 `Identity:RequireConfirmedEmail` is `true`, and an unconfirmed account is deliberately

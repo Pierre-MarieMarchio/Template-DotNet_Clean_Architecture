@@ -35,10 +35,8 @@ internal sealed class LocalizationOptionsValidator : IValidateOptions<Localizati
                 $"'{LocalizationOptions.SectionName}:{nameof(LocalizationOptions.DefaultCulture)}' is required.");
         }
 
-        // Shape only, and deliberately: this repository builds with InvariantGlobalization, so the
-        // runtime knows no culture but the invariant one and cannot be asked whether 'fr' is real.
-        // Whether a tag names a language this deployment can write is a different question with a
-        // different answer — which templates ship — and the renderers fall back on their own.
+        // Shape only: the build uses InvariantGlobalization, so the runtime cannot say whether 'fr' is real, and
+        // which tags a deployment can write depends on the templates it ships; the renderers fall back on their own.
         if (!CurrentLanguage.IsWellFormed(options.DefaultCulture))
         {
             return ValidateOptionsResult.Fail(

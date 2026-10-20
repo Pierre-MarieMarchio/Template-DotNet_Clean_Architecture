@@ -82,10 +82,9 @@ internal sealed class RefreshTokenFamilyTable(AuthDbContext context) : IRefreshT
         DateTimeOffset revokedAt,
         CancellationToken cancellationToken = default)
     {
-        // Two statements rather than a materialise-then-loop: revocation runs on the replay path,
-        // which an attacker can trigger repeatedly, and a per-row round trip for every live grant
-        // is exactly the amplification that path should not have. The families first, for the
-        // reason EndAsync gives.
+        // Two statements rather than a materialise-then-loop: revocation runs on the replay path, which an attacker
+        // can trigger repeatedly, and a round trip per live grant is the amplification it must not have. The
+        // families first, for the reason EndAsync gives.
         await context.RefreshTokenFamilies
             .Where(family => family.UserId == userId
                 && family.RevokedAt == null

@@ -33,10 +33,9 @@ internal static class ExternalAuthenticationComposition
         services.AddExternalIdentity();
         services.AddExternalIdentityPersistence(configuration);
 
-        // Whether an id still names an account, read from the mapping: the contract the features
-        // reacting to a deleted account re-derive through, with the local-accounts template's
-        // counterpart in <c>AuthComposition</c>. Composed with the accounts, so a feature that owns
-        // user data can never resolve nothing.
+        // Whether an id still names an account, read from the mapping: what the features reacting to a deleted
+        // account re-derive through, as AuthComposition's counterpart. Composed with the accounts, so a feature that
+        // owns user data can never resolve nothing.
         //#if (anyFeature)
         services.AddScoped<IUserAccountDirectory, ExternalIdentityUserAccountDirectory>();
         //#endif

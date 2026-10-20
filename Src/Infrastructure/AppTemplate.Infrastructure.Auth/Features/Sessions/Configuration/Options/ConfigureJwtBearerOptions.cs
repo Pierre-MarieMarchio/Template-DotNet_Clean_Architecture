@@ -54,10 +54,9 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
             ValidateAudience = true,
             ValidateLifetime = true,
 
-            // Small, not zero: the issuer stamps nbf and exp from IDateTimeProvider while this check
-            // reads the machine clock, so one backward step — an NTP correction, a resumed VM —
-            // would refuse every token in circulation. The framework's default is five minutes,
-            // which keeps a stolen token alive well past its expiry.
+            // Small, not zero: the issuer stamps nbf and exp from IDateTimeProvider while this check reads the machine
+            // clock, so one backward step (an NTP correction, a resumed VM) would refuse every token. The framework's
+            // default of five minutes keeps a stolen token alive well past its expiry.
             ClockSkew = TimeSpan.FromSeconds(30),
             ValidIssuer = settings.Issuer,
             ValidAudience = settings.Audience,

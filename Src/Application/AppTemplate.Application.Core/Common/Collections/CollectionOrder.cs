@@ -117,10 +117,9 @@ public sealed record CollectionOrder
 
             decoded = keyResult.Value;
 
-            // The read side compares the cursor's key using the request's sort term, so resuming a
-            // name-ordered cursor under a date-ordered sort would parse a name as a date and throw.
-            // Ignoring `sort` would serve an order the caller did not ask for; re-minting would
-            // skip or repeat rows.
+            // The read side compares the cursor's key using the request's sort term, so a cursor resumed under another
+            // sort would parse a name as a date and throw; ignoring `sort` would serve an order nobody asked for, and
+            // re-minting would skip or repeat rows.
             if (Mode == PagingMode.Cursor
                 && (!string.Equals(decoded.Field, Sort.Terms[0].Field, StringComparison.Ordinal)
                     || decoded.Direction != Sort.Terms[0].Direction))

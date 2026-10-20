@@ -143,10 +143,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         base.OnModelCreating(modelBuilder);
 
-        // Named one by one rather than discovered by scanning the assembly: lines the
-        // compiler checks, instead of a reflection call that silently maps nothing when a
-        // configuration class is renamed or moved. No default schema is set — every table names its
-        // own, so a table cannot drift into the wrong one by omission.
+        // Named one by one, not discovered by scanning: the compiler checks these lines, while a scan silently maps
+        // nothing when a configuration is renamed or moved. No default schema is set — every table names its own.
         //#if (todoLists)
         modelBuilder.ApplyConfiguration(new TodoListRecordConfiguration());
         modelBuilder.ApplyConfiguration(new TodoItemRecordConfiguration());

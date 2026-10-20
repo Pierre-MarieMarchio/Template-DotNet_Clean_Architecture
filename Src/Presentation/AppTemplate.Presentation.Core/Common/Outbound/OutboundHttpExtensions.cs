@@ -29,14 +29,9 @@ public static class OutboundHttpExtensions
 
         services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler(options =>
         {
-            // 30 s total inside the API's 5-minute inbound timeout, a factor of ten, so a request
-            // calling several dependencies in turn still finishes inside its own budget. The outer
-            // budget must stay the longer of the two, or it cancels work that was still retrying
-            // and reports the caller's deadline instead of the dependency's failure.
-            //
-            // The package validates the combination at start-up: the total must exceed the attempt
-            // timeout, and the circuit breaker's 30 s sampling window must be at least twice it.
-            // 10 s / 30 s satisfies both with no margin on the second.
+            // 30 s total inside the API's 5-minute inbound timeout, so the outer budget stays the longer. The package
+            // needs total > attempt timeout and a 30 s sampling window of at least twice it: 10 s / 30 s satisfies both,
+            // with no margin on the second.
             options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
             options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
 
@@ -47,14 +42,9 @@ public static class OutboundHttpExtensions
             // millisecond.
             options.Retry.UseJitter = true;
 
-            // An allow-list of safe verbs, not the package's DisableForUnsafeHttpMethods() deny-list,
-            // which would still retry a verb it does not name. PUT and DELETE are out although the
-            // specification calls them idempotent: that promise belongs to servers nobody here
-            // controls, and replaying a large PUT doubles the bytes.
-            //
-            // The verb comes from the resilience context, not the outcome's response: a timeout or
-            // a connection failure arrives as an exception with no response at all. Wrapping the
-            // existing predicate keeps the package's own definition of a transient failure.
+            // An allow-list of safe verbs, not the package's deny-list, which would retry any verb it does not name; PUT
+            // and DELETE are out because replaying a large PUT doubles the bytes. The verb comes from the resilience
+            // context, since a timeout arrives as an exception with no response.
             var isTransientFailure = options.Retry.ShouldHandle;
 
             options.Retry.ShouldHandle = args =>

@@ -58,16 +58,13 @@ public static class ObservabilityExtensions
             meter =>
             {
                 meter.AddAspNetCoreInstrumentation()
-                    // aspnetcore.rate_limiting.requests, tagged by policy and result (acquired /
-                    // endpoint_limiter / global_limiter / request_canceled) — the rejection count the
-                    // rate limiter itself never surfaces anywhere else. It is named here because the
-                    // limiter is registered here: a mechanism and its one diagnostic travel together.
+                    // aspnetcore.rate_limiting.requests, tagged by policy and result: the rejection count the limiter surfaces
+                    // nowhere else. Named here because the limiter is registered here.
                     .AddMeter("Microsoft.AspNetCore.RateLimiting");
 
-                // db.client.connection.count vs .max is the pool-saturation question Database:MaxPoolSize
-                // exists to answer; db.client.connection.npgsql.pending_requests is callers already queued
-                // for a connection — both invisible from the span above, which only starts once a
-                // connection has been handed out.
+                // db.client.connection.count vs .max answers pool saturation (Database:MaxPoolSize), and ...pending_requests
+                // counts callers already queued for a connection: both invisible from the span, which starts once one is
+                // handed out.
                 meter.AddMeter("Npgsql");
             });
     }

@@ -20,9 +20,8 @@ internal sealed class ReminderDiagnostics : IReminderDiagnostics
     private static readonly Counter<long> _missedCancellations = _meter.CreateCounter<long>(
         "apptemplate.reminders.missed_cancellations",
         unit: "{reminder}",
-        // One sentence, because SECURITY.md cites this name as the number an
-        // operator watches: a due reminder whose target is already completed is, by construction,
-        // a reminder the consumer should have cancelled — so this counts exactly the completion
+        // One sentence, because SECURITY.md cites this name as the number an operator watches: a due reminder whose
+        // target is already completed is one the consumer should have cancelled, so this counts the completion
         // events that never reached it.
         description:
             "The number of lost completion events: a due reminder whose target is already " +

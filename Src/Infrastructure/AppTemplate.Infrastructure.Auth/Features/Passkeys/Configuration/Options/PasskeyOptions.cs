@@ -55,10 +55,9 @@ internal sealed class PasskeyOptionsValidator : IValidateOptions<PasskeyOptions>
     {
         var failures = new List<string>();
 
-        // A relying-party id is a bare domain. Uri parses one as absolute with an http scheme, so
-        // a real URL here is what would slip a scheme past a looser check: "https://api.example.org"
-        // would become the domain "api.example.org" only at the ceremony, after the client had
-        // already been asked for the authenticator's user check.
+        // A relying-party id is a bare domain. Uri parses one as absolute with an http scheme, so a real URL such as
+        // "https://api.example.org" would slip past a looser check and become a domain only at the ceremony, after
+        // the client had been asked for the authenticator's user check.
         if (options.ServerDomain is { } domain
             && (string.IsNullOrWhiteSpace(domain) || domain.Contains(' ') || domain.Contains('/') || domain.Contains(':')))
         {

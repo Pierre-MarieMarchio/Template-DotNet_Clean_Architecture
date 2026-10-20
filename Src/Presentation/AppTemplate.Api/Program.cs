@@ -111,10 +111,9 @@ builder.Services.AddBackgroundJobs(builder.Configuration);
 builder.Services.AddAuthFeature(builder.Configuration);
 /*#elseif (externalAuth)
 
-// Callers authenticated by an external OpenID Connect provider: bearer validation against
-// Authentication:External, validated at start-up, the mapping of each subject to an internal owner
-// with its stores, and the Administrator policy on the configured role. The mapping's tables are in
-// the business schema, so the business database check below covers them.
+// External OpenID Connect provider: bearer validation against Authentication:External, validated at start-up,
+// each subject mapped to an internal owner, and the Administrator policy on the configured role. The mapping's
+// tables are in the business schema, so the business database check below covers them.
 builder.Services.AddExternalAuthentication(builder.Configuration);
 #endif*/
 
@@ -136,13 +135,9 @@ builder.Services.AddAuthorizationBuilder()
         .RequireAuthenticatedUser()
         .Build());
 /*#else
-// Public by choice: generated without accounts, this API authenticates nobody, and the fallback
-// policy says every endpoint answers anonymous callers rather than leaving that to a missing one.
-// Nothing private is opened by it: no endpoint needs a caller, and an operation that does still
-// fails because ICurrentUser has none to give. An endpoint left marked [Authorize] has no scheme
-// to challenge with, and the check after the controller mapping refuses it at start-up rather than
-// letting it answer 500 on every request. Accounts come back with an authentication scheme and the
-// default-deny policy of the authenticated templates.
+// Public by choice: this API authenticates nobody, and the fallback policy says every endpoint answers
+// anonymous callers. An endpoint left marked [Authorize] has no scheme to challenge with, and the check after
+// the controller mapping refuses it at start-up rather than letting it answer 500 on every request.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAssertion(static _ => true)
@@ -169,10 +164,9 @@ app.UseAuthorization();
 app.MapControllers();
 
 /*#if (publicApi)
-// No authentication scheme exists in this variant, so an action left carrying [Authorize] would
-// answer 500 on every request: closed, but telling nobody why. Every other invalid setting here
-// refuses at start-up, so this one does too, naming the actions. [AllowAnonymous] still wins,
-// exactly as it does at request time, and bringing a scheme back clears the condition.
+// No authentication scheme exists here, so an action left carrying [Authorize] would answer 500 on every
+// request; refusing at start-up, naming the actions, matches every other invalid setting. [AllowAnonymous]
+// still wins, exactly as at request time.
 var schemes = await app.Services.GetRequiredService<IAuthenticationSchemeProvider>()
     .GetAllSchemesAsync();
 

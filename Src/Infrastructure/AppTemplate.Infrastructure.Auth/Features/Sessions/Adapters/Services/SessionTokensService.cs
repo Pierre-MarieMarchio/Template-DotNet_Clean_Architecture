@@ -89,10 +89,9 @@ internal sealed class SessionTokensService(
             return RefreshTokenRotation.Rejected;
         }
 
-        // A session that was ended — signed out, revoked, or killed with the rest — refuses quietly:
-        // the client still holding its token has done nothing suspicious, so nothing is revoked
-        // beyond what already was. This precedes the replay test, because a grant revoked by its
-        // session's ending is not evidence of one.
+        // A session that was ended refuses quietly: the client still holding its token has done nothing suspicious,
+        // so nothing is revoked beyond what already was. This precedes the replay test, because a grant revoked by
+        // its session's ending is not evidence of one.
         if (grant.FamilyRevokedAt is not null)
         {
             return RefreshTokenRotation.Rejected;

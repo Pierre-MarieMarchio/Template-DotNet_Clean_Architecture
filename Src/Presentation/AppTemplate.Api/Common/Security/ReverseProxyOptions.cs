@@ -85,11 +85,9 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
                 continue;
             }
 
-            // TryParse accepts an address carrying bits outside its own prefix and masks them away:
-            // '10.0.0.7/8' parses, and parses as the whole of 10.0.0.0/8. Accepting it would trust
-            // sixteen million addresses on the strength of an entry naming one, and forwarded headers
-            // from any of them would be believed -- so the entry is refused, and the block the prefix
-            // actually names is offered in its place.
+            // TryParse masks away bits outside the prefix: '10.0.0.7/8' parses as the whole of 10.0.0.0/8, which would
+            // trust sixteen million addresses on the strength of an entry naming one. The entry is refused and the block
+            // its prefix actually names is offered instead.
             if (!AddressIsItsOwnNetwork(network, parsed))
             {
                 failures.Add(

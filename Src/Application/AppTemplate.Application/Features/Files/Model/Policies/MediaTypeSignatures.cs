@@ -9,10 +9,9 @@ namespace AppTemplate.Application.Features.Files.Model.Policies;
 /// </summary>
 internal static class MediaTypeSignatures
 {
-    // Signatures that identify exactly one media type, longest first. Exclusivity is the entry condition:
-    // PK\x03\x04 also opens every Office, OpenDocument, EPUB and JAR file, so reading it as ZIP would falsely
-    // refuse an honest .docx; a container declared as an image is still refused for lacking an image's
-    // signature.
+    // Signatures that identify exactly one media type, longest first. PK\x03\x04 also opens every Office,
+    // OpenDocument, EPUB and JAR file, so reading it as ZIP would falsely refuse an honest .docx; a container
+    // declared as an image is still refused for lacking an image's signature.
     private static readonly (byte[] Magic, string MediaType)[] _signatures =
     [
         ([0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A], "image/png"),

@@ -45,7 +45,7 @@ public sealed class FireDueRemindersUseCase(
 
         bool ranHere = await lease.TryRunExclusivelyAsync(
             _leaseName,
-            async leaseToken => notified = await FireDueBatchAsync(leaseToken),
+            async cancellationToken => notified = await FireDueBatchAsync(cancellationToken),
             cancellationToken);
 
         if (!ranHere && logger.IsEnabled(LogLevel.Information))

@@ -36,7 +36,7 @@ public sealed class PurgeAbandonedRegistrationsUseCase(
 
         bool ranHere = await lease.TryRunExclusivelyAsync(
             _leaseName,
-            async leaseToken => purged = await PurgeBatchAsync(leaseToken),
+            async cancellationToken => purged = await PurgeBatchAsync(cancellationToken),
             cancellationToken);
 
         if (!ranHere && logger.IsEnabled(LogLevel.Information))

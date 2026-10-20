@@ -8,22 +8,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Encapsulation of the domain model: state changes go through behaviour, never through a setter.
-/// <para>
-/// NetArchTest can express the shape of a type — sealed, abstract, which interface it implements —
-/// but it has no condition for the accessibility of a property's setter, which is the thing that
-/// actually decides whether an invariant can be bypassed. Those rules are therefore written with
-/// reflection over the loaded assembly, which is if anything more precise: it sees the accessor's
-/// real accessibility and can tell an <c>init</c> accessor from a settable one.
-/// </para>
-/// </summary>
 public sealed class DomainModelTests
 {
-    /// <summary>
-    /// Entities that must be present. If the model is refactored these change, but the set must
-    /// never become empty — a reflection rule over nothing passes.
-    /// </summary>
     private static readonly string[] _expectedEntities =
     [
         //#if (todoLists)
@@ -35,12 +21,6 @@ public sealed class DomainModelTests
         //#endif
     ];
 
-    /// <summary>
-    /// Written with reflection because NetArchTest's <c>ImplementInterface</c> only sees interfaces a
-    /// type declares itself. An aggregate reaches <see cref="IAggregateRoot"/> through
-    /// <c>AggregateRoot&lt;TId&gt;</c>, so the rule engine matches nothing — and a rule that matches
-    /// nothing passes, which is precisely the failure mode this project is built to avoid.
-    /// </summary>
     [Fact]
     public void AggregateRoots_AreSealed()
     {
@@ -63,15 +43,6 @@ public sealed class DomainModelTests
                 "add state the root's own invariants do not cover.");
     }
 
-    /// <summary>
-    /// A public setter on an audit or ownership field would let application code assign
-    /// <c>OwnerId</c> — the value every authorisation check reads — and forge <c>CreatedBy</c>.
-    /// <para>
-    /// Read over the inheritance chain rather than over the entity alone, for the reason
-    /// <see cref="WithBases"/> gives: a stamp declared one level up would otherwise be skipped
-    /// rather than checked, and the rule would stay green over a smaller population.
-    /// </para>
-    /// </summary>
     [Fact]
     public void Entities_HaveNoPubliclySettableState()
     {
@@ -135,11 +106,6 @@ public sealed class DomainModelTests
             "enforce one without a breaking change.");
     }
 
-    /// <summary>
-    /// Value objects and domain events are modelled as records here, so their state is fixed by the
-    /// constructor. A plain settable property on one of them would make a supposedly immutable value
-    /// mutable, and would break the equality the rest of the model relies on.
-    /// </summary>
     [Fact]
     public void ValueObjectsAndDomainEvents_AreImmutable()
     {
@@ -201,22 +167,9 @@ public sealed class DomainModelTests
                 "type that misses it is collected by nothing and silently never dispatched.");
     }
 
-    /// <summary>
-    /// The state accessors a type declares itself, at every accessibility. <c>DeclaredOnly</c> is
-    /// what makes the chain walk necessary and what makes it correct.
-    /// </summary>
     private const BindingFlags _declaredState =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
 
-    /// <summary>
-    /// An entity and every base it inherits state from, up to <see cref="object"/>.
-    /// <para>
-    /// A chain rather than one <c>GetProperties</c> call, because a private setter declared on a
-    /// base is invisible from the derived type: the accessor reads as absent, so a rule looking only
-    /// at the entity skips every stamp <c>AuditableAggregateRoot&lt;TId&gt;</c> declares instead of
-    /// checking it.
-    /// </para>
-    /// </summary>
     private static IEnumerable<Type> WithBases(Type entity)
     {
         for (var type = entity; type is not null && type != typeof(object); type = type.BaseType)
@@ -225,11 +178,6 @@ public sealed class DomainModelTests
         }
     }
 
-    /// <summary>
-    /// The entities and aggregates of the domain: concrete classes deriving from
-    /// <c>Entity&lt;TId&gt;</c>. Asserted non-empty, and asserted to contain the entities the model
-    /// is known to have, so the reflection rules above cannot pass by finding nothing.
-    /// </summary>
     private static List<Type> DomainEntities()
     {
         var entities = ArchitectureAssemblies.Domain

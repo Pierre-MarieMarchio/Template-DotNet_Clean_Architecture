@@ -5,39 +5,13 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// The outbound HTTP budget, and the two ways a call can escape it.
-/// <para>
-/// The policy is installed on <c>IHttpClientFactory</c>'s defaults, once per host, so a module that
-/// registers a typed client inherits it without knowing it exists and cannot opt out by forgetting.
-/// That leaves exactly two holes, and these rules are each one of them: a client built with
-/// <c>new</c> never meets the factory at all, and a host that never installs the defaults gives
-/// every client in it no budget whatsoever.
-/// </para>
-/// <para>
-/// Read from the source tree rather than from metadata, deliberately. In IL there is no difference
-/// between constructing an <c>HttpClient</c> and receiving one as a constructor parameter — both are
-/// a dependency on the same type — and receiving one is what every typed client does. The
-/// distinction this rule is about exists only in the text.
-/// </para>
-/// </summary>
 public sealed class OutboundHttpTests
 {
-    /// <summary>
-    /// Matches construction, not use. The trailing <c>(</c> is what separates <c>new HttpClient(…)</c>
-    /// from a parameter or a field declared as <c>HttpClient</c>, and <c>\s*</c> covers the form a
-    /// formatter may leave behind.
-    /// </summary>
     private static readonly Regex _construction = new(
         @"\bnew\s+HttpClient\s*\(",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// The composition call each host owes. One policy, one method, one name — matched exactly,
-    /// because a host installing something else called <c>AddSomethingOutboundHttp</c> would be
-    /// installing a second policy, and this rule exists to say there is one.
-    /// </summary>
     private static readonly Regex _policyInstalled = new(
         @"\bAddOutboundHttp\s*\(",
         RegexOptions.None,
@@ -66,12 +40,6 @@ public sealed class OutboundHttpTests
             "instead; it inherits the policy without asking for it.");
     }
 
-    /// <summary>
-    /// Every host installs the policy. The rule that matters most as hosts are added: the defaults
-    /// only apply to the container that was told about them, so a third entry point composing the
-    /// same modules would give every client in it no budget at all — and nothing else in this
-    /// repository would notice, because the modules are unchanged and their tests still pass.
-    /// </summary>
     [Fact]
     public void EveryHost_InstallsTheOutboundPolicy()
     {
@@ -102,11 +70,6 @@ public sealed class OutboundHttpTests
             "composition, in Common/Outbound/.");
     }
 
-    /// <summary>
-    /// Proves the construction matcher is live. Without this, a regex that had stopped matching
-    /// anything — a renamed type, a stray escape — would leave the rule above passing over every
-    /// file in the repository and guaranteeing nothing.
-    /// </summary>
     [Fact]
     public void TheConstructionRule_IsSensitive_AndSeesTheCallItForbids()
     {
@@ -114,7 +77,6 @@ public sealed class OutboundHttpTests
         _construction.IsMatch("using var client = new HttpClient(handler, disposeHandler: false);")
             .ShouldBeTrue();
 
-        // What it must not match: receiving one, which is exactly what a typed client does.
         _construction.IsMatch("internal sealed class Adapter(HttpClient client)").ShouldBeFalse();
         _construction.IsMatch("private readonly HttpClient _client;").ShouldBeFalse();
     }

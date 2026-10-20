@@ -5,72 +5,28 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// The configuration guide against the options classes it describes, in both directions.
-/// <para>
-/// <c>docs/CONFIGURATION.md</c> opens by promising that "every setting the application reads is
-/// listed here". Nothing but this rule holds it to that: a section with no table, or a table naming
-/// a key no options class binds, is invisible to the compiler and to every other gate, and drifts
-/// silently. <c>SECURITY.md</c> leans on the same promise, describing the <c>TwoFactor</c> values
-/// in prose as though they were constants.
-/// </para>
-/// <para>
-/// <b>Read from the source tree rather than from metadata</b>, for the reason
-/// <c>LayoutConventionTests</c> gives: the subject is a Markdown file, and a rule about what a
-/// document says has to read the document. Every options class is scanned, and a section
-/// declared by more than one class contributes the union of their keys, since a key documented once
-/// is documented.
-/// </para>
-/// </summary>
 public sealed class ConfigurationSurfaceTests
 {
-    /// <summary>
-    /// The section a class binds to. Every options class in this template declares it the same way,
-    /// which is what makes the pairing below mechanical rather than a list maintained by hand.
-    /// </summary>
     private static readonly Regex _sectionName = new(
         @"SectionName\s*=\s*""([A-Za-z:]+)""",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// A bindable member. <c>{ get; }</c> as well as <c>{ get; set; }</c>, because the configuration
-    /// binder populates a get-only collection in place — <c>ReverseProxy:KnownProxies</c> is one, and
-    /// a pattern that demanded a setter would have called it undocumentable rather than undocumented.
-    /// </summary>
     private static readonly Regex _bindableMember = new(
         @"^    public\s+[A-Za-z0-9_<>?\[\],\. ]+?\s+([A-Za-z0-9_]+)\s*\{\s*get;",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// A key as the guide's tables name one: the first cell of a row, in backticks. Only the leading
-    /// segment is captured, because a nested collection is documented one leaf at a time —
-    /// <c>ExternalIdentity</c> binds a <c>Providers</c> list and the guide has a row for
-    /// <c>Providers:&lt;n&gt;:Name</c> rather than one for <c>Providers</c>, which is the more useful
-    /// document and still accounts for the member.
-    /// </summary>
     private static readonly Regex _documentedKey = new(
         @"^\|\s*`([A-Za-z0-9_]+)[:`]",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// Every third-level heading, which is what bounds one section's text. Deliberately not only the
-    /// ones naming a section: the guide ends with <c>### Not configurable</c> and
-    /// <c>### Standard ASP.NET Core keys</c>, and a slice that ran to the next *named* section would
-    /// hand the last named one both of those tables — which is exactly how this rule first reported
-    /// <c>AllowedHosts</c> as a key of <c>Jobs:Reminders</c>.
-    /// </summary>
     private static readonly Regex _anyHeading = new(
         @"^### ",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// The section a heading names, when it names one. Only the backticked part, because several
-    /// headings carry a qualifier the reader needs — <c>### `Section` — what it applies to</c>.
-    /// </summary>
     private static readonly Regex _sectionHeading = new(
         @"^### `([A-Za-z:]+)`",
         RegexOptions.Multiline,
@@ -105,8 +61,6 @@ public sealed class ConfigurationSurfaceTests
         {
             if (!documented.TryGetValue(section, out string? text))
             {
-                // Reported by the rule above, and reporting it twice would make one omission look
-                // like two.
                 continue;
             }
 
@@ -124,11 +78,6 @@ public sealed class ConfigurationSurfaceTests
             "where the key needs more than a row.");
     }
 
-    /// <summary>
-    /// The converse, and the direction that found the live defect: a row for a key that does not
-    /// exist is worse than a missing row, because an operator sets it, nothing binds it, and the
-    /// value they chose is silently the default.
-    /// </summary>
     [Fact]
     public void NoDocumentedKey_IsAbsentFromTheOptionsClassesBindingThatSection()
     {
@@ -155,11 +104,6 @@ public sealed class ConfigurationSurfaceTests
             "leaves its old name behind in the guide.");
     }
 
-    /// <summary>
-    /// Proves the two extractors are live, because every assertion above is over a difference of two
-    /// sets: a scan that matched nothing and a guide that parsed as nothing would agree perfectly,
-    /// and all three rules would pass on a repository with no configuration at all.
-    /// </summary>
     [Fact]
     public void TheScanAndTheGuide_BothProduceWhatTheyAreAssertedOver()
     {
@@ -171,23 +115,16 @@ public sealed class ConfigurationSurfaceTests
             "Far fewer bound sections were found than this template has, so the source scan is not " +
             "reading the tree it is meant to describe.");
 
-        // Like the member floor below, this counts the smallest project the options can generate:
-        // its guide keeps only the sections every project binds, and the local-accounts guide this
-        // file lives beside holds more than twice as many.
         documented.Count.ShouldBeGreaterThanOrEqualTo(
             20,
             $"Far fewer sections were parsed out of '{_configurationGuide}' than it holds, so the " +
             "guide is being read with the wrong heading shape.");
 
-        // The floor counts the smallest project the options can generate (--auth none, no examples,
-        // no Files), which binds one key fewer than the local-accounts template this file lives in.
         bound.Values.Sum(facts => facts.Keys.Count).ShouldBeGreaterThanOrEqualTo(
             42,
             "Far fewer bindable members were found than the options classes declare, so the member " +
             "pattern has stopped matching the shape they are written in.");
 
-        // One section named explicitly, so that a scan which found sections but no keys — or keys
-        // under the wrong section — cannot satisfy the counts above.
         /*#if (localAuth)*/
         bound["TwoFactor"].Keys.ShouldBe(
             ["ChallengeLifetime", "Issuer", "MaxChallengeAttempts", "RecoveryCodeCount"],
@@ -205,7 +142,6 @@ public sealed class ConfigurationSurfaceTests
 
     private const string _configurationGuide = "docs/CONFIGURATION.md";
 
-    /// <summary>What a section binds, and where to look when a key of it is unaccounted for.</summary>
     private sealed record SectionFacts(IReadOnlySet<string> Keys, string Origin);
 
     private static SortedDictionary<string, SectionFacts> BoundSections()
@@ -230,7 +166,6 @@ public sealed class ConfigurationSurfaceTests
                 .Select(match => match.Groups[1].Value)
                 .ToHashSet(StringComparer.Ordinal);
 
-            // The union, not the last one seen: two classes over one section need not carry the same keys.
             if (sections.TryGetValue(section, out SectionFacts? existing))
             {
                 sections[section] = new SectionFacts(
@@ -246,9 +181,6 @@ public sealed class ConfigurationSurfaceTests
         return sections;
     }
 
-    /// <summary>
-    /// Each heading in the guide against the text under it, up to the next heading of the same level.
-    /// </summary>
     private static Dictionary<string, string> DocumentedSections()
     {
         string guide = File.ReadAllText(

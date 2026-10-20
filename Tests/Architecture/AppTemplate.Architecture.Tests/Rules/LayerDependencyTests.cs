@@ -5,22 +5,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// The dependency rule of the architecture, as assertions: the Domain knows nothing, the
-/// Application layer knows only the Domain, and neither knows any technology.
-/// <para>
-/// These are checked against the compiled IL, not the project file, so they also catch a
-/// dependency that arrives transitively — a package reference added to the Domain, or a type
-/// pulled in through a <c>global using</c>.
-/// </para>
-/// </summary>
 public sealed class LayerDependencyTests
 {
-    /// <summary>
-    /// Everything the Domain must not know about. Three groups: the layers above it, the
-    /// persistence and transport technologies, and the composition/serialisation frameworks
-    /// whose attributes tend to creep onto entities.
-    /// </summary>
     private static readonly string[] _forbiddenInDomain =
     [
         ArchitectureAssemblies.ApplicationNamespace,
@@ -35,12 +21,6 @@ public sealed class LayerDependencyTests
         "System.Text.Json",
     ];
 
-    /// <summary>
-    /// What the Application layer must not know about. FluentValidation and the
-    /// <c>Microsoft.Extensions.DependencyInjection</c> abstractions are deliberately absent from
-    /// this list: the layer declares its own validators and owns its own registration entry point.
-    /// Everything that talks to a database, a mail relay or an HTTP pipeline is not.
-    /// </summary>
     private static readonly string[] _forbiddenInApplication =
     [
         ArchitectureAssemblies.InfrastructureNamespace,
@@ -49,18 +29,9 @@ public sealed class LayerDependencyTests
         "Microsoft.AspNetCore",
         "Npgsql",
         "MailKit",
-
-        // Not a layering violation: a refusal. A controller here names the use case it calls and F12
-        // reaches the implementation, which a dispatcher would replace with a runtime lookup and a
-        // pipeline nobody reads. Listed so the day someone adds the package the build says no.
         "MediatR",
     ];
 
-    /// <summary>
-    /// Every project of the domain layer, not one of them. The forbidden list is the same for all:
-    /// a rule written against the project somebody happened to have in mind leaves the rest of the
-    /// layer unread, and the primitives are the half everything else compiles against.
-    /// </summary>
     [Fact]
     public void TheDomainLayer_DependsOnNothing()
     {
@@ -69,9 +40,6 @@ public sealed class LayerDependencyTests
             /*#if (tagging)*/
             RuleAssertions.RequireTypes(domain);
             /*#else
-            // Generated with no business type, the domain project is empty until the first aggregate
-            // arrives, and the rule reads it as it fills. Every other project of the layer still has
-            // to hold types.
             if (domain != ArchitectureAssemblies.Domain)
             {
                 RuleAssertions.RequireTypes(domain);
@@ -90,11 +58,6 @@ public sealed class LayerDependencyTests
         }
     }
 
-    /// <summary>
-    /// Every project of the application layer, for the reason the domain rule above reads all of
-    /// its own: the mechanisms and the features are held to one standard, and a list that named one
-    /// project would leave the other unread.
-    /// </summary>
     [Fact]
     public void TheApplicationLayer_DependsOnlyOnTheDomain()
     {
@@ -114,15 +77,6 @@ public sealed class LayerDependencyTests
         }
     }
 
-    /// <summary>
-    /// The same two rules read off the assembly manifests, which is the linker's own view: an entry
-    /// appears there only if something in the assembly actually uses it.
-    /// <para>
-    /// Asserted in both directions on purpose. The negative rules above would all hold for a Domain
-    /// nobody depends on and an Application layer that had quietly stopped using it, so the positive
-    /// half is what stops them guarding an empty room.
-    /// </para>
-    /// </summary>
     [Fact]
     public void TheManifests_ShowTheDependencyPointingInwardAndNoFurther()
     {
@@ -203,24 +157,6 @@ public sealed class LayerDependencyTests
     }
     //#if (localAuth)
 
-    /// <summary>
-    /// The half of "authentication is optional" that is actually true, and the one the split bought:
-    /// nothing in the business application project or in the mechanisms names anything in
-    /// <c>AppTemplate.Application.Auth</c>.
-    /// <para>
-    /// Read off the manifests, which is the linker's own view: an entry appears there only because
-    /// something in the assembly uses it. So this is not a statement about project files that could
-    /// be true while a type reached across anyway — it is a statement about what the code does.
-    /// </para>
-    /// <para>
-    /// The arrow is allowed to point the other way and does: authentication is built on the
-    /// mechanisms. What must not appear is the reverse, because a business feature that named an
-    /// authentication type would make the whole project mandatory again, and per-feature
-    /// registration would buy nothing.
-    /// <see cref="Composition.ContainerCompositionTests.TheApiContainer_BuildsWithoutAuthentication"/>
-    /// holds the other half: no module the host composes needs an authentication port.
-    /// </para>
-    /// </summary>
     [Fact]
     public void TheApplicationLayer_KnowsNothingOfAuthentication()
     {
@@ -250,14 +186,6 @@ public sealed class LayerDependencyTests
     }
     //#endif
 
-    /// <summary>
-    /// Proves the machinery behind <see cref="TheDomainLayer_DependsOnNothing"/> can fail.
-    /// <para>
-    /// The same forbidden list is applied to <c>AppTemplate.Infrastructure.Persistence</c>, which depends on
-    /// EF Core, on the DI abstractions and on AppTemplate.Application by design. If this passes, then
-    /// <c>HaveDependencyOnAny</c> is not detecting anything and the rule above is worthless.
-    /// </para>
-    /// </summary>
     [Fact]
     public void TheDomainRule_IsSensitive_AndDetectsARealViolation()
     {

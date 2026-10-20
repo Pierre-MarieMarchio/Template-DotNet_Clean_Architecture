@@ -5,37 +5,12 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// The layout itself, read from the source tree rather than from compiled metadata.
-/// <para>
-/// Reflection cannot see either of these rules. It knows a type's namespace but not which file
-/// declares it, and it knows nothing at all about a folder that exists and holds nothing. Both are
-/// properties of the tree a reader navigates, so the tree is what these read.
-/// </para>
-/// </summary>
 public sealed class LayoutConventionTests
 {
     private const string _productPrefix = "AppTemplate";
 
-    /// <summary>
-    /// The folders a feature may hold, per layer. Closed on purpose: a word outside this list is a
-    /// concept a reader has to infer from its contents, and one feature inventing a word the others
-    /// do not use is how a layout stops being an index. Adding a word is an edit to
-    /// docs/PROJECT-LAYOUT.md's folder map and to this list, argued for in the pull request — not a
-    /// mkdir.
-    /// <para>
-    /// Two tiers. A word is either a concept and one of its natures — <c>Model/Dtos</c> — or a
-    /// concept alone — <c>Ports</c>, <c>Controllers</c>. A concept is the level-2 folder; below one
-    /// written with natures only the natures listed for it are allowed, and a concept written alone
-    /// holds its own contents (subjects such as <c>Ports/&lt;Port&gt;/</c>, or files).
-    /// </para>
-    /// </summary>
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
-        // What the feature says (Model), what something else implements (Ports), its operations
-        // (UseCases), its collaborators with dependencies and the events it answers (Services), a
-        // pure static function with no more precise nature (Helpers), and a setting it binds
-        // (Configuration). A validator files beside the DTO it validates.
         ["Src/Application/AppTemplate.Application"] =
             [
                 //#if (files)
@@ -45,26 +20,13 @@ public sealed class LayoutConventionTests
                 "Model/Dtos", "Model/Errors", "Model/Mapping", "Model/Policies",
                 "Ports", "Services/Consumers", "UseCases",
             ],
-
-        // One vertical, holding one operation. A mechanism project earns a Features/ folder only for
-        // work that is genuinely a use case rather than a mechanism — here, purging what the
-        // idempotency store has let expire.
         ["Src/Application/AppTemplate.Application.Core"] = ["UseCases"],
         //#if (localAuth)
-
-        // Three concepts, and no Services/ or Consumers/: these six features register no service
-        // and answer no domain event. What they offer is use cases over ports an identity module
-        // satisfies, and under Model/ the failures they disclose and the rules they apply.
         ["Src/Application/AppTemplate.Application.Auth"] =
             ["Model/Errors", "Model/Policies", "Ports", "UseCases"],
         //#endif
         ["Src/Domain/AppTemplate.Domain"] =
             ["Model/Entities", "Model/Events", "Model/ValueObjects", "Repositories"],
-
-        // Null, not empty, and the difference is the point: this project has no Features/ folder to
-        // hold a word, and it may not grow one. What is here is agnostic of every feature — that is
-        // the whole claim of the project — so a feature folder appearing here is the defect, and
-        // this entry is what reports it. A shared *business* concept belongs in AppTemplate.Domain.
         ["Src/Domain/AppTemplate.Domain.Core"] = null,
         ["Src/Infrastructure/AppTemplate.Infrastructure.Persistence"] =
             [
@@ -75,15 +37,6 @@ public sealed class LayoutConventionTests
                 "Adapters/Observability",
                 "Rows/Configurations", "Rows/Mapping", "Rows/Models", "Rows/Tracking",
             ],
-        // Is it an HTTP entry point (Controllers), a loop on a timer with its options and its
-        // instruments (Jobs), a wire type and the projection onto it (Contracts), or what the host
-        // supplies to the feature (Composition) — the feature's one entry point, and the adapters
-        // only the host can provide: a directory joining two features that may not name each other,
-        // a provider answering from the request, the caller's session.
-        //#if (externalAuth)
-        // Configuration/ holds the settings a feature binds and the framework options it configures
-        // from them, when they are not a job's.
-        //#endif
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Composition",
@@ -94,13 +47,6 @@ public sealed class LayoutConventionTests
                 "Controllers", "Jobs",
             ],
         //#if (localAuth)
-
-        // Five concepts, each answering one question — does it implement a port (Adapters), is it
-        // the shape of a stored row (Rows), is it one of the reserved ways to reach storage
-        // (Access), is it a setting (Configuration), is it an embedded file (Resources) — and under
-        // each the plural of a nature word the file names already carry. Which is what makes a
-        // folder findable from a type name alone and back again: a …Directory is in
-        // Adapters/Directories/ and nowhere else, and that folder holds nothing that is not one.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Access/Queries", "Access/Tables",
              "Adapters/Directories", "Adapters/Providers", "Adapters/Services",
@@ -115,30 +61,12 @@ public sealed class LayoutConventionTests
              "Configuration/Options"],
         //#endif
 
-        // Null, not empty: this project has no Features/ and may not grow one. What is here
-        // is what any host needs whatever its transport, so a feature folder appearing would
-        // be a transport concern filed as a shared one.
         ["Src/Presentation/AppTemplate.Presentation.Core"] = null,
-
-        // Same reason, one layer down. These two modules have both a transverse adapter and a
-        // feature-scoped one, which is what earns them Common/ and Features/ at all; the feature
-        // half is one adapter and its recording double, side by side — including the reminder mail's
-        // templates, which sit beside the notifier rather than earning a folder of their own for two
-        // files.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] = [],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] = [],
-
-        // Null, not empty, for the reason the other Core projects carry it: what is here is a
-        // mechanism no module owns, so a feature folder appearing would be one module's business
-        // filed as everybody's.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] = null,
     };
 
-    /// <summary>
-    /// The projects a feature is added to whose <c>Features/</c> a project generated without one does
-    /// not have yet. Listed only in such a project: anywhere else a missing <c>Features/</c> is the
-    /// stale vocabulary entry the rule reports.
-    /// </summary>
     private static readonly string[] _featuresStillToCome =
     [
         /*#if (aggregates)*/
@@ -160,64 +88,31 @@ public sealed class LayoutConventionTests
         #endif*/
     ];
 
-    /// <summary>
-    /// The folders a project's <c>Common/</c> may hold, per project. Closed for the same reason as
-    /// the feature vocabulary above: <c>Common/</c> is where a layout drifts fastest, because a
-    /// folder with no feature to belong to accepts any name — a dozen top-level folders with vague
-    /// names among them, or a one-file <c>Mapping/</c> borrowing a word that already means something
-    /// else one level down.
-    /// <para>
-    /// Only the first level is checked. A word a reader meets on the way in has to be one of these;
-    /// what a folder holds below that is the folder's own business — <c>Saving/</c> partitions
-    /// itself into <c>Auditing/</c>, <c>DomainEvents/</c> and <c>Tracking/</c> and that is a
-    /// detail of one subject, not a word the layout offers.
-    /// </para>
-    /// </summary>
     private static readonly Dictionary<string, string[]?> _commonVocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Domain/AppTemplate.Domain.Core"] =
             ["Abstractions", "Events", "Exceptions", "Primitives"],
 
         /*#if (tagging)*/
-        // The business half of this layer's Common/, and the word names a subject rather than a
-        // nature: what a to-do item and a stored file share is that they are tagged, and that they
-        // are tagged by the same rule. It could not sit one project inwards — TagSet names Tag, and
-        // a Core project may name no business type — which is the test that decides between the two
-        // kinds of Common/ rather than a preference about where it reads better.
         ["Src/Domain/AppTemplate.Domain"] = ["Tagging"],
         /*#else
         ["Src/Domain/AppTemplate.Domain"] = null,
         #endif*/
 
-        // No "Abstractions": every interface here is one, so the word sorted by nothing. What the
-        // layer declares for something else to implement is a Ports/, at both scopes — the same word
-        // Features/<F>/Ports/ uses — and the two interfaces the layer implements itself sit with the
-        // subject they are about instead.
         ["Src/Application/AppTemplate.Application.Core"] =
             ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Ownership",
              "Policies", "Ports", "Results", "UseCases", "Validation"],
 
         /*#if (tagging)*/
-        // The business half of this layer's Common/, and it pairs with the domain's: what several
-        // features share as business here is the input validation over the domain's tag rules. It
-        // could not sit one project inwards either — TagValidation names Tag, and a Core project
-        // may name no business type — which is again the test that decides between the two kinds
-        // rather than a preference.
         ["Src/Application/AppTemplate.Application"] = ["Tagging"],
         /*#else
         ["Src/Application/AppTemplate.Application"] = null,
         #endif*/
 
         //#if (localAuth)
-        // Six features and nothing filed as shared between them. A Common/ opens the day a type
-        // two of them genuinely share appears — earned, not default — and that type is the thing
-        // to argue about rather than the folder.
         ["Src/Application/AppTemplate.Application.Auth"] = null,
         //#endif
 
-        // The agnostic half of this layer: a mechanism a module needs and no module owns. A module
-        // may not reference a sibling, so without this project two modules needing one mechanism
-        // each keep a copy.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] =
             ["Caching", "Contexts", "Options", "Saving", "Templating", "Time"],
 
@@ -226,8 +121,6 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] =
             ["Email", "Time"],
         //#if (localAuth)
-        // What serves the module itself and names no feature: the context and the settings every
-        // feature's tokens share. Anything implementing a vertical's port files under that vertical.
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Contexts", "Options"],
         //#endif
@@ -237,10 +130,6 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
         //#endif
-        // The HTTP mechanisms no feature owns: what a controller inherits, how a failure is
-        // answered, which headers every response carries, what the host composes at start-up. What
-        // a folder here may not do is name a feature — HttpCommonBoundaryTests holds that — so
-        // a word on this list is a mechanism, never a subject.
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
@@ -250,10 +139,6 @@ public sealed class LayoutConventionTests
                 //#endif
                 "Security",
             ],
-
-        // The five subjects a host needs whatever its transport: recurring work, the language a
-        // flow is written in, telemetry, an outbound budget, and the identity of a process with no
-        // caller.
         ["Src/Presentation/AppTemplate.Presentation.Core"] =
             ["Jobs", "Localization", "Observability", "Outbound", "Security"],
     };
@@ -279,10 +164,6 @@ public sealed class LayoutConventionTests
                 .Select(folder => $"{project}: 'Common/{folder}' is not one of " +
                     $"[{string.Join(", ", allowed!)}]"));
 
-            // The other direction, and the one a list of words rots in: a word nothing is filed
-            // under any more. It cannot fail the check above — that one only reads folders — so a
-            // vocabulary keeps offering a concept the tree stopped having, and the next reader
-            // takes the list for the index it claims to be.
             var present = Directory
                 .EnumerateDirectories(common)
                 .Select(Path.GetFileName)
@@ -306,11 +187,6 @@ public sealed class LayoutConventionTests
             "folder map, argued for in the pull request.");
     }
 
-    /// <summary>
-    /// A top-level public type declaration. Anchored at column zero because a nested type is indented
-    /// and stays with its parent, and because <c>internal</c> companions — an options validator beside
-    /// the options it validates — are deliberately not the subject of the rule.
-    /// </summary>
     private static readonly Regex _publicTypeDeclaration = new(
         @"^public\s+(?:sealed\s+|abstract\s+|static\s+|partial\s+|readonly\s+|ref\s+)*(?:class|record|interface|enum|struct)\s+([A-Za-z_][A-Za-z0-9_]*)",
         RegexOptions.Multiline,
@@ -351,7 +227,6 @@ public sealed class LayoutConventionTests
                 .Select(folder => $"{project}: '{Path.GetRelativePath(features, folder)}' is not one of " +
                     $"[{string.Join(", ", levelTwo.Order(StringComparer.Ordinal))}]"));
 
-            // Under a concept, the third level is its natures and nothing else.
             var natureFolders = folders
                 .Where(folder => natures.ContainsKey(Path.GetFileName(folder)))
                 .SelectMany(concept => Directory.EnumerateDirectories(concept))
@@ -363,12 +238,6 @@ public sealed class LayoutConventionTests
                     $"[{string.Join(", ", natures[ConceptOf(WordOf(folder))])}]"));
 
             //#if (todoLists && notes)
-            // The other direction: a word no feature is filed under any more. Not every feature has
-            // every word — one having no Services/Consumers/ is normal — so the claim is that *some*
-            // feature does. A word none does is a concept the vocabulary still offers and the tree stopped
-            // having, which is how a list of words quietly stops being an index. Checked only where
-            // every example is present: a project generated with fewer starts with words no feature
-            // uses yet, and the scaffolded features still need them.
             var used = folders
                 .Select(Path.GetFileName)
                 .Concat(natureFolders.Select(WordOf))
@@ -380,12 +249,6 @@ public sealed class LayoutConventionTests
                     "is filed under it. Drop the word, or file something under it."));
             //#endif
 
-            // The same second pass its sibling above makes over Common/'s loose files, and it has to
-            // be conditional where that one does not: a project whose list is empty says by saying so
-            // that its features hold their files side by side, which is the documented shape for the
-            // two smallest infrastructure modules. Running the pass there would
-            // fail twenty-one correct files. Where a word does exist, a file lying beside the folders
-            // rather than in one is filed under nothing.
             if (allowed!.Length == 0)
             {
                 continue;
@@ -405,22 +268,6 @@ public sealed class LayoutConventionTests
             "the feature the moment part of it is filed under no word at all.");
     }
 
-    /// <summary>
-    /// The two vocabularies above, against every project that actually exists on disk.
-    /// </summary>
-    /// <remarks>
-    /// Both dictionaries are maintained by hand, and the guards on the two rules above cannot catch
-    /// what went wrong here: <c>checkedLayers.ShouldBe(_vocabulary.Count)</c> fails on a project
-    /// <em>listed without</em> the folder it names, and never on a project <em>on disk and not
-    /// listed</em>. So the identity and storage modules sat outside both lists while their layout
-    /// drifted — forty files in ten root folders in one of them — and the rule whose whole business
-    /// is that a layout is an index reported success without reading either.
-    /// <para>
-    /// This is the same hole <c>ModuleDependencyTests</c> closed for
-    /// <c>ArchitectureAssemblies</c>, and it is closed the same way: by asking the disk, which is
-    /// where <c>ProjectReferenceGraph</c> was already looking.
-    /// </para>
-    /// </remarks>
     [Fact]
     public void EveryProjectOnDisk_HasAVocabularyOfItsOwn()
     {
@@ -446,27 +293,9 @@ public sealed class LayoutConventionTests
             "into docs/PROJECT-LAYOUT.md's folder map.");
     }
 
-    /// <summary>
-    /// What a project root may hold besides its <c>.csproj</c> and its one composition file.
-    /// <para>
-    /// <c>Properties/</c> is here because the SDK and the IDE own it — it holds
-    /// <c>launchSettings.json</c> and no code — and <c>Migrations/</c> because EF Core writes there.
-    /// The other two are the shape every project has.
-    /// </para>
-    /// </summary>
     private static readonly string[] _projectRootFolders =
         ["Common", "Features", "Migrations", "Properties"];
 
-    /// <summary>
-    /// A project root holds its <c>.csproj</c>, at most one <c>.cs</c> — the DI module class, or a
-    /// host's <c>Program.cs</c> — and folders.
-    /// <para>
-    /// A root is the one place in the tree where a file has no folder to be filed under, so it is
-    /// the one place a file can be dropped without answering the question the layout asks of every
-    /// other file. Which is why it is also where files land when nobody decides: the identity
-    /// module carried loose adapters at its root for as long as nothing read the root.
-    /// </para>
-    /// </summary>
     [Fact]
     public void NoProjectRoot_HoldsAnythingButItsModule()
     {
@@ -517,26 +346,11 @@ public sealed class LayoutConventionTests
             "where it goes, so it holds the one file that composes the project and nothing else.");
     }
 
-    /// <summary>
-    /// A file-scoped namespace declaration. Anchored at column zero, and the only form the compiler
-    /// accepts here — <c>csharp_style_namespace_declarations = file_scoped</c> is an error in
-    /// .editorconfig — so a file this does not match declares no namespace at all.
-    /// </summary>
     private static readonly Regex _fileScopedNamespace = new(
         @"^namespace\s+([A-Za-z_][A-Za-z0-9_.]*)\s*;",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// Namespaces follow folders, with no exceptions: the namespace of a file is its project's name
-    /// followed by the folders on the way to it.
-    /// <para>
-    /// This is what makes the two directions of navigation agree. A folder in the vocabulary tells a
-    /// reader what nature of thing is in it, and the rules above hold that; but a using directive
-    /// naming a folder that does not hold the file sends the next reader to the wrong place, and no
-    /// compiler complains, because a namespace is a name and not a location.
-    /// </para>
-    /// </summary>
     [Fact]
     public void EverySourceFile_DeclaresTheNamespaceOfItsFolder()
     {
@@ -556,8 +370,6 @@ public sealed class LayoutConventionTests
 
                 examined++;
 
-                // No project sets RootNamespace, so it is the project name, which is also the name
-                // of the folder the project file sits in.
                 string folder = Path.GetRelativePath(root, Path.GetDirectoryName(file)!);
                 string expected = folder is "."
                     ? project.Name
@@ -568,9 +380,6 @@ public sealed class LayoutConventionTests
 
                 if (!declaration.Success)
                 {
-                    // A host's Program.cs is top-level statements, which the compiler puts in the
-                    // global namespace. There is nothing to compare, and the only way to give it a
-                    // namespace is to give up the top-level form.
                     if (Path.GetFileName(file) is "Program.cs" && folder is ".")
                     {
                         continue;
@@ -587,9 +396,6 @@ public sealed class LayoutConventionTests
             }
         }
 
-        // Without this, a filter that matched nothing reports no offender and reads as a pass — and
-        // the count is printed with the offenders below for the same reason: a rule that says how
-        // many files it read is one whose silence can be checked.
         examined.ShouldBeGreaterThanOrEqualTo(
             167,
             "Far fewer source files were found than this template holds, so the walk is not reading " +
@@ -601,10 +407,6 @@ public sealed class LayoutConventionTests
             "follows the using directive, and nothing else in the build will say so.");
     }
 
-    /// <summary>
-    /// A folder holding nothing is structure carrying no information: it suggests a concept the
-    /// feature does not actually have, and a reader opening it learns only that they were misled.
-    /// </summary>
     [Fact]
     public void NoFolderInTheSourceTree_IsEmpty()
     {
@@ -615,10 +417,6 @@ public sealed class LayoutConventionTests
             .Where(folder => !IsBuildOutput(folder))
             .ToList();
 
-        // This rule asserts an emptiness, so a walk that found no folders at all passes it. Its two
-        // siblings above establish their own candidate sets and would fail on a wrong root, but a
-        // rule that leans on a neighbour to be non-vacuous is one that stops being a guarantee the
-        // day the neighbour moves. The floor counts the smallest generated project.
         walked.Count.ShouldBeGreaterThanOrEqualTo(
             90,
             "Far fewer folders were found than this template holds, so the walk is not reading the " +
@@ -633,15 +431,6 @@ public sealed class LayoutConventionTests
         empty.ShouldBeEmpty("A folder exists only when it has contents.");
     }
 
-    /// <summary>
-    /// One top-level public type per file, and the file is named for it — which is what makes a type
-    /// findable by its name alone, without a search across a tree of similar folders.
-    /// <para>
-    /// Generic overloads of one name (<c>IUseCase</c>, <c>IUseCase&lt;T&gt;</c>,
-    /// <c>IUseCase&lt;T,R&gt;</c>) count once: they are one concept, and the arity is not part of what
-    /// a reader looks for.
-    /// </para>
-    /// </summary>
     [Fact]
     public void EverySourceFile_DeclaresOnePublicType_NamedForTheFile()
     {
@@ -690,11 +479,6 @@ public sealed class LayoutConventionTests
             "reader knows about it.");
     }
 
-    /// <summary>
-    /// Proves the file walk above can fail, by running its predicate over a file written to break
-    /// the rule. Without this, a walk that silently matched nothing would report no offenders and
-    /// read as a pass.
-    /// </summary>
     [Fact]
     public void TheOneTypePerFileRule_IsSensitive_AndSeesASecondType()
     {
@@ -729,17 +513,6 @@ public sealed class LayoutConventionTests
         }
     }
 
-    /// <summary>
-    /// Whether the walk goes on into <paramref name="folderName"/>, recording a complaint first when
-    /// the tree and the vocabulary disagree about that folder existing at all.
-    /// <para>
-    /// A <see langword="null"/> vocabulary is a project stating it has no such folder, and the claim
-    /// is checked rather than taken. The two ways either list rots are a folder that appeared where
-    /// the list says there is none, and a folder that vanished from under a list of words — the same
-    /// defect from both sides, the vocabulary no longer describing the tree, and neither is visible
-    /// in a count of how many projects the walk managed to read.
-    /// </para>
-    /// </summary>
     private static bool ShouldWalk(
         string project,
         string folderName,
@@ -774,33 +547,16 @@ public sealed class LayoutConventionTests
         return exists;
     }
 
-    /// <summary>
-    /// The DI module class a project's name asks for: the last segment of the name, plus
-    /// <c>Module</c>. <c>AppTemplate.Infrastructure.Persistence</c> composes itself in
-    /// <c>PersistenceModule</c>, which is how <c>AddPersistenceModule</c> is findable from the call.
-    /// </summary>
     private static string ModuleFileName(string projectName) =>
         $"{projectName[(projectName.LastIndexOf('.') + 1)..]}Module.cs";
 
-    /// <summary>
-    /// The same class named from the whole project, product prefix stripped and dots removed:
-    /// <c>AppTemplate.Application.Core</c> composes itself in <c>ApplicationCoreModule</c>.
-    /// <para>
-    /// A second accepted form rather than a replacement, because the rule's purpose is that
-    /// <c>AddApplicationCore</c> be findable from its call site, and the last segment alone would
-    /// demand a <c>CoreModule</c> — a name three projects would share and none of them would be
-    /// found under.
-    /// </para>
-    /// </summary>
     private static string QualifiedModuleFileName(string projectName) =>
         $"{projectName.Replace($"{_productPrefix}.", string.Empty, StringComparison.Ordinal)
             .Replace(".", string.Empty, StringComparison.Ordinal)}Module.cs";
 
-    /// <summary>The level-2 folder a vocabulary word names: the word itself, or its concept.</summary>
     private static string ConceptOf(string word) =>
         word.Split('/')[0];
 
-    /// <summary>A nature folder as the vocabulary writes it: <c>Concept/Nature</c>.</summary>
     private static string WordOf(string natureFolder) =>
         $"{Path.GetFileName(Path.GetDirectoryName(natureFolder))}/{Path.GetFileName(natureFolder)}";
 
@@ -818,9 +574,6 @@ public sealed class LayoutConventionTests
         path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
         || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 
-    /// <summary>
-    /// EF Core writes migrations, and their shape is the tool's to decide, not this template's.
-    /// </summary>
     private static bool IsGenerated(string path) =>
         path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 }

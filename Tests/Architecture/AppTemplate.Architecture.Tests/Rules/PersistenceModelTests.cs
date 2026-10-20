@@ -6,23 +6,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// The mapping is only real once <c>AppDbContext.OnModelCreating</c> names it. A configuration class
-/// that nobody applies compiles, formats, passes every architecture rule, and leaves the table it
-/// describes unmapped until the first query against it.
-/// </summary>
-/// <remarks>
-/// <b>Why the source and not the model.</b> Asking a built model whether an entity is mapped answers
-/// a different question: <c>AppDbContext</c> exposes a <see cref="DbSet{TEntity}"/> for most of its
-/// records, and a <c>DbSet</c> is enough to bring an entity into the model with conventions alone.
-/// So a record that has its <c>DbSet</c> but never had its configuration applied is present, mapped
-/// to a defaulted table in the default schema, and indistinguishable from a configured one to
-/// anything that reads the model. The claim worth checking is the one about the call, so this reads
-/// the call.
-/// </remarks>
 public sealed partial class PersistenceModelTests
 {
-    /// <summary>Matches <c>builder.ApplyConfiguration(new SomethingConfiguration());</c>.</summary>
     [GeneratedRegex(
         @"ApplyConfiguration\(\s*new\s+([A-Za-z0-9_]+)\s*\(",
         RegexOptions.CultureInvariant)]
@@ -54,12 +39,6 @@ public sealed partial class PersistenceModelTests
             + "the first query. Add builder.ApplyConfiguration(new <Name>()) to OnModelCreating.");
     }
 
-    /// <summary>
-    /// The other direction, which the compiler already covers for a deleted class but not for one
-    /// that stopped being a configuration — a class named <c>…Configuration</c> that no longer
-    /// implements the interface still compiles inside <c>ApplyConfiguration</c> only while it does.
-    /// Cheap to assert, and it keeps the two lists honest in both directions.
-    /// </summary>
     [Fact]
     public void EveryConfigurationTheContextApplies_IsDeclaredInTheModule()
     {
@@ -84,11 +63,6 @@ public sealed partial class PersistenceModelTests
             .Select(type => type.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        // Measured against the disk rather than against a number written here. A literal would be
-        // right only until someone removes a feature, and this rule already appears in the removal
-        // guide as a floor to lower by hand — which is the defect it exists to prevent, in the file
-        // that prevents it. The two routes are independent: reflection over the built assembly, and
-        // the files the convention names.
         int onDisk = ConfigurationFilesOnDisk();
 
         names.Count.ShouldBe(
@@ -101,10 +75,6 @@ public sealed partial class PersistenceModelTests
         return names;
     }
 
-    /// <summary>
-    /// The second route to the same answer: the files the naming convention puts a configuration
-    /// in. Migrations are excluded because EF writes them and they carry no configuration class.
-    /// </summary>
     private static int ConfigurationFilesOnDisk()
     {
         string module = Path.Combine(
@@ -141,12 +111,6 @@ public sealed partial class PersistenceModelTests
             .Select(match => match.Groups[1].Value)
             .ToHashSet(StringComparer.Ordinal);
 
-        // Deliberately a floor of one rather than of fifteen. This guards the parser, not the
-        // count: a pattern that has stopped matching finds nothing, while a configuration somebody
-        // forgot to apply finds one fewer. Holding this to the real total would make the second
-        // case fail here, reporting a number instead of naming the configuration that went
-        // unapplied — a floor over the wrong set, which is the failure this project has already
-        // paid for once.
         names.ShouldNotBeEmpty(
             $"No ApplyConfiguration call was parsed out of '{_contextPath}'. The calls are written "
             + "as 'builder.ApplyConfiguration(new XConfiguration());'; if that shape changed, this "

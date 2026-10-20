@@ -5,47 +5,23 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Where a guarantee about running once across the fleet is allowed to live.
-/// <para>
-/// Read from the source tree rather than from metadata, because this project deliberately does not
-/// reference <c>AppTemplate.Api</c> — it composes the modules itself, so that the rules here stay
-/// about the modules rather than about one host. The background services are therefore invisible to
-/// reflection from here, and the text is what is left.
-/// </para>
-/// </summary>
 public sealed class BackgroundWorkTests
 {
-    /// <summary>
-    /// A scope opened the framework's way. <c>CreateBackgroundScope</c> does not match, because the
-    /// name before <c>Scope</c> has to be <c>Create</c> or <c>CreateAsync</c> itself.
-    /// </summary>
     private static readonly Regex _plainScope = new(
         @"\.Create(?:Async)?Scope\(",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// A namespace from the authentication layers of the application or the infrastructure, or from
-    /// the API's own authentication feature — a name in code, not a word in a sentence.
-    /// </summary>
     private static readonly Regex _authenticationReference = new(
         @"AppTemplate\.(?:Application|Infrastructure)\.Auth\b|AppTemplate\.Api\.Features\.Auth\b",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// A constructor parameter, not a mention. The distinction is not pedantry: the first loop this
-    /// rule was written for names the port in its own documentation, to say that it deliberately
-    /// does <em>not</em> take one — and a matcher that could not tell the two apart would punish
-    /// the file for explaining itself.
-    /// </summary>
     private static readonly Regex _leaseDependency = new(
         @"\bILeaderLease\s+[a-z_][A-Za-z0-9_]*",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>A line comment or a documentation line, which carries prose rather than code.</summary>
     private static readonly Regex _commentLine = new(
         @"^\s*(?://|///).*$",
         RegexOptions.Multiline,
@@ -54,13 +30,6 @@ public sealed class BackgroundWorkTests
     private static string CodeOf(string file) =>
         _commentLine.Replace(File.ReadAllText(file), string.Empty);
 
-    /// <summary>
-    /// A <c>BackgroundService</c> is a trigger, not the operation. A lease taken there protects the
-    /// timer's callers and nobody else — and a second caller does turn up: a use case the timer
-    /// reaches is one a request can reach too. So the guard belongs in the use case, the way every
-    /// leased operation takes it, and this rule is what keeps the next loop from putting it back
-    /// in the timer because that is the easier place to reach.
-    /// </summary>
     [Fact]
     public void NoBackgroundService_TakesTheLeaderLease()
     {
@@ -83,10 +52,6 @@ public sealed class BackgroundWorkTests
             "second caller of the same operation is covered too.");
     }
 
-    /// <summary>
-    /// Proves the matcher is live. Without it, a renamed port would leave the rule above reading
-    /// every background service and finding nothing, for ever.
-    /// </summary>
     [Fact]
     public void TheLeaseRule_IsSensitive_AndSeesTheDependencyItForbids()
     {
@@ -96,22 +61,14 @@ public sealed class BackgroundWorkTests
         _leaseDependency.IsMatch("internal sealed class Loop(IServiceScopeFactory factory)")
             .ShouldBeFalse();
 
-        // A file that names the port only to say it does not take one must stay clean.
         _commentLine.Replace("/// Neither loop takes ILeaderLease lease, and that is deliberate.", string.Empty)
             .ShouldBeEmpty();
     }
 
     //#if (reminders || files)
-    /// <summary>
-    /// The application layer is where the lease is allowed to be, and this asserts it actually is —
-    /// so that the rule above cannot be satisfied by nobody using the port at all.
-    /// </summary>
     [Fact]
     public void TheLeaderLease_IsTakenByAUseCase()
     {
-        // Every project of the layer, not the one this rule was written against: a lease-taking use
-        // case in another of them is the same fact, and a walk that missed it would report that
-        // nothing takes the lease.
         var consumers = ProjectReferenceGraph
             .ProjectsInLayer("Application")
             .Select(project => Path.Combine(ProjectReferenceGraph.RootOf(project), "Features"))
@@ -130,12 +87,6 @@ public sealed class BackgroundWorkTests
     }
     //#endif
 
-    /// <summary>
-    /// A scope opened any other way is, to the caller identity, a request that happens to carry no
-    /// principal: <c>ICurrentUser</c> answers null instead of refusing, and a use case that wrongly
-    /// asks who is calling runs on as an anonymous caller. <c>CreateBackgroundScope</c> is what marks
-    /// a scope as a job's, so a service that skipped it compiles, runs and quietly loses the guard.
-    /// </summary>
     [Fact]
     public void EveryBackgroundService_OpensItsScopeAsABackgroundScope()
     {
@@ -167,12 +118,6 @@ public sealed class BackgroundWorkTests
         _plainScope.IsMatch("await using var scope = scopeFactory.CreateBackgroundScope();").ShouldBeFalse();
     }
 
-    /// <summary>
-    /// What a project built without authentication must be able to delete without editing the
-    /// background composition: the composition, the options it binds and the jobs' own folders name
-    /// nothing from authentication. Its refresh-token purge joins the maintenance timer from
-    /// <c>Features/Auth/Jobs</c>, which is the one folder that does.
-    /// </summary>
     [Fact]
     public void TheBackgroundComposition_NamesNoAuthentication()
     {
@@ -205,10 +150,6 @@ public sealed class BackgroundWorkTests
         _authenticationReference.IsMatch("using AppTemplate.Api.Features.Maintenance.Jobs;").ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The shared job mechanisms and every feature's <c>Jobs/</c> folder but authentication's own —
-    /// which includes the composition feature.
-    /// </summary>
     private static List<string> BackgroundCompositionFiles()
     {
         string api = ProjectReferenceGraph.RootOf(ProjectReferenceGraph.Project("AppTemplate.Api"));

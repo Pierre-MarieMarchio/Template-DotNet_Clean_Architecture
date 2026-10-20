@@ -4,17 +4,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Two shapes storage is not allowed to take, each of which is invisible until the day it costs
-/// something: a row that is deleted but still there, and a contract that hands out a query instead
-/// of an answer.
-/// </summary>
 public sealed class StorageShapeTests
 {
-    /// <summary>
-    /// The property names a soft delete arrives under. Matching by name is the point: a soft delete
-    /// is a convention, not a type, and it is the convention that has to be refused.
-    /// </summary>
     private static readonly string[] _softDeleteFlags =
     [
         "Deleted",
@@ -26,11 +17,6 @@ public sealed class StorageShapeTests
         "SoftDeleted",
     ];
 
-    /// <summary>
-    /// <c>DELETE</c> removes rows. A deleted flag puts a predicate in every query, where one
-    /// forgotten <c>Where</c> is a data leak rather than a bug, and it answers a retention question
-    /// that belongs to the log pipeline instead.
-    /// </summary>
     [Fact]
     public void NoPersistenceRecord_CarriesADeletedFlag()
     {
@@ -59,11 +45,6 @@ public sealed class StorageShapeTests
             "remembering it, and the one that forgets serves data that was meant to be gone.");
     }
 
-    /// <summary>
-    /// A contract that returns <c>IQueryable</c> has not hidden the database, it has published it:
-    /// the caller composes the query, the caller decides when it runs, and the caller is where the
-    /// lazy load happens. A port returns answers.
-    /// </summary>
     [Fact]
     public void NoApplicationPort_ExposesAQueryable()
     {

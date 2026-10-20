@@ -7,39 +7,16 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Where a use case lives and what shape it has.
-/// <para>
-/// The convention is load-bearing rather than cosmetic: the container registers use cases by
-/// concrete type, one explicit line each, and a reader's only index of what exists is the folder
-/// layout. A use case in the wrong place is one nobody finds; a use case that is not sealed
-/// invites a subclass that a caller then depends on instead of the real thing.
-/// </para>
-/// </summary>
 public sealed class UseCaseConventionTests
 {
     private const string _useCaseSuffix = "UseCase";
 
-    /// <summary>
-    /// <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.UseCases[.Commands|.Queries|…]</c>, judged against the
-    /// root namespace of the project that declares the type rather than against one literal prefix:
-    /// the application layer is several projects, and a prefix short enough to span them would also
-    /// span a layer whose names begin the same way.
-    /// </summary>
     private const string _useCaseNamespaceSuffixPattern =
         @"\.Features\.[^.]+\.UseCases(\.[^.]+)*$";
 
-    /// <summary>
-    /// One operation's own folder:
-    /// <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.UseCases.Commands|Queries.&lt;Operation&gt;</c>.
-    /// </summary>
     private const string _useCaseFolderNamespaceSuffixPattern =
         @"\.Features\.[^.]+\.UseCases\.(Commands|Queries)\.[^.]+$";
 
-    /// <summary>
-    /// What a use case's input is called. The record is declared in the same file as the operation
-    /// that consumes it, which is the only other thing a UseCases folder may hold.
-    /// </summary>
     private static readonly string[] _inputContractSuffixes = ["Command", "Query", "Request"];
 
     [Fact]
@@ -82,10 +59,6 @@ public sealed class UseCaseConventionTests
                 $"<Project>{_useCaseNamespaceSuffixPattern}");
     }
 
-    /// <summary>
-    /// The root namespace of the assembly a type is declared in, which is that assembly's simple
-    /// name — the convention this repository checks elsewhere.
-    /// </summary>
     private static string RootOf(Type type) =>
         type.Assembly.GetName().Name
         ?? throw new InvalidOperationException(
@@ -143,25 +116,6 @@ public sealed class UseCaseConventionTests
                 "is not public cannot be reached by a controller.");
     }
 
-    /// <summary>
-    /// The converse rule, and the one that actually catches a rename. Each use case owns a folder
-    /// holding the operation, the interface a caller resolves it by, the input it accepts and
-    /// whatever else serves that one operation — so "everything here is a use case or its input" is
-    /// not the shape to assert. What holds instead, and holds harder: the folder is named for
-    /// the operation, and it contains exactly one.
-    /// <para>
-    /// That is what makes the layout an index. A second use case sharing a folder is one a reader
-    /// looking for it by name will not find; a folder whose name has drifted from the operation
-    /// inside it sends that reader somewhere else entirely. Both are invisible to every naming rule
-    /// above, which only ever looks at a type in isolation.
-    /// </para>
-    /// <para>
-    /// Written with reflection rather than NetArchTest because the namespace of a compiler-generated
-    /// type — an async state machine, a lambda closure — is the namespace of the method that produced
-    /// it, and those are not named after any convention. Reflection lets them be excluded explicitly
-    /// instead of trusting the rule engine to have filtered them.
-    /// </para>
-    /// </summary>
     [Fact]
     public void EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt()
     {

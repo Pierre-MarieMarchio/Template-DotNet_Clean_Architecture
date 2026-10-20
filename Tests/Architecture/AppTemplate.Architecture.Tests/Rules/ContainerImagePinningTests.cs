@@ -5,19 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Every container image this repository pulls is named by digest as well as by tag:
-/// <c>name:tag@sha256:…</c>. The tag is for the reader; the digest is what Docker pulls, and it is
-/// the one reference a registry — or whoever controls an account on it — cannot re-point.
-/// </summary>
-/// <remarks>
-/// Three places pull images, and each is read here: <c>docker-compose.yml</c>, the Dockerfiles'
-/// <c>FROM</c> lines and their <c>syntax</c> frontend, and the Testcontainers fixtures. The
-/// workflows' own images are left to the workflow gate, which already parses them as YAML.
-/// The fixtures are held to one more thing: each runs exactly an image the development stack runs,
-/// so a Dependabot bump of <c>docker-compose.yml</c> fails here until the fixtures follow, rather
-/// than leaving the tests on bytes nobody runs any more.
-/// </remarks>
 public sealed class ContainerImagePinningTests
 {
     private static readonly string[] _dockerfileRoots = ["Src", "Tools"];
@@ -47,10 +34,6 @@ public sealed class ContainerImagePinningTests
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1));
 
-    /// <summary>
-    /// An image a fixture starts: the literal handed to a Testcontainers builder, or a constant
-    /// whose name says it holds an image.
-    /// </summary>
     private static readonly Regex _fixtureImage = new(
         @"(?:Builder\(\s*""(?<ref>[^""]+)""|const\s+string\s+\w*Image\w*\s*=\s*""(?<ref>[^""]+)"")",
         RegexOptions.CultureInvariant,
@@ -134,10 +117,6 @@ public sealed class ContainerImagePinningTests
                 + "store a test exercises is the one a developer has. Copy the image line from there.");
     }
 
-    /// <summary>
-    /// Proves the matchers are live, so the rules above cannot pass because a regex stopped
-    /// matching anything.
-    /// </summary>
     [Fact]
     public void TheMatchers_AreSensitive()
     {
@@ -154,7 +133,6 @@ public sealed class ContainerImagePinningTests
         _fixtureImage.IsMatch("private const string _storeImage =\n        \"a:b\";").ShouldBeTrue();
     }
 
-    /// <summary>The images of the services Compose pulls; a service it builds is skipped.</summary>
     private static List<string> ComposeImages()
     {
         var images = new List<string>();
@@ -206,10 +184,6 @@ public sealed class ContainerImagePinningTests
         return images;
     }
 
-    /// <summary>
-    /// Under Src/ and Tools/ only: from the root, the search would also walk into whatever else a
-    /// checkout holds — another worktree, a generated project under artifacts/.
-    /// </summary>
     private static List<string> Dockerfiles() =>
         [.. _dockerfileRoots
             .Select(directory => Path.Combine(ProjectReferenceGraph.RepositoryRoot, directory))
@@ -220,7 +194,6 @@ public sealed class ContainerImagePinningTests
             .Where(IsSource)
             .Order(StringComparer.Ordinal)];
 
-    /// <summary>Under Tests/Integration/, which is where every suite that starts a container lives.</summary>
     private static List<(string File, string Image)> FixtureImages() =>
         [.. Directory
             .EnumerateFiles(

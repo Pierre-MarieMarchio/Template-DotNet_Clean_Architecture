@@ -14,32 +14,12 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Composition;
 
-/// <summary>
-/// The container the API composes must be able to satisfy every registration in it. A registration
-/// that compiles but cannot be resolved gives a green build, a clean start-up and a broken request.
-/// <para>
-/// Three layers of check, deliberately overlapping. <c>ValidateOnBuild</c> catches a constructor
-/// dependency nothing satisfies. <c>ValidateScopes</c> catches a scoped service captured by a
-/// singleton. And the walk over <see cref="IServiceCollection"/> catches what neither can see:
-/// a factory-based registration, which <c>ValidateOnBuild</c> does not inspect at all.
-/// </para>
-/// </summary>
 public sealed class ContainerCompositionTests
 {
-    /// <summary>
-    /// The ports the application layer declares. Each is satisfied by exactly one adapter in
-    /// exactly one module, and none of them may be missing from a composed host. Discovered rather
-    /// than listed: the eleven written out here by hand were a third of the real number.
-    /// </summary>
     /*#if (externalAuth)*/
     private static IReadOnlyList<Type> ApplicationPortContracts =>
         [.. ApplicationPorts.All.Where(port => !IsExternalIdentityPort(port))];
 
-    /// <summary>
-    /// The external-identity mapping's ports, which the compositions below leave to the
-    /// external-authentication entry point; <see cref="TheExternalIdentityComposition_ResolvesItsPorts"/>
-    /// holds them to the same rule.
-    /// </summary>
     private static IReadOnlyList<Type> ExternalIdentityPortContracts =>
         [.. ApplicationPorts.All.Where(IsExternalIdentityPort)];
 
@@ -56,9 +36,6 @@ public sealed class ContainerCompositionTests
 
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
 
-        // Program.cs never calls this explicitly: the host does it during start-up. Calling it here
-        // is what makes the ValidateOnStart on every options section actually run, so a bad signing
-        // key or an unreachable confirmation URL fails this test rather than the first login.
         provider.GetRequiredService<IStartupValidator>().Validate();
     }
 
@@ -73,11 +50,6 @@ public sealed class ContainerCompositionTests
             "exists to prevent: green build, clean start-up, broken request.");
     }
 
-    /// <summary>
-    /// The same walk over the test-host composition. <c>AppTemplate.Infrastructure.InMemory</c> replaces two
-    /// adapters by removing and re-adding them, which is a registration edit — and an edit that left
-    /// the container unresolvable would otherwise only be discovered by an integration test.
-    /// </summary>
     [Fact]
     public void TheTestHostContainer_WithTheInMemoryModule_ResolvesEveryRegisteredService()
     {
@@ -89,20 +61,6 @@ public sealed class ContainerCompositionTests
             "them. If that leaves the graph unresolvable, every test host is broken.");
     }
 
-    /// <summary>
-    /// Every use case the application assembly declares, discovered rather than listed: a list would
-    /// only ever guard what somebody remembered to add to it, which is the weakness the discovery in
-    /// <c>ApplicationModule</c> exists to remove.
-    /// <para>
-    /// Each one is resolved through its own named interface and must come back as the concrete class
-    /// that declares it, so a contract bound to the wrong implementation fails here too.
-    /// </para>
-    /// <para>
-    /// The name promises <em>every</em>, so the population is measured rather than floored. A number
-    /// written here could not be wrong, only stale — and while it was stale this test would resolve
-    /// a handful of use cases and report that all of them were fine.
-    /// </para>
-    /// </summary>
     [Fact]
     public void TheApiContainer_ResolvesEveryUseCaseInTheApplicationAssembly()
     {
@@ -162,12 +120,6 @@ public sealed class ContainerCompositionTests
             "assemblies and only the host puts them together.");
     }
 
-    /// <summary>
-    /// Non-vacuity for the discovery that replaced two hand-written arrays. If
-    /// <see cref="ApplicationPorts"/> ever stopped matching — a renamed folder, a namespace that no
-    /// longer starts the way the convention says — every rule reading it would pass by inspecting
-    /// nothing, which is precisely the failure the hand-written lists were suffering from silently.
-    /// </summary>
     [Fact]
     public void ThePortDiscovery_FindsEveryPortTheRepositoryHas()
     {
@@ -187,8 +139,6 @@ public sealed class ContainerCompositionTests
             $"no edit here:{Environment.NewLine}  " +
             string.Join($"{Environment.NewLine}  ", repositories));
 
-        // Declared is the port namespaces minus the markers, so the markers go back in to compare
-        // like with like: what the walk reads off disk is every public interface declared there.
         var declaredAndExcluded = ApplicationPorts.Declared
             .Concat(ApplicationPorts.NotPorts)
             .Select(SourceDeclarations.WithoutArity);
@@ -254,12 +204,6 @@ public sealed class ContainerCompositionTests
     }
     //#if (localAuth)
 
-    /// <summary>
-    /// The jobs need no authentication port. The reminder job reaches its owner through
-    /// <c>IReminderRecipientDirectory</c>, owned by Reminders and supplied by the host, and the
-    /// refresh-token purge is registered by the authentication feature itself, so a composition
-    /// without that feature has nothing left to ask of it.
-    /// </summary>
     [Fact]
     public void TheBackgroundOnlyContainer_BuildsWithoutAuthentication()
     {
@@ -270,12 +214,6 @@ public sealed class ContainerCompositionTests
             "A module the jobs compose has started depending on an authentication port again.");
     }
 
-    /// <summary>
-    /// Authentication can be left out of the API: no business feature names
-    /// <c>AppTemplate.Application.Auth</c> — <c>TheApplicationLayer_KnowsNothingOfAuthentication</c>
-    /// holds that half — and no infrastructure module the API composes needs one of its ports. The
-    /// email module stays: its reminder notifier mails the recipient the use case resolved.
-    /// </summary>
     [Fact]
     public void TheApiContainer_BuildsWithoutAuthentication()
     {
@@ -288,29 +226,6 @@ public sealed class ContainerCompositionTests
     }
     //#endif
 
-    // ---- Proof that the checks above can fail -------------------------------------------------
-
-    /*#if (localAuth)*/
-    /// <summary>
-    /// Drops one module and asserts the container refuses to build. The application layer's sign-up
-    /// use cases depend on <see cref="IEmailSender"/>, which no module but the email one implements,
-    /// so the host is the only thing that can complete the graph.
-    /// <para>
-    /// If this test passed, <c>ValidateOnBuild</c> would be inspecting nothing and
-    /// <see cref="TheApiContainer_ResolvesEveryRegisteredService"/> would be incapable of failing.
-    /// </para>
-    /// </summary>
-    /*#else
-    /// <summary>
-    /// Drops one module and asserts the container refuses to build. The idempotency purge depends on
-    /// <c>IIdempotencyStore</c>, which no module but the persistence one implements, so the host is
-    /// the only thing that can complete the graph.
-    /// <para>
-    /// If this test passed, <c>ValidateOnBuild</c> would be inspecting nothing and
-    /// <see cref="TheApiContainer_ResolvesEveryRegisteredService"/> would be incapable of failing.
-    /// </para>
-    /// </summary>
-    #endif*/
     [Fact]
     public void TheContainer_RefusesToBuild_WhenAModuleIsNotComposed()
     {
@@ -323,7 +238,6 @@ public sealed class ContainerCompositionTests
         var exception = Should.Throw<AggregateException>(
             () => services.BuildServiceProvider(HostComposition.StrictValidation).Dispose());
 
-        // The diagnostic must name the missing port, or it is not actionable.
         /*#if (localAuth)*/
         exception.Message.ShouldContain(nameof(IEmailSender));
         /*#else
@@ -331,10 +245,6 @@ public sealed class ContainerCompositionTests
         #endif*/
     }
 
-    /// <summary>
-    /// A use case with no interface of its own has no service type to bind. Registration must say so
-    /// while the process is starting, not bind nothing and leave the first request to discover it.
-    /// </summary>
     [Fact]
     public void TheRegistration_RefusesAUseCaseWithNoNamedInterface()
     {
@@ -344,10 +254,6 @@ public sealed class ContainerCompositionTests
         exception.Message.ShouldContain(typeof(UseCaseWithNoContract).FullName!);
     }
 
-    /// <summary>
-    /// Two candidate interfaces are as ambiguous as none: picking one would be a guess that a
-    /// controller then depends on.
-    /// </summary>
     [Fact]
     public void TheRegistration_RefusesAUseCaseWithTwoNamedInterfaces()
     {
@@ -359,19 +265,6 @@ public sealed class ContainerCompositionTests
         exception.Message.ShouldContain(nameof(ISecondContract));
     }
 
-    /*#if (localAuth)*/
-    /// <summary>
-    /// Proves the options half of the guarantee: every section is validated with
-    /// <c>ValidateOnStart</c>, so a signing key too short for HS256 stops the process instead of
-    /// producing tokens nothing can verify.
-    /// </summary>
-    /*#else
-    /// <summary>
-    /// Proves the options half of the guarantee: every section is validated with
-    /// <c>ValidateOnStart</c>, so a mail relay with no host stops the process instead of failing the
-    /// first message it is asked to send.
-    /// </summary>
-    #endif*/
     [Fact]
     public void TheContainer_RefusesToStart_WhenAnOptionsSectionIsInvalid()
     {
@@ -397,17 +290,6 @@ public sealed class ContainerCompositionTests
         #endif*/
     }
 
-    // ---- Helpers -------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Resolves every non-open-generic service descriptor inside a scope.
-    /// <para>
-    /// Both directly and through <c>IEnumerable&lt;T&gt;</c>: the direct resolution proves the
-    /// registration a caller would get is constructible, and the enumerable resolution constructs
-    /// <em>every</em> registration for the service rather than only the last one to win — which is
-    /// where a duplicate or shadowed registration hides.
-    /// </para>
-    /// </summary>
     private static void AssertEveryServiceResolves(IServiceCollection services, string because)
     {
         var descriptors = services.ToList();
@@ -429,15 +311,12 @@ public sealed class ContainerCompositionTests
         {
             var serviceType = descriptor.ServiceType;
 
-            // An open generic has no instance to resolve until it is closed; ILogger<T> and
-            // IOptions<T> are registered this way and are exercised through their consumers.
             if (serviceType.ContainsGenericParameters)
             {
                 openGenerics.Add(serviceType.Name);
                 continue;
             }
 
-            // A registration under KeyedService.AnyKey is a catch-all with no key to ask for.
             if (descriptor.IsKeyedService && ReferenceEquals(descriptor.ServiceKey, KeyedService.AnyKey))
             {
                 continue;
@@ -515,10 +394,6 @@ public sealed class ContainerCompositionTests
     }
 }
 
-/// <summary>
-/// Finds use cases by type identity, derived here rather than read back from the container, so the
-/// assertion describes what should be registered instead of what is.
-/// </summary>
 internal static class UseCaseTypes
 {
     internal static IReadOnlyList<Type> InTheApplicationLayer { get; } =
@@ -539,7 +414,6 @@ internal static class UseCaseTypes
                 $"'{implementation.FullName}' must declare exactly one named use-case interface.");
 }
 
-/// <summary>Declares the generic contract directly, so it has no service type of its own.</summary>
 internal sealed class UseCaseWithNoContract : IUseCase<Guid, Result>
 {
     public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>
@@ -550,7 +424,6 @@ internal interface IFirstContract : IUseCase<Guid, Result>;
 
 internal interface ISecondContract : IUseCase<Guid, Result>;
 
-/// <summary>Two candidate service types, neither of which registration may pick for the author.</summary>
 internal sealed class UseCaseWithTwoContracts : IFirstContract, ISecondContract
 {
     public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>

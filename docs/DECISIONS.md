@@ -1530,3 +1530,154 @@ request-log middleware are internal because the container or the pipeline reache
 caller. Their branches are decisions a public-surface test could reach only through a live HTTP
 pipeline, so `AppTemplate.Api` and `AppTemplate.Presentation.Core` each declare one
 `InternalsVisibleTo`, naming their own unit-test project.
+
+## Architecture tests
+
+**A rule that cannot fail is not a rule, so every architecture test establishes what it is about
+before it asserts anything.** NetArchTest and plain reflection both satisfy a `ShouldNot` over an
+empty set, so a renamed namespace, an assembly that was never loaded or a regex that stopped matching
+turns a rule green while it guards nothing. Each test therefore requires a non-empty candidate set
+first (`RuleAssertions.RequireTypes`), each matcher has a test that applies it to something written
+to be caught, and each assembly is resolved on first use through an anchor type, so a stale anchor
+fails the rules about that one assembly and names it instead of failing every test in the project.
+A population is measured from the tree or from the disk, never typed into the test: a number written
+in a floor can only go stale, and a stale floor keeps passing while it guards a fraction of what it
+names. A floor survives only where it protects a parser rather than a population, and then it counts
+the smallest project the template can generate.
+
+**Two independent paths to one population, compared in both directions.** The use cases, the ports
+and the folder vocabularies are read once from the source tree and once by reflection, and the tests
+assert that the two agree: a name only the tree has means the discovery stopped matching it, a name
+only the discovery has means the tree moved. Matches are on declarations, never on file or type
+names, because a name filter is how a class that legitimately begins with an `I` disappears from a
+walk meant to skip interfaces. Ports are discovered by the namespace the convention puts them in,
+anchored on the declaring assembly's own name, because a prefix short enough to span the projects of
+one layer also spans the projects of another whose names begin the same way.
+
+**The test project references no host and composes the modules itself.** `AppTemplate.Api` and the
+other presentation hosts are not referenced: the container tests build the graph module by module as
+`Program.cs` does, so the rules stay about the modules and not about one host. What a host does is
+therefore invisible to reflection, and the rules about it (the request pipeline, the HTTP surface,
+outbound HTTP, observability registration, background work) read its source text. A rule about an
+absence, such as an unconstructed `HttpClient` or an unregistered `Meter`, cannot be written over IL,
+where receiving a client and building one are the same dependency. The ASP.NET Core shared framework
+is declared explicitly rather than inherited, so the container tests do not depend on which package
+happens to bring it in.
+
+**The container is built three ways, strictly.** `ValidateOnBuild` catches a constructor dependency
+nothing satisfies, `ValidateScopes` a scoped service captured by a singleton, and a walk over every
+descriptor resolves what neither inspects, factory registrations included, both directly and through
+`IEnumerable<T>` so a duplicate or shadowed registration cannot hide. The background-only composition
+deliberately omits `AddHttpContextAccessor`, so a module that starts depending on it breaks the
+process that runs jobs without a request, which the API's own container would never notice. The
+stand-ins for the caller and the session throw where production throws, because a benign stand-in is
+what once let a host that could commit nothing pass every rule. The options half is proved by
+`ValidateOnStart`: a signing key too short for HS256, or a mail relay with no host, stops the process
+instead of failing the first login.
+
+**An exemption is a claim, and it is checked.** Every list of exceptions is paired with a test that
+fails when an entry stops being true (an adapter that dropped its framework dependency, a file that
+is gone, an event that gained a consumer), so a list cannot quietly excuse the next type that takes
+the same name. Adding an entry is a line in a pull request that has to argue for it. The exemptions
+that exist are these. The `InMemory` doubles are public because a test must reach them to move the
+clock and read delivered mail, and a test asserts it. `AppDbContext` names every feature's
+configuration because it is the model's composition root, as `Program.cs` is the container's. No
+type under a module's `Common/` may name a feature, and the exception list is held empty. The
+projects allowed to require the ASP.NET shared framework are the adapters whose job is the request
+pipeline, and nothing portable may reach them either. Six options classes bind a section that is not
+their type name, each an existing external contract that predates the convention. A file may lack
+its folder's suffix only for a reason written beside it, such as ASP.NET Core Identity's own row
+types.
+
+<!--#if (todoLists)-->
+**Two to-do events have no consumer on purpose.** The creation of a list is a fact published for an
+audit or a projection a project may want, and nothing in the template needs it. Reopening an item
+does not resurrect a cancelled reminder, because firing re-reads the item's state anyway, so a
+consumer would duplicate that check. `DomainEventTests` lists both.
+<!--#endif-->
+
+<!--#if (reminders)-->
+**A fired reminder has no consumer on purpose.** Firing is already recorded on the aggregate and
+counted by the reminder job's own log, and a consumer would be a second place to keep in step for no
+gain.
+<!--#endif-->
+
+<!--#if (files)-->
+**Two file events have no consumer on purpose.** The event that a file became available is the hook a
+project adds derivative generation to, such as thumbnails or transcoding; an unused consumer that did
+nothing would be worse documentation than the entry in the list. The quarantine event is a refusal
+published for a project that wants to notify the owner: nothing that must happen may be built on it,
+because the state is committed on the row before it is dispatched and the file is already
+unservable, so a consumer could only ever be a notification.
+<!--#endif-->
+
+**Authorisation is default-deny, so the anonymous surface is the list `_anonymousActions` and
+nothing else.** The sign-in and registration actions are anonymous because they are where a caller
+holding no token of ours arrives, and each refuses with one answer whatever the reason, so a
+refusal discloses nothing about the account. The passkey sign-in has two anonymous halves, the
+options call that issues a challenge to a caller with no account to name and the assertion that
+completes it. Four endpoints are mapped anonymous fluently and carry no attribute to scan for: the
+two health probes, and the OpenAPI document and its reference page in Development only; the count is
+asserted. No response carries a `Link` header, because whether a next page exists is stated once, in
+the body every client already parses, and a second statement is free to disagree with the first; the
+needles cover `Headers.Link` as well as the quoted name, because the house idiom writes headers
+through the generated properties. No response announces a deprecation or a sunset date while one API
+version ships, and the test is deleted the day a second exists.
+
+**A port is one capability, at most six operations.** The shape the rules refuse is a façade: one
+interface covering everything a vertical needs, implemented by one class that then owns the
+sequencing, which leaves the application layer holding only validation and nothing to unit-test.
+Six lets a port cover one intent, such as an account's session tokens, without one port per
+mechanism; a seventh operation means a second intent and a split. From the other side, a port every
+use case of a vertical depends on is that vertical's single collaborator and the use cases are
+wrappers around it, and across the authentication features most use cases must sequence more than
+one collaborator, not all of them, since signing out is genuinely one step. A port with no consumer
+in the application layer means the decision it serves is made on the far side of it, so the
+mechanisms shipped for an example that a project generated without it removed are the only
+unconsumed ports allowed, listed by name.
+
+**Features meet only through a port or a domain event.** A feature's surface is its `Ports`
+namespace in the application project and its `Events` namespace in the domain project; everything
+else of it, persistence included, is its own. The rule reads the application and persistence
+projects because a query can read another feature's rows without any type signature showing it. The
+point is extraction: each reference that reaches past a port is an edit the remaining feature would
+need in order to let the other go. A feature with no domain folder is a service over its storage
+ports, and that shape is exempt from having a domain model only while it has no rule to protect. The
+shared mechanisms, the `Common/` folders and the HTTP common code know no feature at all: a type
+there that names one is a feature adapter filed as a mechanism.
+
+**A vocabulary that lists words must also be proved against the tree in the other direction.** A
+word nothing is filed under any more cannot fail a check that only reads folders, so the list keeps
+offering a concept the tree stopped having and stops being the index it claims to be. The rules
+therefore assert that every project on disk is listed and every listed project exists; a project may
+carry `null` for a folder it has none of, checked rather than taken; a project root holds a
+`.csproj`, at most one `.cs` and folders, because the root is the one place a file has no folder to
+answer to; and namespaces follow folders without exception, since a namespace is a name and no
+compiler checks that it is also a location. Generated code, `Properties/` and `Migrations/` belong
+to their tools and are outside the rules.
+
+**Values read by something outside the repository are anchored to the type name.** A section an
+operator writes in the configuration file and a token-provider name stored against an identity row
+are contracts the compiler cannot see. A rename of one type once swept the options section, four
+configuration files and the test dictionary at once; every test agreed and the key an operator's
+file used had changed. The rules anchor the value to the type name, so a sweep that moves both
+still fails, and `ConfigurationSurfaceTests` holds the configuration guide and the options classes
+to each other in both directions: a key bound and not documented, and a documented row that nothing
+binds, which is worse because an operator sets it and silently gets the default.
+
+**One aggregate tracker is one object under every contract it answers to.** The repository fills its
+identity map through one contract, the flush interceptor drains it through another and the
+dispatcher reads domain events off it through a third. Registered as independent descriptors they
+resolve as three objects and every write reports success while persisting nothing. Nothing else
+catches it, since the graph resolves and the build is clean, so the registrations are asserted by
+reference identity, per tracker and once per scope.
+
+**The load smoke test is not a benchmark and does not gate a build.** It asks whether anything
+comes apart when more than one caller arrives, which a short run on a laptop answers and a long one
+only makes expensive. It ramps rather than steps, because a cold start at full concurrency measures
+the JIT and pool growth. It registers one account for the run, because registering per virtual user
+would measure password hashing, and when the account cannot sign in it exercises the anonymous
+surface only. A `429` counts as a pass, since the rate limiter doing its job is the correct outcome
+and treating it as an error would push someone to loosen the limit to go green. Its thresholds
+describe a broken system, not a slow one, since a hosted runner's timings say nothing about this
+code, and CI runs it without blocking.

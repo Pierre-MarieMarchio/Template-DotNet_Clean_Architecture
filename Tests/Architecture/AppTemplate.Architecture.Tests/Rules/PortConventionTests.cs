@@ -7,64 +7,21 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// What an application port is allowed to be.
-/// <para>
-/// A port is one capability an infrastructure module can satisfy, and the shape it must not take is a
-/// façade: one interface covering everything a vertical needs, implemented by one class that then
-/// owns the sequencing. When that happens the layer that is supposed to hold the decisions holds only
-/// validation, an adapter decides what a failure means and when a token is issued, and there is
-/// nothing left in the application layer to unit-test.
-/// </para>
-/// <para>
-/// Every rule here establishes its candidate set before asserting the condition, because a condition
-/// over an empty set is not a guarantee.
-/// </para>
-/// </summary>
 public sealed class PortConventionTests
 {
-    /// <summary>
-    /// <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.Ports.&lt;Port&gt;</c>. Each port owns a folder holding its
-    /// interface and the messages it exchanges, so the pattern has to reach past <c>Ports</c> rather
-    /// than stop at it.
-    /// <para>
-    /// A suffix, matched against the root namespace of the project that declares the type. The
-    /// application layer is several projects, and one literal prefix spanning them would also span
-    /// any other layer whose names begin the same way.
-    /// </para>
-    /// </summary>
     private const string _featurePortNamespaceSuffixPattern =
         @"\.Features\.([^.]+)\.Ports(\.[^.]+)*$";
 
     private const string _crossCuttingPortNamespaceSuffix = ".Common.Ports";
 
-    /// <summary>
-    /// The most operations one port may declare. Six lets a port cover one intent — an account's
-    /// session tokens, its mailed tokens, its administration — without splitting it into one port per
-    /// mechanism. A port that wants a seventh is covering a second intent and belongs split in two.
-    /// </summary>
     private const int _maximumOperationsPerPort = 6;
 
-    /// <summary>
-    /// Every interface the application layer declares for something else to implement, discovered
-    /// from the namespaces the convention puts them in rather than from a list a change could forget.
-    /// <para>
-    /// There is no exclusion list. <c>IUseCase</c> and <c>IDomainEventConsumer</c> are interfaces the
-    /// application layer implements rather than consumes, and they used to need naming here because
-    /// they shared a folder with the cross-cutting ports; they live under <c>Common/UseCases</c> and
-    /// <c>Common/Events</c> instead, so the namespace filter below is the whole rule again.
-    /// </para>
-    /// </summary>
     private static IReadOnlyList<Type> Ports { get; } =
         [.. ApplicationLayerTypes
             .Where(type => type is { IsInterface: true, IsPublic: true, IsNested: false })
             .Where(type => IsFeaturePortNamespace(type) || IsCrossCuttingPortNamespace(type))
             .OrderBy(type => type.FullName, StringComparer.Ordinal)];
 
-    /// <summary>
-    /// Every use case, with the ports it takes in its constructor. This is what "who depends on what"
-    /// means for a use case: its constructor is its whole dependency list.
-    /// </summary>
     private static IReadOnlyList<UseCaseDependencies> UseCases { get; } =
         [.. ApplicationLayerTypes
             .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IUseCase).IsAssignableFrom(type))
@@ -90,10 +47,6 @@ public sealed class PortConventionTests
                 "no use for, and the caller stops sequencing anything because the port already does.");
     }
 
-    /// <summary>
-    /// Proves the counter above can fail, by applying it to an interface written here to be too wide.
-    /// If this passed, the operation count would be evaluating nothing.
-    /// </summary>
     [Fact]
     public void TheFacadeRule_IsSensitive_AndDetectsAWidePort()
     {
@@ -104,17 +57,6 @@ public sealed class PortConventionTests
             $"{nameof(NoApplicationPort_IsAMultiCapabilityFacade)} is decorative.");
     }
 
-    /// <summary>
-    /// A port with no consumer in the application layer is a contract the layer declares, a module
-    /// implements, and nothing there uses — which means the decision it exists to serve is being made
-    /// on the far side of it. <c>IEmailSender</c> was exactly that for as long as the only thing that
-    /// sent mail lived in an infrastructure module.
-    /// </summary>
-    /// <summary>
-    /// Mechanisms the template ships for a feature to consume, listed only in a project generated
-    /// without the examples that consume them: there the first consumer has yet to be written, and
-    /// the port is kept rather than deleted so that it is there when it is.
-    /// </summary>
     private static readonly string[] _awaitingTheirFirstConsumer =
     [
         /*#if (tagging)*/
@@ -166,15 +108,6 @@ public sealed class PortConventionTests
                 "belong to this layer at all.");
     }
 
-    /// <summary>
-    /// The façade shape read from the other side: a port every use case in its vertical depends on is
-    /// that vertical's single collaborator, and the use cases are then wrappers around it whatever
-    /// its method count.
-    /// <para>
-    /// Restricted to feature ports. A cross-cutting one — the clock, the caller's identity — may
-    /// legitimately be needed by everything, and that is not what a façade is.
-    /// </para>
-    /// </summary>
     [Fact]
     public void NoFeaturePort_IsADependencyOfEveryUseCaseInItsVertical()
     {
@@ -203,10 +136,6 @@ public sealed class PortConventionTests
                 .Where(port => string.Equals(VerticalOf(port), vertical, StringComparison.Ordinal))
                 .ToList();
 
-            // A vertical with one use case cannot exhibit the shape, and neither can one with a single
-            // port of its own: a feature cut around one capability — the passkeys — has every
-            // operation take that capability by construction, so the question left is the port's
-            // width, which the façade rule above already bounds.
             if (useCases.Count < 2 || featurePorts.Count < 2)
             {
                 continue;
@@ -235,11 +164,6 @@ public sealed class PortConventionTests
     }
     //#if (localAuth)
 
-    /// <summary>
-    /// How many use cases each of the six authentication features holds, read from the tree. The
-    /// purges sit with what they delete: the expired grants with the sessions, the expired events
-    /// with the security trail.
-    /// </summary>
     private static readonly string[] _authUseCasesPerFeature =
     [
         "Accounts: 14",
@@ -250,16 +174,6 @@ public sealed class PortConventionTests
         "TwoFactor: 5",
     ];
 
-    /// <summary>
-    /// The point of splitting the façade, stated as a rule: a use case that takes one collaborator
-    /// and hands the whole request to it decides nothing, and testing it tests the mock.
-    /// <para>
-    /// Counted rather than named, and asserted over the six authentication features together
-    /// because that is where the shape was: several of their operations are genuinely one step —
-    /// signing out revokes one grant — so the rule is that <em>most</em> of the module's use cases
-    /// sequence more than one collaborator, not that all of them do.
-    /// </para>
-    /// </summary>
     [Fact]
     public void MostAuthUseCases_SequenceMoreThanOneCollaborator()
     {
@@ -282,7 +196,6 @@ public sealed class PortConventionTests
                 "sign-in and the security trail. Another distribution means an operation moved, " +
                 "appeared or vanished, and this rule is no longer describing the module.");
 
-        // The validator every use case takes is not a collaborator it sequences.
         var orchestrating = authUseCases
             .Where(useCase => useCase.Dependencies.Count(Ports.Contains) > 1)
             .ToList();
@@ -296,14 +209,9 @@ public sealed class PortConventionTests
     }
     //#endif
 
-    /// <summary>Every type the application layer declares, across every project of it.</summary>
     private static IEnumerable<Type> ApplicationLayerTypes =>
         ArchitectureAssemblies.ApplicationLayer.SelectMany(assembly => assembly.GetTypes());
 
-    /// <summary>
-    /// The root namespace of the assembly a type is declared in, which is that assembly's simple
-    /// name — the convention this repository checks elsewhere.
-    /// </summary>
     private static string RootOf(Type type) =>
         type.Assembly.GetName().Name
         ?? throw new InvalidOperationException(
@@ -323,9 +231,6 @@ public sealed class PortConventionTests
             RootOf(type) + _crossCuttingPortNamespaceSuffix,
             StringComparison.Ordinal);
 
-    /// <summary>
-    /// The vertical a type belongs to, read from <c>&lt;Project&gt;.Features.&lt;Vertical&gt;.…</c>.
-    /// </summary>
     private static string? VerticalOf(Type type)
     {
         string prefix = RootOf(type) + ".Features.";
@@ -341,21 +246,9 @@ public sealed class PortConventionTests
         return separator < 0 ? remainder : remainder[..separator];
     }
 
-    /// <summary>
-    /// An interface's own operations. Property accessors are excluded — a port exposing a value is
-    /// not offering an operation an implementer has to carry — and so are members inherited from a
-    /// base interface, which <see cref="Type.GetMethods()"/> does not report for interfaces anyway.
-    /// </summary>
     private static IReadOnlyList<MethodInfo> OperationsOf(Type port) =>
         [.. port.GetMethods().Where(method => !method.IsSpecialName)];
 
-    /// <summary>
-    /// The interface types a class asks for in its constructors. Concrete parameters are ignored:
-    /// this rule is about which contracts a type is written against. A sequence of a port
-    /// (<c>IEnumerable&lt;IFoo&gt;</c>) counts as the port it carries: it is how a class consumes
-    /// every registered implementation, and not seeing through it would let an orchestrator take
-    /// the port while this rule reported it unconsumed.
-    /// </summary>
     private static IReadOnlyList<Type> DependenciesOf(Type type) =>
         [.. type.GetConstructors()
             .SelectMany(constructor => constructor.GetParameters())
@@ -363,11 +256,8 @@ public sealed class PortConventionTests
             .SelectMany(ContractsOf)
             .Distinct()];
 
-    /// <summary>The ports one parameter carries: itself when it is an interface, its element when it is a sequence of one.</summary>
     private static IEnumerable<Type> ContractsOf(Type parameterType)
     {
-        // A constructed IEnumerable<IPort> is an interface too, so the sequence is unwrapped first:
-        // matching on IsInterface alone would record the sequence type and never the port in it.
         if (parameterType is { IsGenericType: true }
             && parameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
         {
@@ -380,11 +270,6 @@ public sealed class PortConventionTests
     private sealed record UseCaseDependencies(Type Type, IReadOnlyList<Type> Dependencies);
 }
 
-/// <summary>
-/// Seven operations spanning three unrelated capabilities, written to be exactly what
-/// <see cref="PortConventionTests.NoApplicationPort_IsAMultiCapabilityFacade"/> forbids. It lives
-/// here, in the test project, so the sensitivity proof needs no violation in the product code.
-/// </summary>
 internal interface IDeliberatelyWidePort
 {
     Task CreateAsync(CancellationToken cancellationToken = default);

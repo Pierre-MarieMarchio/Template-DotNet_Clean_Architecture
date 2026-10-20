@@ -5,33 +5,10 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Four words name the four ways this template reaches storage, and each promises something
-/// different about what is behind the contract and about who may hold it.
-/// <list type="bullet">
-/// <item><c>Repository</c> loads an aggregate, so it is declared in <c>AppTemplate.Domain</c>
-/// beside the aggregate it loads.</item>
-/// <item><c>Queries</c> projects rows onto a DTO without materialising an aggregate.</item>
-/// <item><c>Store</c> is an application port for storage with no aggregate behind it — an
-/// idempotency claim.</item>
-/// <item><c>Table</c> is row access to one table, declared inside the module that owns the rows and
-/// reached only inside that module — a refresh-token grant.</item>
-/// </list>
-/// <para>
-/// The last two are one word apart and nothing but a rule keeps them apart, since the distinction
-/// between them lives in prose. The rules below hold it in both directions: a <c>Store</c> that
-/// starts naming an aggregate has become a <c>Repository</c>, and a <c>Table</c> that a use case
-/// starts depending on has become a port and needs declaring where ports are declared.
-/// </para>
-/// </summary>
 public sealed class StorageVocabularyTests
 {
     private const string _domainFeatureNamespace = "AppTemplate.Domain.Features";
 
-    /// <summary>
-    /// What separates a <c>Store</c> from a <c>Repository</c>: there is no aggregate behind it. A
-    /// signature naming a domain entity is the moment that stops being true.
-    /// </summary>
     [Fact]
     public void NoStoreContract_NamesAnAggregate()
     {
@@ -50,11 +27,6 @@ public sealed class StorageVocabularyTests
             "aggregate it loads.");
     }
 
-    /// <summary>
-    /// The same rule for the word that replaced <c>Store</c> on the persistence side. A
-    /// <c>Table</c> is rows in and rows out; the moment it speaks in aggregates it has stopped
-    /// being one.
-    /// </summary>
     [Fact]
     public void NoTableContract_NamesAnAggregate()
     {
@@ -71,21 +43,11 @@ public sealed class StorageVocabularyTests
             "Repository wearing a persistence word.");
     }
 
-    /// <summary>
-    /// The distinction that made the rename worth doing: a <c>Table</c> is declared in the module
-    /// that owns its rows, and no use case knows it exists. One that appears in Application has
-    /// become a port, and a port is a <c>Store</c>, a <c>Repository</c> or a <c>Queries</c> — not a
-    /// table.
-    /// </summary>
     [Fact]
     public void NoTableContract_IsDeclaredInOrReachedFromTheApplicationLayer()
     {
         var tables = ContractsNamed("Table");
 
-        // Both assertions below filter a set down and require the remainder to be empty, which an
-        // empty set satisfies for free. Its two siblings above assert this floor and this one did
-        // not, so the day the word stopped being used — or the discovery stopped finding it — this
-        // rule would have gone on passing while observing nothing.
         //#if (localAuth)
         tables.Count.ShouldBeGreaterThanOrEqualTo(
             1,
@@ -114,10 +76,6 @@ public sealed class StorageVocabularyTests
             "vocabulary, where the word for storage with no aggregate is Store.");
     }
 
-    /// <summary>
-    /// The half a rename would break first: whatever assembly an implementation lives in, the word
-    /// <c>Repository</c> only ever appears on a contract declared in the Domain.
-    /// </summary>
     [Fact]
     public void EveryRepositoryContract_IsDeclaredInTheDomain()
     {
@@ -151,11 +109,6 @@ public sealed class StorageVocabularyTests
         //#endif
     }
 
-    /// <summary>
-    /// The application layer plus every module that owns rows. A module is included so that a Table
-    /// declared in the wrong one is still seen: the rule below is about which assembly declares a
-    /// contract, and a search that skipped the modules could not tell a misplaced one from none.
-    /// </summary>
     private static readonly Assembly[] _rowOwners =
     [
         ArchitectureAssemblies.Persistence,

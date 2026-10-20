@@ -63,6 +63,9 @@ jobs:
           - name: external auth, all examples
             options: --auth external --examples all --files true
             auth_context: "false"
+          - name: external auth, no examples, no files
+            options: --auth external --examples none --files false
+            auth_context: "false"
 
     steps:
       - name: Checkout

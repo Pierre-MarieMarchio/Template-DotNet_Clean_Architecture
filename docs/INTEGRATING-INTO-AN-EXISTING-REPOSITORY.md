@@ -118,12 +118,12 @@ on the moved tree; `dotnet format` then rewrote **11 files, 25 lines**, all of t
 ordering, and the verify pass exited 0. That check is the first step of the CI workflow you
 inherit, so skipping it fails your first push.
 
-One caveat, reproducible but not diagnosed: on the machine this was measured on, `bootstrap` exits 1
-before it reaches the formatting, on `dotnet tool restore` — `Settings file 'DotnetToolSettings.xml'
-was not found in the package`, with nothing extracted into the local package cache. The same failure
-happens in this repository itself, so it is not something the integration causes, and CI runs the
-same command green. Running the two halves separately works: `dotnet tool restore` when it will, and
-`dotnet format` for the part that matters here.
+One caveat, reproducible but not diagnosed: on the machine this was measured on, `dotnet tool restore`
+fails — `Settings file 'DotnetToolSettings.xml' was not found in the package`, with nothing extracted
+into the local package cache. The same failure happens in this repository itself, so it is not
+something the integration causes, and CI runs the same command green. `bootstrap` formats before it
+restores, so the formatting that matters here is done when it exits 1; it says which tasks need the
+tools (`dotnet ef`) and cannot run until the restore works.
 
 ### 3. Teach the host's `global.json` about the test runner
 

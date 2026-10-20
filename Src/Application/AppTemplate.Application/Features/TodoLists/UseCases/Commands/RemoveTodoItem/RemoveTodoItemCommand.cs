@@ -2,9 +2,6 @@
 
 namespace AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTodoItem;
 
-/// <param name="Precondition">
-/// The versions the caller will accept, or <c>null</c> for an unconditional removal.
-/// </param>
 public sealed record RemoveTodoItemCommand(
     Guid TodoListId,
     Guid TodoItemId,

@@ -14,11 +14,6 @@ public sealed class GetTodoItemUseCase(
     ICurrentUser currentUser,
     IValidator<GetTodoItemQuery> validator) : IGetTodoItemUseCase
 {
-    /// <returns>
-    /// The item, carrying the <em>list's</em> version. The aggregate root is the consistency
-    /// boundary, so an item has no version of its own to name: adding a sibling changes what a
-    /// caller holding this item is allowed to assume.
-    /// </returns>
     public async Task<Result<Versioned<TodoItemDto>>> ExecuteAsync(
         GetTodoItemQuery query,
         CancellationToken cancellationToken = default)
@@ -39,8 +34,6 @@ public sealed class GetTodoItemUseCase(
             return userId.To<Versioned<TodoItemDto>>();
         }
 
-        // Read through the list's projection rather than a port of its own, so the query that
-        // finds the item is the same one that enforces ownership.
         var detail = await queries.GetDetailAsync(query.TodoListId, userId.Value, cancellationToken);
 
         if (detail is null)

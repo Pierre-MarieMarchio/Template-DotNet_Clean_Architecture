@@ -46,7 +46,6 @@ public sealed class RemoveTagFromTodoItemUseCase(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        // No try/catch: removing an absent tag is a no-op, so RemoveTagFromItem never rejects.
         todoList.RemoveTagFromItem(command.TodoItemId, command.Tag);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

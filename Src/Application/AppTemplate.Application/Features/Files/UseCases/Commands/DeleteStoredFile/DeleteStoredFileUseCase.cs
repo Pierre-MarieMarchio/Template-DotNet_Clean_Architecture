@@ -7,11 +7,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.DeleteStoredFile;
 
-/// <summary>
-/// Deleting a file is removing its row (see "No soft delete" in <c>docs/DECISIONS.md</c>).
-/// <c>StoredFile.Delete</c> writes nothing: it raises the event that reclaims the bytes now rather
-/// than at the next orphan sweep, which reclaims them anyway if the event is never delivered.
-/// </summary>
 public sealed class DeleteStoredFileUseCase(
     IStoredFileService files,
     IStoredFileRepository repository,
@@ -41,7 +36,6 @@ public sealed class DeleteStoredFileUseCase(
 
         var storedFile = access.Value;
 
-        // Caught: the aggregate refuses a second announcement in one unit of work.
         var announcement = DomainGuard.Try(() => storedFile.Delete(dateTimeProvider.UtcNow));
 
         if (announcement.IsFailure)

@@ -4,29 +4,16 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.Features.Files.Configuration.Options;
 
-/// <summary>
-/// The Files feature's application policy: the declared categories and the ceiling of an upload carried by the API.
-/// Bound from <c>Files</c> and validated at start-up.
-/// </summary>
 public sealed class FilesOptions
 {
-    /// <summary>The configuration section this type is bound from.</summary>
     public const string SectionName = "Files";
 
-    /// <summary>10 MiB.</summary>
     public const long DefaultApiUploadMaxBytes = 10L * 1024 * 1024;
 
-    /// <summary>
-    /// The largest body an upload through the API may carry, kept under the host's 30 MiB request ceiling.
-    /// </summary>
     public long ApiUploadMaxBytes { get; set; } = DefaultApiUploadMaxBytes;
 
-    /// <summary>The declared categories, by name. At least one.</summary>
     public Dictionary<string, FileCategoryOptions> Categories { get; } = new(StringComparer.Ordinal);
 
-    /// <summary>
-    /// The settings of <paramref name="category"/>, or null when configuration no longer declares it.
-    /// </summary>
     public FileCategoryOptions? Find(FileCategory category)
     {
         ArgumentNullException.ThrowIfNull(category);
@@ -35,15 +22,10 @@ public sealed class FilesOptions
     }
 }
 
-/// <summary>
-/// Validates a category declaration. Rules that need another section (scanning, the storage provider) belong to the
-/// module owning it.
-/// </summary>
 internal sealed class FilesOptionsValidator : IValidateOptions<FilesOptions>
 {
     internal const long MinApiUploadMaxBytes = 1024;
 
-    /// <summary>The host's request body ceiling (<c>RequestLimits:MaxRequestBodyBytes</c>'s maximum).</summary>
     internal const long MaxApiUploadMaxBytes = 30L * 1024 * 1024;
 
     public ValidateOptionsResult Validate(string? name, FilesOptions options)

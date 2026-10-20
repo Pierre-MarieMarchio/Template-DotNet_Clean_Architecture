@@ -2,19 +2,8 @@
 
 namespace AppTemplate.Application.Core.Common.Localization;
 
-/// <summary>The language the mail this flow is about should be written in, as a BCP-47 tag.</summary>
-/// <remarks>What <c>CultureInfo.CurrentUICulture</c> would be, and cannot be: the repository builds
-/// with <c>InvariantGlobalization=true</c>, so at run time only the invariant culture exists and
-/// <c>CultureInfo.GetCultureInfo("fr")</c> throws — a tag lets the template pick a language without
-/// asking a deployment to add ICU. It is ambient because the language is a property of the
-/// exchange, not of any one call; it lives in the application layer because two infrastructure
-/// modules read it and a module may not reference a sibling.</remarks>
 public static class CurrentLanguage
 {
-    /// <summary>
-    /// The language every mail is written in when nothing more specific is known — for
-    /// a background job, that is every mail it sends.
-    /// </summary>
     public const string FallbackTag = "en";
 
     private static readonly Regex _wellFormed = new(
@@ -26,9 +15,6 @@ public static class CurrentLanguage
 
     private static string _default = FallbackTag;
 
-    /// <summary>The host's own default, set once at start-up from <c>Localization:DefaultCulture</c>.
-    /// Not <see cref="AsyncLocal{T}"/>, deliberately: a value set during start-up would not flow into
-    /// every hosted service's execution context.</summary>
     public static string Default
     {
         get => _default;
@@ -36,39 +22,23 @@ public static class CurrentLanguage
             $"'{value}' is not a well-formed language tag.", nameof(value));
     }
 
-    /// <summary>The language of the exchange in progress, falling back to <see cref="Default"/>.</summary>
     public static string Current => _tag.Value ?? _default;
 
-    /// <summary>
-    /// Set per request by the API. A malformed tag is ignored rather than refused: a mail in the
-    /// wrong language is a better answer than a failed request.
-    /// </summary>
     public static string? Tag
     {
         get => _tag.Value;
         set => _tag.Value = value is not null && IsWellFormed(value) ? value : null;
     }
 
-    /// <summary>
-    /// Shape only: whether a tag names a language this deployment can write is which templates are
-    /// embedded, and the renderers fall back on their own.
-    /// </summary>
     public static bool IsWellFormed(string? tag) =>
         !string.IsNullOrWhiteSpace(tag) && tag.Length <= 35 && _wellFormed.IsMatch(tag);
 
-    /// <summary>
-    /// The tag itself, then each broader tag in turn — <c>fr-CA</c> then <c>fr</c> — so a regional
-    /// reader reaches their language's template without every region needing one of its own.
-    /// </summary>
     public static IEnumerable<string> Candidates(string tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
 
         return Narrow(tag);
 
-        // The guard is outside the iterator on purpose. A method containing `yield` runs no
-        // statement until something enumerates it, so a null tag would have been refused at the
-        // first `foreach` -- in a renderer, several call frames away from the caller that passed it.
         static IEnumerable<string> Narrow(string tag)
         {
             for (int cut = tag.Length; cut > 0; cut = tag.LastIndexOf('-', cut - 1))

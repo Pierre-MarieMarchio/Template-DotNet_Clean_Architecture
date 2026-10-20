@@ -3,22 +3,12 @@ using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Application.Core.Common.Collections;
 
-/// <summary>A caller's <c>sort</c> string, parsed and checked against a feature's whitelist.</summary>
 public sealed record SortOrder
 {
     private SortOrder(IReadOnlyList<SortTerm> terms) => Terms = terms;
 
-    /// <summary>Never empty: a blank input parses <see cref="ICollectionPolicy.DefaultSort"/> instead.</summary>
     public IReadOnlyList<SortTerm> Terms { get; }
 
-    /// <summary>Comma-separated terms, each <c>field</c> or <c>field:asc</c>/<c>field:desc</c> (the direction token is case-insensitive; a bare field means ascending).</summary>
-    /// <remarks>
-    /// A blank <paramref name="raw"/> parses <paramref name="policy"/>'s own
-    /// <see cref="ICollectionPolicy.DefaultSort"/> through this same method body, so a feature's
-    /// default is whitelisted by exactly the code path a caller's input takes. That default must
-    /// therefore not itself be blank — recursing on a blank default would never terminate, so that
-    /// case is a programming error in the policy, not a request to reject.
-    /// </remarks>
     public static Result<SortOrder> Parse(string? raw, ICollectionPolicy policy)
     {
         ArgumentNullException.ThrowIfNull(policy);

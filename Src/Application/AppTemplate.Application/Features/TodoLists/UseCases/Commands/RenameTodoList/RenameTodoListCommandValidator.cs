@@ -13,7 +13,6 @@ public sealed class RenameTodoListCommandValidator : AbstractValidator<RenameTod
         RuleFor(command => command.Name)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("A list name is required.")
-            // Measured after trimming, like the domain measures it.
             .Must(name => name.Trim().Length <= TodoListName.MaxLength)
             .WithMessage($"A list name cannot exceed {TodoListName.MaxLength} characters.");
     }

@@ -9,24 +9,14 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 
-/// <summary>Deletes stored objects that no row names: what guarantees the bytes of a deleted file,
-/// or of a registration purged before confirmation, go away whether or not an event was delivered.
-/// Background job: must not read <see cref="ICurrentUser"/>. Each page of keys is listed before the
-/// rows are asked about it — a row is committed before its upload grant is minted, so asking the
-/// rows first would delete the bytes of a file uploaded in between. Resumes from a persisted
-/// checkpoint (see <c>docs/DECISIONS.md</c>); deleting twice is deleting once.</summary>
 public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCase
 {
-    /// <summary>Keys per listing call, and per live-key lookup.</summary>
     internal const int DefaultPageSize = 500;
 
-    /// <summary>Pages per pass: a quarter of a million keys at the default page size.</summary>
     internal const int DefaultMaxPagesPerPass = 500;
 
-    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.files.reclaim-orphans";
 
-    /// <summary>The whole key namespace.</summary>
     private static readonly string _prefix = $"{ObjectKey.UnpartitionedPrefix}/";
 
     private readonly IFileContentInventory _inventory;
@@ -49,7 +39,6 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
     {
     }
 
-    /// <summary>With a smaller budget, so a test can walk a store larger than one pass.</summary>
     internal ReclaimOrphanedContentUseCase(
         IFileContentInventory inventory,
         IFileContentStore content,

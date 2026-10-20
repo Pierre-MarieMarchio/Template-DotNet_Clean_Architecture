@@ -29,9 +29,6 @@ public sealed class CancelReminderUseCase(
             return access;
         }
 
-        // Caught rather than left to throw: only a reminder that already fired refuses this, and
-        // that depends on the aggregate's current state, not on anything the caller could have
-        // checked in advance.
         var cancellation = DomainGuard.Try(access.Value.Cancel);
 
         if (cancellation.IsFailure)

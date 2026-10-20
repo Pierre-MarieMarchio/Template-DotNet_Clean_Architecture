@@ -44,7 +44,6 @@ public sealed class UpdateTodoItemUseCase(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        // Caught: a title clash with another item depends on the aggregate's current contents.
         var update = DomainGuard.Try(() =>
             todoList.UpdateItem(command.TodoItemId, command.Title, command.Description));
 

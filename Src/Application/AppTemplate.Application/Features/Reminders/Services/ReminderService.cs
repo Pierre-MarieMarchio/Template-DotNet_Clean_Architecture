@@ -8,7 +8,6 @@ using AppTemplate.Domain.Features.Reminders.Repositories;
 
 namespace AppTemplate.Application.Features.Reminders.Services;
 
-
 internal sealed class ReminderService(IReminderRepository repository, ICurrentUser currentUser) : IReminderService
 {
     public async Task<Result<Reminder>> LoadOwnedAsync(

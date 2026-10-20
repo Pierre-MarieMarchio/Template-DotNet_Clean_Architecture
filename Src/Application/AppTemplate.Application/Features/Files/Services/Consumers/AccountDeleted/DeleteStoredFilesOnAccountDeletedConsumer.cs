@@ -6,13 +6,6 @@ using AppTemplate.Domain.Features.Files.Repositories;
 
 namespace AppTemplate.Application.Features.Files.Services.Consumers.AccountDeleted;
 
-/// <summary>The stored files' declared fate for the data of a deleted account: <b>deleted</b>,
-/// rows and bytes. Each removal goes through <c>StoredFile.Delete</c>, so the event it raises
-/// reclaims the bytes promptly — and the orphan sweep reclaims them anyway: the row, not the
-/// event, is what makes the bytes garbage. Runs after the account's transaction has committed and
-/// owns its own commit through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>:
-/// the <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never reaching
-/// this consumer, and the precondition is re-derived through <see cref="IUserAccountDirectory"/>.</summary>
 internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
     IStoredFileRepository files,
     IStoredFileQueries queries,
@@ -31,8 +24,6 @@ internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
     {
         ArgumentNullException.ThrowIfNull(owner);
 
-        // The precondition, re-derived: an account that exists again — or never left — keeps its
-        // files, whatever this call was told.
         if (await accounts.ExistsAsync(owner, cancellationToken))
         {
             return false;
@@ -40,7 +31,6 @@ internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
 
         var owned = await files.GetForOwnerAsync(owner, cancellationToken);
 
-        // Also what a redelivery finds.
         if (owned.Count == 0)
         {
             return false;
@@ -54,8 +44,6 @@ internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
             files.Remove(file);
         }
 
-        // One commit for the owner: the rows go together, and the events the deletions raised are
-        // published by the same save that made them true.
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

@@ -4,22 +4,13 @@ using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
-/// <summary>The guarantee behind <see cref="AppTemplate.Application.Core.Common.Events.UserAccountDeleted"/>:
-/// a fact published in process is not a fact delivered, and this pass finds the rows a missed
-/// consumer leaves behind, each feature's <see cref="IDeletedAccountDataPolicy"/> re-deriving the
-/// precondition against <see cref="IUserAccountDirectory"/>. The pass runs under
-/// <see cref="ILeaderLease"/>. Each owner is one transaction, committed before the next begins, so
-/// a pass that dies mid-way redoes nothing; an owner whose application throws is logged and
-/// skipped.</summary>
 public sealed class SweepDeletedAccountDataUseCase(
     IEnumerable<IDeletedAccountDataPolicy> policies,
     ILeaderLease lease,
     ILogger<SweepDeletedAccountDataUseCase> logger) : ISweepDeletedAccountDataUseCase
 {
-    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.accounts.sweep-deleted-data";
 
-    /// <inheritdoc />
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         int swept = 0;
@@ -51,8 +42,6 @@ public sealed class SweepDeletedAccountDataUseCase(
             {
                 try
                 {
-                    // The policy re-derives the precondition: an account that exists again, or
-                    // never left, leaves its data alone, whatever this pass assumed.
                     if (await policy.ApplyAsync(owner, cancellationToken))
                     {
                         swept++;
@@ -60,7 +49,6 @@ public sealed class SweepDeletedAccountDataUseCase(
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    // Shutdown, not a failed owner: end the pass instead of logging it.
                     throw;
                 }
                 catch (Exception exception)

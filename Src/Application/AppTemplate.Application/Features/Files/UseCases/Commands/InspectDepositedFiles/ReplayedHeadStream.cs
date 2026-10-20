@@ -1,10 +1,5 @@
 ﻿namespace AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
-/// <summary>
-/// A read-only, forward-only stream that yields bytes already read off the front of a stream, then
-/// the rest of that stream — so the content is opened once for both the head and the scan.
-/// Disposing it leaves the underlying stream open; its owner disposes it.
-/// </summary>
 internal sealed class ReplayedHeadStream(ReadOnlyMemory<byte> head, Stream rest) : Stream
 {
     private ReadOnlyMemory<byte> _head = head;

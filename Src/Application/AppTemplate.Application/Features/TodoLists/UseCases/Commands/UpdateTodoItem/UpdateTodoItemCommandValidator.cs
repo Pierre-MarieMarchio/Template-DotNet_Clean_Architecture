@@ -17,7 +17,6 @@ public sealed class UpdateTodoItemCommandValidator : AbstractValidator<UpdateTod
         RuleFor(command => command.Title)
             .Cascade(CascadeMode.Stop)
             .NotEmpty().WithMessage("An item title is required.")
-            // Measured after trimming, like the domain measures it.
             .Must(title => title.Trim().Length <= TodoItemTitle.MaxLength)
             .WithMessage($"An item title cannot exceed {TodoItemTitle.MaxLength} characters.");
 

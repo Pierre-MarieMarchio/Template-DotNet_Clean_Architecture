@@ -6,11 +6,6 @@ using AppTemplate.Domain.Features.Reminders.Repositories;
 
 namespace AppTemplate.Application.Features.Reminders.Services.Consumers.AccountDeleted;
 
-/// <summary>The reminders' declared fate for the data of a deleted account: <b>deleted</b>, whatever
-/// the state each reminder is in. Runs after the account's transaction has committed and owns its
-/// own commit through <see cref="IUnitOfWork"/>. <b>A fast path, not the guarantee</b>: the
-/// <see cref="IDeletedAccountDataPolicy"/> face the sweep calls covers the event never reaching this
-/// consumer, and the precondition is re-derived through <see cref="IUserAccountDirectory"/>.</summary>
 internal sealed class DeleteRemindersOnAccountDeletedConsumer(
     IReminderRepository reminders,
     IReminderQueries queries,
@@ -28,8 +23,6 @@ internal sealed class DeleteRemindersOnAccountDeletedConsumer(
     {
         ArgumentNullException.ThrowIfNull(owner);
 
-        // The precondition, re-derived: an account that exists again — or never left — keeps its
-        // reminders, whatever this call was told.
         if (await accounts.ExistsAsync(owner, cancellationToken))
         {
             return false;
@@ -37,7 +30,6 @@ internal sealed class DeleteRemindersOnAccountDeletedConsumer(
 
         var owned = await reminders.GetForOwnerAsync(owner, cancellationToken);
 
-        // Also what a redelivery finds.
         if (owned.Count == 0)
         {
             return false;

@@ -152,7 +152,6 @@ internal sealed class NoteService(
         return Result.Success();
     }
 
-    // The version is assigned by the database, so a write's answer is read back rather than assembled.
     private async Task<Result<Versioned<NoteDto>>> ReadAsync(
         UserId ownerId,
         Guid noteId,

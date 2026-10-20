@@ -50,14 +50,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application;
 
-/// <summary>
-/// One call per feature, and a host composes the features it offers. There is no call that adds all
-/// of them: deleting a feature's folder and its one line here is the whole removal, and a single
-/// entry point scanning the assembly would put every port every feature declares into every host's
-/// graph, which under <c>ValidateOnBuild</c> makes each of them mandatory everywhere. A feature
-/// takes an <c>IConfiguration</c> only when it has application policy a deployment declares, as the
-/// Files categories are.
-/// </summary>
 public static class ApplicationModule
 {
     //#if (todoLists)
@@ -74,9 +66,6 @@ public static class ApplicationModule
     //#endif
     //#if (todoLists)
 
-    /// <summary>Registers the to-do list feature: its use cases, its validators, and the access service its use cases share.</summary>
-    /// <param name="services">The container being built.</param>
-    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddTodoLists(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -86,8 +75,6 @@ public static class ApplicationModule
 
         services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, LogTodoItemCompletedConsumer>();
 
-        // The declared fate of this feature's data once the account that owned it is gone, applied
-        // by the consumer when the fact arrives and by the sweep when it never does.
         services.AddDomainEventConsumer<UserAccountDeleted, DeleteTodoListsOnAccountDeletedConsumer>();
         services.AddScoped<IDeletedAccountDataPolicy, DeleteTodoListsOnAccountDeletedConsumer>();
 
@@ -96,14 +83,6 @@ public static class ApplicationModule
     //#endif
     //#if (reminders)
 
-    /// <summary>
-    /// Registers the reminder feature. Not independent of <see cref="AddTodoLists"/>: scheduling a
-    /// reminder reaches into the to-do list's read port, which is the only ownership check made
-    /// before a reminder is created, so a host that composes this without that one resolves
-    /// nothing.
-    /// </summary>
-    /// <param name="services">The container being built.</param>
-    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddReminders(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -111,13 +90,9 @@ public static class ApplicationModule
         services.AddFeature(_reminders);
         services.AddScoped<IReminderService, ReminderService>();
 
-        // A second consumer of an event the to-do list feature raises: both run when an item is
-        // completed, neither aware of the other.
         services.AddDomainEventConsumer<
             TodoItemCompletedDomainEvent, CancelRemindersOnTodoItemCompletedConsumer>();
 
-        // The declared fate of this feature's data once the account that owned it is gone, applied
-        // by the consumer when the fact arrives and by the sweep when it never does.
         services.AddDomainEventConsumer<UserAccountDeleted, DeleteRemindersOnAccountDeletedConsumer>();
         services.AddScoped<IDeletedAccountDataPolicy, DeleteRemindersOnAccountDeletedConsumer>();
 
@@ -126,13 +101,6 @@ public static class ApplicationModule
     //#endif
     //#if (files)
 
-    /// <summary>
-    /// Registers the stored-file feature and binds <c>Files</c> (its categories and the API upload
-    /// ceiling), validated at start-up.
-    /// </summary>
-    /// <param name="services">The container being built.</param>
-    /// <param name="configuration">Supplies the <c>Files</c> section.</param>
-    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddFiles(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -148,13 +116,9 @@ public static class ApplicationModule
         services.AddScoped<IStoredFileRegistrationService, StoredFileRegistrationService>();
         services.AddScoped<IStoredFileDepositService, StoredFileDepositService>();
 
-        // The prompt half of reclaiming a deleted file's bytes. The orphan sweep is what makes it
-        // correct; this only makes it fast — see the consumer's own doc.
         services.AddDomainEventConsumer<
             StoredFileDeletedDomainEvent, ReclaimContentOnStoredFileDeletedConsumer>();
 
-        // The declared fate of this feature's data once the account that owned it is gone, applied
-        // by the consumer when the fact arrives and by the sweep when it never does.
         services.AddDomainEventConsumer<UserAccountDeleted, DeleteStoredFilesOnAccountDeletedConsumer>();
         services.AddScoped<IDeletedAccountDataPolicy, DeleteStoredFilesOnAccountDeletedConsumer>();
 
@@ -163,12 +127,6 @@ public static class ApplicationModule
     //#endif
     //#if (notes)
 
-    /// <summary>
-    /// Registers the notes feature: its service and its validator. No use cases, and the one event
-    /// it answers is the account-deleted fact; depends on none of the other features.
-    /// </summary>
-    /// <param name="services">The container being built.</param>
-    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddNotes(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -176,8 +134,6 @@ public static class ApplicationModule
         services.AddFeature(_notes);
         services.AddScoped<INoteService, NoteService>();
 
-        // The declared fate of this feature's data once the account that owned it is gone, applied
-        // by the consumer when the fact arrives and by the sweep when it never does.
         services.AddDomainEventConsumer<UserAccountDeleted, DeleteNotesOnAccountDeletedConsumer>();
         services.AddScoped<IDeletedAccountDataPolicy, DeleteNotesOnAccountDeletedConsumer>();
 
@@ -186,13 +142,6 @@ public static class ApplicationModule
     //#endif
     //#if (externalAuth)
 
-    /// <summary>
-    /// Registers the mapping from an external identity provider's subject to an internal owner. Not
-    /// an example: a host authenticating callers with an external provider composes it through its
-    /// external-authentication entry point, and a host with local accounts leaves it out.
-    /// </summary>
-    /// <param name="services">The container being built.</param>
-    /// <returns>The same collection, for chaining.</returns>
     public static IServiceCollection AddExternalIdentity(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -204,11 +153,6 @@ public static class ApplicationModule
     //#endif
     //#if (canAddFeature)
 
-    /// <summary>
-    /// The use cases and validators one vertical declares, discovered by the folder they sit in.
-    /// Discovery within a feature, opt-in between features: a hand-written list of use cases could
-    /// only go stale, and the namespace already states which feature a type belongs to.
-    /// </summary>
     private static void AddFeature(this IServiceCollection services, string vertical)
     {
         services.AddValidatorsFromAssembly(

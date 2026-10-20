@@ -7,12 +7,8 @@ using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 
 namespace AppTemplate.Domain.Features.TodoLists.Model.Entities;
 
-/// <summary>A to-do list with its items and their tags: the module's only aggregate root and only
-/// type with a repository — items and tags have no existence apart from the list that holds them.</summary>
 public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
-    /// <summary>A write loads the whole aggregate, so this cap is the only bound on a command's cost;
-    /// a workload needing more wants a different aggregate boundary.</summary>
     public const int MaxItems = 500;
 
     private readonly List<TodoItem> _items = [];
@@ -23,16 +19,12 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         Name = name;
     }
 
-    /// <summary>Assigned at creation and never changed; every authorisation check rests on
-    /// ownership, so a setter would make those checks racy.</summary>
     public UserId OwnerId { get; private set; }
 
     public TodoListName Name { get; private set; }
 
     public IReadOnlyCollection<TodoItem> Items => _items.AsReadOnly();
 
-    /// <param name="now">Injected rather than read from the clock, so the aggregate has
-    /// no ambient dependency and its behaviour is reproducible in a test.</param>
     public static TodoList Create(UserId ownerId, string name, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(ownerId);
@@ -43,14 +35,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         return list;
     }
 
-    /// <summary>Rebuilds a stored aggregate — the persistence seam, declared here so the compiler
-    /// checks the signature. Unlike <see cref="Create"/> it raises no event and accepts the id; stored
-    /// values still pass a live aggregate's checks, and version and audit go through
-    /// <see cref="IVersioned"/> and <see cref="IAuditable"/>.</summary>
-    /// <param name="id">The stored identifier. Never generated here.</param>
-    /// <param name="ownerId">The stored owner.</param>
-    /// <param name="name">The stored name, re-validated.</param>
-    /// <param name="items">The stored items, in any order, each re-checked against the item set.</param>
     public static TodoList Rehydrate(Guid id, UserId ownerId, string name, IEnumerable<TodoItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -73,7 +57,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
 
     public void Rename(string name) => Name = TodoListName.Create(name);
 
-    /// <returns>The id of the item that was added.</returns>
     public Guid AddItem(string title, string? description)
     {
         var item = new TodoItem(Guid.CreateVersion7(), Id, title, description);
@@ -91,8 +74,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         RaiseDomainEvent(new TodoItemCompletedDomainEvent(Id, item.Id, item.Title.Value, completedAt));
     }
 
-    /// <param name="reopenedAt">Injected rather than read from the clock, so the event's instant
-    /// is reproducible in a test, not stamped by an ambient <c>DateTime.UtcNow</c>.</param>
     public void ReopenItem(Guid itemId, DateTimeOffset reopenedAt)
     {
         var item = RequireItem(itemId);
@@ -103,8 +84,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
     }
 
-    /// <summary>Renames and/or redescribes an existing item in one step, so one round trip and
-    /// one version bump; uniqueness is checked on the normalised title.</summary>
     public void UpdateItem(Guid itemId, string title, string? description)
     {
         var item = RequireItem(itemId);
@@ -113,8 +92,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         item.Update(newTitle, description);
     }
 
-    /// <summary>Total replacement, not a merge — see <see cref="TagSet.Replace"/> for what that
-    /// means for the cap.</summary>
     public void SetItemTags(Guid itemId, IEnumerable<string> tags)
     {
         ArgumentNullException.ThrowIfNull(tags);
@@ -126,14 +103,8 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
 
     public void RemoveTagFromItem(Guid itemId, string tag) => RequireItem(itemId).RemoveTag(Tag.Create(tag));
 
-    /// <summary>
-    /// The single gate into the item set, used by both <see cref="AddItem"/> and
-    /// <see cref="Rehydrate"/>: a stored row and a fresh command are checked by the same code.
-    /// </summary>
     private void Accept(TodoItem item)
     {
-        // Not a DomainException: a null item is a broken call, not a caller driving the aggregate
-        // into a forbidden state, and nothing a request can send reaches this line.
         ArgumentNullException.ThrowIfNull(item);
 
         if (item.TodoListId != Id)
@@ -152,11 +123,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         _items.Add(item);
     }
 
-    /// <summary>
-    /// Case-insensitive: "Buy milk" and "buy milk" are the same entry to whoever reads them.
-    /// <paramref name="exceptItemId"/> excludes the item being renamed from the comparison, so
-    /// renaming an item to its own title does not collide with itself.
-    /// </summary>
     private void EnsureTitleIsFree(string title, Guid exceptItemId)
     {
         if (_items.Exists(existing =>
@@ -167,10 +133,6 @@ public sealed class TodoList : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
     }
 
-    /// <summary>
-    /// Every item operation goes through here, so an unknown id can never silently do nothing;
-    /// callers treating a missing item as expected look in <see cref="Items"/> first.
-    /// </summary>
     private TodoItem RequireItem(Guid itemId) =>
         _items.Find(i => i.Id == itemId)
         ?? throw new DomainException($"This list contains no item with id '{itemId}'.");

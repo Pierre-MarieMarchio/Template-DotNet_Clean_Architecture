@@ -44,12 +44,10 @@ public sealed class RemoveTodoItemUseCase(
             return found.To<Versioned<TodoListDetailDto>>();
         }
 
-        // No try/catch: existence is the only thing RemoveItem rejects, and it is checked above.
         todoList.RemoveItem(command.TodoItemId);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // The item is gone; the list is what is left to describe, under its new version.
         return TodoListDtoMapping.Detail(todoList);
     }
 }

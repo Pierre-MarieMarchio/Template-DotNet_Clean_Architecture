@@ -2,11 +2,6 @@
 
 namespace AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 
-/// <summary>
-/// The title of a <see cref="Entities.TodoItem"/>, non-empty, trimmed, at most 200 characters. A
-/// type rather than a bare string, because the rule must hold everywhere a title appears —
-/// including on the load path.
-/// </summary>
 public sealed record TodoItemTitle
 {
     public const int MaxLength = 200;
@@ -15,7 +10,6 @@ public sealed record TodoItemTitle
 
     public string Value { get; }
 
-    /// <exception cref="DomainException">The value is blank or too long.</exception>
     public static TodoItemTitle Create(string value)
     {
         if (string.IsNullOrWhiteSpace(value))

@@ -4,10 +4,6 @@ using AppTemplate.Domain.Features.Files.Model.Entities;
 
 namespace AppTemplate.Application.Features.Files.Model.Mapping;
 
-/// <summary>
-/// Maps the aggregate a command just wrote to the shape a read produces, without a second query: the tracker writes
-/// the store-assigned version and audit stamps back inside <c>SaveChangesAsync</c>.
-/// </summary>
 internal static class StoredFileDtoMapping
 {
     public static Versioned<StoredFileDto> ToVersioned(StoredFile storedFile)

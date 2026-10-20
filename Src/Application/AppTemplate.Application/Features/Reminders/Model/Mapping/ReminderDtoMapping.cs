@@ -4,11 +4,6 @@ using AppTemplate.Domain.Features.Reminders.Model.Entities;
 
 namespace AppTemplate.Application.Features.Reminders.Model.Mapping;
 
-/// <summary>
-/// Turns the aggregate a command just wrote into the same shape a read would have produced,
-/// without a second query — the same reasoning as <c>TodoListDtoMapping</c>, for the same
-/// aggregate-is-flat reason <see cref="Reminder"/>'s own doc comment gives.
-/// </summary>
 internal static class ReminderDtoMapping
 {
     public static Versioned<ReminderDto> ToVersioned(Reminder reminder) => new(ToDto(reminder), reminder.Version);

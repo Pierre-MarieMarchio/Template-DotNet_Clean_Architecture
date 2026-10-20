@@ -1,16 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 
-/// <summary>Removes registrations never deposited against, so the quota slot each holds comes back.
-/// The query is the coarse filter, <see cref="StoredFile.IsAbandoned"/> the per-file decision; each
-/// removal announces <see cref="StoredFile.Delete"/> so unconfirmed bytes are reclaimed promptly.
-/// Background job: must not read <see cref="ICurrentUser"/>. Idempotent: a batch is one commit, so a
-/// failed pass writes nothing and the next selects the same rows again.</summary>
 public sealed class PurgeAbandonedRegistrationsUseCase(
     IStoredFileRepository repository,
     IUnitOfWork unitOfWork,
@@ -18,16 +12,10 @@ public sealed class PurgeAbandonedRegistrationsUseCase(
     ILeaderLease lease,
     ILogger<PurgeAbandonedRegistrationsUseCase> logger) : IPurgeAbandonedRegistrationsUseCase
 {
-    /// <summary>The lock key derives from this name: a cross-release contract, renaming it lets two releases both run the pass.</summary>
     private const string _leaseName = "apptemplate.files.purge-abandoned";
 
-    /// <summary>
-    /// How long a registration may wait for its deposit: longer than the upload window, so a deposit
-    /// still in flight is never swept, short enough that a quota slot comes back the same day.
-    /// </summary>
     public static readonly TimeSpan AbandonedAfter = TimeSpan.FromHours(24);
 
-    /// <summary>Bounds one pass; a larger backlog is picked up by the next run.</summary>
     private const int _batchSize = 200;
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)

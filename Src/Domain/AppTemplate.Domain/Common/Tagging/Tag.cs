@@ -2,10 +2,6 @@
 
 namespace AppTemplate.Domain.Common.Tagging;
 
-/// <summary>A free-text label a caller puts on something it owns, normalised on the way in
-/// (trimmed, lower-cased) so "Urgent", "urgent " and "URGENT" are one tag — which is what makes
-/// the de-duplication in <see cref="TagSet"/> reliable. How many tags a thing carries is
-/// <see cref="TagSet"/>'s parameter, not this type's business.</summary>
 public sealed record Tag
 {
     public const int MaxLength = 50;
@@ -14,7 +10,6 @@ public sealed record Tag
 
     public string Value { get; }
 
-    /// <exception cref="DomainException">The value is blank or too long.</exception>
     public static Tag Create(string value)
     {
         if (string.IsNullOrWhiteSpace(value))

@@ -9,11 +9,6 @@ using FluentValidation;
 
 namespace AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 
-/// <summary>
-/// Reads one file's metadata through the read port, so the version comes from the same query as the
-/// representation. The owner is passed to the query, which answers <c>null</c> for another caller's
-/// file exactly as for a missing one, so the check cannot be applied after the read.
-/// </summary>
 public sealed class GetStoredFileUseCase(
     IStoredFileQueries queries,
     ICurrentUser currentUser,

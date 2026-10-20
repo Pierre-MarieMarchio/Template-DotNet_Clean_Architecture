@@ -5,7 +5,6 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <!-- The Files categories are application policy, bound from configuration and validated at start-up. -->
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
@@ -15,13 +14,6 @@
     <ProjectReference Include="..\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
   </ItemGroup>
 
-  <!-- The feature mappers, the media-type signature table and the password policy are internal on
-       purpose: each is a decision one feature owns, reached only through the use case above it, and
-       nothing outside this assembly has a reason to name one.
-       A test restricted to the public surface could reach their branches only through a use case,
-       which would prove a request is refused without showing which of a dozen branches refused it.
-       Granted to exactly one assembly — this project's own mirror — for the same reason
-       AppTemplate.Infrastructure.Persistence grants its mapper's internals to exactly one. -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>AppTemplate.Application.UnitTests</_Parameter1>

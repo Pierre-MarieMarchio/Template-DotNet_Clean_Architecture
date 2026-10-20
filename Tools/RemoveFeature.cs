@@ -26,6 +26,14 @@ using System.Text.RegularExpressions;
 /// no longer passes, and is removed with the manual procedure.
 /// </para>
 /// <para>
+/// <b>A use is confirmed by a name the feature declares</b>: the classes, interfaces, records, structs and
+/// enums of its own files, the bare type name (<c>Order</c>, <c>Task</c>) excepted. That name as a whole
+/// word, in code outside the feature, is a confirmed use; the same word in a comment or a string
+/// literal, or any other word that merely starts like the type (<c>OrderBy</c>, <c>TaskCompletionSource</c>),
+/// is a possible match. Comments and literals are recognised line by line, which is enough for generated
+/// code and wrong for a literal spanning lines.
+/// </para>
+/// <para>
 /// A migration is never touched: whether its tables may be dropped depends on the databases that
 /// applied it, which no file in the tree can say.
 /// </para>
@@ -48,7 +56,13 @@ internal static class RemoveFeature
         + "              the command only reports and writes nothing.\n"
         + "  --root      the tree to read, default the current directory.";
 
+    private const int MaxPossiblePrinted = 40;
+
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+
+    private static readonly Regex Declaration = new(@"\b(?:(?:record\s+)?(?:class|struct)|interface|record|enum)\s+([A-Z]\w*)", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+    private static readonly Regex ProductPrefix = new(@"^(?:Src|Tests)/[^/]+/(.+?)\.(?:Domain|Application|Infrastructure|Presentation|Api)\b", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
@@ -308,7 +322,9 @@ internal static class RemoveFeature
 
         extra.Sort(StringComparer.Ordinal);
 
-        var hits = Scan(root, features, manifest?.Type, folders, listed, manifestPath);
+        var declared = manifest is null ? [] : DeclaredTypes(root, manifest, manifest.Type);
+        string? product = manifest?.Files.Select(entry => ProductPrefix.Match(entry.Path)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
+        var hits = Scan(root, features, manifest?.Type, declared, product, folders, listed, manifestPath);
 
         if (modified.Count > 0)
         {
@@ -581,7 +597,141 @@ internal static class RemoveFeature
                 ? "_" + char.ToLowerInvariant(character)
                 : char.ToLowerInvariant(character).ToString()));
 
-    private static List<Hit> Scan(string root, string features, string? type, List<string> folders, HashSet<string> ownFiles, string manifestPath)
+    /// <summary>
+    /// The types the feature's own files declare, minus the bare type name (<c>Order</c>, <c>Task</c>),
+    /// which is also a common word and stays a possible match. The account-deletion files every owner
+    /// feature shares are not the feature's own.
+    /// </summary>
+    private static List<string> DeclaredTypes(string root, Manifest manifest, string type)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var entry in manifest.Files.Where(entry => entry.Path.EndsWith(".cs", StringComparison.Ordinal) && !manifest.Shared.Contains(entry.Path)))
+        {
+            string full = Path.Combine(root, entry.Path);
+
+            if (!File.Exists(full))
+            {
+                continue;
+            }
+
+            foreach (Match match in Declaration.Matches(File.ReadAllText(full)))
+            {
+                names.Add(match.Groups[1].Value);
+            }
+        }
+
+        names.Remove(type);
+
+        return [.. names.Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// The line without its comments and string literals, which is enough for generated code: line and
+    /// <c>///</c> comments, a block comment opening or continuing a line, and regular, verbatim, raw and
+    /// interpolated strings that open and close on that line. A literal spanning lines is not recognised.
+    /// </summary>
+    private static string Code(string line)
+    {
+        string trimmed = line.TrimStart();
+
+        if (trimmed.StartsWith("//", StringComparison.Ordinal) || trimmed.StartsWith("/*", StringComparison.Ordinal) || trimmed.StartsWith('*'))
+        {
+            return string.Empty;
+        }
+
+        var code = new StringBuilder(line.Length);
+        int i = 0;
+
+        while (i < line.Length)
+        {
+            char c = line[i];
+
+            if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
+            {
+                break;
+            }
+
+            if (c == '\'' )
+            {
+                int close = line.IndexOf('\'', i + (i + 1 < line.Length && line[i + 1] == '\\' ? 3 : 2));
+
+                i = close < 0 ? i + 1 : close + 1;
+
+                continue;
+            }
+
+            if (c is '"' or '@' or '$')
+            {
+                int start = i;
+                bool verbatim = false;
+
+                while (i < line.Length && line[i] is '@' or '$')
+                {
+                    verbatim |= line[i] == '@';
+                    i++;
+                }
+
+                if (i >= line.Length || line[i] != '"')
+                {
+                    code.Append(line, start, i - start);
+
+                    continue;
+                }
+
+                int quotes = 0;
+
+                while (i + quotes < line.Length && line[i + quotes] == '"')
+                {
+                    quotes++;
+                }
+
+                if (quotes >= 3)
+                {
+                    int end = line.IndexOf(new string('"', quotes), i + quotes, StringComparison.Ordinal);
+
+                    i = end < 0 ? line.Length : end + quotes;
+                }
+                else
+                {
+                    i++;
+
+                    while (i < line.Length)
+                    {
+                        if (!verbatim && line[i] == '\\')
+                        {
+                            i += 2;
+                        }
+                        else if (verbatim && line[i] == '"' && i + 1 < line.Length && line[i + 1] == '"')
+                        {
+                            i += 2;
+                        }
+                        else if (line[i] == '"')
+                        {
+                            i++;
+
+                            break;
+                        }
+                        else
+                        {
+                            i++;
+                        }
+                    }
+                }
+
+                code.Append("\"\"");
+
+                continue;
+            }
+
+            code.Append(c);
+            i++;
+        }
+
+        return code.ToString();
+    }
+
+    private static List<Hit> Scan(string root, string features, string? type, List<string> declared, string? product, List<string> folders, HashSet<string> ownFiles, string manifestPath)
     {
         var composition = new List<Regex>
         {
@@ -595,15 +745,22 @@ internal static class RemoveFeature
         var migration = new List<Regex> { Rx($@"\.Features\.{features}\b"), Rx($@"""{Snake(features)}""") };
         Regex? typedRegistration = null;
         var possible = new List<Regex> { Rx($@"\b{features}\b") };
+        Regex? declaredName = null;
 
         if (type is not null)
         {
             model.Add(Rx($@"\b{type}Record(Configuration)?\b"));
-            reference.Add(Rx($@"\bI?{type}[A-Z]\w*"));
-            reference.Add(Rx($@"\b(Get|Create|Update|Delete){type}s?\w*"));
             migration.Add(Rx($@"\b{type}Record\b"));
-            typedRegistration = Rx($@"\b(Try)?Add\w*\s*[<(].*\bI?{type}[A-Z]");
             possible.Add(Rx($@"\b{type}\b"));
+
+            if (declared.Count > 0)
+            {
+                string names = string.Join("|", declared.Select(Regex.Escape));
+
+                declaredName = Rx($@"\b(?:{names})\b");
+                typedRegistration = Rx($@"\b(Try)?Add\w*\s*[<(].*\b(?:{names})\b");
+                possible.Add(declaredName);
+            }
         }
 
         var ownFolders = folders.Select(folder => folder + "/").ToArray();
@@ -630,6 +787,9 @@ internal static class RemoveFeature
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
+                string code = source ? Code(line) : line;
+                // The product's own name (Acme.Notes) holds the feature's name without meaning the feature.
+                string unnamed = product is null ? line : line.Replace(product, string.Empty, StringComparison.Ordinal);
                 Kind? kind = null;
 
                 if (inMigrations)
@@ -638,13 +798,13 @@ internal static class RemoveFeature
                 }
                 else if (source)
                 {
-                    kind = composition.Any(pattern => pattern.IsMatch(line)) || (typedRegistration?.IsMatch(line) ?? false) ? Kind.Composition
+                    kind = composition.Any(pattern => pattern.IsMatch(line)) || (typedRegistration?.IsMatch(code) ?? false) ? Kind.Composition
                         : model.Any(pattern => pattern.IsMatch(line)) ? Kind.Model
-                        : reference.Any(pattern => pattern.IsMatch(line)) ? Kind.Reference
+                        : reference.Any(pattern => pattern.IsMatch(line)) || (declaredName?.IsMatch(code) ?? false) ? Kind.Reference
                         : null;
                 }
 
-                kind ??= possible.Any(pattern => pattern.IsMatch(line)) ? Kind.Possible : null;
+                kind ??= possible.Any(pattern => pattern.IsMatch(unnamed)) ? Kind.Possible : null;
 
                 if (kind is not null)
                 {
@@ -748,9 +908,14 @@ internal static class RemoveFeature
 
         output.WriteLine($"Possible matches, the name as text, to read and judge: {possible.Count}");
 
-        foreach (var hit in possible)
+        foreach (var hit in possible.Take(MaxPossiblePrinted))
         {
             output.WriteLine($"  {hit.Path}:{hit.Line}  {hit.Text}");
+        }
+
+        if (possible.Count > MaxPossiblePrinted)
+        {
+            output.WriteLine($"  ... and {possible.Count - MaxPossiblePrinted} more, not printed");
         }
     }
 
@@ -874,6 +1039,7 @@ internal static class RemoveFeature
 
             HandWrittenCases(scratch, Expect);
             GeneratorCases(scratch, Expect);
+            NameCollisionCases(scratch, Expect);
             SharedFilesCases(scratch, Expect);
         }
         finally
@@ -933,6 +1099,14 @@ internal static class RemoveFeature
         "Tests/Application/Acme.Application.UnitTests/Features/Widgets/WidgetServiceTests.cs",
     ];
 
+    private static string Declarations(string name) => name switch
+    {
+        "Widget" => "public sealed record Widget;\n",
+        "WidgetService" => "public interface IWidgetService;\npublic interface IWidgetStore;\npublic sealed class WidgetService;\npublic sealed class WidgetStore;\n",
+        "GetWidgetQuery" => "public sealed record GetWidgetQuery;\n",
+        _ => "public sealed class WidgetServiceTests;\n",
+    };
+
     /// <summary>A tree with a skeleton and a manifest written the way the generator writes it, and a host to compose it in.</summary>
     private static string Skeleton(string scratch)
     {
@@ -940,7 +1114,7 @@ internal static class RemoveFeature
 
         foreach (string file in SkeletonFiles)
         {
-            Put(root, file, "namespace Acme;\n// " + file + "\n");
+            Put(root, file, "namespace Acme;\n// " + file + "\n" + Declarations(Path.GetFileNameWithoutExtension(file)));
         }
 
         Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
@@ -1298,6 +1472,82 @@ internal static class RemoveFeature
 
         Put(unreadable, $"{ManifestFolder}/Gizmos.json", "{ not json\n");
         Refused("an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
+    }
+
+    private static void Ground(string root)
+    {
+        Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+        Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
+        Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+    }
+
+    /// <summary>
+    /// Words that start like a feature's type (<c>OrderBy</c>, <c>TaskCompletionSource</c>) and the type's name
+    /// in a string or a comment are not uses; a name the feature declares, used elsewhere, is.
+    /// </summary>
+    private static void NameCollisionCases(string scratch, Action<bool, string> expect)
+    {
+        const string Noise =
+            "var sorted = items.OrderBy(x => x).Order(); var groups = items.GroupBy(x => x); IOrderedQueryable<int> ordered = query;\n"
+            + "var source = new TaskCompletionSource(); var tags = new TagSet(); var helpers = TagHelpers.Create(); var item = list.Item(0);\n"
+            + "var text = \"GetNote, GetTodoList and GetNoteRequest\"; // GetNoteRequest, INoteService, CreateGroupRequest\n";
+
+        foreach (string[] row in new[]
+        {
+            new[] { "Notes", "Note" }, new[] { "Orders", "Order" }, new[] { "Tags", "Tag" },
+            new[] { "Groups", "Group" }, new[] { "Tasks", "Task" }, new[] { "Items", "Item" },
+        })
+        {
+            foreach (string model in new[] { "record", "aggregate" })
+            {
+                string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+
+                Projects(root);
+                Ground(root);
+                Put(root, "Src/Presentation/Acme.Api/Noise.cs", Noise);
+                Put(root, "Tests/Presentation/Acme.Api.UnitTests/ControllerContractTests.cs", Noise);
+
+                string label = $"{row[0]} ({model})";
+
+                expect(Generate(root, row[0], row[1], "--access", "shared", "--model", model, "--concurrency", model == "aggregate" ? "etag" : "none") == 0, $"The generator refused {label}.");
+
+                var report = Invoke(root, row[0]);
+
+                expect(
+                    report.Output.Contains("Confirmed use(s) of the feature's types or namespace: 0", StringComparison.Ordinal),
+                    $"{label}: a word that merely starts like the type, or the type in a string or comment, was a confirmed use: {report.Output}");
+
+                var applied = Invoke(root, row[0], "--apply");
+
+                expect(applied.Code == 0, $"{label}: an untouched skeleton was refused: {applied.Output}{applied.Error}");
+            }
+        }
+
+        // A use of a type the feature declares is still a blocker, inside another feature or in a registration.
+        string used = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+
+        Projects(used);
+        Ground(used);
+        expect(Generate(used, "Notes", "Note", "--access", "shared") == 0, "The generator refused Notes for the use case.");
+        Put(used, "Src/Application/Acme.Application/Features/Reminders/Services/ReminderService.cs", "public sealed class ReminderService(INoteService notes);\n");
+
+        var injected = Invoke(used, "Notes", "--apply");
+
+        expect(injected.Code == 1 && injected.Output.Contains("confirmed use(s)", StringComparison.Ordinal), $"An injected INoteService did not block the removal: {injected.Output}");
+
+        string registered = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+
+        Projects(registered);
+        Ground(registered);
+        expect(Generate(registered, "Widgets", "Widget", "--access", "owner", "--deletion", "delete") == 0, "The generator refused Widgets for the use case.");
+
+        string consumer = Directory.EnumerateFiles(registered, "*OnAccountDeleted*.cs", SearchOption.AllDirectories).Select(Path.GetFileNameWithoutExtension).FirstOrDefault() ?? "none";
+
+        Put(registered, "Src/Presentation/Acme.Api/Wiring.cs", $"services.AddScoped<{consumer}>();\n");
+
+        var wired = Invoke(registered, "Widgets", "--apply");
+
+        expect(consumer != "none" && wired.Code == 1 && wired.Output.Contains("confirmed registration(s)", StringComparison.Ordinal), $"A consumer registered elsewhere ({consumer}) did not block the removal: {wired.Output}");
     }
 
     private static void GeneratorCases(string scratch, Action<bool, string> expect)

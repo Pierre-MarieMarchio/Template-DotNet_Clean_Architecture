@@ -5,51 +5,8 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
-/// <summary>
-/// Checks every repository path cited in the Markdown docs against the filesystem.
-/// </summary>
-/// <remarks>
-/// <para>
-/// A wrong path in a template's documentation costs the reader an hour, so it is worth a check
-/// rather than a proofread. Only paths inside backticks are considered — prose mentioning a folder
-/// by name is not a claim about the tree.
-/// </para>
-/// <para>
-/// A second pass covers the files that explain themselves in comments rather than in Markdown —
-/// the workflows, the <c>.http</c> scratchpad, the build scripts. They cite a document
-/// by bare path with no backticks around it, so the first pass cannot see them, and deleting a
-/// documentation directory leaves seven such references pointing at nothing while a backtick-only
-/// check stays green. Only the documentation directory's own prefix is considered there: unlike a
-/// bare filename, it is unambiguous enough to check without inventing false positives out of code
-/// identifiers.
-/// </para>
-/// <para>
-/// Two further properties, without which a green result is worth nothing.
-/// </para>
-/// <para>
-/// <b>The gate refuses to pass on nothing.</b> A scan that reads no Markdown, or that finds no path
-/// worth checking, has established no candidate set and therefore proves nothing. That is the
-/// vacuity <c>docs/TESTING.md</c> bans for the architecture rules, where
-/// <c>RuleAssertions.RequireTypes</c> enforces it; here the counts are printed and a zero of either
-/// one is a failure.
-/// </para>
-/// <para>
-/// <b>The gate reads what git tracks.</b> A working note dropped into an ignored directory is not
-/// documentation, and the paths it cites are not claims about the tree. The ignore list is asked of
-/// git rather than parsed here, because a gate that reimplements those rules disagrees with them
-/// eventually.
-/// </para>
-/// <example>
-/// <code>
-/// dotnet run Tools/CheckDocPaths.cs .
-/// dotnet run Tools/CheckDocPaths.cs --self-test
-/// </code>
-/// </example>
-/// </remarks>
 internal static class CheckDocPaths
 {
-    // Inside backticks, anything that looks like a repo-relative path with a real extension or a
-    // known top-level directory.
     private static readonly Regex CodeSpan = new(@"`([^`\n]+)`");
 
     private static readonly Regex Candidate = new(
@@ -57,24 +14,12 @@ internal static class CheckDocPaths
         + @"(?:Src|Tests|Tools|docs|\.github|\.config)/[\w\-./]+"
         + @"|^(?:[\w\-.]+\.(?:sln|slnx|props|json|yml|md|ps1|http|runsettings|minimum|csproj|py))$");
 
-    // A bare filename in prose is not a claim that it sits at the repository root. It only has to
-    // exist somewhere in the tree.
-    //
-    // The extension must be a real file type from a closed list. Without that, code identifiers
-    // (`TodoItem.MaxTags`), error codes (`auth.required`), versions (`net10.0`) and addresses
-    // (`127.0.0.1`) all look like filenames and the check drowns in noise it invented.
     private static readonly Regex BareFilename = new(
         @"^[\w\-.]+\."
         + @"(?:sln|slnx|props|json|ya?ml|md|ps1|sh|http|runsettings|minimum|csproj|py|cs)$");
 
-    // Trailing punctuation belongs to the sentence, not to the path. A possessive is the one that
-    // does not look like punctuation: a reference written as "<path>'s own recommendation" names a
-    // document, not a directory whose last segment ends in an apostrophe-s.
     private static readonly Regex Trailing = new(@"(?:'s|[.,;:)\]]+)$");
 
-    // The documentation directory's name, held in a constant rather than written into the pattern
-    // below, so that this script's own fixtures can name a path under it without the second pass
-    // reading those fixtures as citations and reporting itself.
     private const string DocDir = "docs";
 
     private static readonly Regex BareDocPath = new($@"(?<![\w`/]){DocDir}/[\w\-./]+");
@@ -82,19 +27,12 @@ internal static class CheckDocPaths
     private static readonly string[] CommentingSuffixes =
         [".yaml", ".yml", ".http", ".ps1", ".py", ".props", ".cs", ".editorconfig"];
 
-    // The characters that mark a code span as a command line, a glob or an expression rather
-    // than a path.
     private static readonly SearchValues<char> NotPathCharacters =
         SearchValues.Create("*$<>|(){}\"'");
 
     private static readonly HashSet<string> SkippedDirectoryNames =
         new(["bin", "obj", ".git", ".vs"], StringComparer.Ordinal);
 
-    /// <summary>What the pass examined, alongside what it found.</summary>
-    /// <remarks>
-    /// Both halves are needed: a problem list with no count behind it cannot be told apart from a
-    /// pass that read nothing.
-    /// </remarks>
     private sealed record Scan(
         IReadOnlyList<string> Problems,
         int MarkdownFiles,
@@ -102,8 +40,30 @@ internal static class CheckDocPaths
         int CommentingFiles,
         int BareChecked);
 
+    private const string Help =
+        """
+        Usage: dotnet run Tools/CheckDocPaths.cs [<root>]
+               dotnet run Tools/CheckDocPaths.cs --self-test
+               dotnet run Tools/CheckDocPaths.cs -- --help
+
+        Checks that every repository path cited inside backticks in the tracked Markdown resolves
+        on disk, CHANGELOG.md and the plans under the documentation directory excepted; a bare
+        filename only has to exist somewhere in the tree. A second pass checks every path under
+        the documentation directory cited without backticks in the files that explain themselves
+        in comments: workflows, scripts, .http files.
+
+        Exit code 0 when every citation resolves; 1 on a citation that does not, and when no
+        Markdown or no citation was examined, which proves nothing.
+        """;
+
     private static int Main(string[] args)
     {
+        if (args is ["--help"] or ["-h"])
+        {
+            Console.WriteLine(Help);
+            return 0;
+        }
+
         if (Array.IndexOf(args, "--self-test") >= 0)
         {
             return SelfTest();
@@ -114,13 +74,6 @@ internal static class CheckDocPaths
         return Run(repo);
     }
 
-    // --- The tree ------------------------------------------------------------------------------
-
-    /// <summary>The name Python's <c>PurePath.suffix</c> would report.</summary>
-    /// <remarks>
-    /// A leading dot is part of the name, not an extension, so a file called <c>.editorconfig</c>
-    /// carries no suffix at all and the suffix list above never selects one.
-    /// </remarks>
     private static string Suffix(string name)
     {
         var index = name.LastIndexOf('.');
@@ -151,8 +104,6 @@ internal static class CheckDocPaths
         return false;
     }
 
-    /// <summary>Every entry beneath <paramref name="directory"/>, files and directories alike.</summary>
-    /// <remarks>A symlinked directory is reported but not descended into, as a recursive glob does.</remarks>
     private static void Walk(DirectoryInfo directory, List<FileSystemInfo> collected)
     {
         FileSystemInfo[] entries;
@@ -187,20 +138,6 @@ internal static class CheckDocPaths
         return collected;
     }
 
-    /// <summary>Paths git is told to ignore, in the separator shape <see cref="Normalised"/> gives.</summary>
-    /// <remarks>
-    /// <para>
-    /// Asked of git rather than parsed out of <c>.gitignore</c>, because a gate that reimplements
-    /// the ignore rules disagrees with them eventually. A tree that is not a repository, or a
-    /// machine with no git, yields nothing to skip rather than an error: the check still runs, over
-    /// slightly more.
-    /// </para>
-    /// <para>
-    /// Git echoes back each ignored path exactly as it was fed one, so the paths go in normalised
-    /// and the answers come out comparable. A backslash also makes git quote and escape the path it
-    /// prints, which no reading of the reply would survive.
-    /// </para>
-    /// </remarks>
     private static HashSet<string> GitIgnored(string repo, List<string> paths)
     {
         var ignored = new HashSet<string>(StringComparer.Ordinal);
@@ -232,8 +169,6 @@ internal static class CheckDocPaths
                 return ignored;
             }
 
-            // Both streams are drained while stdin is still being written: a pipe that fills up
-            // while nobody reads it stops the process and this one waits on it forever.
             var standardOutput = process.StandardOutput.ReadToEndAsync();
             var standardError = process.StandardError.ReadToEndAsync();
 
@@ -257,13 +192,6 @@ internal static class CheckDocPaths
         return ignored;
     }
 
-    /// <summary>The candidates git is not told to ignore.</summary>
-    /// <remarks>
-    /// The tree's own paths carry the platform separator, so the lookup normalises them to match the
-    /// shape the ignore list holds. The comparison itself stays exact: a path that differs from
-    /// another only in case, or that merely contains it, is a different path, and an ignore list that
-    /// swallowed either would quietly shrink the candidate set the whole gate rests on.
-    /// </remarks>
     private static List<string> Tracked(string repo, List<string> candidates)
     {
         var ignored = GitIgnored(repo, candidates);
@@ -271,21 +199,9 @@ internal static class CheckDocPaths
         return candidates.Where(path => !ignored.Contains(Normalised(path))).ToList();
     }
 
-    /// <summary>
-    /// The Markdown this check has an opinion about. A changelog is excluded, for the same reason
-    /// the narrative-comment gate excludes it: its entries describe the tree as it stood when each
-    /// one was written, so a path it cites is a record rather than a claim about today. Holding it
-    /// to the present would force a choice between a red gate and a rewritten history, and the
-    /// second is worse.
-    /// </summary>
     private static readonly HashSet<string> ExemptFileNames =
         new(StringComparer.OrdinalIgnoreCase) { "CHANGELOG.md" };
 
-    /// <summary>
-    /// Directories whose Markdown states an intention rather than a fact. A plan cites the tree it
-    /// means to create, so its paths are claims about a future tree and cannot be checked against
-    /// this one — the same reason <see cref="ExemptFileNames"/> excludes a changelog, one tense over.
-    /// </summary>
     private static readonly HashSet<string> ExemptDirectoryNames =
         new(StringComparer.Ordinal) { "plans" };
 
@@ -317,8 +233,6 @@ internal static class CheckDocPaths
         return Tracked(repo, candidates);
     }
 
-    // --- The scan ------------------------------------------------------------------------------
-
     private static Scan ScanTree(string repo)
     {
         var missing = new List<string>();
@@ -326,8 +240,6 @@ internal static class CheckDocPaths
 
         var entries = Entries(repo);
 
-        // Names of everything in the tree, so that a bare filename can be looked for once rather
-        // than by walking the tree again for each citation.
         var namesInTree = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var entry in entries)
@@ -349,7 +261,6 @@ internal static class CheckDocPaths
             {
                 var raw = span.Groups[1].Value.Trim();
 
-                // Skip command lines, globs, code, and anything with shell/expression syntax.
                 if (raw.AsSpan().IndexOfAny(NotPathCharacters) >= 0 || raw.Contains(' '))
                 {
                     continue;
@@ -389,15 +300,12 @@ internal static class CheckDocPaths
 
                 checkedPaths++;
 
-                // A path may legitimately name a directory or a file.
                 if (!Exists(Path.Combine(repo, cleaned)))
                 {
                     missing.Add($"{relativeMarkdown}: `{raw}`");
                 }
             }
         }
-
-        // --- Second pass: bare references in the files that comment rather than document. --------
 
         var commentingFiles = CollectCommenting(repo, entries);
         var bareChecked = 0;
@@ -438,7 +346,6 @@ internal static class CheckDocPaths
             + $"checked {result.BareChecked} bare {DocDir}/ reference(s).");
         Console.WriteLine();
 
-        // A pass that read nothing reports success, which is the failure this gate exists to prevent.
         if (result.MarkdownFiles == 0)
         {
             Console.WriteLine("PROBLEM: no Markdown file was examined, so this check proves nothing.");
@@ -466,14 +373,6 @@ internal static class CheckDocPaths
         Console.WriteLine("Every cited path exists.");
         return 0;
     }
-
-    // --- Self-test -----------------------------------------------------------------------------
-    //
-    // The two halves a gate needs in order to be worth its place in CI: proof that it fires on a
-    // citation that resolves to nothing, and proof that it stays green on a tree where every
-    // citation holds. Each fixture is a whole miniature repository, because this gate's subject is a
-    // tree and not a line of text — a citation is only wrong relative to the files that do or do not
-    // sit beside it.
 
     private static readonly (string Label, (string Path, string Content)[] Files)[] MustFire =
     [
@@ -566,8 +465,6 @@ internal static class CheckDocPaths
         ),
     ];
 
-    // The fixture that only a real repository can express: a note git is told to ignore cites a path
-    // that does not exist, and the gate must neither read it nor count it.
     private static readonly (string Path, string Content)[] IgnoredNote =
     [
         (".gitignore", "ignored/\n"),
@@ -576,10 +473,6 @@ internal static class CheckDocPaths
         ("ignored/WORKING-NOTE.md", "A scratch note citing `Src/Application/Missing.cs`.\n"),
     ];
 
-    // The fixture that pins the exempt directory down from both sides: a plan cites the tree it means
-    // to create and the gate must neither read it nor count it, while a note beside it that describes
-    // today is still held to the tree. Only the second half makes the first worth anything — an
-    // exemption that quietly covered the whole tree would satisfy "raises nothing" just as well.
     private static readonly (string Path, string Content)[] PlannedTree =
     [
         ("README.md", "The handler lives in `Src/Application/Present.cs`.\n"),
@@ -743,8 +636,6 @@ internal static class CheckDocPaths
         return 0;
     }
 
-    // --- Odds and ends -------------------------------------------------------------------------
-
     private static void RunInTemporaryTree((string Path, string Content)[] files, Action<string> body)
     {
         var directory = Directory.CreateTempSubdirectory("check-doc-paths-");
@@ -764,14 +655,12 @@ internal static class CheckDocPaths
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // A tree that refuses to go away is the operating system's business, not the gate's.
             }
         }
     }
 
     private static string Resolve(string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
-    /// <summary>The path with its separators in the one shape git speaks.</summary>
     private static string Normalised(string path) => path.Replace('\\', '/');
 
     private static string Relative(string repo, string path) =>
@@ -781,7 +670,6 @@ internal static class CheckDocPaths
 
     private static string ReadText(string path) => File.ReadAllText(path, new UTF8Encoding(false));
 
-    /// <summary>The list of strings as a Python interpreter would show it.</summary>
     private static string Repr(IReadOnlyList<string> values) =>
         "[" + string.Join(", ", values.Select(value => $"'{value}'")) + "]";
 }

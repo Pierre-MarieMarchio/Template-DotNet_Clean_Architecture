@@ -181,6 +181,10 @@ tree carries, so the same task serves both.
 copy the printed line and you get the same result without it. **No task hides a flag that changes
 the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 
+Each app states its usage itself: `dotnet run Tools/<file> -- --help`, the separator keeping
+`dotnet run` from answering with its own help, and `dotnet run Tools/Tasks.cs help` for the
+launcher.
+
 <!--#if (ci)-->
 ## CI
 

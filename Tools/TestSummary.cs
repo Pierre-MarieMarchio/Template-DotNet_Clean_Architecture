@@ -1,23 +1,26 @@
 ﻿#:property UseAppHost=false
 
-// Sums the counters of every TRX the test run produced, writes them as a Markdown table for the
-// job summary, and refuses a run that executed nothing.
-//
-// That last part is the reason this is a gate rather than a report. `dotnet test` over a solution
-// exits zero when it finds no tests to run, so a project missing from the solution, a filter that
-// matches nothing, or a build that produced no test assembly all read as success. The count is the
-// only thing that tells those apart from a run that passed.
-//
-// TRX rather than the console output: the console interleaves when assemblies run in parallel, and
-// a line can be spliced from two of them. The counters element is written once per file, after the
-// run, by the process that owns it.
-//
-//     dotnet run Tools/TestSummary.cs --root TestResults --summary "$GITHUB_STEP_SUMMARY"
-//     dotnet run Tools/TestSummary.cs --self-test
-
 using System.Xml.Linq;
 
 const string TrxNamespace = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
+
+if (args is ["--help"] or ["-h"])
+{
+    Console.WriteLine(
+        """
+        Usage: dotnet run Tools/TestSummary.cs [--root <TestResults>] [--summary <file>]
+               dotnet run Tools/TestSummary.cs --self-test
+               dotnet run Tools/TestSummary.cs -- --help
+
+        Sums the counters of every TRX file under --root (default TestResults), prints them as a
+        Markdown table, and appends the table to --summary when given ($GITHUB_STEP_SUMMARY in CI).
+
+        Exit code 0 when the run executed at least one test; 1 when it executed none, which
+        dotnet test reports as success.
+        """);
+
+    return 0;
+}
 
 if (args.Contains("--self-test"))
 {
@@ -82,8 +85,6 @@ static Counters Sum(string root, out int files)
         var counters = Read(path);
         if (counters is null)
         {
-            // A TRX without a counters element is a run that did not finish writing one. Counted as
-            // read so that the file count stays honest, and contributing nothing to the totals.
             files++;
             continue;
         }
@@ -128,9 +129,6 @@ static Counters? Read(string path)
 
 static int SelfTest()
 {
-    // The halves a gate needs to be worth its place: proof that it counts what a real run writes,
-    // and proof that it refuses a run that executed nothing rather than reporting four zeroes and
-    // exiting clean.
     string root = Path.Combine(Path.GetTempPath(), $"trx-self-test-{Guid.NewGuid():N}");
     var failures = new List<string>();
 

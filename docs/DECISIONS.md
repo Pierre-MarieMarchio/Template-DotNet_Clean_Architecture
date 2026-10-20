@@ -1685,3 +1685,144 @@ surface only. A `429` counts as a pass, since the rate limiter doing its job is 
 and treating it as an error would push someone to loosen the limit to go green. Its thresholds
 describe a broken system, not a slow one, since a hosted runner's timings say nothing about this
 code, and CI runs it without blocking.
+
+## Tools and configuration
+
+**Code carries no comment; its reasons live here.** A comment rots on its own the next time anything
+moves, and a reader who needs the reason can address it in this file. The only exceptions are what a
+tool reads: the API's one-sentence OpenAPI documentation, template markers, generated headers, and
+one guidance line per setting in the configuration files a deriving developer edits, where it helps
+adapt the template rather than justify it. The tools follow the same rule, so their usage is their
+`-- --help` output, and the generator emits code under it.
+<!--#if (templateMaintenance)-->
+`Tools/CheckComments.cs` holds it, and `NewFeature.cs --self-test` holds it for every file the
+generator writes. In the configuration files a block of two guidance lines or more is refused,
+blank lines between them included: a marker or a line of content is what separates two settings, so
+the criterion needs no judgement about what a paragraph is. Its history rule over Markdown is
+deliberately narrow — "added later", "no longer" or "previously" are absent, because the same words
+are a hypothetical future or a runtime state as often as this repository's past, and a gate that
+flags a legitimate sentence gets switched off within the week.
+<!--#endif-->
+
+**A gate proves it can fail, and refuses to pass on nothing.** Each one prints how many files,
+reports or citations it examined and fails on zero, because a filter that read nothing reports
+success. Each one also carries a `--self-test` of offenders and innocents, run before the gate looks
+at the tree: a green that was never contrasted with a red says only that it ran.
+<!--#if (templateMaintenance)-->
+The tree-auditing gates ask git which paths it ignores rather than parsing `.gitignore`, because a
+gate that reimplements the ignore rules disagrees with them eventually; without git they read
+slightly more rather than fail.
+<!--#endif-->
+
+**A test run that executed nothing fails.** `dotnet test` over a solution exits zero when it finds
+no test, so a project missing from the solution, a filter that matches nothing and a build that
+produced no test assembly all read as success. `Tools/TestSummary.cs` sums the TRX files — written
+once per module after its run, unlike the console, which interleaves modules running in parallel —
+and fails on a total of zero.
+<!--#if (ci)-->
+CI also asserts that every project under `Tests/` is in the solution, the only list the platform
+runs.
+<!--#endif-->
+
+**Coverage is a union over (source file, line), and an empty total is refused.** One report is
+written per test module, and a product assembly exercised by two modules would be counted twice by
+summing their counters. Per assembly, nothing measurable reads as 100 % so an empty assembly drags
+no total down; applied to the total, the same convention would turn a report that lost every
+assembly into full coverage, so `Tools/CoverageGate.cs` refuses to divide by zero there and prints
+no percentage.
+
+**The coverage floor is the first line of `coverage.minimum` that is a number.** CI reads it with a
+POSIX shell and `Tools/Tasks.cs` with .NET, and "the first line that is not a comment" is a
+definition the two cannot share: GNU grep keeps a UTF-8 BOM in front of a leading `#`, and
+`File.ReadLines` strips it. The floor is set from measurement — a few points under a Debug run with
+Docker present, both integration suites contributing — never invented, so an honest refactor has
+room and a real regression trips it.
+
+**The vulnerability listing is read, not trusted.** `dotnet list package --vulnerable` exits zero
+whatever it finds; the sentence it prints is the only signal, so both `verify` and CI search for it.
+A finding is answered by pinning a patched version in `Directory.Packages.props`, transitive pinning
+being on, with a guidance line saying when the pin can go — never by relaxing `NuGetAuditLevel`.
+
+**One HTTP band per release train in `Directory.Packages.props`.** `Microsoft.Extensions.Http.Resilience`
+ships on its own band and brings Polly at the version it chose, with no pin of Polly beside it.
+`Microsoft.Extensions.Http` is a package rather than the ASP.NET Core framework reference, for the
+email module a host without ASP.NET Core may compose. The Entity Framework OpenTelemetry
+instrumentation is absent: it has no stable release, and Npgsql's own source produces the database
+spans where the query and its duration are.
+<!--#if (files)-->
+Only `AWSSDK.S3` is declared, since the Storage module builds its one client from its own validated
+options and never reads AWS's configuration files; and the Testcontainers core stays on the version
+`Testcontainers.PostgreSql` pins exactly.
+<!--#endif-->
+
+**`coverage.runsettings` excludes by location what a tool wrote.** Migrations and everything under
+`obj/` — where every source generator writes, the OpenAPI XML-comment generator among them — would
+otherwise move the percentage for reasons unrelated to the code under test. Test assemblies are
+excluded by a pattern rather than a list, which a new project would silently escape. Its
+filters are .NET regular expressions over whole paths, and an XML comment cannot hold a double
+hyphen: a malformed file makes the platform run nothing and exit 5.
+
+**The API image is alpine, built once on the builder's platform.** The SDK stage runs on
+`$BUILDPLATFORM`, since the publish output is portable IL and only the runtime layer differs per
+architecture. The alpine runtime ships the `wget` the `HEALTHCHECK` needs, where chiseled has no
+shell and no HTTP client; it defines the `app` user without switching to it, so `USER $APP_UID` is
+load-bearing. The image speaks HTTP on 8080 only, TLS terminating upstream, and leaves
+`ASPNETCORE_URLS` unset because it would override a port set from outside. Restore inputs are
+copied first, `Directory.Build.targets` included though it holds nothing for the API, so a rule it
+gains later reaches the image too; there is no NuGet cache mount, which `publish --no-restore` could
+not survive being pruned, and no separate build stage. The syntax frontend is pinned and bumped by
+hand.
+<!--#if (ci)-->
+CI asserts the image runs unprivileged and exposes 8080 alone.
+<!--#endif-->
+
+**The compose stack maps each variable explicitly and waits on real readiness.** `${VAR:?message}`
+stops Compose on a missing value instead of substituting an empty one. PostgreSQL is pinned to a
+patch version, since an unattended minor upgrade of a stateful service orphans data directories,
+and its volume is the image's own `/var/lib/postgresql`: version 18 moved its data under it, and the
+older `…/data` mount appears to work and loses the database on `down`. `pg_isready` gates the API,
+because the entrypoint restarts the server after initdb. Every port is bound to loopback.
+<!--#if (files)-->
+The object store's one S3 identity is also what refuses anonymous reads, without which every signed
+URL would be decoration; the API waits on its healthcheck, which probes the bucket, because
+readiness answers for the database only.
+<!--#endif-->
+<!--#if (sonar)-->
+The Sonar services sit behind a profile, as a 3 GB JVM has no place in the application stack, on
+port 9111: 9000 is the object store's and 9100 is reserved for printing on Windows, where Docker
+refuses it with an error naming no port. `SONAR_TOKEN` defaults to empty because Compose
+interpolates every profile before choosing one, and the scan script checks it instead.
+<!--#endif-->
+
+**`compose-up` waits on every service.** `--wait` fails on any service that has exited, so a
+run-once container belongs under a `condition: service_completed_successfully` of the service that
+needs it; one that nothing depends on would fail the task, and should, since nothing sequences it.
+
+**`bootstrap` formats before anything else.** Using directives sort alphabetically, so their order
+depends on where the generated name falls among the namespaces it imports, which the template cannot
+know; until it runs, `format --verify-no-changes` fails. A failed tool restore after it reports the
+formatting as done rather than passing for success.
+
+**A migration bundle per context, built at release, carrying no connection string.** One bundle
+covers one context, and a release carrying only the business bundle would start an API whose
+identity tables are absent. No foreign key crosses the schemas, so their order is for consistency
+with the Development bootstrap. The bundles are self-contained, built from the commit the image is,
+and run by a principal with DDL rights rather than the application's own user.
+<!--#if (sonar)-->
+
+**The local Sonar analysis needs no JRE on the machine.** It runs in `Tools/sonar-scanner.Dockerfile`
+on Java 21, the oldest runtime the service still supports, while the scanner itself stays pinned in
+`.config/dotnet-tools.json` so that no second pin can drift. SCM is off locally: in a git worktree
+`.git` is a file naming a host path, which the container cannot follow, and blame buys nothing on a
+throwaway instance. The image runs as root, so a trap hands `artifacts/` and `.sonarqube/` back to
+the checkout's owner on every exit, failures included.
+<!--#endif-->
+<!--#if (ci)-->
+
+**The load smoke test never fails CI.** A hosted runner's timings are not a property of the code, so
+a threshold tight enough to mean anything on real hardware would be noise there, and a red build
+nobody can act on teaches people to ignore red builds. Its thresholds describe a broken system —
+failing requests, ten-second responses — and a 429 counts as the rate limiter working. k6 comes from
+its release archive checked against the published SHA-256: the documented apt install needs a
+keyserver daemon the hosted runner lacks.
+<!--#endif-->

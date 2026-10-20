@@ -1,20 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Coverage settings for the code-coverage extension, passed explicitly with `dotnet test`'s
-  `coverage-settings` switch by CI and by Tools/Tasks.cs alike, so the number the gate enforces is
-  the same one a developer sees locally. Without this file the engine also measures the generated
-  EF migrations and the source-generated files under obj/, which moves the percentage for reasons
-  that have nothing to do with the code under test.
-
-  Every filter here is a .NET regular expression matched against a full path or a full type name,
-  not a glob: `.` matches any character, so a literal dot is written `\.`, and a directory
-  separator is written `[\\/]` because a Windows box and an ubuntu runner disagree about which
-  one they use.
-
-  Note for editors: an XML comment may not contain a double hyphen, so command-line switches are
-  written here without their leading dashes. A malformed file is not silent — the platform runs no
-  tests and exits 5, which the gate and the summary both report as the failure it is.
--->
+<!-- Filters are .NET regular expressions over full paths or type names: write a literal dot \. and a separator [\\/]. -->
 <RunSettings>
 
   <DataCollectionRunSettings>
@@ -23,35 +8,14 @@
         <Configuration>
           <CodeCoverage>
 
-            <!-- Test assemblies are not the subject of the measurement.
-
-                 A pattern rather than one entry per project, because the enumerated form went
-                 stale: a test project added later was simply not in the list, and nothing said so.
-                 Every test assembly in this repository ends in "Tests", so this cannot be
-                 outgrown by adding one.
-
-                 Stated precisely: IncludeTestAssembly below already declines the assembly a run is
-                 launched from, so this filter is not what keeps test code out of the total today.
-                 It is the guard for the case that setting does not cover — a test assembly pulled
-                 in as a reference by another test project, which would otherwise be measured as
-                 if it were product code. -->
+            <!-- Test assemblies, also when one test project references another. -->
             <ModulePaths>
               <Exclude>
                 <ModulePath>.*Tests\.dll$</ModulePath>
               </Exclude>
             </ModulePaths>
 
-            <!-- Code a tool wrote, excluded by where it lives rather than by the attribute it
-                 carries.
-
-                 Migrations: EF Core writes them, they are asserted on by being applied rather
-                 than by line coverage, and their size would otherwise dominate the total.
-
-                 Anything under obj/: every source generator writes there and nowhere else, so the
-                 path is an unambiguous statement that nobody typed the file. In this repository
-                 that is one 7,580-line file from the OpenAPI XML-comment generator in
-                 AppTemplate.Api, and the logging partial the LoggerMessage generator writes for
-                 AppTemplate.Infrastructure.Identity's SecurityEventLog. -->
+            <!-- Code a tool wrote: EF migrations, and every source generator's output under obj/. -->
             <Sources>
               <Exclude>
                 <Source>.*[\\/]Migrations[\\/].*</Source>
@@ -59,9 +23,7 @@
               </Exclude>
             </Sources>
 
-            <!-- Compiler-synthesised members: record Equals/GetHashCode/ToString/Deconstruct,
-                 iterator and async state machines. Not code anybody wrote or can test directly.
-                 Alongside the explicit opt-out an author writes by hand. -->
+            <!-- Compiler-synthesised members, and the explicit opt-out. -->
             <Attributes>
               <Exclude>
                 <Attribute>^System\.Runtime\.CompilerServices\.CompilerGeneratedAttribute$</Attribute>
@@ -69,12 +31,8 @@
               </Exclude>
             </Attributes>
 
-            <!-- Trivial `{ get; set; }` accessors. Counting them rewards DTOs and dilutes the
-                 signal from the branches that hold real decisions. -->
             <SkipAutoProps>true</SkipAutoProps>
 
-            <!-- The assembly a run is launched from. Off for the reason the ModulePath filter
-                 above states. -->
             <IncludeTestAssembly>false</IncludeTestAssembly>
 
           </CodeCoverage>

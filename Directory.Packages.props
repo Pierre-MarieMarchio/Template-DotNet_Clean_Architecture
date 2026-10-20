@@ -1,8 +1,6 @@
 <Project>
 
-  <!-- Central Package Management: every version is declared here exactly once.
-       Projects reference packages without a Version attribute. This is what
-       prevents the 8.0.x / 9.0.x drift the previous layout had. -->
+  <!-- Every version is declared here once; projects reference packages without a Version. -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
@@ -26,11 +24,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
-    <!-- IHttpClientFactory and AddHttpClient. Referenced by the one infrastructure module that
-         registers a typed client without also referencing ASP.NET Core: the identity module gets
-         the same assembly from the Microsoft.AspNetCore.App framework reference its Identity
-         package brings, but the email module may be composed by a host with no ASP.NET Core, and a
-         framework reference there would make that host require the ASP.NET Core runtime. -->
+    <!-- For a module that registers a typed client without referencing ASP.NET Core. -->
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.13" />
@@ -39,31 +33,17 @@
   </ItemGroup>
 
   <!--#if (localAuth)-->
-  <!-- Identity model: the modern JsonWebTokenHandler only. The legacy
-       System.IdentityModel.Tokens.Jwt entry is gone along with its last consumer. -->
   <ItemGroup Label="Identity model">
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
   </ItemGroup>
   <!--#endif-->
 
-  <!-- Outbound HTTP resilience. Ships from dotnet/extensions on its own 10.9.x band rather than
-       the 10.0.x band above — same owner, different release train — so it gets its own group
-       instead of silently breaking the "all Microsoft.* on one band" rule that group states.
-       It brings Polly transitively, and the policy does name two Polly types — DelayBackoffType and
-       PredicateResult — because the Microsoft options surface re-exports them and offers no alias.
-       That is the whole extent of it: no Polly pipeline is built by hand anywhere, and there is
-       deliberately no PackageVersion for Polly itself, so the version stays the one this package
-       chose. -->
+  <!-- Its own 10.9.x band; Polly comes transitively, at the version this package chose. -->
   <ItemGroup Label="Outbound HTTP">
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
   </ItemGroup>
 
-  <!-- OpenTelemetry: the SDK, the three instrumentations the host installs, and the OTLP exporter,
-       all on one 1.18.x band. Npgsql.OpenTelemetry rides the same 10.0.3 as the EF provider, which
-       is the version whose ActivitySource it subscribes to.
-       OpenTelemetry.Instrumentation.EntityFrameworkCore is deliberately absent: it has no stable
-       release (1.18.0-beta.1 is the newest), and Npgsql's own source produces the database spans at
-       the ADO.NET level, which is where the query and its duration actually are. -->
+  <!-- One 1.18.x band; Npgsql.OpenTelemetry follows the EF provider's version. -->
   <ItemGroup Label="OpenTelemetry">
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
@@ -73,25 +53,13 @@
   </ItemGroup>
 
   <!--#if (files)-->
-  <!-- Object storage. The AWS SDK ships one package per service on its own version line — 4.0.x for
-       S3, whose AWSSDK.Core dependency it pins itself — so it gets its own group rather than joining
-       "Third-party runtime", where every entry is a library this repository chose the version of.
-       Only AWSSDK.S3 is declared: the credential providers, the transfer utility and the extensions
-       package (AWSSDK.Extensions.NETCore.Setup) are deliberately absent, because this module
-       constructs its one client from its own validated options and never reads AWS's own
-       configuration files.
-       It is the one dependency in this repository that brings its own HTTP stack: see
-       AppTemplate.Infrastructure.Storage/Buckets/BucketBudget.cs for what that costs and what is
-       done about it. -->
+  <!-- AWSSDK.S3 only: the client is built from the module's own validated options. -->
   <ItemGroup Label="Object storage">
     <PackageVersion Include="AWSSDK.S3" Version="4.0.102.5" />
   </ItemGroup>
 
   <!--#endif-->
-  <!-- Transitive pins (CentralPackageTransitivePinningEnabled above): no project references these;
-       the version here overrides the one a package asks for. MimeKit, through MailKit, requires
-       System.Security.Cryptography.Pkcs 10.0.0, which has known vulnerabilities fixed in 10.0.13.
-       Drop the entry once MailKit's own requirement is at or above that. -->
+  <!-- Overrides a version a package asks for. Drop the entry once MailKit requires System.Security.Cryptography.Pkcs 10.0.13 or later. -->
   <ItemGroup Label="Transitive pins">
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
@@ -108,20 +76,14 @@
 
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.13" />
-    <!-- A relational provider that runs in process, for the saving-pipeline tests that need real
-         contexts and real commits where no container runtime is available. Never referenced by a
-         product project: PostgreSQL stays the one production provider. -->
+    <!-- In-process relational provider for the saving-pipeline tests; never referenced by a product project. -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0" />
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--#if (files)-->
-    <!-- The core package, for the object store the Storage/ suite runs as a plain container: no
-         Testcontainers module exists for SeaweedFS, and the MinIO one assumed an image MinIO no
-         longer publishes. Kept on the same version as Testcontainers.PostgreSql, and it has to be:
-         that module pins this core exactly, and two bands would leave one compiled against the
-         other's core. -->
+    <!-- Keep on the same version as Testcontainers.PostgreSql, which pins this core exactly. -->
     <PackageVersion Include="Testcontainers" Version="4.15.0" />
     <!--#endif-->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />

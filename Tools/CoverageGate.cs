@@ -1,30 +1,5 @@
 ﻿#:property UseAppHost=false
 
-// Merge the Cobertura reports the coverage extension writes, then enforce a line-coverage floor.
-//
-// Why this exists rather than a `dotnet test` flag: one report is written per test module,
-// and the same product assembly is exercised by more than one of them. Summing the
-// `lines-valid` / `lines-covered` attributes across those files double-counts every shared
-// line and produces a number that is wrong in whichever direction the overlap happens to
-// lean. The correct merge is a union over (source file, line): a line is covered if any
-// suite covered it. That is what this script does, with the base class library only, so it
-// runs identically on a developer's Windows box and on an ubuntu runner.
-//
-// Usage:
-//     dotnet run Tools/CoverageGate.cs --minimum 62 [--root TestResults] [--summary out.md] [--json out.json]
-//     dotnet run Tools/CoverageGate.cs --self-test
-//
-// Exit status: 0 when total line coverage >= --minimum, 1 when below it, 2 on bad input
-// (no reports found, unparseable XML, or reports that between them measure no line at all).
-//
-// The last of those is the subtle one. A rate is a quotient, and a quotient over zero has to
-// be given a value: per assembly, 100% is the right one, because an assembly with nothing
-// measurable in it should not drag a total down. Applied to the *total*, that same convention
-// turns "nothing was measured" into "everything is covered" — the exact false green a report
-// missing an assembly produces, and the one `coverage.minimum` names as the cost this
-// repository has already paid. So the per-assembly convention stays and the total refuses to
-// use it.
-
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -38,7 +13,6 @@ if (args.Contains("--self-test"))
 
 return CoverageGate.Run(args);
 
-/// <summary>The merge, the floor, and the fixtures that prove the gate can fail.</summary>
 internal static class CoverageGate
 {
     private const string ProgramName = "CoverageGate.cs";
@@ -58,18 +32,12 @@ internal static class CoverageGate
             return [];
         }
 
-        // A pattern rather than a fixed name, because the writer names the file and two writers
-        // name it differently: one report per module under a GUID of its own
-        // ('<guid>.cobertura.xml'), or a fixed name inside a directory of its own
-        // ('<guid>/coverage.cobertura.xml'). Matching the extension covers both, and the union
-        // below is indifferent to how many files it reads or what they are called.
         return Directory
             .EnumerateFiles(root, "*.cobertura.xml", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToList();
     }
 
-    /// <summary>assembly -&gt; lines keyed by (file, line), branches keyed the same way.</summary>
     public static SortedDictionary<string, Bucket> Merge(List<string> reports)
     {
         var merged = new SortedDictionary<string, Bucket>(StringComparer.Ordinal);
@@ -97,7 +65,6 @@ internal static class CoverageGate
                         var hits = Number(line.Attribute("hits")?.Value);
                         var key = (filename, number);
 
-                        // Union: covered by any suite counts as covered.
                         bucket.Lines[key] = bucket.Lines.TryGetValue(key, out var previousHits)
                             ? Math.Max(previousHits, hits)
                             : hits;
@@ -130,11 +97,6 @@ internal static class CoverageGate
             bucket.Branches.Values.Sum(branch => branch.Covered),
             bucket.Branches.Values.Sum(branch => branch.Total));
 
-    /// <summary>
-    /// The per-assembly convention: an assembly with no measurable line is not a shortfall.
-    /// Legitimate for a row, wrong for the total — see the header. The total's guard lives in
-    /// <see cref="Gate"/>, which refuses to divide rather than calling this with a zero.
-    /// </summary>
     public static double Percent(int covered, int total)
         => total != 0 ? 100.0 * covered / total : 100.0;
 
@@ -179,8 +141,6 @@ internal static class CoverageGate
         var totalBranchesCovered = rows.Sum(row => row.BranchesCovered);
         var totalBranchesValid = rows.Sum(row => row.BranchesValid);
 
-        // No percentage is printed here on purpose: the only one available would be the empty
-        // quotient's 100%, and reporting it is how a gate that measured nothing looks like a pass.
         if (totalLinesValid == 0)
         {
             Console.Error.WriteLine(
@@ -336,15 +296,13 @@ internal static class CoverageGate
         Console.WriteLine("  --summary SUMMARY  write a Markdown table here (append)");
         Console.WriteLine("  --json JSON_OUT    write the merged totals here");
         Console.WriteLine("  --self-test        prove the gate can fail");
+        Console.WriteLine();
+        Console.WriteLine("Merges the Cobertura reports under ROOT as a union over (source file, line), so a line");
+        Console.WriteLine("covered by any test module counts once, then compares total line coverage to MINIMUM.");
+        Console.WriteLine();
+        Console.WriteLine("exit status: 0 at or above MINIMUM, 1 below it, 2 on bad input (no report, unparseable");
+        Console.WriteLine("XML, or reports that between them measure no line at all).");
     }
-
-    // --- Self-test -------------------------------------------------------------------------------
-    //
-    // The two halves a gate needs in order to be worth its place in CI: proof that it fails on the
-    // reports it must reject, and proof that it passes on the ones it must accept. The pair that
-    // matters most is the last of each list — a valid report with no line in it must be rejected,
-    // while an empty assembly standing beside a measured one must not be, because the convention that
-    // is wrong for the total is right for the row.
 
     private static string Report(params string[] packages)
         => "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<coverage><packages>\n"
@@ -435,10 +393,6 @@ internal static class CoverageGate
         }
     }
 
-    /// <summary>
-    /// The fixtures' own output is swallowed, stderr included: a `::error` annotation written by a
-    /// fixture that failed on purpose would be shown by GitHub against a job that passed.
-    /// </summary>
     private static int SilentGate(string root, double minimum)
     {
         var outWriter = Console.Out;
@@ -462,7 +416,6 @@ internal static class CoverageGate
         var mustFail = MustFail();
         var mustPass = MustPass();
 
-        // A fixture must not append its table to the real job summary.
         var summary = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
         Environment.SetEnvironmentVariable("GITHUB_STEP_SUMMARY", null);
 
@@ -492,8 +445,6 @@ internal static class CoverageGate
                 });
             }
 
-            // The union is a claim about arithmetic, not about exit codes: two reports naming the same
-            // two lines must yield two lines, not four.
             WithTemporaryTree(mustPass[2].Files, root =>
             {
                 var (covered, total, _, _) = Rates(Merge(IterReports(root))["App.Domain"]);
@@ -503,7 +454,6 @@ internal static class CoverageGate
                 }
             });
 
-            // The convention the total refuses is still the right one for a row.
             if (Percent(0, 0) != 100.0)
             {
                 failures.Add("an assembly with no measurable line should rate 100%, not a division");
@@ -551,8 +501,6 @@ internal static class CoverageGate
             Directory.Delete(root, recursive: true);
         }
     }
-
-    // --- Plumbing --------------------------------------------------------------------------------
 
     private static int Number(string? value)
         => string.IsNullOrEmpty(value) ? 0
@@ -618,7 +566,6 @@ internal static class CoverageGate
         return builder.ToString();
     }
 
-    /// <summary>A double rendered the way a JSON encoder renders one: shortest round trip, always fractional.</summary>
     private static string Repr(double value)
     {
         var text = value.ToString("R", CultureInfo.InvariantCulture);
@@ -648,7 +595,6 @@ internal static class CoverageGate
     }
 }
 
-/// <summary>One assembly's merged lines and branches, keyed by (source file, line number).</summary>
 internal sealed class Bucket
 {
     public Dictionary<(string File, int Line), int> Lines { get; } = [];
@@ -656,7 +602,6 @@ internal sealed class Bucket
     public Dictionary<(string File, int Line), (int Covered, int Total)> Branches { get; } = [];
 }
 
-/// <summary>One row of the summary table.</summary>
 internal sealed record Row(
     string Assembly,
     int LinesCovered,

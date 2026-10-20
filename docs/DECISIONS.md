@@ -1989,7 +1989,25 @@ prints where the line goes, and the new app's `README.md` gives the line and its
 written out. An app without dependencies, as the placeholder, needs no lockfile entry, so
 `pnpm install --frozen-lockfile` stays green after adding one; a framework app changes the lockfile,
 which one `pnpm install` records.
+
+**`dotnet new cleanarch-webpackage` declares a framework as a wide peer range and pins nothing
+else.** A `react` package's `peerDependencies` say `react: ">=19"` and an `angular` package's
+`@angular/core: ">=22"`, so the package does not follow framework releases and the app that uses it
+chooses the version. The package still has to type-check and run its test alone, so the same
+framework is also a pinned `devDependency`, as are the test tools, lint and TypeScript; those are
+what Dependabot moves, and the peer range stays put until a release breaks it. The packages export
+their sources like `api-client`, so the generated component is compiled by the consuming app's
+bundler. The React test renders to a string and the Angular test uses `TestBed` over jsdom with
+JIT and `@Input()`, because a signal input needs the CLI's compiler transform that a package
+without an Angular workspace does not have; the `ts` kind has neither framework nor DOM.
 <!--#if (templateMaintenance)-->
+
+**The package item template keeps its sources outside the workspace.** The three kinds live under
+`.template.config/webpackage/content`, one folder each, with `placeholder-package` and `app-template`
+as the tokens the item template replaces in paths and contents. They are not in `Src/Web/packages`,
+so a generated project does not receive three sample packages and the repository's lockfile does not
+lock their frameworks; the template workflow's web leg generates a package and runs the gates on it
+instead.
 
 **The first app and every added app come from one folder.** `Src/Web/apps/PlaceholderSite` is the
 placeholder's source for both `--web placeholder` and `cleanarch-webapp --framework placeholder`:

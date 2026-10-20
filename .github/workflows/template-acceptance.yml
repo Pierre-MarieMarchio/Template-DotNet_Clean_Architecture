@@ -221,6 +221,24 @@ jobs:
           pnpm test
           pnpm build
 
+      # The workspace's globs pick the package up: no file but its own is edited, and the lockfile gains its importer.
+      - name: Add a package with cleanarch-webpackage
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          dotnet new cleanarch-webpackage -n tokens --kind ts --scope sample-generated-project
+          leaked=$(grep -rIl -e app-template -e placeholder-package Src/Web/packages/tokens || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Item template token leaked::$leaked"
+            exit 1
+          fi
+          cd Src/Web
+          pnpm install
+          pnpm lint
+          pnpm test
+          pnpm build
+
       - name: Assert the generated client check passes on a fresh client
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated

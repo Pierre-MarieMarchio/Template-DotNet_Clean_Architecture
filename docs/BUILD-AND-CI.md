@@ -237,7 +237,8 @@ A web leg first runs `dotnet run Tools/Tasks.cs web-lockfiles --check` in this c
 when the lockfile a generated web shape receives differs from what the pinned pnpm writes for it.
 The web leg also adds a second app with `dotnet new cleanarch-webapp -n BackOffice --framework
 placeholder` and the two lines its README gives, then runs the workspace's install, client
-regeneration, lint, test and build, checks that a second `pnpm api` writes the same client, starts
+regeneration, lint, test and build, adds a package with `dotnet new cleanarch-webpackage -n tokens
+--kind ts` and runs the same gates again, checks that a second `pnpm api` writes the same client, starts
 the whole stack with Compose until every service is healthy, and asks each app for its page, its
 security headers, `/health` and an `/api/` answer that only the API gives. The separate refusal job covers the rule the other way round: `--auth none` needs
 `--examples none` and `--files false`, enforced by hidden required parameters, and an unsupported

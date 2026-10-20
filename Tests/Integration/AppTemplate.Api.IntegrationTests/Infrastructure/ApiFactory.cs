@@ -117,12 +117,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     //#endif
     /*#if (externalAuth)
-    /// <summary>
-    /// What <see cref="ExternalProvider"/>'s discovery document would have said: its issuer, signing
-    /// with its key. A configure action, not a post-configure one: the bearer handler's own
-    /// post-configuration builds its metadata source from whatever configuration is set by then, and
-    /// only fetches the authority's document when none is.
-    /// </summary>
     private static void TrustTheStandInProvider(IServiceCollection services) =>
         services.Configure<JwtBearerOptions>(
             JwtBearerDefaults.AuthenticationScheme,

@@ -23,10 +23,6 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     [Fact]
     public async Task Liveness_IsAnonymousAndHealthy()
     {
-        /*#if (!publicApi)*/
-        /*#else
-        // No Authorization header: a probe that had to log in would be useless to an orchestrator.
-        #endif*/
         var client = CreateClient();
 
         using var response = await client.GetAsync(new Uri("/health", UriKind.Relative), TestToken);

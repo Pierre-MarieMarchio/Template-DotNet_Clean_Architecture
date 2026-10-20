@@ -125,14 +125,11 @@ public sealed class IdempotentActionsAreAlwaysPostTests
                 && type.Name.EndsWith("Controller", StringComparison.Ordinal))
             .ToList();
 
-        /*#if (!publicApi)*/
+        //#if (!publicApi)
         actualControllers.ShouldNotBeEmpty(
             "No controller was found in the API assembly by name convention, so this rule cannot " +
             "prove the enumeration above is complete.");
-        /*#else
-        // Generated without accounts and without examples, the API declares no controller until the
-        // first feature brings one; from then on the count below holds the list to it.
-        #endif*/
+        //#endif
 
         actualControllers.Count.ShouldBe(
             _controllers.Length,

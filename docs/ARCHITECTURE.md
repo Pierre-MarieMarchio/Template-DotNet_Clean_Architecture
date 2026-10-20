@@ -1099,12 +1099,12 @@ derives from `IdentityDbContext<AppUser, AppRole, Guid>` and maps everything in 
 <!--#else
 There is one business context: `AppDbContext`, in `AppTemplate.Infrastructure.Persistence`, maps
 every business feature's rows, the idempotency table and
+#endif-->
 <!--#if (externalAuth)
 the mapping from the provider's subjects to internal owners.
-else
+#elseif (publicApi)
 nothing else.
-endif-->
-<!--#endif-->
+#endif-->
 Every
 table names its own schema in its own `IEntityTypeConfiguration`, so no default schema is set and a
 mapping cannot drift into the wrong schema by omission.
@@ -1149,11 +1149,11 @@ And it could not happen inside one
 either, because EF does not map the domain entities at all — every record's `OwnerId` is a bare
 `Guid` column with no navigation, and every aggregate's `OwnerId` is a `UserId`, an opaque owner in
 a project with no reference to EF Core or to
-<!--#if (localAuth)
+<!--#if (localAuth)-->
 ASP.NET Identity.
-else
+<!--#else
 an identity provider.
-endif-->
+#endif-->
 The architecture tests assert both.
 
 **Why one database.** Two databases would mean two connection strings, two backup

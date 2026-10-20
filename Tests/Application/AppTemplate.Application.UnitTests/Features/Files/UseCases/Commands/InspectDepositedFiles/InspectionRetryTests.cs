@@ -30,8 +30,6 @@ public sealed class InspectionRetryTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region No file holds the front of the queue
-
     [Fact]
     public async Task ABatchOfFilesWhoseBytesAreMissing_DoesNotStarveALaterDeposit()
     {
@@ -71,10 +69,6 @@ public sealed class InspectionRetryTests
 
         _store.Committed(later.Id).State.ShouldBe(StoredFileState.Available);
     }
-
-    #endregion
-
-    #region Deferral
 
     [Fact]
     public async Task AFileWithoutAVerdict_IsDeferredAndStaysDeposited()
@@ -130,10 +124,6 @@ public sealed class InspectionRetryTests
         _store.Committed(missing.Id).State.ShouldBe(StoredFileState.Deposited);
     }
 
-    #endregion
-
-    #region One commit per file
-
     [Fact]
     public async Task AConflictOnOneFile_KeepsTheVerdictsCommittedBeforeIt()
     {
@@ -175,8 +165,6 @@ public sealed class InspectionRetryTests
 
         _store.Commits.ShouldBe(3);
     }
-
-    #endregion
 
     private StoredFile Seed(DateTimeOffset registeredAt)
     {

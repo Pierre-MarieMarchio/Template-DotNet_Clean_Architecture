@@ -11,8 +11,6 @@ public sealed class GetTodoListsRequestBinderTests
 {
     private static readonly TodoListCollectionPolicy _policy = TodoListCollectionPolicy.Instance;
 
-    #region Paging bounds
-
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -56,10 +54,6 @@ public sealed class GetTodoListsRequestBinderTests
     public void ThePageSizeCeiling_IsItselfAccepted() =>
         GetTodoListsRequestBinder.Bind(GetTodoListsQuery.Offset(1, _policy.MaxPageSize)).IsSuccess.ShouldBeTrue();
 
-    #endregion
-
-    #region Sorting
-
     [Fact]
     public void AnInvalidSort_IsRejected()
     {
@@ -94,10 +88,6 @@ public sealed class GetTodoListsRequestBinderTests
     public void ASingleTermSortInCursorMode_IsAccepted() =>
         GetTodoListsRequestBinder.Bind(new GetTodoListsQuery("cursor", null, 10, null, "name", null, null, null))
             .IsSuccess.ShouldBeTrue();
-
-    #endregion
-
-    #region Cursor and offset interaction
 
     [Fact]
     public void ACursorSentWithPagingOffset_IsRejected()
@@ -174,10 +164,6 @@ public sealed class GetTodoListsRequestBinderTests
         result.IsSuccess.ShouldBeTrue();
     }
 
-    #endregion
-
-    #region Shape of a bound request
-
     [Fact]
     public void ABoundRequest_CarriesTheParsedPagingSortAndFilter()
     {
@@ -193,6 +179,4 @@ public sealed class GetTodoListsRequestBinderTests
         request.Sort.Terms[0].Direction.ShouldBe(SortDirection.Ascending);
         request.Filter.Search!.Value.ShouldBe("milk");
     }
-
-    #endregion
 }

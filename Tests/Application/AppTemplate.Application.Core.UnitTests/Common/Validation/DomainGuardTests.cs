@@ -7,8 +7,6 @@ namespace AppTemplate.Application.Core.UnitTests.Common.Validation;
 
 public sealed class DomainGuardTests
 {
-    #region Try(Action)
-
     [Fact]
     public void Try_ReturnsSuccess_WhenTheOperationCompletes()
     {
@@ -46,10 +44,6 @@ public sealed class DomainGuardTests
     public void Try_Rejects_ANullOperation() =>
         Should.Throw<ArgumentNullException>(() => DomainGuard.Try((Action)null!));
 
-    #endregion
-
-    #region Try<TValue>(Func<TValue>)
-
     [Fact]
     public void TryOfT_ReturnsTheValue_WhenTheOperationCompletes()
     {
@@ -81,6 +75,4 @@ public sealed class DomainGuardTests
     [Fact]
     public void TryOfT_Rejects_ANullOperation() =>
         Should.Throw<ArgumentNullException>(() => DomainGuard.Try((Func<int>)null!));
-
-    #endregion
 }

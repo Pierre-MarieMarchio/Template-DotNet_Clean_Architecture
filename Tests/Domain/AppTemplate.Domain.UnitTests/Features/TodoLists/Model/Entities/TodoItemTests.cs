@@ -22,8 +22,6 @@ public sealed class TodoItemTests
         return list.Items.Single();
     }
 
-    #region Title
-
     [Fact]
     public void Title_IsTrimmed() => AnItem("  Buy milk  ").Title.Value.ShouldBe("Buy milk");
 
@@ -61,10 +59,6 @@ public sealed class TodoItemTests
     public void Title_IsMeasuredAfterTrimming() =>
         AnItem($"  {new string('a', TodoItemTitle.MaxLength)}  ")
             .Title.Value.Length.ShouldBe(TodoItemTitle.MaxLength);
-
-    #endregion
-
-    #region Description
 
     [Fact]
     public void Description_IsTrimmed() =>
@@ -105,10 +99,6 @@ public sealed class TodoItemTests
     [Fact]
     public void TheMaximumDescriptionLength_IsTwoThousandCharacters() =>
         TodoItem.MaxDescriptionLength.ShouldBe(2000);
-
-    #endregion
-
-    #region Completion state
 
     [Fact]
     public void ANewItem_IsOpen()
@@ -153,10 +143,6 @@ public sealed class TodoItemTests
         list.DomainEvents.ShouldBeEmpty();
     }
 
-    #endregion
-
-    #region Relationship to its list
-
     [Fact]
     public void AnItem_CarriesTheIdOfTheListThatOwnsIt()
     {
@@ -181,10 +167,6 @@ public sealed class TodoItemTests
 
         left.Items.Single().Equals(right.Items.Single()).ShouldBeFalse();
     }
-
-    #endregion
-
-    #region Tags
 
     [Fact]
     public void Tags_AreEmptyOnANewItem() => AnItem().Tags.ShouldBeEmpty();
@@ -256,10 +238,6 @@ public sealed class TodoItemTests
         list.Items.Single().Tags.Count.ShouldBe(TodoItem.MaxTags);
     }
 
-    #endregion
-
-    #region Encapsulation
-
     [Theory]
     [InlineData("Complete")]
     [InlineData("Reopen")]
@@ -276,6 +254,4 @@ public sealed class TodoItemTests
 
     [Fact]
     public void TheItemType_IsSealed() => typeof(TodoItem).IsSealed.ShouldBeTrue();
-
-    #endregion
 }

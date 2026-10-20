@@ -8,8 +8,6 @@ namespace AppTemplate.Application.Core.UnitTests.Common.Validation;
 
 public sealed class ValidationErrorTests
 {
-    #region From
-
     [Fact]
     public void From_ProducesTheStableCodeAndAFixedMessage()
     {
@@ -84,10 +82,6 @@ public sealed class ValidationErrorTests
     public void From_Rejects_ANullValidationResult() =>
         Should.Throw<ArgumentNullException>(() => ValidationError.From(null!));
 
-    #endregion
-
-    #region ForField
-
     [Fact]
     public void ForField_ProducesTheSameStableCodeAndFixedMessage()
     {
@@ -108,10 +102,6 @@ public sealed class ValidationErrorTests
     public void ForField_Rejects_ANullMessage() =>
         Should.Throw<ArgumentNullException>(() => ValidationError.ForField("field", null!));
 
-    #endregion
-
-    #region ForFields
-
     [Fact]
     public void ForFields_CarriesEveryFieldUnderTheSameStableCodeAndFixedMessage()
     {
@@ -131,6 +121,4 @@ public sealed class ValidationErrorTests
     [Fact]
     public void ForFields_Rejects_NullDetails() =>
         Should.Throw<ArgumentNullException>(() => ValidationError.ForFields(null!));
-
-    #endregion
 }

@@ -24,8 +24,6 @@ public sealed class ScheduleReminderUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -51,10 +49,6 @@ public sealed class ScheduleReminderUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region Validation
-
     [Fact]
     public async Task AnEmptyListId_IsRejected()
     {
@@ -78,10 +72,6 @@ public sealed class ScheduleReminderUseCaseTests
     [Fact]
     public async Task ANullCommand_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    #endregion
-
-    #region Target
 
     [Fact]
     public async Task AnItemTheCallerCannotSee_IsReportedAsTargetNotFound()
@@ -113,10 +103,6 @@ public sealed class ScheduleReminderUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region Domain
-
     [Fact]
     public async Task ADueDateInThePast_IsReportedAsAConflict()
     {
@@ -132,10 +118,6 @@ public sealed class ScheduleReminderUseCaseTests
         result.Error.Code.ShouldBe("domain.invariantViolated");
         _reminders.DidNotReceive().Add(Arg.Any<Reminder>());
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task AValidCommand_SchedulesAndCommits()
@@ -154,8 +136,6 @@ public sealed class ScheduleReminderUseCaseTests
         _reminders.Received(1).Add(Arg.Any<Reminder>());
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
-
-    #endregion
 
     private ScheduleReminderUseCase UseCaseFor(ICurrentUser currentUser) => new(
         _todoItems,

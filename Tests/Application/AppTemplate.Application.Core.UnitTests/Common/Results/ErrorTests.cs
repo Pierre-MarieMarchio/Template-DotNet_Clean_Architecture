@@ -44,8 +44,6 @@ public sealed class ErrorTests
         reference.ShouldNotBe(Error.Conflict("a.b", "m"));
     }
 
-    #region Details
-
     [Fact]
     public void Validation_WithDetails_CarriesThemThrough()
     {
@@ -104,8 +102,6 @@ public sealed class ErrorTests
 
         withoutDetails.ShouldNotBe(withDetails);
     }
-
-    #endregion
 
     [Fact]
     public void TheErrorTypes_KeepTheirDeclaredOrder() =>

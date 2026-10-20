@@ -22,8 +22,6 @@ public sealed class GetTodoItemUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -43,10 +41,6 @@ public sealed class GetTodoItemUseCaseTests
 
         await _queries.DidNotReceive().GetDetailAsync(Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task TheQuery_IsAlwaysScopedToTheCallersId()
@@ -88,10 +82,6 @@ public sealed class GetTodoItemUseCaseTests
         result.Error.Code.ShouldBe("todoList.notFound");
     }
 
-    #endregion
-
-    #region Missing item
-
     [Fact]
     public async Task AnItemTheListDoesNotHold_IsReportedAsNotFound()
     {
@@ -127,10 +117,6 @@ public sealed class GetTodoItemUseCaseTests
 
         result.Error!.Code.ShouldBe("todoItem.notFound");
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task TheRequestedItem_IsHandedBackUnchanged()
@@ -173,8 +159,6 @@ public sealed class GetTodoItemUseCaseTests
     [Fact]
     public async Task ANullQuery_IsRejected() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    #endregion
 
     private static TodoItemDto AnItem(Guid itemId, string title = "Milk") =>
         new(itemId, title, null, false, null, []);

@@ -8,8 +8,6 @@ public sealed class PageRequestTests
 {
     private static readonly FakeCollectionPolicy _policy = new();
 
-    #region ParseMode
-
     [Fact]
     public void ParseMode_ABlankValue_IsOffset() =>
         PageRequest.ParseMode(null).Value.ShouldBe(PagingMode.Offset);
@@ -36,10 +34,6 @@ public sealed class PageRequestTests
         result.Error.Message.ShouldContain("offset");
         result.Error.Message.ShouldContain("cursor");
     }
-
-    #endregion
-
-    #region Page size
 
     [Fact]
     public void Create_ANullPageSize_UsesThePolicysDefault() =>
@@ -70,10 +64,6 @@ public sealed class PageRequestTests
         result.Error.Message.ShouldContain(_policy.MaxPageSize.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    #endregion
-
-    #region Offset mode
-
     [Fact]
     public void Create_Offset_ANullPage_DefaultsToOne() =>
         PageRequest.Create(PagingMode.Offset, null, 10, null, _policy).Value.Page.ShouldBe(1);
@@ -100,10 +90,6 @@ public sealed class PageRequestTests
         result.Error!.Code.ShouldBe("paging.invalid");
         result.Error.Message.ShouldContain("cursor");
     }
-
-    #endregion
-
-    #region Cursor mode
 
     [Fact]
     public void Create_Cursor_ANullCursor_IsTheFirstPage()
@@ -135,8 +121,6 @@ public sealed class PageRequestTests
         result.Error!.Code.ShouldBe("paging.invalid");
         result.Error.Message.ShouldContain("alternatives");
     }
-
-    #endregion
 
     [Fact]
     public void Create_Rejects_ANullPolicy() =>

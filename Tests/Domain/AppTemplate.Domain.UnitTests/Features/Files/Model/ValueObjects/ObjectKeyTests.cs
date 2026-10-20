@@ -40,8 +40,6 @@ public sealed class ObjectKeyTests
         Should.NotThrow(() => ObjectKey.Create(minted)).Value.ShouldBe(minted);
     }
 
-    #region The time slice the orphan sweep reads
-
     [Theory]
     [InlineData(2026, 8, 9, "202608")]
     [InlineData(2026, 1, 1, "202601")]
@@ -73,10 +71,6 @@ public sealed class ObjectKeyTests
     [Fact]
     public void New_MintsTheKeyIntoTheSliceOfTheInstantItWasGiven() =>
         ObjectKey.New(_now).Value.Split('/')[1].ShouldBe(ObjectKey.TimeSegmentFor(_now));
-
-    #endregion
-
-    #region Parsing
 
     [Theory]
     [InlineData("")]
@@ -148,8 +142,6 @@ public sealed class ObjectKeyTests
     [Fact]
     public void Create_Rejects_OneCharacterBeyondTheMaximumLength() =>
         Should.Throw<DomainException>(() => ObjectKey.Create($"t0/{new string('a', ObjectKey.MaxLength - 2)}"));
-
-    #endregion
 
     [Fact]
     public void Equality_IsByValue()

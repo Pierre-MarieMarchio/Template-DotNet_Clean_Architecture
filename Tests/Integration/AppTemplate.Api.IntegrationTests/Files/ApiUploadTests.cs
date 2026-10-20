@@ -19,7 +19,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
     private const string _uploadsRoute = "/api/v1/files/uploads";
     private const string _filesRoute = "/api/v1/files";
 
-    private static readonly byte[] _content = AText(100 * 1024);
+    private static readonly byte[] _contentAboveThe64KiBDefaultBodyLimit = AText(100 * 1024);
 
     [Fact]
     public async Task AnUpload_StoresTheBytesAndAnswers201WithADepositedFile()
@@ -28,7 +28,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
 
         using var response = await client.PostAsync(
             new Uri(_uploadsRoute, UriKind.Relative),
-            AForm(_content, "notes.txt", "text/plain", name: "Meeting notes.txt"),
+            AForm(_contentAboveThe64KiBDefaultBodyLimit, "notes.txt", "text/plain", name: "Meeting notes.txt"),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestToken));
@@ -39,8 +39,8 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
         file.Category.ShouldBe("document");
         file.Name.ShouldBe("Meeting notes.txt");
         file.DeclaredMediaType.ShouldBe("text/plain");
-        file.SizeInBytes.ShouldBe(_content.Length);
-        file.Checksum.ShouldBe(Convert.ToHexStringLower(SHA256.HashData(_content)));
+        file.SizeInBytes.ShouldBe(_contentAboveThe64KiBDefaultBodyLimit.Length);
+        file.Checksum.ShouldBe(Convert.ToHexStringLower(SHA256.HashData(_contentAboveThe64KiBDefaultBodyLimit)));
         response.Headers.Location!.ToString().ShouldEndWith($"{_filesRoute}/{file.Id}");
 
         using var read = await client.GetAsync(response.Headers.Location, TestToken);
@@ -54,7 +54,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
 
         using var response = await client.PostAsync(
             new Uri(_uploadsRoute, UriKind.Relative),
-            AForm(_content, "notes.txt", "text/plain"),
+            AForm(_contentAboveThe64KiBDefaultBodyLimit, "notes.txt", "text/plain"),
             TestToken);
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestToken));
 
@@ -66,7 +66,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
             .DescribeAsync(stored!.ObjectKey.Value, TestToken);
 
         description.ShouldNotBeNull();
-        description.SizeInBytes.ShouldBe(_content.Length);
+        description.SizeInBytes.ShouldBe(_contentAboveThe64KiBDefaultBodyLimit.Length);
         description.Checksum.ShouldBe(file.Checksum);
     }
 
@@ -77,7 +77,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
 
         using var response = await client.PostAsync(
             new Uri(_uploadsRoute, UriKind.Relative),
-            AForm(_content, "quarterly.csv", "text/csv"),
+            AForm(_contentAboveThe64KiBDefaultBodyLimit, "quarterly.csv", "text/csv"),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(TestToken));
@@ -89,8 +89,8 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
     {
         var (client, _, _) = await SignInAsync("uploader");
 
-        using var first = await client.PostAsync(new Uri(_uploadsRoute, UriKind.Relative), AForm(_content, "a.txt", "text/plain"), TestToken);
-        using var second = await client.PostAsync(new Uri(_uploadsRoute, UriKind.Relative), AForm(_content, "a.txt", "text/plain"), TestToken);
+        using var first = await client.PostAsync(new Uri(_uploadsRoute, UriKind.Relative), AForm(_contentAboveThe64KiBDefaultBodyLimit, "a.txt", "text/plain"), TestToken);
+        using var second = await client.PostAsync(new Uri(_uploadsRoute, UriKind.Relative), AForm(_contentAboveThe64KiBDefaultBodyLimit, "a.txt", "text/plain"), TestToken);
 
         var one = await ApiJson.ReadAsync<StoredFileResponse>(first, TestToken);
         var two = await ApiJson.ReadAsync<StoredFileResponse>(second, TestToken);
@@ -104,7 +104,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
 
         using var response = await client.PostAsync(
             new Uri(_uploadsRoute, UriKind.Relative),
-            AForm(_content, "picture.png", "image/png"),
+            AForm(_contentAboveThe64KiBDefaultBodyLimit, "picture.png", "image/png"),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

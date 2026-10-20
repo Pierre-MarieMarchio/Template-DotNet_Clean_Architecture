@@ -79,19 +79,21 @@ public sealed class RateLimitingTests(ApiFixture fixture) : IntegrationTestBase(
     public async Task TheAuthenticationPolicy_SharesItsBudget_BetweenTwoSignedInCallersOnTheSameAddress()
     {
         const string sharedAddress = "10.20.30.40";
+        const int registerAndConfirm = 2;
+        const int login = 1;
         int permitsSpent = 0;
 
         var first = CreateClientWithAddress(sharedAddress);
         var second = CreateClientWithAddress(sharedAddress);
 
         var firstUser = await RegisterConfirmedUserAsync(first, "shared-addr-first");
-        permitsSpent += 2;
+        permitsSpent += registerAndConfirm;
 
         await LoginAsync(first, firstUser);
-        permitsSpent += 1;
+        permitsSpent += login;
 
         await RegisterConfirmedUserAsync(second, "shared-addr-second");
-        permitsSpent += 2;
+        permitsSpent += registerAndConfirm;
 
         for (; permitsSpent < _permitsPerMinute; permitsSpent++)
         {

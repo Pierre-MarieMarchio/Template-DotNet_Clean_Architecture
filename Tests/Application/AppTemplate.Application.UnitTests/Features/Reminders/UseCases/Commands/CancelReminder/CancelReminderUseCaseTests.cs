@@ -24,8 +24,6 @@ public sealed class CancelReminderUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -35,10 +33,6 @@ public sealed class CancelReminderUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
     }
-
-    #endregion
-
-    #region Validation
 
     [Fact]
     public async Task AnEmptyReminderId_IsRejected()
@@ -51,10 +45,6 @@ public sealed class CancelReminderUseCaseTests
     [Fact]
     public async Task ANullCommand_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task AMissingReminder_IsReportedAsNotFound()
@@ -82,10 +72,6 @@ public sealed class CancelReminderUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region Concurrency
-
     [Fact]
     public async Task AnUnsatisfiedPrecondition_Fails()
     {
@@ -98,10 +84,6 @@ public sealed class CancelReminderUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
         reminder.State.ShouldBe(ReminderState.Pending);
     }
-
-    #endregion
-
-    #region Domain
 
     [Fact]
     public async Task AnAlreadyFiredReminder_CannotBeCancelled()
@@ -130,10 +112,6 @@ public sealed class CancelReminderUseCaseTests
         reminder.State.ShouldBe(ReminderState.Cancelled);
     }
 
-    #endregion
-
-    #region Success
-
     [Fact]
     public async Task AValidCancel_ChangesTheStateAndCommits()
     {
@@ -145,8 +123,6 @@ public sealed class CancelReminderUseCaseTests
         reminder.State.ShouldBe(ReminderState.Cancelled);
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
-
-    #endregion
 
     private CancelReminderUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new ReminderService(_repository, currentUser), _unitOfWork, _validator);

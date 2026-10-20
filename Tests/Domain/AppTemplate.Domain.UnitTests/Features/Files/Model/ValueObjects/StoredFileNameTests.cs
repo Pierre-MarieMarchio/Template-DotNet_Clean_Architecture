@@ -26,8 +26,6 @@ public sealed class StoredFileNameTests
     public void Create_PreservesNonAsciiCharacters() =>
         StoredFileName.Create("relevé de compte — août.pdf").Value.ShouldBe("relevé de compte — août.pdf");
 
-    #region Path traversal
-
     [Theory]
     [InlineData("../../etc/passwd")]
     [InlineData("..\\..\\windows\\system32\\config\\sam")]
@@ -60,10 +58,6 @@ public sealed class StoredFileNameTests
 
     [Fact]
     public void Create_Accepts_ALeadingDot() => StoredFileName.Create(".gitignore").Value.ShouldBe(".gitignore");
-
-    #endregion
-
-    #region Characters that break whatever saves the file
 
     [Theory]
     [InlineData("report\0.pdf")]
@@ -112,10 +106,6 @@ public sealed class StoredFileNameTests
     public void Create_Accepts_ANameThatMerelyBeginsLikeADeviceName(string value) =>
         Should.NotThrow(() => StoredFileName.Create(value));
 
-    #endregion
-
-    #region Normalisation
-
     [Theory]
     [InlineData("report.pdf.")]
     [InlineData("report.pdf ")]
@@ -126,10 +116,6 @@ public sealed class StoredFileNameTests
     [Fact]
     public void Equality_IgnoresPaddingBecauseTheValueIsNormalised() =>
         StoredFileName.Create("  report.pdf. ").ShouldBe(StoredFileName.Create("report.pdf"));
-
-    #endregion
-
-    #region Bounds
 
     [Theory]
     [InlineData("")]
@@ -159,8 +145,6 @@ public sealed class StoredFileNameTests
 
     [Fact]
     public void TheMaximumLength_IsOnePathComponent() => StoredFileName.MaxLength.ShouldBe(255);
-
-    #endregion
 
     [Fact]
     public void ToString_ReturnsTheNormalisedValue() =>

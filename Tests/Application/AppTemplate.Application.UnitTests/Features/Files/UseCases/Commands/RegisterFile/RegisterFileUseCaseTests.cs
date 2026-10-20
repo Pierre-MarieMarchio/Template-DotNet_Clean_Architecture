@@ -52,8 +52,6 @@ public sealed class RegisterFileUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -80,10 +78,6 @@ public sealed class RegisterFileUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region A store that cannot sign
-
     [Fact]
     public async Task AStoreThatCannotSign_RefusesRegistrationAndWritesNothing()
     {
@@ -104,10 +98,6 @@ public sealed class RegisterFileUseCaseTests
             Arg.Any<TimeSpan>(),
             Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region The category's rules
 
     [Fact]
     public async Task AnUnknownCategory_IsAValidationFailureAndWritesNothing()
@@ -170,10 +160,6 @@ public sealed class RegisterFileUseCaseTests
         staged.ShouldNotBeNull();
         staged.Category.ShouldBe(FileCategory.Create(FilesSettings.Image));
     }
-
-    #endregion
-
-    #region Quota
 
     [Fact]
     public async Task TheCategorysOwnPendingLimit_Binds()
@@ -250,10 +236,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error!.Code.ShouldBe("storedFile.quotaExceeded");
     }
 
-    #endregion
-
-    #region Validation
-
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -307,10 +289,6 @@ public sealed class RegisterFileUseCaseTests
     [Fact]
     public async Task ANullCommand_IsARejectedArgument() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task ARegisteredFile_IsStagedAndCommitted()
@@ -436,8 +414,6 @@ public sealed class RegisterFileUseCaseTests
             Arg.Is<TimeSpan>(lifetime => lifetime > TimeSpan.Zero && lifetime <= TimeSpan.FromHours(1)),
             Arg.Any<CancellationToken>());
     }
-
-    #endregion
 
     private static RegisterFileCommand ACommand() =>
         new(FilesSettings.Image, "holiday.png", AStoredFile.MediaType, AStoredFile.SizeInBytes, AStoredFile.Checksum);

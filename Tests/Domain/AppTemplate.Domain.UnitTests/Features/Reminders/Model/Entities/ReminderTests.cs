@@ -38,8 +38,6 @@ public sealed class ReminderTests
             NextAttemptAt = nextAttemptAt,
         });
 
-    #region Scheduling
-
     [Fact]
     public void Schedule_Rejects_AnAbsentOwner()
     {
@@ -103,10 +101,6 @@ public sealed class ReminderTests
 
     [Fact]
     public void Schedule_GivesEveryReminderADistinctId() => AReminder().Id.ShouldNotBe(AReminder().Id);
-
-    #endregion
-
-    #region Rehydrating
 
     [Fact]
     public void Rehydrate_Rejects_TheDefaultDueDate() =>
@@ -215,10 +209,6 @@ public sealed class ReminderTests
     public void Rehydrate_RaisesNoDomainEvent() =>
         ARehydratedReminder().DomainEvents.ShouldBeEmpty();
 
-    #endregion
-
-    #region Marking as notified
-
     [Fact]
     public void MarkNotified_Rejects_ACancelledReminder()
     {
@@ -249,10 +239,6 @@ public sealed class ReminderTests
         reminder.NotifiedAt.ShouldBe(notifiedAt);
     }
 
-    #endregion
-
-    #region Cancelling
-
     [Fact]
     public void Cancel_MovesAPendingReminderToCancelled()
     {
@@ -282,10 +268,6 @@ public sealed class ReminderTests
 
         reminder.State.ShouldBe(ReminderState.Cancelled);
     }
-
-    #endregion
-
-    #region Rescheduling
 
     [Fact]
     public void Reschedule_MovesAPendingReminderToTheNewDueDate()
@@ -332,10 +314,6 @@ public sealed class ReminderTests
 
         Should.Throw<DomainException>(() => reminder.Reschedule(_now.AddDays(1), _now));
     }
-
-    #endregion
-
-    #region Failed attempts
 
     [Fact]
     public void RecordFailure_CountsTheAttemptAndWaitsBeforeTheNext()
@@ -416,10 +394,6 @@ public sealed class ReminderTests
         reminder.NextAttemptAt.ShouldBe(_now.AddMinutes(4));
     }
 
-    #endregion
-
-    #region Domain events
-
     [Fact]
     public void MarkNotified_RaisesAReminderFiredDomainEvent_WithTheRemindersOwnValues()
     {
@@ -449,10 +423,6 @@ public sealed class ReminderTests
 
     [Fact]
     public void Schedule_RaisesNoDomainEvent() => AReminder().DomainEvents.ShouldBeEmpty();
-
-    #endregion
-
-    #region Stored rows that contradict themselves
 
     [Fact]
     public void Rehydrate_Rejects_AFiredReminderWithNoNotificationInstant() =>
@@ -487,6 +457,4 @@ public sealed class ReminderTests
                 FailedAttempts = 0,
                 NextAttemptAt = null,
             }));
-
-    #endregion
 }

@@ -24,8 +24,6 @@ public sealed class CompleteTodoItemUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -46,10 +44,6 @@ public sealed class CompleteTodoItemUseCaseTests
         await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
@@ -93,10 +87,6 @@ public sealed class CompleteTodoItemUseCaseTests
 
         result.Error!.Code.ShouldBe("todoList.notFound");
     }
-
-    #endregion
-
-    #region Missing item
 
     [Fact]
     public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
@@ -151,10 +141,6 @@ public sealed class CompleteTodoItemUseCaseTests
         otherList.Items.ShouldHaveSingleItem().IsCompleted.ShouldBeFalse();
     }
 
-    #endregion
-
-    #region Invariants surfaced as conflicts
-
     [Fact]
     public async Task AnAlreadyCompletedItem_BecomesAConflict()
     {
@@ -186,10 +172,6 @@ public sealed class CompleteTodoItemUseCaseTests
         list.DomainEvents.ShouldBeEmpty();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task TheItem_IsCompletedAtTheInjectedClocksInstant()
@@ -274,8 +256,6 @@ public sealed class CompleteTodoItemUseCaseTests
         await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
         await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
     }
-
-    #endregion
 
     private CompleteTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _unitOfWork, _clock, new CompleteTodoItemCommandValidator());

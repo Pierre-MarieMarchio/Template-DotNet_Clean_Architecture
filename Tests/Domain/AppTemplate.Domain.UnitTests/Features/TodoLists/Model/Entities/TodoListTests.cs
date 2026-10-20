@@ -16,8 +16,6 @@ public sealed class TodoListTests
     private static TodoList ANewList(string name = "Groceries") =>
         TodoList.Create(UserId.Create(Guid.CreateVersion7()), name, _now);
 
-    #region Creation
-
     [Fact]
     public void Create_AssignsAnIdAnOwnerAndAName()
     {
@@ -70,10 +68,6 @@ public sealed class TodoListTests
     [Fact]
     public void TheItemCap_IsFiveHundredItems() => TodoList.MaxItems.ShouldBe(500);
 
-    #endregion
-
-    #region Rename
-
     [Fact]
     public void Rename_ReplacesAndNormalisesTheName()
     {
@@ -103,10 +97,6 @@ public sealed class TodoListTests
         Should.Throw<DomainException>(() => list.Rename(new string('a', TodoListName.MaxLength + 1)));
         list.Name.Value.ShouldBe("Groceries");
     }
-
-    #endregion
-
-    #region Adding items
 
     [Fact]
     public void AddItem_AppendsAnItemAndReturnsItsId()
@@ -227,10 +217,6 @@ public sealed class TodoListTests
         list.Items.ShouldContain(item => item.Title.Value == "room was made");
     }
 
-    #endregion
-
-    #region Removing items
-
     [Fact]
     public void RemoveItem_DetachesTheItemFromTheList()
     {
@@ -265,10 +251,6 @@ public sealed class TodoListTests
 
         Should.Throw<DomainException>(() => list.RemoveItem(foreignItemId));
     }
-
-    #endregion
-
-    #region Completing and reopening items
 
     [Fact]
     public void CompleteItem_MarksTheItemCompletedAtTheGivenInstant()
@@ -367,10 +349,6 @@ public sealed class TodoListTests
 
         Should.Throw<DomainException>(() => list.ReopenItem(Guid.CreateVersion7(), _now));
     }
-
-    #endregion
-
-    #region Renaming and describing items
 
     [Fact]
     public void UpdateItem_ReplacesTheTitleAndDescription()
@@ -487,10 +465,6 @@ public sealed class TodoListTests
         list.Items.ShouldHaveSingleItem().Title.Value.ShouldBe("Buy milk");
     }
 
-    #endregion
-
-    #region Replacing an item's tags
-
     [Fact]
     public void SetItemTags_ReplacesTheWholeSet()
     {
@@ -544,10 +518,6 @@ public sealed class TodoListTests
 
         Should.Throw<ArgumentNullException>(() => list.SetItemTags(itemId, null!));
     }
-
-    #endregion
-
-    #region Tagging items
 
     [Fact]
     public void AddTagToItem_AttachesTheNormalisedTag()
@@ -654,10 +624,6 @@ public sealed class TodoListTests
         Should.Throw<DomainException>(() => list.RemoveTagFromItem(Guid.CreateVersion7(), "urgent"));
     }
 
-    #endregion
-
-    #region Encapsulation
-
     [Fact]
     public void Items_IsExposedAsAReadOnlyCollection() =>
         typeof(TodoList).GetProperty(nameof(TodoList.Items))!.PropertyType
@@ -684,10 +650,6 @@ public sealed class TodoListTests
         typeof(TodoList).GetConstructors().ShouldBeEmpty();
         typeof(TodoItem).GetConstructors().ShouldBeEmpty();
     }
-
-    #endregion
-
-    #region Domain events
 
     [Fact]
     public void Create_RaisesExactlyOneCreationEvent()
@@ -783,10 +745,6 @@ public sealed class TodoListTests
         ]);
     }
 
-    #endregion
-
-    #region Identity
-
     [Fact]
     public void TwoDistinctLists_AreNotEqual()
     {
@@ -795,6 +753,4 @@ public sealed class TodoListTests
 
         left.Equals(right).ShouldBeFalse();
     }
-
-    #endregion
 }

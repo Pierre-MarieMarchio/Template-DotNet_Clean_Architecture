@@ -125,7 +125,8 @@ public sealed class IdempotencyTests(ApiFixture fixture) : IntegrationTestBase(f
     {
         var (client, _, _) = await SignInAsync();
 
-        string oversized = new('a', 129);
+        const int defaultMaxKeyLength = 128;
+        string oversized = new('a', defaultMaxKeyLength + 1);
 
         using var response = await PostAsync(client, oversized, new CreateTodoListRequest("Groceries"));
 

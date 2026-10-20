@@ -34,8 +34,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region A clean file
-
     [Fact]
     public async Task ADepositWhoseContentMatchesWhatWasDeclared_IsMadeAvailable()
     {
@@ -60,10 +58,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
         storedFile.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<StoredFileMadeAvailableDomainEvent>();
     }
-
-    #endregion
-
-    #region A refused file
 
     [Fact]
     public async Task ADepositWhoseContentContradictsWhatWasDeclared_IsQuarantined()
@@ -102,10 +96,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
         storedFile.ObjectKey.ShouldBe(keyBefore);
     }
-
-    #endregion
-
-    #region No verdict
 
     [Fact]
     public async Task AFileThatCouldNotBeInspected_IsDeferredAndTheDeferralCommitted()
@@ -178,10 +168,6 @@ public sealed class InspectDepositedFilesUseCaseTests
         clean.State.ShouldBe(StoredFileState.Available);
         await _unitOfWork.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region The pass itself
 
     [Fact]
     public async Task APassWithNothingToInspect_CommitsNothing()
@@ -258,10 +244,6 @@ public sealed class InspectDepositedFilesUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region One host at a time
-
     [Fact]
     public async Task TheLeaseHeldByAnotherHost_LeavesThePassUndone()
     {
@@ -287,10 +269,6 @@ public sealed class InspectDepositedFilesUseCaseTests
 
         _lease.RequestedNames.ShouldBe(["apptemplate.files.inspect-deposited"]);
     }
-
-    #endregion
-
-    #region What the category decides
 
     [Fact]
     public async Task TheScanner_IsGivenTheConfirmedSize()
@@ -364,8 +342,6 @@ public sealed class InspectDepositedFilesUseCaseTests
             Arg.Any<long>(),
             Arg.Any<CancellationToken>());
     }
-
-    #endregion
 
     private static StoredFile ADepositedFile() => AStoredFile.DepositedOwnedBy(_ownerId);
 

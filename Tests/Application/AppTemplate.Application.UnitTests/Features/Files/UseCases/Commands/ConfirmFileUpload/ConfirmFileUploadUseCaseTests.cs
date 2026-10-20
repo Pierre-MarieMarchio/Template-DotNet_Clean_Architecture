@@ -24,8 +24,6 @@ public sealed class ConfirmFileUploadUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication and ownership
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -74,10 +72,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
         foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
     }
-
-    #endregion
-
-    #region The deposit
 
     [Fact]
     public async Task AFileWithNothingDeposited_IsReportedAndLeftPending()
@@ -159,10 +153,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         storedFile.State.ShouldBe(StoredFileState.Deposited);
     }
 
-    #endregion
-
-    #region Success
-
     [Fact]
     public async Task AMatchingDeposit_RecordsTheDepositAndCommits()
     {
@@ -217,8 +207,6 @@ public sealed class ConfirmFileUploadUseCaseTests
     [Fact]
     public async Task ANullCommand_IsARejectedArgument() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    #endregion
 
     private StoredFile GivenTheCallerOwnsAPendingFile()
     {

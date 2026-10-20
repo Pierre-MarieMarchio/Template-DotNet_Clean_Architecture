@@ -6,8 +6,6 @@ namespace AppTemplate.Application.Core.UnitTests.Common.Results;
 
 public sealed class PagedResultTests
 {
-    #region Offset mode
-
     [Theory]
     [InlineData(0, 10, 0)]
     [InlineData(1, 10, 1)]
@@ -50,10 +48,6 @@ public sealed class PagedResultTests
     [Fact]
     public void AnOffsetPage_CarriesNoCursor() => AnOffsetPage(1, 10, 25).NextCursor.ShouldBeNull();
 
-    #endregion
-
-    #region Cursor mode
-
     [Fact]
     public void AKeysetPage_CarriesNoTotalCountOrPageNumber()
     {
@@ -71,8 +65,6 @@ public sealed class PagedResultTests
     [Fact]
     public void AKeysetPage_HasNoNextPage_WhenNoCursorWasMinted() =>
         AKeysetPage(10, null).HasNextPage.ShouldBeFalse();
-
-    #endregion
 
     private static PagedResult<string> AnOffsetPage(int page, int pageSize, int totalCount) =>
         PagedResult.Offset<string>([], page, pageSize, totalCount);

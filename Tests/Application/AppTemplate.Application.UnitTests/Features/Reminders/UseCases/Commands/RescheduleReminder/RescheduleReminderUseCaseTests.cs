@@ -25,8 +25,6 @@ public sealed class RescheduleReminderUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -36,10 +34,6 @@ public sealed class RescheduleReminderUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
     }
-
-    #endregion
-
-    #region Validation
 
     [Fact]
     public async Task AnEmptyReminderId_IsRejected()
@@ -54,10 +48,6 @@ public sealed class RescheduleReminderUseCaseTests
     public async Task ANullCommand_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
 
-    #endregion
-
-    #region Ownership
-
     [Fact]
     public async Task AMissingReminder_IsReportedAsNotFound()
     {
@@ -70,10 +60,6 @@ public sealed class RescheduleReminderUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.NotFound);
     }
-
-    #endregion
-
-    #region Domain
 
     [Fact]
     public async Task ANewDueDateInThePast_IsReportedAsAConflict()
@@ -102,10 +88,6 @@ public sealed class RescheduleReminderUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Conflict);
     }
 
-    #endregion
-
-    #region Concurrency
-
     [Fact]
     public async Task AnUnsatisfiedPrecondition_Fails()
     {
@@ -118,10 +100,6 @@ public sealed class RescheduleReminderUseCaseTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task AValidReschedule_MovesTheDueDateAndCommits()
@@ -136,8 +114,6 @@ public sealed class RescheduleReminderUseCaseTests
         reminder.DueAt.ShouldBe(newDueAt);
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
-
-    #endregion
 
     private RescheduleReminderUseCase UseCaseFor(ICurrentUser currentUser) => new(
         new ReminderService(_repository, currentUser),

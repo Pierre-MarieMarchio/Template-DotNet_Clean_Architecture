@@ -56,8 +56,6 @@ public sealed class RegisterUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region The three states of the address
-
     [Fact]
     public async Task AnUnknownAddress_CreatesTheAccountAndMailsAConfirmationLink()
     {
@@ -216,10 +214,6 @@ public sealed class RegisterUseCaseTests
         await _emailSender.Received(1).SendAsync(_email, Arg.Any<string>(), Arg.Any<string>(), cancellation.Token);
     }
 
-    #endregion
-
-    #region Request-only refusals
-
     [Theory]
     [InlineData("", _password)]
     [InlineData("not-an-email", _password)]
@@ -268,8 +262,6 @@ public sealed class RegisterUseCaseTests
         _emailSender.ReceivedCalls().ShouldBeEmpty();
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
-
-    #endregion
 
     private static RegisterCommand AValidRequest() => new(_email, _password);
 

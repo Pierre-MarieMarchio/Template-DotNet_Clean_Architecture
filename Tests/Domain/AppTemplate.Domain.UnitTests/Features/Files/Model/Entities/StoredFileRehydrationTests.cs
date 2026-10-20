@@ -49,8 +49,6 @@ public sealed class StoredFileRehydrationTests
             Tags = tags ?? [],
         });
 
-    #region What a stored row must carry
-
     [Fact]
     public void Rehydrate_Rejects_AnAbsentSnapshot() =>
         Should.Throw<ArgumentNullException>(() => StoredFile.Rehydrate(null!));
@@ -151,10 +149,6 @@ public sealed class StoredFileRehydrationTests
                 Tags = [],
             }));
 
-    #endregion
-
-    #region Rows that contradict themselves
-
     [Fact]
     public void Rehydrate_Rejects_AnAvailableFileWithNoAvailabilityInstant()
     {
@@ -183,20 +177,12 @@ public sealed class StoredFileRehydrationTests
     public void Rehydrate_Accepts_AFileThatIsNotAvailableWithNoInstant(StoredFileState state) =>
         Rehydrate(state: state).State.ShouldBe(state);
 
-    #endregion
-
-    #region Rows that only look contradictory
-
     [Fact]
     public void Rehydrate_DoesNotCheckThatTheConfirmationFollowsTheRegistration() =>
         Should.NotThrow(
             () => Rehydrate(
                 state: StoredFileState.Available,
                 availableAt: _registeredAt.AddMinutes(-5)));
-
-    #endregion
-
-    #region Inspection retry state
 
     [Fact]
     public void Rehydrate_Rejects_ANegativeNumberOfInspectionAttempts() =>
@@ -228,10 +214,6 @@ public sealed class StoredFileRehydrationTests
                 availableAt: _registeredAt.AddMinutes(5),
                 inspectionAttempts: 1,
                 nextInspectionAt: _registeredAt.AddMinutes(2)));
-
-    #endregion
-
-    #region What a loaded file is
 
     [Fact]
     public void Rehydrate_RestoresTheStoredIdentityAndValues()
@@ -318,6 +300,4 @@ public sealed class StoredFileRehydrationTests
         Rehydrate(state: StoredFileState.Pending, registeredAt: _registeredAt.AddDays(-7))
             .IsAbandoned(_registeredAt, TimeSpan.FromHours(1))
             .ShouldBeTrue();
-
-    #endregion
 }

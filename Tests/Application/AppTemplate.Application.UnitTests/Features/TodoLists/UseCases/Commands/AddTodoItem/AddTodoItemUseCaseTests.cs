@@ -24,8 +24,6 @@ public sealed class AddTodoItemUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -45,10 +43,6 @@ public sealed class AddTodoItemUseCaseTests
         await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Validation
 
     [Theory]
     [InlineData("")]
@@ -144,10 +138,6 @@ public sealed class AddTodoItemUseCaseTests
     public async Task ANullCommand_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
 
-    #endregion
-
-    #region Ownership
-
     [Fact]
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
@@ -190,10 +180,6 @@ public sealed class AddTodoItemUseCaseTests
         foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
         foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
     }
-
-    #endregion
-
-    #region Invariants surfaced as conflicts
 
     [Fact]
     public async Task ADuplicateTitle_BecomesAConflict()
@@ -243,10 +229,6 @@ public sealed class AddTodoItemUseCaseTests
 
         result.Error!.Message.ShouldContain("Buy milk");
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task AValidCommand_AddsTheItemAndReturnsItsId()
@@ -347,8 +329,6 @@ public sealed class AddTodoItemUseCaseTests
         await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
         await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
     }
-
-    #endregion
 
     private static AddTodoItemCommand ACommandFor(Guid todoListId, string title = "Buy milk") =>
         new(todoListId, title, null, null);

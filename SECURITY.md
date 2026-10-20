@@ -60,11 +60,12 @@ against your production system.
   deliberately not zero: the issuer stamps the token from the injected clock while validation reads
   the machine's, so at zero tolerance one backward step — an NTP correction, a resumed VM — refuses
   every token in circulation at once. It is far below the framework's five-minute default.
-- **Resistance to account enumeration.** Login does not distinguish an unknown user from a wrong
+- **Resistance to account enumeration on login, confirm-email and resend-confirmation.** Login
+  does not distinguish an unknown user from a wrong
   password, *including in timing* — `AccountsService` runs a deliberate decoy-hash path built
   from the configured hasher, so both branches cost the same. Confirm-email answers identically for
   an unknown address and a bad token. Resend-confirmation answers identically whether or not the
-  address exists.
+  address exists. Registration is not covered: see "Known gaps".
 - **Email confirmation is a POST with a JSON body**, not a GET with a query string, to keep a
   single-use token out of access logs, browser history and the `Referer` header.
 - **Two-factor sign-in via an authenticator app (TOTP)**, built entirely on ASP.NET Core Identity's
@@ -606,6 +607,11 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   the expensive part is constant, but a wrong password writes an access-failure count where an
   unknown address does not. It is far smaller than the hash and always the same sign, so it is
   extractable by averaging. Making it nil would mean writing for a user that does not exist.
+- **Registration tells a caller whether an address is taken.** `POST /api/v1/auth/register`
+  answers `409` `auth.register.unavailable` when the user name or the email is already in use; the
+  authentication rate limit (10 a minute per client address by default) slows the reading and does
+  not prevent it. Closing it means a silent registration that answers the same either way and mails
+  the address's owner — a separate flow, which this template does not ship.
 - **A rotation whose response is lost ends every session.** The rotation commits, the response never
   reaches the client, and the client presents the consumed token again: by the rules that is a
   replay, so every session of the account ends and the replay is recorded. It is the known cost of

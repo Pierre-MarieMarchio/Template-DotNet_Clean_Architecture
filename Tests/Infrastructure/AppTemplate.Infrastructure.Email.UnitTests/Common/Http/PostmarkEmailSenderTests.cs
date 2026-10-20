@@ -166,8 +166,7 @@ public sealed class PostmarkEmailSenderTests : IDisposable
     /// The decision this adapter is built around. The hosts' outbound policy replays only the safe
     /// verbs, so a send is attempted once — and nothing here adds a retry of its own, because the
     /// provider's endpoint takes no idempotency key and a replay is a second delivery a recipient can
-    /// see. A failed send travels out as an exception; <c>RegisterUseCase</c> already turns that into
-    /// <c>confirmationEmailSent: false</c>, with the resend endpoint as the recovery path.
+    /// see. A failed send travels out as an exception, for the caller to recover from.
     /// </summary>
     [Fact]
     public async Task SendAsync_AttemptsARefusedSendExactlyOnce()

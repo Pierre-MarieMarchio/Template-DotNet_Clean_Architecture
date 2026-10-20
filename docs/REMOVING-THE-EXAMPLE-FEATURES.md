@@ -782,7 +782,8 @@ And the fixture and helper code, which the compiler finds for you:
   anonymous `POST /api/v1/auth/register` instead, which needs no session set up first.
   `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs`'s
   "an authored error keeps its code" case needs a different status: no authored 404 exists outside
-  the example features, so a 409 from registering the same address twice proves the same property.
+  the example features, so a 401 `auth.login.invalidCredentials` from signing in with an unknown
+  address proves the same property.
 
 ## If you are keeping some and removing others
 

@@ -415,8 +415,8 @@ of the transport.
 and sending mail is a `POST`.
 <!--#if (localAuth)-->
 That matches a decision this template already made: `RegisterUseCase`
-treats a delivery failure as a success carrying `confirmationEmailSent: false`, because the account
-was created and the caller can ask for the mail again.
+answers a delivery failure exactly as a delivered mail, because the account was created and the
+caller can ask for the mail again.
 <!--#endif-->
 
 ### `Postmark`
@@ -1059,7 +1059,7 @@ Creates an administrator account at startup.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Enabled` | bool | `false` | Opt-in. Additionally, `IdentitySeeder` **throws** if this is true outside the Development environment. |
-| `AdminEmail` | string | `""` | Required when enabled. |
+| `AdminEmail` | string | `""` | Required when enabled. The administrator's only identifier: it signs in with this address. |
 | `AdminPassword` | string | `""` | **Required when enabled, and has no default.** Supply via user secrets or an env var. |
 
 > **Warning.** Enabling this creates a privileged account with the `Admin` role and a

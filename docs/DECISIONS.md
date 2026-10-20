@@ -315,6 +315,26 @@ caller's ends, so a session opened with a withdrawn passkey — a lost authentic
 outlive the withdrawal. A token naming no session spares nothing, as for a password change.
 <!--#endif-->
 
+<!--#if (localAuth)-->
+**The email is the account's only identifier.** A separate user name was a second identifier to
+choose, validate, keep unique and display, and a second value whose collision registration had to
+report. The application carries none. ASP.NET Identity requires `UserName`, so the column stays and
+is kept equal to the email: set at creation, taken from the address for an account provisioned
+through a provider, and moved in the same update when an email change is confirmed. Identity's
+allowed-character set is cleared, since the address's own validation is the rule for it. A project
+that wants a display name adds it as profile data, never as a second way to sign in.
+<!--#endif-->
+
+<!--#if (localAuth)-->
+**Registration never says whether an address is taken.** Every well-formed request answers `202`
+with one body, and the submitted address learns by mail what happened: a confirmation link, a fresh
+one, or a notice that it already has an account. Refusals of the submitted values themselves stay
+`400` and are judged before the address is looked up, so their order reveals nothing. The cost is a
+client that cannot say "that address is taken" inline; the mail says it instead, to the only person
+entitled to know. An email change naming a taken address follows the same rule.
+`RegisterUseCaseTests` and `RegistrationFlowTests` hold it.
+<!--#endif-->
+
 **No MediatR, no dispatcher, no pipeline behaviours.** A controller names the use case it calls, and
 `F12` reaches the implementation: the call graph is a call graph, and the compiler checks the wiring
 instead of a runtime registry. MediatR would add a `Command` type, a `Handler` type, an `IRequest<>`

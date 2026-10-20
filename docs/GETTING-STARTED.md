@@ -124,10 +124,10 @@ it, run that `curl` alone and copy `tokens.accessToken` into `TOKEN` by hand.
 ```bash
 API=http://localhost:5187     # host run; http://localhost:8080 under Compose
 
-# 1. create an account (200; confirmationEmailSent tells you whether the mail went out)
+# 1. create an account — 202 {"status":"pending"} whatever the address's state; the mail says what happened
 curl -s -X POST "$API/api/v1/auth/register" \
   -H 'Content-Type: application/json' \
-  -d '{"userName":"alice","email":"alice@example.com","password":"Passw0rd!x"}'
+  -d '{"email":"alice@example.com","password":"Passw0rd!x"}'
 
 # 2. open http://localhost:8025, click the confirmation mail, and POST what it carries
 curl -s -X POST "$API/api/v1/auth/confirm-email" \

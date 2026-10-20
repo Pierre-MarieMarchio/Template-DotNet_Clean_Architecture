@@ -60,12 +60,20 @@ against your production system.
   deliberately not zero: the issuer stamps the token from the injected clock while validation reads
   the machine's, so at zero tolerance one backward step — an NTP correction, a resumed VM — refuses
   every token in circulation at once. It is far below the framework's five-minute default.
-- **Resistance to account enumeration on login, confirm-email and resend-confirmation.** Login
-  does not distinguish an unknown user from a wrong
-  password, *including in timing* — `AccountsService` runs a deliberate decoy-hash path built
-  from the configured hasher, so both branches cost the same. Confirm-email answers identically for
-  an unknown address and a bad token. Resend-confirmation answers identically whether or not the
-  address exists. Registration is not covered: see "Known gaps".
+- **Resistance to account enumeration on registration, login, confirm-email, resend-confirmation
+  and email change.** Registration answers `202` with the same body whatever the state of the
+  address, and the address learns by mail what happened: a confirmation link for a new account, a
+  fresh link for one still unconfirmed, a notice with sign-in and password-reset hints (and no
+  token) for a confirmed one. The submitted values are judged before the address is looked up, so a
+  password-policy or format refusal reads the same either way, and both branches hash the password
+  once and send one mail inline; two simultaneous registrations of one address are settled by the
+  unique index, the loser answering as for a taken address. Login does not distinguish an unknown
+  user from a wrong password, *including in timing* — `AccountsService` runs a deliberate
+  decoy-hash path built from the configured hasher, so both branches cost the same. Confirm-email
+  answers identically for an unknown address and a bad token. Resend-confirmation answers
+  identically whether or not the address exists. An email change naming an address another account
+  holds answers as one naming a free address does, and mails that address the same notice instead
+  of a link. Passkey sign-in takes no address: its options name no credential.
 - **Email confirmation is a POST with a JSON body**, not a GET with a query string, to keep a
   single-use token out of access logs, browser history and the `Referer` header.
 - **Two-factor sign-in via an authenticator app (TOTP)**, built entirely on ASP.NET Core Identity's
@@ -555,13 +563,13 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
 <!--#endif-->
 
 <!--#if (localAuth)-->
-- **Sending mail inside the request leaks which addresses exist, by timing.** Forgot-password,
-  resend-confirmation and change-email all answer identically and log nothing, but each awaits an
-  SMTP round trip — connection, STARTTLS, AUTH, DATA — **only on the branch where the account
-  exists**. The difference is orders of magnitude, needs no averaging to read, and grows further
-  when the relay is slow or down. Change-email is authenticated, so any registered user can test an
-  arbitrary address this way. The "including in timing" claim above holds for `/login`, which was
-  written for it, and not for these three.
+- **Sending mail inside the request leaks which addresses exist, by timing.** Forgot-password and
+  resend-confirmation answer identically and log nothing, but each awaits an SMTP round trip —
+  connection, STARTTLS, AUTH, DATA — **only on the branch where a mail is owed**. The difference is
+  orders of magnitude, needs no averaging to read, and grows further when the relay is slow or
+  down. Registration and change-email send one mail on every branch, so they do not have this gap;
+  the "including in timing" claim above holds for `/login`, which was written for it, and not for
+  these two.
   Closing it means taking delivery off the request: queue the message durably and answer on both
   branches at once. A detached task is not the fix — it drops the mail on the next deployment — and
   neither is a fixed delay, which would have to exceed the relay's own variance to hide anything.
@@ -629,11 +637,6 @@ Stated here rather than left to be discovered. None of these is a hypothetical.
   the expensive part is constant, but a wrong password writes an access-failure count where an
   unknown address does not. It is far smaller than the hash and always the same sign, so it is
   extractable by averaging. Making it nil would mean writing for a user that does not exist.
-- **Registration tells a caller whether an address is taken.** `POST /api/v1/auth/register`
-  answers `409` `auth.register.unavailable` when the user name or the email is already in use; the
-  authentication rate limit (10 a minute per client address by default) slows the reading and does
-  not prevent it. Closing it means a silent registration that answers the same either way and mails
-  the address's owner — a separate flow, which this template does not ship.
 - **A rotation whose response is lost ends every session.** The rotation commits, the response never
   reaches the client, and the client presents the consumed token again: by the rules that is a
   replay, so every session of the account ends and the replay is recorded. It is the known cost of

@@ -769,12 +769,18 @@ answer here.
 a feature?** If it names a business type, it goes in a `Common/` folder of the business project —
 the domain project's for the domain half, the application project's for the application one. If it
 names no business type and never would, it goes one project inwards, into the layer's `.Core`, and
-a feature adds nothing to those. `Common/Tagging/` is the worked example of the first
+a feature adds nothing to those.
+<!--#if (tagging)-->
+`Common/Tagging/` is the worked example of the first
 answer: tagging is one rule for every feature that tags something, so `Tag` and `TagSet` sit in the
 domain's `Common/Tagging/` and `TagValidation` in the application's, and the folder stays as long as
 one tagged feature does. The test that put
 them there is mechanical rather than a matter of taste — `TagSet` names `Tag`, and a
-`.Core` project may name no business type. What is *not* there is as instructive: the
+`.Core` project may name no business type.
+<!--#else-->
+The test is mechanical rather than a matter of taste: a `.Core` project may name no business type.
+<!--#endif-->
+What is *not* there is as instructive: the
 ownership check every feature performs and the paginated read every feature exposes are
 both duplicated and both agnostic, so they belong inwards and not here.
 

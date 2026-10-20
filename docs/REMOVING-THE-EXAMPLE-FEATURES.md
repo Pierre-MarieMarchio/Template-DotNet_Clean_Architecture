@@ -207,7 +207,9 @@ you to open one of them. Nor do the three written to the same grade further out:
 `AppTemplate.Presentation.Core` is host machinery, and `AppTemplate.Infrastructure.Core` holds the
 mail template engine and the cache adapter. None of the five names an example feature, which is
 what makes this a list of directories. The HTTP mechanisms under `AppTemplate.Api/Common/` name
-none either, so they stay when the example controllers go. `AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
+none either, so they stay when the example controllers go.
+<!--#if (todoLists && files)-->
+`AppTemplate.Domain` and `AppTemplate.Application` hold the business, and
 in this template that is `Features/` **plus one `Common/Tagging/` per layer**, which is the one
 thing two features share *as business*: `TodoLists` and `Files` are both tagged, by the same rule.
 
@@ -233,6 +235,37 @@ and leaves with that folder. What does **not** leave is the mechanism: `ICacheSt
 cross-cutting port and `AddCacheStore()` is one line of the host's composition, so a tree with
 every example removed keeps a working cache with nothing yet reading through it. Delete that line
 only if you also mean to drop the capability.
+<!--#elseif (todoLists)-->
+`AppTemplate.Domain` and `AppTemplate.Application` hold the business, and in this project that is
+`Features/` **plus one `Common/Tagging/` per layer**: `TodoLists` is tagged, by a rule a second
+tagged feature would share.
+
+So a removal touches a feature folder here, one of the composition files named in
+[What to edit](#what-to-edit), and — when `TodoLists` goes — `Common/Tagging/` too, since nothing is
+left tagged: in both layers, along with its own tests and the two vocabulary entries in
+`LayoutConventionTests`. Its `GET .../tags` route reads through `ICacheStore`, and
+`UsedTagsCache`, which holds the key and the lifetime of that read, sits in `Src/Application/AppTemplate.Application/Common/Tagging/` and leaves with that
+folder. What does **not** leave is the mechanism: `ICacheStore` is a cross-cutting port and
+`AddCacheStore()` is one line of the host's composition, so the tree keeps a working cache with
+nothing yet reading through it. Delete that line only if you also mean to drop the capability.
+<!--#elseif (files)-->
+`AppTemplate.Domain` and `AppTemplate.Application` hold the business, and in this project that is
+`Features/` **plus one `Common/Tagging/` per layer**: `Files` is tagged, by a rule a second
+tagged feature would share.
+
+So a removal touches a feature folder here, one of the composition files named in
+[What to edit](#what-to-edit), and — when `Files` goes — `Common/Tagging/` too, since nothing is
+left tagged: in both layers, along with its own tests and the two vocabulary entries in
+`LayoutConventionTests`. Its `GET .../tags` route reads through `ICacheStore`, and
+`UsedTagsCache`, which holds the key and the lifetime of that read, sits in `Src/Application/AppTemplate.Application/Common/Tagging/` and leaves with that
+folder. What does **not** leave is the mechanism: `ICacheStore` is a cross-cutting port and
+`AddCacheStore()` is one line of the host's composition, so the tree keeps a working cache with
+nothing yet reading through it. Delete that line only if you also mean to drop the capability.
+<!--#else-->
+`AppTemplate.Domain` and `AppTemplate.Application` hold the business, and in this project that is
+`Features/` alone: no two features share a business type, so a removal touches a feature folder
+here and one of the composition files named in [What to edit](#what-to-edit).
+<!--#endif-->
 
 If your own project has since added anything else to a `Features/`-adjacent `Common/`, check the
 same way: whether what you are deleting was its only consumer.

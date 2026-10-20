@@ -144,9 +144,14 @@ agnostic half of a layer — `Result`, `Error`, `PageRequest`, `SortOrder`, `IUn
 `ICurrentUser`, `AggregateRoot<TId>`, `IDomainEvent`, `UserId` — and nothing in it may know a
 feature; `<Layer>/Common/` is the business-shared half, what several features share *as business*.
 The sorting test is one question — **does it know a feature?** — and
+<!--#if (tagging)-->
 [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#two-folders-called-common) holds the rule, the worked
 example (`Common/Tagging/`, in both business layers) and the vocabulary test that holds both
 folders.
+<!--#else-->
+[`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#two-folders-called-common) holds the rule and the
+vocabulary test that holds both folders.
+<!--#endif-->
 
 `AppTemplate.Application.Core` is the same shape one layer out, and it holds the application layer's
 *mechanisms* rather than any of its business: `Result` and `Error`, the `IUseCase` marker every
@@ -226,10 +231,16 @@ door: `Scalar.AspNetCore`, `Microsoft.AspNetCore.OpenApi`,
 **The portability is checked for everything under the HTTP host, not only for this project.**
 `PortabilityTests` reads the project files and their `ProjectReference` closure and fails if the
 domain, the application, the infrastructure projects or `AppTemplate.Presentation.Core` declare the
+<!--#if (localAuth)-->
 ASP.NET shared framework, use the Web SDK or reference an ASP.NET Core package. The one exemption is
 `AppTemplate.Infrastructure.Auth`, whose `Microsoft.AspNetCore.Authentication.JwtBearer` is the
 bearer-token handler of the ASP.NET authentication pipeline and carries the framework in its own
 nuspec; the test names it with that reason and fails if the reason stops being true.
+<!--#else-->
+ASP.NET shared framework, use the Web SDK or reference an ASP.NET Core package. It exempts none of
+them; an exemption would have to be named in the test with its reason, which the test checks stays
+true.
+<!--#endif-->
 
 **One telemetry registration, and three things it takes from the host rather than deciding.** This
 is the first question a reader has about a shared `AddObservability` — then how does each host get

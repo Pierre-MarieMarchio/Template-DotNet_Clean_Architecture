@@ -45,13 +45,21 @@ project was generated with.
 ```
 AppTemplate.Domain.Core         Common/{Abstractions,Events,Exceptions,Primitives}
                                 no Features/: a primitive belongs to no feature
+<!--#if (tagging)-->
 AppTemplate.Domain              Common/{Tagging}
                                 Features/<F>/{Model/{Entities,Events,ValueObjects},Repositories}
+<!--#else-->
+AppTemplate.Domain              Features/<F>/{Model/{Entities,Events,ValueObjects},Repositories}
+<!--#endif-->
 AppTemplate.Application.Core    Common/{Collections,Concurrency,Events,Idempotency,Localization,
                                         Ownership,Policies,Ports,Results,UseCases,Validation}
                                 Features/{Maintenance,DeletedAccounts}/UseCases/Commands/<Operation>
+<!--#if (tagging)-->
 AppTemplate.Application         Common/{Tagging}
                                 Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
+<!--#else-->
+AppTemplate.Application         Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
+<!--#endif-->
                                               Ports/<Port>,
                                               Model/{Dtos,Errors,Mapping,Policies},
                                               Services/Consumers/<Event>,
@@ -139,6 +147,7 @@ architecture test holds now that the compiler no longer does.
 to, the moment a second feature used it — it belongs in the business project's `Common/`. If it
 does not and never will, it belongs one project inwards.
 
+<!--#if (todoLists && files)-->
 `Common/Tagging/` is the worked example, in both business layers. A to-do item and a stored file
 are both tagged, and by the same rule — a tag is held once however many times it is sent, a cap
 bounds how many one thing carries, and a replacement is total rather than a merge — so `TagSet`
@@ -148,6 +157,32 @@ generic shape, a bounded de-duplicating collection, would have been agnostic; wh
 is not. The application half holds `TagValidation`, so a caller gets one 400 naming every tag it
 got wrong rather than the first, and `UsedTagsCache`, which is where the key and the lifetime of
 the used-tag read are decided once instead of once per feature.
+<!--#elseif (todoLists)-->
+`Common/Tagging/` is the worked example, in both business layers. A to-do item is
+tagged by a rule every tagged feature will share — a tag is held once however many times it is sent, a cap
+bounds how many one thing carries, and a replacement is total rather than a merge — so `TagSet`
+states it once and the to-do list aggregate owns one. **The test that put it there rather than one project
+inwards is mechanical: `TagSet` names `Tag`, and a `.Core` project may name no business type.** Its
+generic shape, a bounded de-duplicating collection, would have been agnostic; what it actually is
+is not. The application half holds `TagValidation`, so a caller gets one 400 naming every tag it
+got wrong rather than the first, and `UsedTagsCache`, which is where the key and the lifetime of
+the used-tag read are decided once instead of once per feature.
+<!--#elseif (files)-->
+`Common/Tagging/` is the worked example, in both business layers. A stored file is
+tagged by a rule every tagged feature will share — a tag is held once however many times it is sent, a cap
+bounds how many one thing carries, and a replacement is total rather than a merge — so `TagSet`
+states it once and the stored file aggregate owns one. **The test that put it there rather than one project
+inwards is mechanical: `TagSet` names `Tag`, and a `.Core` project may name no business type.** Its
+generic shape, a bounded de-duplicating collection, would have been agnostic; what it actually is
+is not. The application half holds `TagValidation`, so a caller gets one 400 naming every tag it
+got wrong rather than the first, and `UsedTagsCache`, which is where the key and the lifetime of
+the used-tag read are decided once instead of once per feature.
+<!--#else-->
+This project has no business `Common/` yet: no two of its features share a business type. The
+first rule that two features share and that names one of their types — a tag set held by two
+aggregates, say — is what earns the domain and application projects their first `Common/`
+folder.
+<!--#endif-->
 
 What is *not* there is as informative. The ownership check every feature performs and the paginated
 read every feature exposes are both duplicated and both agnostic — they name no feature and never

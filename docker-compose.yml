@@ -332,7 +332,7 @@ services:
     ports:
       # The S3 API — what Files__Storage__S3__Endpoint points at, and the only port published.
       # The image has no console to publish: browse what landed with any S3 client against it.
-      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:${OBJECT_STORE_HOST_PORT:-9000}:9000"
     volumes:
       - objectstore-data:/data
     healthcheck:

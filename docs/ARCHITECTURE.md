@@ -440,9 +440,10 @@ implementation has already given that away.
 <!--#if (localAuth)-->
 The authentication ports are the interesting ones. There are fourteen of them, one per
 intent, rather than one `IAuthService`, and the split is what keeps the
-*sequencing* in Application: `RegisterUseCase` creates the account, then mints a
-confirmation token, then composes and sends the mail through `IEmailSender`, and
-decides that a delivery failure is a success carrying `confirmationEmailSent: false`.
+*sequencing* in Application: `RegisterUseCase` registers the address or finds it taken,
+then chooses the one mail the address receives — a freshly minted confirmation token or
+the notice that it already has an account — sends it through `IEmailSender`, and decides
+that a delivery failure changes nothing in the answer.
 `RefreshAccessTokenUseCase` rotates the presented grant, then revalidates the
 account, then revokes the whole family if it may no longer sign in. Each port is one
 intent an adapter can satisfy on its own, and none declares more than six operations,
@@ -1057,8 +1058,8 @@ business write, with nothing staged but its own row.
 `SaveChangesAsync` themselves: `UserManager.CreateAsync` commits before it returns, and
 that is framework behaviour rather than a choice. Registration is therefore explicitly
 not atomic — the account is committed before the confirmation email is handed to the
-relay, `RegisterResponse` reports `ConfirmationEmailSent = false` when delivery fails,
-and a resend endpoint exists so the user is not stuck. Verified by request.
+relay, a delivery failure changes nothing in the response, and the resend endpoint
+(or registering again) produces another link, so the user is not stuck. Verified by request.
 <!--#endif-->
 
 **Where a lost update becomes an HTTP response.** `EfUnitOfWork` is the one place a

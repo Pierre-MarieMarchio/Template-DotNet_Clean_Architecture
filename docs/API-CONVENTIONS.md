@@ -420,7 +420,7 @@ and French ship.
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/auth/register \
   -H 'Content-Type: application/json' -H 'Accept-Language: fr' \
-  -d '{"userName":"alice","email":"alice@example.com","password":"Passw0rd!x"}'
+  -d '{"email":"alice@example.com","password":"Passw0rd!x"}'
 # the confirmation mail in mailpit now reads "Confirmez votre adresse e-mail"
 ```
 <!--#endif-->

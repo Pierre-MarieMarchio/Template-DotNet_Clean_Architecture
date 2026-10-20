@@ -517,6 +517,18 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Fixed
 
+- **Registration no longer tells a caller whether an address is taken.** `POST /auth/register`
+  answered `409` `auth.register.unavailable` for a taken address. It now answers `202` with the same
+  `{"status":"pending"}` body for every well-formed request, and the address learns by mail what
+  happened: a confirmation link for a new account, a fresh link for an unconfirmed one, a notice with
+  sign-in and password-reset hints and no token for a confirmed one. The submitted values are judged
+  before the address is looked up, both branches hash the password once and send one mail, and two
+  simultaneous registrations of one address are settled by the unique index. The
+  `auth.register.unavailable` code is gone; a client reads `202` rather than `200`, and the
+  `confirmationEmailSent` flag is gone with the rest of the old body.
+- **An email change naming a taken address mails that address.** It already answered `204` like a
+  free address, but sent nothing; it now sends the same "you already have an account" notice, so
+  both paths send exactly one mail.
 - **The first owner feature of a project generated without one passes the architecture tests once
   composed.** `new-feature` printed ten edits for it, and the container tests in
   `HostComposition.cs` then failed twelve times on an `IUserAccountDirectory` nothing registered: the
@@ -742,6 +754,13 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **The email is the account's only identifier.** `POST /auth/register` takes `email` and
+  `password`; `GET /auth/me` no longer carries `userName`; the account mails greet without a name;
+  a passkey's display name and an account provisioned through an external provider use the address.
+  ASP.NET Identity's `UserName` column stays and is kept equal to the email, moved with it when an
+  email change is confirmed, so no migration is involved. `IdentitySeed:AdminUserName` (and the
+  compose file's `SEED_ADMIN_USERNAME`) is removed: the seeded administrator signs in with
+  `IdentitySeed:AdminEmail`.
 - **Every container image is pinned by digest, as `name:tag@sha256:…`.** The compose services, the
   Dockerfiles' bases and `# syntax=` frontend, the Testcontainers fixtures and the images the Docker
   actions pull in the workflows (binfmt, the BuildKit daemon, the SBOM scanner, whose defaults

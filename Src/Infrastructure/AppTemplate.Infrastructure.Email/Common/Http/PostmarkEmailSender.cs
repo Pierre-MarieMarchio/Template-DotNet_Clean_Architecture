@@ -16,9 +16,8 @@ namespace AppTemplate.Infrastructure.Email.Common.Http;
 /// timeout appears here and why constructing a client by hand is forbidden under <c>Src/</c>.
 /// <b>Nothing here retries:</b> the default policy replays only the safe verbs, and Postmark's send
 /// endpoint takes no idempotency key, so a replay after a timeout is a second delivery the recipient
-/// can see. A delivery that did not happen has its own recovery path — <c>RegisterUseCase</c> reports
-/// <c>confirmationEmailSent: false</c>, with the resend endpoint — so a failure travels as an
-/// exception and stops here.</summary>
+/// can see. A delivery that did not happen is the caller's to recover from, so a failure travels as
+/// an exception and stops here.</summary>
 internal sealed class PostmarkEmailSender(
     HttpClient httpClient,
     IOptions<PostmarkOptions> postmark,

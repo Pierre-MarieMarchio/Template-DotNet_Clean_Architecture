@@ -1474,7 +1474,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Send 'cookie' to receive the refresh token in the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth) instead of the body, which then omits refreshToken. */
+                    "X-Refresh-Token-Mode"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -1489,6 +1492,8 @@ export interface paths {
                 /** @description OK */
                 200: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1587,7 +1592,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Send 'cookie' to receive the refresh token in the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth) instead of the body, which then omits refreshToken. */
+                    "X-Refresh-Token-Mode"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -1602,6 +1610,8 @@ export interface paths {
                 /** @description OK */
                 200: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1700,7 +1710,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Send 'cookie' to receive the refresh token in the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth) instead of the body, which then omits refreshToken. */
+                    "X-Refresh-Token-Mode"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -1715,6 +1728,8 @@ export interface paths {
                 /** @description OK */
                 200: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1810,21 +1825,29 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Send 'cookie' to present the refresh token in the 'refresh_token' cookie instead of the body; the cookie is read only when this header is sent, which is what refuses a request forged from another site. */
+                    "X-Refresh-Token-Mode"?: string;
+                };
                 path?: never;
-                cookie?: never;
+                cookie?: {
+                    /** @description The refresh token, read only when X-Refresh-Token-Mode is 'cookie'. */
+                    refresh_token?: string;
+                };
             };
-            requestBody: {
+            requestBody?: {
                 content: {
-                    "application/*+json": components["schemas"]["LogoutRequest"];
-                    "application/json": components["schemas"]["LogoutRequest"];
-                    "text/json": components["schemas"]["LogoutRequest"];
+                    "application/*+json": null | components["schemas"]["LogoutRequest"];
+                    "application/json": null | components["schemas"]["LogoutRequest"];
+                    "text/json": null | components["schemas"]["LogoutRequest"];
                 };
             };
             responses: {
                 /** @description No Content */
                 204: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content?: never;
@@ -2686,7 +2709,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Send 'cookie' to receive the refresh token in the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth) instead of the body, which then omits refreshToken. */
+                    "X-Refresh-Token-Mode"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -2701,6 +2727,8 @@ export interface paths {
                 /** @description OK */
                 200: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -2881,21 +2909,29 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Send 'cookie' to present the refresh token in the 'refresh_token' cookie instead of the body; the cookie is read only when this header is sent, which is what refuses a request forged from another site. */
+                    "X-Refresh-Token-Mode"?: string;
+                };
                 path?: never;
-                cookie?: never;
+                cookie?: {
+                    /** @description The refresh token, read only when X-Refresh-Token-Mode is 'cookie'. */
+                    refresh_token?: string;
+                };
             };
-            requestBody: {
+            requestBody?: {
                 content: {
-                    "application/*+json": components["schemas"]["RefreshAccessTokenRequest"];
-                    "application/json": components["schemas"]["RefreshAccessTokenRequest"];
-                    "text/json": components["schemas"]["RefreshAccessTokenRequest"];
+                    "application/*+json": null | components["schemas"]["RefreshAccessTokenRequest"];
+                    "application/json": null | components["schemas"]["RefreshAccessTokenRequest"];
+                    "text/json": null | components["schemas"]["RefreshAccessTokenRequest"];
                 };
             };
             responses: {
                 /** @description OK */
                 200: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -2918,6 +2954,8 @@ export interface paths {
                 /** @description Unauthorized */
                 401: {
                     headers: {
+                        /** @description In cookie mode, sets or clears the 'refresh_token' cookie (HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth), expiring with the refresh token. */
+                        "Set-Cookie"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -9085,8 +9123,8 @@ export interface components {
             accessToken: string;
             /** Format: date-time */
             accessTokenExpiresAt: string;
-            /** @description The raw secret, returned once and never persisted in this form. */
-            refreshToken: string;
+            /** @description The raw secret, returned once and never persisted in this form. Absent in cookie mode, where the 'refresh_token' cookie carries it. */
+            refreshToken?: string;
             /** Format: date-time */
             refreshTokenExpiresAt: string;
         };

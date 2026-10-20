@@ -23,7 +23,11 @@ map; that document and the tests it names are the argument. Where the files them
 - [Aggregates and domain events](#aggregates-and-domain-events)
 - [Errors: `Result` for expected failures, exceptions for bugs](#errors-result-for-expected-failures-exceptions-for-bugs)
 - [The transaction boundary, and who owns it](#the-transaction-boundary-and-who-owns-it)
-- [Two contexts, one database, six schemas](#two-contexts-one-database-six-schemas)
+<!--#if (localAuth)-->
+- [Two contexts, one database](#two-contexts-one-database)
+<!--#else
+- [One context, one database](#one-context-one-database)
+#endif-->
 
 **What is not here**
 
@@ -530,37 +534,14 @@ and a module that serves one keeps the same shape on purpose.
 `Features/<Feature>/`, whatever a module serves — which
 [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#inside-a-feature) states once, with the reason.
 
-That shape is held by two tests, over all five modules that have a `Common/`.
-`ModuleDependencyTests.ThePersistenceMechanisms_KnowNoFeature` takes the types under
-`AppTemplate.Infrastructure.Persistence.Common` and `EveryModuleCommon_KnowsNoFeature` takes
-the other four, and both assert that nothing there depends on `AppTemplate.Domain.Features`,
-`AppTemplate.Infrastructure.Persistence.Features` or `AppTemplate.Application.Features`.
-`AppDbContext` is excluded by name because it applies every feature's configuration and is
-therefore the model's composition root — and a second test asserts that it really does name a
-feature, so the exclusion stays a decision rather than a hole.
-
-There is no other exclusion. The list that would hold one is written as a list rather than as a
-condition, and asserted empty, so adding a name to it is a line somebody has to justify in review.
-<!--#if (localAuth)-->
-The identity module shows what the empty list costs: the account directory every authentication
-feature reads names `AppUser`, the account row, so it files under the feature that owns that row —
-`Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Adapters/Directories/` — and
-the module's `Common/` keeps its context and its shared token settings, which name no feature.
-<!--#endif-->
-
-The forbidden list runs to four namespaces rather than one because an adapter can belong to a
-feature in its name, its counters and its prose while depending on none of that feature's
-types, and a rule that reads only dependencies cannot see it. An adapter that counts one
-feature therefore lives with that feature.
-<!--#if (reminders)-->
-`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Adapters/Observability/ReminderDiagnostics.cs`
-is the worked case.
-<!--#endif-->
-See below for why one context
+That shape is held by `ModuleDependencyTests`, which
+[`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md#two-folders-called-common) describes with its
+one exception and the reason a module's `Common/` names no feature. See below for why one context
 rather than two, and why EF maps rows rather than aggregates.
 
 **One DI module per project, and the application layer is composed a feature at a time.** The
 host's composition root is one line per capability, in this order:
+<!--#if (anyFeature)-->
 <!--#if (todoLists)-->
 `AddTodoLists()`,
 <!--#endif-->
@@ -575,11 +556,14 @@ categories are application policy a deployment declares (`Files:Categories`),
 `AddNotes()`,
 <!--#endif-->
 then `AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
-`AddPersistenceModule(builder.Configuration)` and `AddEmailModule`
+<!--#else
+`AddPurgeExpiredIdempotencyKeys()`, then `AddCacheStore()`, then
+#endif-->
 <!--#if (files)-->
-and `AddStorageModule`
-<!--#endif-->
-.
+`AddPersistenceModule(builder.Configuration)`, `AddEmailModule` and `AddStorageModule`.
+<!--#else
+`AddPersistenceModule(builder.Configuration)` and `AddEmailModule`.
+#endif-->
 <!--#if (localAuth)-->
 Authentication is one more line,
 `AddAuthFeature(builder.Configuration)` from `Features/Auth/Composition/`, which composes its use
@@ -589,15 +573,16 @@ migration and seed, so a host without local accounts deletes that line and that 
 Adding a capability adds one line there and touches nothing else; removing
 one deletes a project and a line.
 
-Three further lines are not among the nine, because they compose host concerns rather than
-capabilities: `AddOutboundHttp()`, the localisation binding — reached through `AddRequestLanguage()`,
+Three further lines are not capabilities, because they compose host concerns:
+`AddOutboundHttp()`, the localisation binding — reached through `AddRequestLanguage()`,
 which adds the request-header middleware around `AddLocalizationOptions()` — and the host's own thin
 observability extension over the shared `AddObservability`. All three come from
-`AppTemplate.Presentation.Core`. The periodic jobs add one call of their own, `AddBackgroundJobs()`
+`AppTemplate.Presentation.Core`. The periodic jobs add one call of their own,
 <!--#if (localAuth)-->
-, and `AddAuthFeature` follows it so the refresh-token purge joins that timer — see below
-<!--#endif-->
-.
+`AddBackgroundJobs()`, and `AddAuthFeature` follows it so the refresh-token purge joins that timer — see below.
+<!--#else
+`AddBackgroundJobs()`.
+#endif-->
 
 **There is deliberately no call that adds the whole layer.** That is what makes a feature
 removable: deleting its folder and its one line here is the whole operation, and nothing else claims
@@ -676,11 +661,15 @@ records again with an interface in front of them.
 There is no exception today. If one is ever justified it is named in `FeatureIsolationTests`
 with its reason, not hidden by moving a type into a namespace the rule does not read.
 
+<!--#if (accounts)-->
 ## When an account goes
 
+<!--#if (anyFeature)-->
 An account's rows and the feature rows that name it live in two contexts with no shared
-transaction, so the deletion that closes finding F is a fact and a reaction, never a
-cross-context write:
+transaction, so the deletion is a fact and a reaction, never a cross-context write:
+<!--#else
+Deleting an account publishes a fact, and nothing in this project reacts to it yet:
+#endif-->
 
 1. **The account is deleted and the fact is published** — `UserAccountDeleted(UserId, OccurredAt)`,
    declared in `AppTemplate.Application.Core` beside the consumer contract so no feature names the
@@ -699,13 +688,18 @@ cross-context write:
    persisted trail belongs to the Auth module this template does not carry — an operator auditing
    deletions here reads the provider's own logs.
 <!--#endif-->
+<!--#if (anyFeature)-->
 2. **Each feature decides the fate of its own data** and applies that policy in a consumer of the
    fact, which also implements `IDeletedAccountDataPolicy`: the consumer is the fast path, the
    policy face is what the sweep calls, and both re-derive the precondition through
    `IUserAccountDirectory` — the account must be gone — before writing anything, idempotently.
-   The host supplies the directory adapter: over the local accounts
-   (`AccountUserAccountDirectory`) or over the external-identity mapping
-   (`ExternalIdentityUserAccountDirectory`), the same way `ICurrentUser` is resolved. Every feature this template ships that owns user data deletes; a feature that prefers
+   The host supplies the directory adapter, the same way `ICurrentUser` is resolved:
+<!--#if (localAuth)-->
+   `AccountUserAccountDirectory`, over the local accounts.
+<!--#else
+   `ExternalIdentityUserAccountDirectory`, over the external-identity mapping.
+#endif-->
+   Every feature this template ships that owns user data deletes; a feature that prefers
    anonymising implements the same two faces and writes its own rows instead of removing them.
 3. **A leased sweep is the guarantee** — `SweepDeletedAccountDataUseCase`, a maintenance task, asks
    each policy for the owner ids that still have data and applies it to each. The fact is only a
@@ -714,12 +708,15 @@ cross-context write:
    feature's own unit of work, and skips a failing owner rather than letting it stop its
    neighbours.
 
-The whole reaction composes only where it has subjects. The generator asks every feature that owns
-user data which fate its rows take (`--deletion delete|anonymise`) and writes its consumer and its
-policy; into a template generated with no feature it also brings the ports, the sweep and the
-account-directory adapter with the first such feature, because the reaction is nobody's private
-piece. Nothing of it exists without a subject — or with `--auth none`, which has no accounts and
-refuses such features outright.
+The generator asks every feature that owns user data which fate its rows take
+(`--deletion delete|anonymise`) and writes its consumer and its policy.
+<!--#else
+The reaction is a feature's to write. The generator asks every feature that owns user data which
+fate its rows take (`--deletion delete|anonymise`), writes its consumer and its policy, and brings
+the ports, the leased sweep and the account-directory adapter with the first such feature, because
+the reaction is nobody's private piece. Nothing of it exists until then.
+#endif-->
+<!--#endif-->
 
 ## Background jobs in the API process
 
@@ -728,13 +725,16 @@ initial deployment shape: one application process and one image, because no requ
 jobs must scale or restart apart from the HTTP server. It is a starting point, not a claim about
 where background work belongs, and the way out is kept short — see the end of this section.
 
-Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
+The `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
 (`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`):
 
-<!--#if (accounts)-->
 - `MaintenanceBackgroundService` runs every registered `IMaintenanceTask` on one timer. The
+<!--#if (accounts)-->
   idempotency-key purge is the maintenance feature's own, and it runs the exact same use case the
   maintenance route exposes over HTTP: `MaintenanceController`.
+<!--#else
+  idempotency-key purge is the maintenance feature's own, and a public API exposes no route for it.
+#endif-->
 <!--#if (localAuth)-->
   The refresh-token purge belongs to
   authentication and is registered by `AddAuthFeature()` from `Features/Auth/`, so the
@@ -746,7 +746,6 @@ Three `BackgroundService`s, composed by the one call `AddBackgroundJobs()`
   A third, the deleted-account data sweep, is registered from the background composition itself
   (`AddDeletedAccountSweepJobs`) because no single feature owns it: every feature that owns user
   data declares its policy, and one pass sweeps them all — see [When an account goes](#when-an-account-goes).
-<!--#endif-->
 <!--#endif-->
 <!--#if (reminders)-->
 - `ReminderBackgroundService` runs `IFireDueRemindersUseCase` on its own timer — the only caller that
@@ -769,14 +768,14 @@ default; false makes the instance serve HTTP and start no loop, and binds no job
 made to supply settings it never reads. Each job keeps its own `Enabled` and interval, read only
 while the role is on, and an invalid enabled setting stops startup instead of looking disabled.
 
-**All three are written on one loop primitive, and it is a primitive rather than a base class.**
+**Every one is written on one loop primitive, and it is a primitive rather than a base class.**
 `PeriodicJob.RunAsync`, in `AppTemplate.Presentation.Core/Common/Jobs/`, runs one iteration
 immediately, then one per interval, and returns when the stopping token is cancelled — whether the
 stop arrives while waiting for the next tick or from inside an iteration, so a shutdown log after
 the call always runs. Ticks that elapse during a slow iteration coalesce into one, so an iteration
-never overlaps itself. A service composes one instance or three, which is what lets
-`FileBackgroundService` run three passes on three intervals without three classes; a base class
-would have given each loop one interval and made that shape the exception.
+never overlaps itself. A service composes one instance or several, which is what lets a service run
+more than one pass on its own intervals without a class for each; a base class would have given each
+loop one interval and made that shape the exception.
 
 What it deliberately does not decide is everything a base class would have taken: each service keeps
 its own start-up log, its own span and counter names, its own scope granularity, and its own
@@ -805,12 +804,29 @@ them — but they keep the claim honest: they call real use cases without shortc
 infrastructure, and what changed when they moved into the API is the trigger and nothing else.
 
 **Several instances, and a separate runner.** Set `Jobs:Enabled=false` on the HTTP-only
-instances and `true` on one designated instance: that stops the file passes, which walk the object
-store, from being multiplied by the replica count, without assuming a queue or a global scheduler.
+instances and `true` on one designated instance:
+<!--#if (files)-->
+that stops the file passes, which walk the object store, from being multiplied by the replica count,
+without assuming a queue or a global scheduler.
+<!--#else
+that stops the passes from being multiplied by the replica count, without assuming a queue or a
+global scheduler.
+#endif-->
 The protections underneath stay in place because a rolling deployment, a manual maintenance request
-or a mistaken double-enable can still overlap: the reminder pass and the three file passes take
+or a mistaken double-enable can still overlap:
+<!--#if (reminders && files)-->
+the reminder pass and the three file passes take
 `ILeaderLease` inside their use cases (not a fencing token, so delivery stays at-least-once), and the
 maintenance purges are idempotent. Each file pass's retry guarantee is stated in `DECISIONS.md`. The
+<!--#elseif (reminders)-->
+the reminder pass takes `ILeaderLease` inside its use case (not a fencing token, so delivery stays
+at-least-once), and the maintenance purges are idempotent. The
+<!--#elseif (files)-->
+the three file passes take `ILeaderLease` inside their use cases (not a fencing token), and the
+maintenance purges are idempotent. Each file pass's retry guarantee is stated in `DECISIONS.md`. The
+<!--#else
+the maintenance purges are idempotent. The
+#endif-->
 designated instance's job heartbeats — the `iterations` counters — are what show the passes run;
 `/health/ready` reports HTTP readiness only. If measured load or release needs justify a process of
 its own, the hosting adapters and their one composition call move into it, the API sets
@@ -841,32 +857,20 @@ composition.
 ## No MediatR, no CQRS ceremony
 
 A use case is a plain class with a constructor and one method, registered in DI and
-injected into a controller:
-
+injected into a controller.
 <!--#if (todoLists)-->
+Two real ones:
+
 ```
 Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/CreateTodoList/CreateTodoListUseCase.cs
 Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/AddTodoItem/AddTodoItemUseCase.cs
 ```
 <!--#else
-A use case is a plain class with a constructor and one method, registered in DI and injected into a
-controller — open any feature's `UseCases/` folder for a real one.
+Open any feature's `UseCases/` folder for a real one.
 #endif-->
 
-MediatR would add a `Command` type, a `Handler` type, an `IRequest<>` marker and a
-runtime dispatch step to reach exactly the same method. What you get back is pipeline
-behaviours — and validation, logging and transactions are all available without them:
-FluentValidation runs in the use case, logging is `ILogger`, and the transaction
-boundary is `IUnitOfWork`.
-
-The real cost of the indirection is navigability: `F12` on a use case goes to the
-code, not to a marker interface, and the call graph is a call graph. The compiler
-checks the wiring instead of a runtime registry.
-
-This is not an argument against MediatR in general. It is an argument that a template
-should not pay for it before there is a pipeline to put in it. Adding it later is
-mechanical; removing it once every handler assumes it is not. See
-[`DECISIONS.md`](DECISIONS.md), which also names the package the architecture tests forbid.
+No MediatR, no handler type, no dispatcher: the reasons are in [`DECISIONS.md`](DECISIONS.md),
+which also names the package the architecture tests forbid.
 
 There is a read/write split, but it is the useful part of CQRS without the machinery —
 two ports rather than two stacks:
@@ -989,8 +993,13 @@ instead of discoverable by reading its body. Throwing `InvalidOperationException
 "not found" instead would surface a routine answer as an unhandled fault, and leak the
 message to clients as an HTTP 500.
 
+<!--#if (todoLists)-->
 `Error` carries a stable dotted `Code` (one dot-separated name per situation, such as
 `todoList.notFound`) and an `ErrorType` that says how the transport should
+<!--#else
+`Error` carries a stable dotted `Code` (one dot-separated name per situation) and an `ErrorType`
+that says how the transport should
+#endif-->
 render it. `ErrorMapping` is the single place where that becomes an HTTP status and a
 ProblemDetails body, so a given situation always produces the same status on every
 endpoint. Codes are grouped in one file per vertical — one `…Errors` class per feature —
@@ -1099,12 +1108,12 @@ the same thing that tells their tables apart.
 <!--#endif-->
 Each context declares the schema names it owns as
 constants — one `<Feature>Schema` per feature plus `PlatformSchema` and
-`MigrationsHistorySchema` on `AppDbContext`
 <!--#if (localAuth)-->
-, `IdentitySchema` on `AuthDbContext`
-<!--#endif-->
- — so a schema name
+`MigrationsHistorySchema` on `AppDbContext`, `IdentitySchema` on `AuthDbContext` — so a schema name
 is spelled once.
+<!--#else
+`MigrationsHistorySchema` on `AppDbContext` — so a schema name is spelled once.
+#endif-->
 
 <!--#if (localAuth)-->
 There are two contexts, and the line between them is what the halves of this system are.

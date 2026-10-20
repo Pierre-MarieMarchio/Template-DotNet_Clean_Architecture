@@ -203,6 +203,23 @@ else, and why the account directory every auth feature reads sits under
 around — and its list of further exceptions is empty and asserted empty, so the first one is argued
 for in the pull request that adds it.
 
+The rule runs over every module that has a `Common/`: one test takes the mechanisms of
+`AppTemplate.Infrastructure.Persistence.Common`, another takes each other module's, and both assert
+that nothing there depends on `AppTemplate.Domain.Features`,
+`AppTemplate.Infrastructure.Persistence.Features` or `AppTemplate.Application.Features`.
+`AppDbContext` is excluded by name because it applies every feature's configuration and is
+therefore the model's composition root — and a second test asserts that it really does name a
+feature, so the exclusion stays a decision rather than a hole.
+
+The forbidden list runs to four namespaces rather than one because an adapter can belong to a
+feature in its name, its counters and its prose while depending on none of that feature's
+types, and a rule that reads only dependencies cannot see it. An adapter that counts one
+feature therefore lives with that feature.
+<!--#if (reminders)-->
+`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Reminders/Adapters/Observability/ReminderDiagnostics.cs`
+is the worked case.
+<!--#endif-->
+
 ## Inside a feature
 
 ### Four levels, one question each

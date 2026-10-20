@@ -1,8 +1,8 @@
 ﻿# Migrations
 
 <!--#if (localAuth)-->
-**Two `DbContext`s, two migration histories, one database.** One connection string, one pool, six
-schemas. Every command below has to name which of the two it is about, and that is the one thing to
+**Two `DbContext`s, two migration histories, one database.** One connection string, one pool, one
+database. Every command below has to name which of the two it is about, and that is the one thing to
 get right here.
 
 | Context | Project | Schemas | History table |
@@ -204,15 +204,21 @@ dotnet tool install --global dotnet-ef
 $HOME/.dotnet/tools/dotnet-ef migrations add <Name> --project …
 ```
 
+<!--#if (anyFeature)-->
 ## Removing a feature
 
-Removing an example feature touches the business migration and nothing else
+Removing an example feature touches the business migration and nothing else.
 <!--#if (localAuth)-->
- — authentication's is a
-different file, in a different project, with a history table of its own, so no removal can reach
-it
+Authentication's is a different file, in a different project, with a history table of its own, so
+no removal can reach it.
 <!--#endif-->
-. The business half ships a single initial migration, so on a project that has not yet applied one
+The business half ships a single initial migration, so on a project that has not yet applied one
 to a real database the correct move is to regenerate rather than to write a `DropTable`.
+<!--#if (todoLists)-->
 [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md#the-migrations) is the
 procedure, including what changes once a database *has* applied one.
+<!--#else
+[`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) explains how to list what a
+removal touches in this project.
+#endif-->
+<!--#endif-->

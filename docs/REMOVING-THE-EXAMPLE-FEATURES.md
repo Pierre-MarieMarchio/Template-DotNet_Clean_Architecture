@@ -58,7 +58,9 @@ also what follows once a generated feature has been edited or registered.
 
 - [Do the background jobs still have a reason to exist?](#do-the-background-jobs-still-have-a-reason-to-exist)
 - [If you are keeping some and removing others](#if-you-are-keeping-some-and-removing-others)
+<!--#if (localAuth)-->
 - [Removing authentication](#removing-authentication)
+<!--#endif-->
 
 ## What this document promises
 
@@ -320,9 +322,12 @@ And their test mirrors — same shape, under `Tests/` instead of `Src/`:
 `AppTemplate.Domain.Core.UnitTests` and `AppTemplate.Application.Core.UnitTests` are absent from
 that table on purpose, and it is worth checking rather than assuming: every test in either is a
 statement about a primitive, a result, a page request, a cursor or a precondition, with no
-aggregate in sight, so no removal reaches them. `AppTemplate.Application.Auth.UnitTests` is absent
+aggregate in sight, so no removal reaches them.
+<!--#if (localAuth)-->
+`AppTemplate.Application.Auth.UnitTests` is absent
 for a different reason: it mirrors a project that holds one feature, and that feature is not an
 example — see [Removing authentication](#removing-authentication).
+<!--#endif-->
 
 Plus, outside a `Features/` folder:
 
@@ -407,12 +412,15 @@ whatever is left. Leave the clock and email-sender substitutions alone.
 Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddReminders()` **(R)**,
 `AddFiles(builder.Configuration)` **(F)** — and, with `Files`, `AddStorageModule(builder.Configuration)` and its `using
 AppTemplate.Infrastructure.Storage;`. The persistence side needs no line here: it cascades through
-`AddPersistenceModule`. **Do not remove `AddEmailModule` or `AddAuthModule` with `Reminders`.**
+`AddPersistenceModule`.
+<!--#if (localAuth)-->
+**Do not remove `AddEmailModule` or `AddAuthModule` with `Reminders`.**
 `AddAuthApplication()` registers every use case `AppTemplate.Application.Auth` declares, and
 `ValidateOnBuild` then requires all fourteen of that project's ports to resolve — four of the use cases
 take `IEmailSender` — so dropping either module leaves a build that is perfectly green and an API
 that will not start. Dropping authentication itself is a different operation: see
 [Removing authentication](#removing-authentication).
+<!--#endif-->
 
 **`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`**
 Remove the `AddReminderJobs(configuration)` call **(R)** and the `AddFileJobs(configuration)` call

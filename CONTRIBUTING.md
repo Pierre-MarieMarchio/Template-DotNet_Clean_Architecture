@@ -86,31 +86,42 @@ with its named interface → controller → tests → migration.
 [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md) walks it with the real signatures at each
 step and names the architecture rule that reads each one.
 
+<!--#if (!publicApi)-->
 ```bash
 # the folder is plural, the type is singular, and --access has no default
 dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
-dotnet run Tools/Tasks.cs new-feature Notes Note --access owner --concurrency etag
+dotnet run Tools/Tasks.cs new-feature Invoices Invoice --access owner --concurrency etag
 ```
+<!--#else
+This project was generated with `--auth none`, so `dotnet run Tools/Tasks.cs new-feature` refuses
+it: both shapes the generator writes, `owner` and `shared`, need an authenticated caller. Add an
+authentication scheme and an `ICurrentUser` that reads it first, or write a public feature by hand
+and read the document above as a description of the shape.
+#endif-->
 
 The generator writes the shape so the document can be about the thinking, and its four choices are
 the whole of its surface: `--access owner|shared` (required), `--operations` (default all five),
 `--model record|aggregate` (default `record`) and `--concurrency none|etag` (default `none`, which is
-last-write-wins). An optionless command is not `Notes`; the second line above is.
-[`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md#the-generator) says what each choice writes and
-which combinations are refused. Two things it cannot do for you: **every step is enforced by a test rather than by the compiler**, so run
+last-write-wins). [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md#the-generator) says what each
+choice writes and which combinations are refused. Two things it cannot do for you: **every step is enforced by a test rather than by the compiler**, so run
 `dotnet test Tests/Architecture` before pushing; and **registration is opt-in per feature**, so a
 feature nobody composes is registered nowhere and a domain-event consumer bound by nobody compiles
 and never runs.
 
+<!--#if (todoLists)-->
 `TodoLists` is the worked example of a feature with state to protect. `Reminders` is the more useful
 comparison for one of those — a flat aggregate with no child entities, so what a to-do list needs
 *only* because it owns items is visible by what a reminder does without.
 
+<!--#endif-->
 Choose the shape before the files: **does the feature have rules that protect a state?** If it
-does not, it has no aggregate — `Notes` is a service over a store, and
+does not, it has no aggregate and is a service over a store, and
 [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md#choose-the-shape-first) says how to build it and
-how to move to the rich shape once a rule appears. The generator writes either: `--model record` is
-the one without an aggregate and `--model aggregate` the one with.
+how to move to the rich shape once a rule appears.
+<!--#if (!publicApi)-->
+The generator writes either: `--model record` is the one without an aggregate and `--model aggregate`
+the one with.
+<!--#endif-->
 
 ## Documentation is part of the change
 

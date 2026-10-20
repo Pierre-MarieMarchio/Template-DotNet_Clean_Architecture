@@ -58,6 +58,7 @@ Every failure is a `ProblemDetails` body with a stable, dotted `code` extension
 member. **Branch on `code`, never on the prose in `detail`** — the prose is not part
 of the contract.
 
+<!--#if (todoLists)-->
 ```json
 {
   "type": "https://httpstatuses.io/404",
@@ -67,6 +68,17 @@ of the contract.
   "code": "todoList.notFound"
 }
 ```
+<!--#else
+```json
+{
+  "type": "https://httpstatuses.io/404",
+  "title": "Not found",
+  "status": 404,
+  "code": "route.notFound",
+  "traceId": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+}
+```
+#endif-->
 
 <!--#if (accounts)-->
 **Authentication and authorisation**
@@ -250,7 +262,13 @@ second file.
 <!--#endif-->
 
 A completed key stays replayable for `Idempotency:Retention`, but **nothing prunes the
-table for you**: schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`. That
+table for you**:
+<!--#if (accounts)-->
+schedule `DELETE /api/v1/maintenance/idempotency-keys/expired`. That
+<!--#else
+the maintenance job does it while the jobs run, and a deployment that runs them nowhere has no
+purge. That
+#endif-->
 window, the claim lease behind `idempotency.inProgress` and the rest of the section are in
 [`CONFIGURATION.md`](CONFIGURATION.md#idempotency).
 

@@ -225,9 +225,26 @@ internal static class Tasks
             case "test":
                 if (noIntegration)
                 {
+                    // Every project runs, so one red project does not hide the state of the others.
+                    var failed = new List<string>();
+
                     foreach (string project in TestProjects(repoRoot, dockerFreeOnly: true))
                     {
-                        Step("dotnet", "test", project, "--configuration", configuration);
+                        try
+                        {
+                            Step("dotnet", "test", project, "--configuration", configuration);
+                        }
+                        catch (InvalidOperationException error)
+                        {
+                            failed.Add(Path.GetFileNameWithoutExtension(project));
+                            Write(error.Message, ConsoleColor.Red);
+                        }
+                    }
+
+                    if (failed.Count > 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"{failed.Count} test project(s) failed:" + Environment.NewLine + string.Join(Environment.NewLine, failed.Select(name => "  " + name)));
                     }
                 }
                 else
@@ -349,19 +366,30 @@ internal static class Tasks
 
             //#endif
             case "bootstrap":
-                // The local tools first. `verify` runs `dotnet ef`, and the manifest under .config/
-                // pins it as a local tool, so without this the task documented as the first thing to
-                // run leaves the gate one command short of working.
-                Step("dotnet", "tool", "restore");
-
-                // Then the formatting. Using directives are sorted alphabetically, so the correct
+                // The formatting first. Using directives are sorted alphabetically, so the correct
                 // order depends on where the generated project's own namespace falls among
                 // FluentValidation, Microsoft.* and the rest — which the template cannot know in
                 // advance. Until this runs, `format --verify-no-changes` fails, and that is CI's
                 // first step.
                 Step("dotnet", "format", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
-                Write("Tools restored and formatting stable. Commit this before anything else.", ConsoleColor.Green);
+
+                // Then the local tools, which `verify` and the migration tasks run through `dotnet
+                // ef`. A restore that fails (feed, network, a broken SDK) must not take the
+                // formatting down with it, and must not pass for success either.
+                try
+                {
+                    Step("dotnet", "tool", "restore");
+                }
+                catch (InvalidOperationException error)
+                {
+                    throw new InvalidOperationException(
+                        error.Message + " The formatting is done and stable, so CI's first step will pass. The local tools are not restored, "
+                        + "so the tasks that run dotnet ef cannot work yet: migration-add, database-update, migration-bundle and the last step of verify. "
+                        + "Fix the restore and run `dotnet tool restore` again.");
+                }
+
+                Write("Formatting stable and tools restored. Commit this before anything else.", ConsoleColor.Green);
                 break;
 
             case "hygiene":

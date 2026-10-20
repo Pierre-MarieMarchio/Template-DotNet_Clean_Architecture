@@ -649,8 +649,8 @@ spare the session the change was made from, which has just proved the new postur
 ends every session, an email change and a reset included. A token naming no session spares nothing,
 because an unknown session is not one to spare. Four
 operations skip it on purpose. Confirming an email rotates the stamp but no session can exist before
-confirmation, since sign-in requires it — a deployment that sets `Identity:RequireConfirmedEmail` to
-`false` has to add the revocation. Provisioning a two-factor secret rotates through Identity's own
+confirmation, since sign-in requires it, and `Identity:RequireConfirmedEmail` set to `false` is
+refused at start-up rather than left to a deployment to remember. Provisioning a two-factor secret rotates through Identity's own
 `ResetAuthenticatorKeyAsync` and arms nothing, so signing every device out would punish a step that
 changed nothing. Deleting an account leaves no stamp to rotate and its grants go by cascade.
 Unlocking gives access back and rotates nothing. "Sign out everywhere" is the converse: it revokes

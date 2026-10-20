@@ -827,7 +827,7 @@ cause; `PasswordRequiredLength` may not exceed that ceiling.
 | `LockoutEnabled` | bool | `true` | This is what bounds online password guessing. Maps to `Lockout.AllowedForNewUsers`. |
 | `LockoutMaxFailedAccessAttempts` | int | `5` | Range 1–20. |
 | `LockoutDurationInMinutes` | int | `15` | Minimum 1. |
-| `RequireConfirmedEmail` | bool | `true` | With this on, an unconfirmed account cannot log in — and the failure is indistinguishable from a wrong password (`auth.login.invalidCredentials`). |
+| `RequireConfirmedEmail` | bool | `true` | An unconfirmed account cannot log in, and the failure is indistinguishable from a wrong password (`auth.login.invalidCredentials`). `false` is refused at start-up: confirming an address revokes no session. |
 | `RequireUniqueEmail` | bool | `true` | **Cannot be `false`** — the user table has a unique index on the normalised email. |
 
 ### `TwoFactor`

@@ -403,11 +403,13 @@ public sealed class CreateTodoListUseCase(
         CreateTodoListCommand command,
         CancellationToken cancellationToken = default)
     {
-        // require the caller -> validate -> build the aggregate -> stage it ->
-        // SaveChangesAsync -> project the written aggregate back to a DTO
+        …
     }
 }
 ```
+
+Its body requires the caller, validates the command, builds the aggregate, stages it, calls
+`SaveChangesAsync` and projects the written aggregate back to a DTO.
 
 The named interface is not decoration: `ApplicationCoreModule.AddUseCases`, which each feature's
 `AddX()` calls over the types in that vertical's namespace, registers every `IUseCase`
@@ -452,18 +454,13 @@ public sealed class TodoListCollectionPolicy : ICollectionPolicy
     public const string NameField = "name";
     public const string CreatedAtField = "createdAt";
 
-    /// <summary>
-    /// Offset-only because the column is nullable: a keyset comparison against a row
-    /// whose key is <c>NULL</c> is neither true nor false, so the row the cursor was
-    /// minted from would be skipped rather than resumed from.
-    /// </summary>
     public const string LastModifiedAtField = "lastModifiedAt";
 
     public static readonly TodoListCollectionPolicy Instance = new();
 
     public IReadOnlyList<SortableField> SortableFields { get; } =
     [
-        SortableField.Keyset(NameField),          // may also be used with paging=cursor
+        SortableField.Keyset(NameField),
         SortableField.Keyset(CreatedAtField),
         SortableField.OffsetOnly(LastModifiedAtField),
     ];

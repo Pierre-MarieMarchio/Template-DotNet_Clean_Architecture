@@ -137,8 +137,7 @@ so nothing of it reaches the compiled assembly — and `AppTemplate.Domain.cspro
 dependency taken by the innermost project is a dependency taken by every project above it.
 
 `AppTemplate.Domain.Core` is the primitives an aggregate is built from, vendored rather than
-published. That is what its shape is for. `CS1591` is re-enabled in that project alone, because a
-derived project reads those signatures rather than the code behind them. It carries no version, because a project that
+published. That is what its shape is for. It carries no version, because a project that
 needs a primitive this one lacks copies the project and tunes it. The whole point of the division
 is what it leaves for a derived project to write: its own `Features/`, plus whatever its own
 features come to share as business.
@@ -163,10 +162,8 @@ named interface derives from, validation, offset and cursor pagination, idempote
 concurrency, and the cross-cutting ports a host has to satisfy. It references
 `AppTemplate.Domain.Core` and nothing else — never `AppTemplate.Domain`, because the two files here
 that need a domain type, `IDomainEventConsumer` and `DomainGuard`, need only the primitives — so
-this project knows no aggregate and cannot come to know one. It carries the same shape for the
-same reasons: `CS1591` re-enabled so every public member owes a sentence to the reader who reads
-signatures instead of code, and no version, because a project that needs a
-mechanism this one lacks copies it and tunes it.
+this project knows no aggregate and cannot come to know one. Like it, it carries no version:
+a project that needs a mechanism this one lacks copies it and tunes it.
 <!--#if (anyFeature)-->
 Its two use cases are
 `Features/Maintenance/UseCases/Commands/PurgeExpiredIdempotencyKeys/`, the idempotency
@@ -208,8 +205,7 @@ those calls. It has a project of its own because it
 is the part of this template a derived application is most likely to replace wholesale with its own
 identity provider, and that is only possible if nothing composes it on that application's behalf —
 hence one call, `AddAuthApplication()`, and no arrow to it from either of the other two application
-projects. It is shaped like the two `.Core` projects for the same reasons: `CS1591` re-enabled, and no
-version.
+projects. It is shaped like the two `.Core` projects for the same reason: no version.
 <!--#endif-->
 
 `AppTemplate.Presentation.Core` is the presentation layer's fourth `.Core` and the outermost of
@@ -219,8 +215,7 @@ file each — the outbound HTTP policy installed on `IHttpClientFactory`'s defau
 `TelemetryOptions` and the OTLP tracer and meter over it, `NoCallerCurrentUser`, the answer a
 process with no request gives to "who is calling", and `PeriodicJob`, the loop a host's recurring
 work is written on — see the background jobs below for what that primitive does and does not decide. It
-declares one project reference, `AppTemplate.Application.Core`, and it is shaped like the three projects inwards for the same reasons: `CS1591` re-enabled so a
-derived project can read the signatures instead of the code, and no version, because it is vendored and meant to be tuned where it lands.
+declares one project reference, `AppTemplate.Application.Core`, and it is shaped like the three projects inwards for the same reason: no version, because it is vendored and meant to be tuned where it lands.
 
 **It carries no `FrameworkReference`, and that is why it is a project of its own rather than half of
 one presentation Core.** A host with no HTTP surface — a desktop client, a CLI — gets a clock, a
@@ -512,7 +507,7 @@ never by naming the type, which is what
 what lets two modules share one mechanism without either owning it. What is public is what a module
 cannot delegate: the `AggregateTracker` it derives from, the `StoredStamps` its mapper calls, the
 `IAuditActor` its host answers, and the interceptors it attaches to its own context. Like the other
-four SDK projects it has `CS1591` re-enabled and no version.
+four SDK projects it has no version.
 
 Its `Common/` is held to the rule below by construction rather than by that rule: an SDK project
 may reference only SDK projects, so it cannot name `AppTemplate.Application` or

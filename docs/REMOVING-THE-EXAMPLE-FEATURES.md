@@ -100,39 +100,11 @@ that shows up as real code, not just a shared theme:
   state. `ITodoItemQueries` is declared in `TodoLists`' application layer and implemented in its
   persistence folder, so `Reminders` reaches no `TodoLists` row itself.
 
-`Files` depends on neither, and neither depends on `Files`. The only arrow between them is a doc
-comment, and it points from `Files` to `TodoLists`.
+`Files` depends on neither, and neither depends on `Files`. No arrow joins them.
 
 **Consequence:** `Reminders` and `Files` each come out on their own. `TodoLists` does not —
 `Reminders` will not compile without it — so removing `TodoLists` means removing `Reminders` too,
 whether or not you wanted to keep it.
-
-<!--#if (files)-->
-**Three `<see cref>` doc comments cross features, and a cref is code here.**
-`GenerateDocumentationFile` plus `TreatWarningsAsErrors` make a cref that no longer resolves a
-`CS1574` error, not a warning. They are:
-
-| The comment | Names | Breaks when you remove |
-|---|---|---|
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
-| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Contracts/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
-| `Src/Presentation/AppTemplate.Api/Features/Files/Contracts/Mapping/StoredFileResponseMapping.cs` | `TodoListResponseMapping` | `TodoLists` |
-
-<!--#else
-**Two `<see cref>` doc comments cross features, and a cref is code here.**
-`GenerateDocumentationFile` plus `TreatWarningsAsErrors` make a cref that no longer resolves a
-`CS1574` error, not a warning. They are:
-
-| The comment | Names | Breaks when you remove |
-|---|---|---|
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Rows/Tracking/TodoListTracker.cs` | `ReminderTracker` | `Reminders` |
-| `Src/Presentation/AppTemplate.Api/Features/TodoLists/Contracts/Mapping/TodoListResponseMapping.cs` | `ReminderResponseMapping` | `Reminders` |
-#endif-->
-
-Each makes a point that survives its example: reword the sentence, do not just delete the tag. The
-first contrasts an aggregate with child rows against one without; the second and third cite a
-mapping that answers with a string status rather than an enum, and any surviving mapper that does
-the same will do.
 
 ## `Notes`, the example with no domain model
 
@@ -356,9 +328,7 @@ persistence, the API and their test mirrors still holds whatever you kept.
 `PersistenceModule.cs`, `AppDbContext.cs`, `EmailModule.cs`, `InMemoryModule.cs`, `ApiFactory.cs`
 and `IntegrationTestBase.cs`, not only in `ApplicationModule.cs`. Remove them one at a time and
 rebuild: `…Persistence.Common.Tracking` looks like it belongs to the deleted mappers but also holds
-`StoredStamps`, which stays. And a `<see cref>` naming a deleted type is a build error too, as the
-table above says — `InMemoryModule.cs`'s class summary names `IReminderNotifier`, so its comment has
-to change along with its code.
+`StoredStamps`, which stays.
 
 ## What to edit
 
@@ -392,9 +362,7 @@ interceptor and the dispatch interceptor all resolve the same tracker.*
 **`Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs`**
 Remove the `DbSet<…>` property, the schema constant and the `builder.ApplyConfiguration(…)` calls
 for each feature you removed: `TodoLists`/`TodoSchema`/three configurations **(T)**,
-`Reminders`/`RemindersSchema`/one **(R)**, `StoredFiles`/`FilesSchema`/one **(F)**. The
-`PlatformSchema` constant's doc comment cross-references `TodoSchema` in a `<see cref>` — fix or
-drop that reference too **(T)**, or the build fails on a broken XML doc comment.
+`Reminders`/`RemindersSchema`/one **(R)**, `StoredFiles`/`FilesSchema`/one **(F)**.
 
 **`Src/Infrastructure/AppTemplate.Infrastructure.Email/EmailModule.cs`** **(R)**
 Remove the `AddScoped<IReminderNotifier, EmailReminderNotifier>()` line and its two `using`
@@ -404,9 +372,7 @@ module stays composed by every host.
 
 **`Src/Infrastructure/AppTemplate.Infrastructure.InMemory/InMemoryModule.cs`**
 Remove `AddInMemoryReminderNotifications` and its call inside `AddInMemoryModule` **(R)**, and
-`AddInMemoryFileContent` and its call **(F)**. The class summary for `AddInMemoryModule` enumerates
-the doubles it installs and names `IReminderNotifier` in a `<see cref>`; rewrite the sentence around
-whatever is left. Leave the clock and email-sender substitutions alone.
+`AddInMemoryFileContent` and its call **(F)**. Leave the clock and email-sender substitutions alone.
 
 **`Src/Presentation/AppTemplate.Api/Program.cs`**
 Remove the feature's one composition line — `AddTodoLists()` **(T)**, `AddReminders()` **(R)**,
@@ -716,15 +682,11 @@ layer's `.Core` project, something several features share as business belongs in
 project.
 
 Two more counts sit outside the architecture project and are not assertions you can lower blindly —
-read the current value, recompute it after the removal, and update the comment beside it with the
-number:
+read the current value and recompute it after the removal:
 
 - `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` holds
-  `_knownUseCaseCount`, and a doc comment that breaks the total down per vertical. Removing
-  `Reminders` lowers it by the use cases that feature declares; the comment has to lose the same
-  clause, and the feature's entry comes out of the `FeatureCalls` theory data beside it. The number alone, without the comment
-  saying what it now counts, is exactly the kind of assertion this repository's conventions warn
-  against.
+  `_knownUseCaseCount`, a sum with one term per feature. Removing `Reminders` takes out its term,
+  and the feature's entry comes out of the `FeatureCalls` theory data beside it.
   <!--#if (localAuth)-->
   `Tests/Application/AppTemplate.Application.Auth.UnitTests/ApplicationAuthModuleTests.cs` is its
   counterpart and no business removal touches it.
@@ -796,7 +758,7 @@ metadata is less work than removing it and adding a second store back later.
 
 **Removing `Reminders`, keeping `TodoLists` and `Files`.** The measured path, and the smallest one:
 three rounds of `dotnet build` and seven failing tests, each with a one-line fix above. `TodoLists`
-never references `Reminders` outside two doc comments. What actually leaves is one of `ILeaderLease`'s
+never references `Reminders`. What actually leaves is one of `ILeaderLease`'s
 consumers, the second consumer of `TodoItemCompletedDomainEvent`, and one `[Idempotent]` action.
 
 **Removing `TodoLists`, keeping `Reminders`.** Not a smaller version of the full removal — it does
@@ -921,7 +883,7 @@ scheme of your own.
 Run these yourself; they are the gates, in the order that fails fastest:
 
 1. `dotnet build AppTemplate.sln` — 0 warnings, 0 errors. `TreatWarningsAsErrors` means an unused
-   `using` and an unresolvable `<see cref>` both stop the build, so most of a removal's remaining
+   `using` stops the build, so most of a removal's remaining
    work is visible here.
 2. `dotnet test` on the fifteen unit projects and the architecture one — sixteen of the eighteen
    under `Tests/`, and no Docker needed for any of them. This is where a count, a non-vacuity floor

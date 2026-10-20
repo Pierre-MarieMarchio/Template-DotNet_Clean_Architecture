@@ -952,7 +952,9 @@ Events are raised on the root (`RaiseDomainEvent`) and buffered, then collected 
 `DomainEventDispatchSaveChangesInterceptor` as the save of the context their rows are staged on
 begins, and dispatched once that save has committed. A save of any other context — the identity
 context, or the second instance of the business context an idempotency claim commits through —
-neither collects nor publishes them. Consequences worth stating:
+neither collects nor publishes them. A fact no aggregate carries takes the other route, through
+`IDomainEventPublisher`; [`CONVENTIONS.md`](CONVENTIONS.md#design-conventions) states the two
+together. Consequences worth stating:
 
 - An event is never observed for a transaction that rolled back. A failed save hands its events
   back to their tracker, so the retry publishes them.

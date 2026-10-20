@@ -17,11 +17,10 @@ public sealed class AccountReminderRecipientDirectoryTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task AnExistingAccount_IsReachedByItsUserNameAndCurrentAddress()
+    public async Task AnExistingAccount_IsReachedAndNamedByItsCurrentAddress()
     {
         _accounts.FindProfileAsync(_ownerId.Value, Arg.Any<CancellationToken>()).Returns(new UserProfile(
             _ownerId.Value,
-            "someone",
             "someone@example.com",
             EmailConfirmed: true,
             Roles: [],
@@ -31,7 +30,7 @@ public sealed class AccountReminderRecipientDirectoryTests
 
         var recipient = await new AccountReminderRecipientDirectory(_accounts).FindAsync(_ownerId, TestToken);
 
-        recipient.ShouldBe(new ReminderRecipient("someone", "someone@example.com"));
+        recipient.ShouldBe(new ReminderRecipient("someone@example.com", "someone@example.com"));
     }
 
     [Fact]

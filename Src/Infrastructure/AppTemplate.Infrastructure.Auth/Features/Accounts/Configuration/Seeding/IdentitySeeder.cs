@@ -101,7 +101,7 @@ internal sealed class IdentitySeeder(
 
         var user = new AppUser
         {
-            UserName = settings.AdminUserName,
+            UserName = settings.AdminEmail,
             Email = settings.AdminEmail,
             EmailConfirmed = true,
             CreatedAt = dateTimeProvider.UtcNow,

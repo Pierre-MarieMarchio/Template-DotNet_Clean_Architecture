@@ -291,7 +291,7 @@ internal sealed class TwoFactorService(
     }
 
     private static AccountIdentity ToAccountIdentity(AppUser user) =>
-        new(user.Id, user.UserName ?? string.Empty, user.Email ?? string.Empty, user.TwoFactorEnabled);
+        new(user.Id, user.Email ?? string.Empty, user.TwoFactorEnabled);
 
     private static bool TryParse(string challengeToken, out Guid userId, out string secret)
     {

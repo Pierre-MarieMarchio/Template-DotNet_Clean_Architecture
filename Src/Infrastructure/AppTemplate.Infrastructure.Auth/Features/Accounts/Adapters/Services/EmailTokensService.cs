@@ -15,7 +15,7 @@ internal sealed class EmailTokensService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory) : IEmailTokensService
 {
-    public async Task<IssuedEmailToken?> IssueEmailConfirmationAsync(
+    public async Task<string?> IssueEmailConfirmationAsync(
         string email,
         CancellationToken cancellationToken = default)
     {
@@ -29,9 +29,7 @@ internal sealed class EmailTokensService(
             return null;
         }
 
-        return new IssuedEmailToken(
-            user.UserName ?? string.Empty,
-            await userManager.GenerateEmailConfirmationTokenAsync(user));
+        return await userManager.GenerateEmailConfirmationTokenAsync(user);
     }
 
     public async Task<bool> ConfirmEmailAsync(
@@ -65,7 +63,7 @@ internal sealed class EmailTokensService(
         return true;
     }
 
-    public async Task<IssuedEmailToken?> IssuePasswordResetAsync(
+    public async Task<string?> IssuePasswordResetAsync(
         string email,
         CancellationToken cancellationToken = default)
     {
@@ -79,9 +77,7 @@ internal sealed class EmailTokensService(
             return null;
         }
 
-        return new IssuedEmailToken(
-            user.UserName ?? string.Empty,
-            await userManager.GeneratePasswordResetTokenAsync(user));
+        return await userManager.GeneratePasswordResetTokenAsync(user);
     }
 
     public async Task<PasswordResetOutcome> ResetPasswordAsync(
@@ -152,9 +148,7 @@ internal sealed class EmailTokensService(
             return EmailChangeRequestOutcome.Suppressed;
         }
 
-        return EmailChangeRequestOutcome.Issued(
-            user.UserName ?? string.Empty,
-            await userManager.GenerateChangeEmailTokenAsync(user, newEmail));
+        return EmailChangeRequestOutcome.Issued(await userManager.GenerateChangeEmailTokenAsync(user, newEmail));
     }
 
     public async Task<EmailChangeOutcome> ChangeEmailAsync(
@@ -174,14 +168,17 @@ internal sealed class EmailTokensService(
             return EmailChangeOutcome.InvalidToken;
         }
 
-        // UserName is left untouched: moving the address must not rename the account's sign-in
-        // identity. ChangeEmailAsync rotates the security stamp but touches no refresh token.
+        string? previousUserName = user.UserName;
+        user.UserName = newEmail;
+
         var result = await userManager.ChangeEmailAsync(user, newEmail, token);
 
         if (result.Succeeded)
         {
             return EmailChangeOutcome.Changed;
         }
+
+        user.UserName = previousUserName;
 
         return IsInvalidToken(result)
             ? EmailChangeOutcome.InvalidToken

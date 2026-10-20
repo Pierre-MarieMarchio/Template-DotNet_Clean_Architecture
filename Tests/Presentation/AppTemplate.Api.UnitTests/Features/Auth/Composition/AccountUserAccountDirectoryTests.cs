@@ -21,7 +21,6 @@ public sealed class AccountUserAccountDirectoryTests
         _accounts.FindProfileAsync(_ownerId, Arg.Any<CancellationToken>())
             .Returns(new UserProfile(
                 _ownerId,
-                "someone",
                 "someone@example.com",
                 EmailConfirmed: true,
                 [],

@@ -16,7 +16,7 @@ public interface IEmailTokensService
     /// <c>null</c> when no account at that address is awaiting confirmation — unknown or already
     /// confirmed. The two are not distinguished, so a caller cannot use this to probe for accounts.
     /// </returns>
-    Task<IssuedEmailToken?> IssueEmailConfirmationAsync(string email, CancellationToken cancellationToken = default);
+    Task<string?> IssueEmailConfirmationAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Redeems a confirmation token. An already-confirmed address is not short-circuited to success,
@@ -31,7 +31,7 @@ public interface IEmailTokensService
     /// behind a confirmation link the same holder cannot obtain would strand them for good.
     /// </summary>
     /// <returns><c>null</c> when the address names no account, so a caller cannot use this to probe for one.</returns>
-    Task<IssuedEmailToken?> IssuePasswordResetAsync(string email, CancellationToken cancellationToken = default);
+    Task<string?> IssuePasswordResetAsync(string email, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Redeems a reset token and sets <paramref name="newPassword"/> in one step, under the store's

@@ -8,8 +8,7 @@
 /// registered — deliberately indistinguishable from a token that was minted, or a caller could use
 /// "was anything sent?" to test which addresses exist.
 /// </param>
-/// <param name="UserName">Carried so the mail can address the holder without a second lookup. Set only alongside <paramref name="Token"/>.</param>
-public sealed record EmailChangeRequestOutcome(EmailChangeRequestStatus Status, string? UserName = null, string? Token = null)
+public sealed record EmailChangeRequestOutcome(EmailChangeRequestStatus Status, string? Token = null)
 {
     /// <summary>The current password did not match: nothing was minted, nothing is to be sent.</summary>
     public static EmailChangeRequestOutcome IncorrectCurrentPassword { get; } =
@@ -22,6 +21,6 @@ public sealed record EmailChangeRequestOutcome(EmailChangeRequestStatus Status, 
     public static EmailChangeRequestOutcome Suppressed { get; } = new(EmailChangeRequestStatus.Requested);
 
     /// <summary>The password matched and there is a token to mail to the new address.</summary>
-    public static EmailChangeRequestOutcome Issued(string userName, string token) =>
-        new(EmailChangeRequestStatus.Requested, userName, token);
+    public static EmailChangeRequestOutcome Issued(string token) =>
+        new(EmailChangeRequestStatus.Requested, token);
 }

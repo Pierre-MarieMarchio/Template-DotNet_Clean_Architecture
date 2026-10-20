@@ -8,7 +8,7 @@ namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.S
 
 /// <summary>
 /// Mirrors <see cref="AccountEmailFactoryConfirmationTests"/>: the factory's job is to put a user-supplied
-/// name into an HTML document, which makes it an injection site, and the encoding is the whole
+/// address into an HTML document, which makes it an injection site, and the encoding is the whole
 /// defence.
 /// </summary>
 public sealed class AccountEmailFactoryPasswordResetTests
@@ -18,18 +18,16 @@ public sealed class AccountEmailFactoryPasswordResetTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task CreatePasswordReset_HtmlEncodesAUserNameContainingMarkup()
+    public async Task CreatePasswordReset_EncodesAnAddressContainingMarkup()
     {
-        const string hostile = "<a href=\"https://evil.test\">click me</a>";
+        const string hostile = "<a href=\"https://evil.test\">click me</a>@identity.test";
 
         var message = await CreateFactory().CreatePasswordResetAsync(
             hostile,
-            "victim@identity.test",
             "reset-token",
             TestToken);
 
         message.HtmlBody.ShouldNotContain("<a href=\"https://evil.test\"");
-        message.HtmlBody.ShouldContain("&lt;a href=&quot;https://evil.test&quot;&gt;click me&lt;/a&gt;");
     }
 
     /// <summary>
@@ -40,7 +38,6 @@ public sealed class AccountEmailFactoryPasswordResetTests
     public async Task CreatePasswordReset_PutsTheTokenInTheLinkFragment()
     {
         var message = await CreateFactory().CreatePasswordResetAsync(
-            "someone",
             "someone@identity.test",
             "a+token/with=reserved characters",
             TestToken);
@@ -53,7 +50,6 @@ public sealed class AccountEmailFactoryPasswordResetTests
     public async Task CreatePasswordReset_TakesItsSubjectFromTheTemplate()
     {
         var message = await CreateFactory().CreatePasswordResetAsync(
-            "someone",
             "someone@identity.test",
             "reset-token",
             TestToken);

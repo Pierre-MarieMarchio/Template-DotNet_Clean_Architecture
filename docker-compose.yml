@@ -255,7 +255,6 @@ services:
       # SEED_ADMIN_PASSWORD fails startup validation rather than creating a
       # guessable administrator, which is what the old hard-coded admin/admin did.
       IdentitySeed__Enabled: ${SEED_ENABLED:-false}
-      IdentitySeed__AdminUserName: ${SEED_ADMIN_USERNAME:-administrator}
       IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
       IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
       #endif

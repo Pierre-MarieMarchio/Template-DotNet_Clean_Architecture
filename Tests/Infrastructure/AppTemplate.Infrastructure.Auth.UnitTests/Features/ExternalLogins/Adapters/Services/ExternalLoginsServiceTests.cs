@@ -15,11 +15,8 @@ namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.ExternalLogins.Adap
 /// The four primitives external sign-in is built from, over a real <see cref="UserManager{TUser}"/>
 /// and its <see cref="UserValidator{TUser}"/>.
 /// <para>
-/// Two of these tests exist because the failures they describe are invisible until production. An
-/// account provisioned without <c>EmailConfirmed</c> is created successfully and then refused at the
-/// very next step, on every first sign-in; a user name derived from an address without regard for
-/// <c>AllowedUserNameCharacters</c> is refused by ASP.NET Identity itself, for a reason the caller
-/// cannot act on and the user cannot understand.
+/// An account provisioned without <c>EmailConfirmed</c> is created successfully and then refused at
+/// the very next step, on every first sign-in: a failure invisible until production.
 /// </para>
 /// </summary>
 public sealed class ExternalLoginsServiceTests : IDisposable
@@ -34,7 +31,10 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     /// refuses to let unique addresses be turned off, so a test running without that rule would be
     /// exercising a configuration no deployment has.
     /// </summary>
-    private readonly IdentityOptions _identityOptions = new() { User = { RequireUniqueEmail = true } };
+    private readonly IdentityOptions _identityOptions = new()
+    {
+        User = { RequireUniqueEmail = true, AllowedUserNameCharacters = string.Empty },
+    };
     private readonly MovableDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -51,7 +51,6 @@ public sealed class ExternalLoginsServiceTests : IDisposable
 
         account.ShouldNotBeNull();
         account.UserId.ShouldBe(user.Id);
-        account.UserName.ShouldBe("someone");
         account.Email.ShouldBe("someone@example.com");
     }
 
@@ -168,14 +167,8 @@ public sealed class ExternalLoginsServiceTests : IDisposable
         _rows.Users.ShouldHaveSingleItem().PasswordHash.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The trap this derivation exists for. <c>AllowedUserNameCharacters</c> is a hard gate in
-    /// ASP.NET Identity's own validator, and its default set is ASCII — so an address whose local
-    /// part is not would be refused by <c>CreateAsync</c> on an account the use case believes it
-    /// provisioned.
-    /// </summary>
     [Fact]
-    public async Task ProvisionAsync_DerivesAUserNameInsideTheAllowedCharacterSet()
+    public async Task ProvisionAsync_UsesTheAddressAsTheUserName()
     {
         var account = await CreateService().ProvisionAsync(
             "rené.dupont+news@example.com",
@@ -184,63 +177,7 @@ public sealed class ExternalLoginsServiceTests : IDisposable
             TestToken);
 
         account.ShouldNotBeNull();
-        account.UserName.ShouldBe("ren.dupont+news");
-    }
-
-    /// <summary>
-    /// An installation that narrowed the set further breaks more addresses, not fewer — which is why
-    /// the allowed set is read from the options rather than assumed to be the default.
-    /// </summary>
-    [Fact]
-    public async Task ProvisionAsync_HonoursAnInstallationThatNarrowedTheAllowedCharacterSet()
-    {
-        _identityOptions.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyz0123456789";
-
-        var account = await CreateService().ProvisionAsync(
-            "some.one+news@example.com",
-            _provider,
-            _subject,
-            TestToken);
-
-        account.ShouldNotBeNull();
-        account.UserName.ShouldBe("someonenews");
-    }
-
-    /// <summary>
-    /// Nothing of the address survives the allowed set, so the name comes from an identifier
-    /// instead — a refusal here would be a sign-in refused for a reason nobody could act on.
-    /// </summary>
-    [Fact]
-    public async Task ProvisionAsync_FallsBackToAGeneratedNameWhenTheAddressYieldsNothingUsable()
-    {
-        var account = await CreateService().ProvisionAsync(
-            "рене@example.com",
-            _provider,
-            _subject,
-            TestToken);
-
-        account.ShouldNotBeNull();
-        account.UserName.ShouldNotBeNullOrWhiteSpace();
-    }
-
-    /// <summary>
-    /// Two addresses with the same local part at different domains derive the same name. That is a
-    /// collision, not a conflict, and a second candidate is what keeps it from refusing a sign-in.
-    /// </summary>
-    [Fact]
-    public async Task ProvisionAsync_TriesAnotherNameWhenTheDerivedOneIsTaken()
-    {
-        _rows.Add("someone", "someone@other.example.com", emailConfirmed: true);
-
-        var account = await CreateService().ProvisionAsync(
-            "someone@example.com",
-            _provider,
-            _subject,
-            TestToken);
-
-        account.ShouldNotBeNull();
-        account.UserName.ShouldNotBe("someone");
-        account.UserName.ShouldStartWith("someone");
+        _rows.Users.ShouldHaveSingleItem().UserName.ShouldBe("rené.dupont+news@example.com");
     }
 
     /// <summary>
@@ -302,11 +239,10 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     }
 
     private ExternalLoginsService CreateService() =>
-        new(CreateUserManager(), _directory, new OptionsWrapper<IdentityOptions>(_identityOptions), _clock);
+        new(CreateUserManager(), _directory, _clock);
 
     /// <summary>
-    /// The real manager and the real validator, so the allowed-character gate and the duplicate
-    /// checks under test are ASP.NET Identity's own rather than this file's opinion of them.
+    /// The real manager and the real validator, so the duplicate checks under test are ASP.NET Identity's own rather than this file's opinion of them.
     /// </summary>
     private UserManager<AppUser> CreateUserManager() =>
         new(

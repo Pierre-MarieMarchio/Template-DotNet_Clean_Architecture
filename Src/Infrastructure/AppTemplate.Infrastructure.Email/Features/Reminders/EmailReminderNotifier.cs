@@ -34,7 +34,7 @@ internal sealed class EmailReminderNotifier(IEmailSender emailSender) : IReminde
             CurrentLanguage.Current,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["UserName"] = notification.Recipient.Name,
+                ["RecipientName"] = notification.Recipient.Name,
                 // Round-trip, not a culture-specific long date: this process builds with
                 // InvariantGlobalization, so there is no French date format to reach for. A reader
                 // gets an unambiguous instant rather than one formatted as if for somebody else.

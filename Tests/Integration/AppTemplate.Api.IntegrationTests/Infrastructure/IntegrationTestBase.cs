@@ -42,7 +42,7 @@ namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 /// the sign-up journey publishes one — that is <see cref="TestSession.UserId"/>'s job.
 /// </summary>
 /// <param name="Password">Kept in plaintext so the test can log in again.</param>
-public sealed record TestUser(string UserName, string Email, string Password);
+public sealed record TestUser(string Email, string Password);
 
 /// <param name="UserId">Read from <c>GET /auth/me</c>, the only endpoint that publishes a profile.</param>
 public sealed record TestSession(Guid UserId, TokenResponse Tokens);
@@ -222,8 +222,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         ArgumentNullException.ThrowIfNull(client);
 
         string suffix = Guid.CreateVersion7().ToString("N")[..12];
-        string userName = $"{label ?? "user"}-{suffix}";
-        var request = new RegisterRequest(userName, $"{userName}@integration.test", ValidPassword);
+        var request = new RegisterRequest($"{label ?? "user"}-{suffix}@integration.test", ValidPassword);
 
         using var response = await client.PostAsJsonAsync($"{AuthRoute}/register", request, TestToken);
 
@@ -236,7 +235,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         var registered = await ApiJson.ReadAsync<RegisterResponse>(response, TestToken);
 
-        return new TestUser(registered.UserName, registered.Email, ValidPassword);
+        return new TestUser(registered.Email, ValidPassword);
     }
 
     /// <summary>

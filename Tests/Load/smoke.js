@@ -57,7 +57,7 @@ export function setup() {
 
   http.post(
     `${baseUrl}/api/v1/auth/register`,
-    JSON.stringify({ userName: `load${suffix}`, email, password }),
+    JSON.stringify({ email, password }),
     { headers: { 'Content-Type': 'application/json' } },
   );
 

@@ -134,7 +134,7 @@ public sealed class LoginUseCaseTests
     [Fact]
     public async Task ALockedOutAccount_IsRecordedAsALockoutAndAnAuthenticationFailure()
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false);
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", TwoFactorEnabled: false);
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(CredentialCheckOutcome.Refused(CredentialCheckStatus.LockedOut, account));
 
@@ -152,7 +152,7 @@ public sealed class LoginUseCaseTests
     [InlineData(CredentialCheckStatus.EmailNotConfirmed)]
     public async Task ARefusalThatIsNotALockout_RecordsNoLockout(CredentialCheckStatus outcome)
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false);
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", TwoFactorEnabled: false);
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(CredentialCheckOutcome.Refused(outcome, account));
 
@@ -213,7 +213,7 @@ public sealed class LoginUseCaseTests
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new CredentialCheckOutcome(
                 CredentialCheckStatus.LockedOut,
-                new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", TwoFactorEnabled: false)));
+                new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", TwoFactorEnabled: false)));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -235,7 +235,6 @@ public sealed class LoginUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         var authenticated = result.Value.ShouldBeOfType<LoginOutcome.Authenticated>();
         authenticated.UserId.ShouldBe(account.UserId);
-        authenticated.UserName.ShouldBe(account.UserName);
         authenticated.Email.ShouldBe(account.Email);
         authenticated.AccessToken.ShouldBe("access-token");
         authenticated.AccessTokenExpiresAt.ShouldBe(_accessTokenExpiry);
@@ -343,7 +342,7 @@ public sealed class LoginUseCaseTests
 
     private AccountIdentity GivenTheCredentialIsVerified(bool twoFactorEnabled = false)
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", twoFactorEnabled);
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", twoFactorEnabled);
 
         _accounts.VerifyCredentialAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(CredentialCheckOutcome.Verified(account));

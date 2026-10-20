@@ -23,6 +23,7 @@ public sealed class EmailTokensServiceEmailChangeTests
     private const string _currentPassword = "correct horse battery";
     private const string _storedHash = "stored-hash";
     private const string _newEmail = "new@example.test";
+    private const string _currentEmail = "current@example.test";
 
     private readonly IUserEmailStore<AppUser> _store =
         Substitute.For<IUserEmailStore<AppUser>, IUserPasswordStore<AppUser>>();
@@ -84,7 +85,6 @@ public sealed class EmailTokensServiceEmailChangeTests
         var request = await CreateTokens().IssueEmailChangeAsync(_userId, _currentPassword, _newEmail, TestToken);
 
         request.Status.ShouldBe(EmailChangeRequestStatus.Requested);
-        request.UserName.ShouldBe("someone");
         request.Token.ShouldBe(StubTokenProvider.Token);
     }
 
@@ -130,6 +130,32 @@ public sealed class EmailTokensServiceEmailChangeTests
     }
 
     [Fact]
+    public async Task ARightToken_MovesTheUserNameWithTheAddressInTheSameUpdate()
+    {
+        var user = GivenTheAccountExists();
+        GivenTheStoreAcceptsAnUpdate();
+
+        await CreateTokens().ChangeEmailAsync(_userId, _newEmail, StubTokenProvider.Token, TestToken);
+
+        user.UserName.ShouldBe(_newEmail);
+        await _store.Received(1).UpdateAsync(
+            Arg.Is<AppUser>(updated => updated.UserName == _newEmail),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AWrongToken_LeavesTheUserNameAlone()
+    {
+        var user = GivenTheAccountExists();
+        GivenTheStoreAcceptsAnUpdate();
+
+        await CreateTokens().ChangeEmailAsync(_userId, _newEmail, "not-the-real-token", TestToken);
+
+        user.UserName.ShouldBe(_currentEmail);
+        await _store.DidNotReceive().UpdateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ARightTokenAndARejectedAddress_ReportsTheStoresMessage()
     {
         GivenTheAccountExists();
@@ -144,12 +170,14 @@ public sealed class EmailTokensServiceEmailChangeTests
 
     #endregion
 
-    private void GivenTheAccountExists()
+    private AppUser GivenTheAccountExists()
     {
         // EmailTokensService reads AppUser.PasswordHash directly rather than through the store — see
         // its comment on why, so the store is never asked for it here.
-        var user = new AppUser { Id = _userId, UserName = "someone", PasswordHash = _storedHash };
+        var user = new AppUser { Id = _userId, UserName = _currentEmail, Email = _currentEmail, PasswordHash = _storedHash };
         _directory.FindByIdAsync(_userId, Arg.Any<CancellationToken>()).Returns(user);
+
+        return user;
     }
 
     private void GivenThePasswordVerifies() =>

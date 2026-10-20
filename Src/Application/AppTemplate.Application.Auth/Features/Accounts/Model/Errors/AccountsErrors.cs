@@ -16,26 +16,20 @@ namespace AppTemplate.Application.Auth.Features.Accounts.Model.Errors;
 public static class AccountsErrors
 {
     /// <summary>
-    /// Registration cannot fully hide that an address is taken, but it does not have to say so:
-    /// neutral and identical for a duplicate username and a duplicate email.
+    /// Registration cannot fully hide that an address is taken, but it does not have to say so.
     /// </summary>
     public static Error RegistrationConflict { get; } = Error.Conflict(
         "auth.register.unavailable",
-        "That username or email address cannot be used.");
+        "That email address cannot be used.");
 
     /// <summary>
-    /// Each message describes the submitted value it is attached to — allowed characters, format,
-    /// password policy — so it is safe to return verbatim, and attached to the field it concerns
-    /// so a client renders it there instead of parsing free text.
+    /// Each message describes the submitted value it is attached to — format, password policy — so
+    /// it is safe to return verbatim, and attached to the field it concerns so a client renders it
+    /// there instead of parsing free text.
     /// </summary>
-    public static Error RegistrationRejected(string? userName, string? email, string? password)
+    public static Error RegistrationRejected(string? email, string? password)
     {
         var details = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-
-        if (userName is not null)
-        {
-            details["userName"] = [userName];
-        }
 
         if (email is not null)
         {

@@ -18,7 +18,6 @@ public sealed class AccountEmailTemplatesTests
 
     private static readonly Dictionary<string, string> _placeholders = new(StringComparer.Ordinal)
     {
-        ["UserName"] = "Ada",
         ["ConfirmationLink"] = "https://localhost/x",
         ["ResetLink"] = "https://localhost/x",
     };

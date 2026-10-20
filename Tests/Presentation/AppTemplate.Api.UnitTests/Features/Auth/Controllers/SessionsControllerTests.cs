@@ -216,7 +216,6 @@ public sealed class SessionsControllerTests
     private static SignInWithExternalProviderOutcome.Authenticated AnAuthenticatedOutcome(bool accountCreated = false) =>
         new(
             UserId: Guid.CreateVersion7(),
-            UserName: "ada",
             Email: "ada@example.com",
             AccessToken: "access",
             AccessTokenExpiresAt: _accessExpiry,

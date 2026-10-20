@@ -223,7 +223,7 @@ public sealed class CompletePasskeyRegistrationUseCaseTests
     private void GivenTheProfile(bool hasPassword) =>
         _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>())
             .Returns(new UserProfile(
-                _callerId, "a-user", "a@example.org", true, [], _now, TwoFactorEnabled: false, HasPassword: hasPassword));
+                _callerId, "a@example.org", true, [], _now, TwoFactorEnabled: false, HasPassword: hasPassword));
 
     private CompletePasskeyRegistrationUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

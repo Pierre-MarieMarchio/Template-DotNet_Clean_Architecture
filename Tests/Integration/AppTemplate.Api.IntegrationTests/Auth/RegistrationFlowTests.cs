@@ -26,7 +26,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         using var registered = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("newcomer", email, ValidPassword),
+            new RegisterRequest(email, ValidPassword),
             TestToken);
 
         registered.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -35,7 +35,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         // which is the address it was sent to.
         var account = await ApiJson.ReadAsync<RegisterResponse>(registered, TestToken);
         account.Email.ShouldBe(email);
-        account.UserName.ShouldBe("newcomer");
         account.ConfirmationEmailSent.ShouldBeTrue();
 
         // Exactly one email, to that address, with the configured subject.
@@ -43,7 +42,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         Emails.Snapshot().Count.ShouldBe(1);
         sent.Subject.ShouldBe("Confirm your email address");
         sent.SentAt.ShouldBe(Clock.UtcNow);
-        sent.HtmlBody.ShouldContain("newcomer");
 
         // Signing in before confirming must fail, and fail the same way every other login failure
         // does.
@@ -98,7 +96,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         var profile = await ApiJson.ReadAsync<CurrentUserResponse>(profileResponse, TestToken);
         profile.UserId.ShouldNotBe(Guid.Empty);
         profile.Email.ShouldBe(email);
-        profile.UserName.ShouldBe("newcomer");
         profile.EmailConfirmed.ShouldBeTrue();
     }
 
@@ -202,35 +199,6 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         confirmed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await EmailConfirmedAsync(user.Email)).ShouldBeTrue();
-    }
-
-    /// <summary>
-    /// A username carrying markup never reaches the email emailFactory, because the identity store's
-    /// allowed-character set refuses it first. The emailFactory's HTML-encoding is only the second line of
-    /// defence: without both, a user could put an anchor pointing anywhere into their own username and
-    /// have it delivered inside a mail from this domain.
-    /// </summary>
-    [Fact]
-    public async Task AUserNameCarryingMarkup_IsRefusedAndSendsNothing()
-    {
-        var client = CreateClient();
-        string email = $"markup-{Guid.CreateVersion7():N}@integration.test";
-
-        using var registered = await client.PostAsJsonAsync(
-            $"{AuthRoute}/register",
-            new RegisterRequest("<a href='http://evil'>click</a>", email, ValidPassword),
-            TestToken);
-
-        registered.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        var problem = await ApiJson.ReadProblemAsync(registered, TestToken);
-        problem.Code.ShouldBe("request.validationFailed");
-
-        // The store's refusal names the field it concerns, not the password beside it.
-        problem.Body.ShouldContain("\"userName\"", Case.Sensitive);
-        problem.Body.ShouldNotContain("\"password\"", Case.Sensitive);
-
-        Emails.Snapshot().ShouldBeEmpty();
-        (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(0);
     }
 
     private async Task<bool> EmailConfirmedAsync(string email)

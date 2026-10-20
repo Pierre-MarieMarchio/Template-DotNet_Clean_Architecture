@@ -46,7 +46,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("candidate", "candidate@integration.test", password),
+            new RegisterRequest("candidate@integration.test", password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, why);
@@ -73,7 +73,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("candidate", "candidate@integration.test", password),
+            new RegisterRequest("candidate@integration.test", password),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -91,7 +91,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var rejected = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("second-attempt", email, "weakweak"),
+            new RegisterRequest(email, "weakweak"),
             TestToken);
 
         rejected.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -102,7 +102,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
         // The address is still free.
         using var accepted = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("second-attempt", email, ValidPassword),
+            new RegisterRequest(email, ValidPassword),
             TestToken);
 
         accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -116,7 +116,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("someone-else", existing.Email, ValidPassword),
+            new RegisterRequest(existing.Email, ValidPassword),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -124,9 +124,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
         var problem = await ApiJson.ReadProblemAsync(response, TestToken);
         problem.Code.ShouldBe("auth.register.unavailable");
 
-        // Registration cannot fully hide that an address is taken, but the message must not confirm
-        // which of the two values collided.
-        problem.Detail.ShouldBe("That username or email address cannot be used.");
+        problem.Detail.ShouldBe("That email address cannot be used.");
     }
 
     [Theory]
@@ -138,7 +136,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         using var response = await client.PostAsJsonAsync(
             $"{AuthRoute}/register",
-            new RegisterRequest("candidate", email, ValidPassword),
+            new RegisterRequest(email, ValidPassword),
             TestToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

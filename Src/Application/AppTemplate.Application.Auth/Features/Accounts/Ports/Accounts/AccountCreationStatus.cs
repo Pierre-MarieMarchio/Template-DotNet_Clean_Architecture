@@ -6,11 +6,11 @@ public enum AccountCreationStatus
     /// <summary>The account exists.</summary>
     Created,
 
-    /// <summary>The user name or the email address is taken. Which one is deliberately not said.</summary>
+    /// <summary>The address is taken.</summary>
     Conflict,
 
     /// <summary>
-    /// The store refused the values themselves — password policy, allowed characters, format.
+    /// The store refused the values themselves — password policy, format.
     /// </summary>
     Rejected,
 }

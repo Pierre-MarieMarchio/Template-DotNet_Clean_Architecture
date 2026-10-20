@@ -15,6 +15,6 @@ internal sealed class AccountReminderRecipientDirectory(IAccountsService account
     {
         var profile = await accounts.FindProfileAsync(ownerId.Value, cancellationToken);
 
-        return profile is null ? null : new ReminderRecipient(profile.UserName, profile.Email);
+        return profile is null ? null : new ReminderRecipient(profile.Email, profile.Email);
     }
 }

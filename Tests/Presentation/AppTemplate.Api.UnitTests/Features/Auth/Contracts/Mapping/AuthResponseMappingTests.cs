@@ -27,13 +27,11 @@ public sealed class AuthResponseMappingTests
     {
         var dto = new RegisterOutcome(
             UserId: Guid.NewGuid(),
-            UserName: "ada",
             Email: "ada@example.com",
             ConfirmationEmailSent: true);
 
         var response = AuthResponseMapping.ToRegisterResponse(Result.Success(dto)).Value;
 
-        response.UserName.ShouldBe("ada");
         response.Email.ShouldBe("ada@example.com");
         response.ConfirmationEmailSent.ShouldBeTrue();
     }
@@ -60,7 +58,6 @@ public sealed class AuthResponseMappingTests
     {
         var outcome = new LoginOutcome.Authenticated(
             UserId: Guid.NewGuid(),
-            UserName: "ada",
             Email: "ada@example.com",
             AccessToken: "access",
             AccessTokenExpiresAt: _accessExpiry,
@@ -117,7 +114,6 @@ public sealed class AuthResponseMappingTests
     {
         var outcome = new SignInWithExternalProviderOutcome.Authenticated(
             UserId: Guid.NewGuid(),
-            UserName: "ada",
             Email: "ada@example.com",
             AccessToken: "access",
             AccessTokenExpiresAt: _accessExpiry,
@@ -145,7 +141,6 @@ public sealed class AuthResponseMappingTests
     {
         var outcome = new SignInWithExternalProviderOutcome.Authenticated(
             UserId: Guid.NewGuid(),
-            UserName: "ada",
             Email: "ada@example.com",
             AccessToken: "access",
             AccessTokenExpiresAt: _accessExpiry,
@@ -234,7 +229,6 @@ public sealed class AuthResponseMappingTests
         var createdAt = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
         var dto = new GetCurrentUserOutcome(
             UserId: userId,
-            UserName: "ada",
             Email: "ada@example.com",
             EmailConfirmed: true,
             Roles: ["Administrator", "Member"],
@@ -244,7 +238,6 @@ public sealed class AuthResponseMappingTests
         var response = AuthResponseMapping.ToCurrentUserResponse(Result.Success(dto)).Value;
 
         response.UserId.ShouldBe(userId);
-        response.UserName.ShouldBe("ada");
         response.Email.ShouldBe("ada@example.com");
         response.EmailConfirmed.ShouldBeTrue();
         response.Roles.ShouldBe(["Administrator", "Member"]);

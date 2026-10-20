@@ -75,7 +75,7 @@ public sealed class VerifyTwoFactorUseCaseTests
     [Fact]
     public async Task AWrongCodeAgainstALiveChallenge_AnswersWithTheSameErrorAsAnInvalidChallenge()
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", true);
 
         _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.InvalidCode(account));
@@ -90,7 +90,7 @@ public sealed class VerifyTwoFactorUseCaseTests
     [Fact]
     public async Task AWrongCodeAgainstALiveChallenge_IsStillRecordedForTheAuditTrail()
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", true);
 
         _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.InvalidCode(account));
@@ -140,7 +140,6 @@ public sealed class VerifyTwoFactorUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         var authenticated = result.Value.ShouldBeOfType<LoginOutcome.Authenticated>();
         authenticated.UserId.ShouldBe(account.UserId);
-        authenticated.UserName.ShouldBe(account.UserName);
         authenticated.Email.ShouldBe(account.Email);
         authenticated.AccessToken.ShouldBe("access-token");
         authenticated.AccessTokenExpiresAt.ShouldBe(_accessTokenExpiry);
@@ -183,7 +182,7 @@ public sealed class VerifyTwoFactorUseCaseTests
 
     private AccountIdentity GivenTheCodeIsVerified(bool usedRecoveryCode)
     {
-        var account = new AccountIdentity(Guid.CreateVersion7(), "someone", "someone@example.com", true);
+        var account = new AccountIdentity(Guid.CreateVersion7(), "someone@example.com", true);
 
         _twoFactor.RedeemChallengeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(TwoFactorRedemptionOutcome.Verified(account, usedRecoveryCode));

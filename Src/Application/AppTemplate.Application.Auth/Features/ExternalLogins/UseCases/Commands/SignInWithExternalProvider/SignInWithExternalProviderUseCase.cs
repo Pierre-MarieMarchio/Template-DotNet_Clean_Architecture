@@ -193,7 +193,6 @@ public sealed class SignInWithExternalProviderUseCase(
         return Result.Success<SignInWithExternalProviderOutcome>(
             new SignInWithExternalProviderOutcome.Authenticated(
                 account.UserId,
-                account.UserName,
                 account.Email,
                 accessToken.Value,
                 accessToken.ExpiresAt,

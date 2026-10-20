@@ -45,18 +45,18 @@ public sealed class AccountsServiceCreateTests
     [Fact]
     public async Task AValidAccount_IsCreated()
     {
-        var creation = await CreateAccounts().CreateAsync("someone", "someone@identity.test", _password, TestToken);
+        var creation = await CreateAccounts().CreateAsync("someone@identity.test", _password, TestToken);
 
         creation.Status.ShouldBe(AccountCreationStatus.Created);
     }
 
     [Fact]
-    public async Task AUserNameAlreadyTaken_IsAConflict()
+    public async Task AnAddressAlreadyHeldAsAUserName_IsAConflict()
     {
-        _store.FindByNameAsync("SOMEONE", Arg.Any<CancellationToken>())
-            .Returns(new AppUser { Id = Guid.CreateVersion7(), UserName = "someone" });
+        _store.FindByNameAsync("SOMEONE@IDENTITY.TEST", Arg.Any<CancellationToken>())
+            .Returns(new AppUser { Id = Guid.CreateVersion7(), UserName = "someone@identity.test" });
 
-        var creation = await CreateAccounts().CreateAsync("someone", "someone@identity.test", _password, TestToken);
+        var creation = await CreateAccounts().CreateAsync("someone@identity.test", _password, TestToken);
 
         creation.Status.ShouldBe(AccountCreationStatus.Conflict);
     }
@@ -68,15 +68,15 @@ public sealed class AccountsServiceCreateTests
         _store.CreateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
             .Returns(IdentityResult.Failed(new IdentityErrorDescriber().DuplicateEmail("someone@identity.test")));
 
-        var creation = await CreateAccounts().CreateAsync("someone", "someone@identity.test", _password, TestToken);
+        var creation = await CreateAccounts().CreateAsync("someone@identity.test", _password, TestToken);
 
         creation.Status.ShouldBe(AccountCreationStatus.Conflict);
     }
 
     /// <summary>
-    /// Only Identity's own duplicate codes mean "name or address taken". A derived project's validator
+    /// Only Identity's own duplicate codes mean "address taken". A derived project's validator
     /// whose code merely contains the word must not be answered with the registration conflict,
-    /// which tells the caller something about names and addresses it does not concern.
+    /// which tells the caller something about addresses it does not concern.
     /// </summary>
     [Fact]
     public async Task ACodeThatMerelyContainsDuplicate_IsARejectionNotAConflict()
@@ -87,7 +87,7 @@ public sealed class AccountsServiceCreateTests
             Description = "That phone number is already in use.",
         }));
 
-        var creation = await CreateAccounts().CreateAsync("someone", "someone@identity.test", _password, TestToken);
+        var creation = await CreateAccounts().CreateAsync("someone@identity.test", _password, TestToken);
 
         creation.Status.ShouldBe(AccountCreationStatus.Rejected);
     }
@@ -95,22 +95,10 @@ public sealed class AccountsServiceCreateTests
     [Fact]
     public async Task ARefusedPassword_IsAttachedToThePasswordAlone()
     {
-        var creation = await CreateAccounts().CreateAsync("someone", "someone@identity.test", "short", TestToken);
+        var creation = await CreateAccounts().CreateAsync("someone@identity.test", "short", TestToken);
 
         creation.Status.ShouldBe(AccountCreationStatus.Rejected);
         creation.PasswordRejection.ShouldNotBeNullOrEmpty();
-        creation.UserNameRejection.ShouldBeNull();
-        creation.EmailRejection.ShouldBeNull();
-    }
-
-    [Fact]
-    public async Task ARefusedUserName_IsAttachedToTheUserNameAlone()
-    {
-        var creation = await CreateAccounts().CreateAsync("not allowed!", "someone@identity.test", _password, TestToken);
-
-        creation.Status.ShouldBe(AccountCreationStatus.Rejected);
-        creation.UserNameRejection.ShouldNotBeNullOrEmpty();
-        creation.PasswordRejection.ShouldBeNull();
         creation.EmailRejection.ShouldBeNull();
     }
 
@@ -120,12 +108,11 @@ public sealed class AccountsServiceCreateTests
     {
         _identityOptions.User.RequireUniqueEmail = true;
 
-        var creation = await CreateAccounts().CreateAsync("someone", "not-an-address", _password, TestToken);
+        var creation = await CreateAccounts().CreateAsync("not-an-address", _password, TestToken);
 
         creation.Status.ShouldBe(AccountCreationStatus.Rejected);
         creation.EmailRejection.ShouldNotBeNullOrEmpty();
         creation.PasswordRejection.ShouldBeNull();
-        creation.UserNameRejection.ShouldBeNull();
     }
 
     /// <summary>The one value left that the store judges, so the explanation still reaches the caller.</summary>
@@ -138,7 +125,7 @@ public sealed class AccountsServiceCreateTests
             Description = "That phone number is already in use.",
         }));
 
-        var creation = await CreateAccounts().CreateAsync("someone", "someone@identity.test", _password, TestToken);
+        var creation = await CreateAccounts().CreateAsync("someone@identity.test", _password, TestToken);
 
         creation.PasswordRejection.ShouldBe("That phone number is already in use.");
     }

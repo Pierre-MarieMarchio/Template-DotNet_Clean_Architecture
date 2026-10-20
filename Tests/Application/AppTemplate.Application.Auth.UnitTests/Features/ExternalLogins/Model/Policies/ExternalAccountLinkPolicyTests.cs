@@ -15,7 +15,6 @@ public sealed class ExternalAccountLinkPolicyTests
 {
     private static readonly AccountIdentity _account = new(
         Guid.CreateVersion7(),
-        "someone",
         "someone@example.com",
         TwoFactorEnabled: false);
 

@@ -79,7 +79,6 @@ public sealed class VerifyTwoFactorUseCase(
 
         return Result.Success<LoginOutcome>(new LoginOutcome.Authenticated(
             account.UserId,
-            account.UserName,
             account.Email,
             accessToken.Value,
             accessToken.ExpiresAt,

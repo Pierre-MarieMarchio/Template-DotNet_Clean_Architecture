@@ -75,7 +75,6 @@ public sealed class CompletePasskeySignInUseCase(
 
         return Result.Success<LoginOutcome>(new LoginOutcome.Authenticated(
             account.UserId,
-            account.UserName,
             account.Email,
             accessToken.Value,
             accessToken.ExpiresAt,

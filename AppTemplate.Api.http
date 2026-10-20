@@ -45,7 +45,6 @@
 @mailpit = http://localhost:8025
 
 # Password satisfies appsettings.Development.json: >= 8 chars, upper, lower, digit, non-alphanumeric.
-@userName = ada
 @email = ada@localhost
 # The three passwords this walkthrough uses, in the order it changes them: the one it registers
 # with, the one 33b changes to, and the one the reset in 33d lands on. The last two are derived from
@@ -65,7 +64,6 @@ POST {{api}}/auth/register
 Content-Type: application/json
 
 {
-  "userName": "{{userName}}",
   "email": "{{email}}",
   "password": "{{password}}"
 }
@@ -77,7 +75,6 @@ POST {{api}}/auth/register
 Content-Type: application/json
 
 {
-  "userName": "{{userName}}",
   "email": "{{email}}",
   "password": "{{password}}"
 }

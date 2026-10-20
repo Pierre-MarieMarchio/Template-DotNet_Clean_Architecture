@@ -43,11 +43,9 @@ public sealed class EmailTokensServicePasswordResetTests
         var user = new AppUser { Id = Guid.CreateVersion7(), UserName = "someone" };
         store.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(user);
 
-        var pending = await CreateTokens(store, out _).IssuePasswordResetAsync(_knownEmail, TestToken);
+        var token = await CreateTokens(store, out _).IssuePasswordResetAsync(_knownEmail, TestToken);
 
-        pending.ShouldNotBeNull();
-        pending.UserName.ShouldBe("someone");
-        pending.Token.ShouldBe(StubTokenProvider.Token);
+        token.ShouldBe(StubTokenProvider.Token);
     }
 
     /// <summary>

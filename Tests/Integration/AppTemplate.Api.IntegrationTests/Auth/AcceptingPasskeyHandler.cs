@@ -49,7 +49,7 @@ internal sealed class AcceptingPasskeyHandler(
         // duplicate: a refusal here must come from the state alone.
         return PasskeyAttestationResult.Success(
             APasskey(Guid.CreateVersion7().ToByteArray()),
-            new PasskeyUserEntity { Id = user.Id.ToString(), Name = user.Email!, DisplayName = user.UserName! });
+            new PasskeyUserEntity { Id = user.Id.ToString(), Name = user.Email!, DisplayName = user.Email! });
     }
 
     public async Task<PasskeyAssertionResult<AppUser>> PerformAssertionAsync(PasskeyAssertionContext context)

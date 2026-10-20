@@ -33,11 +33,11 @@ public sealed class ResendConfirmationEmailUseCase(
             return validation;
         }
 
-        var pending = await emailTokens.IssueEmailConfirmationAsync(request.Email, cancellationToken);
+        var token = await emailTokens.IssueEmailConfirmationAsync(request.Email, cancellationToken);
 
-        if (pending is not null)
+        if (token is not null)
         {
-            await TrySendAsync(request.Email, pending, cancellationToken);
+            await TrySendAsync(request.Email, token, cancellationToken);
         }
 
         // Always success. The answer must not differ between "sent", "already confirmed" and "no
@@ -47,16 +47,12 @@ public sealed class ResendConfirmationEmailUseCase(
 
     private async Task TrySendAsync(
         string email,
-        IssuedEmailToken pending,
+        string token,
         CancellationToken cancellationToken)
     {
         try
         {
-            var message = await emailFactory.CreateConfirmationAsync(
-                pending.UserName,
-                email,
-                pending.Token,
-                cancellationToken);
+            var message = await emailFactory.CreateConfirmationAsync(email, token, cancellationToken);
 
             await emailSender.SendAsync(email, message.Subject, message.HtmlBody, cancellationToken);
         }

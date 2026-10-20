@@ -40,6 +40,18 @@ the full rule, including `DomainException` for a violated invariant and
 `ConcurrencyConflictException` for a lost update. Everything becomes an RFC 7807 `ProblemDetails`
 with that `code`, and **no exception message ever reaches a client**.
 
+**Ports and use cases answer differently.** An output port — an interface Infrastructure implements —
+answers with what the adapter observed: an `…Outcome` record whose `…Status` enum is the closed set
+of ways the call can go. A use case answers with `Result`, which is where one of those ways becomes
+an `Error` with a `code`. No port returns `Result`, so the code a client reads is chosen by the
+layer that knows the operation, and never by whichever adapter happened to notice.
+
+**Events leave by one of two routes.** An aggregate's events are raised on its root and leave through
+the saving pipeline, collected as the save of its context begins and published after that save has
+committed. A fact no aggregate carries — one an operation makes true without a root — is published
+through `IDomainEventPublisher` by that operation, after its own commit. Either way a consumer is
+never handed a fact the store can still deny.
+
 **Persistence.** EF maps persistence models (`*Record`), never the domain entities, and the
 concurrency token is PostgreSQL's `xmin`. The mapper, the tracker and the flush pipeline that keep
 that split intact are

@@ -3,8 +3,9 @@
 namespace AppTemplate.Domain.Core.Common.Primitives;
 
 /// <summary>
-/// Non-generic marker so the persistence layer can collect domain events from any root
-/// without knowing its id type.
+/// Non-generic marker for an aggregate root, whatever its id type. A root's events are collected
+/// through its feature's tracker, which implements <c>IDomainEventSource</c>, and not by looking
+/// for this interface in a change tracker.
 /// </summary>
 public interface IAggregateRoot
 {

@@ -134,8 +134,10 @@ wrong path in a template's documentation costs the reader an hour. **An example 
 real file has to be written so it does not read as one** — a placeholder such as `<Your.Name>.sln`
 rather than a plausible-looking name.
 
-`Tools/CheckNarrativeComments.cs` holds the comment rule over `.cs` and `.md` alike, `CHANGELOG.md`
-excepted — narrating history is what a changelog is for.
+`Tools/CheckComments.cs` holds the comment rule of [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md#comments):
+no comment in C# or a project file outside the allowlist, one guidance line at a time in the
+configuration files, and no Markdown narrating the repository's history, `CHANGELOG.md` excepted —
+narrating history is what a changelog is for.
 <!--#endif-->
 **Rationale belongs in `docs/`**, not in a paragraph above a method: measurements, rejected
 options and arbitrations go in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) or

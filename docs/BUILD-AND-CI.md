@@ -60,8 +60,9 @@ dotnet run Tools/Tasks.cs coverage                 # line coverage >= coverage.m
 ```
 
 <!--#if (templateMaintenance)-->
-`hygiene` exists because two classes of defect are invisible to the compiler and to the tests: a
-documented path that resolves to nothing, and a workflow that would fail the first time it ran.
+`hygiene` exists because three classes of defect are invisible to the compiler and to the tests: a
+documented path that resolves to nothing, a workflow that would fail the first time it ran, and a
+comment the code should not need.
 <!--#else-->
 `hygiene` runs the fixtures of the gates this tree carries — the scaffolders' and the coverage
 gate's — so a gate that cannot go red never judges the tree.
@@ -77,7 +78,7 @@ right rather than a nicety:
 dotnet run Tools/CheckDocPaths.cs --self-test
 dotnet run Tools/CheckWorkflows.cs --self-test
 dotnet run Tools/CoverageGate.cs --self-test
-dotnet run Tools/CheckNarrativeComments.cs --self-test
+dotnet run Tools/CheckComments.cs --self-test
 ```
 
 Each carries two sets of fixtures, built in a temporary tree and thrown away. The faulted ones —
@@ -140,7 +141,7 @@ an app.
 | [`Tools/CheckDocPaths.cs`](../Tools/CheckDocPaths.cs) | every repository path cited in a Markdown code span resolves on disk |
 | [`Tools/CheckWorkflows.cs`](../Tools/CheckWorkflows.cs) | what a YAML parse does not catch: a dangling `needs:`, an action on a mutable tag, a container image without a digest, a missing `permissions:`, a `$VAR` in no `env:`, a script named in a `run:` and absent from disk |
 | [`Tools/CoverageGate.cs`](../Tools/CoverageGate.cs) | the Cobertura reports of a test run against the floor in `coverage.minimum` |
-| [`Tools/CheckNarrativeComments.cs`](../Tools/CheckNarrativeComments.cs) | no comment narrates the repository's own history, across `.cs` and `.md` alike |
+| [`Tools/CheckComments.cs`](../Tools/CheckComments.cs) | no comment outside the allowlist of [`CONVENTIONS.md`](CONVENTIONS.md#comments): C#, project files, the guidance lines of the configuration files, and no Markdown narrating the repository's history |
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
 | [`Tools/sonar-scanner.Dockerfile`](../Tools/sonar-scanner.Dockerfile) | not a C# app: the image the local Sonar analysis runs in, which is where its JRE lives instead of on your machine |
 <!--#elseif (sonar)
@@ -171,7 +172,7 @@ Windows, Linux and macOS.
 | [`Tools/TestSummary.cs`](../Tools/TestSummary.cs) | sums the TRX counters into the job summary, and fails a run that executed no test |
 #endif-->
 
-The tree-auditing gates — `CheckDocPaths`, `CheckWorkflows`, `CheckNarrativeComments` — are the
+The tree-auditing gates — `CheckDocPaths`, `CheckWorkflows`, `CheckComments` — are the
 template repository's own and do not ship: they hold this template's documentation, workflows and
 comment policy to this template's tree. The `hygiene` task asks the filesystem which gates its
 tree carries, so the same task serves both.

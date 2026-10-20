@@ -275,17 +275,11 @@ jobs:
       - name: The coverage gate can fail
         run: dotnet run Tools/CoverageGate.cs --self-test
 
-      # The gate proves itself before it judges anything: the fixtures assert that it fires
-      # on real offenders taken from this repository, and stays silent on the sentences that
-      # only resemble one. A pattern list nobody contrasted against innocents is how a check
-      # like this ends up switched off.
-      - name: The narrative-comment gate can fail
-        run: dotnet run Tools/CheckNarrativeComments.cs --self-test
+      - name: The comment gate can fail
+        run: dotnet run Tools/CheckComments.cs --self-test
 
-      # CONTRIBUTING bans comments that say what the code was rather than what it is. A reader
-      # who did not live that past cannot act on it, and the sentence rots by itself.
-      - name: No comment narrates the repository's history
-        run: dotnet run Tools/CheckNarrativeComments.cs .
+      - name: No comment outside the allowlist
+        run: dotnet run Tools/CheckComments.cs .
   #endif
 
   # ---------------------------------------------------------------------------

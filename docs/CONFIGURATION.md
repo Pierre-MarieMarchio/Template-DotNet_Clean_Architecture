@@ -968,6 +968,39 @@ Same fragment-then-POST shape again: the new address and single-use token are ap
 as a URL fragment, and the page **POSTs** them to `/api/v1/auth/confirm-email-change` as
 a JSON body.
 
+### The pages the mailed links open
+
+Whatever serves them — a web app of this project or a front end of your own — implements exactly
+this contract. Each link is the configured URL followed by
+`#email=<address>&token=<token>`, both values percent-encoded; the fragment never reaches a
+server, so the page reads it with `URLSearchParams` over `location.hash` and should drop it from the
+address bar once read.
+
+| Setting | Route | The page then POSTs, as JSON |
+|---|---|---|
+| `EmailConfirmation:ConfirmEmailUrl` | `/confirm-email` | `{ "email", "token" }` to `/api/v1/auth/confirm-email`, anonymously; `204`, or `400` `auth.confirmEmail.invalid` |
+| `PasswordReset:ResetPasswordUrl` | `/reset-password` | `{ "email", "token", "newPassword" }` to `/api/v1/auth/reset-password`, anonymously, after asking for the new password; `204`, or `400` `auth.resetPassword.invalid` or a password-policy refusal |
+| `EmailChange:ConfirmEmailChangeUrl` | `/confirm-email-change` | `{ "newEmail", "token" }` to `/api/v1/auth/confirm-email-change`, the fragment's `email` being the new address; **authenticated**, so the page signs its holder in first; `204`, or `400` `auth.changeEmail.invalid` |
+
+The route names are the defaults the template writes, not a constraint of the API: the settings
+take any absolute page URL, and a front end that routes differently changes the three values.
+<!--#if (anyWeb)-->
+
+**With a web app, the links open the app.** In development `appsettings.Development.json`
+points the three URLs at the first app's own origin,
+<!--#if (webReact)-->
+`http://localhost:5173`, the Vite development server,
+<!--#elseif (webAngular)-->
+`http://localhost:4200`, the Angular development server,
+<!--#elseif (webPlaceholder)-->
+`http://localhost:8081`, the placeholder's nginx container,
+<!--#endif-->
+whose relay forwards the page's `POST /api/...` to the API. Under Compose the same three default to
+`http://localhost:${WEB_SITE_HOST_PORT}` and the route, so changing the app's host port moves the
+links with it. In a deployment set them to the app's public origin, never to the API's: the API
+serves no page.
+<!--#endif-->
+
 **A mail's subject is not configured.** It is the `<title>` of the template that renders its
 body, so the two are one file and cannot end up in different languages — which is exactly what
 happened while the subject lived here: an English `Subject` was delivered above a French body for

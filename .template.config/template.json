@@ -482,6 +482,26 @@
     }
   ],
   "SpecialCustomOperations": {
+    "**/appsettings.Development.json": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "style": "line",
+            "token": "//"
+          }
+        },
+        {
+          "type": "conditional",
+          "configuration": {
+            "style": "block",
+            "startToken": "/*",
+            "endToken": "*/",
+            "pseudoEndToken": "* /"
+          }
+        }
+      ]
+    },
     "**/.env.example": {
       "operations": [
         {

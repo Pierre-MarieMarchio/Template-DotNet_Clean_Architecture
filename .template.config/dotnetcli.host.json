@@ -10,6 +10,10 @@
       "longName": "auth-none-needs-files-false",
       "shortName": "",
       "isHidden": true
+    },
+    "webName": {
+      "longName": "web-name",
+      "shortName": ""
     }
   }
 }

@@ -1,0 +1,26 @@
+{
+  "name": "@app-template/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "api": "node scripts/generate.mjs",
+    "build": "tsc --project tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@app-template/eslint-config": "workspace:*",
+    "@app-template/tsconfig": "workspace:*",
+    "eslint": "10.12.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}

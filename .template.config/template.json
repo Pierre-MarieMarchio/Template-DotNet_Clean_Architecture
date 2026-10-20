@@ -226,6 +226,94 @@
         ]
       },
       "replaces": "app-template"
+    },
+    "webName": {
+      "type": "parameter",
+      "datatype": "text",
+      "defaultValue": "Site",
+      "description": "The first web app's name, in PascalCase: its folder Src/Web/apps/<name>, its service web-<name>, its port WEB_<NAME>_HOST_PORT.",
+      "replaces": "PlaceholderSite",
+      "fileRename": "PlaceholderSite"
+    },
+    "webNameWords": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "webName",
+        "steps": [
+          { "regex": "([A-Z]+)([A-Z][a-z])", "replacement": "$1-$2" },
+          { "regex": "([a-z0-9])([A-Z])", "replacement": "$1-$2" },
+          { "regex": "[.\\s_-]+", "replacement": "-" }
+        ]
+      }
+    },
+    "webNameKebab": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "webNameWords", "toLower": true },
+      "replaces": "placeholder-site"
+    },
+    "webNameUpper": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "webNameWords", "toLower": false }
+    },
+    "webNameEnvironment": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "webNameUpper",
+        "steps": [{ "regex": "-", "replacement": "_" }]
+      },
+      "replaces": "PLACEHOLDER_SITE"
+    },
+    "webDefaultPort": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          { "condition": "(webReact)", "value": "5173" },
+          { "condition": "(webAngular)", "value": "4200" },
+          { "condition": "(true)", "value": "8081" }
+        ]
+      }
+    },
+    "webPortReference": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          { "type": "const", "value": "${WEB_" },
+          { "type": "ref", "value": "webNameEnvironment" },
+          { "type": "const", "value": "_HOST_PORT:-" },
+          { "type": "ref", "value": "webDefaultPort" },
+          { "type": "const", "value": "}" }
+        ],
+        "separator": ""
+      }
+    },
+    "apiPortWithoutWeb": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          { "condition": "(anyWeb)", "value": "" },
+          { "condition": "(true)", "value": "8080" }
+        ]
+      }
+    },
+    "firstAppPort": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "apiPortWithoutWeb",
+        "fallbackVariableName": "webPortReference"
+      },
+      "replaces": "${WEB_PLACEHOLDER_SITE_HOST_PORT:-8081}"
     }
   },
   "guids": [
@@ -287,7 +375,24 @@
             ".github/workflows/template-acceptance.yml",
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",
-            "Tools/CheckComments.cs"
+            "Tools/CheckComments.cs",
+            "Src/Web/**/node_modules/**",
+            "Src/Web/**/dist/**",
+            "Src/Web/**/coverage/**",
+            "Src/Web/packages/api-client/openapi/**"
+          ]
+        },
+        {
+          "condition": "(!anyWeb)",
+          "exclude": [
+            "Src/Web/**",
+            "Src/Presentation/AppTemplate.Api/Common/Hosting/BuildTimeOpenApiDocument.cs"
+          ]
+        },
+        {
+          "condition": "(!webPlaceholder)",
+          "exclude": [
+            "Src/Web/apps/PlaceholderSite/**"
           ]
         },
         {
@@ -565,6 +670,36 @@
             "endif": [
               "#endif"
             ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/.gitignore": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": ["#if"],
+            "else": ["#else"],
+            "elseif": ["#elseif"],
+            "endif": ["#endif"],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/.dockerignore": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": ["#if"],
+            "else": ["#else"],
+            "elseif": ["#elseif"],
+            "endif": ["#endif"],
             "trim": true,
             "wholeLine": true
           }

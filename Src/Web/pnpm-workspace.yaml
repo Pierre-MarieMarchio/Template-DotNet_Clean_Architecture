@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - packages/*
+
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: "6"

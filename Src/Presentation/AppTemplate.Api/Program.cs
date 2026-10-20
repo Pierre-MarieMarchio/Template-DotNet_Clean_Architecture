@@ -154,6 +154,13 @@ if (schemes.Any() is false)
 
 app.MapApiHealthEndpoints();
 
+//#if (anyWeb)
+if (BuildTimeOpenApiDocument.IsBeingGenerated)
+{
+    return;
+}
+
+//#endif
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();

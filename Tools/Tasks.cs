@@ -351,6 +351,10 @@ internal static class Tasks
                         + "Fix the restore and run `dotnet tool restore` again.");
                 }
 
+                //#if (anyWeb)
+                WebWorkspace(repoRoot, "install");
+                WebWorkspace(repoRoot, "api");
+                //#endif
                 Write("Formatting stable and tools restored. Commit this before anything else.", ConsoleColor.Green);
                 break;
 
@@ -483,6 +487,22 @@ internal static class Tasks
             {string.Join(Environment.NewLine, tests)}
             dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
             """;
+    }
+
+    //#endif
+    //#if (anyWeb)
+    private static void WebWorkspace(string repoRoot, string script)
+    {
+        try
+        {
+            Step(OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", "--dir", Path.Combine(repoRoot, "Src", "Web"), script);
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException(
+                error.Message + " The web workspace needs Node.js and pnpm: run `corepack enable` once, then "
+                + "`pnpm install` and `pnpm api` in Src/Web.");
+        }
     }
 
     //#endif

@@ -71,6 +71,13 @@ internal sealed class IdentityPolicyOptionsValidator : IValidateOptions<Identity
             failures.Add($"'{IdentityPolicyOptions.SectionName}:LockoutDurationInMinutes' must be at least 1.");
         }
 
+        if (!options.RequireConfirmedEmail)
+        {
+            failures.Add(
+                $"'{IdentityPolicyOptions.SectionName}:RequireConfirmedEmail' cannot be disabled: confirming an " +
+                "address revokes no session, because an unconfirmed account cannot sign in.");
+        }
+
         if (!options.RequireUniqueEmail)
         {
             failures.Add(

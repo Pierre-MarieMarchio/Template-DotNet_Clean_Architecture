@@ -24,6 +24,9 @@ internal sealed class ExternalPrincipalMapper(
     IExternalIdentityService identities,
     IOptions<AuthenticationExternalOptions> options)
 {
+    /// <summary>The OpenID Connect claim by which a provider says whether it verified the address.</summary>
+    private const string _emailVerifiedClaim = "email_verified";
+
     /// <returns>The caller's principal, or <c>null</c> when the token cannot name one.</returns>
     internal async Task<ClaimsPrincipal?> MapAsync(
         ClaimsPrincipal tokenPrincipal,
@@ -49,7 +52,7 @@ internal sealed class ExternalPrincipalMapper(
             new ExternalCallerDto(
                 issuer,
                 subject,
-                tokenPrincipal.FindFirst(settings.EmailClaim)?.Value,
+                VerifiedEmail(tokenPrincipal, settings.EmailClaim),
                 tokenPrincipal.FindFirst(settings.NameClaim)?.Value),
             cancellationToken);
 
@@ -75,5 +78,18 @@ internal sealed class ExternalPrincipalMapper(
         }
 
         return new ClaimsPrincipal(identity);
+    }
+
+    /// <summary>
+    /// The address, unless the token says it is unverified: reminders are sent to it. An absent
+    /// <c>email_verified</c> keeps it, because Entra ID and others never send the claim.
+    /// </summary>
+    private static string? VerifiedEmail(ClaimsPrincipal tokenPrincipal, string emailClaim)
+    {
+        string? verified = tokenPrincipal.FindFirst(_emailVerifiedClaim)?.Value;
+
+        return verified is null || string.Equals(verified, bool.TrueString, StringComparison.OrdinalIgnoreCase)
+            ? tokenPrincipal.FindFirst(emailClaim)?.Value
+            : null;
     }
 }

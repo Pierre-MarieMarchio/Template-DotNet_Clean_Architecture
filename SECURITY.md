@@ -271,7 +271,9 @@ configured by [`Authentication:External`](docs/CONFIGURATION.md#authenticationex
   mapped to an internal `UserId` in `external_identity.ExternalIdentities`, and that id is what
   `ICurrentUser` returns and every business row carries — even when the provider's subjects happen
   to be GUIDs. An email address is never the key: it is kept, refreshed when the provider sends a
-  new one, and used only to reach the owner.
+  new one, and used only to reach the owner. It is not kept when the token's `email_verified` is
+  anything but `true`; a token without that claim keeps it, so a provider that issues unverified
+  addresses without the claim should have `EmailClaim` mapped off.
 - **The mapping is created on the caller's first request, exactly once.** A unique index on
   (issuer, subject) decides between two concurrent first requests: the loser's insert is refused,
   it reads the winner's row, and both answer the same owner. Each write commits on its own, outside

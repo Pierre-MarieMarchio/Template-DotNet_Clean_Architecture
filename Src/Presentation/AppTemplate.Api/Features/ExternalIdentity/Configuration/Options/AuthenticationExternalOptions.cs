@@ -33,7 +33,8 @@ public sealed class AuthenticationExternalOptions
     /// <summary>The claim naming the provider's subject. Mapped to an internal owner, never used as one.</summary>
     public string SubjectClaim { get; set; } = "sub";
 
-    /// <summary>The claim carrying the caller's email address, kept for notifications.</summary>
+    /// <summary>The claim carrying the caller's email address, kept for notifications unless the
+    /// token's <c>email_verified</c> says it is unverified.</summary>
     public string EmailClaim { get; set; } = "email";
 
     /// <summary>The claim carrying the caller's display name, kept for notifications.</summary>

@@ -34,6 +34,16 @@ development stack runs — SeaweedFS, the same digest as `docker-compose.yml` �
 `Testcontainers` package, since no Testcontainers module exists for it.
 <!--#endif-->
 
+Testcontainers' resource reaper is off (`ResourceReaperSwitch`, and
+[`DECISIONS.md`](DECISIONS.md) says why): the fixtures remove their containers when the run ends,
+but a run killed outright — the process stopped in a debugger, the terminal closed — leaves them
+running. Every container Testcontainers starts carries the label `org.testcontainers=true`, so they
+go with one command:
+
+```bash
+docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
+```
+
 Every test project is listed in `AppTemplate.sln`, and it has to stay that way: the platform runs
 the test modules the solution names, so a project on disk but absent from it is never run and
 nothing in the run says so. CI asserts against exactly that. A new test project needs

@@ -6,10 +6,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Adapters.Scanners;
 
-/// <summary>
-/// <see cref="IFileContentScanner"/> over a <c>clamd</c> daemon. <c>clamd</c> does not speak HTTP, so
-/// the hosts' outbound policy does not reach it; <see cref="ScannerBudget"/> restates that budget.
-/// </summary>
 internal sealed class ClamAvFileContentScanner(
     IOptions<FilesScanningOptions> options,
     ILogger<ClamAvFileContentScanner> logger) : IFileContentScanner
@@ -25,7 +21,6 @@ internal sealed class ClamAvFileContentScanner(
 
         var scanning = options.Value;
 
-        // Decided before a byte is sent; the daemon's own ceiling still holds while sending.
         if (sizeInBytes > scanning.MaxScannableBytes)
         {
             return FileScanOutcome.NotInspectable;

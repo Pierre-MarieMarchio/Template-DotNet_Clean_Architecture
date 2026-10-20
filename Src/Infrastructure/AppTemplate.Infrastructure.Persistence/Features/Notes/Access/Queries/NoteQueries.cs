@@ -11,12 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Notes.Access.Queries;
 
-/// <summary>
-/// The read side: every method projects straight from <see cref="NoteRecord"/> into a DTO, so the SQL
-/// selects only the columns the DTO needs and nothing is tracked. Every query names the owner, so a
-/// missing note and somebody else's are the same empty answer and no row of another user is read
-/// first and compared afterwards.
-/// </summary>
 internal sealed class NoteQueries(AppDbContext context) : INoteQueries
 {
     public async Task<PagedResult<NoteSummaryDto>> GetForOwnerAsync(
@@ -36,10 +30,6 @@ internal sealed class NoteQueries(AppDbContext context) : INoteQueries
             : await GetKeysetPageAsync(owned, request, cancellationToken);
     }
 
-    /// <remarks>
-    /// <c>xmin</c> is selected by the same statement as the representation, so the version describes
-    /// exactly the row that was read.
-    /// </remarks>
     public Task<Versioned<NoteDto>?> GetAsync(
         UserId ownerId,
         Guid noteId,
@@ -80,7 +70,6 @@ internal sealed class NoteQueries(AppDbContext context) : INoteQueries
         FeaturePageRequest<NoteFilter> request,
         CancellationToken cancellationToken)
     {
-        // The service refuses a multi-term sort under paging=cursor, so there is exactly one term.
         var term = request.Sort.Terms[0];
         int pageSize = request.Paging.PageSize;
 
@@ -88,7 +77,6 @@ internal sealed class NoteQueries(AppDbContext context) : INoteQueries
             ? NoteSortMap.ApplyKeyset(owned, term, cursor)
             : owned;
 
-        // One row beyond the page answers "is there a next page" without a second query.
         var items = await NoteSortMap.ApplyOrder(keysetSource, request.Sort)
             .Take(pageSize + 1)
             .Select(_toSummary)
@@ -109,11 +97,6 @@ internal sealed class NoteQueries(AppDbContext context) : INoteQueries
         return PagedResult.Keyset(page, pageSize, nextCursor);
     }
 
-    /// <remarks>
-    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
-    /// which ids still hold data, and returns ids only. The primitive is built client-side, because
-    /// its factory validates and validation is not SQL.
-    /// </remarks>
     public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
         CancellationToken cancellationToken = default)
     {

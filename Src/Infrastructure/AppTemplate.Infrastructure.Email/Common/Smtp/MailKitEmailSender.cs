@@ -5,11 +5,6 @@ using MimeKit;
 
 namespace AppTemplate.Infrastructure.Email.Common.Smtp;
 
-/// <summary>The <see cref="IEmailSender"/> port over MailKit, rather than the obsolete
-/// <c>System.Net.Mail.SmtpClient</c>. Internal and sealed: an adapter for a port the application
-/// layer declares; substituting it is composing a different module, not subclassing this one.
-/// Sending is one connection per message — correct, and adequate for account emails at this volume;
-/// bulk sending wants a different implementation of the same port, not a flag on this one.</summary>
 internal sealed class MailKitEmailSender(IOptions<EmailOptions> options) : IEmailSender
 {
     public async Task SendAsync(

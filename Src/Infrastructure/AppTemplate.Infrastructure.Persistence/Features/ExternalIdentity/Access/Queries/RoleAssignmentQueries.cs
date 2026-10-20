@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Access.Queries;
 
-/// <summary>The adapter for <see cref="IRoleAssignmentQueries"/>: reads only, nothing tracked.</summary>
 internal sealed class RoleAssignmentQueries(AppDbContext context) : IRoleAssignmentQueries
 {
     public async Task<IReadOnlyList<string>> ListRolesAsync(

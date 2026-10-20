@@ -6,10 +6,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Configurations;
 
-/// <summary>
-/// Mapping for a local role assignment. The key is the pair itself, so assigning a role twice is a
-/// key violation rather than a duplicate row, and the owner leads it, which is how it is read.
-/// </summary>
 internal sealed class RoleAssignmentRecordConfiguration : IEntityTypeConfiguration<RoleAssignmentRecord>
 {
     public void Configure(EntityTypeBuilder<RoleAssignmentRecord> builder)

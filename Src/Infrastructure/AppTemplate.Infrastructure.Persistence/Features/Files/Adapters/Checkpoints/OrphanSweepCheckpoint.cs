@@ -7,15 +7,10 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Checkpoints;
 
-/// <summary>
-/// <see cref="IOrphanSweepCheckpoint"/> as one row of <c>files.ContentSweepCheckpoints</c>. Each call
-/// opens its own context, so the checkpoint commits at once, outside the scope's unit of work.
-/// </summary>
 internal sealed class OrphanSweepCheckpoint(
     IDbContextFactory<AppDbContext> contextFactory,
     IDateTimeProvider dateTimeProvider) : IOrphanSweepCheckpoint
 {
-    /// <summary>The row's key. Stored data: renaming it restarts the walk from the beginning.</summary>
     internal const string WalkName = "reclaim-orphans";
 
     public async Task<string?> GetAsync(CancellationToken cancellationToken = default)
@@ -53,7 +48,6 @@ internal sealed class OrphanSweepCheckpoint(
         catch (DbUpdateException exception)
             when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            // Another writer inserted the row first; this value is the later one, so it wins.
             entry.State = EntityState.Detached;
             await UpdateAsync(context, lastKey, now, cancellationToken);
         }

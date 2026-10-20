@@ -4,40 +4,20 @@ using MimeKit;
 
 namespace AppTemplate.Infrastructure.Email.Common.Smtp;
 
-/// <summary>
-/// The module's settings: which transport carries the mail, who it is from, and — when that
-/// transport is SMTP — which relay to hand it to. Bound and validated instead of being read through
-/// four null-forgiving <c>configuration["Email:…"]</c> lookups and an <c>int.Parse</c> on an absent
-/// port.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the
-/// template's contract with whoever deploys it. Everything else in this assembly is internal.
-/// </para>
-/// </summary>
 public sealed class EmailOptions
 {
     public const string SectionName = "Email";
 
-    /// <summary>MailKit over SMTP: <c>Common/Smtp/</c>.</summary>
     public const string SmtpTransport = "Smtp";
 
-    /// <summary>Postmark's HTTP API: <c>Common/Http/</c>.</summary>
     public const string PostmarkTransport = "Postmark";
 
-    /// <summary>
-    /// Which of the two adapters behind <c>IEmailSender</c> the module composes. Defaults to
-    /// <see cref="SmtpTransport"/> because that is what every deployment of this template already
-    /// runs; a different default would change the behaviour of a configuration file nobody edited.
-    /// A value naming neither transport stops the module from composing at all.
-    /// </summary>
     public string Transport { get; set; } = SmtpTransport;
 
-    /// <summary>Read only by <see cref="SmtpTransport"/>, and validated only for it.</summary>
     public string Host { get; set; } = string.Empty;
 
     public int Port { get; set; } = 587;
 
-    /// <summary>Optional: some relays authenticate by IP rather than credentials.</summary>
     public string? UserName { get; set; }
 
     public string? Password { get; set; }
@@ -46,19 +26,8 @@ public sealed class EmailOptions
 
     public string FromName { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Defaults to mandatory STARTTLS. Any mode that can silently fall back to plaintext is
-    /// rejected for a non-loopback host unless <see cref="AllowInsecureTransport"/> is set.
-    /// </summary>
     public SecureSocketOptions Security { get; set; } = SecureSocketOptions.StartTls;
 
-    /// <summary>
-    /// Explicit opt-in to an unencrypted SMTP transport against a non-loopback host. Exists for
-    /// containerised development relays such as mailpit, whose hostname is not loopback but which
-    /// speak no TLS at all. It must be set deliberately: the point is that an insecure transport is
-    /// a visible, auditable choice in configuration rather than something reachable by picking a
-    /// permissive <see cref="Security"/> mode.
-    /// </summary>
     public bool AllowInsecureTransport { get; set; }
 }
 
@@ -72,9 +41,6 @@ internal sealed class EmailOptionsValidator : IValidateOptions<EmailOptions>
 
         var failures = new List<string>();
 
-        // A deployment sending over HTTP has no relay, so host, port and TLS mode would be values for a transport it
-        // does not use. Compared against SMTP by name, so a misspelt transport is reported as itself and not as
-        // three relay failures.
         bool isSmtp = string.Equals(options.Transport, EmailOptions.SmtpTransport, StringComparison.OrdinalIgnoreCase);
 
         if (!isSmtp && !string.Equals(options.Transport, EmailOptions.PostmarkTransport, StringComparison.OrdinalIgnoreCase))
@@ -114,9 +80,6 @@ internal sealed class EmailOptionsValidator : IValidateOptions<EmailOptions>
             yield return $"'{EmailOptions.SectionName}:Port' must be between 1 and 65535.";
         }
 
-        // Every mode below can end up sending in the clear. `Auto` is in the list because MailKit
-        // resolves it to StartTlsWhenAvailable on any port but 465, which is the same downgrade the
-        // other two are refused for, under a friendlier name.
         if (IsDowngradable(options.Security) && !IsLoopback(options.Host) && !options.AllowInsecureTransport)
         {
             yield return

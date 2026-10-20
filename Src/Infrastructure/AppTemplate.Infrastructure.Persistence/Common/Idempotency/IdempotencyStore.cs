@@ -9,18 +9,6 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 
-/// <summary>Claims, completes, releases and purges idempotency keys. Internal, like every adapter
-/// here: the application layer depends only on <see cref="IIdempotencyStore"/>.</summary>
-/// <remarks>
-/// <b>Why a separate <see cref="IDbContextFactory{TContext}"/> and not the request's shared
-/// <see cref="AppDbContext"/>.</b> <c>IUnitOfWork</c> is documented as the only thing allowed to
-/// commit the request's context, and every write here would otherwise have to go through it. But a
-/// claim is not part of the business transaction: it must survive independently of whether the use
-/// case that follows it commits, and releasing a claim after a failed action must not roll back a
-/// domain write that already committed on its own. Those are two different transactions by nature,
-/// not by convenience, so each method here opens and disposes its own short-lived context built from
-/// the same connection options rather than touching the ambient one.
-/// </remarks>
 internal sealed class IdempotencyStore(
     IDbContextFactory<AppDbContext> contextFactory,
     IDateTimeProvider dateTimeProvider,
@@ -58,19 +46,12 @@ internal sealed class IdempotencyStore(
         }
         catch (DbUpdateException exception) when (IsPrimaryKeyViolation(exception))
         {
-            // The failed insert is still tracked as Added, and the next save would retry it.
-            // Detaching is what makes the re-read below safe.
             entry.State = EntityState.Detached;
 
             return await ClaimExistingAsync(context, key, expiresAt, claimedUntil, ct);
         }
     }
 
-    /// <summary>
-    /// What the loser of the initial insert race does next: read the row it collided with, and either
-    /// accept its verdict or — when that row is an unfinished claim whose lease has run out — reclaim
-    /// it for this attempt instead of reporting <see cref="IdempotencyStatus.InProgress"/> forever.
-    /// </summary>
     private async Task<IdempotencyClaim> ClaimExistingAsync(
         AppDbContext context,
         IdempotencyKey key,
@@ -80,8 +61,6 @@ internal sealed class IdempotencyStore(
     {
         var existing = await ReadAsync(context, key, ct);
 
-        // A fingerprint mismatch is the same key reused for a different request — a client error,
-        // never a reclaimable row, however stale it looks.
         if (!string.Equals(existing.Fingerprint, key.Fingerprint, StringComparison.Ordinal))
         {
             return IdempotencyClaim.KeyReused();
@@ -92,8 +71,6 @@ internal sealed class IdempotencyStore(
             return Decide(key, existing);
         }
 
-        // The WHERE clause restates every condition that made the row reclaimable, so the database
-        // decides which of two simultaneous retries wins. Zero rows affected means this one lost.
         int reclaimed = await context.IdempotencyKeys
             .Where(record =>
                 record.UserId == key.UserId
@@ -111,7 +88,6 @@ internal sealed class IdempotencyStore(
             return IdempotencyClaim.Claimed();
         }
 
-        // Lost the reclaim race, so answer with whatever the winner's row says now.
         return Decide(key, await ReadAsync(context, key, ct));
     }
 
@@ -156,11 +132,6 @@ internal sealed class IdempotencyStore(
             .ExecuteDeleteAsync(ct);
     }
 
-    /// <summary>
-    /// Deletes every row whose retention window has passed, in bounded batches rather than one
-    /// <c>DELETE</c> over the whole expired range — see <see cref="IdempotencyPurgeOptions"/> for
-    /// why. Each batch opens its own short-lived context, same as every other method here.
-    /// </summary>
     public async Task<int> PurgeExpiredAsync(DateTimeOffset asOf, CancellationToken ct = default)
     {
         int batchSize = purgeOptions.Value.BatchSize;
@@ -170,9 +141,6 @@ internal sealed class IdempotencyStore(
             batchCt => DeleteBatchAsync(asOf, batchSize, batchCt),
             ct);
 
-        // The IsEnabled guard keeps this off the hot path when Information logging is off (CA1873).
-        // Requiring a non-zero count as well keeps a no-op purge silent instead of logging every
-        // empty sweep.
         if (total > 0 && logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation(
@@ -188,8 +156,6 @@ internal sealed class IdempotencyStore(
     {
         await using var context = await contextFactory.CreateDbContextAsync(ct);
 
-        // Ordered by ExpiresAt, which is indexed, so each batch is a short range delete rather than
-        // a scan of the whole expired set.
         return await context.IdempotencyKeys
             .Where(record => record.ExpiresAt <= asOf)
             .OrderBy(record => record.ExpiresAt)
@@ -197,12 +163,6 @@ internal sealed class IdempotencyStore(
             .ExecuteDeleteAsync(ct);
     }
 
-    /// <summary>
-    /// The looping and summing rule, isolated from EF and Npgsql so it can be exercised without a
-    /// database: keep asking for another batch of at most <paramref name="batchSize"/> rows, and
-    /// stop the moment a batch comes back smaller than that — which is the only way to tell "the
-    /// table still has more" apart from "that was the last one" without a second round trip.
-    /// </summary>
     internal static async Task<int> RunBatchedDeleteAsync(
         int batchSize,
         Func<CancellationToken, Task<int>> deleteBatchAsync,
@@ -222,19 +182,6 @@ internal sealed class IdempotencyStore(
         }
     }
 
-    /// <summary>
-    /// What a lost race means for the loser, read off the row the winner (an earlier attempt by the
-    /// same caller, or — once <see cref="ClaimExistingAsync"/> has ruled out a reclaim — whoever
-    /// currently holds the lease) wrote. Isolated from EF and Npgsql, like
-    /// <see cref="RunBatchedDeleteAsync"/>, so the rules it encodes — and the replay it rebuilds from
-    /// stored columns — can be exercised without a database.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately does not look at <see cref="IdempotencyRecord.ClaimedUntil"/>: by the time this
-    /// runs, <see cref="ClaimExistingAsync"/> has already established that either the lease is still
-    /// valid, or a reclaim attempt against it just lost. Either way "still running" is the right
-    /// answer here, with no further lease arithmetic to repeat.
-    /// </remarks>
     internal static IdempotencyClaim Decide(IdempotencyKey key, IdempotencyRecord existing)
     {
         if (!string.Equals(existing.Fingerprint, key.Fingerprint, StringComparison.Ordinal))
@@ -247,8 +194,6 @@ internal sealed class IdempotencyStore(
             return IdempotencyClaim.InProgress();
         }
 
-        // A 204 has no body by definition, so null there is the response itself. For any other
-        // status null means the body was too large to store, and replaying it would be a lie.
         if (existing.ResponseBody is null && existing.StatusCode != _noContentStatusCode)
         {
             return IdempotencyClaim.NotReplayable();
@@ -262,12 +207,6 @@ internal sealed class IdempotencyStore(
                 existing.ETag));
     }
 
-    /// <summary>
-    /// Whether an unfinished claim's lease has run out, and it is therefore fair game for
-    /// <see cref="ClaimExistingAsync"/> to reclaim on behalf of a new retry instead of reporting
-    /// <see cref="IdempotencyStatus.InProgress"/> for the rest of the row's retention window.
-    /// Isolated from EF, like <see cref="Decide"/>, so it can be exercised without a database.
-    /// </summary>
     internal static bool HasExpiredLease(IdempotencyRecord existing, DateTimeOffset now) =>
         !existing.IsCompleted && existing.ClaimedUntil <= now;
 

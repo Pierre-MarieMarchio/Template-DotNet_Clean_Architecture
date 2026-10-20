@@ -8,24 +8,11 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Locks;
 
-/// <summary>
-/// The owner's quota lock as a PostgreSQL session advisory lock, so every host sharing the database
-/// contends for the same key. Taken with <c>pg_advisory_lock</c> on a dedicated connection and
-/// released with <c>pg_advisory_unlock</c> once the work, commit included, has returned.
-/// </summary>
-/// <remarks>
-/// The connection is not pooled: the lock belongs to the session, so it must end with this call
-/// rather than when a pool recycles the connection, and must not hold a pooled connection the
-/// registration itself needs. Stateless; registered as a singleton.
-/// </remarks>
 internal sealed class PostgresOwnerQuotaLock(string connectionString, ILogger<PostgresOwnerQuotaLock> logger)
     : IOwnerQuotaLock
 {
-    /// <summary>How long a registration waits for another one of the same owner and category.</summary>
     internal static readonly TimeSpan WaitLimit = TimeSpan.FromSeconds(10);
 
-    // Free of the project name on purpose: the template engine renames that name wherever it
-    // appears, which would change the key and break the digest the unit test pins.
     private const string _keyNamespace = "files.quota";
 
     private const string _setTimeoutSql = "SELECT set_config('lock_timeout', @timeout, false)";
@@ -94,10 +81,6 @@ internal sealed class PostgresOwnerQuotaLock(string connectionString, ILogger<Po
         }
     }
 
-    /// <summary>
-    /// Best effort and without the caller's token: a cancelled token would skip the release, and
-    /// closing the session releases the lock anyway.
-    /// </summary>
     private async Task ReleaseAsync(NpgsqlConnection connection, long key)
     {
         try

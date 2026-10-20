@@ -8,18 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Notes.Access.Stores;
 
-/// <summary>
-/// The adapter for <see cref="INoteStore"/>: it stages changes to <see cref="NoteRecord"/> rows
-/// directly, with no mapper, tracker or event source, and never commits.
-/// <para>
-/// <b>Where a stale write is refused.</b> A change loads the owner's row tracked, checks the
-/// caller's versions against it, and stages the edit. EF then writes
-/// <c>UPDATE … WHERE "Id" = @id AND xmin = @loaded</c> (or the <c>DELETE</c> likewise), and a row the
-/// database no longer finds at that <c>xmin</c> is a rejected write, which the unit of work reports as
-/// a conflict. When the caller sent <c>If-Match</c>, the version in that <c>WHERE</c> is one it
-/// named, so the database, not the earlier read, has the last word.
-/// </para>
-/// </summary>
 internal sealed class NoteStore(AppDbContext context) : INoteStore
 {
     public void Add(UserId ownerId, Guid noteId, NoteContentDto content, DateTimeOffset createdAt)
@@ -78,11 +66,6 @@ internal sealed class NoteStore(AppDbContext context) : INoteStore
         return status;
     }
 
-    /// <summary>
-    /// Stages the removal of the owner's every note in one load, on the same terms as
-    /// <see cref="StageRemovalAsync"/>: the rows are loaded tracked so the commit deletes them, and
-    /// no version is checked because the caller of this holds none — see the port.
-    /// </summary>
     public async Task<int> StageRemovalForOwnerAsync(
         UserId ownerId,
         CancellationToken cancellationToken = default)
@@ -98,11 +81,6 @@ internal sealed class NoteStore(AppDbContext context) : INoteStore
         return records.Count;
     }
 
-    /// <summary>
-    /// Ownership first, then the caller's versions, in that order: a note that is not the caller's is
-    /// never reported as stale. The row stays tracked at the version it was loaded at, which is what
-    /// the commit's <c>WHERE xmin = …</c> compares.
-    /// </summary>
     private async Task<(NoteChangeStatus Status, NoteRecord? Record)> LoadForChangeAsync(
         UserId ownerId,
         Guid noteId,

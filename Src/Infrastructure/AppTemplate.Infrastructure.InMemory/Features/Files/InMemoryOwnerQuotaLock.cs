@@ -4,14 +4,8 @@ using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-/// <summary>
-/// An <see cref="IOwnerQuotaLock"/> held in this process only: one semaphore per (owner, category),
-/// dropped when nobody holds or waits for it. Serialises the registrations of one host, never of
-/// several, so it stands in for the database lock only where a single process runs.
-/// </summary>
 internal sealed class InMemoryOwnerQuotaLock(TimeSpan waitLimit) : IOwnerQuotaLock
 {
-    /// <summary>The wait limit of the PostgreSQL adapter.</summary>
     internal static readonly TimeSpan DefaultWaitLimit = TimeSpan.FromSeconds(10);
 
     private readonly Dictionary<(Guid Owner, string Category), Entry> _entries = [];

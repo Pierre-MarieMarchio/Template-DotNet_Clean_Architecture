@@ -3,27 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving;
 
-/// <summary>The transactional boundary, which for a single <see cref="DbContext"/> is exactly one
-/// call to <c>SaveChangesAsync</c>: EF wraps a save in a transaction of its own, so everything a use
-/// case staged either lands or none of it does (docs/ARCHITECTURE.md argues who owns that boundary).
-/// It takes <see cref="DbContext"/> rather than a named context, so a module composes it over
-/// whichever context it owns — registration names the context, since the container resolving
-/// <see cref="DbContext"/> alone would hand whichever one happened to be registered. Two constraints
-/// a caller cannot read off the signature: ASP.NET Identity's own stores commit by themselves
-/// (<c>UserManager.CreateAsync</c> saves before it returns), so an account creation and a domain
-/// write share no transaction — everything <em>this</em> type commits does; and
-/// <see cref="DbUpdateConcurrencyException"/> is translated here, because it names EF and carries
-/// EF's <c>Entries</c> — <see cref="ConcurrencyConflictException"/> takes its place, with the
-/// original as the inner exception so the log still says which rows lost.</summary>
-/// <typeparam name="TContext">The context whose staged changes this commits.</typeparam>
-/// <param name="context">That context, resolved by the container.</param>
 internal sealed class EfUnitOfWork<TContext>(TContext context) : IContextUnitOfWork<TContext>
     where TContext : DbContext
 {
-    /// <summary>Commits everything staged on the context, as one transaction.</summary>
-    /// <param name="cancellationToken">Cancels the save.</param>
-    /// <returns>The number of rows written.</returns>
-    /// <exception cref="ConcurrencyConflictException">Another writer changed a row this write depended on. The staged changes stay uncommitted.</exception>
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -32,9 +14,6 @@ internal sealed class EfUnitOfWork<TContext>(TContext context) : IContextUnitOfW
         }
         catch (DbUpdateConcurrencyException exception)
         {
-            // Translated, not swallowed and not retried. Retrying here would re-apply a decision the
-            // caller made against state that no longer exists, which is the lost update the token
-            // exists to prevent. The caller is told instead, and the staged changes stay uncommitted.
             throw new ConcurrencyConflictException(
                 "A concurrent modification of the same aggregate was detected; this write was rejected.",
                 exception);

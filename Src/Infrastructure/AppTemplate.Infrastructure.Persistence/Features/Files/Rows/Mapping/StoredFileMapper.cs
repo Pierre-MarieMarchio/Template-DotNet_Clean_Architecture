@@ -6,17 +6,12 @@ using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Mapping;
 
-/// <summary>
-/// The one place that knows both shapes. Stateless, so it is a singleton and testable without a
-/// database. Read <see cref="IStoredFileMapper"/> before touching <c>ObjectKey</c>.
-/// </summary>
 internal sealed class StoredFileMapper : IStoredFileMapper
 {
     public StoredFile ToAggregate(StoredFileRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        // Rebuilt through each value object's factory, so a row that breaks a tightened rule is refused.
         var aggregate = StoredFile.Rehydrate(new StoredFileSnapshot
         {
             Id = record.Id,
@@ -50,7 +45,6 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             OwnerId = aggregate.OwnerId.Value,
             Category = aggregate.Category.Value,
 
-            // Verbatim, never normalised: a key this row does not match belongs to nobody for the sweep.
             ObjectKey = aggregate.ObjectKey.Value,
             Name = aggregate.Name.Value,
             DeclaredMediaType = aggregate.DeclaredMediaType.Value,
@@ -62,10 +56,8 @@ internal sealed class StoredFileMapper : IStoredFileMapper
             InspectionAttempts = aggregate.InspectionAttempts,
             NextInspectionAt = aggregate.NextInspectionAt,
 
-            // Overwritten on insert by xmin; carried so the round trip stays total.
             Version = aggregate.Version,
 
-            // Overwritten by the audit interceptor, which runs after this.
             CreatedAt = aggregate.CreatedAt,
             CreatedBy = aggregate.CreatedBy,
             LastModifiedAt = aggregate.LastModifiedAt,
@@ -77,7 +69,6 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         return record;
     }
 
-    /// <summary>Reconciles the tag rows by hand, inserting and deleting.</summary>
     private static void ReconcileTags(StoredFile aggregate, StoredFileRecord record)
     {
         var unmatched = record.Tags.ToDictionary(tag => tag.Value, StringComparer.Ordinal);
@@ -101,7 +92,6 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(record);
 
-        // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
         record.Category = aggregate.Category.Value;
 
@@ -117,7 +107,5 @@ internal sealed class StoredFileMapper : IStoredFileMapper
         record.NextInspectionAt = aggregate.NextInspectionAt;
 
         ReconcileTags(aggregate, record);
-
-        // Version and audit stamps are not written here: PostgreSQL and the interceptor own them.
     }
 }

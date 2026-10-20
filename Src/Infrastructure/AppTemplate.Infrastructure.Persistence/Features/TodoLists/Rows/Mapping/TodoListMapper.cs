@@ -5,14 +5,6 @@ using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Mapping;
 
-/// <summary>The one place that knows both shapes. Read the three methods as different jobs, not
-/// overloads of "copy the fields": <see cref="ToAggregate"/> is total (every stored value becomes
-/// domain state or is lost), <see cref="ToNewRecord"/> is total the other way — the subject of the
-/// round-trip fidelity test — and <see cref="WriteTo"/> is deliberately <em>partial</em>: it writes
-/// the domain's columns and leaves the audit stamps and concurrency token alone, which have exactly
-/// one writer each and not this class. Stateless, a singleton, touching no <c>DbContext</c> —
-/// reconciliation is adds and removes on plain collections, and turning those into SQL is EF's —
-/// which is also what lets the fidelity test exercise it with no database.</summary>
 internal sealed class TodoListMapper : ITodoListMapper
 {
     public TodoList ToAggregate(TodoListRecord record)
@@ -46,11 +38,8 @@ internal sealed class TodoListMapper : ITodoListMapper
             OwnerId = aggregate.OwnerId.Value,
             Name = aggregate.Name.Value,
 
-            // Overwritten on insert, where PostgreSQL assigns xmin. Carried so the round trip stays
-            // total and the fidelity test can check it.
             Version = aggregate.Version,
 
-            // Overwritten by the audit interceptor, which runs after this.
             CreatedAt = aggregate.CreatedAt,
             CreatedBy = aggregate.CreatedBy,
             LastModifiedAt = aggregate.LastModifiedAt,
@@ -70,12 +59,9 @@ internal sealed class TodoListMapper : ITodoListMapper
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(record);
 
-        // Assigned, not replaced: EF writes a column only if the value differs from the one it read.
         record.OwnerId = aggregate.OwnerId.Value;
         record.Name = aggregate.Name.Value;
 
-        // Version and the audit stamps are not written here: the token is PostgreSQL's, the stamps
-        // are the interceptor's, and a second writer for either would eventually disagree.
         return ReconcileItems(aggregate, record);
     }
 
@@ -83,8 +69,6 @@ internal sealed class TodoListMapper : ITodoListMapper
     {
         bool structureChanged = false;
 
-        // Indexed by id: matching by position or by title would turn a rename into a delete plus an
-        // insert, taking the row's foreign keys with it.
         var unmatched = record.Items.ToDictionary(item => item.Id);
 
         foreach (var item in aggregate.Items)
@@ -100,8 +84,6 @@ internal sealed class TodoListMapper : ITodoListMapper
             }
         }
 
-        // Removing it from the tracked collection is what makes EF issue the DELETE; the relationship
-        // cascades, so the row's tags go with it.
         foreach (var orphan in unmatched.Values)
         {
             record.Items.Remove(orphan);
@@ -111,11 +93,6 @@ internal sealed class TodoListMapper : ITodoListMapper
         return structureChanged;
     }
 
-    /// <summary>
-    /// A tag has no identity beyond its value, so reconciliation is set difference: values present in
-    /// both sides are left completely alone — not reassigned, because reassigning the only column of a
-    /// key-only row would be a no-op that still had to be reasoned about.
-    /// </summary>
     private static bool ReconcileTags(TodoItem item, TodoItemRecord record)
     {
         record.Title = item.Title.Value;

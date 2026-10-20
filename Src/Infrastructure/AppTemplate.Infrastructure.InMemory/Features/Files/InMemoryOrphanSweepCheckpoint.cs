@@ -2,10 +2,6 @@
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-/// <summary>
-/// An <see cref="IOrphanSweepCheckpoint"/> held in this process, for a host without PostgreSQL. It
-/// survives passes but not a restart, after which the walk starts from the beginning again.
-/// </summary>
 internal sealed class InMemoryOrphanSweepCheckpoint : IOrphanSweepCheckpoint
 {
     private string? _lastKey;

@@ -8,11 +8,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Adapters.Inventories;
 
-/// <summary>
-/// <see cref="IFileContentInventory"/> over an S3-compatible bucket. <c>ListObjectsV2</c> answers in
-/// UTF-8 binary order and resumes from <c>StartAfter</c>, so a walk can resume from the last key it
-/// saw rather than from an opaque token that expires.
-/// </summary>
 internal sealed class S3FileContentInventory(IAmazonS3 client, IOptions<FilesStorageS3Options> options)
     : IFileContentInventory
 {
@@ -39,7 +34,6 @@ internal sealed class S3FileContentInventory(IAmazonS3 client, IOptions<FilesSto
 
         List<string> keys = response.S3Objects is null ? [] : [.. response.S3Objects.Select(stored => stored.Key)];
 
-        // A cursor only on a truncated page that listed something: anything else could loop for ever.
         string? nextCursor = response.IsTruncated is true && keys.Count > 0 ? keys[^1] : null;
 
         return PagedResult.Keyset(keys, pageSize, nextCursor);

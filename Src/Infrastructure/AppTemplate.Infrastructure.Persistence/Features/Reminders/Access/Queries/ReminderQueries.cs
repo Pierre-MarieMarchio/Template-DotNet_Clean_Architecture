@@ -6,11 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Reminders.Access.Queries;
 
-/// <summary>
-/// The adapter for <see cref="IReminderQueries"/>: the owner, list and item filters and the ordering
-/// run in SQL, and the rows are projected straight to DTOs with nothing tracked. Internal and
-/// sealed like every query adapter here; callers depend on the port.
-/// </summary>
 internal sealed class ReminderQueries(AppDbContext context) : IReminderQueries
 {
     public async Task<IReadOnlyList<ReminderDto>> GetForTodoItemAsync(
@@ -37,11 +32,6 @@ internal sealed class ReminderQueries(AppDbContext context) : IReminderQueries
             .ToListAsync(cancellationToken);
     }
 
-    /// <remarks>
-    /// The one query here that crosses owners on purpose: it exists so a housekeeping pass can ask
-    /// which ids still hold data, and returns ids only. The primitive is built client-side, because
-    /// its factory validates and validation is not SQL.
-    /// </remarks>
     public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
         CancellationToken cancellationToken = default)
     {

@@ -6,19 +6,8 @@ using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Access.Queries;
 
-/// <summary>
-/// Maps the field names <see cref="StoredFileCollectionPolicy"/> whitelists onto columns. No user
-/// string reaches an expression, and every <c>default</c> arm throws: the binder has already
-/// rejected anything else, so reaching one is a defect here and must stay loud.
-/// </summary>
 internal static class StoredFileSortMap
 {
-    /// <summary>Folds every term into <c>ORDER BY</c>, then appends <c>Id</c> as a unique tiebreaker, so equal sort keys cannot swap between pages.</summary>
-    /// <remarks>
-    /// The tiebreaker runs in the direction of the last term: <see cref="ApplyKeyset"/> resumes with
-    /// <c>Id &lt; id</c> when descending, so a fixed ascending tiebreaker would skip every tied row
-    /// past the cursor. It also keeps the <c>(OwnerId, RegisteredAt, Id)</c> index scannable backwards.
-    /// </remarks>
     public static IOrderedQueryable<StoredFileRecord> ApplyOrder(IQueryable<StoredFileRecord> source, SortOrder sort)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -31,21 +20,11 @@ internal static class StoredFileSortMap
             ordered = ordered is null ? OrderByTerm(source, term) : ThenByTerm(ordered, term);
         }
 
-        // sort.Terms is never empty (SortOrder's invariant), so ordered is assigned.
         return sort.Terms[^1].Direction == SortDirection.Ascending
             ? ordered!.ThenBy(record => record.Id)
             : ordered!.ThenByDescending(record => record.Id);
     }
 
-    /// <summary>
-    /// The keyset row comparison, ascending or the mirror. <c>CompareTo</c> because it translates to
-    /// plain relational operators on <c>text</c> and <c>uuid</c>.
-    /// <para>
-    /// <see cref="StoredFileCollectionPolicy.AvailableAtField"/> has no arm and must not gain one while
-    /// its column is nullable: a comparison with <c>NULL</c> would skip the cursor's own row. The policy
-    /// declares it <see cref="SortableField.OffsetOnly"/>.
-    /// </para>
-    /// </summary>
     public static IQueryable<StoredFileRecord> ApplyKeyset(
         IQueryable<StoredFileRecord> source,
         SortTerm term,
@@ -65,11 +44,6 @@ internal static class StoredFileSortMap
         };
     }
 
-    /// <summary>The value the next cursor carries, read from the last row served.</summary>
-    /// <remarks>
-    /// It reads the projected DTO, not a record: the keyset page never materialises an entity, and a
-    /// hand-assembled record would mint a cursor from default values if a field became keyset-sortable.
-    /// </remarks>
     public static string KeyOf(StoredFileDto file, string field)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -140,7 +114,6 @@ internal static class StoredFileSortMap
         SortDirection direction,
         Cursor cursor)
     {
-        // CursorKeys has already validated the key, so a failure here is a defect and stays loud.
         if (!DateTimeOffset.TryParse(
             cursor.Key,
             CultureInfo.InvariantCulture,

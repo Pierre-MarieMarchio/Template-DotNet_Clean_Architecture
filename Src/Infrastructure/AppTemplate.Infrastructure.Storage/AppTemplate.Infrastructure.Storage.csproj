@@ -1,14 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The Files feature's bytes: an S3-compatible or local file system store, chosen by
-       configuration, and the malware scanner. References AppTemplate.Application for the ports it
-       satisfies and no other infrastructure module: the database half of the feature is behind a
-       repository somebody else implements, and the two halves meet in a use case. -->
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-    <!-- Brings Microsoft.Extensions.Options, its configuration binding, and ValidateOnStart. -->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
@@ -17,12 +12,6 @@
     <ProjectReference Include="..\..\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj" />
   </ItemGroup>
 
-  <!-- Internals are shared for the two types that hold this module's decisions and are reachable no
-       other way: the options validator, which runs under ValidateOnStart and therefore decides
-       whether the process boots, and the client factory, which is where the SDK's own timeout and
-       retry budget is set. Both are internal, as every non-contract type here is, and the
-       alternative seam — composing a container and reading an exception message — turns a rule that
-       is one expression into an assertion about prose. Shared with exactly one assembly. -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>AppTemplate.Infrastructure.Storage.UnitTests</_Parameter1>

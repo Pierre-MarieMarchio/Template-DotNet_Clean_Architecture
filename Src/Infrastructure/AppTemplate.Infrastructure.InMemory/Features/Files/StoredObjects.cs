@@ -5,32 +5,15 @@ using AppTemplate.Application.Core.Common.Ports;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-/// <summary>
-/// The bucket the in-memory content store, direct transfer and inventory stand in for. Public so a
-/// test can put something in it and read what came out.
-/// <para>
-/// <b>A deposit is something a test performs, never something issuing a grant performs</b>: the case
-/// where a grant is issued and the deposit never happens is what confirmation and the abandonment
-/// sweep exist for. Minted URLs are HMAC-signed over method, key and expiry under a per-instance
-/// secret, so a grant is a bearer right here too (a read grant does not write, an expired one stops
-/// verifying) and resolves nowhere. A singleton, internally locked.
-/// </para>
-/// </summary>
 public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
 {
-    /// <summary>The origin of every minted URL; under <c>.invalid</c> (RFC 2606), so it never resolves.</summary>
     public const string Origin = "https://files.in-memory.invalid";
 
     private readonly object _gate = new();
     private readonly Dictionary<string, DepositedObject> _objects = new(StringComparer.Ordinal);
 
-    /// <summary>Minted per instance, so one host cannot verify a grant another issued.</summary>
     private readonly byte[] _signingKey = RandomNumberGenerator.GetBytes(32);
 
-    /// <summary>
-    /// Performs the deposit a client would make against an upload grant. Depositing twice under one key
-    /// replaces the object, as a store does.
-    /// </summary>
     public DepositedObject Deposit(string objectKey, string mediaType, byte[] content)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
@@ -44,7 +27,6 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
             Convert.ToHexStringLower(SHA256.HashData(content)),
             dateTimeProvider.UtcNow,
 
-            // Copied: the caller still owns its array.
             content.ToArray());
 
         lock (_gate)
@@ -55,7 +37,6 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         return deposited;
     }
 
-    /// <summary>What is stored under a key, or <c>null</c> when nothing is.</summary>
     public DepositedObject? Find(string objectKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
@@ -66,7 +47,6 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         }
     }
 
-    /// <summary>Everything stored, ordered by key (as a listing is), as a snapshot.</summary>
     public IReadOnlyList<DepositedObject> Snapshot()
     {
         lock (_gate)
@@ -75,7 +55,6 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         }
     }
 
-    /// <summary>Empties the store, so one test's objects cannot be found by the next.</summary>
     public void Clear()
     {
         lock (_gate)
@@ -84,10 +63,6 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         }
     }
 
-    /// <summary>
-    /// Whether <paramref name="url"/> is a grant this instance issued for <paramref name="expectedMethod"/>
-    /// and still valid at <paramref name="atInstant"/>.
-    /// </summary>
     public bool IsGrantValid(string url, string expectedMethod, DateTimeOffset atInstant)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
@@ -126,14 +101,9 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
             return false;
         }
 
-        // Fixed-time, as a real signer would compare.
         return CryptographicOperations.FixedTimeEquals(expected, presented);
     }
 
-    /// <summary>
-    /// Mints a grant URL. Internal: only the adapters issue grants, so a test cannot assert against the
-    /// double instead of the port.
-    /// </summary>
     internal string SignedUrl(
         string method,
         string objectKey,
@@ -166,7 +136,6 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
         }
     }
 
-    /// <summary>The keys under a prefix, in the order a store's listing has.</summary>
     internal List<string> KeysUnder(string prefix)
     {
         lock (_gate)

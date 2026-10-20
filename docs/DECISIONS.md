@@ -223,7 +223,12 @@ for its own reason — putting `HttpClient` behind an application port is the ab
 own deny-list, which would retry any verb it does not name. PUT and DELETE are out despite being
 idempotent by specification, because that promise belongs to the server at the other end and a
 default applies to servers nobody here controls. Relax it for one client whose server you know;
-never widen the default. **The 30 s total is bound to `RequestTimeouts:Default`'s 5 minutes**: an
+never widen the default.
+<!--#if (files)-->
+Two callers are out of the default's reach, the AWS SDK and the malware scanner's raw socket, and
+restate it in their own vocabulary.
+<!--#endif-->
+**The 30 s total is bound to `RequestTimeouts:Default`'s 5 minutes**: an
 outbound call happens inside an inbound request, so the enclosing budget has to be the longer of
 the two, for the same reason `RequestTimeoutsOptions` gives about the layer below it. If either
 number moves, re-read both.
@@ -249,7 +254,21 @@ reminder that a second caller does turn up.
 idempotency-key purge is a use case any future caller can reach, and a second caller does turn up.
 #endif--> The adapter is
 a PostgreSQL session-level advisory lock (`Common/Leases/`), chosen because losing the process
-releases the lock rather than stranding a lease until a timer says otherwise. **It is not a fencing
+releases the lock rather than stranding a lease until a timer says otherwise. For that the lock is
+taken on a connection of its own, outside the pool: a lease is held for minutes where a pool
+amortises milliseconds, and pooling it would put the session's lifetime in the pool's hands. A
+name becomes the lock's `bigint` by SHA-256 truncated to eight bytes, big-endian, because
+`string.GetHashCode()` is randomised per process and `BitConverter` follows the machine's
+endianness — either would give two hosts two keys for one name, and the lock would serialise nothing
+while looking healthy. Release is best effort and deliberately not given the caller's token: the
+case that most needs releasing is the cancelled one, and closing the session releases the lock
+anyway, so the call makes it go away promptly and is not what makes it go away.
+<!--#if (files)-->
+The per-owner quota lock of a registration is the same mechanism, waiting rather than trying, and
+its name is free of the project name because the template engine renames that wherever it appears,
+which would change the key and break the digest a unit test pins.
+<!--#endif-->
+**It is not a fencing
 token** — leadership can be lost mid-run — so anything run under it still has to survive a second
 host starting it. `PortConventionTests.EveryApplicationPort_HasAConsumerInTheApplicationLayer` is
 what holds the first sentence: a port this layer declares and never calls is a decision that has
@@ -734,4 +753,349 @@ its proof has passed, so a lock lands on every way in at once. What the session 
 account is re-read from the store as well: every access token's claims, the profile and its roles,
 never the presented token's claims. A token that outlived its account is answered as
 unauthenticated, not as a missing resource.
+
+## Infrastructure
+
+**A save is flushed, stamped and published in that order, by interceptors, because the unit of work
+is not the only way to save.** EF does not map the domain types, so its change tracker cannot see a
+mutation made inside an aggregate. Something has to write each aggregate's state onto its tracked
+rows before EF computes its diff, stamp the audit columns on what that wrote, and collect the events
+once the rows are settled. Three `SaveChanges` interceptors do it, and the order they are added in
+is the order EF runs them: the flush comes first because the other two only see an entry that is
+already added or modified, and `DetectChanges` is called again after it because its ordering against
+save interception is a provider detail. They are interceptors rather than steps in the unit of work
+so that a stray `context.SaveChanges()`, the synchronous overload included, flushes and publishes
+too; a flush that only happened on the blessed path would be silent data loss. Each acts only on what
+is staged on the context being saved, since a request also saves other contexts, and other instances
+of the same one, in transactions of their own. Events are collected before the save and published
+after the commit, so a handler never observes a write that rolls back, and publication ignores the
+caller's cancellation: the write has landed. **A publish failure is not a commit failure.** The
+dispatcher resolves consumers straight from the container and gives each its own `try`/`catch`, so a
+consumer that throws is logged and stepped over and its siblings still run — isolation, not
+durability, which the decision on event delivery above says is survivable. A failed save publishes
+nothing and hands its events back to the sources they were drained from; they have already left the
+aggregates and cannot be raised twice, so without that the documented retry after a conflict would
+publish nothing. `IDomainEventPublisher`, for a fact raised outside an aggregate, goes through the
+same dispatcher but promises no ordering: its caller owns it and publishes only what has committed.
+
+**The commit boundary is one `SaveChangesAsync` of one named context.** `IUnitOfWork` says nothing
+about which context it commits, which suits a use case and fails a deployment holding more than one:
+the unnamed port can be registered once, and writes staged on a second context would be committed,
+or not, by the first — silently, because saving an empty context succeeds and reports zero rows. A
+module that owns a context takes `IContextUnitOfWork<TContext>`; the module owning the business
+context registers the unnamed port over its own. EF wraps the save in a transaction, so what a use
+case staged lands whole or not at all.
+<!--#if (accounts)-->
+The account stores commit by themselves, so an account creation and a domain write share no
+transaction.
+<!--#endif-->
+A concurrency conflict leaves as `ConcurrencyConflictException`, translated at this boundary because
+EF's own exception names EF and carries its entries, with the original as inner exception. It is
+neither swallowed nor retried: a retry would re-apply a decision made against state that no longer
+exists, which is the lost update the version exists to prevent.
+
+**Audit columns name an actor, which is not the caller.** The host supplies `IAuditActor` as it
+supplies `ICurrentUser`, but they answer different questions: `ICurrentUser` says who is calling,
+which a host with no request cannot answer and must not invent; `IAuditActor` says whom to record,
+which it can — nobody. Collapsing the two made every commit from a background job throw at the
+stamp. An unattributed write is stored as null: null says "we do not know who did this", where
+`Guid.Empty` is a lie that looks like a user id. The interceptor is the only writer of the stamps; a
+mapper copying audit values out of a domain object would be a second writer, and the two would
+diverge.
+
+<!--#if (aggregates)-->
+**A row is not the aggregate, and each persisted value has exactly one writer.** EF maps rows with
+settable properties and no invariants; the aggregate answers to its own rules and the row to the
+schema, and the mapper with the flush pipeline pays for the separation in one place. The mapper is
+total in one direction — everything the store holds becomes domain state — and deliberately partial
+in the other: onto a *tracked* row it assigns the domain's columns and leaves the version and the
+audit stamps alone, so EF's own diff decides what to write instead of a full-row `UPDATE` that
+flattens the audit columns. The version is PostgreSQL's `xmin`: never written by this process, read
+back after each write, used in the next one's `WHERE`. The aggregate's version is pushed into the
+row's *original* value, the one EF puts in the `WHERE`, without marking the property modified, so
+the guarantee holds by construction even for an aggregate that outlived its query; the version and
+stamps the store decided are copied back after a save, so a second write in the same request does
+not fail against a token the first one moved. A deleted or detached entry is not written to. When
+only a child row changed, its root is enrolled by touching one stamp, not by marking the entry
+modified, which would rewrite every column; the root's `xmin` is then the arbiter for the whole
+aggregate. A tracker — identity map, list to write, source of events — is one object per request
+registered under every contract that needs it: three descriptors would give three empty identity
+maps, and every write would succeed while persisting nothing. It is separate from the repository
+because the flush interceptor reaches it while the context's options are being built, and a tracker
+that depended on the context would close a cycle. A mapper that forgets a property loses data
+without failing anything, so the reflection-driven round-trip test is the barrier, and the
+persistence project shares its internals with that test's assembly and no other.
+<!--#if (files)-->
+For a stored file the mapper guards more: `ObjectKey` is the only record of where the bytes were put
+and the orphan sweep deletes every object no row names, so a key dropped, trimmed, re-cased or
+minted afresh unlinks live content with no error anywhere. `StoredFileMapperFidelityTests`,
+`StoredFileMapperWriteFidelityTests` and `StoredFileMapperObjectKeyTests` are the barrier;
+weakening one removes it.
+<!--#endif-->
+<!--#endif-->
+
+<!--#if (notes)-->
+**A feature with no aggregate stages its row directly, and the database still has the last word.**
+Notes have no mapper, tracker or event source. The store loads the owner's row tracked, checks the
+caller's versions against it — ownership first, so a note that is not the caller's is never reported
+stale — and stages the edit. EF then writes `UPDATE … WHERE "Id" = @id AND xmin = @loaded` (the
+`DELETE` likewise), and a row the database no longer finds at that `xmin` is a rejected write that
+the unit of work reports as a conflict. When the caller sent `If-Match`, the version in that `WHERE`
+is one it named.
+<!--#endif-->
+
+<!--#if (tagging)-->
+**Child rows are entities with composite keys, not owned collections.** Owned types are loaded and
+reconciled implicitly, which is convenient until reconciliation is something this layer does by hand
+and implicit behaviour is what makes it hard to say which rows were written. A tag is keyed by its
+owner and its value, not a surrogate: it has no identity of its own, so a duplicate is impossible in
+the database rather than merely unlikely, and reconciliation is a set difference that leaves values
+present on both sides untouched. A repository loads each collection with its own query, because one
+join returns root × items × tags and a hundred items with five tags would arrive as five hundred
+copies of the root row.
+<!--#if (todoLists)-->
+Items reconcile by id: matching by position or title would turn a rename into a delete and an
+insert, taking the row's foreign keys with it. They have no `DbSet`, so the only way in is through
+the root, as in the domain; and there is no unique index on `(TodoListId, Title)`, because the
+domain rule is case-insensitive and a B-tree index is not, so it would enforce a weaker second rule
+that the aggregate, which always loads every item, already enforces.
+<!--#endif-->
+<!--#endif-->
+
+<!--#if (anyFeature)-->
+**Keyset paging walks ties in the direction it orders them.** Each sort map folds the terms into
+`ORDER BY` and appends `Id` as a unique last key, so equal sort values cannot swap between pages. The
+tiebreaker runs in the direction of the last term: a cursor resumes with `Id < id` when descending,
+so a fixed ascending tiebreaker would order the tied rows one way and walk them the other, skipping
+every tied row past the cursor. It also keeps `(OwnerId, key, Id)` scannable backwards, where a mixed
+direction would need an index of its own. Each sortable field has one index leading with `OwnerId`,
+which every read filters by, and ending in `Id`; a field made sortable is a field that gets an
+index. A nullable column gets no keyset arm, because comparing with `NULL` would skip the cursor's
+own row. The value the next cursor carries is read from the projected summary, never from a record
+assembled by hand: a field made keyset-sortable later would mint a cursor from default values,
+silently, and reading the summary turns the same mistake into a compile error. Every default arm
+throws, because the use case has already refused anything off the whitelist and reaching one is a
+defect that must stay loud; a multi-term sort is refused under cursor paging, so one term is all a
+page ever sees.
+
+**A query names the owner in its predicate, and the one that does not says so.** Fetching by id and
+comparing the owner afterwards would read another user's row first and make a missing row
+distinguishable from somebody else's; one query with the owner in it answers both the same. The
+version is selected by the same statement as the representation, so it describes exactly the row
+that was read, where a second query would leave a window in which the two disagree. Each feature has
+one query that crosses owners on purpose — which ids still hold data, for the housekeeping sweep —
+and it returns ids only, with the primitive built client-side because its factory validates and
+validation is not SQL. A free-text search escapes `%` and `_` before building its `ILIKE` pattern,
+which is a safety property: unescaped, a caller's `%` matches every row. The escaping helper is
+copied per feature until a third one needs it, so deleting an example cannot break another feature's
+search.
+<!--#if (files)-->
+A file is searched by name only: a searchable object key would let a caller probe for others'
+objects.
+<!--#endif-->
+<!--#endif-->
+
+**Writes the request cannot own commit through a context of their own.** The idempotency store
+claims, completes and releases keys on short-lived contexts built from the same connection options,
+because a claim is not part of the business transaction: it must survive whether the use case that
+follows commits, and releasing it after a failed action must not roll back a domain write that
+already landed. A context the factory creates must be created with no options action of its own — an
+action would replace the pool-bounded connection string with the raw one and give those contexts a
+second pool — and the factory is scoped, because the default singleton would depend on scoped
+options, which scope validation refuses. A context of its own also avoids the failure the shared one
+has: a refused insert stays tracked as added on a shared context and is retried by the next save.
+Writes are single statements, or two in one transaction, replayed whole by the retrying execution
+strategy; an insert that committed but whose acknowledgement was lost is retried, meets the unique
+index, and is answered from the row it had in fact written, read back rather than recognised by a
+provider's error code, so the decision is the same on every provider.
+<!--#if (externalAuth)-->
+The subject-to-owner mapping is written while the request is being authenticated, so it commits on
+its own: on the request's context a failed operation would roll back a mapping that is true
+regardless. Its refresh is one `UPDATE` that never loads the row and never names the owner in its
+`SET`, so no refresh can move a subject to another owner; deleting an owner and its roles is two
+statements in one transaction.
+<!--#endif-->
+<!--#if (files)-->
+The orphan sweep's checkpoint commits at once for the same reason, outside the scope's unit of work.
+<!--#endif-->
+
+**An idempotency claim is a lease, and the primary key is what makes claiming race-safe.** The key is
+the pair `(UserId, Key)`, not a surrogate, so two concurrent claims collide on it and the loser is
+told what the winner decided instead of both believing they own the claim. `ClaimedUntil` is the
+lease on an *unfinished* claim and `ExpiresAt` the retention of a *completed* response: a claimant
+that dies between claiming and completing would otherwise leave the row stuck for the whole
+retention window. Past the lease, a retry reclaims the row with one `UPDATE` that restates every
+condition that made it reclaimable, so the database decides which of two simultaneous retries wins;
+a different fingerprint is the same key reused for another request, a client error and never
+reclaimable however stale. A null body means two things: on a 204 it is the response, on anything
+else the body was too large to keep and replaying it would be a lie, so the claim answers
+`idempotency.notReplayable`. The purge deletes in bounded batches ordered by the indexed `ExpiresAt`:
+one `DELETE` over a range of hundreds of thousands of rows holds its lock for the whole scan and
+leaves a single burst of dead tuples, and a batch smaller than the limit is the only way to tell the
+last one from "there is more" without another round trip.
+
+**The database is one, each feature owns a schema in it, and the pool is bounded once.** Every
+context reaches PostgreSQL through the one connection string name `Default`; a second name would be
+a second thing to configure, and the two could disagree unnoticed until runtime. The halves of the
+system separate themselves by schema and by migrations history, never by connection. A feature's
+tables live in its own schema, so removing the feature is a deleted migration file rather than a
+drop; the tables no feature owns live in `platform`, because a feature's schema would not be honest
+for them. The migrations history table stays in the default schema, named at runtime and in the
+design-time factory alike so the tool and the process cannot disagree about what has been applied.
+The design-time factory falls back to the local docker-compose database because one that threw would
+make `migrations add` impossible on a clean checkout; it only picks a provider and never reaches a
+real server. `DatabaseOptions` bounds the pool in one place: Npgsql pools per connection string and
+defaults `Maximum Pool Size` to 100 per process, where PostgreSQL's `max_connections` is 100 for the
+whole server, and an idempotent write can hold up to three connections at once — so the default is
+well under 100, and [`CONFIGURATION.md`](CONFIGURATION.md) says how to size it against replicas.
+Each context's configurations are listed in the model one by one, not found by scanning: the
+compiler checks the lines, where a scan silently maps nothing when a configuration is renamed or
+moved.
+
+**There is one clock, it reads UTC, and the context has no business stamping.** `IDateTimeProvider`
+is registered once in infrastructure because reading the machine's time is an interaction with the
+outside world, and two features each supplying one is how a system ends up with two notions of
+"now". Stored instants are UTC: a column mixing local and UTC values makes every comparison, and
+every migration to a server in another zone, silently wrong. The context itself takes no
+`ICurrentUser` and overrides no `SaveChangesAsync` to stamp, flush or dispatch: the first would make
+every instance depend on an HTTP request, and an override would miss the synchronous overload that
+the interceptors cover.
+
+**The cache is `HybridCache`, in process until a deployment says otherwise.** The template runs on
+`dotnet run` with nothing to deploy; a deployment that wants a shared second level registers an
+`IDistributedCache` beside it and no caller changes. Both expirations are the same lifetime, since
+the local copy outliving the shared one would hand back a value the rest of the deployment has
+already dropped.
+
+**`AppTemplate.Infrastructure.Core` exists because an infrastructure module may not reference a
+sibling.** Without it two modules needing one mechanism have nowhere to share it and each keeps a
+copy. It holds mechanisms a module composes over its own context — the unit of work, the three
+interceptors, the tracker, the templating, the clock — and no database provider: which database a
+context talks to is the module's decision. A module composes a mechanism by making the registration
+call, never by naming the adapter, which stays internal;
+`AdapterVisibilityTests.Adapters_ImplementingAnApplicationPort_AreInternalToTheirModule` holds it,
+and it is what lets two modules share one mechanism without either owning it.
+
+**A mail's subject and body come from one embedded template per language.** The subject is the
+template's `<title>`, not a separate setting, so a subject and a body cannot be delivered in two
+languages. Templates are embedded resources named `<baseName>.<culture>.html`, declared
+`WithCulture="false"` or MSBuild compiles them into a satellite assembly the renderer cannot see;
+shipping a language is adding a file. Rendering picks the closest available culture — `fr-CA`
+reaches `fr` — then the fallback, and a missing fallback template is an exception, since a reader
+whose language is unavailable would have nothing to receive. Placeholders are `{{Name}}` and every
+substituted value is HTML-encoded, so a value a user chose cannot carry markup into a mail; the
+subject takes none, because a mail header is not HTML and an unencoded newline in one is header
+injection.
+<!--#if (reminders)-->
+A background pass has no request to read a reader's language from, so the reminder mail is written
+in `Localization:DefaultCulture` until an account carries a stored preference;
+[`CONFIGURATION.md`](CONFIGURATION.md) says where that plugs in. Its instant is formatted
+round-trip, since the process builds with `InvariantGlobalization` and there is no localised long
+date to reach for.
+<!--#endif-->
+
+**Mail leaves by exactly one of two transports, chosen once by configuration, and nothing falls
+back.** `Email:Transport` is `Smtp` when absent, which is what every existing deployment runs, and
+an unknown value fails composition: a fallback would send a deployment's mail over a transport
+nobody asked for, and a typo in that key is how it would happen. Only the chosen transport's
+options are bound and validated at start-up, so a deployment sending over HTTP owes no relay
+settings and one sending over SMTP owes no API credential. The transport is read from configuration
+rather than from `IOptions` because it decides what gets registered, before any provider exists.
+Both transports are in one project, one folder each: the port already lives in
+`AppTemplate.Application`, a project pair would put exactly one implementation on each side of a
+second abstraction, and the second transport arriving as a folder is the demonstration. The HTTP
+transport adds no package — a provider needing an SDK would be an argument against that provider —
+and `Microsoft.Extensions.Http` is referenced explicitly rather than taken from the ASP.NET Core
+runtime, so a generic host is not made to require it. SMTP defaults to mandatory STARTTLS, and any
+mode that can fall back to plaintext is refused for a non-loopback host unless
+`AllowInsecureTransport` is set; `Auto` is on that list because MailKit resolves it to
+`StartTlsWhenAvailable` on every port but 465. The opt-in exists for containerised relays such as
+mailpit and makes an insecure transport a visible choice in configuration. Postmark's counterpart is
+a base URL that is plaintext to begin with, where what travels is the credential that sends every
+message, so plaintext HTTP is refused beyond loopback and has no opt-in. **Nothing retries a send**:
+the outbound default replays only safe verbs and Postmark's endpoint takes no idempotency key, so a
+replay after a timeout is a second delivery the recipient can see; a failure travels as an exception
+to a caller who owns recovery. The client is typed and named after its adapter so the log categories
+and resilience metrics say which transport failed. No `RedactLoggedHeaders` call is made: the
+factory's logging handler redacts every header value unless handed a list, and a list replaces that
+default, so naming the server token would un-redact the others. The token goes on the request, not
+the client's default headers, so a rotation is not pinned at composition time. Error messages carry
+the status and Postmark's error code, never the credential or the message body. A base address whose
+path lacks a trailing slash loses its last segment when a relative URI is resolved against it, so
+the module appends one.
+
+<!--#if (files)-->
+**Bytes are the object store's to keep or refuse, and this process never takes less than the
+store's word.** Both stores bind an object to one declared digest and size. S3 receives one
+`PutObject` carrying length and SHA-256, so the store keeps the whole object or nothing, and no
+total budget applies to a write, which lasts as long as its body. The file system store writes to a
+temporary file while counting and hashing, and publishes only a match, by a rename that cannot
+overwrite; an existing key keeps its object. Temporary files start with a prefix no object key has,
+so the inventory never lists them and deletes those a crashed write left behind. A client-supplied
+name never reaches the disk, and a path is refused unless strictly under the root. Describing an
+object returns the digest the store recorded at write time — computed by reading the file on the
+file system — and an S3 object without one is a fault, not a reason to answer another digest that
+would fail every confirmation.
+
+**A grant is a bearer right, so it is signed for the host the client uses, for exactly the bytes it
+was asked for, and for no longer than the operator allows.** A Signature Version 4 URL covers its
+host, so presigning uses a second client built on `PublicEndpoint`, the name the client will reach;
+the first client talks to `Endpoint`, the one this process reaches, and the pair differs whenever a
+store has an internal and an external name. The digest is signed into an upload, so the store
+refuses other bytes, and every header set is signed, so a deposit sending anything else is refused.
+A download signs its response headers, so the client cannot turn an attachment into something
+rendered. The lifetime is clamped to `MaxGrantLifetime`, whose default is the longest window a use
+case asks for; anything longer is a write right left in logs. The ceiling holds to the signer's
+clock precision — the SDK reads the clock again and rounds `X-Amz-Expires` — so the store's
+deadline may differ by about a second, and it signs from the machine's clock, not the injectable
+one. Plaintext HTTP is allowed only for the signing endpoint, behind `AllowInsecureTransport`, and
+never for what this process reaches: a signed URL is a reusable bearer right that would travel in
+clear to the client, where the server-to-store call carries per-request signatures only. The
+signing endpoint's scheme wins, because the SDK defaults to HTTPS whatever the endpoint says.
+Credentials are optional: absent, the SDK's chain supplies an instance role, and exactly one of the
+two keys is a process that starts and signs anonymously.
+
+**The scanner gives a verdict or says it could not, and it never guesses clean.** `clamd` speaks a
+line protocol over a raw socket, so the outbound HTTP policy cannot reach it, and neither can it
+reach the AWS SDK, which builds its own `HttpClient`: `ScannerBudget` and `BucketBudget` restate the
+policy in socket and SDK vocabulary with the policy's numbers, and **if they move in
+`OutboundHttpExtensions` they move there**. The scanner has no retry — it would stream the object
+past the daemon again, and the periodic pass offers the same file on its next tick — and its total
+budget also bounds the scannable size: raising `MaxScannableBytes` without raising the budget makes
+a large scan a cancelled one, reported as no verdict and retried for ever. An unreachable or
+misbehaving daemon is "no verdict", never an exception, and a reply that is not `OK`, `FOUND` or
+`ERROR` is no verdict, because the only guess would be "clean". The content is sent and the verdict
+read concurrently: `clamd` answers on detection and then resets a connection with unread bytes,
+which would lose a verdict read only after sending. Archive limits (`MaxScanSize`, `MaxFiles`,
+`MaxRecursion`) are the daemon's and a deployment must set them. Scanning ships disabled: a no-op
+scanner finds nothing, the signature check on the leading bytes still runs, and
+[`SECURITY.md`](../SECURITY.md) records the missing antivirus verdict.
+<!--#endif-->
+
+**The in-memory module replaces adapters by removing them, and its doubles fail in no way of their
+own.** `AddInMemoryModule` removes and re-adds rather than relying on the last registration winning:
+a double that worked only when it happened to be registered last is a silent dependency on
+composition order, and the failure is a test that quietly exercised the real SMTP client. It
+therefore takes no configuration, and is called after the modules whose adapters it replaces. A
+double does not throw, queue or pretend to fail, because a double that simulates failure modes
+accumulates a second implementation of the thing under test; a test needing a failing adapter
+substitutes one for the single call it cares about. Recording doubles are public and resolvable,
+since recording is useful only if a test can read it back, and internally locked, because an
+integration test sends from several requests at once; the adapters stay internal so a test asserts
+on the port and not on the double. The fixed clock moves only when told to and rejects a negative
+step: a clock that runs backwards makes an expiry check pass twice, a test that proves nothing.
+<!--#if (files)-->
+A deposit is something a test performs and never something issuing a grant performs, because the
+grant issued without a deposit is the case confirmation and the abandonment sweep exist for. The
+store, the direct transfer and the inventory share one `StoredObjects`: the sweep lists what the
+store holds and deletes through it, so two instances would make it reclaim nothing while appearing
+to work. Minted URLs are HMAC-signed under a per-instance secret, so a grant is a bearer right here
+too, and they resolve nowhere.
+<!--#endif-->
+<!--#if (externalAuth)-->
+The identity verifier is the one port a test could not reach otherwise — presenting a token the API
+would accept means holding a provider's private key — so what a token means is arranged by the test,
+and the checks the real adapter makes are proved against real signatures in its own unit tests. An
+arrangement is keyed by provider and token together, because a token is meaningful only for the
+provider it was presented for.
 <!--#endif-->

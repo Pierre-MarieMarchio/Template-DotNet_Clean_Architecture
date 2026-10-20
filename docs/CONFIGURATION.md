@@ -359,8 +359,8 @@ the day a second replica starts.
 
 **The idempotency store's extra connections count against this same budget, not a separate one.**
 `IIdempotencyStore` is backed by `IDbContextFactory<AppDbContext>` rather than the request's
-ambient `AppDbContext` — see the XML doc on `IdempotencyStore` for why that has to be a second,
-independently-committed connection. In practice that means **one idempotent write can hold up to
+ambient `AppDbContext` — [`DECISIONS.md`](DECISIONS.md#infrastructure) says why that has to be a
+second, independently-committed connection. In practice that means **one idempotent write can hold up to
 three connections from this same pool at once**: the ambient request connection, the factory
 connection the claim is written through, and the factory connection the claim is completed
 through. A capacity plan that only counts "one connection per request" under-provisions for every

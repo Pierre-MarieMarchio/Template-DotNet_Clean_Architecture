@@ -196,7 +196,7 @@ the meaning of a build** — in particular none relaxes `TreatWarningsAsErrors`.
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |
 <!--#if (templateMaintenance)-->
-| Template acceptance (five legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task; see [below](#template-acceptance) |
+| Template acceptance (six legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task; see [below](#template-acceptance) |
 | Template refuses unsupported options | `--auth none` alone and with `--examples notes` must exit non-zero and write no file |
 <!--#endif-->
 | Load smoke | the k6 script, **non-blocking** — see [`TESTING.md`](TESTING.md#the-load-smoke-test) |
@@ -216,6 +216,7 @@ another. The legs are the combinations that exercise a different shape, not the 
 | external auth, notes | `--auth external --examples notes` | Persistence |
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` | Persistence, Auth |
 | external auth, all examples | `--auth external --examples all --files true` | Persistence |
+| external auth, no examples, no files | `--auth external --examples none --files false` | Persistence |
 
 Each leg builds with `TreatWarningsAsErrors` (from `Directory.Build.props`, as everywhere), runs the
 test projects that do not reference Testcontainers — integration tests stay with the repository's own

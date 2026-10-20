@@ -439,7 +439,7 @@ internal static class RemoveFeature
         {
             blockers.Add(
                 $"{uses.Count} line(s) still register the account-deletion files this manifest brought "
-                + "(AddDeletedAccountSweep, AddDeletedAccountSweepJobs, the IUserAccountDirectory adapter): undo them first.");
+                + "(AddDeletedAccountSweep, AddDeletedAccountSweepJobs, the IUserAccountDirectory adapter, the architecture tests' double): undo them first.");
         }
     }
 
@@ -1125,6 +1125,7 @@ internal static class RemoveFeature
         Put(root, "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
         Put(root, "Src/Application/Acme.Application.Core/Common/Events/UserAccountDeleted.cs", "/// rather than trusting delivery, see <c>IDeletedAccountDataPolicy</c>;\npublic sealed record UserAccountDeleted;\n");
         Put(root, "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "services.AddMaintenanceJobs(configuration);\n");
+        Put(root, "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
         Put(
             root,
             adapter == "Auth"
@@ -1230,13 +1231,17 @@ internal static class RemoveFeature
             "// Deletes a journal when its account is.\ninternal sealed class DeleteJournalOnAccountDeletedConsumer(IUserAccountDirectory accounts) : IDeletedAccountDataPolicy;\n");
         Refused("(d) a hand-made owner feature", journal, "Widgets", "Journal (no manifest)");
 
-        // (e) Each of the four registrations of the shared files, alone.
+        // (e) Each of the five registrations of the shared files, alone: the four in the product and
+        // the architecture tests' composition, with its sweep, its double and the double's declaration.
         string[] registrations =
         [
             "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
             "Src/Presentation/Acme.Api/Program.cs|builder.Services.AddDeletedAccountSweep();",
             "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs|services.AddDeletedAccountSweepJobs(configuration);",
             "Src/Presentation/Acme.Api/Features/Auth/Composition/AuthComposition.cs|services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();",
+            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|services.AddDeletedAccountSweep();",
+            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();",
+            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory",
         ];
 
         foreach (string registration in registrations)

@@ -1186,7 +1186,7 @@ internal static class NewFeature
         output.WriteLine("It does not compose yet, and nothing here edited a file it does not own.");
         output.WriteLine(spec.Reaction is null
             ? "Six edits, each by hand, each somewhere an absence should be visible:"
-            : "Ten edits, each by hand: six like every feature, and four more because this project was");
+            : "Eleven edits, each by hand: six like every feature, and five more because this project was");
         output.WriteLine(spec.Reaction is null
             ? string.Empty
             : "generated with no feature that owns user data, so its account-deleted reaction ships with this one.");
@@ -1306,6 +1306,17 @@ internal static class NewFeature
             output.WriteLine();
             output.WriteLine($" 10. {composition}: services.AddScoped<IUserAccountDirectory, {directory}>();");
             output.WriteLine("     with the using of Application.Core's ports; the directory shares the composition's namespace");
+            output.WriteLine();
+            output.WriteLine($" 11. Tests/Architecture/{p}.Architecture.Tests/Composition/HostComposition.cs: services.AddDeletedAccountSweep();");
+            output.WriteLine("     after services.AddPurgeExpiredIdempotencyKeys(); in each composition, and in AddHostSuppliedAdapters");
+            output.WriteLine("     and AddBackgroundOnlyAdapters the double that stands in for the directory the API composes:");
+            output.WriteLine("       services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();");
+            output.WriteLine("     declared beside the other doubles, or the container tests cannot resolve the feature's consumer:");
+            output.WriteLine("       internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory");
+            output.WriteLine("       {");
+            output.WriteLine("           public Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default) =>");
+            output.WriteLine("               Task.FromResult(true);");
+            output.WriteLine("       }");
         }
 
         output.WriteLine();
@@ -1987,8 +1998,28 @@ internal static class NewFeature
             }
         }
 
-        expect(first.Output.Contains("Ten edits", StringComparison.Ordinal), "The reaction's registrations were not printed as edits.");
+        expect(first.Output.Contains("Eleven edits", StringComparison.Ordinal), "The reaction's registrations were not printed as edits.");
         expect(first.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "The sweep registration was not printed.");
+
+        // The architecture tests compose the host's graph too: without the sweep and a double for
+        // the account directory there, the feature's consumer cannot be resolved and they fail.
+        int eleventh = first.Output.IndexOf(" 11. ", StringComparison.Ordinal);
+        string hostEdit = eleventh < 0 ? string.Empty : first.Output[eleventh..];
+
+        expect(
+            first.Output.Contains(" 11. Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs: services.AddDeletedAccountSweep();", StringComparison.Ordinal),
+            "The architecture tests' composition was not printed as the eleventh edit.");
+        string[] hostLines =
+        [
+            "AddHostSuppliedAdapters",
+            "AddBackgroundOnlyAdapters",
+            "services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();",
+            "internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory",
+        ];
+
+        expect(
+            hostLines.All(text => hostEdit.Contains(text, StringComparison.Ordinal)),
+            "The eleventh edit does not name both adapter methods, the double's registration and its declaration.");
         expect(first.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "The first owner feature did not say that remove-feature holds it back while another one uses the shared files.");
         ExpectRemovable(bare, bareTree, "Widgets", 7, expect);
 

@@ -44,7 +44,7 @@ public sealed class RegistrationController(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var command = new RegisterCommand(request.UserName, request.Email, request.Password);
+        var command = new RegisterCommand(request.Email, request.Password);
 
         return OkOrProblem(AuthResponseMapping.ToRegisterResponse(await register.ExecuteAsync(command, cancellationToken)));
     }

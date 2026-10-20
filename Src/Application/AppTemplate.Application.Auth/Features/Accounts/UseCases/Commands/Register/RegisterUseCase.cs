@@ -40,7 +40,6 @@ public sealed class RegisterUseCase(
         }
 
         var creation = await accounts.CreateAsync(
-            request.UserName,
             request.Email,
             request.Password,
             cancellationToken);
@@ -62,7 +61,6 @@ public sealed class RegisterUseCase(
 
         return Result.Success(new RegisterOutcome(
             creation.UserId,
-            request.UserName,
             request.Email,
             confirmationEmailSent));
     }
@@ -71,7 +69,6 @@ public sealed class RegisterUseCase(
         creation.Status is AccountCreationStatus.Conflict
             ? AccountsErrors.RegistrationConflict
             : AccountsErrors.RegistrationRejected(
-                creation.UserNameRejection,
                 creation.EmailRejection,
                 creation.PasswordRejection);
 
@@ -84,18 +81,14 @@ public sealed class RegisterUseCase(
         {
             // The token is derived from the stored account, so one minted before the row was written
             // could not confirm it.
-            var pending = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
+            var token = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
 
-            if (pending is null)
+            if (token is null)
             {
                 return false;
             }
 
-            var message = await emailFactory.CreateConfirmationAsync(
-                pending.UserName,
-                email,
-                pending.Token,
-                cancellationToken);
+            var message = await emailFactory.CreateConfirmationAsync(email, token, cancellationToken);
 
             await emailSender.SendAsync(email, message.Subject, message.HtmlBody, cancellationToken);
 

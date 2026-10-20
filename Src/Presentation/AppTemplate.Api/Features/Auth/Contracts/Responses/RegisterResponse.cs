@@ -9,4 +9,4 @@
 /// a failed sign-up.
 /// </para>
 /// </summary>
-public sealed record RegisterResponse(string UserName, string Email, bool ConfirmationEmailSent);
+public sealed record RegisterResponse(string Email, bool ConfirmationEmailSent);

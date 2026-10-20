@@ -44,7 +44,7 @@ public sealed class BeginPasskeyRegistrationUseCaseTests
     public async Task TheChallengeThePortBuilds_IsHandedBackUnchanged()
     {
         _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>())
-            .Returns(new UserProfile(_callerId, "a-user", "a@example.org", true, [], DateTimeOffset.Parse("2026-10-01T10:00:00Z"), false, true));
+            .Returns(new UserProfile(_callerId, "a@example.org", true, [], DateTimeOffset.Parse("2026-10-01T10:00:00Z"), false, true));
         var challenge = new PasskeyRegistrationChallenge("{\"rp\":{}}", "the-state");
         _passkeys.BeginRegistrationAsync(_callerId, Arg.Any<CancellationToken>()).Returns(challenge);
 

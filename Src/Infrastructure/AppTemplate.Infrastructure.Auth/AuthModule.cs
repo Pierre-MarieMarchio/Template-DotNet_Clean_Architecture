@@ -279,6 +279,7 @@ public static class AuthModule
                 var policy = policyAccessor.Value;
 
                 identity.User.RequireUniqueEmail = policy.RequireUniqueEmail;
+                identity.User.AllowedUserNameCharacters = string.Empty;
                 identity.SignIn.RequireConfirmedAccount = false;
                 identity.SignIn.RequireConfirmedEmail = policy.RequireConfirmedEmail;
 

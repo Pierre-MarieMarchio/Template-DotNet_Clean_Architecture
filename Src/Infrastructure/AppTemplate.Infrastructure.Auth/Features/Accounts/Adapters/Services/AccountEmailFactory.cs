@@ -30,7 +30,6 @@ internal sealed class AccountEmailFactory(
         "EmailChangeEmailTemplate");
 
     public Task<AccountEmail> CreateConfirmationAsync(
-        string userName,
         string email,
         string token,
         CancellationToken cancellationToken = default)
@@ -39,11 +38,10 @@ internal sealed class AccountEmailFactory(
             ?? throw new InvalidOperationException(
                 $"'{EmailConfirmationOptions.SectionName}:ConfirmEmailUrl' is not configured.");
 
-        return RenderAsync(_confirmationTemplate, userName, "ConfirmationLink", page, email, token, cancellationToken);
+        return RenderAsync(_confirmationTemplate, "ConfirmationLink", page, email, token, cancellationToken);
     }
 
     public Task<AccountEmail> CreatePasswordResetAsync(
-        string userName,
         string email,
         string token,
         CancellationToken cancellationToken = default)
@@ -52,11 +50,10 @@ internal sealed class AccountEmailFactory(
             ?? throw new InvalidOperationException(
                 $"'{PasswordResetOptions.SectionName}:ResetPasswordUrl' is not configured.");
 
-        return RenderAsync(_passwordResetTemplate, userName, "ResetLink", page, email, token, cancellationToken);
+        return RenderAsync(_passwordResetTemplate, "ResetLink", page, email, token, cancellationToken);
     }
 
     public Task<AccountEmail> CreateEmailChangeAsync(
-        string userName,
         string newEmail,
         string token,
         CancellationToken cancellationToken = default)
@@ -65,12 +62,11 @@ internal sealed class AccountEmailFactory(
             ?? throw new InvalidOperationException(
                 $"'{EmailChangeOptions.SectionName}:ConfirmEmailChangeUrl' is not configured.");
 
-        return RenderAsync(_emailChangeTemplate, userName, "ConfirmationLink", page, newEmail, token, cancellationToken);
+        return RenderAsync(_emailChangeTemplate, "ConfirmationLink", page, newEmail, token, cancellationToken);
     }
 
     private static Task<AccountEmail> RenderAsync(
         EmailTemplate template,
-        string userName,
         string linkPlaceholder,
         Uri page,
         string email,
@@ -83,7 +79,6 @@ internal sealed class AccountEmailFactory(
             CurrentLanguage.Current,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["UserName"] = userName,
                 [linkPlaceholder] = EmailLinkFactory.Create(page, email, token),
             });
 

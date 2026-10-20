@@ -18,18 +18,16 @@ public sealed class AccountEmailFactoryEmailChangeTests
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task CreateEmailChange_HtmlEncodesAUserNameContainingMarkup()
+    public async Task CreateEmailChange_EncodesAnAddressContainingMarkup()
     {
-        const string hostile = "<a href=\"https://evil.test\">click me</a>";
+        const string hostile = "<a href=\"https://evil.test\">click me</a>@identity.test";
 
         var message = await CreateFactory().CreateEmailChangeAsync(
             hostile,
-            "victim@identity.test",
             "change-token",
             TestToken);
 
         message.HtmlBody.ShouldNotContain("<a href=\"https://evil.test\"");
-        message.HtmlBody.ShouldContain("&lt;a href=&quot;https://evil.test&quot;&gt;click me&lt;/a&gt;");
     }
 
     /// <summary>
@@ -40,7 +38,6 @@ public sealed class AccountEmailFactoryEmailChangeTests
     public async Task CreateEmailChange_PutsTheTokenInTheLinkFragment()
     {
         var message = await CreateFactory().CreateEmailChangeAsync(
-            "someone",
             "someone.new@identity.test",
             "a+token/with=reserved characters",
             TestToken);
@@ -53,7 +50,6 @@ public sealed class AccountEmailFactoryEmailChangeTests
     public async Task CreateEmailChange_TakesItsSubjectFromTheTemplate()
     {
         var message = await CreateFactory().CreateEmailChangeAsync(
-            "someone",
             "someone.new@identity.test",
             "change-token",
             TestToken);

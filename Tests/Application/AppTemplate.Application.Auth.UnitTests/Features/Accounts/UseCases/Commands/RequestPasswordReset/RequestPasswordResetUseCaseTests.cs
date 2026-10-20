@@ -54,7 +54,6 @@ public sealed class RequestPasswordResetUseCaseTests
         result.IsSuccess.ShouldBeTrue();
 
         await _emailFactory.Received(1).CreatePasswordResetAsync(
-            "someone",
             "someone@example.com",
             "reset-token",
             Arg.Any<CancellationToken>());
@@ -70,7 +69,7 @@ public sealed class RequestPasswordResetUseCaseTests
     public async Task AnUnknownAddress_SendsNothingAndStillSucceeds()
     {
         _emailTokens.IssuePasswordResetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((IssuedEmailToken?)null);
+            .Returns((string?)null);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -87,7 +86,7 @@ public sealed class RequestPasswordResetUseCaseTests
         var forKnown = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
         _emailTokens.IssuePasswordResetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((IssuedEmailToken?)null);
+            .Returns((string?)null);
         var forUnknown = await _useCase.ExecuteAsync(new RequestPasswordResetCommand("nobody@example.com"), TestToken);
 
         forUnknown.IsSuccess.ShouldBe(forKnown.IsSuccess);
@@ -123,9 +122,9 @@ public sealed class RequestPasswordResetUseCaseTests
     private void GivenAnAccountExists()
     {
         _emailTokens.IssuePasswordResetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new IssuedEmailToken("someone", "reset-token"));
+            .Returns("reset-token");
 
-        _emailFactory.CreatePasswordResetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        _emailFactory.CreatePasswordResetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new AccountEmail("Reset your password", "<html>the body</html>"));
     }
 }

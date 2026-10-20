@@ -40,7 +40,6 @@ internal sealed class AccountsService(
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))));
 
     public async Task<AccountCreationOutcome> CreateAsync(
-        string userName,
         string email,
         string password,
         CancellationToken cancellationToken = default)
@@ -49,7 +48,7 @@ internal sealed class AccountsService(
 
         var user = new AppUser
         {
-            UserName = userName,
+            UserName = email,
             Email = email,
             CreatedAt = dateTimeProvider.UtcNow,
         };
@@ -70,22 +69,14 @@ internal sealed class AccountsService(
             return AccountCreationOutcome.Conflict;
         }
 
-        // Identity's password codes, and any code a derived project's own validator adds, stay on the
-        // password: the only value left that the store judges.
         var refusals = result.Errors.ToLookup(
-            error => error.Code switch
-            {
-                nameof(IdentityErrorDescriber.InvalidUserName) => nameof(AppUser.UserName),
-                nameof(IdentityErrorDescriber.InvalidEmail) => nameof(AppUser.Email),
-                _ => nameof(password),
-            },
-            error => error.Description,
-            StringComparer.Ordinal);
+            error => error.Code is nameof(IdentityErrorDescriber.InvalidUserName)
+                or nameof(IdentityErrorDescriber.InvalidEmail),
+            error => error.Description);
 
         return AccountCreationOutcome.Rejected(
-            JoinOrNull(refusals[nameof(AppUser.UserName)]),
-            JoinOrNull(refusals[nameof(AppUser.Email)]),
-            JoinOrNull(refusals[nameof(password)]));
+            JoinOrNull(refusals[true]),
+            JoinOrNull(refusals[false]));
     }
 
     public async Task<CredentialCheckOutcome> VerifyCredentialAsync(
@@ -110,7 +101,6 @@ internal sealed class AccountsService(
         var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
         var identity = new AccountIdentity(
             user.Id,
-            user.UserName ?? string.Empty,
             user.Email ?? string.Empty,
             user.TwoFactorEnabled);
 
@@ -196,7 +186,6 @@ internal sealed class AccountsService(
 
         return new UserProfile(
             user.Id,
-            user.UserName ?? string.Empty,
             user.Email ?? string.Empty,
             user.EmailConfirmed,
             [.. roles],

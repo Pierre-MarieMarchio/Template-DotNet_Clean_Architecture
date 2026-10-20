@@ -20,7 +20,7 @@ namespace AppTemplate.Api.Features.Auth.Contracts.Mapping;
 internal static class AuthResponseMapping
 {
     public static Result<RegisterResponse> ToRegisterResponse(Result<RegisterOutcome> result) =>
-        result.Map(value => new RegisterResponse(value.UserName, value.Email, value.ConfirmationEmailSent));
+        result.Map(value => new RegisterResponse(value.Email, value.ConfirmationEmailSent));
 
     public static Result<LoginResponse> ToLoginResponse(Result<LoginOutcome> result) =>
         result.Map<LoginOutcome, LoginResponse>(value => value switch
@@ -86,7 +86,6 @@ internal static class AuthResponseMapping
         Result<GetCurrentUserOutcome> result) =>
         result.Map(value => new CurrentUserResponse(
             value.UserId,
-            value.UserName,
             value.Email,
             value.EmailConfirmed,
             value.Roles,

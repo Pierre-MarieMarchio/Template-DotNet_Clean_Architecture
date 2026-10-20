@@ -1059,7 +1059,6 @@ Creates an administrator account at startup.
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Enabled` | bool | `false` | Opt-in. Additionally, `IdentitySeeder` **throws** if this is true outside the Development environment. |
-| `AdminUserName` | string | `administrator` | Required when enabled. |
 | `AdminEmail` | string | `""` | Required when enabled. |
 | `AdminPassword` | string | `""` | **Required when enabled, and has no default.** Supply via user secrets or an env var. |
 

@@ -61,7 +61,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
         result.IsSuccess.ShouldBeTrue();
 
         await _emailFactory.Received(1).CreateConfirmationAsync(
-            "someone",
             "someone@example.com",
             "confirmation-token",
             Arg.Any<CancellationToken>());
@@ -81,7 +80,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
     public async Task AnAddressWithNothingPending_SendsNothingAndStillSucceeds()
     {
         _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((IssuedEmailToken?)null);
+            .Returns((string?)null);
 
         var result = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
@@ -101,7 +100,7 @@ public sealed class ResendConfirmationEmailUseCaseTests
         var forPending = await _useCase.ExecuteAsync(ARequest(), TestToken);
 
         _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((IssuedEmailToken?)null);
+            .Returns((string?)null);
         var forUnknown = await _useCase.ExecuteAsync(
             new ResendConfirmationEmailCommand("nobody@example.com"),
             TestToken);
@@ -173,10 +172,9 @@ public sealed class ResendConfirmationEmailUseCaseTests
     private void GivenAnAccountIsAwaitingConfirmation()
     {
         _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new IssuedEmailToken("someone", "confirmation-token"));
+            .Returns("confirmation-token");
 
         _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())

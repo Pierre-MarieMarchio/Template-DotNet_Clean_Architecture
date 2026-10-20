@@ -236,7 +236,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         var authenticated = result.Value.ShouldBeOfType<SignInWithExternalProviderOutcome.Authenticated>();
         authenticated.UserId.ShouldBe(provisioned.UserId);
-        authenticated.UserName.ShouldBe(provisioned.UserName);
         authenticated.Email.ShouldBe(provisioned.Email);
         authenticated.AccessToken.ShouldBe("access-token");
         authenticated.AccessTokenExpiresAt.ShouldBe(_accessTokenExpiry);
@@ -500,7 +499,7 @@ public sealed class SignInWithExternalProviderUseCaseTests
         new(_provider, _subject, _email, EmailVerified: true);
 
     private static AccountIdentity AnAccount(bool twoFactorEnabled = false) =>
-        new(Guid.CreateVersion7(), "someone", _email, twoFactorEnabled);
+        new(Guid.CreateVersion7(), _email, twoFactorEnabled);
 
     private static readonly IssuedRefreshToken _refreshToken = new("refresh-token", _refreshTokenExpiry, Guid.CreateVersion7());
 

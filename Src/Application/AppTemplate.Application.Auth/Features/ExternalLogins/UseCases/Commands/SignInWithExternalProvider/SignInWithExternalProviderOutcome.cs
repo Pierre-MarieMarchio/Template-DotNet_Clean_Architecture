@@ -26,7 +26,6 @@ public abstract record SignInWithExternalProviderOutcome
     /// </param>
     public sealed record Authenticated(
         Guid UserId,
-        string UserName,
         string Email,
         string AccessToken,
         DateTimeOffset AccessTokenExpiresAt,

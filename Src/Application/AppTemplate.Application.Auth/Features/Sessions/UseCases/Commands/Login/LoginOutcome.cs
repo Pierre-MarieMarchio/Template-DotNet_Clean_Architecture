@@ -23,7 +23,6 @@ public abstract record LoginOutcome
     /// <param name="RefreshToken">The raw secret, returned once and never persisted in this form.</param>
     public sealed record Authenticated(
         Guid UserId,
-        string UserName,
         string Email,
         string AccessToken,
         DateTimeOffset AccessTokenExpiresAt,

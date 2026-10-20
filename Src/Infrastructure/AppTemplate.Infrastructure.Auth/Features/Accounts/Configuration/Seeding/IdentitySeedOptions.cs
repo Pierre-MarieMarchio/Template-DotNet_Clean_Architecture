@@ -20,8 +20,6 @@ public sealed class IdentitySeedOptions
     /// <summary>Opt-in. Combined with a Development-only guard in <c>IdentitySeeder</c>.</summary>
     public bool Enabled { get; set; }
 
-    public string AdminUserName { get; set; } = "administrator";
-
     public string AdminEmail { get; set; } = string.Empty;
 
     /// <summary>No default, by design. Supply it through user secrets or an environment variable.</summary>
@@ -40,11 +38,6 @@ internal sealed class IdentitySeedOptionsValidator : IValidateOptions<IdentitySe
         }
 
         var failures = new List<string>();
-
-        if (string.IsNullOrWhiteSpace(options.AdminUserName))
-        {
-            failures.Add($"'{IdentitySeedOptions.SectionName}:AdminUserName' is required when seeding is enabled.");
-        }
 
         if (string.IsNullOrWhiteSpace(options.AdminEmail))
         {

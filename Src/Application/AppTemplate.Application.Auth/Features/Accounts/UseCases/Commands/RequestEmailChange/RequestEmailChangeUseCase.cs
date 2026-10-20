@@ -62,7 +62,7 @@ public sealed class RequestEmailChangeUseCase(
 
         if (issued.Token is { } token)
         {
-            await TrySendAsync(request.NewEmail, issued.UserName ?? string.Empty, token, cancellationToken);
+            await TrySendAsync(request.NewEmail, token, cancellationToken);
         }
 
         // Always success once the password is verified: the answer must not differ between "sent"
@@ -71,11 +71,11 @@ public sealed class RequestEmailChangeUseCase(
         return Result.Success();
     }
 
-    private async Task TrySendAsync(string newEmail, string userName, string token, CancellationToken cancellationToken)
+    private async Task TrySendAsync(string newEmail, string token, CancellationToken cancellationToken)
     {
         try
         {
-            var message = await emailFactory.CreateEmailChangeAsync(userName, newEmail, token, cancellationToken);
+            var message = await emailFactory.CreateEmailChangeAsync(newEmail, token, cancellationToken);
 
             await emailSender.SendAsync(newEmail, message.Subject, message.HtmlBody, cancellationToken);
         }

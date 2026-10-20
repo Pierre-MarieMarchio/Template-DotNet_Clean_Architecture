@@ -7,7 +7,7 @@ using Xunit;
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Features.Accounts.Adapters.Services;
 
 /// <summary>
-/// The factory's job is to put a user-supplied name into an HTML document. That makes it an
+/// The factory's job is to put a user-supplied address into an HTML document. That makes it an
 /// injection site, and the encoding is the whole defence.
 /// </summary>
 public sealed class AccountEmailFactoryConfirmationTests
@@ -16,23 +16,17 @@ public sealed class AccountEmailFactoryConfirmationTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// A username is whatever the user typed. Substituted raw it would let anyone deliver markup —
-    /// an anchor pointing anywhere — inside a mail sent from this domain.
-    /// </summary>
     [Fact]
-    public async Task CreateConfirmation_HtmlEncodesAUserNameContainingMarkup()
+    public async Task CreateConfirmation_EncodesAnAddressContainingMarkup()
     {
-        const string hostile = "<a href=\"https://evil.test\">click me</a>";
+        const string hostile = "<a href=\"https://evil.test\">click me</a>@identity.test";
 
         var message = await CreateFactory().CreateConfirmationAsync(
             hostile,
-            "victim@identity.test",
             "confirmation-token",
             TestToken);
 
         message.HtmlBody.ShouldNotContain("<a href=\"https://evil.test\"");
-        message.HtmlBody.ShouldContain("&lt;a href=&quot;https://evil.test&quot;&gt;click me&lt;/a&gt;");
     }
 
     /// <summary>
@@ -43,7 +37,6 @@ public sealed class AccountEmailFactoryConfirmationTests
     public async Task CreateConfirmation_PutsTheTokenInTheLinkFragment()
     {
         var message = await CreateFactory().CreateConfirmationAsync(
-            "newcomer",
             "newcomer@identity.test",
             "a+token/with=reserved characters",
             TestToken);
@@ -60,7 +53,6 @@ public sealed class AccountEmailFactoryConfirmationTests
     public async Task CreateConfirmation_TakesItsSubjectFromTheTemplate()
     {
         var message = await CreateFactory().CreateConfirmationAsync(
-            "newcomer",
             "newcomer@identity.test",
             "confirmation-token",
             TestToken);

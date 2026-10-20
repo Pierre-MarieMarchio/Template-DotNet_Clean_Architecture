@@ -234,7 +234,6 @@ public sealed class DeleteMyAccountUseCaseTests
         _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>())
             .Returns(new UserProfile(
                 _callerId,
-                "someone",
                 "someone@example.com",
                 EmailConfirmed: true,
                 [],

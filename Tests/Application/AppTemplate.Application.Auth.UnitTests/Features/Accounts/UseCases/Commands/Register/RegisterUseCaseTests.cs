@@ -48,15 +48,13 @@ public sealed class RegisterUseCaseTests
     /// created anyway.
     /// </summary>
     [Theory]
-    [InlineData("", "someone@example.com", "correct horse battery")]
-    [InlineData("   ", "someone@example.com", "correct horse battery")]
-    [InlineData("someone", "", "correct horse battery")]
-    [InlineData("someone", "not-an-email", "correct horse battery")]
-    [InlineData("someone", "someone@example.com", "")]
-    [InlineData("someone", "someone@example.com", "   ")]
-    public async Task AnInvalidRequest_NeverCreatesAnAccount(string userName, string email, string password)
+    [InlineData("", "correct horse battery")]
+    [InlineData("not-an-email", "correct horse battery")]
+    [InlineData("someone@example.com", "")]
+    [InlineData("someone@example.com", "   ")]
+    public async Task AnInvalidRequest_NeverCreatesAnAccount(string email, string password)
     {
-        var result = await _useCase.ExecuteAsync(new RegisterCommand(userName, email, password), TestToken);
+        var result = await _useCase.ExecuteAsync(new RegisterCommand(email, password), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -72,11 +70,11 @@ public sealed class RegisterUseCaseTests
     [Fact]
     public async Task AShortPassword_IsJudgedByTheStore()
     {
-        _accounts.CreateAsync(Arg.Any<string>(), Arg.Any<string>(), "a", Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected(null, null, "Passwords must be at least 12 characters."));
+        _accounts.CreateAsync(Arg.Any<string>(), "a", Arg.Any<CancellationToken>())
+            .Returns(AccountCreationOutcome.Rejected(null, "Passwords must be at least 12 characters."));
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterCommand("someone", "someone@example.com", "a"),
+            new RegisterCommand("someone@example.com", "a"),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -93,20 +91,7 @@ public sealed class RegisterUseCaseTests
         string tooLong = new('a', RegisterCommandValidator.MaximumPasswordLength + 1);
 
         var result = await _useCase.ExecuteAsync(
-            new RegisterCommand("someone", "someone@example.com", tooLong),
-            TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.Validation);
-        _accounts.ReceivedCalls().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task AUserNameBeyondTheMaximumLength_IsRefused()
-    {
-        string tooLong = new('a', RegisterCommandValidator.MaximumUserNameLength + 1);
-
-        var result = await _useCase.ExecuteAsync(
-            new RegisterCommand(tooLong, "someone@example.com", "correct horse battery"),
+            new RegisterCommand("someone@example.com", tooLong),
             TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -116,10 +101,9 @@ public sealed class RegisterUseCaseTests
     [Fact]
     public async Task EveryFailureMessage_ReachesTheCaller()
     {
-        var result = await _useCase.ExecuteAsync(new RegisterCommand("", "", ""), TestToken);
+        var result = await _useCase.ExecuteAsync(new RegisterCommand("", ""), TestToken);
 
         result.Error!.Details.ShouldNotBeNull();
-        result.Error.Details.ShouldContainKey("userName");
         result.Error.Details.ShouldContainKey("email");
         result.Error.Details.ShouldContainKey("password");
     }
@@ -136,7 +120,6 @@ public sealed class RegisterUseCaseTests
     public async Task ATakenAddress_IsAConflictAndSendsNothing()
     {
         _accounts.CreateAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -161,9 +144,8 @@ public sealed class RegisterUseCaseTests
         _accounts.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
-                Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected(null, null, "Passwords must have at least one digit."));
+            .Returns(AccountCreationOutcome.Rejected(null, "Passwords must have at least one digit."));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -173,22 +155,20 @@ public sealed class RegisterUseCaseTests
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A refused user name or address is pointed at that field, not at the password.</summary>
+    /// <summary>A refused address is pointed at that field, not at the password.</summary>
     [Fact]
     public async Task ARejection_CarriesEachExplanationOnTheFieldItConcerns()
     {
         _accounts.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
-                Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
-            .Returns(AccountCreationOutcome.Rejected("User name 'a b' is invalid.", "Email 'x' is invalid.", null));
+            .Returns(AccountCreationOutcome.Rejected("Email 'x' is invalid.", null));
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         result.Error!.Code.ShouldBe("request.validationFailed");
-        result.Error.Details!["userName"].ShouldBe(["User name 'a b' is invalid."]);
-        result.Error.Details["email"].ShouldBe(["Email 'x' is invalid."]);
+        result.Error.Details!["email"].ShouldBe(["Email 'x' is invalid."]);
         result.Error.Details.ContainsKey("password").ShouldBeFalse();
     }
 
@@ -206,7 +186,6 @@ public sealed class RegisterUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.UserId.ShouldBe(userId);
-        result.Value.UserName.ShouldBe("someone");
         result.Value.Email.ShouldBe("someone@example.com");
         result.Value.ConfirmationEmailSent.ShouldBeTrue();
     }
@@ -227,7 +206,6 @@ public sealed class RegisterUseCaseTests
     public async Task ATakenAddress_IsNotRecordedAsARegistration()
     {
         _accounts.CreateAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -265,7 +243,6 @@ public sealed class RegisterUseCaseTests
         // Creating it is the only thing that happened to the account: there is no compensating
         // delete, which is what makes the resend endpoint a working recovery path.
         await _accounts.Received(1).CreateAsync(
-            "someone",
             "someone@example.com",
             "correct horse battery",
             Arg.Any<CancellationToken>());
@@ -281,7 +258,6 @@ public sealed class RegisterUseCaseTests
         GivenTheConfirmationTokenIsIssued();
 
         _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -337,13 +313,11 @@ public sealed class RegisterUseCaseTests
             _accounts.CreateAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
-                Arg.Any<string>(),
                 Arg.Any<CancellationToken>());
 
             _emailTokens.IssueEmailConfirmationAsync("someone@example.com", Arg.Any<CancellationToken>());
 
             _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>());
@@ -369,7 +343,6 @@ public sealed class RegisterUseCaseTests
         await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
         await _emailFactory.Received(1).CreateConfirmationAsync(
-            "someone",
             "someone@example.com",
             _token,
             Arg.Any<CancellationToken>());
@@ -391,7 +364,7 @@ public sealed class RegisterUseCaseTests
         GivenTheAccountIsCreated();
 
         _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns((IssuedEmailToken?)null);
+            .Returns((string?)null);
 
         var result = await _useCase.ExecuteAsync(AValidRequest(), TestToken);
 
@@ -413,7 +386,6 @@ public sealed class RegisterUseCaseTests
         await _accounts.Received(1).CreateAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
-            Arg.Any<string>(),
             cancellation.Token);
 
         await _emailTokens.Received(1).IssueEmailConfirmationAsync(Arg.Any<string>(), cancellation.Token);
@@ -428,14 +400,13 @@ public sealed class RegisterUseCaseTests
     #endregion
 
     private static RegisterCommand AValidRequest() =>
-        new("someone", "someone@example.com", "correct horse battery");
+        new("someone@example.com", "correct horse battery");
 
     private Guid GivenTheAccountIsCreated()
     {
         var userId = Guid.CreateVersion7();
 
         _accounts.CreateAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())
@@ -447,10 +418,9 @@ public sealed class RegisterUseCaseTests
     private void GivenTheConfirmationTokenIsIssued()
     {
         _emailTokens.IssueEmailConfirmationAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new IssuedEmailToken("someone", _token));
+            .Returns(_token);
 
         _emailFactory.CreateConfirmationAsync(
-                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>())

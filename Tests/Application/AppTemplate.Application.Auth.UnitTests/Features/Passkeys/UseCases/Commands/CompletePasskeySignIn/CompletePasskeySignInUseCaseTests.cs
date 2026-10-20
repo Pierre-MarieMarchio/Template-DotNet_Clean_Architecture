@@ -155,7 +155,7 @@ public sealed class CompletePasskeySignInUseCaseTests
     private void GivenTheAssertionSucceeded(bool twoFactorEnabled = false) =>
         _passkeys.CompleteSignInAsync("the-credential", "the-state", Arg.Any<CancellationToken>())
             .Returns(PasskeySignInOutcome.Authenticated(new AccountIdentity(
-                _userId, "a-user", "a@example.org", twoFactorEnabled)));
+                _userId, "a@example.org", twoFactorEnabled)));
 
     private CompletePasskeySignInUseCase UseCase() =>
         new(

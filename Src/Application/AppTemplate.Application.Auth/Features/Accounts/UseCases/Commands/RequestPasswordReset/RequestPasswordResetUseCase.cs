@@ -33,11 +33,11 @@ public sealed class RequestPasswordResetUseCase(
             return validation;
         }
 
-        var pending = await emailTokens.IssuePasswordResetAsync(request.Email, cancellationToken);
+        var token = await emailTokens.IssuePasswordResetAsync(request.Email, cancellationToken);
 
-        if (pending is not null)
+        if (token is not null)
         {
-            await TrySendAsync(request.Email, pending, cancellationToken);
+            await TrySendAsync(request.Email, token, cancellationToken);
         }
 
         // Always success. The answer must not differ between "sent" and "no such account".
@@ -46,16 +46,12 @@ public sealed class RequestPasswordResetUseCase(
 
     private async Task TrySendAsync(
         string email,
-        IssuedEmailToken pending,
+        string token,
         CancellationToken cancellationToken)
     {
         try
         {
-            var message = await emailFactory.CreatePasswordResetAsync(
-                pending.UserName,
-                email,
-                pending.Token,
-                cancellationToken);
+            var message = await emailFactory.CreatePasswordResetAsync(email, token, cancellationToken);
 
             await emailSender.SendAsync(email, message.Subject, message.HtmlBody, cancellationToken);
         }

@@ -13,7 +13,6 @@ public interface IAccountsService
     /// separate step, through <c>IEmailTokensService</c>.
     /// </summary>
     Task<AccountCreationOutcome> CreateAsync(
-        string userName,
         string email,
         string password,
         CancellationToken cancellationToken = default);

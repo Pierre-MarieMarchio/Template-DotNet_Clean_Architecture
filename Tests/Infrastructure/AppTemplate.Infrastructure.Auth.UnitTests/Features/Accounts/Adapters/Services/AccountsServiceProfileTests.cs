@@ -42,7 +42,7 @@ public sealed class AccountsServiceProfileTests
         var user = new AppUser
         {
             Id = _userId,
-            UserName = "someone",
+            UserName = "someone@example.com",
             Email = "someone@example.com",
             EmailConfirmed = true,
             TwoFactorEnabled = true,
@@ -56,7 +56,6 @@ public sealed class AccountsServiceProfileTests
 
         profile.ShouldNotBeNull();
         profile.UserId.ShouldBe(_userId);
-        profile.UserName.ShouldBe("someone");
         profile.Email.ShouldBe("someone@example.com");
         profile.EmailConfirmed.ShouldBeTrue();
         profile.Roles.ShouldBe(["Administrator"]);

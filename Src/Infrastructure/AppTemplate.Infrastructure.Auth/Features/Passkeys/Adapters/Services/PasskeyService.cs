@@ -76,15 +76,12 @@ internal sealed class PasskeyService(
         var user = await directory.FindByIdAsync(userId, cancellationToken)
             ?? throw new InvalidOperationException($"No account has the id '{userId}'.");
 
-        // The user handle an authenticator stores: the account's id, so a discoverable credential
-        // names it without an address having to travel. The address is the name an authenticator
-        // shows, and the display name what it puts beside it.
         var challenge = await passkeyHandler.MakeCreationOptionsAsync(
             new PasskeyUserEntity
             {
                 Id = user.Id.ToString(),
                 Name = user.Email ?? string.Empty,
-                DisplayName = user.UserName ?? string.Empty,
+                DisplayName = user.Email ?? string.Empty,
             },
             Context);
 
@@ -269,7 +266,6 @@ internal sealed class PasskeyService(
 
         return PasskeySignInOutcome.Authenticated(new AccountIdentity(
             assertion.User.Id,
-            assertion.User.UserName!,
             assertion.User.Email!,
             assertion.User.TwoFactorEnabled));
     }

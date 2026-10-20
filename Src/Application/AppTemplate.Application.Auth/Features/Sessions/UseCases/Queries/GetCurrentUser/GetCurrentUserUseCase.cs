@@ -34,7 +34,6 @@ public sealed class GetCurrentUserUseCase(
 
         return Result.Success(new GetCurrentUserOutcome(
             profile.UserId,
-            profile.UserName,
             profile.Email,
             profile.EmailConfirmed,
             profile.Roles,

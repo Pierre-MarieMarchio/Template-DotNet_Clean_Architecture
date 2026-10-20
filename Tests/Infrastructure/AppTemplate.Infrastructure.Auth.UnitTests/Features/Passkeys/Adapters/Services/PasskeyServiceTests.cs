@@ -100,7 +100,7 @@ public sealed class PasskeyServiceTests
             Arg.Is<PasskeyUserEntity>(entity =>
                 entity.Id == _userId.ToString()
                 && entity.Name == "a@example.org"
-                && entity.DisplayName == "a-user"),
+                && entity.DisplayName == "a@example.org"),
             Arg.Any<HttpContext>());
     }
 

@@ -6,7 +6,6 @@
 /// </param>
 public sealed record GetCurrentUserOutcome(
     Guid UserId,
-    string UserName,
     string Email,
     bool EmailConfirmed,
     IReadOnlyList<string> Roles,

@@ -4,6 +4,9 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
+using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
@@ -68,9 +71,13 @@ public sealed class EmailChangeFlowTests(ApiFixture fixture) : IntegrationTestBa
         var profile = await ApiJson.ReadAsync<CurrentUserResponse>(profileResponse, TestToken);
         profile.Email.ShouldBe(newEmail);
 
-        // The decision this vertical had to make explicit: Register lets a caller pick a UserName
-        // independent of Email, so changing the address does not silently rename the account too.
-        profile.UserName.ShouldBe(user.UserName);
+        await using var scope = Fixture.Factory.Services.CreateAsyncScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Users
+            .AsNoTracking()
+            .SingleAsync(account => account.Email == newEmail, TestToken);
+
+        stored.UserName.ShouldBe(newEmail);
+        stored.NormalizedUserName.ShouldBe(newEmail.ToUpperInvariant());
     }
 
     [Fact]

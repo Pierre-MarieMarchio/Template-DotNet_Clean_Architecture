@@ -9,4 +9,4 @@
 /// decisions, so an adapter that projected this from anything but the user's own flag would disarm
 /// the factor rather than misreport it.
 /// </param>
-public sealed record AccountIdentity(Guid UserId, string UserName, string Email, bool TwoFactorEnabled);
+public sealed record AccountIdentity(Guid UserId, string Email, bool TwoFactorEnabled);

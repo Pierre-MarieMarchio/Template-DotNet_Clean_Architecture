@@ -6,12 +6,6 @@ using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 
 namespace AppTemplate.Api.Features.Reminders.Contracts.Mapping;
 
-/// <summary>
-/// Projects the feature's application DTO onto its wire contracts, by hand — see
-/// <c>TodoListResponseMapping</c> for why: positional records plus <c>TreatWarningsAsErrors</c> make a
-/// member added on either side fail the build here, where a convention-based mapper would have
-/// turned the forgotten field into a naming rule nobody reads.
-/// </summary>
 internal static class ReminderResponseMapping
 {
     public static ReminderResponse ToResponse(ReminderDto reminder)
@@ -40,11 +34,6 @@ internal static class ReminderResponseMapping
     public static Result<RemindersResponse> ToRemindersResponse(Result<IReadOnlyList<ReminderDto>> result) =>
         result.Map(value => ToResponse(value));
 
-    /// <summary>
-    /// A string on the wire rather than the domain enum's own numeric default: the API's contract
-    /// is its own, not a view of <see cref="ReminderState"/>, and a caller should never have to
-    /// know the enum's declaration order to read a status.
-    /// </summary>
     private static string ToStatus(ReminderState state) => state switch
     {
         ReminderState.Pending => "pending",

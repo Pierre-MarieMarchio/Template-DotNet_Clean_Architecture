@@ -2,33 +2,16 @@
 
 namespace AppTemplate.Api.Common.Security;
 
-/// <summary>
-/// How many requests one client address may make per window.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
-/// </summary>
 public sealed class RateLimitingOptions
 {
-    /// <summary>The configuration section this type is bound from.</summary>
     public const string SectionName = "RateLimiting";
 
-    /// <summary>
-    /// One minute by default, for both limits. The fixed-window limiter reads the wall clock and
-    /// exposes no injectable clock, so a test host widens this rather than faking time.
-    /// </summary>
     public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
 
     //#if (localAuth)
-    /// <summary>
-    /// 10 by default, applied to the authentication controller. Together with account lockout this
-    /// is what bounds online password guessing.
-    /// </summary>
     public int AuthenticationPermitLimit { get; set; } = 10;
     //#endif
 
-    /// <summary>300 by default, applied to every request before any endpoint is reached.</summary>
     public int GlobalPermitLimit { get; set; } = 300;
 }
 

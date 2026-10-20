@@ -11,18 +11,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>Creating an account, and proving the address it was created with.</summary>
-/// <remarks>
-/// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
-/// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it. The tight
-/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling a
-/// credential — a password, a TOTP code, a recovery code — and on no other, so polling an
-/// endpoint that handles none cannot spend the brute-force allowance. Responses carrying a token,
-/// a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC 6749 §5.1 forbids a cache
-/// from storing an OAuth-style credential. Six classes under the one <c>auth</c> prefix, and the
-/// prefix is the surface: no path depends on which class answers it.
-/// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class RegistrationController(
@@ -47,10 +35,7 @@ public sealed class RegistrationController(
         return AcceptedOrProblem(await register.ExecuteAsync(command, cancellationToken), RegisterResponse.Pending);
     }
 
-    /// <summary>
-    /// Confirms an email address. This is a POST, not a GET: the single-use token must not land in
-    /// server access logs, browser history or a <c>Referer</c> header.
-    /// </summary>
+    /// <summary>Confirms an email address.</summary>
     [HttpPost("confirm-email")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -67,10 +52,7 @@ public sealed class RegistrationController(
         return NoContentOrProblem(await confirmEmail.ExecuteAsync(command, cancellationToken));
     }
 
-    /// <summary>Re-sends the confirmation email. Exists because registration is not atomic:
-    /// the account is committed before delivery, so a mail failure must be recoverable.</summary>
-    /// <remarks>204 for every well-formed address, known or not, so the endpoint cannot be used to
-    /// enumerate accounts.</remarks>
+    /// <summary>Re-sends the confirmation email.</summary>
     [HttpPost("resend-confirmation-email")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]

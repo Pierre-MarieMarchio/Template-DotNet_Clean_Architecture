@@ -3,45 +3,18 @@ using OpenTelemetry.Exporter;
 
 namespace AppTemplate.Presentation.Core.Common.Observability;
 
-/// <summary>Where traces and metrics go, if anywhere. One class for every host, binding one
-/// section, so a sampling ratio set for a deployment means the same thing in each of its
-/// processes. Public because it is bound from configuration and its section name is part of the
-/// template's contract with whoever deploys it.</summary>
 public sealed class TelemetryOptions
 {
-    /// <summary>The configuration section this binds, and part of the deployment contract.</summary>
     public const string SectionName = "OpenTelemetry";
 
-    /// <summary>
-    /// Off by default. An unconfigured deployment installs no instrumentation and no exporter at all,
-    /// so there is nothing to reconnect to a collector that does not exist.
-    /// </summary>
     public bool Enabled { get; set; }
 
-    /// <summary>
-    /// The collector's OTLP receiver, e.g. <c>http://localhost:4317</c>. Required when
-    /// <see cref="Enabled"/> is set, because the exporter's own fallback is an unannounced
-    /// <c>localhost:4317</c> — a deployment would then export into nothing and be told nothing.
-    /// </summary>
     public string? OtlpEndpoint { get; set; }
 
-    /// <summary>
-    /// <c>Grpc</c> (port 4317) or <c>HttpProtobuf</c> (port 4318). Collectors differ, and an
-    /// endpoint on the wrong protocol fails silently in the exporter's own diagnostics.
-    /// </summary>
     public OtlpExportProtocol OtlpProtocol { get; set; } = OtlpExportProtocol.Grpc;
 
-    /// <summary>Overrides the <c>service.name</c> resource attribute, which otherwise comes from
-    /// the host assembly the caller names; set it when several deployments share one collector. It
-    /// cannot default to the assembly this class lives in — every host would announce itself under
-    /// the same name, and two processes reporting as one is worse than either reporting
-    /// nothing.</summary>
     public string? ServiceName { get; set; }
 
-    /// <summary>Fraction of traces kept, applied at the root span so a whole trace is kept or
-    /// dropped together. <c>1.0</c> (the default) keeps every trace — right for a first deployment,
-    /// wrong once ingestion is sustained enough that a trace and an Npgsql span per command are
-    /// exported for every request. Lower once volume, not curiosity, calls for it.</summary>
     public double TracesSamplingRatio { get; set; } = 1.0;
 }
 
@@ -87,8 +60,6 @@ internal sealed class TelemetryOptionsValidator : IValidateOptions<TelemetryOpti
                 "blank. Remove the key to fall back to the assembly name.");
         }
 
-        // Written as the range that passes, then negated: with NaN every comparison is false, so a
-        // check written as "is <= 0 or > 1" would silently let NaN through.
         if (options.TracesSamplingRatio is not (> 0 and <= 1))
         {
             failures.Add(

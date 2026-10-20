@@ -11,20 +11,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Idempotency;
 
-/// <summary>Makes a <see cref="IdempotentAttribute"/>-marked POST action safely retryable through an <c>Idempotency-Key</c> header.</summary>
-/// <remarks>
-/// <para>
-/// A resource filter, not an action filter, for two reasons: it must run before model binding, so it
-/// can buffer and hash the raw body while the stream is still untouched; and it must wrap result
-/// execution, so it can observe the status and value the action actually produced.
-/// </para>
-/// <para>
-/// <b>The capability is available, not compulsory.</b> An action carrying <see cref="IdempotentAttribute"/>
-/// still behaves exactly as before for a caller that sends no <c>Idempotency-Key</c> header — nothing
-/// here refuses that request. A deployment that wants the header to be mandatory can say so of its
-/// own accord; that is not a decision this filter makes for it.
-/// </para>
-/// </remarks>
 internal sealed class IdempotencyFilter(
     IIdempotencyStore store,
     IOptions<IdempotencyOptions> options,
@@ -35,14 +21,8 @@ internal sealed class IdempotencyFilter(
     private const string _headerName = "Idempotency-Key";
     private const string _replayedHeaderName = "Idempotency-Replayed";
 
-    /// <summary>Used only when MVC's own <see cref="JsonOptions"/> cannot be resolved.</summary>
     private static readonly JsonSerializerOptions _fallbackJsonOptions = new(JsonSerializerDefaults.Web);
 
-    /// <summary>
-    /// <see cref="ErrorType.Validation"/> rather than a new type: the same family as
-    /// <see cref="IdempotencyErrors.KeyInvalid"/> — the header, as sent, cannot be honoured for this
-    /// request — not a statement about the resource or the caller's authorisation to reach it.
-    /// </summary>
     private static readonly Error _callerNotIdentifiable = Error.Validation(
         "idempotency.callerNotIdentifiable",
         "The 'Idempotency-Key' header requires a caller this server can identify, and this request carries none.");
@@ -64,9 +44,6 @@ internal sealed class IdempotencyFilter(
             return;
         }
 
-        // No user to scope a key to. Refuse rather than proceed unprotected: a caller ICurrentUser
-        // cannot resolve — a machine caller with no subject, say — would otherwise lose the guarantee
-        // silently, and that profile is the one that replays by design.
         if (currentUser.UserId is not { } userId)
         {
             logger.LogWarning(
@@ -124,9 +101,6 @@ internal sealed class IdempotencyFilter(
         }
         catch
         {
-            // A started response means the write has committed, so releasing the claim would let a retry run it again.
-            // The converse is a guess: a failure between the commit and the first byte releases a claim whose write
-            // landed. The lease bounds the mistake either way.
             if (!httpContext.Response.HasStarted)
             {
                 await store.ReleaseAsync(key, CancellationToken.None);
@@ -143,15 +117,11 @@ internal sealed class IdempotencyFilter(
                 response = BuildResponse(httpContext, objectResult, settings.MaxStoredResponseBytes);
                 break;
 
-            // A NoContentResult (204) is a StatusCodeResult, not an ObjectResult, so without this
-            // branch it falls into the "not worth replaying" case below and a retry writes again.
             case StatusCodeResult { StatusCode: >= 200 and < 300 } statusCodeResult:
                 response = BuildResponse(httpContext, statusCodeResult);
                 break;
 
             default:
-                // A non-2xx result is not worth replaying, and holding the claim would block a
-                // corrected retry under the same key.
                 await store.ReleaseAsync(key, CancellationToken.None);
                 return;
         }
@@ -190,16 +160,12 @@ internal sealed class IdempotencyFilter(
             ?.Value.JsonSerializerOptions
             ?? _fallbackJsonOptions;
 
-        // The declared type, not the runtime one: a [JsonPolymorphic] discriminator is written only
-        // when serialisation starts at the base, and the replay has no formatter left to fix it.
         string? body = result.Value is null
             ? null
             : JsonSerializer.Serialize(result.Value, result.DeclaredType ?? result.Value.GetType(), jsonOptions);
 
         if (body is not null && Encoding.UTF8.GetByteCount(body) > maxStoredResponseBytes)
         {
-            // Dropped rather than truncated: truncated JSON is not JSON, and a replay must be the
-            // real response or an honest refusal.
             body = null;
         }
 
@@ -210,7 +176,6 @@ internal sealed class IdempotencyFilter(
             ReadETag(httpContext));
     }
 
-    /// <summary>Built for a status-code-only result (e.g. 204), which carries no body to store.</summary>
     private static IdempotentResponse BuildResponse(HttpContext httpContext, StatusCodeResult result) =>
         new(result.StatusCode, null, ReadLocation(httpContext), ReadETag(httpContext));
 
@@ -219,8 +184,6 @@ internal sealed class IdempotencyFilter(
             ? httpContext.Response.Headers.Location.ToString()
             : null;
 
-    // A write publishes its ETag on Response.Headers directly, so it is already there when next()
-    // returns.
     private static string? ReadETag(HttpContext httpContext) =>
         httpContext.Response.Headers.ETag.Count > 0
             ? httpContext.Response.Headers.ETag.ToString()
@@ -237,8 +200,6 @@ internal sealed class IdempotencyFilter(
             httpResponse.Headers.Location = response.Location;
         }
 
-        // Without this a replay hands back a body with no validator, and the caller cannot make the
-        // conditional request the ETag exists for.
         if (response.ETag is not null)
         {
             httpResponse.Headers.ETag = response.ETag;

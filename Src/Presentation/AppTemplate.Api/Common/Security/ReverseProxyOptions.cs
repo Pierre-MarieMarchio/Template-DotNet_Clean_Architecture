@@ -3,39 +3,16 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Security;
 
-/// <summary>
-/// Which upstream hops may rewrite the client's address and scheme.
-/// <para>
-/// Public because it is bound from configuration and its section name is part of the template's
-/// contract with whoever deploys it.
-/// </para>
-/// </summary>
 public sealed class ReverseProxyOptions
 {
-    /// <summary>The configuration section this type is bound from.</summary>
     public const string SectionName = "ReverseProxy";
 
-    /// <summary>
-    /// Off by default. An unconfigured deployment trusts no forwarding header, which costs
-    /// per-client rate limiting behind a proxy but never hands a caller the ability to choose its
-    /// own rate-limit partition.
-    /// </summary>
     public bool Enabled { get; set; }
 
-    /// <summary>Literal addresses of the immediate proxies, e.g. <c>10.0.0.7</c>.</summary>
     public IList<string> KnownProxies { get; } = [];
 
-    /// <summary>
-    /// CIDR blocks of the immediate proxies, e.g. <c>10.0.0.0/8</c>. The address must be the network
-    /// address itself: <c>10.0.0.1/8</c> is rejected rather than silently masked to <c>10.0.0.0/8</c>.
-    /// </summary>
     public IList<string> KnownNetworks { get; } = [];
 
-    /// <summary>
-    /// How many entries to consume from the right of <c>X-Forwarded-For</c>. Must equal the number
-    /// of proxies actually in front of the app: a larger value lets a caller prepend a forged hop
-    /// and have it read as the client address.
-    /// </summary>
     public int ForwardLimit { get; set; } = 1;
 }
 
@@ -52,9 +29,6 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
 
         var failures = new List<string>();
 
-        // ForwardedHeadersMiddleware verifies the peer only when at least one proxy or network is
-        // known. With both lists empty it accepts X-Forwarded-For from anyone, so every caller could
-        // pick its own rate-limit partition — worse than Enabled=false.
         if (options.KnownProxies.Count == 0 && options.KnownNetworks.Count == 0)
         {
             failures.Add(
@@ -85,9 +59,6 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
                 continue;
             }
 
-            // TryParse masks away bits outside the prefix: '10.0.0.7/8' parses as the whole of 10.0.0.0/8, which would
-            // trust sixteen million addresses on the strength of an entry naming one. The entry is refused and the block
-            // its prefix actually names is offered instead.
             if (!AddressIsItsOwnNetwork(network, parsed))
             {
                 failures.Add(
@@ -106,11 +77,6 @@ internal sealed class ReverseProxyOptionsValidator : IValidateOptions<ReversePro
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 
-    /// <summary>
-    /// Whether the address the deployer wrote is the one the prefix names, rather than an address
-    /// inside the block. Compared as addresses and not as text, so an equivalent spelling of the same
-    /// address is accepted and an IPv6 entry is judged the same way.
-    /// </summary>
     private static bool AddressIsItsOwnNetwork(string entry, IPNetwork parsed)
     {
         int slash = entry.IndexOf('/');

@@ -8,18 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>Regaining access to an account whose password is lost, without being signed in to ask.</summary>
-/// <remarks>
-/// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
-/// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it. The tight
-/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling a
-/// credential — a password, a TOTP code, a recovery code — and on no other, so polling an
-/// endpoint that handles none cannot spend the brute-force allowance. Responses carrying a token,
-/// a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC 6749 §5.1 forbids a cache
-/// from storing an OAuth-style credential. Six classes under the one <c>auth</c> prefix, and the
-/// prefix is the surface: no path depends on which class answers it.
-/// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class PasswordRecoveryController(
@@ -27,10 +15,6 @@ public sealed class PasswordRecoveryController(
     IResetPasswordUseCase resetPassword) : ApiControllerBase
 {
     /// <summary>Starts a password reset by emailing a single-use token.</summary>
-    /// <remarks>
-    /// 204 for every well-formed address, whether it names an account or not, and nothing about the
-    /// address is logged: the response must not tell a caller which addresses are registered.
-    /// </remarks>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -47,10 +31,7 @@ public sealed class PasswordRecoveryController(
         return NoContentOrProblem(await requestPasswordReset.ExecuteAsync(command, cancellationToken));
     }
 
-    /// <summary>
-    /// Sets a new password from a reset token. This is a POST, not a GET: the single-use token must
-    /// not land in server access logs, browser history or a <c>Referer</c> header.
-    /// </summary>
+    /// <summary>Sets a new password from a reset token.</summary>
     [HttpPost("reset-password")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]

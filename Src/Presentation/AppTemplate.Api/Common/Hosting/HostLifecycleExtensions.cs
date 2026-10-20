@@ -5,10 +5,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Hosting;
 
-/// <summary>
-/// Host shutdown and request-deadline behaviour: how long a graceful stop waits, and how long a
-/// request is allowed to run before it is cut loose.
-/// </summary>
 internal static class HostLifecycleExtensions
 {
     public static IServiceCollection AddApiLifecycle(this IServiceCollection services, IConfiguration configuration)
@@ -22,8 +18,6 @@ internal static class HostLifecycleExtensions
 
         services.AddSingleton<IValidateOptions<ShutdownOptions>, ShutdownOptionsValidator>();
 
-        // HostOptions.ShutdownTimeout is what the Generic Host waits for IHostedService.StopAsync,
-        // and so for Kestrel to drain in-flight connections.
         services.AddOptions<HostOptions>()
             .Configure<IOptions<ShutdownOptions>>(
                 static (hostOptions, shutdown) => hostOptions.ShutdownTimeout = shutdown.Value.Timeout);
@@ -34,8 +28,6 @@ internal static class HostLifecycleExtensions
 
         services.AddSingleton<IValidateOptions<RequestTimeoutsOptions>, RequestTimeoutsOptionsValidator>();
 
-        // Configured through the bound options rather than a second read of the section, so the
-        // validated values are the ones the middleware uses.
         services.AddRequestTimeouts();
         services.AddOptions<RequestTimeoutOptions>()
             .Configure<IOptions<RequestTimeoutsOptions>>(
@@ -48,13 +40,6 @@ internal static class HostLifecycleExtensions
         return services;
     }
 
-    /// <summary>
-    /// Endpoint metadata (<c>[RequestTimeout]</c>, <c>[DisableRequestTimeout]</c>) is already
-    /// resolvable at this point since routing runs ahead of every <c>app.Use</c> call in this
-    /// pipeline; placement here is about deadline scope, not metadata visibility — installed after
-    /// the rate limiter so a request the limiter rejects never starts a clock that then has to be
-    /// torn down, and before authentication so the deadline covers it too.
-    /// </summary>
     public static WebApplication UseApiRequestTimeouts(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -64,15 +49,6 @@ internal static class HostLifecycleExtensions
         return app;
     }
 
-    /// <summary>
-    /// This is where a request timeout is answered. It runs only while the response has not started
-    /// yet; once headers are gone there is no channel left to answer through, and a timeout can only
-    /// end as a truncated response — which is the reason a stream must have its timeout
-    /// <b>disabled</b> rather than lengthened. Title, detail and code match
-    /// <c>GlobalExceptionHandler</c>'s timeout arm, so a client cannot tell which path answered.
-    /// Written by hand rather than through <c>IProblemDetailsService</c>, which writes nothing when
-    /// the request's <c>Accept</c> header excludes JSON.
-    /// </summary>
     private static async Task WriteTimeoutProblemAsync(HttpContext httpContext)
     {
         var problem = new ProblemDetails
@@ -85,8 +61,6 @@ internal static class HostLifecycleExtensions
         problem.Extensions["code"] = "request.timeout";
         ProblemDetailsNormaliser.Normalise(problem, httpContext);
 
-        // RequestAborted is the timeout's own token, already signalled, so passing it to the write
-        // would fail instantly.
         await httpContext.Response.WriteAsJsonAsync(
             problem,
             options: null,

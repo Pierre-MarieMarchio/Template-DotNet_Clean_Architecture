@@ -13,18 +13,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>Turning the second factor on and off. Redeeming it is a sign-in, and lives with the sessions.</summary>
-/// <remarks>
-/// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
-/// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it. The tight
-/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling a
-/// credential — a password, a TOTP code, a recovery code — and on no other, so polling an
-/// endpoint that handles none cannot spend the brute-force allowance. Responses carrying a token,
-/// a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC 6749 §5.1 forbids a cache
-/// from storing an OAuth-style credential. Six classes under the one <c>auth</c> prefix, and the
-/// prefix is the surface: no path depends on which class answers it.
-/// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class TwoFactorController(
@@ -33,10 +21,8 @@ public sealed class TwoFactorController(
     IDisableTwoFactorUseCase disableTwoFactor) : ApiControllerBase
 {
     /// <summary>
-    /// Begins two-factor enrollment: provisions a shared key if none is pending yet, and returns it
-    /// either as a raw string or as an <c>otpauth://</c> URI for a QR code. Arms nothing on its own —
-    /// <see cref="ConfirmTwoFactorSetup"/> is what actually turns two-factor sign-in on, once the
-    /// caller proves it can produce a code from what this returned.
+    /// Begins two-factor enrollment and returns the shared key, raw and as an <c>otpauth://</c>
+    /// URI.
     /// </summary>
     [HttpPost("two-factor/setup")]
     [Authorize]
@@ -49,14 +35,7 @@ public sealed class TwoFactorController(
     public async Task<ActionResult<SetUpTwoFactorResponse>> SetUpTwoFactor(CancellationToken cancellationToken) =>
         OkOrProblem(AuthResponseMapping.ToSetUpTwoFactorResponse(await setUpTwoFactor.ExecuteAsync(cancellationToken)));
 
-    /// <summary>
-    /// Confirms enrollment with a first code and turns two-factor sign-in on. Returns ten recovery
-    /// codes, shown once: losing them along with the authenticator app is losing the account. The
-    /// current password is presented again, for the reason <see cref="DisableTwoFactor"/> gives: a
-    /// stolen session alone must not be able to arm the account's second factor any more than it can
-    /// strip one — confirming ends every other session exactly as disabling does, so proving the
-    /// password matters just as much here.
-    /// </summary>
+    /// <summary>Confirms enrollment with a first code and turns two-factor sign-in on.</summary>
     [HttpPost("two-factor/confirm")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -77,12 +56,7 @@ public sealed class TwoFactorController(
             AuthResponseMapping.ToConfirmTwoFactorSetupResponse(await confirmTwoFactorSetup.ExecuteAsync(command, cancellationToken)));
     }
 
-    /// <summary>
-    /// Turns two-factor sign-in back off. The current password is presented again, for the reason
-    /// <see cref="AccountController.ChangePassword"/> gives: a stolen session alone must not be able
-    /// to strip the
-    /// account's second factor.
-    /// </summary>
+    /// <summary>Turns two-factor sign-in back off.</summary>
     [HttpPost("two-factor/disable")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]

@@ -247,7 +247,8 @@ Each of these has been paid for at least once in this repository.
 - **`.cs` files are UTF-8 *with* BOM** (`.editorconfig`), and a file written without one fails the
   formatting gate. Detecting a BOM by piping bytes through `grep` does not work reliably — it will
   happily add a second one.
-- **A stale `<see cref="…"/>` and an unused `using` both fail the build**, because
-  `GenerateDocumentationFile` is on with CS1591/CS1573 suppressed. Documentation stays optional;
-  what is written has to be true.
+- **An unused `using` and a stale `<see cref="…"/>` both fail the build**, because
+  `GenerateDocumentationFile` is on in every project, with CS1591/CS1573 suppressed: IDE0005 is
+  reported on build only when it is. No member owes a comment; the API documentation that is
+  written has to resolve.
 

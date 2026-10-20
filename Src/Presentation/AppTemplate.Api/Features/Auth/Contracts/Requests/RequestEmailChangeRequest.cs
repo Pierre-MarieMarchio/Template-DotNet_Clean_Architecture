@@ -1,4 +1,4 @@
 ﻿namespace AppTemplate.Api.Features.Auth.Contracts.Requests;
 
-/// <summary>Carries no identity beyond the new address: the account being changed is the authenticated caller's own.</summary>
+/// <summary>The new address and the current password of the authenticated caller's own account.</summary>
 public sealed record RequestEmailChangeRequest(string CurrentPassword, string NewEmail);

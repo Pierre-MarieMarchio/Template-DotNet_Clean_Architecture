@@ -4,12 +4,6 @@ using Microsoft.OpenApi;
 
 namespace AppTemplate.Api.Common.OpenApi;
 
-/// <summary>
-/// Declares the bearer scheme on the OpenAPI document. The scheme is <c>Http</c>/<c>bearer</c>
-/// rather than <c>ApiKey</c>, so the UI adds the <c>Bearer </c> prefix itself. No global security
-/// requirement is added: a padlock on every operation would describe the document rather than the
-/// runtime, where <c>[Authorize]</c> decides.
-/// </summary>
 internal sealed class OpenApiSecurityTransformer(IAuthenticationSchemeProvider schemeProvider)
     : IOpenApiDocumentTransformer
 {

@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using AppTemplate.Api.Common.Jobs;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
@@ -12,11 +11,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Files.Jobs;
 
-/// <summary>
-/// Runs the three file passes (abandoned-registration purge, orphan reclamation and deposit
-/// inspection), each on its own timer and option. A failing pass is logged and retried at the next
-/// tick; each use case takes its own <see cref="ILeaderLease"/>, so a standby host's pass reports zero.
-/// </summary>
 internal sealed class FileBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<JobsFilesOptions> options,
@@ -33,7 +27,6 @@ internal sealed class FileBackgroundService(
 
         if (logger.IsEnabled(LogLevel.Information))
         {
-            // The abandonment delay is in the line because no setting carries it.
             logger.LogInformation(
                 "File job starting. Abandoned-registration purge enabled: {PurgeEnabled}, every " +
                 "{PurgeInterval}, giving up on a registration after {AbandonedAfter}. Orphaned-content " +
@@ -75,8 +68,6 @@ internal sealed class FileBackgroundService(
         logger.LogInformation("File job stopping.");
     }
 
-    /// <param name="disabledConsequence">What goes wrong while the pass is off, logged at warning level on
-    /// every skipped tick: what accumulates fails silently.</param>
     private Task RunLoopAsync<TUseCase>(
         string label,
         string disabledConsequence,
@@ -95,7 +86,6 @@ internal sealed class FileBackgroundService(
                 }
                 else
                 {
-                    // Counted so a flat Iterations series tells a disabled loop from a dead one.
                     FileInstruments.Iterations.Add(
                         1,
                         new KeyValuePair<string, object?>(JobTags.Task, label),
@@ -109,7 +99,6 @@ internal sealed class FileBackgroundService(
             },
             stoppingToken);
 
-    /// <summary>Runs one pass, isolating its failure from the other loops.</summary>
     private async Task RunPassAsync<TUseCase>(string label, Counter<long> volume, CancellationToken stoppingToken)
         where TUseCase : IUseCase<Result<int>>
     {
@@ -131,7 +120,6 @@ internal sealed class FileBackgroundService(
                 volume.Add(result.Value, taskTag);
                 activity?.SetTag("files.removed", result.Value);
 
-                // Unconditional: a line only on removal would make a broken pass look idle.
                 if (logger.IsEnabled(LogLevel.Information))
                 {
                     logger.LogInformation("Sweep of {Label} completed: {Count} removed.", label, result.Value);
@@ -151,7 +139,6 @@ internal sealed class FileBackgroundService(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            // Shutdown, not a failed pass.
             throw;
         }
         catch (Exception exception)

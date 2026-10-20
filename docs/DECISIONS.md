@@ -230,8 +230,11 @@ restate it in their own vocabulary.
 <!--#endif-->
 **The 30 s total is bound to `RequestTimeouts:Default`'s 5 minutes**: an
 outbound call happens inside an inbound request, so the enclosing budget has to be the longer of
-the two, for the same reason `RequestTimeoutsOptions` gives about the layer below it. If either
-number moves, re-read both.
+the two, for the same reason that default outlasts the database's own retry budget
+([`CONFIGURATION.md`](CONFIGURATION.md#requesttimeouts)). If either number moves, re-read both. The
+package bounds the other side: the total must exceed the 10 s attempt timeout, and the circuit
+breaker's 30 s sampling window must be at least twice the attempt, which 10 s and 30 s meet with no
+margin.
 
 **Exclusivity between hosts belongs to the operation, not to the loop that starts it.**
 `ILeaderLease` is an application port, and the operations that must not run twice at once
@@ -1432,3 +1435,98 @@ fixture sets the published endpoint to the address the machine reaches, which is
 host and not of the template, and an empty public endpoint has to behave exactly as if the setting did
 not exist.
 <!--#endif-->
+
+## Presentation and API
+
+**The API reference is the API's XML documentation, read where the host calls `AddOpenApi`.**
+`Microsoft.AspNetCore.OpenApi` turns XML comments into the document's summaries and descriptions
+through a source generator that intercepts the `AddOpenApi` call, so it sees only the comments of
+the assembly making that call: `Program.cs` makes it, once per version group, and moving that loop
+into a referenced project would drop every description and still compile. What it reads is written
+for the API's client and kept to one sentence: a `<summary>` on each controller action, and a
+`<summary>` and `<param>`s on the request and response contracts. Asp.Versioning's AV0029 and
+AV0030 are suppressed in `AppTemplate.Api.csproj`: they ask for `Asp.Versioning.OpenApi`, which
+yields the same paths and schemas but replaces that generator with a transformer that renders a
+`<see cref>` as an empty string (10.2.3). Revisit the suppression when it resolves a cref to the type
+name.
+<!--#if (localAuth)-->
+`OpenApiDocumentTests` holds the rendering on `ResetPasswordRequest`'s description.
+<!--#endif-->
+
+**Every project generates its XML documentation file, so that an unused `using` fails the build.**
+IDE0005 is reported on build only when `GenerateDocumentationFile` is true; with it off the
+compiler refuses the rule outright (`EnableGenerateDocumentationFile`). Keeping the file to the one
+project OpenAPI reads would lose that gate everywhere else, so `Directory.Build.props` turns it on
+for the whole repository with CS1591 and CS1573 suppressed: no member owes a comment, and a
+`<see cref>` that is written still has to resolve.
+
+**A success is serialised as the type the action declares, and its content type is left to the
+result.** `Ok(value)` serialises the runtime type, and a `[JsonPolymorphic]` discriminator is
+written only when serialisation starts at the base, so a closed hierarchy would go out without its
+`status` tag; `ApiControllerBase` names the declared type on every success, and the idempotency
+replay stores and writes the same one. No `[Produces("application/json")]` is set, because it
+overwrites the `application/problem+json` every error response carries, and the base class
+declares only the statuses that arrive ahead of any action — 413, 415, 429 and 500 — because an
+action can add to the set `ProducesResponseType` builds but never remove from it.
+
+**A refusal written before MVC carries its problem body whatever the request accepts.** The 413 of
+the request-size limit, the 429 of the rate limiter and the 504 of the request timeout are written
+by hand as `application/problem+json` rather than through `IProblemDetailsService`, which writes
+nothing when `Accept` excludes JSON. Each carries the `code`, `traceId` and `type` every other
+producer carries, and the timeout's matches `GlobalExceptionHandler`'s timeout arm, so a client
+cannot tell which path answered.
+
+**Reads may be stored only by their caller, and are revalidated before reuse.** A `GET` or `HEAD`
+answers `Cache-Control: private, no-cache`, an action marked `[NoStore]` answers `no-store` whatever
+its method, and every response varies on `Authorization` and `Origin`: each read is scoped to the
+bearer and CORS is active, so a cache keyed on the URL alone could serve one caller's or one origin's
+response to another. A `Cache-Control` or `Vary` already set by an endpoint is never overwritten.
+
+**Rate limiting partitions on the client address, never on the user.**
+<!--#if (!publicApi)-->
+The limiter runs before authentication, so the user is still anonymous when it decides. Moving
+authentication first would buy a per-user key at the price of validating the bearer — a signature
+check, and with local accounts a security-stamp read — on every request the limiter was about to
+reject, amplifying the load it exists to shed.
+<!--#endif-->
+<!--#if (localAuth)-->
+The authentication policy would stay per address even with an identity at hand: it slows credential
+discovery on endpoints where, by construction, there is none yet.
+<!--#endif-->
+Callers sharing an address share a budget, and behind a proxy the address is only right once
+`ReverseProxy` names it.
+
+**The request language is parsed by hand, and believed.** `UseRequestLocalization` is not used: it
+negotiates against a list of supported cultures this template deliberately does not keep, and works
+in `CultureInfo`, which `InvariantGlobalization` empties of meaning. `Accept-Language` is parsed by
+hand rather than with `StringWithQualityHeaderValue`, which resynchronises inside a malformed entry
+and hands back a fragment of it (`"not a tag"` yields `"tag"`); a malformed entry is skipped whole.
+The winning tag is checked for shape only: a language nothing was written in falls back inside the
+renderer that knows which languages exist.
+
+<!--#if (localAuth)-->
+**The token endpoints are never `[Idempotent]`.** Replaying a sign-in would mean keeping the issued
+token pair in the idempotency store, a credential at rest in a table built to be read back.
+<!--#endif-->
+**An idempotency key needs a caller, and a started response keeps its claim.** A key sent on a
+request whose caller cannot be identified is refused with `idempotency.callerNotIdentifiable`
+rather than served unprotected, because keys are scoped per user and an unidentified caller would
+otherwise lose the guarantee without being told. Once the response has started the claim is kept
+even if the request then fails, since the write has committed and releasing the claim would let a
+retry run it again; a failure between the commit and the first byte releases a claim whose write
+landed, and the lease bounds that mistake.
+
+**`AppTemplate.Presentation.Core` carries no database driver either.** `Npgsql.OpenTelemetry` would
+bring the PostgreSQL driver into every host composing the project, a desktop or CLI host included,
+so `AddObservability` takes `tracing` and `metrics` callbacks and each host adds its own
+`AddNpgsql()`; `AppTemplate.Api` references the package itself. The ASP.NET packages it leaves out
+are [`ARCHITECTURE.md`](ARCHITECTURE.md)'s subject.
+
+**Each presentation project grants its internals to its own unit tests and to nothing else.**
+`EntityTagMapping`, `IfMatchPrecondition` and `ProblemDetailsNormaliser.Normalise` are internal so
+that nothing outside the API reads or mints a version token or skips the one normaliser every
+problem passes through; the options validators, registration extensions, idempotency filter and
+request-log middleware are internal because the container or the pipeline reaches them, never a
+caller. Their branches are decisions a public-surface test could reach only through a live HTTP
+pipeline, so `AppTemplate.Api` and `AppTemplate.Presentation.Core` each declare one
+`InternalsVisibleTo`, naming their own unit-test project.

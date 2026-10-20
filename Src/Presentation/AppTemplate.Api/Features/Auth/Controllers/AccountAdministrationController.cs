@@ -16,17 +16,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>
-/// Acting on somebody else's account: locking it out, granting or revoking a role, deleting it
-/// outright, and reading the security trail its sign-ins left behind. Everything here is restricted to <see cref="AuthorizationPolicies.Administrator"/>, on the class —
-/// unlike the five controllers answering the <c>auth</c> prefix, nothing on this surface has an
-/// anonymous or self-service
-/// counterpart, so there is no accidental <c>[AllowAnonymous]</c> for a class-level policy to defeat.
-/// </summary>
-/// <remarks>
-/// No <see cref="RateLimitingExtensions.Authentication"/> budget: nothing here handles a credential,
-/// and every request is already behind an access token and the Administrator policy.
-/// </remarks>
 [Route("api/v{version:apiVersion}/auth/accounts")]
 [Asp.Versioning.ApiVersion("1.0")]
 [Authorize(Policy = AuthorizationPolicies.Administrator)]
@@ -41,10 +30,7 @@ public sealed class AccountAdministrationController(
     IDisableAccountTwoFactorUseCase disableAccountTwoFactor,
     IGetAccountSecurityEventsUseCase getAccountSecurityEvents) : ApiControllerBase
 {
-    /// <summary>
-    /// Locks the account out indefinitely. Rotates its security stamp, so an access token it already
-    /// holds stops working on its very next request rather than staying valid until it expires.
-    /// </summary>
+    /// <summary>Locks the account out indefinitely.</summary>
     [HttpPost("{userId:guid}/lockout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -52,7 +38,7 @@ public sealed class AccountAdministrationController(
     public async Task<ActionResult> Lock(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(await lockAccount.ExecuteAsync(new LockAccountCommand(userId), cancellationToken));
 
-    /// <summary>Lifts an administrative lockout. A no-op, not a 404, on an account that was not locked.</summary>
+    /// <summary>Lifts an administrative lockout.</summary>
     [HttpDelete("{userId:guid}/lockout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -60,11 +46,7 @@ public sealed class AccountAdministrationController(
     public async Task<ActionResult> Unlock(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(await unlockAccount.ExecuteAsync(new UnlockAccountCommand(userId), cancellationToken));
 
-    /// <summary>
-    /// Grants a role. <c>PUT</c>, not <c>POST</c>: asking twice for the same account to carry the
-    /// same role is idempotent in effect even where the store answers the second call with a refusal
-    /// naming it already assigned.
-    /// </summary>
+    /// <summary>Grants a role.</summary>
     [HttpPut("{userId:guid}/roles/{role}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -72,10 +54,7 @@ public sealed class AccountAdministrationController(
     public async Task<ActionResult> AddRole(Guid userId, string role, CancellationToken cancellationToken) =>
         NoContentOrProblem(await addRole.ExecuteAsync(new AddRoleCommand(userId, role), cancellationToken));
 
-    /// <summary>
-    /// Revokes a role. Refused with a 403 when <paramref name="userId"/> names the caller: see
-    /// <c>RemoveRoleUseCase</c> for why the guard is not narrower than "any role, from yourself".
-    /// </summary>
+    /// <summary>Revokes a role.</summary>
     [HttpDelete("{userId:guid}/roles/{role}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -83,12 +62,7 @@ public sealed class AccountAdministrationController(
     public async Task<ActionResult> RemoveRole(Guid userId, string role, CancellationToken cancellationToken) =>
         NoContentOrProblem(await removeRole.ExecuteAsync(new RemoveRoleCommand(userId, role), cancellationToken));
 
-    /// <summary>
-    /// Deletes the account outright. Refused with a 403 when <paramref name="userId"/> names the
-    /// caller — see <c>DeleteAccountUseCase</c>. Deleting a to-do list or a reminder this account
-    /// owns is not part of this call: see <c>IAccountAdministrationService</c> for why, and for what becomes of
-    /// them.
-    /// </summary>
+    /// <summary>Deletes the account outright.</summary>
     [HttpDelete("{userId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -97,15 +71,8 @@ public sealed class AccountAdministrationController(
         NoContentOrProblem(await deleteAccount.ExecuteAsync(new DeleteAccountCommand(userId), cancellationToken));
 
     /// <summary>
-    /// Strips the account's second factor without its password or a code — the escape hatch for
-    /// somebody who has lost the authenticator app <em>and</em> the recovery codes, and so can prove
-    /// neither. Without this, the only recourse was <see cref="Delete"/>, which throws the account
-    /// away along with everything it owns rather than the one thing actually stuck. Refused with a
-    /// 403 when <paramref name="userId"/> names the caller — not <see cref="Lock"/>'s reason, since
-    /// this locks nothing: it is refused because letting this route reach the caller's own account
-    /// would let a stolen administrator session strip that account's second factor without ever
-    /// presenting the password the self-service route demands — see
-    /// <c>DisableAccountTwoFactorUseCase</c>.
+    /// Strips the account's second factor, for a holder who has lost both the authenticator and the
+    /// recovery codes.
     /// </summary>
     [HttpDelete("{userId:guid}/two-factor")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -115,14 +82,7 @@ public sealed class AccountAdministrationController(
         NoContentOrProblem(
             await disableAccountTwoFactor.ExecuteAsync(new DisableAccountTwoFactorCommand(userId), cancellationToken));
 
-    /// <summary>The named account's security trail, newest first — the administrator's half of the
-    /// trail every account holder reads on <c>GET /auth/me/security-events</c>.</summary>
-    /// <remarks>
-    /// <b>No 404 for an account that does not exist.</b> The trail is retained after an account is
-    /// deleted until retention expires — that retention is half of why the trail exists — so the
-    /// rows an investigation needs are exactly the ones that survive the account, and an id naming
-    /// nothing answers an empty page. See <c>GetAccountSecurityEventsUseCase</c>.
-    /// </remarks>
+    /// <summary>Lists the named account's security trail, newest first.</summary>
     [HttpGet("{userId:guid}/security-events")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<SecurityEventResponse>))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]

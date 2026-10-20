@@ -3,9 +3,6 @@ using FrameworkCorsOptions = Microsoft.AspNetCore.Cors.Infrastructure.CorsOption
 
 namespace AppTemplate.Api.Common.Security;
 
-/// <summary>
-/// CORS driven by configuration, so the allowed origins differ per environment without a rebuild.
-/// </summary>
 internal static class CorsExtensions
 {
     public const string Default = "default";
@@ -29,20 +26,14 @@ internal static class CorsExtensions
 
                 if (allowedOrigins.Count == 0)
                 {
-                    // Nothing configured means allow nothing. CORS governs only cross-origin
-                    // requests, so same-origin callers are unaffected.
                     return;
                 }
 
                 policy.WithOrigins([.. allowedOrigins])
                     .AllowAnyHeader()
                     .AllowAnyMethod()
-                    // A browser hands script only the CORS-safelisted response headers, so a header a
-                    // client must act on reads as absent unless it is named here.
                     .WithExposedHeaders("Retry-After", "ETag", "Location", "Idempotency-Replayed")
                     .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
-
-                // No AllowCredentials: tokens travel in the Authorization header, not a cookie.
             }));
 
         return services;

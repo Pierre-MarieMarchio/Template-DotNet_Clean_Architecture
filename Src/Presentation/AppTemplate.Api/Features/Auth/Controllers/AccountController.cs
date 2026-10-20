@@ -16,18 +16,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace AppTemplate.Api.Features.Auth.Controllers;
 
-/// <summary>What the authenticated caller can read and change about their own account.</summary>
-/// <remarks>
-/// <c>[AllowAnonymous]</c> goes action by action, never on a controller: it short circuits
-/// authorisation wherever an endpoint's metadata carries it, so one on a class would defeat the
-/// <c>[Authorize]</c> on the actions beside it. The tight
-/// <see cref="RateLimitingExtensions.Authentication"/> budget goes on each action handling a
-/// credential — a password, a TOTP code, a recovery code — and on no other, so polling an
-/// endpoint that handles none cannot spend the brute-force allowance. Responses carrying a token,
-/// a two-factor shared key or recovery codes are <c>[NoStore]</c>: RFC 6749 §5.1 forbids a cache
-/// from storing an OAuth-style credential. Six classes under the one <c>auth</c> prefix, and the
-/// prefix is the surface: no path depends on which class answers it.
-/// </remarks>
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class AccountController(
@@ -38,16 +26,7 @@ public sealed class AccountController(
     IConfirmEmailChangeUseCase confirmEmailChange,
     IDeleteMyAccountUseCase deleteMyAccount) : ApiControllerBase
 {
-    /// <summary>The authenticated caller's own profile. Takes no input: the identity is the token's.</summary>
-    /// <remarks>
-    /// One of three actions without <see cref="RateLimitingExtensions.Authentication"/> — see
-    /// <see cref="GetMySecurityEvents"/> beside it and
-    /// <see cref="SessionsController.LogoutEverywhere"/> for the third — so it falls to the global
-    /// limiter. A profile
-    /// read is not an attempt at a credential, and a client that polls this — a session check on
-    /// every app start — must not be spending the allowance that exists to slow brute force down. It
-    /// is also the only endpoint that publishes an account id.
-    /// </remarks>
+    /// <summary>The authenticated caller's own profile.</summary>
     [HttpGet("me")]
     [HttpHead("me")]
     [Authorize]
@@ -56,10 +35,7 @@ public sealed class AccountController(
     public async Task<ActionResult<CurrentUserResponse>> GetCurrentUser(CancellationToken cancellationToken) =>
         OkOrProblem(AuthResponseMapping.ToCurrentUserResponse(await getCurrentUser.ExecuteAsync(cancellationToken)));
 
-    /// <summary>
-    /// Replaces the caller's password. The current one is presented again as proof that the session
-    /// is not a stolen token.
-    /// </summary>
+    /// <summary>Replaces the caller's password.</summary>
     [HttpPost("change-password")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -78,12 +54,8 @@ public sealed class AccountController(
     }
 
     /// <summary>
-    /// Starts a change of the caller's email address by sending a single-use token to the new
-    /// address. The current password is presented again, for the reason <see cref="ChangePassword"/>
-    /// gives: a stolen session alone must not be able to move the account to an address the attacker
-    /// controls.
+    /// Starts a change of the caller's email address by mailing a single-use token to the new one.
     /// </summary>
-    /// <remarks>204 whether or not the new address is already registered: the response must not tell the caller which addresses exist.</remarks>
     [HttpPost("change-email")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -101,13 +73,7 @@ public sealed class AccountController(
         return NoContentOrProblem(await requestEmailChange.ExecuteAsync(command, cancellationToken));
     }
 
-    /// <summary>
-    /// Confirms a pending email change from the token mailed to the new address. This is a POST, not
-    /// a GET, for the reason <see cref="RegistrationController.ConfirmEmail"/> gives. Authenticated by
-    /// the same access token
-    /// as <see cref="RequestEmailChange"/>: the new address is not on file until this call succeeds,
-    /// so there is nothing to look the token up by except the caller's own identity.
-    /// </summary>
+    /// <summary>Confirms a pending email change from the token mailed to the new address.</summary>
     [HttpPost("confirm-email-change")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -125,19 +91,7 @@ public sealed class AccountController(
         return NoContentOrProblem(await confirmEmailChange.ExecuteAsync(command, cancellationToken));
     }
 
-    /// <summary>
-    /// Deletes the caller's own account, and with it every session its tokens name: the answer is
-    /// the last one this token can obtain. What the other features hold under the id is removed
-    /// through the account-deleted fact they each consume — see <c>DeleteMyAccountUseCase</c>.
-    /// </summary>
-    /// <remarks>
-    /// Re-authentication is demanded on the way out, for the reason <see cref="ChangePassword"/>
-    /// gives and one beyond it: a password change can be undone by changing back, and this cannot.
-    /// Which proof the account takes is decided by what it holds: the current password when one is
-    /// set, a two-factor code when the factor is armed, and — for an account with neither — an
-    /// access token issued less than five minutes ago, answered as
-    /// <c>auth.account.reAuthenticationRequired</c> when the calling one is older.
-    /// </remarks>
+    /// <summary>Deletes the caller's own account and ends every one of its sessions.</summary>
     [HttpPost("delete-account")]
     [Authorize]
     [EnableRateLimiting(RateLimitingExtensions.Authentication)]
@@ -156,19 +110,7 @@ public sealed class AccountController(
         return NoContentOrProblem(await deleteMyAccount.ExecuteAsync(command, cancellationToken));
     }
 
-    /// <summary>
-    /// The caller's own security trail, newest first: every sign-in attempt on this account, each
-    /// with the address and user agent it came from. A page, not a history: events older than the
-    /// retention period are gone, and the trail survives the account itself until they expire.
-    /// </summary>
-    /// <remarks>
-    /// Without the credential budget — <see cref="GetCurrentUser"/> gives the reason — so it
-    /// falls to the global limiter: reading
-    /// one's own trail is not an attempt at a credential, and an account holder checking recent
-    /// activity must not be spending the allowance that slows brute force down. Whose events these
-    /// are is the caller's identity, never an input, so there is nothing here to point at somebody
-    /// else.
-    /// </remarks>
+    /// <summary>Lists the caller's own security trail, newest first.</summary>
     [HttpGet("me/security-events")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<SecurityEventResponse>))]

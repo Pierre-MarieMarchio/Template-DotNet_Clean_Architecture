@@ -10,25 +10,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Notes.Controllers;
 
-/// <summary>The caller's own notes: the collection, one note, and the three writes that create, replace and delete one.</summary>
-/// <remarks>
-/// A single note publishes its version as a strong <c>ETag</c>, and its update and delete honour
-/// <c>If-Match</c>. The feature has no domain model, so one service answers every route; see
-/// <c>docs/ADDING-A-FEATURE.md</c> for when that shape is the right one.
-/// </remarks>
 [Route("api/v{version:apiVersion}/notes")]
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 public sealed class NotesController(INoteService notes) : ApiControllerBase
 {
     /// <summary>Lists the caller's own notes, sorted and paginated.</summary>
-    /// <remarks>Two paging modes: <c>offset</c> (the default), addressed by
-    /// <c>page</c>/<c>pageSize</c> and answering a <c>totalCount</c>; and <c>cursor</c>, addressed
-    /// by an opaque token minted by the previous page's <c>nextCursor</c>, which never counts the
-    /// whole match set. <c>sort</c> is a comma-separated list of whitelisted fields (<c>title</c>,
-    /// <c>createdAt</c>), each optionally suffixed <c>:asc</c>/<c>:desc</c>; cursor mode allows at
-    /// most one. A page carries titles only, not bodies. No <c>ETag</c>: a page of summaries is not
-    /// one note, so no write could be guarded by <c>If-Match</c>.</remarks>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResponse<NoteSummaryResponse>))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -55,11 +42,6 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
     }
 
     /// <summary>Creates a note owned by the caller.</summary>
-    /// <remarks>No <c>If-Match</c>: the resource does not exist yet. Idempotent: send an
-    /// <c>Idempotency-Key</c> header to make a retried request safe — repeating the same key with
-    /// the same body returns the first response again, carrying <c>Idempotency-Replayed: true</c>,
-    /// instead of creating a second note; repeating it with a different body is refused with
-    /// <c>idempotency.keyReused</c>.</remarks>
     [HttpPost]
     [Idempotent]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(NoteResponse))]
@@ -78,12 +60,6 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
     }
 
     /// <summary>Replaces a note's title and body.</summary>
-    /// <remarks>
-    /// Honours <c>If-Match</c>: a version the note no longer holds is refused with 412, and the write
-    /// itself is conditioned on the version it read, so a concurrent change that lands first is
-    /// refused with 409 rather than overwritten. Without <c>If-Match</c> the update is unconditional
-    /// unless <c>Concurrency:IfMatch</c> is <c>Required</c>.
-    /// </remarks>
     [HttpPut("{noteId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(NoteResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
@@ -103,7 +79,6 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
             return refusal;
         }
 
-        // The id comes from the route, never the body, so two sources of truth cannot disagree.
         var result = RequiringExistence(
             requiresExistence,
             await notes.UpdateAsync(noteId, new NoteContentDto(request.Title, request.Body), precondition, cancellationToken));

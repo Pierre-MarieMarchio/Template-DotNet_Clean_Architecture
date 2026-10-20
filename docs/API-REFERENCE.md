@@ -80,8 +80,13 @@ which present none either.
 | POST | `/api/v1/auth/forgot-password` | 204 | Always 204, whether or not the address exists. |
 | POST | `/api/v1/auth/reset-password` | 204 | **POST with a JSON body**, not a GET with a query string. |
 
-**The refresh token is in the response body, not a cookie.** It is an opaque
-32-byte CSPRNG value, base64url-encoded — not a JWT — and only its SHA-256 hash is
+<!--#if (browserSessions)-->
+**The refresh token is in the response body, or in a cookie when a browser asks for
+one.**
+<!--#else
+**The refresh token is in the response body, not a cookie.**
+#endif-->
+It is an opaque 32-byte CSPRNG value, base64url-encoded — not a JWT — and only its SHA-256 hash is
 stored. Every presentation rotates it. Presenting one that was already rotated or
 revoked is treated as theft: **every session of that user is revoked** and the
 request fails. Verified: replaying a consumed token returns 401, and the
@@ -92,6 +97,25 @@ started; the access token issued beside its first grant carries a `sid` claim na
 it, and every refresh stays in the same session. A token of a session that was ended —
 signed out, revoked by its owner, or killed with the rest — is refused without the
 theft alarm: it is what a client still holding it sends next.
+<!--#if (browserSessions)-->
+
+**Cookie mode, for a browser app.** A web app keeps the refresh token where its script cannot read
+it by sending `X-Refresh-Token-Mode: cookie` on every call that issues, rotates or revokes one. A
+call without the header is body mode, exactly as described above.
+
+| | Cookie mode |
+|---|---|
+| Endpoints | `login`, `login/two-factor`, `login/external`, `passkeys/sign-in`, `refresh`, `logout` |
+| The cookie | `refresh_token`; `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`; no `Domain`; `Expires` is the grant's expiry |
+| Signing in | an `authenticated` answer sets the cookie, and its `tokens` carry `accessToken`, `accessTokenExpiresAt` and `refreshTokenExpiresAt` but no `refreshToken`; a `twoFactorRequired` answer sets nothing |
+| `refresh` | no body: the token is read from the cookie. `200` sets the rotated cookie, with the same body shape as a sign-in's `tokens`. `401` `auth.refreshToken.invalid` when the cookie is missing, expired, revoked or replayed — a replay revokes every session, as in body mode — and clears the cookie unless it was missing |
+| `logout` | no body: ends the cookie's session and clears the cookie, `204` even when no cookie came |
+| The header missing | the cookie is never read: a `refresh` or `logout` sending only the cookie is a body-mode call with no body, `400` `request.validationFailed`, and spends nothing |
+| Any other header value | `400` `request.validationFailed` before anything runs, so nothing is issued |
+
+A cleared cookie is the same cookie with an empty value and an expiry in 1970. The OpenAPI document
+describes the header, the cookie parameter of `refresh` and `logout`, and the `Set-Cookie` of each
+answer.
 <!--#endif-->
 
 <!--#if (todoLists)-->

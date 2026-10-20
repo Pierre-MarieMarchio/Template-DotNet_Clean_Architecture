@@ -161,6 +161,50 @@
       "type": "computed",
       "value": "(ci && sonar)"
     },
+    "web": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "none",
+      "choices": [
+        {
+          "choice": "none",
+          "description": "No web front end: the project stays a pure API."
+        },
+        {
+          "choice": "placeholder",
+          "description": "One web app holding a static page, served by nginx, relaying /api to the API."
+        },
+        {
+          "choice": "react",
+          "description": "One React (Vite, TypeScript) web app in the pnpm workspace Src/Web."
+        },
+        {
+          "choice": "angular",
+          "description": "One Angular web app in the pnpm workspace Src/Web."
+        }
+      ],
+      "description": "The first web front end, in the pnpm workspace Src/Web. More apps are added later with dotnet new cleanarch-webapp."
+    },
+    "anyWeb": {
+      "type": "computed",
+      "value": "(web != \"none\")"
+    },
+    "webPlaceholder": {
+      "type": "computed",
+      "value": "(web == \"placeholder\")"
+    },
+    "webReact": {
+      "type": "computed",
+      "value": "(web == \"react\")"
+    },
+    "webAngular": {
+      "type": "computed",
+      "value": "(web == \"angular\")"
+    },
+    "browserSessions": {
+      "type": "computed",
+      "value": "(localAuth && anyWeb)"
+    },
     "nameLower": {
       "type": "generated",
       "generator": "casing",
@@ -278,6 +322,15 @@
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
             "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
             "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs"
+          ]
+        },
+        {
+          "condition": "(!browserSessions)",
+          "exclude": [
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Composition/BrowserSession.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Composition/BrowserSessionComposition.cs",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Auth/Composition/BrowserSessionTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RefreshTokenCookieTests.cs"
           ]
         },
         {

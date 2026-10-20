@@ -29,6 +29,10 @@ internal static class AuthComposition
         services.AddAuthModule(configuration);
         services.AddApiCurrentSession();
         services.AddAuthMaintenanceJobs(configuration);
+        //#if (browserSessions)
+
+        services.AddBrowserSessionDocumentation();
+        //#endif
 
         //#if (anyFeature)
         services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();

@@ -1,7 +1,13 @@
 ﻿using System.Buffers.Text;
+//#if (browserSessions)
+using System.ComponentModel.DataAnnotations;
+//#endif
 using AppTemplate.Api.Common.Caching;
 using AppTemplate.Api.Common.Controllers;
 using AppTemplate.Api.Common.Security;
+//#if (browserSessions)
+using AppTemplate.Api.Features.Auth.Composition;
+//#endif
 using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
@@ -128,13 +134,22 @@ public sealed class PasskeysController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<LoginResponse>> CompletePasskeySignIn(
         [FromBody] PasskeySignInRequest request,
+        //#if (browserSessions)
+        [FromHeader(Name = BrowserSession.ModeHeader), RegularExpression(BrowserSession.ModePattern)]
+        string? refreshTokenMode,
+        //#endif
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new CompletePasskeySignInCommand(request.Credential, request.AuthenticationState);
+        var response = AuthResponseMapping.ToLoginResponse(
+            await completePasskeySignIn.ExecuteAsync(command, cancellationToken));
+        //#if (browserSessions)
 
-        return OkOrProblem(AuthResponseMapping.ToLoginResponse(
-            await completePasskeySignIn.ExecuteAsync(command, cancellationToken)));
+        response = BrowserSession.Deliver(HttpContext, refreshTokenMode, response);
+        //#endif
+
+        return OkOrProblem(response);
     }
 }

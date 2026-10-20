@@ -90,7 +90,11 @@ of the contract.
 <!--#if (localAuth)-->
 | `auth.login.invalidCredentials` | 401 — one answer for unknown address, wrong password, unconfirmed email and lockout alike |
 | `auth.login.invalidTwoFactorChallenge` | 401 — the challenge token is unknown, spent or expired |
+<!--#if (browserSessions)-->
+| `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed; in cookie mode, also no cookie at all |
+<!--#else
 | `auth.refreshToken.invalid` | 401 — unknown, expired, revoked or replayed |
+#endif-->
 | `auth.externalSignIn.refused` | 401 — one answer for an unknown provider and a token that did not verify |
 | `auth.confirmEmail.invalid` / `auth.resetPassword.invalid` / `auth.changeEmail.invalid` | 400 — the token is unknown, spent or expired |
 | `auth.twoFactor.alreadyEnabled` | 409 |

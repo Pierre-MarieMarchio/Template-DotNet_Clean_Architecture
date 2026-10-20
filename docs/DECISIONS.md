@@ -1179,6 +1179,36 @@ renderer that knows which languages exist.
 **The token endpoints are never `[Idempotent]`.** Replaying a sign-in would mean keeping the issued
 token pair in the idempotency store, a credential at rest in a table built to be read back.
 <!--#endif-->
+<!--#if (browserSessions)-->
+**A browser's refresh token travels in a cookie, and only the API layer knows it.** The use cases
+take and return the token as a string whichever way it travelled; moving it between the body and a
+cookie is a translation of the HTTP contract, so it is the controllers' and `BrowserSession`'s,
+the one type that knows the cookie's name, path and attributes. A request opts in with
+`X-Refresh-Token-Mode: cookie` on each endpoint that issues, rotates or revokes a grant — the four
+sign-in completions, `refresh` and `logout` — and a request without the header is answered exactly
+as a client that has never heard of cookies expects. Only the word `cookie` is accepted: any other
+value is a `400` before the sign-in runs, so a misspelt header cannot put the token back in a body
+script reads. In cookie mode the body omits `refreshToken` and keeps `refreshTokenExpiresAt`, which
+tells the app when the session ends; `refresh` and `logout` take no body, which is why their body
+became optional, and a body-mode request that sends none is refused by the use case's validation
+rather than by the framework's empty-body check. A refused refresh clears the cookie, since the
+grant it holds is dead; any other failure leaves it. A logout clears it and answers `204` even with
+no cookie, as a body-mode logout of an unknown token does.
+
+**The cookie is read only beside the custom header, and that header is the CSRF defence.**
+`SameSite=Strict` keeps a page of another site from sending the cookie at all, but a site is not an
+origin: a second app on another port of `localhost`, or a sibling subdomain, is the same site. What
+such a page cannot do is send `X-Refresh-Token-Mode` to the API with the cookie attached, because a
+custom header makes the request preflighted and the CORS policy never answers
+`Access-Control-Allow-Credentials`. So the API never reads the cookie without the header: a refresh
+or logout that sends only the cookie is a body-mode request with no body, refused `400` before any
+grant is touched. The cookie is `refresh_token`, `HttpOnly`, `Secure`, `SameSite=Strict`, host-only,
+on `Path=/api/v1/auth` under the request's path base, and expires with the grant. It carries no
+`__Host-` prefix, which demands `Path=/` and would send the token with every request the app makes,
+and no `__Secure-` prefix, whose acceptance on `http://localhost` — the development origin, through
+the app's relay — is not uniform across browsers; HSTS at the ingress, already a deployment
+obligation, is what keeps a plain-HTTP origin from planting a cookie of that name.
+<!--#endif-->
 **An idempotency key needs a caller, and a started response keeps its claim.** A key sent on a
 request whose caller cannot be identified is refused with `idempotency.callerNotIdentifiable`
 rather than served unprotected, because keys are scoped per user and an unidentified caller would

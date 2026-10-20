@@ -46,9 +46,9 @@ public sealed class SessionsControllerTests
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success<SignInWithExternalProviderOutcome>(AnAuthenticatedOutcome()));
 
-        await AController().LoginWithExternalProvider(
-            new SignInWithExternalProviderRequest("the-operators-name-for-a-provider", "the.id.token"),
-            TestContext.Current.CancellationToken);
+        await SignInAsync(
+            AController(),
+            new SignInWithExternalProviderRequest("the-operators-name-for-a-provider", "the.id.token"));
 
         captured.ShouldNotBeNull();
         captured.Provider.ShouldBe("the-operators-name-for-a-provider");
@@ -64,7 +64,7 @@ public sealed class SessionsControllerTests
             .ExecuteAsync(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<SignInWithExternalProviderOutcome>(AnAuthenticatedOutcome(accountCreated: true)));
 
-        var action = await AController(httpContext).LoginWithExternalProvider(ARequest(), TestContext.Current.CancellationToken);
+        var action = await SignInAsync(AController(httpContext), ARequest());
 
         var result = action.Result.ShouldBeOfType<OkObjectResult>();
         result.DeclaredType.ShouldBe(
@@ -97,7 +97,7 @@ public sealed class SessionsControllerTests
             .Returns(Result.Success<SignInWithExternalProviderOutcome>(
                 new SignInWithExternalProviderOutcome.TwoFactorRequired("the-challenge")));
 
-        var action = await AController(httpContext).LoginWithExternalProvider(ARequest(), TestContext.Current.CancellationToken);
+        var action = await SignInAsync(AController(httpContext), ARequest());
 
         var result = action.Result.ShouldBeOfType<OkObjectResult>();
 
@@ -125,7 +125,7 @@ public sealed class SessionsControllerTests
             .ExecuteAsync(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<SignInWithExternalProviderOutcome>(ExternalLoginsErrors.ExternalSignInRefused));
 
-        var action = await AController(httpContext).LoginWithExternalProvider(ARequest(), TestContext.Current.CancellationToken);
+        var action = await SignInAsync(AController(httpContext), ARequest());
 
         var problem = action.Result.ShouldBeOfType<ObjectResult>();
         problem.StatusCode.ShouldBe(StatusCodes.Status401Unauthorized);
@@ -159,6 +159,16 @@ public sealed class SessionsControllerTests
 
     private static SignInWithExternalProviderRequest ARequest() => new("a-provider", "an.id.token");
 
+    private static Task<ActionResult<ExternalLoginResponse>> SignInAsync(
+        SessionsController controller,
+        SignInWithExternalProviderRequest request) =>
+        controller.LoginWithExternalProvider(
+            request,
+            //#if (browserSessions)
+            refreshTokenMode: null,
+            //#endif
+            TestContext.Current.CancellationToken);
+
     private static SignInWithExternalProviderOutcome.Authenticated AnAuthenticatedOutcome(bool accountCreated = false) =>
         new(
             UserId: Guid.CreateVersion7(),
@@ -173,7 +183,7 @@ public sealed class SessionsControllerTests
     {
         var httpContext = AContext();
 
-        var action = await AController(httpContext).LoginWithExternalProvider(request, TestContext.Current.CancellationToken);
+        var action = await SignInAsync(AController(httpContext), request);
 
         using var body = await ServedBodyAsync(action.Result.ShouldBeOfType<ObjectResult>(), httpContext);
 

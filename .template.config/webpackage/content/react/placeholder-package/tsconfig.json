@@ -1,7 +1,0 @@
-{
-  "extends": "@app-template/tsconfig/base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx"
-  },
-  "include": ["src", "test", "*.ts"]
-}

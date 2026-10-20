@@ -1,8 +1,0 @@
-{
-  "extends": "@app-template/tsconfig/base.json",
-  "compilerOptions": {
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false
-  },
-  "include": ["src", "test", "*.ts"]
-}

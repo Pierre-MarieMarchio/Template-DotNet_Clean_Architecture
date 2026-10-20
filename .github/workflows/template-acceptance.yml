@@ -227,7 +227,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          dotnet new cleanarch-webpackage -n tokens --kind ts --scope sample-generated-project
+          dotnet new cleanarch-webpackage -n tokens --scope sample-generated-project
           leaked=$(grep -rIl -e app-template -e placeholder-package Src/Web/packages/tokens || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"

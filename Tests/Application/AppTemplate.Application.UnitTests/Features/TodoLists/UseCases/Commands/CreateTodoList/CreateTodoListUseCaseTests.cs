@@ -24,8 +24,6 @@ public sealed class CreateTodoListUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -55,10 +53,6 @@ public sealed class CreateTodoListUseCaseTests
 
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
     }
-
-    #endregion
-
-    #region Validation
 
     [Theory]
     [InlineData("")]
@@ -108,10 +102,6 @@ public sealed class CreateTodoListUseCaseTests
     [Fact]
     public async Task ANullCommand_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task AValidCommand_StagesAListOwnedByTheCaller()
@@ -188,8 +178,6 @@ public sealed class CreateTodoListUseCaseTests
         domainEvent.OwnerId.ShouldBe(_callerId);
         domainEvent.OccurredOn.ShouldBe(StubDateTimeProvider.DefaultInstant);
     }
-
-    #endregion
 
     private CreateTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(_repository, _unitOfWork, currentUser, _clock, _validator);

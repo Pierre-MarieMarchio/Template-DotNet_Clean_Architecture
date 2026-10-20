@@ -22,8 +22,6 @@ public sealed class GetTodoListUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -41,10 +39,6 @@ public sealed class GetTodoListUseCaseTests
 
         await _queries.DidNotReceive().GetDetailAsync(Arg.Any<Guid>(), Arg.Any<UserId>(), Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task TheQuery_IsAlwaysScopedToTheCallersId()
@@ -95,10 +89,6 @@ public sealed class GetTodoListUseCaseTests
         result.Error!.Message.ShouldContain(listId.ToString());
     }
 
-    #endregion
-
-    #region Success
-
     [Fact]
     public async Task AListTheQueryReturns_IsHandedBackUnchanged()
     {
@@ -137,8 +127,6 @@ public sealed class GetTodoListUseCaseTests
 
         await _queries.Received(1).GetDetailAsync(listId, _callerId, cancellation.Token);
     }
-
-    #endregion
 
     private static Versioned<TodoListDetailDto> ADetailFor(Guid listId) =>
         new(new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, []), _listVersion);

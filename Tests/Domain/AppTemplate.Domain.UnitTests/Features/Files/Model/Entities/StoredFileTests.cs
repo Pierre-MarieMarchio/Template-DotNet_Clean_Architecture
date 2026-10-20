@@ -52,8 +52,6 @@ public sealed class StoredFileTests
         return file;
     }
 
-    #region Registering
-
     [Fact]
     public void Register_Rejects_AnAbsentOwner()
     {
@@ -136,10 +134,6 @@ public sealed class StoredFileTests
     [Fact]
     public void Register_RaisesNoDomainEvent() => APendingFile().DomainEvents.ShouldBeEmpty();
 
-    #endregion
-
-    #region Confirming a deposit
-
     [Fact]
     public void ConfirmDeposit_MovesAPendingFileToDeposited()
     {
@@ -219,10 +213,6 @@ public sealed class StoredFileTests
         Should.Throw<ArgumentNullException>(() => file.ConfirmDeposit(_size, null!));
     }
 
-    #endregion
-
-    #region Releasing an inspected file
-
     [Fact]
     public void MakeAvailable_MovesADepositedFileToAvailable()
     {
@@ -286,10 +276,6 @@ public sealed class StoredFileTests
         file.AvailableAt.ShouldBe(_now.AddMinutes(1));
         file.DomainEvents.ShouldBeEmpty();
     }
-
-    #endregion
-
-    #region Quarantining a refused file
 
     [Fact]
     public void Quarantine_MovesADepositedFileToQuarantined()
@@ -363,10 +349,6 @@ public sealed class StoredFileTests
 
         file.DomainEvents.ShouldBeEmpty();
     }
-
-    #endregion
-
-    #region Deferring an inspection
 
     [Fact]
     public void DeferInspection_CountsTheAttemptAndWaitsBeforeTheNext()
@@ -444,10 +426,6 @@ public sealed class StoredFileTests
         file.InspectionAttempts.ShouldBe(1);
         file.NextInspectionAt.ShouldBe(_now.AddMinutes(1));
     }
-
-    #endregion
-
-    #region Deleting
 
     [Fact]
     public void Delete_RaisesADeletedEvent_CarryingTheObjectKey()
@@ -531,10 +509,6 @@ public sealed class StoredFileTests
         file.DomainEvents.OfType<StoredFileDeletedDomainEvent>().ShouldHaveSingleItem();
     }
 
-    #endregion
-
-    #region Abandonment
-
     [Fact]
     public void IsAbandoned_IsFalse_WhileTheWindowHasNotElapsed()
     {
@@ -565,10 +539,6 @@ public sealed class StoredFileTests
     [InlineData(StoredFileState.Quarantined)]
     public void IsAbandoned_IsFalse_ForAnyFileThatWasDeposited(StoredFileState state) =>
         FileIn(state).IsAbandoned(_now.AddYears(1), TimeSpan.FromHours(1)).ShouldBeFalse();
-
-    #endregion
-
-    #region The state machine as a whole
 
     [Fact]
     public void TheLegalPath_RunsFromPendingToDepositedToAvailableToARemovedRow()
@@ -621,8 +591,6 @@ public sealed class StoredFileTests
         ((int)StoredFileState.Deposited).ShouldBe(2);
         ((int)StoredFileState.Quarantined).ShouldBe(3);
     }
-
-    #endregion
 
     private static StoredFile FileIn(StoredFileState state) => state switch
     {

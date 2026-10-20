@@ -21,8 +21,6 @@ public sealed class RemoveTodoItemUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -43,10 +41,6 @@ public sealed class RemoveTodoItemUseCaseTests
         await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
@@ -76,10 +70,6 @@ public sealed class RemoveTodoItemUseCaseTests
         foreign.Items.Count.ShouldBe(1);
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Missing item
 
     [Fact]
     public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
@@ -118,10 +108,6 @@ public sealed class RemoveTodoItemUseCaseTests
         result.Error!.Code.ShouldBe("todoItem.notFound");
         otherList.Items.Count.ShouldBe(1);
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task TheRequestedItem_IsRemoved()
@@ -196,8 +182,6 @@ public sealed class RemoveTodoItemUseCaseTests
         await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
         await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
     }
-
-    #endregion
 
     private RemoveTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _unitOfWork, new RemoveTodoItemCommandValidator());

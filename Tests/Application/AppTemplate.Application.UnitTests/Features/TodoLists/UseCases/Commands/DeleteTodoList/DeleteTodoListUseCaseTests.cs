@@ -21,8 +21,6 @@ public sealed class DeleteTodoListUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -44,10 +42,6 @@ public sealed class DeleteTodoListUseCaseTests
         _repository.DidNotReceive().Remove(Arg.Any<TodoList>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
@@ -104,10 +98,6 @@ public sealed class DeleteTodoListUseCaseTests
         foreignResult.Error.Type.ShouldBe(ErrorType.NotFound);
     }
 
-    #endregion
-
-    #region Success
-
     [Fact]
     public async Task TheCallersOwnList_IsStagedForDeletion()
     {
@@ -152,8 +142,6 @@ public sealed class DeleteTodoListUseCaseTests
         await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
         await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
     }
-
-    #endregion
 
     private DeleteTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _repository, _unitOfWork, new DeleteTodoListCommandValidator());

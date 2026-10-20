@@ -23,8 +23,6 @@ public sealed class RenameTodoListUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -45,10 +43,6 @@ public sealed class RenameTodoListUseCaseTests
         await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Validation
 
     [Theory]
     [InlineData("")]
@@ -101,10 +95,6 @@ public sealed class RenameTodoListUseCaseTests
     public async Task ANullCommand_IsAProgrammingError() =>
         await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
 
-    #endregion
-
-    #region Ownership
-
     [Fact]
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
@@ -145,10 +135,6 @@ public sealed class RenameTodoListUseCaseTests
         foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
         foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
     }
-
-    #endregion
-
-    #region Success
 
     [Fact]
     public async Task AValidRename_ReplacesTheName()
@@ -203,8 +189,6 @@ public sealed class RenameTodoListUseCaseTests
 
         list.DomainEvents.ShouldBeEmpty();
     }
-
-    #endregion
 
     private RenameTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _unitOfWork, _validator);

@@ -21,8 +21,6 @@ public sealed class GetTodoListsUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
@@ -53,10 +51,6 @@ public sealed class GetTodoListsUseCaseTests
 
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
     }
-
-    #endregion
-
-    #region Ownership
 
     [Fact]
     public async Task TheQuery_IsAlwaysScopedToTheCallersId()
@@ -96,8 +90,6 @@ public sealed class GetTodoListsUseCaseTests
             .ShouldAllBe(method => method.Name == nameof(ITodoListQueries.ListDataOwnerIdsAsync)
                 || method.GetParameters().Any(parameter => parameter.Name == "ownerId"));
 
-    #endregion
-
     [Fact]
     public async Task ABinderFailure_IsPropagatedWithoutReachingThePort()
     {
@@ -111,8 +103,6 @@ public sealed class GetTodoListsUseCaseTests
             Arg.Any<FeaturePageRequest<TodoListFilter>>(),
             Arg.Any<CancellationToken>());
     }
-
-    #region Success
 
     [Fact]
     public async Task TheRequestedPage_IsHandedBackUnchanged()
@@ -160,8 +150,6 @@ public sealed class GetTodoListsUseCaseTests
 
         await _queries.Received(1).GetForOwnerAsync(_callerId, Arg.Any<FeaturePageRequest<TodoListFilter>>(), cancellation.Token);
     }
-
-    #endregion
 
     private static TodoListSummaryDto ASummary() =>
         new(Guid.CreateVersion7(), "Groceries", 3, 1, StubDateTimeProvider.DefaultInstant);

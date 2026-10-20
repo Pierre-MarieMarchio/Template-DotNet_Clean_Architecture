@@ -8,8 +8,6 @@ public sealed class ResultTests
 {
     private static readonly Error _anError = Error.NotFound("thing.notFound", "No such thing.");
 
-    #region The non-generic result
-
     [Fact]
     public void Success_IsSuccessfulAndCarriesNoError()
     {
@@ -29,10 +27,6 @@ public sealed class ResultTests
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_anError);
     }
-
-    #endregion
-
-    #region The generic result
 
     [Fact]
     public void Success_CarriesTheValue()
@@ -92,10 +86,6 @@ public sealed class ResultTests
     public void AGenericResult_IsAlsoANonGenericResult() =>
         Result<int>.Success(1).ShouldBeAssignableTo<Result>();
 
-    #endregion
-
-    #region The type-inferring entry points
-
     [Fact]
     public void TheInferringSuccessFactory_ProducesASuccessCarryingTheValue()
     {
@@ -125,10 +115,6 @@ public sealed class ResultTests
         result.Value.ShouldBe(7);
     }
 
-    #endregion
-
-    #region The construction guards
-
     [Fact]
     public void ASuccess_CannotBeConstructedWithAnError()
     {
@@ -151,10 +137,6 @@ public sealed class ResultTests
         new DerivedResult(isSuccess: true, error: null).IsSuccess.ShouldBeTrue();
         new DerivedResult(isSuccess: false, _anError).IsFailure.ShouldBeTrue();
     }
-
-    #endregion
-
-    #region To<TOther>
 
     [Fact]
     public void To_ReportsTheSameFailure_UnderAnotherValueType()
@@ -182,10 +164,6 @@ public sealed class ResultTests
         converted.Error.ShouldBe(_anError);
     }
 
-    #endregion
-
-    #region The failure-only Value
-
     [Fact]
     public void APropertyPatternNamingValueBeforeIsSuccess_ThrowsOnAFailure_InsteadOfFailingToMatch()
     {
@@ -204,8 +182,6 @@ public sealed class ResultTests
 
         (result is { IsSuccess: true, Value: var capturedValue } && capturedValue >= 0).ShouldBeFalse();
     }
-
-    #endregion
 }
 
 internal sealed class DerivedResult(bool isSuccess, Error? error) : Result(isSuccess, error);

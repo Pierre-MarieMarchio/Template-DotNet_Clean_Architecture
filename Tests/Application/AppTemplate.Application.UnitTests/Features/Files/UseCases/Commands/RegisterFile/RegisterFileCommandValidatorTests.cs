@@ -116,8 +116,6 @@ public sealed class RegisterFileCommandValidatorTests
         result.IsValid.ShouldBeTrue();
     }
 
-    #region The category's rules
-
     [Fact]
     public async Task ANullCategory_IsAValidationFailureRatherThanADereference()
     {
@@ -194,6 +192,4 @@ public sealed class RegisterFileCommandValidatorTests
 
         result.Errors.ShouldHaveSingleItem().PropertyName.ShouldBe(nameof(RegisterFileCommand.Category));
     }
-
-    #endregion
 }

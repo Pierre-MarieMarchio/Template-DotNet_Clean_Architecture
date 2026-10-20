@@ -15,8 +15,6 @@ public sealed class CursorTests
 
     private static string Encode(string json) => Base64Url.EncodeToString(Encoding.UTF8.GetBytes(json));
 
-    #region After
-
     [Fact]
     public void After_Rejects_ANullTerm() =>
         Should.Throw<ArgumentNullException>(() => Cursor.After(null!, "key", Guid.CreateVersion7()));
@@ -26,10 +24,6 @@ public sealed class CursorTests
     [InlineData("")]
     public void After_Rejects_ANullOrEmptyKey(string? key) =>
         Should.Throw<ArgumentException>(() => Cursor.After(ATerm(), key!, Guid.CreateVersion7()));
-
-    #endregion
-
-    #region Round trip
 
     [Fact]
     public void EncodeThenDecode_RoundTrips()
@@ -45,10 +39,6 @@ public sealed class CursorTests
         decoded.Value.Key.ShouldBe("Groceries");
         decoded.Value.Id.ShouldBe(id);
     }
-
-    #endregion
-
-    #region Length
 
     [Fact]
     public void Decode_Rejects_ACursorOverTheMaxEncodedLength()
@@ -74,10 +64,6 @@ public sealed class CursorTests
             result.Error!.Message.ShouldNotContain("maximum length");
         }
     }
-
-    #endregion
-
-    #region Shape failures
 
     [Fact]
     public void Decode_Rejects_InvalidBase64Url()
@@ -160,10 +146,6 @@ public sealed class CursorTests
         result.Error!.Message.ShouldNotContain(raw);
     }
 
-    #endregion
-
-    #region Guards
-
     [Fact]
     public void Decode_Rejects_ANullRaw() =>
         Should.Throw<ArgumentNullException>(() => Cursor.Decode(null!, _policy));
@@ -171,6 +153,4 @@ public sealed class CursorTests
     [Fact]
     public void Decode_Rejects_ANullPolicy() =>
         Should.Throw<ArgumentNullException>(() => Cursor.Decode("anything", null!));
-
-    #endregion
 }

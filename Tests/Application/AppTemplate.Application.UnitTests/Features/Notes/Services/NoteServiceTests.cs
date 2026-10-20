@@ -26,8 +26,6 @@ public sealed class NoteServiceTests
 
     private static NoteContentDto AValidContent => new("Groceries", "Milk, eggs");
 
-    #region Authentication
-
     [Fact]
     public async Task AnAnonymousCaller_IsRefusedByEveryOperation()
     {
@@ -63,10 +61,6 @@ public sealed class NoteServiceTests
         _store.ReceivedCalls().ShouldBeEmpty();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Reads
 
     [Fact]
     public async Task GetAsync_AnswersTheNoteAndItsVersion_ReadForTheCallerOnly()
@@ -135,10 +129,6 @@ public sealed class NoteServiceTests
         result.Error!.Code.ShouldBe("paging.invalid");
     }
 
-    #endregion
-
-    #region Create
-
     [Fact]
     public async Task CreateAsync_StagesTheNoteForTheCaller_CommitsOnce_AndAnswersWhatWasStored()
     {
@@ -177,10 +167,6 @@ public sealed class NoteServiceTests
         _store.ReceivedCalls().ShouldBeEmpty();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
-
-    #endregion
-
-    #region Update
 
     [Fact]
     public async Task UpdateAsync_StagesTheReplacementForTheCaller_CommitsOnce_AndAnswersTheNewVersion()
@@ -255,10 +241,6 @@ public sealed class NoteServiceTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    #endregion
-
-    #region Delete
-
     [Fact]
     public async Task DeleteAsync_StagesTheRemovalForTheCaller_AndCommitsOnce()
     {
@@ -298,8 +280,6 @@ public sealed class NoteServiceTests
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => Service().DeleteAsync(Guid.CreateVersion7(), null, TestToken));
     }
-
-    #endregion
 
     private static NoteDto ANote(Guid? id = null) =>
         new(id ?? Guid.CreateVersion7(), "Groceries", "Milk, eggs", StubDateTimeProvider.DefaultInstant, null);

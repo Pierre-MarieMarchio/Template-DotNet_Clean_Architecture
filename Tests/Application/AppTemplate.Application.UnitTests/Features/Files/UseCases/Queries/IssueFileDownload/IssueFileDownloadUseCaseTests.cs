@@ -202,8 +202,6 @@ public sealed class IssueFileDownloadUseCaseTests
         result.Error.Type.ShouldBe(ErrorType.Conflict);
     }
 
-    #region Visibility
-
     [Fact]
     public async Task AnotherUsersAvailableFileInAnAuthenticatedCategory_YieldsAGrant()
     {
@@ -261,8 +259,6 @@ public sealed class IssueFileDownloadUseCaseTests
 
         result.IsSuccess.ShouldBeTrue();
     }
-
-    #endregion
 
     [Fact]
     public async Task TheGrant_NamesTheAggregatesKeyAndOffersTheUsersLabel()

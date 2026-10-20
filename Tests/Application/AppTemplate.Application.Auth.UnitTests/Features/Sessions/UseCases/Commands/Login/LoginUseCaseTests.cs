@@ -74,8 +74,6 @@ public sealed class LoginUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    #region Indistinguishability
-
     [Theory]
     [MemberData(nameof(Refusals))]
     public async Task EveryRefusal_AnswersWithTheSameError(CredentialCheckStatus outcome)
@@ -183,10 +181,6 @@ public sealed class LoginUseCaseTests
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    #endregion
-
-    #region A verified credential
-
     [Fact]
     public async Task AVerifiedCredential_IsAnsweredWithBothTokensAndTheAccount()
     {
@@ -251,10 +245,6 @@ public sealed class LoginUseCaseTests
             cancellation.Token);
     }
 
-    #endregion
-
-    #region A two-factor account
-
     [Fact]
     public async Task AVerifiedCredentialOnATwoFactorAccount_IsAnsweredWithAChallengeInstead()
     {
@@ -283,8 +273,6 @@ public sealed class LoginUseCaseTests
 
         _securityEventLog.DidNotReceive().Record(SecurityEvent.LoginSucceeded(account.UserId));
     }
-
-    #endregion
 
     private static LoginCommand AValidRequest() => new("someone@example.com", "correct horse battery");
 

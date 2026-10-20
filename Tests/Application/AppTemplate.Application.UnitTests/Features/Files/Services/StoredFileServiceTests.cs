@@ -126,8 +126,6 @@ public sealed class StoredFileServiceTests
         result.Error!.Type.ShouldBe(ErrorType.NotFound);
     }
 
-    #region Reading content
-
     [Fact]
     public async Task Readable_AnAnonymousCallerIsRefused()
     {
@@ -190,8 +188,6 @@ public sealed class StoredFileServiceTests
 
         result.Error!.Code.ShouldBe("storedFile.notFound");
     }
-
-    #endregion
 
     private StoredFile GivenTheCallerOwnsAFile()
     {

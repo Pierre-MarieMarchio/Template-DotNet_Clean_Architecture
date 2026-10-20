@@ -3,10 +3,6 @@ using AppTemplate.Application.Core.Common.Policies;
 
 namespace AppTemplate.Application.Core.UnitTests.Common.Collections;
 
-/// <summary>
-/// A stand-in whitelist for exercising the generic parsing in <c>Common/Collections/</c> without
-/// tying those tests to any real feature's policy.
-/// </summary>
 internal sealed class FakeCollectionPolicy : ICollectionPolicy
 {
     public IReadOnlyList<SortableField> SortableFields { get; init; } =

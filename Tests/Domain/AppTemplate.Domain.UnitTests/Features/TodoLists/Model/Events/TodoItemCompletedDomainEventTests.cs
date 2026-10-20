@@ -7,10 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Model.Events;
 
-/// <summary>
-/// A handler runs after the transaction has committed and can only see the values on the event,
-/// so a payload wired up to the wrong field is a defect no other test would catch.
-/// </summary>
 public sealed class TodoItemCompletedDomainEventTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -38,10 +34,6 @@ public sealed class TodoItemCompletedDomainEventTests
         domainEvent.TodoItemId.ShouldBe(itemId);
     }
 
-    /// <summary>
-    /// The title lets a handler describe what happened without loading the aggregate
-    /// again, and it is the stored (normalised) title, not the caller's raw input.
-    /// </summary>
     [Fact]
     public void TheEvent_CarriesTheNormalisedItemTitle()
     {
@@ -60,10 +52,6 @@ public sealed class TodoItemCompletedDomainEventTests
         domainEvent.OccurredOn.ShouldBe(completedAt);
     }
 
-    /// <summary>
-    /// The event's instant and the item's stored completion time are the same value, so a
-    /// consumer of the event and a reader of the aggregate never disagree.
-    /// </summary>
     [Fact]
     public void TheEventInstant_MatchesTheItemsStoredCompletionTime()
     {

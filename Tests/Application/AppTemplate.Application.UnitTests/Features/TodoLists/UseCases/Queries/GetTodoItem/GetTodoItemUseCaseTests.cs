@@ -48,10 +48,6 @@ public sealed class GetTodoItemUseCaseTests
 
     #region Ownership
 
-    /// <summary>
-    /// An item is reachable only through the list that owns it, so the owner filter that protects
-    /// the list protects the item too.
-    /// </summary>
     [Fact]
     public async Task TheQuery_IsAlwaysScopedToTheCallersId()
     {
@@ -78,10 +74,6 @@ public sealed class GetTodoItemUseCaseTests
         await _queries.DidNotReceive().GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A list the read side does not return is answered as a missing list, never as a missing item:
-    /// the latter would confirm that the list exists and belongs to somebody.
-    /// </summary>
     [Fact]
     public async Task AnItemOnAListTheQueryDoesNotReturn_IsReportedAsAMissingList()
     {
@@ -153,11 +145,6 @@ public sealed class GetTodoItemUseCaseTests
         result.Value.Value.ShouldBeSameAs(wanted);
     }
 
-    /// <summary>
-    /// The version an item carries is the list's. An item has no version of its own to give: the
-    /// root is the consistency boundary, so a change anywhere in the list invalidates what a caller
-    /// holding one item was told.
-    /// </summary>
     [Fact]
     public async Task TheItem_CarriesTheListsVersion()
     {

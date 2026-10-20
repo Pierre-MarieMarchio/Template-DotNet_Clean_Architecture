@@ -4,10 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.Core.UnitTests.Common.Exceptions;
 
-/// <summary>
-/// The message is the only thing that tells a caller which invariant was violated, so every way of
-/// building this exception has to carry one. Adding a message-less constructor turns the last test red.
-/// </summary>
 public sealed class DomainExceptionTests
 {
     [Fact]
@@ -41,10 +37,6 @@ public sealed class DomainExceptionTests
                         : new InvalidOperationException("underlying"))]))
             .ShouldAllBe(exception => !string.IsNullOrWhiteSpace(exception.Message));
 
-    /// <summary>
-    /// Sealed because nothing distinguishes one invariant violation from another at the catch site:
-    /// the application layer catches this single type and turns its message into a failure result.
-    /// </summary>
     [Fact]
     public void TheExceptionType_IsSealed() => typeof(DomainException).IsSealed.ShouldBeTrue();
 }

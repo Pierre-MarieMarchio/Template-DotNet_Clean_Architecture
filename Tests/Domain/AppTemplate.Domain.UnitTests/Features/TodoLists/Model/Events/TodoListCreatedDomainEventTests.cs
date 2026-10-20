@@ -7,11 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Model.Events;
 
-/// <summary>
-/// What the creation event carries, asserted through the aggregate that raises it —
-/// a handler runs after the transaction has committed and can only see these values, so
-/// a payload wired up to the wrong field is a defect no other test would catch.
-/// </summary>
 public sealed class TodoListCreatedDomainEventTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -45,10 +40,6 @@ public sealed class TodoListCreatedDomainEventTests
         EventRaisedBy(list).Name.ShouldBe("Groceries");
     }
 
-    /// <summary>
-    /// The timestamp is the one handed to the aggregate, never one read from the ambient
-    /// clock — that is what makes the behaviour reproducible.
-    /// </summary>
     [Fact]
     public void TheEvent_CarriesTheInjectedInstant()
     {
@@ -67,10 +58,6 @@ public sealed class TodoListCreatedDomainEventTests
         EventRaisedBy(list).ShouldBeAssignableTo<IDomainEvent>();
     }
 
-    /// <summary>
-    /// The event carries values rather than the aggregate, so a handler cannot reach back
-    /// into the model after the transaction has committed.
-    /// </summary>
     [Fact]
     public void TheEvent_ExposesNoReferenceToTheAggregate() =>
         typeof(TodoListCreatedDomainEvent).GetProperties()

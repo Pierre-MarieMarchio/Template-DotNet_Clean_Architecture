@@ -5,12 +5,8 @@ using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-/// <summary>
-/// Builds real aggregates, never fakes — same rationale as <see cref="ATodoList"/>.
-/// </summary>
 internal static class AReminder
 {
-    /// <summary>A reminder scheduled the normal way, due after <see cref="StubDateTimeProvider.DefaultInstant"/>.</summary>
     internal static Reminder OwnedBy(
         UserId ownerId,
         DateTimeOffset? dueAt = null,
@@ -41,9 +37,6 @@ internal static class AReminder
         return OwnedBy(otherOwnerId);
     }
 
-    /// <summary>Placed at <paramref name="version"/> the way the store places a freshly loaded
-    /// aggregate. Goes through <see cref="IVersioned"/> because that is the only way anything
-    /// writes a version.</summary>
     internal static Reminder OwnedByAtVersion(UserId ownerId, uint version)
     {
         var reminder = OwnedBy(ownerId);
@@ -52,11 +45,6 @@ internal static class AReminder
         return reminder;
     }
 
-    /// <summary>
-    /// Rehydrated directly in whatever state is asked for, the way a store would load it —
-    /// <see cref="Reminder.Schedule"/> cannot produce a reminder that is already due or already
-    /// fired, since scheduling refuses a due date in the past.
-    /// </summary>
     internal static Reminder Rehydrated(
         UserId ownerId,
         DateTimeOffset dueAt,

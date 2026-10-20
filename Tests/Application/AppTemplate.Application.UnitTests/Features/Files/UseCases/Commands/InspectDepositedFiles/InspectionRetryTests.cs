@@ -12,10 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.InspectDepositedFiles;
 
-/// <summary>
-/// The inspection pass over a store that keeps state between passes: what happens to files that get
-/// no verdict, and what one file's failed commit costs the others.
-/// </summary>
 public sealed class InspectionRetryTests
 {
     private const int _batchSize = InspectDepositedFilesUseCase.BatchSize;
@@ -36,10 +32,6 @@ public sealed class InspectionRetryTests
 
     #region No file holds the front of the queue
 
-    /// <summary>
-    /// Reproduction: before deferral, the batch was the 20 oldest deposited files, so 20 files whose
-    /// bytes are missing were the whole batch of every pass and the later deposit was never opened.
-    /// </summary>
     [Fact]
     public async Task ABatchOfFilesWhoseBytesAreMissing_DoesNotStarveALaterDeposit()
     {
@@ -60,7 +52,6 @@ public sealed class InspectionRetryTests
         _store.Committed(later.Id).State.ShouldBe(StoredFileState.Available);
     }
 
-    /// <summary>The same starvation with the scanner, rather than the store, failing for those files only.</summary>
     [Fact]
     public async Task ABatchOfFilesTheScannerCannotReach_DoesNotStarveALaterDeposit()
     {
@@ -85,7 +76,6 @@ public sealed class InspectionRetryTests
 
     #region Deferral
 
-    /// <summary>An outage defers; it never refuses, and the deferral survives into the next scope.</summary>
     [Fact]
     public async Task AFileWithoutAVerdict_IsDeferredAndStaysDeposited()
     {
@@ -100,7 +90,6 @@ public sealed class InspectionRetryTests
         stored.NextInspectionAt.ShouldBe(_start.AddMinutes(6));
     }
 
-    /// <summary>Not offered before it is due, offered again once it is, and the wait doubles.</summary>
     [Fact]
     public async Task ADeferredFile_IsOfferedAgainOnceDue_WithADoubledWait()
     {
@@ -119,7 +108,6 @@ public sealed class InspectionRetryTests
         stored.NextInspectionAt.ShouldBe(_start.AddMinutes(3));
     }
 
-    /// <summary>However many attempts failed, the next one is at most an hour away.</summary>
     [Fact]
     public async Task AFileThatKeepsFailing_IsOfferedAgainAtLeastHourly()
     {
@@ -146,10 +134,6 @@ public sealed class InspectionRetryTests
 
     #region One commit per file
 
-    /// <summary>
-    /// A conflict on one file ends the pass, since its failed write stays staged; the verdicts already
-    /// committed are kept, and the next pass reads the rest afresh.
-    /// </summary>
     [Fact]
     public async Task AConflictOnOneFile_KeepsTheVerdictsCommittedBeforeIt()
     {
@@ -206,7 +190,6 @@ public sealed class InspectionRetryTests
         _content.OpenReadAsync(storedFile.ObjectKey.Value, Arg.Any<CancellationToken>())
             .Returns(_ => new MemoryStream(_png, writable: false));
 
-    /// <summary>One pass in a fresh scope, as the background job runs it.</summary>
     private async Task<int> RunPassAsync(DateTimeOffset now)
     {
         _store.StartNewScope();

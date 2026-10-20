@@ -9,10 +9,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Queries.GetUsedFileTags;
 
-/// <summary>
-/// The read that goes through the cache: the answer is the owner's, and a second call is served
-/// without asking the database again.
-/// </summary>
 public sealed class GetUsedFileTagsUseCaseTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -57,10 +53,6 @@ public sealed class GetUsedFileTagsUseCaseTests
         await _queries.Received(1).GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// Two owners are two answers. A key that forgot the owner would serve one caller's tags to
-    /// another, which is the failure a cache makes possible and nothing else here would catch.
-    /// </summary>
     [Fact]
     public async Task TwoOwners_DoNotShareAnEntry()
     {
@@ -76,10 +68,6 @@ public sealed class GetUsedFileTagsUseCaseTests
         theirs.Value.ShouldBe(["theirs"]);
     }
 
-    /// <summary>
-    /// The two features answer this question separately, so their entries must not collide: one
-    /// owner's file tags are not their to-do item tags.
-    /// </summary>
     [Fact]
     public void TheFileScope_IsNotTheTodoItemScope() =>
         UsedTagsCache.KeyFor(UsedTagsCache.FileScope, _callerId)

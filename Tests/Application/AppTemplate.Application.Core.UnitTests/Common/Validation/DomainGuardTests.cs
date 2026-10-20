@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Core.Common.Validation;
+﻿using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using Shouldly;
 using Xunit;
@@ -35,10 +34,6 @@ public sealed class DomainGuardTests
         error.Message.ShouldBe("A list already contains that title.");
     }
 
-    /// <summary>
-    /// Anything other than a <c>DomainException</c> is a bug or a cancellation, not an expected
-    /// failure, and must keep propagating rather than being reported as a <see cref="Result"/>.
-    /// </summary>
     [Fact]
     public void Try_LetsAnyOtherExceptionPropagate() =>
         Should.Throw<InvalidOperationException>(() => DomainGuard.Try(() => throw new InvalidOperationException()));

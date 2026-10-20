@@ -8,10 +8,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 
-/// <summary>
-/// The orphan sweep over a store larger than one pass's budget: two pages of two keys here, against
-/// a bucket that pages and deletes like a real one.
-/// </summary>
 public sealed class OrphanSweepCoverageTests
 {
     private const int _pageSize = 2;
@@ -37,10 +33,6 @@ public sealed class OrphanSweepCoverageTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// Reproduction: before the checkpoint every pass restarted at the first key, spent its budget on
-    /// the four live objects and stopped, so the orphans after them were never reached.
-    /// </summary>
     [Fact]
     public async Task OrphansBeyondOnePassesBudget_AreReclaimedByLaterPasses()
     {
@@ -54,10 +46,6 @@ public sealed class OrphanSweepCoverageTests
         _bucket.Keys.ShouldBe(_live, ignoreOrder: true);
     }
 
-    /// <summary>
-    /// Seven objects, a budget of four: ⌈7 / 4⌉ + 1 = 3 passes at most, each a new use case reading
-    /// the same checkpoint, as after a restart.
-    /// </summary>
     [Fact]
     public async Task EveryObject_IsVisitedWithinTheBoundAcrossRestarts()
     {
@@ -72,7 +60,6 @@ public sealed class OrphanSweepCoverageTests
         _bucket.Keys.ShouldBe(_live, ignoreOrder: true);
     }
 
-    /// <summary>Saved after every page, so a crash resumes after the last page finished.</summary>
     [Fact]
     public async Task TheCheckpoint_IsSavedAfterEachPage()
     {
@@ -83,7 +70,6 @@ public sealed class OrphanSweepCoverageTests
         _checkpoint.Saves.ShouldBe(["t0/202608/a2", "t0/202608/a4"]);
     }
 
-    /// <summary>A pass resumes strictly after the saved key.</summary>
     [Fact]
     public async Task APass_ResumesAfterTheSavedKey()
     {
@@ -95,7 +81,6 @@ public sealed class OrphanSweepCoverageTests
         _bucket.ListedAfter[0].ShouldBe("t0/202608/a4");
     }
 
-    /// <summary>Reaching the end of the namespace resets the walk, so the next pass starts over.</summary>
     [Fact]
     public async Task ReachingTheEnd_ResetsTheWalk()
     {
@@ -113,7 +98,6 @@ public sealed class OrphanSweepCoverageTests
         _bucket.Keys.ShouldNotContain("t0/202608/a0-orphan");
     }
 
-    /// <summary>A failure mid-walk keeps the pages already finished; the next pass resumes there.</summary>
     [Fact]
     public async Task AFailureMidWalk_ResumesAfterTheLastFinishedPage()
     {

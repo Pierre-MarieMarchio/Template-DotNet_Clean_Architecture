@@ -62,7 +62,6 @@ public sealed class ReopenTodoItemUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>Idempotent: reopening an already-open item succeeds without raising an event.</summary>
     [Fact]
     public async Task AnAlreadyOpenItem_IsAcceptedAsANoOp()
     {

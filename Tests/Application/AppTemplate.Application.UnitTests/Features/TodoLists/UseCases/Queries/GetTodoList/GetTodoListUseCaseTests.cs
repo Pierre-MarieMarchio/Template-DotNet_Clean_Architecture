@@ -34,10 +34,6 @@ public sealed class GetTodoListUseCaseTests
         result.Error.Code.ShouldBe("auth.required");
     }
 
-    /// <summary>
-    /// An anonymous caller must not reach the read side at all: a query issued without an owner is
-    /// the shape of query that returns every user's rows.
-    /// </summary>
     [Fact]
     public async Task AnAnonymousCaller_QueriesNothing()
     {
@@ -50,11 +46,6 @@ public sealed class GetTodoListUseCaseTests
 
     #region Ownership
 
-    /// <summary>
-    /// Ownership is part of the query, not a check after the fact: a read that fetches first
-    /// and compares later has already loaded another user's data into memory. Dropping the
-    /// owner argument turns this red.
-    /// </summary>
     [Fact]
     public async Task TheQuery_IsAlwaysScopedToTheCallersId()
     {
@@ -78,10 +69,6 @@ public sealed class GetTodoListUseCaseTests
         await _queries.DidNotReceive().GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The port answers <c>null</c> both for "no such list" and for "not yours", and the use
-    /// case turns that into one not-found result — so the two cannot be told apart.
-    /// </summary>
     [Fact]
     public async Task AListTheQueryDoesNotReturn_IsReportedAsNotFoundRatherThanThrown()
     {
@@ -125,11 +112,6 @@ public sealed class GetTodoListUseCaseTests
         result.Value.ShouldBeSameAs(detail);
     }
 
-    /// <summary>
-    /// The version comes back beside the representation and not inside it. The DTO is the client's
-    /// contract, and a version field in it would be a storage concept a caller could start reasoning
-    /// about; the transport publishes it as a validator instead.
-    /// </summary>
     [Fact]
     public async Task TheVersion_TravelsBesideTheDtoRatherThanInsideIt()
     {

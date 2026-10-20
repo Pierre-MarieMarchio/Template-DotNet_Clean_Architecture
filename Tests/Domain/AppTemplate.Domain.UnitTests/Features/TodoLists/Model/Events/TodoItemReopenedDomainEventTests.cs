@@ -7,8 +7,6 @@ using Xunit;
 
 namespace AppTemplate.Domain.UnitTests.Features.TodoLists.Model.Events;
 
-/// <summary>Mirrors <see cref="TodoItemCompletedDomainEventTests"/>: a consumer tracking
-/// completions must be able to track reversals the same way.</summary>
 public sealed class TodoItemReopenedDomainEventTests
 {
     private static readonly DateTimeOffset _now = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
@@ -68,7 +66,6 @@ public sealed class TodoItemReopenedDomainEventTests
         properties.ShouldNotContain(property => property.PropertyType == typeof(TodoItem));
     }
 
-    /// <summary>No event, hence nothing to find, when the reopen was a no-op.</summary>
     [Fact]
     public void NoEvent_IsRaisedForAnItemThatWasAlreadyOpen()
     {

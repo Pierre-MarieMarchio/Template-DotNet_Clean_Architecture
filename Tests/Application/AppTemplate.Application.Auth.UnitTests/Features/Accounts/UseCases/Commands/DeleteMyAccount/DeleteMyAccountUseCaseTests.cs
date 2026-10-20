@@ -14,7 +14,6 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Accounts.UseCases.Comm
 
 public sealed class DeleteMyAccountUseCaseTests
 {
-    /// <summary>The window a proofless account's access token must have been issued within.</summary>
     private static readonly TimeSpan _window = DeleteMyAccountUseCase.RecentAuthenticationWindow;
 
     private static readonly Guid _callerId = Guid.CreateVersion7();
@@ -40,7 +39,6 @@ public sealed class DeleteMyAccountUseCaseTests
         _accounts.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A valid token can outlive its account: deleted after the token was issued.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsRefused()
     {
@@ -103,10 +101,6 @@ public sealed class DeleteMyAccountUseCaseTests
         await _accounts.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The account that has neither a password nor an armed factor — a provider-linked one — falls
-    /// back to the token itself, and only while it is fresh.
-    /// </summary>
     [Fact]
     public async Task AProoflessAccount_WithAStaleAccessToken_IsAskedToSignInAgain()
     {
@@ -160,7 +154,6 @@ public sealed class DeleteMyAccountUseCaseTests
         _currentAccessToken.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>The account left between the profile read and the delete: the same answer as the profile read.</summary>
     [Fact]
     public async Task ADeletionThatFindsNoAccount_IsRefusedAsUnauthenticated()
     {
@@ -208,11 +201,6 @@ public sealed class DeleteMyAccountUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The fact names what is already true: a deletion the store refused must never reach a
-    /// consumer, because the rows the features still hold would then belong to an account that
-    /// still exists.
-    /// </summary>
     [Fact]
     public async Task TheFactIsPublished_OnlyAfterTheDeletionCommitted()
     {

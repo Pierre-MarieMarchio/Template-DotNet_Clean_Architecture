@@ -9,10 +9,6 @@ public sealed class TodoListCollectionPolicyTests
 {
     private static readonly TodoListCollectionPolicy _policy = TodoListCollectionPolicy.Instance;
 
-    /// <summary>
-    /// Its own default is whitelisted by the same code a caller's <c>sort</c> string takes, so a
-    /// typo in it fails here rather than shipping.
-    /// </summary>
     [Fact]
     public void DefaultSort_ParsesAgainstItsOwnWhitelist() =>
         SortOrder.Parse(null, _policy).IsSuccess.ShouldBeTrue();
@@ -36,7 +32,6 @@ public sealed class TodoListCollectionPolicyTests
             .SupportsKeyset.ShouldBeTrue();
     }
 
-    /// <summary>Nullable columns cannot resume a keyset page: the row that minted the cursor could be skipped.</summary>
     [Fact]
     public void LastModifiedAt_IsOffsetOnly() =>
         _policy.SortableFields.Single(field => field.Name == TodoListCollectionPolicy.LastModifiedAtField)

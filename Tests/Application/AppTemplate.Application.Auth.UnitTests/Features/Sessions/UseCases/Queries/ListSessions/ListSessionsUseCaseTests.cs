@@ -48,10 +48,6 @@ public sealed class ListSessionsUseCaseTests
         result.Value[0].UserAgent.ShouldBe(listed[0].UserAgent);
     }
 
-    /// <summary>
-    /// The one the request is made from is what lets a client show "this device", so a client that
-    /// cannot tell which session is its own is a client that cannot offer to end the others.
-    /// </summary>
     [Fact]
     public async Task TheSessionTheRequestIsMadeFrom_IsMarkedCurrent()
     {
@@ -71,10 +67,6 @@ public sealed class ListSessionsUseCaseTests
         result.Value.Single(session => session.Current).Id.ShouldBe(current);
     }
 
-    /// <summary>
-    /// A token issued before sessions were named in it knows none, so nothing is marked — the
-    /// session exists but is not known, and a false <c>current</c> would name the wrong one.
-    /// </summary>
     [Fact]
     public async Task ATokenWithoutASession_MarksNothingCurrent()
     {

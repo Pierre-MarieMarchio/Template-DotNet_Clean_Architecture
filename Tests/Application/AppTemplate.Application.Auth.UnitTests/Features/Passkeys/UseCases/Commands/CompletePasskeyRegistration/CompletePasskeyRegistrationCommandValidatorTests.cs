@@ -13,10 +13,6 @@ public sealed class CompletePasskeyRegistrationCommandValidatorTests
         _validator.Validate(new CompletePasskeyRegistrationCommand(
             "{\"id\":\"a-credential\"}", "the-state", "YubiKey 5", "the password")).IsValid.ShouldBeTrue();
 
-    /// <summary>
-    /// The password is deliberately not demanded here: which evidence the account takes is the
-    /// use case's decision from the profile, and a passwordless account has nothing to present.
-    /// </summary>
     [Fact]
     public void NoPasswordAtAll_IsAccepted() =>
         _validator.Validate(new CompletePasskeyRegistrationCommand(

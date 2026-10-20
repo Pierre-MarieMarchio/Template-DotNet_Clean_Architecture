@@ -75,16 +75,12 @@ public sealed class ApplicationModuleTests
 {
     private const int _knownUseCaseCount = 0
         //#if (todoLists)
-        // Sixteen to-do list operations.
         + 16
         //#endif
         //#if (reminders)
-        // Five reminder operations.
         + 5
         //#endif
         //#if (files)
-        // Twelve for files, of which three (the abandonment purge, the orphan reclamation and the
-        // deposit inspection) are reached only from background jobs.
         + 12
         //#endif
         ;
@@ -92,7 +88,6 @@ public sealed class ApplicationModuleTests
     public static TheoryData<Type> UseCaseImplementations =>
         [.. UseCaseDiscovery.Implementations];
 
-    /// <summary>The calls a host composes, one per vertical.</summary>
     public static TheoryData<string> FeatureCalls =>
     [
         //#if (todoLists)
@@ -117,10 +112,6 @@ public sealed class ApplicationModuleTests
             "it in the container, so the count is the only place the number is stated at all.");
     //#if (todoLists || files)
 
-    /// <summary>
-    /// Each use case resolves through its own interface and nothing else: a container that binds the
-    /// concrete class would let a controller depend on the implementation.
-    /// </summary>
     [Theory]
     [MemberData(nameof(UseCaseImplementations))]
     public void EveryUseCase_ResolvesThroughItsOwnInterface(Type implementation)
@@ -153,10 +144,6 @@ public sealed class ApplicationModuleTests
     }
     //#endif
 
-    /// <summary>
-    /// The validators are discovered, not listed, so a command whose validator was never
-    /// written would fail to resolve here rather than silently skip validation.
-    /// </summary>
     [Theory]
     //#if (todoLists)
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
@@ -191,10 +178,6 @@ public sealed class ApplicationModuleTests
         scope.ServiceProvider.GetRequiredService(validatorType).ShouldNotBeNull();
     }
 
-    /// <summary>
-    /// Each <c>IValidator&lt;T&gt;</c> is bound exactly once. A second registration mechanism would
-    /// leave "last one wins" deciding which instance a use case received.
-    /// </summary>
     [Theory]
     //#if (todoLists)
     [InlineData(typeof(IValidator<CreateTodoListCommand>))]
@@ -216,10 +199,6 @@ public sealed class ApplicationModuleTests
     }
     //#if (todoLists)
 
-    /// <summary>
-    /// Not a use case, so the marker-based discovery never reaches it: it has to be bound by hand,
-    /// and this is the one place that checks the hand-written line was not forgotten.
-    /// </summary>
     [Fact]
     public void TodoListService_IsRegisteredAsScoped()
     {
@@ -232,10 +211,6 @@ public sealed class ApplicationModuleTests
     //#endif
     //#if (notes)
 
-    /// <summary>
-    /// The notes feature has no use case for the marker-based discovery to find, so its service is
-    /// bound by hand like the other services, and this is where that line is checked.
-    /// </summary>
     [Fact]
     public void NoteService_IsRegisteredAsScoped()
     {
@@ -248,10 +223,6 @@ public sealed class ApplicationModuleTests
     //#endif
     //#if (todoLists)
 
-    /// <summary>
-    /// One call registers one vertical and leaves the others out of the container, which is what
-    /// lets a host offer some of the features and not all of them.
-    /// </summary>
     [Fact]
     public void AFeatureCall_RegistersItsOwnVerticalAndNoOther()
     {
@@ -274,10 +245,6 @@ public sealed class ApplicationModuleTests
         Should.Throw<ArgumentNullException>(() => Invoke(call, null!));
 
     //#if (files)
-    /// <summary>
-    /// Only the Files feature reads settings — its categories are application policy a deployment
-    /// declares — so it alone takes an <c>IConfiguration</c>, and no other feature call may.
-    /// </summary>
     [Theory]
     [MemberData(nameof(FeatureCalls))]
     public void OnlyTheFilesCall_AsksForConfiguration(string call) =>
@@ -290,10 +257,6 @@ public sealed class ApplicationModuleTests
     public void TheFilesCall_Rejects_ANullConfiguration() =>
         Should.Throw<ArgumentNullException>(() => new ServiceCollection().AddFiles(null!));
 
-    /// <summary>
-    /// The Files section is validated when the host starts, so a deployment with no category, or a
-    /// malformed one, does not boot.
-    /// </summary>
     [Fact]
     public void TheFilesSection_IsValidatedAtStart()
     {
@@ -346,10 +309,6 @@ public sealed class ApplicationModuleTests
         }
     }
 
-    /// <summary>
-    /// Every vertical together, which is what the assembly-wide assertions need: they speak of
-    /// every use case the layer declares, so every feature declaring one has to be composed.
-    /// </summary>
     private static ServiceCollection ComposeEveryFeature()
     {
         var services = new ServiceCollection();
@@ -371,7 +330,6 @@ public sealed class ApplicationModuleTests
     }
 
     //#if (files)
-    /// <summary>The smallest valid <c>Files</c> section: one category.</summary>
     private static IConfiguration FilesConfiguration() =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -383,10 +341,6 @@ public sealed class ApplicationModuleTests
             .Build();
 
     //#endif
-    /// <summary>
-    /// Scope validation plus eager building means a missing dependency fails here rather than at
-    /// the first request.
-    /// </summary>
     private static ServiceProvider BuildProvider()
     {
         var services = ComposeEveryFeature();
@@ -427,7 +381,6 @@ public sealed class ApplicationModuleTests
         services.AddScoped(_ => Substitute.For<IIdempotencyStore>());
         services.AddScoped(_ => Substitute.For<ICacheStore>());
 
-        // The layer's domain-event consumers take an ILogger, which every real host supplies.
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
 
         return services.BuildServiceProvider(new ServiceProviderOptions

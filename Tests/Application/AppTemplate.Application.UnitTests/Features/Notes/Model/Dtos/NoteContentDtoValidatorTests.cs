@@ -25,10 +25,6 @@ public sealed class NoteContentDtoValidatorTests
     public async Task ABlankTitle_IsRejected(string title) =>
         (await _validator.ValidateAsync(new NoteContentDto(title, "Milk"), TestToken)).IsValid.ShouldBeFalse();
 
-    /// <summary>
-    /// A null reaches the validator from a body that is entirely well formed JSON, and the rules that
-    /// dereference the value must not turn it into a 500.
-    /// </summary>
     [Fact]
     public async Task ANullTitle_IsRejected_NotDereferenced() =>
         (await _validator.ValidateAsync(new NoteContentDto(null!, "Milk"), TestToken)).IsValid.ShouldBeFalse();
@@ -37,7 +33,6 @@ public sealed class NoteContentDtoValidatorTests
     public async Task ANullBody_IsRejected() =>
         (await _validator.ValidateAsync(new NoteContentDto("Groceries", null!), TestToken)).IsValid.ShouldBeFalse();
 
-    /// <summary>The title is measured after trimming, because that is what is stored.</summary>
     [Fact]
     public async Task AMaximumLengthTitle_PaddedWithWhitespace_IsAccepted() =>
         (await _validator.ValidateAsync(

@@ -64,10 +64,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error.Code.ShouldBe("auth.required");
     }
 
-    /// <summary>
-    /// An anonymous caller must not reach the store at all: a grant minted before the caller is
-    /// known is a write right handed to nobody in particular.
-    /// </summary>
     [Fact]
     public async Task AnAnonymousCaller_MintsNoGrantAndWritesNothing()
     {
@@ -88,10 +84,6 @@ public sealed class RegisterFileUseCaseTests
 
     #region A store that cannot sign
 
-    /// <summary>
-    /// A store without direct transfer refuses registration before anything is written: a row with
-    /// no way to deposit against it would only wait for the abandonment sweep.
-    /// </summary>
     [Fact]
     public async Task AStoreThatCannotSign_RefusesRegistrationAndWritesNothing()
     {
@@ -149,10 +141,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
 
-    /// <summary>
-    /// A category uploaded through the API only refuses a direct registration with the code a store
-    /// that cannot sign answers: the client's next step is the same.
-    /// </summary>
     [Fact]
     public async Task ACategoryWithoutDirectUploads_RefusesRegistrationAndWritesNothing()
     {
@@ -187,7 +175,6 @@ public sealed class RegisterFileUseCaseTests
 
     #region Quota
 
-    /// <summary>The bounds are the category's own, not a global number.</summary>
     [Fact]
     public async Task TheCategorysOwnPendingLimit_Binds()
     {
@@ -200,7 +187,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error!.Code.ShouldBe("storedFile.quotaExceeded");
     }
 
-    /// <summary>A full category does not stop a registration in another one.</summary>
     [Fact]
     public async Task AFullCategory_LeavesAnotherCategoryOpen()
     {
@@ -225,10 +211,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error!.Code.ShouldBe("storedFile.quotaExceeded");
     }
 
-    /// <summary>
-    /// The point of the quota: a refused registration mints no upload URL. Without this, the check
-    /// would be a message rather than a defence.
-    /// </summary>
     [Fact]
     public async Task AnOwnerOverQuota_GetsNoUploadGrant()
     {
@@ -248,10 +230,6 @@ public sealed class RegisterFileUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The usage is read for the caller, not for whoever the command might have named, and for the
-    /// category being registered into.
-    /// </summary>
     [Fact]
     public async Task TheQuota_IsMeasuredAgainstTheCallerInTheNamedCategory()
     {
@@ -296,11 +274,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
 
-    /// <summary>
-    /// The right length and the wrong alphabet. The validator deliberately measures only the length,
-    /// so this is what proves the value object is still consulted afterwards — and that its refusal
-    /// arrives as a conflict rather than as a 500.
-    /// </summary>
     [Fact]
     public async Task AChecksumThatIsNotHexadecimal_IsRefusedByTheDomainAsAConflict()
     {
@@ -313,11 +286,6 @@ public sealed class RegisterFileUseCaseTests
         result.Error.Code.ShouldBe("domain.invariantViolated");
     }
 
-    /// <summary>
-    /// A reserved Windows device name. Nothing the validator states catches it, so this is the
-    /// second half of the same argument: the value objects are the rule, and the validator is only
-    /// the fast, field-shaped half of it.
-    /// </summary>
     [Fact]
     public async Task AReservedDeviceName_IsRefusedWithoutWritingAnything()
     {
@@ -368,11 +336,6 @@ public sealed class RegisterFileUseCaseTests
         staged.RegisteredAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
     }
 
-    /// <summary>
-    /// The ordering that keeps the store from holding bytes nothing names: the row is committed
-    /// first, and only then is a URL minted for its key. Swapping the two in the use case turns this
-    /// red.
-    /// </summary>
     [Fact]
     public async Task TheRow_IsCommittedBeforeTheGrantIsMinted()
     {
@@ -405,10 +368,6 @@ public sealed class RegisterFileUseCaseTests
         grantedBeforeCommit.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// Minting a grant may call the store, so it happens after the quota lock is released and never
-    /// prolongs another registration's wait.
-    /// </summary>
     [Fact]
     public async Task TheGrant_IsMintedOutsideTheQuotaLock()
     {
@@ -434,10 +393,6 @@ public sealed class RegisterFileUseCaseTests
         heldWhileGranting.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The grant is minted for the key the aggregate reserved, never for one recomputed from the
-    /// file's id — see <c>ObjectKey</c>, where that is the load-bearing decision of the feature.
-    /// </summary>
     [Fact]
     public async Task TheGrant_IsMintedForTheAggregatesOwnKey()
     {
@@ -453,9 +408,6 @@ public sealed class RegisterFileUseCaseTests
             AStoredFile.MediaType,
             AStoredFile.SizeInBytes,
 
-            // The digest the client declared, which the grant has to bind so the store refuses any
-            // other bytes. Asserted by value rather than with Arg.Any: passing the wrong one here
-            // would mint a grant no honest deposit could satisfy, and nothing else would notice.
             AStoredFile.Checksum,
             Arg.Any<TimeSpan>(),
             Arg.Any<CancellationToken>());
@@ -471,7 +423,6 @@ public sealed class RegisterFileUseCaseTests
         result.Value.Upload.ShouldBeSameAs(_grant);
     }
 
-    /// <summary>A write right that never expires is a write right somebody keeps.</summary>
     [Fact]
     public async Task TheUploadWindow_IsBoundedAndShort()
     {

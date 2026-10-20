@@ -49,11 +49,6 @@ public sealed class GetStoredFilesUseCaseTests
             Arg.Any<UserId>(), Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The owner comes from the caller and is not part of the query, so there is no parameter a
-    /// caller could widen. Passing anything but the caller's own id here would list somebody else's
-    /// files.
-    /// </summary>
     [Fact]
     public async Task ThePage_IsAlwaysScopedToTheCaller()
     {
@@ -112,10 +107,6 @@ public sealed class GetStoredFilesUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A cursor sent with <c>paging=offset</c> must fail rather than be quietly ignored: ignoring it
-    /// would serve page one to a caller who asked to resume, and they would never notice.
-    /// </summary>
     [Fact]
     public async Task ACursorSentInOffsetMode_IsRefused()
     {
@@ -134,11 +125,6 @@ public sealed class GetStoredFilesUseCaseTests
         result.Error!.Code.ShouldBe("paging.invalid");
     }
 
-    /// <summary>
-    /// A cursor minted under one order and replayed under another compares a value against a column
-    /// it does not match — a file name parsed as a date — which the persistence layer could only
-    /// answer by throwing. Refused here, it is a 400 like every other malformed request.
-    /// </summary>
     [Fact]
     public async Task ACursorReplayedUnderADifferentSort_IsRefused()
     {
@@ -157,10 +143,6 @@ public sealed class GetStoredFilesUseCaseTests
         result.Error!.Code.ShouldBe("cursor.invalid");
     }
 
-    /// <summary>
-    /// A tampered date key would otherwise be discovered by the keyset predicate, whose only
-    /// recourse is to throw — a 500 for a malformed request.
-    /// </summary>
     [Fact]
     public async Task ACursorWhoseKeyIsNotADateForADateField_IsRefused()
     {

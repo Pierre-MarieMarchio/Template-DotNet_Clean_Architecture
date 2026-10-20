@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the application-layer mechanisms. The mirror of AppTemplate.Application.Core,
-       which knows no feature, so neither does this: every test here is a statement about a result,
-       a page request, a cursor or a precondition, with no aggregate in sight. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

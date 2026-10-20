@@ -48,7 +48,6 @@ public sealed class AuditableAggregateRootTests
         aggregate.LastModifiedBy.ShouldBe(actor);
     }
 
-    /// <summary>An unattributable caller is a null actor rather than a missing stamp.</summary>
     [Fact]
     public void AnAnonymousWrite_StampsTheInstantAndNoActor()
     {
@@ -74,11 +73,6 @@ public sealed class AuditableAggregateRootTests
         ((IVersioned)aggregate).Version.ShouldBe(4_242u);
     }
 
-    /// <summary>
-    /// The whole reason both interfaces are implemented explicitly: code holding an aggregate
-    /// cannot write a stamp without first admitting, in writing, that it is doing something a store
-    /// does. Read off the derived type, because that is what application code holds.
-    /// </summary>
     [Theory]
     [InlineData(nameof(IVersioned.Version))]
     [InlineData(nameof(IAuditable.CreatedAt))]
@@ -98,7 +92,6 @@ public sealed class AuditableAggregateRootTests
         typeof(SampleAuditableAggregate).GetMethod(method)
             .ShouldBeNull($"'{method}' must be reachable only through the interface that declares it.");
 
-    /// <summary>It is still an aggregate root, so the event mechanism has to survive the base.</summary>
     [Fact]
     public void AnAuditableRoot_IsStillAnAggregateRoot()
     {
@@ -112,7 +105,6 @@ public sealed class AuditableAggregateRootTests
     }
 }
 
-/// <summary>Exposes <c>RaiseDomainEvent</c> so the inherited hook can be exercised.</summary>
 internal sealed class SampleAuditableAggregate(Guid id) : AuditableAggregateRoot<Guid>(id)
 {
     public void Raise(IDomainEvent domainEvent) => RaiseDomainEvent(domainEvent);

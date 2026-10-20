@@ -45,7 +45,6 @@ public sealed class RemoveTagFromTodoItemUseCaseTests
         result.Error!.Code.ShouldBe("todoItem.notFound");
     }
 
-    /// <summary>Removing a tag the item does not carry is a no-op, never a failure.</summary>
     [Fact]
     public async Task AnAbsentTag_IsAcceptedAsANoOp()
     {

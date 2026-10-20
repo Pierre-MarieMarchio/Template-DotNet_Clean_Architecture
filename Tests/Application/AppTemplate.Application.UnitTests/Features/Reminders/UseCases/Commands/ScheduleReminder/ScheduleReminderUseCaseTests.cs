@@ -83,10 +83,6 @@ public sealed class ScheduleReminderUseCaseTests
 
     #region Target
 
-    /// <summary>
-    /// One answer for a missing item, a wrong list and somebody else's item: the port is asked with
-    /// the caller as owner and says no, and the use case cannot tell which of the three it was.
-    /// </summary>
     [Fact]
     public async Task AnItemTheCallerCannotSee_IsReportedAsTargetNotFound()
     {

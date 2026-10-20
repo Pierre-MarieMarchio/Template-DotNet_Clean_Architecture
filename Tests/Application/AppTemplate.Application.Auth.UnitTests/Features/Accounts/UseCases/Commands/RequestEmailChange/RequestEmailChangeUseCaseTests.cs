@@ -45,7 +45,6 @@ public sealed class RequestEmailChangeUseCaseTests
         _emailTokens.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndSendsNothing()
     {

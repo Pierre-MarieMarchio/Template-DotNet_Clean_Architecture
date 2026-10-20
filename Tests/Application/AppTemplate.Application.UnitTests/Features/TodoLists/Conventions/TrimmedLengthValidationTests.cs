@@ -12,13 +12,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.Conventions;
 
-/// <summary>
-/// Every validator here measures length after trimming, the same way the domain does. Without
-/// it, a name of exactly the maximum length followed by a space would be refused by the
-/// validator (400) and then accepted by the domain — two components disagreeing about the same
-/// input. One test class because it is the same contract, repeated identically across every
-/// string-length rule these validators declare.
-/// </summary>
 public sealed class TrimmedLengthValidationTests
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -85,10 +78,6 @@ public sealed class TrimmedLengthValidationTests
         result.IsValid.ShouldBeTrue();
     }
 
-    /// <summary>
-    /// A malformed tag on <c>AddTodoItem</c> is a 400 from this validator, not a domain exception the
-    /// use case turns into a 409.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

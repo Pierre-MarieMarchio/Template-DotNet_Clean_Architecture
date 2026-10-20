@@ -13,10 +13,6 @@ public sealed class CommonErrorsTests
         CommonErrors.NotAuthenticated.Code.ShouldBe("auth.required");
     }
 
-    /// <summary>
-    /// The domain authors the message, and it is returned verbatim: this is
-    /// what lets a caller learn which invariant it tripped.
-    /// </summary>
     [Fact]
     public void InvariantViolated_IsAConflictCarryingTheDomainsOwnMessage()
     {
@@ -27,7 +23,6 @@ public sealed class CommonErrorsTests
         error.Message.ShouldBe("This list already contains an item titled 'Buy milk'.");
     }
 
-    /// <summary>Clients branch on the code rather than on the prose, so two must never collide.</summary>
     [Fact]
     public void EveryCode_IsDistinct()
     {

@@ -7,12 +7,6 @@ using SortDirection = AppTemplate.Application.Core.Common.Collections.SortDirect
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.GetTodoLists;
 
-/// <summary>
-/// The query-string translation <c>GetTodoListsUseCase</c> delegates: paging bounds,
-/// sort parsing and the cursor/sort coherence rules, tested against
-/// <see cref="GetTodoListsRequestBinder.Bind"/> directly rather than through a use case and a
-/// mocked port.
-/// </summary>
 public sealed class GetTodoListsRequestBinderTests
 {
     private static readonly TodoListCollectionPolicy _policy = TodoListCollectionPolicy.Instance;
@@ -86,10 +80,6 @@ public sealed class GetTodoListsRequestBinderTests
         result.Error!.Code.ShouldBe("cursor.invalid");
     }
 
-    /// <summary>
-    /// Same rule restated with no cursor sent at all: a caller must not be let through on page 1
-    /// only to be refused once they try to resume with page 2.
-    /// </summary>
     [Fact]
     public void AMultiTermSortInCursorMode_IsRejected_OnTheFirstPageBeforeAnyCursorExists()
     {
@@ -132,7 +122,6 @@ public sealed class GetTodoListsRequestBinderTests
         result.Error!.Code.ShouldBe("paging.invalid");
     }
 
-    /// <summary>Proves the tampered-cursor-key decision end to end: a 400, never an exception.</summary>
     [Fact]
     public void ATamperedCursorKey_IsAValidationFailure_NotAnUnhandledException()
     {
@@ -147,12 +136,6 @@ public sealed class GetTodoListsRequestBinderTests
         result.Error.Code.ShouldBe("cursor.invalid");
     }
 
-    /// <summary>
-    /// The read side compares a cursor's key using the term from <c>sort</c>, not the term recorded
-    /// in the cursor. Resuming a name-ordered cursor under <c>sort=createdAt</c> would therefore hand
-    /// a list's name to a date comparison, whose only recourse is to throw — a 500 for what is really
-    /// a malformed request. This is the check that keeps it a 400.
-    /// </summary>
     [Fact]
     public void ACursorMintedUnderADifferentSortField_IsRejected()
     {
@@ -179,10 +162,6 @@ public sealed class GetTodoListsRequestBinderTests
         result.Error!.Code.ShouldBe("cursor.invalid");
     }
 
-    /// <summary>
-    /// The default sort is what a caller gets when they send none, so a cursor minted under it must
-    /// keep working with <c>sort</c> omitted.
-    /// </summary>
     [Fact]
     public void ACursorMintedUnderTheDefaultSort_IsAcceptedWithNoSortParameter()
     {

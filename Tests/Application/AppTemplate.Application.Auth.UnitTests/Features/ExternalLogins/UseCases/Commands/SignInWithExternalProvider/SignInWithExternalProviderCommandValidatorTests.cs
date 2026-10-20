@@ -24,11 +24,6 @@ public sealed class SignInWithExternalProviderCommandValidatorTests
         result.IsValid.ShouldBeFalse();
     }
 
-    /// <summary>
-    /// Neither field has a shape asserted here. A provider name nobody configured and a token that is
-    /// not a JWT are both refusals the verifier owns, and answering 400 for either would tell a caller
-    /// which providers exist before it had to forge anything.
-    /// </summary>
     [Theory]
     [InlineData("google", "not-a-jwt")]
     [InlineData("a-provider-nobody-configured", "a.b.c")]

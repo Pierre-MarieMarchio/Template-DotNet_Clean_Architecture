@@ -29,10 +29,6 @@ public sealed class StoredFileDtoMappingTests
         dto.AvailableAt.ShouldBe(storedFile.AvailableAt);
     }
 
-    /// <summary>
-    /// The key never leaves the application layer. It names the bytes, and a client holding one is a
-    /// client that can start guessing at the bucket policy in front of them.
-    /// </summary>
     [Fact]
     public void TheObjectKey_DoesNotReachTheDto()
     {
@@ -43,7 +39,6 @@ public sealed class StoredFileDtoMappingTests
         dto.ToString().ShouldNotContain(storedFile.ObjectKey.Value);
     }
 
-    /// <summary>The owner is not in the DTO either: every read is already scoped to one.</summary>
     [Fact]
     public void TheOwner_DoesNotReachTheDto()
     {
@@ -62,10 +57,6 @@ public sealed class StoredFileDtoMappingTests
         dto.AvailableAt.ShouldBeNull();
     }
 
-    /// <summary>
-    /// The version travels beside the value rather than inside it, so a caller publishing a
-    /// validator has it and the DTO stays a description of the resource.
-    /// </summary>
     [Fact]
     public void TheVersion_TravelsBesideTheValue()
     {

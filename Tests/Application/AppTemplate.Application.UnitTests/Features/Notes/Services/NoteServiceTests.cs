@@ -14,10 +14,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Notes.Services;
 
-/// <summary>
-/// The whole application layer of the feature, so its own tests are where the identity, ownership,
-/// validation and precondition matrix is proven once for all five operations.
-/// </summary>
 public sealed class NoteServiceTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
@@ -51,7 +47,6 @@ public sealed class NoteServiceTests
         results.ShouldAllBe(result => result.Error!.Type == ErrorType.Unauthorized && result.Error.Code == "auth.required");
     }
 
-    /// <summary>An anonymous caller must not reach storage: loading first and authorising later reads data for nobody.</summary>
     [Fact]
     public async Task AnAnonymousCaller_ReadsAndWritesNothing()
     {
@@ -87,10 +82,6 @@ public sealed class NoteServiceTests
         result.Value.Version.ShouldBe(7u);
     }
 
-    /// <summary>
-    /// "Not yours" and "does not exist" answer identically, so a caller cannot enumerate other users'
-    /// note ids. Both reach the same scoped query, which is what makes them one answer.
-    /// </summary>
     [Fact]
     public async Task AForeignNote_IsIndistinguishableFromAMissingOne()
     {
@@ -250,11 +241,6 @@ public sealed class NoteServiceTests
         _store.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A write that loses the race at the commit surfaces as the unit of work's conflict exception, which the
-    /// transport answers 409. The service neither swallows nor retries it: retrying would re-apply a decision
-    /// taken against a state that no longer exists.
-    /// </summary>
     [Fact]
     public async Task UpdateAsync_ThatLosesTheRaceAtTheCommit_LetsTheConflictThrough_WithoutRetrying()
     {

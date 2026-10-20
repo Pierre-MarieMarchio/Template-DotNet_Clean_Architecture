@@ -236,6 +236,10 @@ Each of these has been paid for at least once in this repository.
   forged one. `PasskeyTestSupport` adds it; the API answers every ceremony refusal alike, and
   `PasskeyCeremonyFailures` is where a test reads which check refused it.
 <!--#endif-->
+- **A unit-test project with no test reports exit code 8**, and the platform fails the run for it.
+  `AppTemplate.Domain.UnitTests` and `AppTemplate.Application.UnitTests` accept it with
+  `--ignore-exit-code 8`, but only while the folder a test would sit in does not exist, so the first
+  test makes a run of zero fail again.
 - **`.cs` files are UTF-8 *with* BOM** (`.editorconfig`), and a file written without one fails the
   formatting gate. Detecting a BOM by piping bytes through `grep` does not work reliably — it will
   happily add a second one.

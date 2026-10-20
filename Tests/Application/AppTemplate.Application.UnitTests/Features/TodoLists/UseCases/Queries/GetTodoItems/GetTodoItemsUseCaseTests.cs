@@ -44,8 +44,6 @@ public sealed class GetTodoItemsUseCaseTests
         result.Error!.Code.ShouldBe("todoList.notFound");
     }
 
-    /// <summary>The item collection and the single item come from the same query, so they always
-    /// carry the same version.</summary>
     [Fact]
     public async Task TheItemsAndTheirVersion_ComeFromTheSameQueryAsTheDetail()
     {

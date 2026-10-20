@@ -8,39 +8,18 @@ using AppTemplate.Domain.Features.Reminders.Repositories;
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-/// <summary>
-/// A reminder store that keeps the two properties of the real one a delivery test depends on, and
-/// nothing else: a save writes every changed aggregate or none of them, and a write made against a
-/// version that has since moved is refused. It is repository and unit of work in one, as the EF
-/// pair is over one context.
-/// <para>
-/// <b>It keeps a failed save's changes staged.</b> The real context does the same — after a
-/// concurrency conflict the row stays modified, and every later save in that scope meets the same
-/// conflict again. That is why a use case cannot step over a conflict and carry on in the same
-/// scope, and a test that wants to say so needs a double that behaves this way.
-/// </para>
-/// <para>
-/// <see cref="GetDueAsync"/> implements the contract <see cref="IReminderRepository"/> documents —
-/// eligible reminders, in the order they became eligible, capped — because what a use case does with
-/// a batch is only meaningful against a store that returns batches the way the real one does.
-/// </para>
-/// </summary>
 internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
 {
     private readonly Dictionary<Guid, Row> _committed = [];
     private readonly Dictionary<Guid, Loaded> _loaded = [];
     private readonly List<ReminderSnapshot> _writes = [];
 
-    /// <summary>The size the last batch was asked for.</summary>
     public int LastRequestedBatchSize { get; private set; }
 
-    /// <summary>How many saves were attempted, successful or not.</summary>
     public int SaveAttempts { get; private set; }
 
-    /// <summary>Every row state a successful save ever wrote, oldest first.</summary>
     public IReadOnlyList<ReminderSnapshot> Writes => _writes;
 
-    /// <summary>Puts a reminder in the store as if it had been saved before.</summary>
     public void Seed(Reminder reminder)
     {
         ArgumentNullException.ThrowIfNull(reminder);
@@ -48,20 +27,10 @@ internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
         _committed[reminder.Id] = new Row(Snapshot(reminder), 1);
     }
 
-    /// <summary>
-    /// What a new request or job pass gets: nothing loaded yet, and so nothing staged. The identity
-    /// map of the real context lives exactly as long as its scope, and a pass that failed leaves
-    /// nothing behind for the next.
-    /// </summary>
     public void StartNewScope() => _loaded.Clear();
 
-    /// <summary>The state the store holds for a reminder, as a fresh aggregate would load it.</summary>
     public Reminder Committed(Guid id) => Load(_committed[id]);
 
-    /// <summary>
-    /// Another process cancels the reminder and commits, which moves its version under whoever
-    /// loaded it earlier.
-    /// </summary>
     public void CancelBehindTheBack(Guid id)
     {
         var row = _committed[id];
@@ -127,7 +96,6 @@ internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
                 .Where(row => row.Snapshot.TodoItemId == todoItemId)
                 .Select(row => Track(row))]);
 
-    /// <summary>No test of delivery removes an owner's reminders; the double exists for firing.</summary>
     public Task<IReadOnlyList<Reminder>> GetForOwnerAsync(UserId ownerId, CancellationToken cancellationToken) =>
         throw new NotSupportedException("No test of delivery removes an owner's reminders.");
 
@@ -169,7 +137,6 @@ internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
         NextAttemptAt = reminder.NextAttemptAt,
     };
 
-    /// <summary>The values a reminder's own behaviour can change, compared by value.</summary>
     private static (ReminderState, DateTimeOffset, DateTimeOffset?, int, DateTimeOffset?) Key(
         ReminderSnapshot snapshot) =>
         (snapshot.State, snapshot.DueAt, snapshot.NotifiedAt, snapshot.FailedAttempts, snapshot.NextAttemptAt);

@@ -77,7 +77,6 @@ public sealed class TodoListFilterTests
         result.Error.Message.ShouldContain("createdBefore");
     }
 
-    /// <summary>An empty window is a caller mistake, not an empty page.</summary>
     [Fact]
     public void Create_CreatedAfterLaterThanCreatedBefore_IsRejected()
     {

@@ -5,11 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Core.UnitTests.Common.Events;
 
-/// <summary>
-/// Covers the bridge from the non-generic <see cref="IDomainEventConsumer"/> the dispatcher calls to
-/// the typed <see cref="IDomainEventConsumer{TEvent}"/> a consumer implements. The dispatcher hands
-/// over an <see cref="IDomainEvent"/>, so a mis-registration is only detectable here.
-/// </summary>
 public sealed class DomainEventConsumerTests
 {
     private sealed record AnEvent(DateTimeOffset OccurredOn) : IDomainEvent;
@@ -40,10 +35,6 @@ public sealed class DomainEventConsumerTests
         consumer.Received.ShouldBe(domainEvent);
     }
 
-    /// <summary>
-    /// A hard cast here throws an <see cref="InvalidCastException"/> naming neither the consumer nor
-    /// the event, which are the only two facts that locate the faulty registration.
-    /// </summary>
     [Fact]
     public async Task TheNonGenericEntryPoint_RefusesAnEventOfTheWrongType_NamingBoth()
     {

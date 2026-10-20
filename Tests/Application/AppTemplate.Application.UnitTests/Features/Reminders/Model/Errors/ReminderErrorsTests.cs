@@ -31,7 +31,6 @@ public sealed class ReminderErrorsTests
         error.Message.ShouldContain(itemId.ToString());
     }
 
-    /// <summary>Clients branch on the code rather than on the prose, so two must never collide.</summary>
     [Fact]
     public void EveryCode_IsDistinct()
     {

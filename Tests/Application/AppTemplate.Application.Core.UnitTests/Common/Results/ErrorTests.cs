@@ -6,11 +6,6 @@ namespace AppTemplate.Application.Core.UnitTests.Common.Results;
 
 public sealed class ErrorTests
 {
-    /// <summary>
-    /// The type is what the transport layer turns into a status code, so a factory wired
-    /// to the wrong one silently changes every HTTP response built from it. Swapping any
-    /// pair of these turns this red.
-    /// </summary>
     [Fact]
     public void EachFactory_ProducesItsOwnErrorType()
     {
@@ -32,10 +27,6 @@ public sealed class ErrorTests
         error.Message.ShouldBe("A list name is required.");
     }
 
-    /// <summary>
-    /// Clients branch on the code, so two errors describing the same situation must be
-    /// indistinguishable — that is what makes "not found" and "not yours" the same answer.
-    /// </summary>
     [Fact]
     public void Equality_IsByValue()
     {
@@ -53,11 +44,6 @@ public sealed class ErrorTests
         reference.ShouldNotBe(Error.Conflict("a.b", "m"));
     }
 
-    /// <summary>
-    /// The enum is a closed contract with the transport layer: adding a member is fine,
-    /// renumbering the existing ones would silently repoint every persisted or logged
-    /// value.
-    /// </summary>
     #region Details
 
     [Fact]
@@ -73,11 +59,6 @@ public sealed class ErrorTests
     [Fact]
     public void ErrorsWithoutDetails_AreStillEqual() => Error.NotFound("a.b", "m").ShouldBe(Error.NotFound("a.b", "m"));
 
-    /// <summary>
-    /// The compiler-generated equality would compare <see cref="Error.Details"/> by reference: two
-    /// errors built from separate dictionaries holding the same keys and values would count as
-    /// different, which would make two validation failures over the same field look distinct.
-    /// </summary>
     [Fact]
     public void Equality_ComparesDetailsStructurally_NotByReference()
     {

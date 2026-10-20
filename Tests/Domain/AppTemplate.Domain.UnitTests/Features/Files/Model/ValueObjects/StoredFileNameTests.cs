@@ -15,10 +15,6 @@ public sealed class StoredFileNameTests
     public void Create_TrimsSurroundingWhitespace() =>
         StoredFileName.Create("  report.pdf  ").Value.ShouldBe("report.pdf");
 
-    /// <summary>
-    /// Case is preserved: this is what the user typed and what they will be shown. Unlike a tag or a
-    /// media type, two spellings of a file name are two names, not one.
-    /// </summary>
     [Fact]
     public void Create_PreservesCase() => StoredFileName.Create("Report.PDF").Value.ShouldBe("Report.PDF");
 
@@ -32,11 +28,6 @@ public sealed class StoredFileNameTests
 
     #region Path traversal
 
-    /// <summary>
-    /// The rule that matters most, and the only one that would be load-bearing if this value ever
-    /// reached a path. Without a separator no arrangement of dots leaves a directory, so refusing
-    /// both separators is what makes traversal impossible rather than merely unlikely.
-    /// </summary>
     [Theory]
     [InlineData("../../etc/passwd")]
     [InlineData("..\\..\\windows\\system32\\config\\sam")]
@@ -51,19 +42,10 @@ public sealed class StoredFileNameTests
         exception.Message.ShouldContain("path separator");
     }
 
-    /// <summary>
-    /// The converse, and the reason the rule above names separators rather than dots: two dots
-    /// between two ordinary characters traverse nothing, and rejecting them would refuse a
-    /// legitimate name to prevent an attack that cannot be mounted without a separator.
-    /// </summary>
     [Fact]
     public void Create_Accepts_DotsInsideAName() =>
         StoredFileName.Create("archive..2026.tar.gz").Value.ShouldBe("archive..2026.tar.gz");
 
-    /// <summary>
-    /// Both are names for a directory rather than for a file, and both survive the separator rule.
-    /// Trailing-dot normalisation is what removes them, which is why neither has a rule of its own.
-    /// </summary>
     [Theory]
     [InlineData(".")]
     [InlineData("..")]
@@ -76,9 +58,6 @@ public sealed class StoredFileNameTests
         exception.Message.ShouldContain("dots");
     }
 
-    /// <summary>
-    /// A leading dot is a hidden file, not a traversal, and it is an entirely ordinary name.
-    /// </summary>
     [Fact]
     public void Create_Accepts_ALeadingDot() => StoredFileName.Create(".gitignore").Value.ShouldBe(".gitignore");
 
@@ -86,12 +65,6 @@ public sealed class StoredFileNameTests
 
     #region Characters that break whatever saves the file
 
-    /// <summary>
-    /// The NUL byte truncates the name in anything that hands it to a C API, and a newline lets a
-    /// name inject a second header line into the <c>Content-Disposition</c> it is written to — which
-    /// is header injection through a filename, and the reason control characters are refused rather
-    /// than stripped.
-    /// </summary>
     [Theory]
     [InlineData("report\0.pdf")]
     [InlineData("report\n.pdf")]
@@ -115,11 +88,6 @@ public sealed class StoredFileNameTests
     public void Create_Rejects_ACharacterNoCommonPlatformCanSave(string value) =>
         Should.Throw<DomainException>(() => StoredFileName.Create(value));
 
-    /// <summary>
-    /// Windows resolves these before it looks at the directory. Saving as <c>NUL.txt</c> writes to
-    /// the null device and the user's file is gone with no error anywhere, so the extension has to
-    /// be ignored when matching — which is what makes this more than a list of four words.
-    /// </summary>
     [Theory]
     [InlineData("CON")]
     [InlineData("con")]
@@ -136,10 +104,6 @@ public sealed class StoredFileNameTests
         exception.Message.ShouldContain("reserved device name");
     }
 
-    /// <summary>
-    /// The match is on the stem, not on a prefix: refusing every name that merely starts with those
-    /// three letters would refuse "console.log" and "communication.txt".
-    /// </summary>
     [Theory]
     [InlineData("console.log")]
     [InlineData("communication.txt")]
@@ -152,11 +116,6 @@ public sealed class StoredFileNameTests
 
     #region Normalisation
 
-    /// <summary>
-    /// Windows strips a trailing dot or space when it creates the file, silently. Two names that
-    /// would land on the user's disk as one file have to be one name here too, or this system
-    /// believes it is holding two files that the user can only ever save as one.
-    /// </summary>
     [Theory]
     [InlineData("report.pdf.")]
     [InlineData("report.pdf ")]
@@ -198,11 +157,6 @@ public sealed class StoredFileNameTests
         StoredFileName.Create($" {new string('a', StoredFileName.MaxLength)} ")
             .Value.Length.ShouldBe(StoredFileName.MaxLength);
 
-    /// <summary>
-    /// A tripwire on the value, not on the mechanism: 255 is what one path component holds on the
-    /// filesystems a download lands on, and a longer name is truncated by whatever saves it rather
-    /// than refused.
-    /// </summary>
     [Fact]
     public void TheMaximumLength_IsOnePathComponent() => StoredFileName.MaxLength.ShouldBe(255);
 

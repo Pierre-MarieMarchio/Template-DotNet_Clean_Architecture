@@ -40,10 +40,6 @@ public sealed class RevokeSessionUseCaseTests
         _sessions.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The two indistinguishable refusals of the port: somebody else's session and an unknown id.
-    /// One answer for both, so the route cannot be used to learn which session ids exist.
-    /// </summary>
     [Fact]
     public async Task SomebodyElsesSession_IsAnsweredAsNotFound()
     {
@@ -69,10 +65,6 @@ public sealed class RevokeSessionUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.RefreshTokenRevoked(_callerId));
     }
 
-    /// <summary>
-    /// Idempotence as the port states it: a session already ended answers <c>true</c>, and the
-    /// outcome the caller asked for holds either way.
-    /// </summary>
     [Fact]
     public async Task ASessionAlreadyEnded_SucceedsAgain()
     {

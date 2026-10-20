@@ -26,10 +26,6 @@ public sealed class GetAccountSecurityEventsUseCaseTests
                 Arg.Any<CancellationToken>())
             .Returns(PagedResult.Offset<SecurityEventEntry>([], 1, 20, 0));
 
-    /// <summary>
-    /// The one input a validator refuses here: an empty id is a caller's typo, not an account that
-    /// does not exist, and it must fail before anything is queried.
-    /// </summary>
     [Fact]
     public async Task AnEmptyAccountId_IsRefusedBeforeAnythingIsQueried()
     {

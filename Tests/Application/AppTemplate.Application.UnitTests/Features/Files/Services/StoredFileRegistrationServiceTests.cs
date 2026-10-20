@@ -14,9 +14,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.Services;
 
-/// <summary>
-/// The quota check, the insert and the commit, and which of them run under the owner's quota lock.
-/// </summary>
 public sealed class StoredFileRegistrationServiceTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
@@ -35,7 +32,6 @@ public sealed class StoredFileRegistrationServiceTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>The mode is compared ignoring case, as the validator accepts it.</summary>
     [Fact]
     public async Task AStrictModeWrittenInLowerCase_TakesTheLock()
     {
@@ -117,7 +113,6 @@ public sealed class StoredFileRegistrationServiceTests
         _repository.DidNotReceive().Add(Arg.Any<StoredFile>());
     }
 
-    /// <summary>A failed commit propagates, and the next registration still gets the lock.</summary>
     [Fact]
     public async Task Strict_AFailedCommit_PropagatesAndReleasesTheLock()
     {

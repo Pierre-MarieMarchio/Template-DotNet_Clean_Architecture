@@ -3,10 +3,6 @@ using Shouldly;
 
 namespace AppTemplate.Application.UnitTests;
 
-/// <summary>
-/// Finds the layer's use cases the same way registration does, derived here independently so that a
-/// test asserts what the container should hold rather than echoing what it does hold.
-/// </summary>
 internal static class UseCaseDiscovery
 {
     internal static IReadOnlyList<Type> Implementations { get; } =

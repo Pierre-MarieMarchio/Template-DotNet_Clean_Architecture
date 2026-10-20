@@ -17,16 +17,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases;
 
-/// <summary>
-/// The rule that every to-do list operation which changes the aggregate honours the version
-/// precondition its command carries.
-/// </summary>
-/// <remarks>
-/// These cases are a theory over the five mutating use cases rather than five pairs of tests
-/// scattered across five files. The check is two lines of identical code in each of them, and the
-/// failure worth catching is one of them not having it — which a per-use-case test only catches if
-/// somebody remembers to write it.
-/// </remarks>
 public sealed class TodoListVersionPreconditionTests
 {
     private const uint _storedVersion = 4242;
@@ -65,10 +55,6 @@ public sealed class TodoListVersionPreconditionTests
         error.Code.ShouldBe("precondition.failed", operation);
     }
 
-    /// <summary>
-    /// The half that makes the refusal mean something: a refused operation must not have been
-    /// applied. A use case that returned the failure after committing would pass the test above.
-    /// </summary>
     [Theory]
     [MemberData(nameof(MutatingOperations))]
     public async Task ARefusedOperation_CommitsNothing(string operation)
@@ -93,10 +79,6 @@ public sealed class TodoListVersionPreconditionTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A caller may name several versions, and one of them matching is enough — that is what
-    /// <c>If-Match</c>'s list form means.
-    /// </summary>
     [Theory]
     [MemberData(nameof(MutatingOperations))]
     public async Task OneAcceptableVersionAmongSeveral_IsEnough(string operation)
@@ -112,10 +94,6 @@ public sealed class TodoListVersionPreconditionTests
         result.IsSuccess.ShouldBeTrue(operation);
     }
 
-    /// <summary>
-    /// No precondition is not a failed one: an unconditional write stays the behaviour a caller
-    /// that sends no <c>If-Match</c> gets.
-    /// </summary>
     [Theory]
     [MemberData(nameof(MutatingOperations))]
     public async Task NoPrecondition_LeavesTheOperationUnconditional(string operation)

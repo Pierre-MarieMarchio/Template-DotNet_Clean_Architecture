@@ -25,10 +25,6 @@ public sealed class DeclaredMediaTypeTests
         mediaType.Subtype.ShouldBe("png");
     }
 
-    /// <summary>
-    /// Both halves are case-insensitive per RFC 9110, so normalising is what makes "IMAGE/PNG" one
-    /// value with "image/png" rather than two rows a filter would have to match twice.
-    /// </summary>
     [Theory]
     [InlineData("IMAGE/PNG")]
     [InlineData("Image/Png")]
@@ -73,11 +69,6 @@ public sealed class DeclaredMediaTypeTests
         exception.Message.ShouldContain("both a type and a subtype");
     }
 
-    /// <summary>
-    /// A wildcard is what an <c>Accept</c> header carries — a statement about what a client will
-    /// take — and it is never a statement about what one particular file is. It needs its own rule
-    /// because <c>*</c> is a perfectly valid token character and passes every other check here.
-    /// </summary>
     [Theory]
     [InlineData("*/*")]
     [InlineData("image/*")]
@@ -89,11 +80,6 @@ public sealed class DeclaredMediaTypeTests
         exception.Message.ShouldContain("wildcard");
     }
 
-    /// <summary>
-    /// Refused rather than stripped. Discarding what a parser does not understand is how two
-    /// components end up disagreeing about the same string, and the answer to "what is this file"
-    /// has no room for a charset.
-    /// </summary>
     [Theory]
     [InlineData("image/png; charset=utf-8")]
     [InlineData("text/plain;charset=utf-8")]
@@ -131,10 +117,6 @@ public sealed class DeclaredMediaTypeTests
         Should.Throw<DomainException>(() => DeclaredMediaType.Create($"image/{token}"));
     }
 
-    /// <summary>
-    /// A tripwire on the value: 127 is what IANA caps a registered type or subtype name at, so a
-    /// longer token is not a media type any system will resolve.
-    /// </summary>
     [Fact]
     public void TheMaximumTokenLength_IsWhatIanaRegisters() =>
         DeclaredMediaType.MaxTokenLength.ShouldBe(127);

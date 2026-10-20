@@ -59,8 +59,6 @@ public sealed class UpdateTodoItemUseCaseTests
         result.Error!.Code.ShouldBe("todoItem.notFound");
     }
 
-    /// <summary>Renaming an item to a title already held by another item is a conflict, not a
-    /// validation error: it depends on the aggregate's current contents.</summary>
     [Fact]
     public async Task ATitleAlreadyHeldByAnotherItem_BecomesAConflict()
     {
@@ -78,7 +76,6 @@ public sealed class UpdateTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>Renaming an item to its own current title must not collide with itself.</summary>
     [Fact]
     public async Task RenamingAnItemToItsOwnTitle_Succeeds()
     {

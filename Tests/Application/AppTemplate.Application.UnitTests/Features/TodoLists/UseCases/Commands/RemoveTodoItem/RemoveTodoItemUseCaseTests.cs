@@ -62,10 +62,6 @@ public sealed class RemoveTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ownership check. Deleting the <c>OwnerId</c> comparison lets any authenticated
-    /// caller delete items from any list, and turns this red.
-    /// </summary>
     [Fact]
     public async Task AnItemOnAnotherUsersList_IsNotRemoved()
     {
@@ -98,10 +94,6 @@ public sealed class RemoveTodoItemUseCaseTests
         result.Error.Code.ShouldBe("todoItem.notFound");
     }
 
-    /// <summary>
-    /// A removal that matched nothing must not commit: committing would report success for
-    /// a change that never happened.
-    /// </summary>
     [Fact]
     public async Task AnUnknownItemId_LeavesTheListIntactAndDoesNotCommit()
     {
@@ -142,7 +134,6 @@ public sealed class RemoveTodoItemUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         list.Items.ShouldBeEmpty();
 
-        // The item is gone; what is returned is the list it used to belong to, at its new version.
         result.Value.Value.Id.ShouldBe(list.Id);
         result.Value.Value.Items.ShouldBeEmpty();
         result.Value.Version.ShouldBe(list.Version);
@@ -171,10 +162,6 @@ public sealed class RemoveTodoItemUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The list is not removed along with the item — only the aggregate's contents change,
-    /// and the aggregate itself stays staged for update.
-    /// </summary>
     [Fact]
     public async Task ARemovalDoesNotDeleteTheList()
     {

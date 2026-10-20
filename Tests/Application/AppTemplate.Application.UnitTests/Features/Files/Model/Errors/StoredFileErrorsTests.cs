@@ -7,10 +7,6 @@ namespace AppTemplate.Application.UnitTests.Features.Files.Model.Errors;
 
 public sealed class StoredFileErrorsTests
 {
-    /// <summary>
-    /// Codes are the part of an error a client branches on, so they are a contract. Renaming one is
-    /// a breaking change, and this is where that shows up.
-    /// </summary>
     [Fact]
     public void EveryCode_IsNamespacedToTheFeature()
     {
@@ -25,10 +21,6 @@ public sealed class StoredFileErrorsTests
     public void AMissingFile_IsANotFoundRatherThanAForbidden() =>
         StoredFileErrors.FileNotFound(Guid.CreateVersion7()).Type.ShouldBe(ErrorType.NotFound);
 
-    /// <summary>
-    /// A state that prevents the operation, not a malformed request: the caller sent nothing wrong,
-    /// the file simply has no bytes yet.
-    /// </summary>
     [Fact]
     public void AnUnconfirmedDeposit_IsAConflict()
     {
@@ -36,9 +28,6 @@ public sealed class StoredFileErrorsTests
         StoredFileErrors.FileNotAvailable(Guid.CreateVersion7()).Type.ShouldBe(ErrorType.Conflict);
     }
 
-    /// <summary>
-    /// The deployment's choice of store, not a malformed request: no change to the body helps.
-    /// </summary>
     [Fact]
     public void ADirectUploadAgainstAStoreThatCannotSign_IsAConflict() =>
         StoredFileErrors.DirectUploadUnavailable().Type.ShouldBe(ErrorType.Conflict);

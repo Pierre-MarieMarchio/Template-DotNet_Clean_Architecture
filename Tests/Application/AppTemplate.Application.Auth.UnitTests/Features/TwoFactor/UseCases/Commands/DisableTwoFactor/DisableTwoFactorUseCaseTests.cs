@@ -41,7 +41,6 @@ public sealed class DisableTwoFactorUseCaseTests
         _twoFactor.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A token that outlived its account — see <c>GetCurrentUserUseCase</c>.</summary>
     [Fact]
     public async Task AnAccountThatNoLongerExists_IsAnsweredAsUnauthenticatedAndRevokesNothing()
     {
@@ -77,10 +76,6 @@ public sealed class DisableTwoFactorUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// The factor is still on, so nothing about the account's posture changed: no event, and no
-    /// session revoked for a change that did not happen.
-    /// </summary>
     [Fact]
     public async Task AStoreRefusal_IsReportedAndRevokesNothingAndRecordsNothing()
     {
@@ -114,11 +109,6 @@ public sealed class DisableTwoFactorUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.TwoFactorDisabled(_callerId));
     }
 
-    /// <summary>
-    /// The security stamp already rotated inside <c>DisableAsync</c>; refresh tokens survive that
-    /// rotation and are this use case's responsibility to revoke. The caller's own session, which
-    /// just proved the password, is the one spared.
-    /// </summary>
     [Fact]
     public async Task ARightPassword_RevokesEverySessionButTheCallersOwn()
     {
@@ -133,10 +123,6 @@ public sealed class DisableTwoFactorUseCaseTests
         _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
-    /// <summary>
-    /// A token that names no session — issued before sessions were named in it — spares nothing:
-    /// an unknown session is not one to spare.
-    /// </summary>
     [Fact]
     public async Task ARightPasswordFromATokenWithoutASession_RevokesEverySession()
     {
@@ -156,7 +142,6 @@ public sealed class DisableTwoFactorUseCaseTests
     private void GivenTheOutcomeIs(TwoFactorDisableStatus disable) =>
         _twoFactor.DisableAsync(_callerId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(disable);
 
-    /// <summary>The session the caller disarms the factor from, fixed so assertions can name it.</summary>
     private readonly StubCurrentSession _currentSession = StubCurrentSession.InSession(Guid.CreateVersion7());
 
     private DisableTwoFactorUseCase UseCaseFor(ICurrentUser currentUser, StubCurrentSession currentSession) =>

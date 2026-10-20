@@ -4,10 +4,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Accounts.UseCases.Commands.Register;
 
-/// <summary>
-/// A validator that accepts everything and one that is never consulted look identical from the
-/// use case, so both halves are pinned: what is rejected, and what must still be accepted.
-/// </summary>
 public sealed class RegisterCommandValidatorTests
 {
     private readonly RegisterCommandValidator _validator = new();
@@ -32,10 +28,6 @@ public sealed class RegisterCommandValidatorTests
             new RegisterCommand($"{new string('a', 250)}@example.com", "correct horse battery"),
             "Email");
 
-    /// <summary>
-    /// The length policy is the configured <c>Identity</c> section's, applied by the store; a copy of
-    /// its floor here would be a second authority to drift from it.
-    /// </summary>
     [Fact]
     public void AShortPassword_IsLeftToTheStore() =>
         _validator.Validate(new RegisterCommand("someone@example.com", "a"))
@@ -48,7 +40,6 @@ public sealed class RegisterCommandValidatorTests
                 new string('a', RegisterCommandValidator.MaximumPasswordLength)))
             .IsValid.ShouldBeTrue();
 
-    /// <summary>Guards against a denial of service through an arbitrarily long PBKDF2 input.</summary>
     [Fact]
     public void APasswordBeyondTheMaximumLength_IsRejected() =>
         ShouldFailOn(
@@ -61,11 +52,6 @@ public sealed class RegisterCommandValidatorTests
     public void AnEmptyPassword_IsRejected() =>
         ShouldFailOn(new RegisterCommand("someone@example.com", ""), "Password");
 
-    /// <summary>
-    /// Asserted against a literal on purpose: every other case derives its input from the constant
-    /// and would move with it. The ceiling exists so one request cannot turn into an unbounded
-    /// amount of PBKDF2 work.
-    /// </summary>
     [Fact]
     public void ThePasswordCeiling_IsTwoHundredAndFiftySixCharacters()
     {

@@ -33,8 +33,6 @@ public sealed class DeleteNotesOnAccountDeletedConsumerTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>The precondition is re-derived, never trusted: a replayed delivery must not delete
-    /// the data of an account that exists again.</summary>
     [Fact]
     public async Task AnAccountThatExistsAgain_KeepsItsNotes()
     {
@@ -48,7 +46,6 @@ public sealed class DeleteNotesOnAccountDeletedConsumerTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>What a redelivery finds: nothing staged, so nothing to commit.</summary>
     [Fact]
     public async Task AnOwnerWithNoNotesLeft_CommitsNothing()
     {
@@ -72,7 +69,6 @@ public sealed class DeleteNotesOnAccountDeletedConsumerTests
         owners.ShouldBe([_ownerId]);
     }
 
-    /// <summary>The event face is the policy face applied to the event's id.</summary>
     [Fact]
     public async Task TheEventFace_AppliesThePolicyToTheEventsOwner()
     {

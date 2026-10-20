@@ -12,17 +12,11 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.TwoFactor.UseCases.Commands.VerifyTwoFactor;
 
-/// <summary>
-/// The second step of a two-step login: redeeming a challenge is only half the work, the other half
-/// being that both refusals — a spent challenge and a wrong code — must be indistinguishable from
-/// outside, the same discipline <c>LoginUseCaseTests</c> applies to a first-step refusal.
-/// </summary>
 public sealed class VerifyTwoFactorUseCaseTests
 {
     private static readonly DateTimeOffset _accessTokenExpiry = DateTimeOffset.UnixEpoch.AddMinutes(15);
     private static readonly DateTimeOffset _refreshTokenExpiry = DateTimeOffset.UnixEpoch.AddDays(30);
 
-    /// <summary>The client a second-step sign-in names its new session by, so assertions can see it travel.</summary>
     private static readonly SessionClient _client = new("test-agent/1.0");
 
     private readonly ITwoFactorService _twoFactor = Substitute.For<ITwoFactorService>();
@@ -68,10 +62,6 @@ public sealed class VerifyTwoFactorUseCaseTests
             "The two-factor challenge is invalid or has expired."));
     }
 
-    /// <summary>
-    /// A wrong code against a live challenge answers with the exact same error as an unknown or
-    /// expired one — see the class doc for why.
-    /// </summary>
     [Fact]
     public async Task AWrongCodeAgainstALiveChallenge_AnswersWithTheSameErrorAsAnInvalidChallenge()
     {
@@ -112,11 +102,6 @@ public sealed class VerifyTwoFactorUseCaseTests
         _securityEventLog.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// A challenge issued before the account was locked out, disabled or deleted must not still mint
-    /// tokens once redeemed — the same guard <c>RefreshAccessTokenUseCase</c> applies to a presented
-    /// refresh token.
-    /// </summary>
     [Fact]
     public async Task AVerifiedCodeForAnAccountThatCanNoLongerSignIn_IsRefused()
     {
@@ -167,7 +152,6 @@ public sealed class VerifyTwoFactorUseCaseTests
         _securityEventLog.DidNotReceive().Record(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
     }
 
-    /// <summary>Worth its own fact: it is also the signal that one of the ten one-time codes is now gone.</summary>
     [Fact]
     public async Task AVerifiedRecoveryCode_IsAlsoRecordedAsARecoveryCodeRedemption()
     {

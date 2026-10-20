@@ -36,8 +36,6 @@ public sealed class CancelRemindersOnTodoItemCompletedConsumerTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    /// <summary>A fired reminder is left alone: cancelling it would throw, and it fired for the
-    /// same reason it should not fire again — it already did.</summary>
     [Fact]
     public async Task AnAlreadyFiredReminder_IsLeftAlone()
     {
@@ -51,8 +49,6 @@ public sealed class CancelRemindersOnTodoItemCompletedConsumerTests
         fired.State.ShouldBe(ReminderState.Fired);
     }
 
-    /// <summary>Nothing left to cancel means nothing to save either — proof that a redelivery of
-    /// this event, after the first delivery already cancelled everything, is a true no-op.</summary>
     [Fact]
     public async Task NoPendingReminders_DoesNotCommit()
     {

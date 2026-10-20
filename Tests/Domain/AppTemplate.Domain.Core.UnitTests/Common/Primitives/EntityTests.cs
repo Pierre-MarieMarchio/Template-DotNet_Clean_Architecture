@@ -29,11 +29,6 @@ public sealed class EntityTests
         (left == right).ShouldBeFalse();
     }
 
-    /// <summary>
-    /// The rule that stops a base-class comparison from conflating two different
-    /// entities that happen to share a key. Deleting the <c>GetType()</c> comparison in
-    /// <see cref="Entity{TId}.Equals(Entity{TId}?)"/> turns this red.
-    /// </summary>
     [Fact]
     public void Equals_ReturnsFalse_ForDifferentSubtypesWithTheSameId()
     {
@@ -84,10 +79,6 @@ public sealed class EntityTests
         new SampleEntity(id).GetHashCode().ShouldBe(new SampleEntity(id).GetHashCode());
     }
 
-    /// <summary>
-    /// Hash code and equality must agree, otherwise two different entities with the same
-    /// id would collapse into one another inside a <c>HashSet</c>.
-    /// </summary>
     [Fact]
     public void GetHashCode_Differs_ForDifferentSubtypesWithTheSameId()
     {
@@ -124,10 +115,8 @@ public sealed class EntityTests
     }
 }
 
-/// <summary>A minimal concrete entity, so the base class can be tested on its own.</summary>
 internal sealed class SampleEntity(Guid id) : Entity<Guid>(id);
 
-/// <summary>A second entity type with the same id type, for the subtype-inequality rule.</summary>
 internal sealed class OtherSampleEntity(Guid id) : Entity<Guid>(id);
 
 internal sealed class StringKeyedEntity(string id) : Entity<string>(id);

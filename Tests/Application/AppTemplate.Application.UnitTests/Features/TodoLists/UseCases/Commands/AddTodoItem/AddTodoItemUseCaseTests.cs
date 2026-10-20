@@ -100,10 +100,6 @@ public sealed class AddTodoItemUseCaseTests
             .ShouldBeTrue();
     }
 
-    /// <summary>
-    /// A tag the domain would refuse is caught by the validator first, so the caller gets a
-    /// 400-shaped answer rather than a 409 about an invariant they could have avoided.
-    /// </summary>
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -166,10 +162,6 @@ public sealed class AddTodoItemUseCaseTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// The ownership check. Deleting the <c>OwnerId</c> comparison lets any authenticated
-    /// caller write into any list in the database, and turns this red.
-    /// </summary>
     [Fact]
     public async Task AnotherUsersList_DoesNotReceiveTheItem()
     {
@@ -203,11 +195,6 @@ public sealed class AddTodoItemUseCaseTests
 
     #region Invariants surfaced as conflicts
 
-    /// <summary>
-    /// A duplicate title depends on the current contents of the aggregate, so the caller
-    /// could not have avoided it by sending better input: it is a conflict, not a
-    /// validation error, and it must never escape as an exception.
-    /// </summary>
     [Fact]
     public async Task ADuplicateTitle_BecomesAConflict()
     {
@@ -290,10 +277,6 @@ public sealed class AddTodoItemUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// One commit covers the item and all its tags. Committing per tag would turn a single
-    /// request into several transactions with no rollback path between them.
-    /// </summary>
     [Fact]
     public async Task AnAddWithSeveralTags_StillCommitsExactlyOnce()
     {

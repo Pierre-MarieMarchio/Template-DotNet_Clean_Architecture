@@ -17,10 +17,6 @@ public sealed class ConfirmEmailUseCaseTests
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// A request missing either field must be refused before the single-use token is consumed.
-    /// Removing the <c>IsValid</c> check turns this red.
-    /// </summary>
     [Theory]
     [InlineData("", "a-token")]
     [InlineData("   ", "a-token")]
@@ -47,11 +43,6 @@ public sealed class ConfirmEmailUseCaseTests
         result.Error.ShouldBeNull();
     }
 
-    /// <summary>
-    /// An unknown address and a wrong token are one refusal from the port's point of view, so the
-    /// use case has a single error to answer with: telling them apart would let anybody holding a
-    /// junk token ask whether an address is registered.
-    /// </summary>
     [Fact]
     public async Task ARefusedConfirmation_AnswersWithTheInvalidLinkError()
     {

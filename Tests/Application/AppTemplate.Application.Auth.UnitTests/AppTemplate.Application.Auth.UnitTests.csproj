@@ -1,10 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the authentication use cases. Every port is a test double, so nothing here
-       touches an identity store, a token provider or a mail relay: these tests are statements about
-       the use cases' own decisions — which failure a caller gets, and in which order the checks
-       run. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>

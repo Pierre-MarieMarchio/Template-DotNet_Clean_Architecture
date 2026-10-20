@@ -2,7 +2,6 @@
 
 namespace AppTemplate.Application.UnitTests.TestDoubles;
 
-/// <summary>Keeps every entry written to it, with its level, message and exception.</summary>
 internal sealed class RecordingLogger<T> : ILogger<T>
 {
     public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];

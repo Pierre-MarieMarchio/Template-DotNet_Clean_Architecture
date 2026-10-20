@@ -11,10 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Accounts.UseCases.Commands.RequestPasswordReset;
 
-/// <summary>
-/// Mirrors <c>ResendConfirmationEmailUseCaseTests</c>: this endpoint answers the same for every
-/// address it is given, whatever happens behind that one answer.
-/// </summary>
 public sealed class RequestPasswordResetUseCaseTests
 {
     private readonly IEmailTokensService _emailTokens = Substitute.For<IEmailTokensService>();
@@ -78,7 +74,6 @@ public sealed class RequestPasswordResetUseCaseTests
         _emailSender.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>A known address and an unknown one must not be distinguishable from the answer alone.</summary>
     [Fact]
     public async Task AKnownAddressAndAnUnknownOne_AreAnsweredIdentically()
     {

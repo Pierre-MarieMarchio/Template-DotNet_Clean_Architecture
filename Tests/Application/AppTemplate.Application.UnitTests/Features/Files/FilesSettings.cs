@@ -3,11 +3,6 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Application.UnitTests.Features.Files;
 
-/// <summary>
-/// The <c>Files</c> configuration the use-case tests run against: an <c>image</c> category open to
-/// every signed-in user, and a private <c>document</c> category, both direct and scanned, with the
-/// default quota.
-/// </summary>
 internal static class FilesSettings
 {
     internal const string Image = "image";
@@ -15,7 +10,6 @@ internal static class FilesSettings
 
     internal static FilesOptions Default() => With(_ => { });
 
-    /// <summary>The default settings, with <paramref name="change"/> applied to them.</summary>
     internal static FilesOptions With(Action<FilesOptions> change)
     {
         var options = new FilesOptions();

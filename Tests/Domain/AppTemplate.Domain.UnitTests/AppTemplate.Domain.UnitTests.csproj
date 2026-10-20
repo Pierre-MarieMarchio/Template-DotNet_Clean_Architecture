@@ -1,17 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the Domain. Like the Domain itself, this project references no
-       infrastructure: the aggregate is exercised in memory, so every test here is a
-       statement about the model and nothing else. -->
-
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
-  <!-- In a project generated with nothing in its domain, this project holds no test until the first feature brings one, and
-       the platform reports a run of none as exit code 8. That is accepted only while the folder
-       a test would sit in does not exist, so the first test makes a run of zero fail again; the
-       solution-wide minimum-expected-tests floor guards the whole meanwhile. -->
   <PropertyGroup Condition="!Exists('$(MSBuildProjectDirectory)/Features') and !Exists('$(MSBuildProjectDirectory)/Common')">
     <TestingPlatformCommandLineArguments>--ignore-exit-code 8</TestingPlatformCommandLineArguments>
   </PropertyGroup>

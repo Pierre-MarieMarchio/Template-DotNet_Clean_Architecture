@@ -10,21 +10,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.TodoLists.Conventions;
 
-/// <summary>
-/// Every rule whose <c>Must</c> dereferences the value carries <c>Cascade(CascadeMode.Stop)</c>.
-/// FluentValidation runs the remaining rules for a property even after <c>NotEmpty</c> has failed,
-/// so without the cascade a null value is not a field error but a <c>NullReferenceException</c> —
-/// which reaches the caller as a 500 naming nothing, and no request the pipeline accepts is
-/// supposed to produce one.
-/// <para>
-/// A null gets this far from a body that is entirely well formed. The implicit <c>[Required]</c> a
-/// non-nullable reference type carries does not extend to the elements of a collection, so
-/// <c>{"title":"x","tags":["a",null]}</c> deserialises, passes model binding, and arrives here with
-/// a null inside the list. Removing one of the cascades below turns its test from a validation
-/// failure into a dereference.
-/// </para>
-/// One class because it is the same contract, repeated identically across every such rule.
-/// </summary>
 public sealed class NullDereferenceValidationTests
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

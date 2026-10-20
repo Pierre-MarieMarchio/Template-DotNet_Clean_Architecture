@@ -19,7 +19,6 @@ public sealed class FileCategoryTests
     public void Create_AcceptsTheLongestName() =>
         FileCategory.Create(new string('a', FileCategory.MaxLength)).Value.Length.ShouldBe(FileCategory.MaxLength);
 
-    /// <summary>One spelling per category: casing and padding are refused rather than normalised.</summary>
     [Theory]
     [InlineData("")]
     [InlineData("Document")]

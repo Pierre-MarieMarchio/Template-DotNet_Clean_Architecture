@@ -11,16 +11,6 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Files.Services.Consumers.StoredFileDeleted;
 
-/// <summary>
-/// The fast half of reclaiming a deleted file's bytes.
-/// </summary>
-/// <remarks>
-/// Every assertion here is about the consumer being <em>allowed to fail</em>. It exists to shorten
-/// the interval between a row disappearing and its bytes following, and the sweep is what makes that
-/// happen at all — so a consumer that turned a store outage into a failed deletion, or that stopped
-/// the post-commit dispatch for the next consumer in line, would have made the missing outbox a bug
-/// rather than a cost.
-/// </remarks>
 public sealed class ReclaimContentOnStoredFileDeletedConsumerTests
 {
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -43,10 +33,6 @@ public sealed class ReclaimContentOnStoredFileDeletedConsumerTests
         await _content.Received(1).DeleteAsync(key.Value, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>
-    /// A store that is briefly unreachable must not surface as a failed deletion: the row is already
-    /// gone and committed, and the sweep reclaims what this call could not.
-    /// </summary>
     [Fact]
     public async Task AStoreThatRefuses_DoesNotFailTheDispatch()
     {
@@ -58,10 +44,6 @@ public sealed class ReclaimContentOnStoredFileDeletedConsumerTests
             () => Consumer.ConsumeAsync(AnEvent(ObjectKey.New(DateTimeOffset.UtcNow)), TestToken));
     }
 
-    /// <summary>
-    /// Shutdown is not a store failure. Swallowing it would report a cancelled run as a completed
-    /// reclamation, and would keep the host from stopping promptly.
-    /// </summary>
     [Fact]
     public async Task ACancelledRun_Propagates()
     {

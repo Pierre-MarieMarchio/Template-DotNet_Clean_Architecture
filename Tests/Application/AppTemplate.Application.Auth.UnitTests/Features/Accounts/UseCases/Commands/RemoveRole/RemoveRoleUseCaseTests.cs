@@ -44,11 +44,6 @@ public sealed class RemoveRoleUseCaseTests
         _administration.ReceivedCalls().ShouldBeEmpty();
     }
 
-    /// <summary>
-    /// Not narrowed to "may not remove their own Administrator role": this layer has no reference to
-    /// that literal — see <c>RemoveRoleUseCase</c> — so the guard refuses any role removed from the
-    /// caller's own account, proved here with a role that is not <c>Admin</c>.
-    /// </summary>
     [Fact]
     public async Task ACallerTargetingThemselves_IsRefusedRegardlessOfWhichRole()
     {
@@ -92,7 +87,6 @@ public sealed class RemoveRoleUseCaseTests
         result.Error!.Details!["role"].ShouldContain("User is not in role 'Admin'.");
     }
 
-    /// <summary>The gap this whole vertical exists to close: see <c>IAccountAdministrationService</c>.</summary>
     [Fact]
     public async Task ASuccessfulRevocation_RevokesEveryRefreshTokenForTheTarget()
     {

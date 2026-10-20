@@ -21,26 +21,6 @@ using AppTemplate.Presentation.Core;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
 
-/// <summary>
-/// The assemblies every fitness rule is written against, each anchored on a real type so the
-/// assembly is genuinely loaded before a rule runs.
-/// <para>
-/// This indirection is not decoration. NetArchTest evaluates a rule over the type set it is
-/// given, and an empty type set satisfies every <c>ShouldNot</c> condition — so a rule aimed at
-/// an assembly that was never loaded, or at a namespace that has since been renamed, passes and
-/// buys nothing. <see cref="RuleAssertions.RequireTypes(Assembly)"/> is called before each
-/// assertion so that a rule which has stopped matching anything fails loudly instead of turning
-/// green.
-/// </para>
-/// <para>
-/// Each assembly resolves on first use rather than in this type's initializer, and that is
-/// load-bearing. An anchor asserts the assembly a type compiles into, so a type that changes
-/// assembly makes its anchor throw — and a throw in a type initializer is a
-/// <see cref="TypeInitializationException"/> on every member of this class, which fails every rule
-/// file that reads any assembly at all. Resolved lazily, a stale anchor fails the rules that
-/// address that one assembly and names it.
-/// </para>
-/// </summary>
 internal static class ArchitectureAssemblies
 {
     internal const string DomainNamespace = "AppTemplate.Domain";
@@ -64,52 +44,17 @@ internal static class ArchitectureAssemblies
     internal const string StorageInfrastructureNamespace = "AppTemplate.Infrastructure.Storage";
     //#endif
 
-    /// <summary>
-    /// The cross-cutting mechanisms inside the persistence project: the interceptor pipeline, the unit
-    /// of work, the clock, the event dispatcher, the mapping seam. Everything here must work
-    /// through <c>AppTemplate.Domain.Core.Common</c> abstractions, so that adding a feature cannot
-    /// require a change to any of it.
-    /// </summary>
     internal const string PersistenceCommonNamespace = "AppTemplate.Infrastructure.Persistence.Common";
 
-    /// <summary>
-    /// The per-feature half of the persistence project: models, configurations, mappers, repositories,
-    /// queries and stores. These <em>do</em> name business types — that is their job.
-    /// </summary>
     internal const string PersistenceFeaturesNamespace = "AppTemplate.Infrastructure.Persistence.Features";
 
-    /// <summary>
-    /// Every feature's domain surface: its entities, its value objects, its events. Named at the
-    /// level of <c>Features</c> rather than of one feature, because a mechanism that must not know
-    /// about to-do lists must not know about reminders or files either, and a list of one feature
-    /// only guards the feature somebody happened to write it for.
-    /// </summary>
     internal const string DomainFeaturesNamespace = "AppTemplate.Domain.Features";
 
-    /// <summary>
-    /// Every feature's application-layer surface: its ports, its DTOs, its errors. A cross-cutting
-    /// persistence mechanism that names one of these is a feature adapter wearing the shared
-    /// mechanisms' clothes — a counter named after a feature, with no connection to the database at
-    /// all, would sit unnoticed under <c>Common/Observability/</c>, since it depends on neither of
-    /// the two namespaces above.
-    /// </summary>
     internal const string ApplicationFeaturesNamespace = "AppTemplate.Application.Features";
 
     /*#if (tagging)*/
-    /// <summary>
-    /// Anchored on the shared tagging value object, the one cross-cutting type the business half of
-    /// the domain declares, so the anchor survives whichever features a project keeps. A project
-    /// whose domain holds no feature at all is caught by
-    /// <see cref="RuleAssertions.RequireTypes(Assembly)"/>, which says the assembly holds nothing left
-    /// to check.
-    /// </summary>
     private static readonly Lazy<Assembly> _domain = new(() => Anchor(typeof(Tag), DomainNamespace));
     /*#else
-    /// <summary>
-    /// Resolved by name: this project was generated with no business type in its domain, so there is
-    /// no type to anchor on yet. The rules over it say so through
-    /// <see cref="RuleAssertions.RequireTypes(Assembly)"/> until a feature brings one.
-    /// </summary>
     private static readonly Lazy<Assembly> _domain = new(() => Load(DomainNamespace));
     #endif*/
 
@@ -190,40 +135,18 @@ internal static class ArchitectureAssemblies
     internal static Assembly StorageInfrastructure => _storageInfrastructure.Value;
 
     //#endif
-    /// <summary>
-    /// The infrastructure modules a host composes, which is what makes one a production module: the
-    /// criterion is a host's own <c>ProjectReference</c>, so the set follows the tree.
-    /// <c>AppTemplate.Infrastructure.InMemory</c> falls outside it because no host names it — it
-    /// exists to replace their adapters in a test host, and its doubles are public by design because
-    /// a test has to reach them.
-    /// </summary>
     internal static IReadOnlyList<Assembly> ProductionInfrastructure => _productionInfrastructure.Value;
 
-    /// <summary>Every infrastructure module on disk, read from the project graph rather than listed.</summary>
     internal static IReadOnlyList<Assembly> AllInfrastructure => _allInfrastructure.Value;
 
-    /// <summary>
-    /// Every project of the application layer, and every project of the domain. A layer split across
-    /// projects declares its ports across all of them, so a rule addressing "the application layer"
-    /// has to read the whole of it or it checks the half it was written for.
-    /// </summary>
     internal static IReadOnlyList<Assembly> ApplicationLayer => _applicationLayer.Value;
 
     internal static IReadOnlyList<Assembly> DomainLayer => _domainLayer.Value;
 
-    /// <summary>
-    /// The root namespace an assembly owns, which is its simple name: the convention this
-    /// repository checks elsewhere is that a project's name and its root namespace are one string.
-    /// </summary>
     internal static string NamespaceOf(Assembly assembly) =>
         assembly.GetName().Name
         ?? throw new InvalidOperationException("A product assembly has no simple name.");
 
-    /// <summary>
-    /// The projects one layer holds, optionally narrowed by <paramref name="keep"/>, resolved by
-    /// name. Empty is refused: a set read off the tree that came back with nothing would hand every
-    /// rule over it a population of none, and every <c>ShouldNot</c> in them would hold.
-    /// </summary>
     private static IReadOnlyList<Assembly> LayerAssemblies(
         string layerFolder,
         Func<ProjectNode, bool>? keep = null)
@@ -243,11 +166,6 @@ internal static class ArchitectureAssemblies
         return [.. projects.Select(project => Load(project.Name))];
     }
 
-    /// <summary>
-    /// Resolves an assembly by the name its project carries, which is the name the project graph
-    /// knows it by. Throws rather than skipping: an assembly the test's load context cannot reach is
-    /// a missing <c>ProjectReference</c>, and a rule aimed at it would report success.
-    /// </summary>
     private static Assembly Load(string assemblyName)
     {
         try
@@ -264,11 +182,6 @@ internal static class ArchitectureAssemblies
         }
     }
 
-    /// <summary>
-    /// Loads an assembly through a type that has to exist for this project to compile, then
-    /// cross-checks it against <see cref="Assembly.Load(AssemblyName)"/> under the expected simple
-    /// name — so a renamed assembly fails here rather than silently disabling a rule.
-    /// </summary>
     private static Assembly Anchor(Type anchor, string expectedAssemblyName)
     {
         var assembly = anchor.Assembly;
@@ -282,8 +195,6 @@ internal static class ArchitectureAssemblies
                 "namespaces by name; fix the anchor before trusting them.");
         }
 
-        // Redundant on purpose: proves the assembly is resolvable by name from the test's load
-        // context, which is what every rule below relies on.
         var loaded = Assembly.Load(new AssemblyName(expectedAssemblyName));
 
         if (!ReferenceEquals(loaded, assembly))

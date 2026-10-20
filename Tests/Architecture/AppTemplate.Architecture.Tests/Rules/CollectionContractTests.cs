@@ -10,28 +10,12 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// What the sorting/filtering/paging surface guarantees about the shapes it hands between layers.
-/// <para>
-/// Every collection contract — a <c>SortOrder</c>, a <c>Cursor</c>, a
-/// <c>FeaturePageRequest&lt;TFilter&gt;</c> — is a record built only by a validating factory. The value of that
-/// convention is only real if nothing can construct one having skipped the factory, so these rules
-/// check the constructor surface itself rather than trusting the convention was followed.
-/// </para>
-/// </summary>
 public sealed class CollectionContractTests
 {
-    /// <summary>
-    /// <c>AppTemplate.Application.Core.Common.Collections</c> or a feature's own <c>…Collections</c>,
-    /// in any project of the application layer.
-    /// </summary>
     private const string _collectionsNamespacePattern = @"^AppTemplate\.Application\..*\.Collections$";
 
-    /// <summary>Every type the application layer declares, across every project of it.</summary>
     private static IEnumerable<Type> ApplicationLayerTypes =>
         ArchitectureAssemblies.ApplicationLayer.SelectMany(assembly => assembly.GetTypes());
-
-    #region 1. Every validated collection contract is unconstructible without validation
 
     [Fact]
     public void EveryRecordInACollectionsNamespace_HasNoPublicConstructor()
@@ -50,9 +34,6 @@ public sealed class CollectionContractTests
             "PageRequest, SearchTerm, FeaturePageRequest). Either the convention was renamed or the " +
             "rule is stale.");
 
-        // SortableField, SortOrder, SortTerm, CollectionOrder, Cursor, PageRequest, SearchTerm and
-        // FeaturePageRequest. A feature's own filter is not counted here: it travels with the port
-        // that accepts it, and NoPortParameter_IsPartlyValidated holds it to the same standard.
         candidates.Count.ShouldBeGreaterThanOrEqualTo(
             8,
             "Fewer collection-contract records were found than this template is known to declare. " +
@@ -69,13 +50,6 @@ public sealed class CollectionContractTests
                 "only the factory.");
     }
 
-    /// <summary>
-    /// The exclusion the rule above depends on, stated as its own assertion: a policy is a plain
-    /// class, not a record, and is deliberately allowed a public constructor
-    /// (the rule below discovers it by a parameterless one). This
-    /// proves that exemption is explicit rather than accidental — the predicate above excludes it
-    /// because <c>TypeFacts.IsRecord</c> says no, not because nobody looked.
-    /// </summary>
     [Fact]
     public void APolicyClass_IsNotARecordAndIsExemptFromTheConstructorRule()
     {
@@ -96,10 +70,6 @@ public sealed class CollectionContractTests
             "from the no-public-constructor rule above. One turning into a record would silently " +
             "start being covered by that rule instead of this exemption.");
     }
-
-    #endregion
-
-    #region 2. Every ICollectionPolicy is internally consistent
 
     [Fact]
     public void EveryCollectionPolicy_IsInternallyConsistent()
@@ -174,8 +144,6 @@ public sealed class CollectionContractTests
                 $"and MaxPageSize ({policy.MaxPageSize}).";
         }
 
-        // The important one: a feature's own default is parsed by exactly the code path a caller's
-        // 'sort' input takes, so a typo in DefaultSort fails here rather than shipping.
         var parsed = SortOrder.Parse(policy.DefaultSort, policy);
 
         if (parsed.IsFailure)
@@ -194,21 +162,6 @@ public sealed class CollectionContractTests
         }
     }
 
-    #endregion
-
-    #region 3. Nothing that validates itself can be built having skipped the validation
-
-    /// <summary>
-    /// A record that offers a factory returning <c>Result&lt;itself&gt;</c> has declared that it can be
-    /// asked for and refused — so a public constructor beside that factory is a second way in that
-    /// answers nothing, and the value the read side receives may never have been checked.
-    /// <para>
-    /// The discriminant is the type's own shape rather than the folder it sits in, which is the point:
-    /// a feature's paging contract travels with the port that accepts it and a shared one lives in
-    /// <c>Common/Collections</c>, so any rule keyed on location stops describing them the first time
-    /// something moves. This one cannot be defeated by moving a file.
-    /// </para>
-    /// </summary>
     [Fact]
     public void EveryRecord_WithAValidatingFactory_HasNoPublicConstructor()
     {
@@ -219,8 +172,6 @@ public sealed class CollectionContractTests
             .Where(HasAValidatingFactory)
             .ToList();
 
-        // Cursor, PageRequest, SearchTerm, SortOrder from Common/Collections, and the features' own
-        // filters, wherever the layout puts them.
         validated.Count.ShouldBeGreaterThanOrEqualTo(
             6,
             "Fewer self-validating records were found than this template is known to declare. The " +
@@ -237,11 +188,6 @@ public sealed class CollectionContractTests
                 "it hands the rest of the system a contract nobody checked.");
     }
 
-    /// <summary>
-    /// Proves the discovery above can select, by applying it to a record written here to have exactly
-    /// the shape it looks for. If this failed, the rule would be filtering everything out and passing
-    /// over an empty set.
-    /// </summary>
     [Fact]
     public void TheValidatingFactoryRule_IsSensitive_AndSelectsSuchARecord()
     {
@@ -254,18 +200,11 @@ public sealed class CollectionContractTests
             "report it. That is what makes the emptiness of the real result meaningful.");
     }
 
-    /// <summary>
-    /// A static method returning <see cref="Result{TValue}"/> of the very type that declares it.
-    /// Non-public factories count: <c>Cursor.Decode</c> and <c>SortTerm.Of</c> are internal, and are
-    /// no less the only way in.
-    /// </summary>
     private static bool HasAValidatingFactory(Type type) =>
         type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
             .Any(method => method.ReturnType.IsGenericType
                 && method.ReturnType.GetGenericTypeDefinition() == typeof(Result<>)
                 && method.ReturnType.GetGenericArguments()[0] == type);
-
-    #endregion
 
     private static bool IsCollectionsNamespace(string @namespace) =>
         Regex.IsMatch(@namespace, _collectionsNamespacePattern, RegexOptions.None, TimeSpan.FromSeconds(5));
@@ -274,12 +213,6 @@ public sealed class CollectionContractTests
         type.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Length > 0;
 }
 
-/// <summary>
-/// A record with both a Result-returning factory and a public constructor — the shape
-/// <see cref="CollectionContractTests.EveryRecord_WithAValidatingFactory_HasNoPublicConstructor"/>
-/// forbids. It lives in the test project so the sensitivity proof needs no violation in the product
-/// code, and so the rule itself — which reads the application assembly — never sees it.
-/// </summary>
 internal sealed record DeliberatelyValidatedRecord(string Value)
 {
     public static Result<DeliberatelyValidatedRecord> Create(string value) =>

@@ -5,46 +5,13 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// That a measurement a host takes is a measurement somebody can read.
-/// <para>
-/// An instrument is recorded to whether or not anything listens, and OpenTelemetry exports only the
-/// meters and sources a host names explicitly. So a <c>Meter</c> declared and never passed to
-/// <c>AddMeter</c> costs the same to record, reads correctly in a unit test holding a
-/// <c>MeterListener</c>, and reaches no collector. Nothing about the declaration says whether the
-/// registration exists, and prose beside it is not evidence — which is why this is a rule rather
-/// than a convention.
-/// </para>
-/// <para>
-/// Read from the source tree, for the reason <c>BackgroundWorkTests</c> gives: this project
-/// deliberately does not reference the host, so the host is invisible to reflection from here and
-/// the text is what is left. The hosts themselves come from the disk, so a second one is covered the
-/// day it exists.
-/// </para>
-/// <para>
-/// Only a host's <em>own</em> instruments are in scope. A meter belonging to a module a host
-/// composes is that host's decision to export or not — the API names such a meter beside the job
-/// that records on it, since nothing else would make it observable.
-/// </para>
-/// </summary>
 public sealed class ObservabilityRegistrationTests
 {
-    /// <summary>
-    /// The name constant a diagnostics class exposes so that the declaration and the registration can
-    /// be one string. Requiring the constant is half the rule: a name written as a literal at the
-    /// point of construction is a name this rule cannot follow, and the check below reports a host
-    /// file that declares an instrument without one.
-    /// </summary>
     private static readonly Regex _nameConstant = new(
         @"const\s+string\s+Name\s*=\s*""([^""]+)""\s*;",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// A field of one of the two instrument types. Matches the target-typed form these classes
-    /// actually use — <c>static readonly Meter _meter = new(Name);</c> — where the type appears only
-    /// on the left of the assignment.
-    /// </summary>
     private static readonly Regex _meterField = new(
         @"\bMeter\s+[A-Za-z_][A-Za-z0-9_]*\s*=",
         RegexOptions.None,
@@ -69,10 +36,6 @@ public sealed class ObservabilityRegistrationTests
 
             string registrations = ReadObservabilitySource(directory);
 
-            // Somewhere this rule reads has to exist wherever there is an instrument to register.
-            // Without one, no registration text is read and every instrument the host declares is
-            // reported with no place named to fix it in — a failure that reads as the host's and is
-            // the rule's. The count below cannot catch it, so it is asserted here.
             bool declaresAnything = SourceFilesUnder(directory).Any(file =>
             {
                 string text = File.ReadAllText(file);
@@ -152,12 +115,6 @@ public sealed class ObservabilityRegistrationTests
             "AddMeter for a Meter, AddSource for an ActivitySource.");
     }
 
-    /// <summary>
-    /// Proves the matcher can say no, which the rule above cannot: it reports offenders, so a
-    /// matcher that answered "registered" to everything would read as a pass. Both spellings the
-    /// rule accepts are checked, because accepting only the literal would quietly fail every
-    /// registration in this repository — all of which go through the constant.
-    /// </summary>
     [Fact]
     public void TheRegistrationMatcher_IsSensitive_AndTellsTheTwoSpellingsFromSilence()
     {
@@ -186,14 +143,6 @@ public sealed class ObservabilityRegistrationTests
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// Where a host names what it exports: every <c>Common/Observability/</c> file, which is the
-    /// host's own registration, and every file called <c>*Telemetry.cs</c>, which is how a feature
-    /// that owns instruments adds them to that pipeline — Common may not name a feature, so the jobs'
-    /// registration sits beside the jobs. Concatenated. A host with neither registers nothing, which
-    /// is an empty string and therefore an offender for each instrument it declares — the correct
-    /// answer rather than a skip.
-    /// </summary>
     private static string ReadObservabilitySource(string hostDirectory)
     {
         string folder = Path.Combine(hostDirectory, "Common", "Observability");

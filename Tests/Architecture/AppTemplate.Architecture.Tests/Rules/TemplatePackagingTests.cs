@@ -7,25 +7,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// What the <c>dotnet new</c> manifest has to keep in step with the solution.
-/// <para>
-/// The guid list is maintained by hand, and nothing about adding a project prompts anyone to
-/// update it. A project missing from it leaves generated projects sharing an identifier that is
-/// supposed to be unique per generation — a collision that surfaces far from its cause, in a NuGet
-/// cache key or two solutions opened side by side.
-/// </para>
-/// <para>
-/// These rules belong to the template repository: <c>.template.config/</c> is the template's own
-/// metadata, so this file is not part of a generated project.
-/// </para>
-/// </summary>
 public sealed class TemplatePackagingTests
 {
-    /// <summary>
-    /// Visual Studio's own kind identifiers: a C# project and a solution folder. They name what a
-    /// project *is*, so regenerating them would describe a kind that does not exist.
-    /// </summary>
     private static readonly string[] _projectTypeGuids =
     [
         "FAE04EC0-301F-11D3-BF4B-00C04F79EFBC",
@@ -57,10 +40,6 @@ public sealed class TemplatePackagingTests
                 "projects generated from this template would share it. Add it there.");
     }
 
-    /// <summary>
-    /// The converse: a guid listed for regeneration that no longer exists is dead weight, and it
-    /// hides whether the list is being maintained at all.
-    /// </summary>
     [Fact]
     public void NoDeclaredGuid_IsAbsentFromTheSolution()
     {
@@ -76,10 +55,6 @@ public sealed class TemplatePackagingTests
                 "behind by a removed project, and a stale list is one nobody trusts.");
     }
 
-    /// <summary>
-    /// The two type guids must stay out of the list, or every generated project would claim to hold
-    /// a project kind Visual Studio has never heard of.
-    /// </summary>
     [Fact]
     public void TheProjectTypeGuids_AreNotRegenerated()
     {
@@ -94,22 +69,10 @@ public sealed class TemplatePackagingTests
         }
     }
 
-    /// <summary>
-    /// <c>--files false</c> removes the storage projects from the generated solution through
-    /// conditional lines on <c>files</c> in <c>AppTemplate.sln</c>. An IDE that rewrites the solution drops
-    /// those lines, and the generated solution would then name projects that were not generated.
-    /// </summary>
     [Fact]
     public void EveryStorageProjectLine_InTheSolution_IsConditionedOnFiles() =>
-        // Spelled in two halves: written whole, the template engine would read the literal as a
-        // condition of its own when it generates this file.
         AssertEveryProjectLineIsConditioned(".Storage", "#" + "if (files)", expectedProjects: 2);
 
-    /// <summary>
-    /// <c>--auth none</c> removes the supplied Auth projects the same way, through conditional lines
-    /// on <c>localAuth</c>: the two modules, their two unit-test projects and the integration-test
-    /// project of the identity store.
-    /// </summary>
     [Fact]
     public void EveryAuthProjectLine_InTheSolution_IsConditionedOnLocalAuth() =>
         AssertEveryProjectLineIsConditioned(".Auth", "#" + "if (localAuth)", expectedProjects: 5);
@@ -147,11 +110,6 @@ public sealed class TemplatePackagingTests
         unconditioned.ShouldBeEmpty($"These solution lines name a '{marker}' project outside a block opened by '{opening}'.");
     }
 
-    /// <summary>
-    /// <c>--sonar false</c> generates the tool manifest from a copy under <c>.template.config/</c>,
-    /// because a tool manifest cannot hold a comment. The copy is the manifest minus the scanner,
-    /// and a version bumped in one and not the other would make the two generations disagree.
-    /// </summary>
     [Fact]
     public void TheToolManifestWithoutSonar_IsTheToolManifestMinusTheScanner()
     {

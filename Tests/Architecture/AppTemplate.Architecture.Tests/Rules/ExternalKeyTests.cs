@@ -5,27 +5,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Constants whose value is read by something outside this repository: a configuration section an
-/// operator writes in <c>appsettings.json</c>, and a token-provider name ASP.NET Identity stores
-/// against a row. Renaming one of these is not a refactor — it is a breaking change to a contract
-/// the compiler cannot see, and every test in this repository can stay green while it happens.
-/// <para>
-/// That is not hypothetical. A rename of a type called <c>PasswordReset</c> swept
-/// <c>PasswordResetOptions.SectionName</c>, the four <c>appsettings.json</c> files carrying that
-/// section, and the composition test's own configuration dictionary, all at once. Everything agreed
-/// with everything else, all 2 135 tests passed, and the only thing that had changed was the key an
-/// operator's existing configuration file uses. These rules anchor the values to the type name
-/// instead, so a sweep that moves both still fails.
-/// </para>
-/// </summary>
 public sealed class ExternalKeyTests
 {
-    /// <summary>
-    /// Options whose section is deliberately not their type name. Each is an existing external
-    /// contract that predates the convention, so the exception is written down rather than the
-    /// convention weakened — and the list is what a reviewer reads when someone proposes a sixth.
-    /// </summary>
     private static readonly Dictionary<string, string> _sectionExceptions = new(StringComparer.Ordinal)
     {
         //#if (localAuth)
@@ -49,11 +30,6 @@ public sealed class ExternalKeyTests
         TimeSpan.FromSeconds(5));
     //#endif
 
-    /// <summary>
-    /// An options class named <c>XOptions</c> binds the section named <c>X</c>, unless it is one of
-    /// the six that say otherwise above. A nested section is its segments run together:
-    /// <c>FilesStorageS3Options</c> binds <c>Files:Storage:S3</c>.
-    /// </summary>
     [Fact]
     public void EverySectionName_IsItsOptionsTypeName()
     {
@@ -77,11 +53,6 @@ public sealed class ExternalKeyTests
     }
     //#if (localAuth)
 
-    /// <summary>
-    /// A token-provider name is handed to ASP.NET Identity and stored against the user row that
-    /// holds the token. Changing it does not fail to compile and does not fail a test; it silently
-    /// invalidates every token already issued under the old name.
-    /// </summary>
     [Fact]
     public void EveryTokenProviderName_IsItsTypeNameWithoutTheSuffix()
     {

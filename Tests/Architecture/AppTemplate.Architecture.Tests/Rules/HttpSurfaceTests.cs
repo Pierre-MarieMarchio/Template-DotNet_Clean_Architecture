@@ -5,38 +5,16 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Three properties of the HTTP surface that no compiler and no unit test can see, because each one
-/// is about what the API <em>does not</em> do. They are read from source rather than from metadata:
-/// this test project deliberately references no presentation project, so that the container tests
-/// compose them module by module the way <c>Program.cs</c> does.
-/// <para>
-/// The walk covers all of <c>Src/Presentation</c> rather than one project: a walk naming the
-/// projects it knows about would pass over the next host silently.
-/// </para>
-/// </summary>
 public sealed class HttpSurfaceTests
 {
-    /// <summary>
-    /// The actions allowed to answer an unauthenticated caller, by method name. Authorisation is
-    /// default-deny — the fallback policy demands an authenticated user — so this list is the whole
-    /// of the public surface, and adding to it is a line in this test rather than an attribute
-    /// nobody reviews.
-    /// </summary>
     private static readonly string[] _anonymousActions =
     [
         //#if (localAuth)
         "ConfirmEmail",
         "Login",
-        // The external-provider entry point. Anonymous for exactly the reason /auth/login is: it is
-        // where a caller who holds no token of ours arrives. What it accepts is a provider's signed
-        // id_token, and the refusal path is deliberately as uninformative as the local one's.
         "LoginWithExternalProvider",
         "LoginWithTwoFactor",
         "Logout",
-        // The passkey sign-in's two halves: the options call issues a challenge to a caller with
-        // no account to name, and the assertion completes it. Anonymous for exactly the reason
-        // /auth/login is, and one answer for every refusal for the same one.
         "BeginPasskeySignIn",
         "CompletePasskeySignIn",
         "Refresh",
@@ -47,21 +25,8 @@ public sealed class HttpSurfaceTests
         //#endif
     ];
 
-    /// <summary>
-    /// The minimal endpoints mapped rather than declared on a controller, which opt out fluently and
-    /// so carry no attribute for the scan above to find. Two health probes, mapped by
-    /// <c>MapApiHealthEndpoints</c>, and the OpenAPI document and its reference page, which the
-    /// host maps in Development only.
-    /// </summary>
     private const int _fluentlyAnonymousEndpoints = 4;
 
-    /// <summary>
-    /// <c>Headers.Link</c> is the one that matters. <c>IHeaderDictionary</c> carries a generated
-    /// property per known header, and this repository writes every response header through it —
-    /// <c>Response.Headers.ETag</c>, <c>.RetryAfter</c>, <c>.CacheControl</c>, <c>.Vary</c>. A rule
-    /// that watched only for the quoted name and <c>HeaderNames</c> therefore forbade the two
-    /// spellings nobody here uses and allowed the house idiom.
-    /// </summary>
     private static readonly string[] _linkNeedles = ["\"Link\"", "HeaderNames.Link", "Headers.Link"];
 
     private static readonly string[] _scheduleNeedles =
@@ -72,11 +37,6 @@ public sealed class HttpSurfaceTests
         RegexOptions.Singleline,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>
-    /// Whether there is a next page is stated once, in <c>PagedResult</c>, in the body every client
-    /// already parses. A <c>Link</c> header would be a second statement of the same fact, free to
-    /// disagree with the first.
-    /// </summary>
     [Fact]
     public void NoResponse_CarriesALinkHeader()
     {
@@ -85,10 +45,6 @@ public sealed class HttpSurfaceTests
             "keep true.");
     }
 
-    /// <summary>
-    /// One version ships. Announcing a sunset date nobody has committed to is a promise the
-    /// repository cannot keep; delete this test the day a second version exists.
-    /// </summary>
     [Fact]
     public void NoResponse_AnnouncesItsOwnDeprecation()
     {
@@ -97,10 +53,6 @@ public sealed class HttpSurfaceTests
             "schedule.");
     }
 
-    /// <summary>
-    /// Proves the walk can see an attribute at all — a scan that matched nothing would report no
-    /// offenders for every rule above and read as four passes.
-    /// </summary>
     [Fact]
     public void EveryAnonymousEndpoint_IsOnTheList()
     {
@@ -132,12 +84,6 @@ public sealed class HttpSurfaceTests
             "see it and only this count stands between one more and nobody noticing.");
     }
 
-    /// <summary>
-    /// Proves each needle set detects every spelling it names, on text rather than on the tree. The
-    /// rules above are satisfied by an empty result, so nothing about them says the needles would
-    /// find anything: this is what stands between a mistyped needle and rules that pass on
-    /// every input.
-    /// </summary>
     [Theory]
     [InlineData("Response.Headers.Link = value;")]
     [InlineData("context.Response.Headers[HeaderNames.Link] = value;")]
@@ -151,10 +97,6 @@ public sealed class HttpSurfaceTests
     public void TheScheduleNeedles_DetectEverySpellingTheyName(string source) =>
         Mentions(source, _scheduleNeedles).ShouldBeTrue();
 
-    /// <summary>
-    /// The complement: ordinary code must not match, or the rules would be unsatisfiable and the
-    /// tests above would prove only that the needles match everything.
-    /// </summary>
     [Theory]
     [InlineData("Response.Headers.ETag = tag;")]
     public void TheNeedles_LeaveOrdinaryCodeAlone(string source)

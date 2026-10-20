@@ -6,52 +6,19 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Whether a domain event is listened to is a decision, and this is where it is recorded.
-/// <para>
-/// Nothing else relates the events that are raised to the consumers that exist, so without this rule
-/// a file can explain at length and convincingly that a deletion event has a consumer reclaiming its
-/// bytes promptly, no such consumer be written, and every test stay green. Prose is the only thing
-/// asserting a consumer exists, and prose is not checked.
-/// </para>
-/// </summary>
 public sealed class DomainEventTests
 {
-    /// <summary>
-    /// The events nothing listens to, on purpose. An event with no consumer is a perfectly good
-    /// thing — it is a fact the domain publishes for a future reader — but it has to be a decision
-    /// somebody made rather than a consumer somebody forgot, and this list is where the difference
-    /// is stated.
-    /// </summary>
     private static readonly string[] _deliberatelyUnconsumed =
     [
         //#if (todoLists)
-        // A creation fact, published for an audit or a projection a project may want. Nothing in the
-        // template needs it.
         "TodoListCreatedDomainEvent",
-
-        // The counterpart of completion. Reopening does not resurrect a cancelled reminder: firing
-        // re-reads the item's state anyway, so a consumer here would duplicate that check.
         "TodoItemReopenedDomainEvent",
         //#endif
         //#if (reminders)
-
-        // Firing is already recorded on the aggregate and counted by the reminder job's own log. A
-        // consumer would be a second place to keep in step for no gain.
         "ReminderFiredDomainEvent",
         //#endif
         //#if (files)
-
-        // The hook a project adds derivative generation to — thumbnails, previews, transcoding.
-        // Deliberately empty here: the template has no image pipeline, and an unused consumer that
-        // did nothing would be worse documentation than this line.
         "StoredFileMadeAvailableDomainEvent",
-
-        // A refusal, published for a project that wants to notify the owner or raise an alert.
-        // Nothing consumes it, and nothing that has to may be built on it: the state is committed
-        // on the row before this is dispatched, so the file is already unservable by then — a
-        // consumer here could only ever be a notification, never the thing that makes the refusal
-        // true.
         "StoredFileQuarantinedDomainEvent",
         //#endif
     ];
@@ -100,11 +67,6 @@ public sealed class DomainEventTests
             "it — and check that no comment anywhere claims a consumer that does not exist.");
     }
 
-    /// <summary>
-    /// The list cannot outlive what it describes. An entry naming an event that has since gained a
-    /// consumer — or been deleted — would be documenting a decision nobody is making any more, and
-    /// would quietly excuse the next event that arrives under the same name.
-    /// </summary>
     [Fact]
     public void NoEventIsListedAsUnconsumed_WhileSomethingConsumesIt()
     {

@@ -2,17 +2,6 @@
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
 
-/// <summary>One product project and the projects it declares a reference to.</summary>
-/// <param name="Name">The project's file name without its extension, which is also its assembly name.</param>
-/// <param name="RelativePath">Path from the repository root, for failure messages.</param>
-/// <param name="References">The <c>ProjectReference</c> targets, by project name.</param>
-/// <param name="IsSdkProject">
-/// Whether the project declares <c>IsSdkProject</c> as true, which is how an SDK project says so.
-/// </param>
-/// <param name="HasProgram">Whether a <c>Program.cs</c> sits at the project's root.</param>
-/// <param name="Sdk">The project's <c>Sdk</c> attribute, such as <c>Microsoft.NET.Sdk.Web</c>.</param>
-/// <param name="FrameworkReferences">The <c>FrameworkReference</c> items the project declares.</param>
-/// <param name="Packages">The <c>PackageReference</c> items the project declares.</param>
 internal sealed record ProjectNode(
     string Name,
     string RelativePath,
@@ -23,32 +12,14 @@ internal sealed record ProjectNode(
     IReadOnlySet<string> FrameworkReferences,
     IReadOnlySet<string> Packages);
 
-/// <summary>
-/// The <c>ProjectReference</c> graph of everything under <c>Src</c>, read from the project files.
-/// <para>
-/// This complements the IL-level rules rather than duplicating them. NetArchTest can only see a
-/// dependency that is actually <em>used</em>; a project reference that nothing consumes yet is
-/// invisible to it, and is exactly how an inward-pointing arrow gets established one release
-/// before anybody depends on it. The declaration is the thing worth constraining, so it is read
-/// from the declaration.
-/// </para>
-/// </summary>
 internal static class ProjectReferenceGraph
 {
     private const string _infrastructurePrefix = "AppTemplate.Infrastructure.";
 
-    /// <summary>The repository root, located by walking up from the test assembly.</summary>
     internal static string RepositoryRoot { get; } = LocateRepositoryRoot();
 
-    /// <summary>Every project under <c>Src</c>, keyed by project name.</summary>
     internal static IReadOnlyDictionary<string, ProjectNode> SourceProjects { get; } = ReadSourceProjects();
 
-    /// <summary>
-    /// An adapter set a host composes: a project of the infrastructure layer that is not the
-    /// layer's SDK half. <c>IsSdkProject</c> decides, the same declaration that identifies
-    /// an SDK project, so a shared foundation added to the layer is excluded from the module rules
-    /// the moment it exists rather than when somebody remembers a list.
-    /// </summary>
     internal static bool IsInfrastructureModule(string projectName) =>
         projectName.StartsWith(_infrastructurePrefix, StringComparison.Ordinal)
         && !IsSdkProject(projectName);
@@ -56,31 +27,16 @@ internal static class ProjectReferenceGraph
     internal static IEnumerable<ProjectNode> InfrastructureModules =>
         SourceProjects.Values.Where(project => IsInfrastructureModule(project.Name));
 
-    /// <summary>
-    /// A composition root: a project holding a <c>Program.cs</c> at its root. The entry point
-    /// decides, not the location and not the name, so a new host is covered by the rules the moment
-    /// it exists rather than when somebody lists it — and a library that shares the presentation
-    /// layer with a host is not mistaken for one.
-    /// </summary>
     internal static bool IsHost(ProjectNode project) => project is { HasProgram: true };
 
     internal static IEnumerable<ProjectNode> Hosts => SourceProjects.Values.Where(IsHost);
 
-    /// <summary>
-    /// The vendored SDK projects, recognised by the <c>IsSdkProject</c> marker each declares.
-    /// Declaration decides, so a project added later is governed the day it declares itself.
-    /// </summary>
     internal static IEnumerable<ProjectNode> SdkProjects =>
         SourceProjects.Values.Where(project => project.IsSdkProject);
 
     internal static bool IsSdkProject(string projectName) =>
         SourceProjects.TryGetValue(projectName, out var project) && project.IsSdkProject;
 
-    /// <summary>
-    /// The projects of one layer, named by the folder <c>Src</c> groups them under. Location
-    /// decides, so a project added to a layer joins every population read from that layer the moment
-    /// it exists rather than when somebody lists it.
-    /// </summary>
     internal static IEnumerable<ProjectNode> ProjectsInLayer(string layerFolder)
     {
         string prefix = Path.Combine("Src", layerFolder) + Path.DirectorySeparatorChar;
@@ -90,11 +46,6 @@ internal static class ProjectReferenceGraph
             .OrderBy(project => project.Name, StringComparer.Ordinal);
     }
 
-    /// <summary>
-    /// A project and everything it reaches through <c>ProjectReference</c>, however many hops away.
-    /// A reference to something outside <c>Src</c> is not followed: it has no project file here to
-    /// read.
-    /// </summary>
     internal static IReadOnlyList<ProjectNode> ClosureOf(ProjectNode project)
     {
         var seen = new Dictionary<string, ProjectNode>(StringComparer.Ordinal) { [project.Name] = project };
@@ -114,7 +65,6 @@ internal static class ProjectReferenceGraph
         return [.. seen.Values.OrderBy(node => node.Name, StringComparer.Ordinal)];
     }
 
-    /// <summary>The directory holding a project file, which is the project's root.</summary>
     internal static string RootOf(ProjectNode project) =>
         Path.GetDirectoryName(Path.Combine(RepositoryRoot, project.RelativePath))!;
 
@@ -156,7 +106,6 @@ internal static class ProjectReferenceGraph
         return projects;
     }
 
-    // SDK-style project files carry no XML namespace, so the element names below are unqualified.
     private static HashSet<string> ReadProjectReferences(XDocument document) =>
         document
             .Descendants("ProjectReference")
@@ -179,11 +128,6 @@ internal static class ProjectReferenceGraph
             .Descendants("IsSdkProject")
             .Any(element => bool.TryParse(element.Value.Trim(), out bool marked) && marked);
 
-    /// <summary>
-    /// Walks up from the test assembly until it finds the directory that owns Central Package
-    /// Management and the product tree. Throws rather than returning a guess: a rule that silently
-    /// found no project files would pass.
-    /// </summary>
     private static string LocateRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -5,15 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// How the infrastructure modules are allowed to relate to each other and to the host.
-/// <para>
-/// The shape being defended: modules depend on the persistence project and on nothing else
-/// horizontal, that project depends on no module, its cross-cutting mechanisms know no business
-/// entity, and the API is the only place that knows the full set. That is what lets a module be
-/// added or dropped without any other module noticing.
-/// </para>
-/// </summary>
 public sealed class ModuleDependencyTests
 {
     private const string _apiProject = "AppTemplate.Api";
@@ -23,7 +14,6 @@ public sealed class ModuleDependencyTests
     private const string _applicationCoreProject = "AppTemplate.Application.Core";
     private const string _persistenceProject = "AppTemplate.Infrastructure.Persistence";
 
-    /// <summary>The single context, named here because two rules below address it by name.</summary>
     private const string _contextTypeName = "AppDbContext";
 
     private static readonly string[] _modulesThatMustNotReachIntoPersistence =
@@ -35,29 +25,16 @@ public sealed class ModuleDependencyTests
         ArchitectureAssemblies.InMemoryInfrastructureNamespace,
     ];
 
-    /// <summary>
-    /// What the cross-cutting persistence mechanisms must not name: a business entity, or one of
-    /// the per-feature namespaces that map them.
-    /// </summary>
     private static readonly string[] _forbiddenInPersistenceCommon =
     [
         ArchitectureAssemblies.DomainFeaturesNamespace,
         ArchitectureAssemblies.PersistenceFeaturesNamespace,
         ArchitectureAssemblies.ApplicationFeaturesNamespace,
         //#if (localAuth)
-
-        // Authentication is a feature like any other, and it is a project of its own rather than a
-        // folder under the one above — so the prefix that catches the business features does not
-        // reach it. Listed separately, because a shared mechanism that named an authentication port
-        // would otherwise be the one feature this rule stopped seeing.
         ArchitectureAssemblies.ApplicationAuthNamespace,
         //#endif
     ];
 
-    /// <summary>
-    /// The modules whose <c>Common/</c> is held to the same rule as the persistence one: what no
-    /// single subject owns may not name a subject.
-    /// </summary>
     private static readonly (string Module, System.Reflection.Assembly Assembly)[] _moduleCommons =
     [
         //#if (localAuth)
@@ -70,34 +47,14 @@ public sealed class ModuleDependencyTests
         ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
     ];
 
-    /// <summary>
-    /// The types under a module's <c>Common/</c> allowed to name a feature anyway, each with the
-    /// reason it belongs to no single subject beside it. Empty, and held empty by
-    /// <see cref="NoModuleCommon_CarriesAnException"/>: a type that implements a vertical's port or
-    /// names a vertical's types — an account directory, say — files under that vertical. It stays a
-    /// list rather than vanishing into the rule's condition so that adding an exception is a line a
-    /// reviewer sees, argued for in its pull request.
-    /// </summary>
     private static readonly string[] _commonTypesAllowedToNameAFeature = [];
 
-    /// <summary>
-    /// A module's <c>Common/</c> holds what serves the module itself and names no feature, without
-    /// exception today. An entry appearing in the list above is an exception being argued for, and
-    /// this is where the argument has to be made: by changing this assertion in the same pull
-    /// request.
-    /// </summary>
     [Fact]
     public void NoModuleCommon_CarriesAnException() =>
         _commonTypesAllowedToNameAFeature.ShouldBeEmpty(
             "Every type that implements a vertical's port or names a vertical's types files under "
             + "that vertical, not under the module's Common/.");
 
-    /// <summary>
-    /// The same rule the persistence mechanisms are held to, applied to every other module that has a <c>Common/</c>.
-    /// <c>Common/</c> holds what no single subject owns; a type there that names a feature is a
-    /// feature adapter wearing the shared machinery's clothes, and the folder stops meaning
-    /// anything.
-    /// </summary>
     [Fact]
     public void EveryModuleCommon_KnowsNoFeature()
     {
@@ -141,9 +98,6 @@ public sealed class ModuleDependencyTests
                 + "with the reason it belongs to no single subject.");
         }
 
-        // Every module with a Common/ is read: two even in the smallest project this template
-        // generates. A filter that stopped matching would otherwise leave this test reporting success
-        // over nothing at all.
         checkedModules.ShouldBeGreaterThanOrEqualTo(
             2,
             $"Only {checkedModules} module Common namespaces yielded types. This rule is written "
@@ -166,17 +120,6 @@ public sealed class ModuleDependencyTests
                 "shared plumbing.");
     }
 
-    /// <summary>
-    /// The cross-cutting mechanisms work through <c>AppTemplate.Domain.Core.Common</c> abstractions —
-    /// <c>IAuditable</c>, <c>IVersioned</c>, <c>IDomainEvent</c> — plus two seams of their own,
-    /// <c>IAggregateFlusher</c> and <c>IDomainEventSource</c>. The moment one of them names a business
-    /// entity or a feature's mapping, auditing, flushing and event dispatch stop being generic and
-    /// every new feature needs a change to all of them.
-    /// <para>
-    /// Scoped to the mechanisms rather than to the whole assembly: the features live in the same
-    /// project and naming business types is their job.
-    /// </para>
-    /// </summary>
     [Fact]
     public void ThePersistenceMechanisms_KnowNoFeature()
     {
@@ -200,16 +143,6 @@ public sealed class ModuleDependencyTests
                 + "Forbidden: " + string.Join(", ", _forbiddenInPersistenceCommon));
     }
 
-    /// <summary>
-    /// The one documented exception, asserted rather than assumed. <c>AppDbContext</c> applies every
-    /// feature's entity configurations, so it necessarily names them: it is the model's composition
-    /// root, exactly as <c>Program.cs</c> is the container's.
-    /// <para>
-    /// Asserted positively so that the exclusion above is a decision rather than a hole. If the context
-    /// ever stopped naming a feature, the rule above would be excluding a type for no reason, and this
-    /// test would say so.
-    /// </para>
-    /// </summary>
     //#if (anyFeature)
     [Fact]
     public void TheContext_IsTheOneThingInCommonThatNamesAFeature()
@@ -231,11 +164,6 @@ public sealed class ModuleDependencyTests
                 + "covering up something it should not.");
     }
 
-    /// <summary>
-    /// Proves the mechanism rule bites. The same forbidden list is applied to the feature namespaces,
-    /// which exist precisely to name those types; if this passed, <c>HaveDependencyOnAny</c> would be
-    /// detecting nothing and the rule above would be decorative.
-    /// </summary>
     [Fact]
     public void TheMechanismRule_IsSensitive_AndDetectsAFeatureDependency()
     {
@@ -257,21 +185,6 @@ public sealed class ModuleDependencyTests
     }
     //#endif
 
-    /// <summary>
-    /// The assembly list the rules above address, against the modules that actually exist on disk.
-    /// </summary>
-    /// <remarks>
-    /// Both lists in <c>ArchitectureAssemblies</c> are maintained by hand, and nothing about adding an
-    /// infrastructure module prompts anyone to extend them. A module missing from them is a module
-    /// five rules in this file walk past while reporting success, because each addresses assemblies by
-    /// name. The rules keyed on the project graph do cover it, because <c>ProjectReferenceGraph</c>
-    /// reads the disk — which is the difference this rule closes.
-    /// <para>
-    /// The sharpest half is the forbidden list in the rule below: it is computed <em>from</em> these
-    /// assemblies, so a module missing here is not only unchecked as a subject — it is also not
-    /// forbidden as a dependency, and another module could reference it freely.
-    /// </para>
-    /// </remarks>
     [Fact]
     public void EveryInfrastructureModuleOnDisk_IsAmongTheAssembliesTheseRulesAddress()
     {
@@ -306,9 +219,6 @@ public sealed class ModuleDependencyTests
             string self = ArchitectureAssemblies.NamespaceOf(assembly);
             RuleAssertions.RequireTypes(assembly);
 
-            // Two permitted horizontal dependencies, and neither is a module with its own vertical:
-            // Persistence is shared plumbing, and the layer's SDK half is a mechanism no
-            // module owns.
             string[] forbidden = ArchitectureAssemblies.AllInfrastructure
                 .Select(ArchitectureAssemblies.NamespaceOf)
                 .Where(candidate => !string.Equals(candidate, self, StringComparison.Ordinal))
@@ -349,12 +259,6 @@ public sealed class ModuleDependencyTests
         }
     }
 
-    // ---- The declared reference graph ---------------------------------------------------------
-    //
-    // The rules below read the project files. An unused ProjectReference is invisible to
-    // NetArchTest but is still a declared, inward-pointing arrow — and is how the next violation
-    // gets its foothold.
-
     [Fact]
     public void TheDomainLayer_ReferencesNothingOutsideItself()
     {
@@ -385,11 +289,6 @@ public sealed class ModuleDependencyTests
                 "whatever it referenced would be referenced by everything.");
     }
 
-    /// <summary>
-    /// The application layer sees the domain and itself, and nothing further out. Read over every
-    /// project of the layer rather than one of them, so a project added to it is constrained the
-    /// moment it exists.
-    /// </summary>
     [Fact]
     public void TheApplicationLayer_ReferencesOnlyTheDomainAndItself()
     {
@@ -421,8 +320,6 @@ public sealed class ModuleDependencyTests
                 _domainProject,
                 $"{_applicationProject} is written against the domain model and must reference it.");
 
-        // The mechanisms know no feature, so they know no aggregate either: the two files here that
-        // need a domain type need only the primitives.
         ProjectReferenceGraph.Project(_applicationCoreProject)
             .References
             .ShouldNotContain(
@@ -444,11 +341,6 @@ public sealed class ModuleDependencyTests
                 "point from a module to the shared plumbing, never back.");
     }
 
-    /// <summary>
-    /// One horizontal edge is allowed in this layer, and it points at the layer's SDK
-    /// half. Nothing points at another module — including the persistence one, which is a module
-    /// like any other now that what a context saves through is the Core's.
-    /// </summary>
     [Fact]
     public void InfrastructureModules_ReferenceOnlyTheLayersCoreHorizontally()
     {
@@ -475,29 +367,15 @@ public sealed class ModuleDependencyTests
             "both may take it; a module reaching sideways for one couples two adapter sets that a " +
             "host is supposed to be able to compose independently.");
 
-        // Non-vacuity: with no reference to the shared foundation, the permission this rule grants
-        // would describe nothing — either that project has gone, or a mechanism two modules share
-        // has gone back to being copied.
         referencesToTheLayersCore.ShouldBeGreaterThan(
             0,
             "No infrastructure module references the SDK half of its own layer, so the " +
             "permission this rule grants describes nothing.");
     }
 
-    /// <summary>
-    /// Any project of the infrastructure layer, modules and the layer's Core alike: the rule above
-    /// has to see a reference in order to decide about it, and
-    /// <see cref="ProjectReferenceGraph.IsInfrastructureModule"/> deliberately no longer counts the
-    /// Core as a module.
-    /// </summary>
     private static bool IsOfTheInfrastructureLayer(string projectName) =>
         projectName.StartsWith("AppTemplate.Infrastructure.", StringComparison.Ordinal);
 
-    /// <summary>
-    /// Composing the modules is a host's job, and only a host's. What the rule protects is that no
-    /// layer below a composition root learns which modules exist, so one can be swapped without any
-    /// other project noticing.
-    /// </summary>
     [Fact]
     public void OnlyAHost_ReferencesInfrastructureModules()
     {
@@ -513,7 +391,6 @@ public sealed class ModuleDependencyTests
             "Only a composition root — a project with a Program.cs — may reference an " +
             "infrastructure module.");
 
-        // Non-vacuity: a host that composes nothing would satisfy the rule for the wrong reason.
         foreach (var host in ProjectReferenceGraph.Hosts)
         {
             host.References
@@ -522,12 +399,6 @@ public sealed class ModuleDependencyTests
         }
     }
 
-    /// <summary>
-    /// The host composes the application layer, which is what keeps the use cases reachable from a
-    /// request and from a background job alike. That the same use cases also run with no HTTP
-    /// context at all is shown by the background-only composition in
-    /// <c>ContainerCompositionTests</c>, not by counting hosts.
-    /// </summary>
     [Fact]
     public void EveryHost_ComposesTheApplicationLayer()
     {

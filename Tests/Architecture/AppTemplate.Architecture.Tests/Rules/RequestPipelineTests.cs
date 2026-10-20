@@ -5,20 +5,6 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Rules;
 
-/// <summary>
-/// Three orderings in the API's request pipeline that change what a caller receives, and that no
-/// compiler and no unit test can see: middleware order is the order of statements, and getting it
-/// wrong produces a working application that is quietly missing a behaviour rather than one that
-/// fails.
-/// </summary>
-/// <remarks>
-/// Two files, because the pipeline is written in one and installed by the other. The order of the
-/// middleware itself is <c>UseHttpPipeline</c>'s, in <c>Common/Hosting</c>; whether a host puts
-/// anything ahead of that call is the host's own, and the third rule below is what keeps the first
-/// two from being true of a pipeline something else already ran in front of. Both are read from
-/// source, because this test project deliberately references neither — the same reason
-/// <c>HttpSurfaceTests</c> and <c>ObservabilityRegistrationTests</c> read their subjects that way.
-/// </remarks>
 public sealed partial class RequestPipelineTests
 {
     private static readonly string _pipelinePath = Path.Combine(
@@ -37,7 +23,6 @@ public sealed partial class RequestPipelineTests
         "AppTemplate.Api",
         "Program.cs");
 
-    /// <summary>Matches <c>app.UseSomething(</c> at the start of a statement.</summary>
     [GeneratedRegex(
         @"^\s*app\.(Use[A-Za-z0-9_]+)\s*\(",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
@@ -61,11 +46,6 @@ public sealed partial class RequestPipelineTests
             + "defect.");
     }
 
-    /// <summary>
-    /// The other ordering the file argues for in prose: the rate limiter partitions on the remote
-    /// address, and CORS, authentication and the exception handler all read the scheme. Both are
-    /// wrong until the forwarded headers have been applied.
-    /// </summary>
     [Fact]
     public void ForwardedHeaders_AreAppliedBeforeAnythingReadsTheRequest()
     {
@@ -79,12 +59,6 @@ public sealed partial class RequestPipelineTests
             + "caller behind it share one bucket.");
     }
 
-    /// <summary>
-    /// The first two rules are about the order inside <c>UseHttpPipeline</c>. They say nothing about
-    /// what a host runs before calling it, and a host that installs a middleware of its own first
-    /// would defeat the ordering below without either of them noticing — the pipeline would still be
-    /// internally correct and the caller's address would still be the proxy's.
-    /// </summary>
     [Fact]
     public void TheHostInstallsTheHttpPipeline_BeforeAnyMiddlewareOfItsOwn()
     {
@@ -111,9 +85,6 @@ public sealed partial class RequestPipelineTests
             .Select(match => match.Groups[1].Value)
             .ToList();
 
-        // The floor these rules need. A pattern that has stopped matching finds nothing, and the
-        // assertions would then be about an empty list: one comparing two -1s, the others reading
-        // past the end. Neither would say what actually went wrong.
         order.Count.ShouldBeGreaterThanOrEqualTo(
             floor,
             $"Only {order.Count} middleware registrations were parsed out of '{path}'. They "

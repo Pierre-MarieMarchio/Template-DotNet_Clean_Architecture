@@ -5,30 +5,8 @@ using Xunit;
 
 namespace AppTemplate.Architecture.Tests.Composition;
 
-/// <summary>
-/// Guards the types that must resolve as ONE instance under several contracts.
-/// </summary>
-/// <remarks>
-/// An aggregate tracker is reached three ways: the repository fills its identity map through one
-/// contract, the flush interceptor drains it through another, and the dispatcher takes domain events
-/// off it through a third. Registered as three independent descriptors it would resolve as three
-/// objects, the repository would fill one map and the interceptor would flush a different empty one,
-/// and **every write would report success while persisting nothing**. Nothing else catches that: the
-/// graph resolves, the build is clean, and only an assertion on reference identity fails.
-/// </remarks>
 public sealed class SharedInstanceRegistrationTests
 {
-    /// <summary>
-    /// Turns red if any of a tracker's registrations stops delegating to the same descriptor — for
-    /// example by a tracker being registered as its own flusher instead of the shared instance.
-    /// <para>
-    /// Asserted per tracker, not across all of them: each aggregate has its own, and the contracts
-    /// they share are collection contracts — the flush interceptor takes
-    /// <c>IEnumerable&lt;IAggregateFlusher&gt;</c> precisely so that every aggregate's map is
-    /// drained. What must hold is that a given tracker appears in those collections **as the same
-    /// object** the repository filled, once each.
-    /// </para>
-    /// </summary>
     [Fact]
     public void EveryAggregateTracker_ResolvesAsOneInstanceUnderEveryContractItServes()
     {
@@ -70,10 +48,6 @@ public sealed class SharedInstanceRegistrationTests
         }
     }
 
-    /// <summary>
-    /// The other half of the invariant: one instance per scope, never shared between scopes. A
-    /// singleton tracker would leak one request's identity map into the next.
-    /// </summary>
     [Fact]
     public void TheAggregateTracker_IsNotSharedBetweenScopes()
     {
@@ -86,8 +60,6 @@ public sealed class SharedInstanceRegistrationTests
         /*#else
         if (tracker is null)
         {
-            // Generated with no aggregate, the composition registers no tracker until the first
-            // aggregate brings one; from then on this reads it.
             return;
         }
         #endif*/
@@ -106,10 +78,6 @@ public sealed class SharedInstanceRegistrationTests
             "request's aggregates into another.");
     }
 
-    /// <summary>
-    /// Every aggregate tracker, discovered from the descriptors rather than hard-coded, so one
-    /// added for a further aggregate is covered without this test being touched.
-    /// </summary>
     private static Type[] TrackerTypes(IServiceCollection services) =>
         [.. services
             .Select(descriptor => descriptor.ImplementationType)
@@ -118,10 +86,6 @@ public sealed class SharedInstanceRegistrationTests
             .Cast<Type>()
             .OrderBy(type => type.Name, StringComparer.Ordinal)];
 
-    /// <summary>
-    /// The contracts one tracker answers to. A delegating registration carries no
-    /// <c>ImplementationType</c>, so it is recognised by what the tracker's own type can satisfy.
-    /// </summary>
     private static Type[] ContractsServedBy(IServiceCollection services, Type tracker) =>
         [.. services
             .Where(descriptor => descriptor.ServiceType != typeof(IDomainEventConsumer))

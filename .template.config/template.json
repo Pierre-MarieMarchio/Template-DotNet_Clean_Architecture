@@ -164,7 +164,7 @@
       "displayName": "GitHub Actions workflows",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include the GitHub Actions workflows that build, test and release the solution (ci.yml, release.yml; web.yml with a web app)."
+      "description": "Include the GitHub Actions workflows that build, test, scan and release the solution (ci.yml, codeql.yml, release.yml; web.yml with a web app)."
     },
     "sonar": {
       "type": "parameter",
@@ -677,6 +677,7 @@
           "condition": "(!ci)",
           "exclude": [
             ".github/workflows/ci.yml",
+            ".github/workflows/codeql.yml",
             ".github/workflows/release.yml",
             ".github/workflows/web.yml"
           ]

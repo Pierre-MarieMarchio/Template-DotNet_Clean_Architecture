@@ -83,10 +83,10 @@ setting, table or test names it.
 | `--files` | `false` | no Files feature and no object store |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
-| `--ci` | `true` | the build, release and web workflows |
+| `--ci` | `true` | the build, code-scanning, release and web workflows |
 <!--#endif-->
 <!--#if (ci && !anyWeb)-->
-| `--ci` | `true` | the build and release workflows |
+| `--ci` | `true` | the build, code-scanning and release workflows |
 <!--#endif-->
 <!--#if (!ci)-->
 | `--ci` | `false` | no workflow |

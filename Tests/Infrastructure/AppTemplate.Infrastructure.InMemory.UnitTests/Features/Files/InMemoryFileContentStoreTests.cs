@@ -3,6 +3,7 @@ using System.Text;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Infrastructure.InMemory.Features.Files;
+using AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Shouldly;
@@ -10,7 +11,7 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
-public sealed class InMemoryFileContentStoreTests
+public sealed class InMemoryFileContentStoreTests : FileContentStoreContract, IDisposable
 {
     private const string _objectKey = "t0/202601/9f2c1d7a4b6e8f0132547698badcfe10";
 
@@ -18,62 +19,20 @@ public sealed class InMemoryFileContentStoreTests
 
     private static readonly byte[] _content = Encoding.UTF8.GetBytes("the deposited bytes");
 
-    private static readonly string _checksum = Convert.ToHexStringLower(SHA256.HashData(_content));
+    private readonly ServiceProvider _provider = FileContentHost.Compose();
 
-    [Fact]
-    public async Task WriteAsync_StoresBytesThatMatchTheDeclarationAndReadsThemBack()
+    private readonly IServiceScope _scope;
+
+    public InMemoryFileContentStoreTests() => _scope = _provider.CreateScope();
+
+    protected override IFileContentStore Store => FileContentHost.StoreIn(_scope);
+
+    protected override void ShouldLeaveNoTrace() => FileContentHost.BucketOf(_provider).Snapshot().ShouldBeEmpty();
+
+    public void Dispose()
     {
-        using var provider = FileContentHost.Compose();
-        using var scope = provider.CreateScope();
-        var store = FileContentHost.StoreIn(scope);
-
-        var outcome = await store.WriteAsync(
-            _objectKey,
-            new MemoryStream(_content),
-            _mediaType,
-            _content.Length,
-            _checksum,
-            TestContext.Current.CancellationToken);
-
-        outcome.ShouldBe(ContentWriteOutcome.Written);
-        await using var read = await store.OpenReadAsync(_objectKey, TestContext.Current.CancellationToken);
-        read.ShouldNotBeNull();
-        using var copy = new MemoryStream();
-        await read.CopyToAsync(copy, TestContext.Current.CancellationToken);
-        copy.ToArray().ShouldBe(_content);
-    }
-
-    [Theory]
-    [InlineData(1, false)]
-    [InlineData(-1, false)]
-    [InlineData(0, true)]
-    public async Task WriteAsync_RefusesBytesThatDisagreeWithTheDeclarationAndStoresNothing(
-        int sizeOffset,
-        bool wrongDigest)
-    {
-        using var provider = FileContentHost.Compose();
-        using var scope = provider.CreateScope();
-
-        var outcome = await FileContentHost.StoreIn(scope).WriteAsync(
-            _objectKey,
-            new MemoryStream(_content),
-            _mediaType,
-            _content.Length + sizeOffset,
-            wrongDigest ? new string('0', 64) : _checksum,
-            TestContext.Current.CancellationToken);
-
-        outcome.ShouldBe(ContentWriteOutcome.ContentMismatch);
-        FileContentHost.BucketOf(provider).Snapshot().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task OpenReadAsync_AnswersNullForAKeyThatHoldsNothing()
-    {
-        using var provider = FileContentHost.Compose();
-        using var scope = provider.CreateScope();
-
-        (await FileContentHost.StoreIn(scope).OpenReadAsync(_objectKey, TestContext.Current.CancellationToken))
-            .ShouldBeNull();
+        _scope.Dispose();
+        _provider.Dispose();
     }
 
     [Fact]
@@ -89,20 +48,6 @@ public sealed class InMemoryFileContentStoreTests
         description.ShouldBe(new StoredObjectDescription(
             _content.Length,
             Convert.ToHexStringLower(SHA256.HashData(_content))));
-    }
-
-    [Fact]
-    public async Task DeleteAsync_RemovesTheObjectAndSaysNothingTheSecondTime()
-    {
-        using var provider = FileContentHost.Compose();
-        using var scope = provider.CreateScope();
-        var store = FileContentHost.StoreIn(scope);
-        FileContentHost.BucketOf(provider).Deposit(_objectKey, _mediaType, _content);
-
-        await store.DeleteAsync(_objectKey, TestContext.Current.CancellationToken);
-        await Should.NotThrowAsync(store.DeleteAsync(_objectKey, TestContext.Current.CancellationToken));
-
-        FileContentHost.BucketOf(provider).Snapshot().ShouldBeEmpty();
     }
 
     [Fact]

@@ -1,20 +1,23 @@
 ﻿using System.Net;
 using System.Security.Cryptography;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Contracts;
 using Shouldly;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Storage;
 
 [Collection(ObjectStoreCollectionDefinition.Name)]
-public sealed class StoredObjectTests(ObjectStoreFixture fixture)
+public sealed class StoredObjectTests(ObjectStoreFixture fixture) : FileContentStoreContract
 {
     private const string _mediaType = "application/octet-stream";
 
     private static readonly byte[] _payload =
         "Forty-two bytes of nothing much, and a digest."u8.ToArray();
 
-    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+    protected override IFileContentStore Store => fixture.Content;
+
+    protected override string NewKey() => ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("contract"));
 
     [Fact]
     public async Task Describing_AnObjectDepositedUnderTheGrantThisModuleMints_ReportsItsRealDigest()
@@ -37,31 +40,6 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     }
 
     [Fact]
-    public async Task AWriteThroughTheStore_IsDescribedAndReadBack()
-    {
-        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("written"));
-        string checksum = Convert.ToHexStringLower(SHA256.HashData(_payload));
-
-        var outcome = await fixture.Content.WriteAsync(
-            objectKey,
-            new MemoryStream(_payload),
-            _mediaType,
-            _payload.Length,
-            checksum,
-            TestToken);
-
-        outcome.ShouldBe(ContentWriteOutcome.Written);
-        (await fixture.Content.DescribeAsync(objectKey, TestToken))
-            .ShouldBe(new StoredObjectDescription(_payload.Length, checksum));
-
-        await using var read = await fixture.Content.OpenReadAsync(objectKey, TestToken);
-        read.ShouldNotBeNull();
-        using var copy = new MemoryStream();
-        await read.CopyToAsync(copy, TestToken);
-        copy.ToArray().ShouldBe(_payload);
-    }
-
-    [Fact]
     public async Task AWriteWhoseDigestDisagrees_IsRefusedAndLeavesNothing()
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("mismatch"));
@@ -77,12 +55,6 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
         outcome.ShouldBe(ContentWriteOutcome.ContentMismatch);
         (await fixture.Content.DescribeAsync(objectKey, TestToken)).ShouldBeNull();
     }
-
-    [Fact]
-    public async Task OpeningAKeyThatHoldsNothing_AnswersNull() =>
-        (await fixture.Content.OpenReadAsync(
-            ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("absent")),
-            TestToken)).ShouldBeNull();
 
     [Fact]
     public async Task ASecondDepositOfDifferentBytes_IsRefusedByTheStore()
@@ -144,19 +116,6 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
     }
 
     [Fact]
-    public async Task Describing_AKeyNothingIsStoredUnder_AnswersAbsent()
-    {
-        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("never-deposited"));
-
-        var description = await fixture.Content.DescribeAsync(objectKey, TestToken);
-
-        description.ShouldBeNull(
-            "the port answers null for a deposit that never happened or one already reclaimed, and " +
-            "the confirmation use case reads that as 'not yet there'. An exception instead would " +
-            "turn a client confirming too early into a fault report.");
-    }
-
-    [Fact]
     public async Task Deleting_MakesTheObjectUnreachable()
     {
         string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("deleted"));
@@ -186,14 +145,6 @@ public sealed class StoredObjectTests(ObjectStoreFixture fixture)
         using var attempt = await fixture.FetchAsync(grant.Url, TestToken);
 
         attempt.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task Deleting_AKeyNothingIsStoredUnder_Succeeds()
-    {
-        string objectKey = ObjectStoreFixture.KeyUnder(ObjectStoreFixture.UniquePrefix("never-there"));
-
-        await Should.NotThrowAsync(() => fixture.Content.DeleteAsync(objectKey, TestToken));
     }
 
     private async Task DepositAsync(string objectKey)

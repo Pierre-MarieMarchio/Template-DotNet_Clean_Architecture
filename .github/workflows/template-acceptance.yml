@@ -234,6 +234,12 @@ jobs:
             echo "::endgroup::"
           done
 
+      # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it.
+      - name: Write the OpenAPI reference (integration legs)
+        if: matrix.integration == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs openapi
+
       # The projects the Docker-free step leaves out, against the runner's Docker: the HTTP surface the options change most.
       - name: Run the integration tests (Testcontainers)
         if: matrix.integration == 'true'

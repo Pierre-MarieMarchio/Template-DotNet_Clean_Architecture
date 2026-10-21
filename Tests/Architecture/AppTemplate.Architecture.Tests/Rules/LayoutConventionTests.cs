@@ -183,7 +183,7 @@ public sealed class LayoutConventionTests
 
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "Common/ is the half of a project that knows no feature, and a word invented there is " +
-            "read by everyone. Adding one is an edit to this list and to docs/PROJECT-LAYOUT.md's " +
+            "read by everyone. Adding one is an edit to this list and to docs/reference/project-layout.md's " +
             "folder map, argued for in the pull request.");
     }
 
@@ -290,7 +290,7 @@ public sealed class LayoutConventionTests
             "A project exists that one of the two vocabularies does not name, so the rule that reads " +
             "it walks past that project and passes. Give it an entry in each — empty when its " +
             "features hold their files side by side, as Email and InMemory do — and write the words " +
-            "into docs/PROJECT-LAYOUT.md's folder map.");
+            "into docs/reference/project-layout.md's folder map.");
     }
 
     private static readonly string[] _projectRootFolders =
@@ -531,7 +531,7 @@ public sealed class LayoutConventionTests
                     "Decide which of the two it is first: something that knows no feature belongs in " +
                     "this layer's Core project, and something several features share as business " +
                     "belongs here. Then give it the words it holds, and write them into " +
-                    "docs/PROJECT-LAYOUT.md's folder map.");
+                    "docs/reference/project-layout.md's folder map.");
             }
 
             return false;

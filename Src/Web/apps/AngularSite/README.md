@@ -105,7 +105,7 @@ export const api = createApiClient();
 ### The pages the mailed links open
 
 Confirmation, password-reset and email-change mails link to pages this app does not have yet. Add
-`/confirm-email`, `/reset-password` and `/confirm-email-change` as the contract in `docs/CONFIGURATION.md`
+`/confirm-email`, `/reset-password` and `/confirm-email-change` as the contract in `docs/features/accounts.md`
 ("The pages the mailed links open") describes, then point `EmailConfirmation:ConfirmEmailUrl`,
 `PasswordReset:ResetPasswordUrl` and `EmailChange:ConfirmEmailChangeUrl` at this app's origin.
 <!--#endif-->

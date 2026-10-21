@@ -1296,7 +1296,7 @@ internal static class NewFeature
         if (!record)
         {
             output.WriteLine("The aggregate raises no event. The first one it raises needs a consumer, or its name in");
-            output.WriteLine("DomainEventTests._deliberatelyUnconsumed with the reason (docs/ADDING-A-FEATURE.md lists the closed lists).");
+            output.WriteLine("DomainEventTests._deliberatelyUnconsumed with the reason (docs/guides/adding-a-feature.md lists the closed lists).");
             output.WriteLine();
         }
 

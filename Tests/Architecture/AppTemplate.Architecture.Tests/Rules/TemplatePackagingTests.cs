@@ -189,6 +189,37 @@ public sealed class TemplatePackagingTests
         overview.ShouldContain($"`{packageId}`", Case.Sensitive, "docs/getting-started/overview.md no longer names the PackageId of .template.config/TemplatePackage.csproj.");
     }
 
+    [Theory]
+    [InlineData(".template.config")]
+    [InlineData(".template.config/webapp/.template.config")]
+    [InlineData(".template.config/webpackage/.template.config")]
+    public void TheIdeHost_ShowsEveryOptionButTheRefusals(string folder)
+    {
+        string directory = Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder);
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "template.json")));
+        using var host = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "ide.host.json")));
+
+        var parameters = manifest.RootElement.GetProperty("symbols").EnumerateObject()
+            .Where(symbol => symbol.Value.GetProperty("type").GetString() == "parameter")
+            .ToList();
+        var options = parameters.Where(symbol => !IsRefusal(symbol.Value)).Select(symbol => symbol.Name).Order(StringComparer.Ordinal).ToList();
+        var shown = host.RootElement.GetProperty("symbolInfo").EnumerateArray()
+            .Where(symbol => symbol.GetProperty("isVisible").GetBoolean())
+            .Select(symbol => symbol.GetProperty("id").GetString()!)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        host.RootElement.GetProperty("defaultSymbolVisibility").GetBoolean().ShouldBeFalse(
+            $"{folder}/ide.host.json shows every symbol by default, the refusals among them.");
+        shown.ShouldBe(options, $"{folder}/ide.host.json must show each option of its template.json and no refusal.");
+        File.Exists(Path.Combine(directory, host.RootElement.GetProperty("icon").GetString()!)).ShouldBeTrue(
+            $"{folder}/ide.host.json names an icon that is not beside it.");
+    }
+
+    private static bool IsRefusal(JsonElement symbol) =>
+        symbol.TryGetProperty("choices", out var choices)
+        && choices.EnumerateArray().All(choice => choice.GetProperty("choice").GetString() == "refused");
+
     private static List<string> PackageExcludes()
     {
         string project = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "TemplatePackage.csproj");

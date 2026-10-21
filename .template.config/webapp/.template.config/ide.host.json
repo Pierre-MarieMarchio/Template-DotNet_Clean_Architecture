@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json.schemastore.org/ide.host",
+  "order": 1,
+  "icon": "icon.png",
+  "learnMoreLink": "https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/blob/main/docs/template/using-the-template.md",
+  "defaultSymbolVisibility": false,
+  "symbolInfo": [
+    {
+      "id": "framework",
+      "name": {
+        "text": "Framework"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "audience",
+      "name": {
+        "text": "Audience"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "workspace",
+      "name": {
+        "text": "Create the workspace"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "scope",
+      "name": {
+        "text": "Package scope"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "port",
+      "name": {
+        "text": "Host port"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "ci",
+      "name": {
+        "text": "Project generated with --ci"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "auth",
+      "name": {
+        "text": "Project authentication"
+      },
+      "isVisible": true
+    }
+  ]
+}

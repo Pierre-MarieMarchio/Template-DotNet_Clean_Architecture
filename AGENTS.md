@@ -91,19 +91,21 @@ From the repository root.
 ```bash
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete|anonymise
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
+dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
 ```
 
 `new-feature` writes the skeleton, its manifest and its page under `docs/features/`, then prints the
-edits to make by hand and the row to add to `docs/README.md`. [Adding a feature](docs/guides/adding-a-feature.md)
+edits to make by hand and the row to add to `docs/README.md`. `new-use-case` adds one operation to a
+feature of the rich shape and prints the action that serves it. [Adding a feature](docs/guides/adding-a-feature.md)
 and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
 This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from
 [adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`
-and its row in `docs/README.md`. [Removing features](docs/guides/removing-features.md) gives the
-reverse.
+and its row in `docs/README.md`. `new-use-case` then adds one operation to it once it has the rich
+shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 <!--#endif-->
 
 ## Done means

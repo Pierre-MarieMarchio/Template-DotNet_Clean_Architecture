@@ -40,7 +40,7 @@ features grow beside them, and the documentation grows with them.
 | Files | stored files, an S3-compatible store and the background passes that inspect and reclaim them |
 <!--#endif-->
 | Background jobs | timers in the API process, switched per instance |
-| Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo |
+| Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case |
 <!--#if (anyWeb)-->
 | Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
 <!--#endif-->

@@ -35,6 +35,8 @@ internal static class Tasks
           --access, --deletion, --operations, --model, --concurrency
                                            new-feature: forwarded to Tools/NewFeature.cs, whose
                                            --help says what each one means
+          --kind, --input                  new-use-case: forwarded to Tools/NewUseCase.cs, whose
+                                           --help says what each one means
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
           --keep-stack                     e2e: leave the stack it started running, data included,
@@ -54,6 +56,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs test --no-integration
           dotnet run Tools/Tasks.cs e2e --keep-stack
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
+          dotnet run Tools/Tasks.cs new-use-case TodoLists ArchiveTodoList --kind command
           dotnet run Tools/Tasks.cs remove-feature Widgets
           dotnet run Tools/Tasks.cs remove-feature Widgets --apply
           dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
@@ -70,6 +73,7 @@ internal static class Tasks
         "format",
         "format-fix",
         "new-feature",
+        "new-use-case",
         "remove-feature",
         "migration-add",
         "database-update",
@@ -153,6 +157,7 @@ internal static class Tasks
         string? second = null;
 
         List<string> featureOptions = [];
+        List<string> useCaseOptions = [];
         bool noIntegration = false;
         bool apply = false;
         bool keepStack = false;
@@ -210,12 +215,26 @@ internal static class Tasks
                     featureOptions.Add(arguments[++i]);
                 }
             }
+            else if (UseCaseOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
+            {
+                useCaseOptions.Add(argument);
+
+                if (!argument.Contains('=', StringComparison.Ordinal))
+                {
+                    if (i + 1 >= arguments.Length)
+                    {
+                        throw new InvalidOperationException($"'{argument}' needs a value.");
+                    }
+
+                    useCaseOptions.Add(arguments[++i]);
+                }
+            }
             else if (argument.StartsWith('-'))
             {
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
-                    + "--keep-stack and --configuration <Debug|Release>, the last after a -- separator, and for "
-                    + $"new-feature {string.Join(", ", FeatureOptionNames)}.");
+                    + "--keep-stack and --configuration <Debug|Release>, the last after a -- separator, for "
+                    + $"new-feature {string.Join(", ", FeatureOptionNames)}, and for new-use-case {string.Join(", ", UseCaseOptionNames)}.");
             }
             else if (task is null)
             {
@@ -246,6 +265,12 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 $"'{featureOptions[0]}' is an option of the new-feature task, not of '{task ?? "(no task)"}'.");
+        }
+
+        if (useCaseOptions.Count > 0 && task != "new-use-case")
+        {
+            throw new InvalidOperationException(
+                $"'{useCaseOptions[0]}' is an option of the new-use-case task, not of '{task ?? "(no task)"}'.");
         }
 
         if (apply && task != "remove-feature")
@@ -349,6 +374,18 @@ internal static class Tasks
                         RequiredSecond(task, second),
                         "--root", repoRoot,
                         .. featureOptions,
+                    ]);
+                break;
+
+            case "new-use-case":
+                Step(
+                    "dotnet",
+                    [
+                        "run", Path.Combine(repoRoot, "Tools", "NewUseCase.cs"),
+                        RequiredUseCase(task, name),
+                        RequiredUseCase(task, second),
+                        "--root", repoRoot,
+                        .. useCaseOptions,
                     ]);
                 break;
 
@@ -579,6 +616,7 @@ internal static class Tasks
     private static void Gates(string repoRoot)
     {
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
+        Step("dotnet", "run", Gate(repoRoot, "NewUseCase.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", repoRoot);
@@ -1075,6 +1113,8 @@ internal static class Tasks
 
     private static readonly string[] FeatureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
 
+    private static readonly string[] UseCaseOptionNames = ["--kind", "--input"];
+
     private static string TaskList() => "  " + string.Join(", ", KnownTasks);
 
     private static string RequiredSecond(string task, string? second)
@@ -1083,6 +1123,17 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 $"The '{task}' task needs two names and --access, e.g. dotnet run Tools/Tasks.cs {task} Widgets Widget --access shared");
+        }
+
+        return second;
+    }
+
+    private static string RequiredUseCase(string task, string? second)
+    {
+        if (string.IsNullOrWhiteSpace(second))
+        {
+            throw new InvalidOperationException(
+                $"The '{task}' task needs the feature and the use case, and --kind, e.g. dotnet run Tools/Tasks.cs {task} TodoLists ArchiveTodoList --kind command");
         }
 
         return second;

@@ -58,7 +58,8 @@ says how a rule fails.
 ### Application
 
 The validator's rules, the errors the feature can answer, and any use case beyond the five
-operations. A use case reaches another feature only through that feature's ports and events.
+operations, which [`new-use-case`](#add-a-use-case) starts. A use case reaches another feature only
+through that feature's ports and events.
 
 ### Persistence
 
@@ -92,6 +93,41 @@ dotnet run Tools/Tasks.cs migration-add Add<Features>
 
 On a project no database has applied a migration to, regenerate `InitialCreate` instead, as
 [migrations](migrations.md#add-a-migration) shows.
+
+## Add a use case
+
+A feature of the rich shape grows one operation at a time:
+
+```bash
+dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query [--input id|none]
+```
+
+`<UseCase>` names the operation, a verb and its subject: `Approve<Feature>`, `Get<Feature>Totals`.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--kind` | required | `command`: changes state and answers a `Result`, under `UseCases/Commands/`. `query`: reads and answers a `Result` of a DTO named for it, under `UseCases/Queries/` |
+| `--input` | `id` | `id`: a command or query carrying the id of the aggregate the feature's repository names, with its validator and its tests. `none`: no input, no validator, no test |
+
+The command writes in the application layer and edits nothing:
+
+- the use case's folder: its command or query, its validator, its named interface and the use case;
+- for a query, its DTO under `Model/Dtos/`, unless the feature already declares one of that name;
+- with `--input id`, one unit test that an empty id is refused before the use case acts, with its
+  control.
+
+Nothing is registered by hand: `AddFeature` in `ApplicationModule` finds the use case and its
+validator by folder. When the feature has a manifest, the files join it, so `remove-feature --apply`
+removes them with the feature while they are untouched.
+
+The use case answers its validation, then throws `NotImplementedException` until its body is written:
+the rule in the aggregate, the load, the call and the commit, each decision with its test. The command
+prints the action, the using and the constructor parameter that serve it over HTTP, and for a query
+the response contract; then rewrite the OpenAPI reference with `dotnet run Tools/Tasks.cs openapi`.
+
+It refuses, writing nothing, a feature that does not exist, a feature of the simple shape, whose
+operations are methods of its service, a use case the feature already has, and `--input id` where the
+feature's repositories do not name one aggregate.
 
 ## The closed lists a feature joins
 

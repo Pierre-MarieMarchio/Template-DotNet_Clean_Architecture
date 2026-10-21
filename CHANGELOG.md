@@ -158,6 +158,17 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   `Tools/sonar-scanner.Dockerfile` supplies the JRE the scanner needs, so the prerequisites are
   still the SDK and Docker.
 
+- **One more use case in a feature: `dotnet run Tools/Tasks.cs new-use-case Invoices ApproveInvoice --kind command`.**
+  `--kind command|query` is required and `--input id|none` defaults to `id`, a command or query carrying
+  the id of the aggregate the feature's repository names. It writes the use case's folder (the input,
+  its validator, the named interface, the use case), a query's DTO, and with an input one unit test that
+  an empty id is refused before the use case acts; the use case validates, then throws
+  `NotImplementedException` until its body is written. It edits nothing: `AddFeature` registers it by
+  folder, and the controller action, its using and constructor parameter, and a query's response
+  contract are printed. A feature of the simple shape, a missing feature and an existing use case are
+  refused before anything is written. When the feature has a manifest, the files join it, so
+  `remove-feature --apply` still removes an untouched feature whole. Its `--self-test` runs with the
+  other hygiene gates.
 - **`dotnet run Tools/Tasks.cs remove-feature Widgets` reports what removing a feature involves, and `--apply` undoes an untouched generated one.**
   The report lists the files the feature owns, what elsewhere is confirmed to depend on it (a registration,
   an EF model configuration, a migration or the snapshot, a use of its types or namespace), what only

@@ -1952,6 +1952,66 @@ logout presents the current cookie, and ignores a failed logout call: a sign-out
 signed in is worse than a grant left to expire. A refresh that answers after a sign-in or a sign-out
 has landed changes nothing, so a slow refusal cannot undo a fresh sign-in.
 
+**React and Angular apps come from their official CLIs, not from the template.** The template does
+not ship or maintain a React or an Angular application: a framework's starter, its build settings and
+its dependency set change with every release, and a hand-written copy would age between two releases
+of the template. `dotnet new` writes the app's wiring alone — `Dockerfile`, `nginx.conf`,
+`compose.yml`, `README.md`, a `scaffold.json` descriptor and an `overlay/` folder — and
+`dotnet run Tools/Tasks.cs web-scaffold`, which `bootstrap` runs, creates the app by running the
+framework's own CLI through `pnpm dlx`: `create-vite` with its `react-ts` template, or the Angular
+CLI's `ng new`. The pages are the CLI's starter pages, as its authors write them; the screens are the
+project's own to write, and each app's README shows how to call the API and sign in with the
+workspace's client.
+
+**The CLI versions are pinned in the descriptors, one per framework.** `scaffold.json` names the
+CLI package, its exact version and its arguments, checked against that version's `--help`; bumping a
+framework is editing that one line and running an acceptance leg. The CLI writes into a scratch folder
+inside `Src/Web`, since `ng new` refuses a directory outside the working one and the pinned pnpm only
+runs from the workspace; nothing is moved into the app's folder until the starter is complete, so a
+failed or offline run leaves the folder as it was, and says that the step needs the registry.
+
+**The overlay owns the wiring and nothing else.** What the template adds to a starter is what binds it
+to this workspace: the dev server's `/api` and `/health` relay (Vite's `vite.config.ts`, replaced
+whole because a Vite dev server is configured there and nowhere else; Angular's `proxy.conf.json`, a
+new file angular.json points at), the package name `pnpm --filter` takes, the
+`@<scope>/api-client` dependency, `dev`/`build`/`lint`/`test` scripts the workspace's recursive runs
+find, and the compiler settings the client's sources need. Settings land as JSON merges into the
+CLI's own files (`package.json`, angular.json, `tsconfig.json`), so a CLI file is replaced only
+where it cannot be configured. No framework code is in the overlay.
+
+**An Angular page allows inline styles, never inline scripts.** Angular inserts each component's
+styles as a `<style>` element when the page runs, which `style-src 'self'` refuses, so the CLI's own
+starter page renders unstyled under it. The Angular app's policy adds `'unsafe-inline'` to
+`style-src` alone; `script-src` stays `'self'`, and the overlay turns off the inlining of critical CSS
+in production builds, whose `onload` handler is a script. A nonce would keep styles strict too, but
+it needs a value per response that a static nginx does not have. The React app keeps `style-src
+'self'`: Vite extracts the styles into files.
+
+**A created app's dependencies are pinned to what was installed.** A CLI writes ranges; after the
+first install `web-scaffold` rewrites every range of every app to the version pnpm installed and
+installs again, so the rule that the workspace states exact versions holds for created apps too, and
+the lockfile it writes is the one a generated project commits. From then on the app is the project's:
+`web-scaffold` and `bootstrap` find no descriptor and leave it alone, and `pnpm install
+--frozen-lockfile`, CI and the image build read that lockfile.
+
+**The client compiles under every framework's settings.** The workspace packages export TypeScript
+sources, so each app's compiler checks them with the app's own options. The shared base therefore
+turns on what the CLIs turn on — `erasableSyntaxOnly` (Vite's), `noPropertyAccessFromIndexSignature`
+(Angular's) — so a package that passes its own build passes inside either app, and the Angular
+overlay adds `allowImportingTsExtensions` with `noEmit` to the app's `tsconfig.json`, since the
+packages import each other by `.ts` path and the Angular builder emits through its own bundler.
+
+**Install scripts of the Angular build tools are refused by name.** pnpm runs no dependency's install
+script unless the workspace says so, and fails the install on one it was not told about. `esbuild`,
+`lmdb`, `msgpackr-extract` and `@parcel/watcher` each ship a prebuilt binary that works without its
+script, so `pnpm-workspace.yaml` lists them under `allowBuilds` as refused, rather than allowed.
+
+**`pnpm api` names a placeholder identity provider.** Under `--auth external` the API refuses to
+start without a provider's issuer and audience, and the document is built by starting it. The
+generator sets both, to `https://identity-provider.invalid/` and `openapi-document`, for the build that
+writes the document, unless the environment already names them; nothing is fetched from that address,
+and the running API reads its own settings as before.
+
 **Under external authentication the session module is unused.** The OIDC client library holds and
 renews the provider's tokens and supplies the access token through `createApiClient({ accessToken })`;
 the API issues no refresh token of its own then. The module stays in the package for every project,
@@ -1987,8 +2047,8 @@ engine edits no YAML: its file-editing post-action handles JSON alone, and a scr
 needs `--allow-scripts`, fails the command when refused and receives no option values. The command
 prints where the line goes, and the new app's `README.md` gives the line and its port setting
 written out. An app without dependencies, as the placeholder, needs no lockfile entry, so
-`pnpm install --frozen-lockfile` stays green after adding one; a framework app changes the lockfile,
-which one `pnpm install` records.
+`pnpm install --frozen-lockfile` stays green after adding one; a react or angular app is created by
+`web-scaffold`, whose install records it in the lockfile.
 
 **`dotnet new cleanarch-webpackage` creates a framework-agnostic package only.** It holds one exported
 function and its test, exports its sources like `api-client`, and pins only the test tools, lint and
@@ -2009,8 +2069,9 @@ the project template keeps only the chosen framework's folder and renames it fro
 item template reads the same folder through its own manifest and renames it from `-n`. The folder's
 name is a token in three spellings — `PlaceholderSite`, `placeholder-site`, `PLACEHOLDER_SITE` —
 replaced in paths and contents, so no word an app would use can collide with it. A framework's
-folder follows the same rule under its own token, so the repository's workspace builds every
-framework's app side by side.
+folder follows the same rule under its own token (`ReactSite`, `AngularSite`) and holds only the
+wiring, its descriptor and its overlay: the repository's workspace has no package for it, and the
+template acceptance legs are where its app is created, built and served.
 
 **A generated project receives the lockfile of its own shape, not the repository's.** The
 repository's workspace holds every framework's app, so its `Src/Web/pnpm-lock.yaml` records
@@ -2019,7 +2080,9 @@ naming a project that is missing. `dotnet run Tools/Tasks.cs web-lockfiles` copi
 per folder under `Src/Web/apps`, keeping that app alone, starts from the union lockfile so no
 version moves, and lets the pinned pnpm prune it with `--lockfile-only`; the result is
 `.template.config/variants/web-<App>/Src/Web/pnpm-lock.yaml`, a source of `template.json` chosen by
-the symbol that keeps the app. The engine replaces the scope and the app's tokens in it as in every
+the symbol that keeps the app. An app holding a `scaffold.json` has no `package.json` in the
+repository and gets no variant: its dependencies come from its CLI, and `web-scaffold` writes the
+generated project's lockfile where the app is created. The engine replaces the scope and the app's tokens in it as in every
 file, which leaves it satisfying the renamed tree. Apps are found by folder, so a new framework
 needs its app and its `template.json` source and nothing else; the task names the source that is
 missing. `web-lockfiles --check`, run by `verify` and by the template workflow's web legs, fails on

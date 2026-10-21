@@ -393,7 +393,7 @@ jobs:
             exit 1
           fi
 
-  # Every folder under Src/Web/apps is an app with its own image.
+  # Every folder under Src/Web/apps holding a Dockerfile and a package.json is an app with its own image; one still holding scaffold.json waits for web-scaffold.
   web-apps:
     name: Web apps
     runs-on: ubuntu-latest
@@ -409,9 +409,9 @@ jobs:
         id: discover
         run: |
           set -euo pipefail
-          apps=$(find Src/Web/apps -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' | xargs -r -n1 basename | sort | jq -R . | jq -cs .)
+          apps=$(find Src/Web/apps -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' | while read -r app; do if [ -f "$app/package.json" ]; then basename "$app"; fi; done | sort | jq -R . | jq -cs .)
           if [ "$apps" = "[]" ]; then
-            echo "::error title=No web app::Src/Web/apps holds no app with a Dockerfile."
+            echo "::error title=No web app::Src/Web/apps holds no app with a Dockerfile and a package.json: run dotnet run Tools/Tasks.cs web-scaffold and commit the app it creates."
             exit 1
           fi
           echo "apps=$apps" >> "$GITHUB_OUTPUT"

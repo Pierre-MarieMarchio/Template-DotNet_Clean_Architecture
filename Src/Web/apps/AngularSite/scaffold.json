@@ -1,0 +1,55 @@
+{
+  "framework": "angular",
+  "name": "angular-site",
+  "package": "@angular/cli",
+  "version": "22.2.3",
+  "arguments": [
+    "new", "{name}", "--directory", "{directory}",
+    "--standalone", "--routing", "--style=css", "--ssr=false", "--test-runner=vitest", "--ai-config=none",
+    "--package-manager=pnpm", "--skip-git", "--skip-install", "--interactive=false", "--defaults"
+  ],
+  "merge": {
+    "package.json": {
+      "name": "angular-site",
+      "packageManager": null,
+      "scripts": {
+        "dev": "ng serve",
+        "test": "ng test --watch=false"
+      },
+      "dependencies": {
+        "@app-template/api-client": "workspace:*"
+      }
+    },
+    "tsconfig.json": {
+      "compilerOptions": {
+        "allowImportingTsExtensions": true,
+        "noEmit": true
+      }
+    },
+    "angular.json": {
+      "projects": {
+        "angular-site": {
+          "architect": {
+            "build": {
+              "configurations": {
+                "production": {
+                  "optimization": {
+                    "styles": {
+                      "inlineCritical": false
+                    }
+                  }
+                }
+              }
+            },
+            "serve": {
+              "options": {
+                "port": 4200,
+                "proxyConfig": "proxy.conf.json"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

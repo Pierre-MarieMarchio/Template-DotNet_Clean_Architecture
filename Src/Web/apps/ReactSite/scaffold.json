@@ -1,0 +1,21 @@
+{
+  "framework": "react",
+  "name": "react-site",
+  "package": "create-vite",
+  "version": "9.3.1",
+  "arguments": ["{directory}", "--template", "react-ts", "--no-interactive", "--no-immediate"],
+  "merge": {
+    "package.json": {
+      "name": "react-site",
+      "scripts": {
+        "test": "vitest run --passWithNoTests"
+      },
+      "dependencies": {
+        "@app-template/api-client": "workspace:*"
+      },
+      "devDependencies": {
+        "vitest": "5.0.3"
+      }
+    }
+  }
+}

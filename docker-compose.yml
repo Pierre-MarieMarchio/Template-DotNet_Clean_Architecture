@@ -8,6 +8,12 @@ include:
   #if (webPlaceholder)
   - path: Src/Web/apps/PlaceholderSite/compose.yml
   #endif
+  #if (webReact)
+  - path: Src/Web/apps/ReactSite/compose.yml
+  #endif
+  #if (webAngular)
+  - path: Src/Web/apps/AngularSite/compose.yml
+  #endif
 
 #endif
 services:

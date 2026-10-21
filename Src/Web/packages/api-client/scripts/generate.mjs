@@ -15,7 +15,15 @@ rmSync(document, { force: true });
 execFileSync(
   'dotnet',
   ['build', join(apiProject, 'AppTemplate.Api.csproj'), '--nologo', '--verbosity', 'quiet', '-p:OpenApiGenerateDocumentsOnBuild=true'],
-  { stdio: 'inherit', env: { ...process.env, ASPNETCORE_ENVIRONMENT: 'Development' } },
+  {
+    stdio: 'inherit',
+    env: {
+      Authentication__External__Authority: 'https://identity-provider.invalid/',
+      Authentication__External__Audience: 'openapi-document',
+      ...process.env,
+      ASPNETCORE_ENVIRONMENT: 'Development',
+    },
+  },
 );
 
 const ast = await openapiTS(pathToFileURL(document), { alphabetize: true });

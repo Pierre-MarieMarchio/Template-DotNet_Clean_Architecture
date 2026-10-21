@@ -13,12 +13,13 @@ export const unreadableResponseCode = 'response.unreadable';
 
 export class ApiError extends Error {
   override readonly name = 'ApiError';
+  readonly status: number;
+  readonly problem: ProblemDetails;
 
-  constructor(
-    readonly status: number,
-    readonly problem: ProblemDetails,
-  ) {
+  constructor(status: number, problem: ProblemDetails) {
     super(problem.detail ?? problem.title ?? `The API answered ${String(status)} (${problem.code}).`);
+    this.status = status;
+    this.problem = problem;
   }
 
   get code(): string {
@@ -41,11 +42,11 @@ export function isProblemDetails(value: unknown): value is ProblemDetails {
 
   const candidate = value as Record<string, unknown>;
 
-  return typeof candidate.code === 'string'
-    && optional(candidate.title, 'string')
-    && optional(candidate.detail, 'string')
-    && optional(candidate.status, 'number')
-    && (candidate.errors === undefined || isFieldErrors(candidate.errors));
+  return typeof candidate['code'] === 'string'
+    && optional(candidate['title'], 'string')
+    && optional(candidate['detail'], 'string')
+    && optional(candidate['status'], 'number')
+    && (candidate['errors'] === undefined || isFieldErrors(candidate['errors']));
 }
 
 export function toApiError(response: Response, body: unknown): ApiError {

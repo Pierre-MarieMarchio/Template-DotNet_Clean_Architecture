@@ -9,9 +9,7 @@ internal static class NewFeature
 {
     private const string ManifestFolder = ".feature-manifest";
 
-    private const string DocsFolder = "docs";
-
-    private const string PageTemplate = $"{DocsFolder}/_templates/feature.md";
+    private const string PageTemplate = "docs/_templates/feature.md";
 
     private const string Usage =
         "Usage: dotnet run Tools/NewFeature.cs <Features> <Feature> --access owner|shared\n"
@@ -923,7 +921,7 @@ internal static class NewFeature
 
     private static string ManifestPath(Spec spec) => $"{ManifestFolder}/{spec.Features}.json";
 
-    private static string PagePath(string features) => $"{DocsFolder}/features/{Kebab(features)}.md";
+    private static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
     private static Emission? PageOf(string root, Spec spec, List<Emission> plan, out string? unwritten)
     {

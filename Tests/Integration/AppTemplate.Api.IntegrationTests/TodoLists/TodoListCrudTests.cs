@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.TodoLists.Contracts.Requests;
 using AppTemplate.Api.Features.TodoLists.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -35,6 +36,62 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
 
         followed.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ApiJson.ReadAsync<TodoListResponse>(followed, TestToken)).Name.ShouldBe("Groceries");
+    }
+
+    [Fact]
+    public async Task EveryResponse_CarriesEachMemberAsTheListHoldsIt()
+    {
+        var (client, _, _) = await SignInAsync();
+        var createdAt = Clock.UtcNow;
+        var listId = await CreateTodoListAsync(client, "Errands");
+
+        using var added = await client.PostAsJsonAsync(
+            $"{TodoListsRoute}/{listId}/items",
+            new AddTodoItemRequest("Post a letter", "Before noon", ["urgent"]),
+            TestToken);
+        var itemId = (await ApiJson.ReadAsync<TodoItemResponse>(added, TestToken)).Id;
+        await AddTodoItemAsync(client, listId, "Buy stamps");
+
+        var completedAt = createdAt.AddMinutes(5);
+        Clock.Set(completedAt);
+        using var completed = await client.PostAsync(
+            new Uri($"{TodoListsRoute}/{listId}/items/{itemId}/complete", UriKind.Relative),
+            content: null,
+            TestToken);
+        completed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var read = await client.GetAsync(new Uri($"{TodoListsRoute}/{listId}", UriKind.Relative), TestToken);
+        var list = await ApiJson.ReadAsync<TodoListResponse>(read, TestToken);
+        list.Id.ShouldBe(listId);
+        list.Name.ShouldBe("Errands");
+        list.CreatedAt.ShouldBe(createdAt);
+        list.LastModifiedAt.ShouldBe(completedAt);
+        list.Items.Count.ShouldBe(2);
+
+        using var single = await client.GetAsync(
+            new Uri($"{TodoListsRoute}/{listId}/items/{itemId}", UriKind.Relative),
+            TestToken);
+        var item = await ApiJson.ReadAsync<TodoItemResponse>(single, TestToken);
+        item.Id.ShouldBe(itemId);
+        item.Title.ShouldBe("Post a letter");
+        item.Description.ShouldBe("Before noon");
+        item.IsCompleted.ShouldBeTrue();
+        item.CompletedAt.ShouldBe(completedAt);
+        item.Tags.ShouldBe(["urgent"]);
+
+        using var items = await client.GetAsync(new Uri($"{TodoListsRoute}/{listId}/items", UriKind.Relative), TestToken);
+        (await ApiJson.ReadAsync<TodoItemsResponse>(items, TestToken)).Items.Select(each => each.Title)
+            .ShouldBe(["Post a letter", "Buy stamps"], ignoreOrder: true);
+
+        using var listed = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
+        listed.Headers.ETag.ShouldBeNull("a page has no version a write could name");
+
+        var summary = (await ApiJson.ReadAsync<PagedResponse<TodoListSummaryResponse>>(listed, TestToken)).Items.ShouldHaveSingleItem();
+        summary.Id.ShouldBe(listId);
+        summary.Name.ShouldBe("Errands");
+        summary.ItemCount.ShouldBe(2);
+        summary.CompletedItemCount.ShouldBe(1);
+        summary.CreatedAt.ShouldBe(createdAt);
     }
 
     [Fact]

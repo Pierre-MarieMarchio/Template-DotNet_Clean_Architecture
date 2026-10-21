@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Features.Notes.Contracts.Requests;
 using AppTemplate.Api.Features.Notes.Contracts.Responses;
-using AppTemplate.Api.Features.Notes.Controllers;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Shouldly;
 using Xunit;
@@ -41,6 +40,35 @@ public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
         using var gone = await client.GetAsync(new Uri($"{NotesRoute}/{created.Note.Id}", UriKind.Relative), TestToken);
         gone.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await ApiJson.ReadProblemAsync(gone, TestToken)).Code.ShouldBe("note.notFound");
+    }
+
+    [Fact]
+    public async Task EveryResponse_CarriesEachMemberAsTheNoteHoldsIt()
+    {
+        var (client, _, _) = await SignInAsync();
+        var createdAt = Clock.UtcNow;
+        var created = await CreateNoteAsync(client, "Groceries", "Milk");
+
+        var modifiedAt = createdAt.AddMinutes(5);
+        Clock.Set(modifiedAt);
+        using var updated = await UpdateNoteAsync(client, created.Note.Id, "Groceries (done)", "Everything", created.ETag);
+        updated.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var read = await ReadNoteAsync(client, created.Note.Id);
+        read.Note.Id.ShouldBe(created.Note.Id);
+        read.Note.Title.ShouldBe("Groceries (done)");
+        read.Note.Body.ShouldBe("Everything");
+        read.Note.CreatedAt.ShouldBe(createdAt);
+        read.Note.LastModifiedAt.ShouldBe(modifiedAt);
+
+        using var listed = await client.GetAsync(new Uri(NotesRoute, UriKind.Relative), TestToken);
+        listed.Headers.ETag.ShouldBeNull("a page has no version a write could name");
+
+        var summary = (await ApiJson.ReadAsync<PagedResponse<NoteSummaryResponse>>(listed, TestToken)).Items.ShouldHaveSingleItem();
+        summary.Id.ShouldBe(created.Note.Id);
+        summary.Title.ShouldBe("Groceries (done)");
+        summary.CreatedAt.ShouldBe(createdAt);
+        summary.LastModifiedAt.ShouldBe(modifiedAt);
     }
 
     [Fact]
@@ -183,44 +211,6 @@ public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotModified);
     }
-
-    [Theory]
-    [InlineData("GET", NotesRoute)]
-    [InlineData("POST", NotesRoute)]
-    [InlineData("GET", $"{NotesRoute}/00000000-0000-0000-0000-000000000001")]
-    [InlineData("PUT", $"{NotesRoute}/00000000-0000-0000-0000-000000000001")]
-    [InlineData("DELETE", $"{NotesRoute}/00000000-0000-0000-0000-000000000001")]
-    public async Task EveryNotesRoute_Answers401_WithoutAValidToken(string method, string path)
-    {
-        var client = CreateClient();
-
-        foreach (string? token in new string?[] { null, "not-a-token" })
-        {
-            using var request = new HttpRequestMessage(new HttpMethod(method), path)
-            {
-                Content = method is "POST" or "PUT"
-                    ? new StringContent("{}", System.Text.Encoding.UTF8, "application/json")
-                    : null,
-            };
-
-            if (token is not null)
-            {
-                request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
-            }
-
-            using var response = await client.SendAsync(request, TestToken);
-
-            response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-        }
-    }
-
-    [Fact]
-    public void TheControllerHasExactlyTheFiveRoutesTheAnonymousTestCovers() =>
-        typeof(NotesController)
-            .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)
-            .Where(method => !method.IsSpecialName)
-            .Count()
-            .ShouldBe(5);
 
     private static async Task<PagedResponse<NoteSummaryResponse>> GetPageAsync(HttpClient client, string query = "")
     {

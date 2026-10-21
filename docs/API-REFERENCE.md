@@ -101,7 +101,9 @@ theft alarm: it is what a client still holding it sends next.
 
 **Cookie mode, for a browser app.** A web app keeps the refresh token where its script cannot read
 it by sending `X-Refresh-Token-Mode: cookie` on every call that issues, rotates or revokes one. A
-call without the header is body mode, exactly as described above.
+call without the header is body mode, exactly as described above. Every project with local accounts
+answers it, whether it has a web app yet or not: a client that never sends the header never meets a
+cookie.
 
 | | Cookie mode |
 |---|---|

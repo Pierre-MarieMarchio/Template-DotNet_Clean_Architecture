@@ -119,10 +119,19 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          trace=$(grep -rIl -e 'Src/Web' -e 'pnpm' -e 'web-' .github docker-compose.yml .env.example .dockerignore .gitignore || true)
-          if [ -e Src/Web ] || [ -n "$trace" ]; then
+          problems=()
+          [ ! -e Src/Web ] || problems+=("Src/Web exists.")
+          [ ! -e .github/workflows/web.yml ] || problems+=(".github/workflows/web.yml exists.")
+          workflows=$(grep -rIl -e 'pnpm' -e 'Src/Web' -e 'web-' .github/workflows || true)
+          [ -z "$workflows" ] || problems+=("A workflow runs pnpm or a web job: $workflows")
+          ! grep -qE '^include:|^  web-|Src/Web' docker-compose.yml || problems+=("docker-compose.yml includes or declares a web service.")
+          ! grep -qE 'package-ecosystem: npm|Src/Web' .github/dependabot.yml || problems+=(".github/dependabot.yml watches the web workspace.")
+          ! grep -qE '^WEB_[A-Z0-9_]+_HOST_PORT=' .env.example || problems+=(".env.example names a web app's port.")
+          ignored=$(grep -l 'Src/Web' .dockerignore .gitignore || true)
+          [ -z "$ignored" ] || problems+=("An ignore file names Src/Web: $ignored")
+          if [ "${#problems[@]}" -gt 0 ]; then
             echo "::error title=Web trace::A project generated without --web holds or wires a web workspace."
-            printf '%s\n' "$trace"
+            printf '%s\n' "${problems[@]}"
             exit 1
           fi
 

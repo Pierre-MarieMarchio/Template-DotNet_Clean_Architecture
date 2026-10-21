@@ -88,11 +88,9 @@ mistaken double enable, but they are not a substitute for that choice.
 
 ## Add a job
 
-A job takes one of two routes, by whether its pass needs a timer of its own.
-
-**A purge or a sweep joins the maintenance timer.** It is a use case returning the count it
-removed, registered with `AddMaintenanceTask`, internal to `AppTemplate.Api`, from an extension in
-the feature's own `Features/<Feature>/Jobs/` folder, with its own switch:
+**A purge or a sweep joins the maintenance timer**: a use case returning the count it removed,
+registered with `AddMaintenanceTask`, internal to `AppTemplate.Api`, from the feature's own
+`Features/<Feature>/Jobs/` folder, with its own switch:
 
 ```csharp
 services.AddMaintenanceTask<IPurgeExpiredExportsUseCase>(

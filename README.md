@@ -1,212 +1,80 @@
 ﻿# Clean Architecture .NET Template
 
-A production-shaped starting point for a .NET 10 HTTP API: Clean Architecture layering, PostgreSQL
-via EF Core,
-<!--#if (localAuth)-->
-ASP.NET Identity with JWT access tokens and opaque rotating refresh tokens,
-<!--#endif-->
-<!--#if (accounts)-->
-default-deny authorisation,
-<!--#endif-->
-RFC 7807 errors, and configuration that fails fast when it is wrong.
-<!--#if (anyFeature)-->
-The generation options decided which worked examples it starts with —
-<!--#if (todoLists)-->
-a to-do list with real invariants and domain events, a flat reminders aggregate,
-<!--#endif-->
-<!--#if (files)-->
-a file store whose two halves live in different stores,
-<!--#endif-->
-<!--#if (notes)-->
-and notes, which have no domain model at all
-<!--#endif-->
-— enough to show both feature shapes (a service over a store when there
-is no state to protect, an aggregate when there is), a read/write port split and a `Result`-based
-error policy, without becoming an application you have to delete.
-<!--#if (todoLists || notes)-->
-[`docs/REMOVING-THE-EXAMPLE-FEATURES.md`](docs/REMOVING-THE-EXAMPLE-FEATURES.md)
-is the procedure for when you have read them.
-<!--#endif-->
-<!--#else
-The generation options decided which examples and modules this project started with;
-[`docs/USING-THE-TEMPLATE.md`](docs/USING-THE-TEMPLATE.md) says what each one generates.
-<!--#endif-->
+A `dotnet new` template for a .NET 10 HTTP API on Clean Architecture. The project it generates is
+meant to be kept: its modules, mechanisms, tests, tools and documentation are the ground a product
+grows on, and the options remove what a product does not need.
 
-**New here? [`docs/README.md`](docs/README.md) is the documentation index.** Every document has one
-subject, and that page says which one answers the question you actually have.
+## What you get
 
-## What is in the box
+- **Four layers and the dependency rule**, held by an architecture test suite: a domain, an
+  application layer of use cases, infrastructure modules behind ports, a thin presentation layer.
+- **Two feature shapes**, an aggregate when there is a state to protect and a service over a store
+  when there is none, and a generator that writes either.
+- **PostgreSQL through EF Core**, with the domain unmapped, optimistic concurrency exposed as `ETag`,
+  and migrations applied at release.
+- **Authentication chosen at generation**: local accounts with rotating refresh tokens, two-factor,
+  passkeys and roles; an external OpenID Connect provider; or a public API.
+- **An HTTP contract every endpoint keeps**: problem documents with stable codes, default-deny
+  authorisation, `Idempotency-Key`, offset and keyset paging, rate limits, timeouts.
+- **Files, background jobs and mail**: an S3-compatible file store with inspection and quotas, timers
+  in the API process under leases, multilingual mail over SMTP or Postmark.
+- **Web apps if you want them**: a pnpm workspace with React, Angular or a static page, and a client
+  generated from the API's own document.
+- **A gate that runs from a clone**: formatting, warnings as errors, the tests with a coverage floor,
+  migration drift, vulnerable packages; CI, release and Sonar workflows.
+- **Documentation for the project, not the template**: overview, first run, architecture, one page
+  per feature, guides, references and ADRs, conditioned on the options chosen.
 
-- **.NET 10** (`net10.0`), SDK pinned by `global.json`
-- **PostgreSQL** through Npgsql — one connection string, one pool,
-<!--#if (localAuth)-->
-  two `DbContext`s (business and
-  authentication) with a migration history each
-<!--#else
-  one `DbContext` with its own migration history
-<!--#endif-->
-<!--#if (localAuth)-->
-- **ASP.NET Identity** + JWT bearer, opaque refresh tokens that rotate on every use, two-factor
-  enrolment, external identity providers, email confirmation by POST, logout that revokes
-<!--#endif-->
-<!--#if (accounts)-->
-- **Default-deny authorisation** — a fallback policy requires an authenticated user, so an
-  endpoint is protected unless it opts out
-<!--#endif-->
-- **RFC 7807 ProblemDetails** on every failure, with a stable machine-readable
-  `code` and a `traceId`
-- **EF Core maps persistence models, not domain entities.** A mapper converts, and a
-  reflection-driven fidelity test fails when a property does not survive the round trip
-- **A feature generator** — `dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared`
-  writes either feature shape for the operations you choose, with or without `ETag` versioning, and
-  works under whatever name the template was generated with; `remove-feature <Features>` reports what
-  removing one involves, and `--apply` undoes a generated skeleton nobody has edited or composed
-- **Conditional requests** (`ETag`/`If-Match`), **idempotent creates** (`Idempotency-Key`), and a
-  closed collection contract with offset *and* keyset paging
-- **One process, jobs included** — the API serves HTTP and runs the periodic jobs that call the same
-  use cases on timers, with `BackgroundJobs:Enabled` to turn them off per instance
-<!--#if (reminders)-->
-  and a PostgreSQL
-  advisory-lock lease so the reminder pass is safe to run on more than one
-<!--#endif-->
-- **Multilingual transactional mail**, subject and body from one template per language
-- **Options validated at startup** — a bad setting fails the host, not the first request
-- **Central Package Management**, warnings as errors, `.editorconfig` enforced in the build and CI
-- **A gate you can run from a clone** — build, format, tests with a coverage floor, migration
-  drift, vulnerable packages, and four hygiene gates that each prove they can go red
+## Quick start
 
-Two documents are the honest counterweight to that list.
-[`SECURITY.md`](SECURITY.md) — whose *what a deployment must still do* section is longer than its
-*what the template provides* section — and
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)'s "What is deliberately absent".
-
-## Prerequisites
-
-| | Needed for |
-|---|---|
-| [.NET SDK 10.0.300+](https://dotnet.microsoft.com/download) | building and running |
-| [Docker](https://docs.docker.com/get-docker/) with Compose v2 | the container path, and the integration tests (Testcontainers) |
-| PostgreSQL 17+ | only if you run the API on the host without Docker |
-
-```bash
-dotnet --version     # expect 10.0.300 or a later 10.0.3xx
-```
-
-`global.json` pins the feature band with `rollForward: latestFeature`, so a later `10.0.3xx` patch
-is fine and an `8.x`/`9.x` SDK is refused outright. Nothing else is needed: everything under
-`Tools/` is a file-based C# app, so the SDK that builds this repository is also what judges it.
-
-## Five minutes
-
-```bash
-git clone <your-fork-url> && cd <the-directory-it-created>
-
-cp .env.example .env          # working localhost defaults
-docker compose up --build
-```
-
-| | URL |
-|---|---|
-| API | <http://localhost:8080> |
-| OpenAPI UI — Scalar, development only | <http://localhost:8080/scalar/v1> |
-| Mailpit — mails land here | <http://localhost:8025> |
-<!--#if (files)-->
-| Object store (SeaweedFS) — S3 API, uploaded files land here; no console | <http://localhost:9000> |
-<!--#endif-->
-
-Every published port binds to `127.0.0.1`, so nothing is reachable from your local network. TLS is
-not terminated in the container, on purpose.
-
-Then walk through the requests this API serves — either with
-[`AppTemplate.Api.http`](AppTemplate.Api.http), which is executable in the VS Code REST Client and
-in Visual Studio, or with the `curl` transcript in
-[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md). That document also covers running on the host
-without Compose, and supplying your own database.
-
-## Two ways to start
-
-**Clone it.** The repository is a working solution. Read the code, delete what you do not want, and
-rename at your leisure.
-
-**Generate from it.** The repository is also a `dotnet new` template, so a project can be minted
-under your own name with every namespace, file name and container identifier derived from it:
+You need the .NET SDK 10.0.300 or a later 10.0.3xx, and Docker with Compose v2.
 
 ```bash
 dotnet new install <path-to-this-repository>
-dotnet new cleanarch-webapi -n Acme.OrderManagement
-cd Acme.OrderManagement && dotnet run Tools/Tasks.cs bootstrap
+dotnet new cleanarch-webapi -n <Company.Product>
+cd <Company.Product>
+dotnet run Tools/Tasks.cs bootstrap     # required once: commit what it changes
+cp .env.example .env
+docker compose up -d --build --wait
 ```
 
-`--auth local|external|none` (default `local`) says who the callers are: the supplied accounts, an
-external OpenID Connect provider, or nobody, for a public API.
-`--examples none|notes|all` (default `all`) chooses which example features the project starts with;
-`--files false`, `--ci false` and `--sonar false` leave out the Files feature with its storage, the
-GitHub workflows, and the Sonar analysis. That last command is not optional, and
-[`docs/USING-THE-TEMPLATE.md`](docs/USING-THE-TEMPLATE.md) says why, along with the generation
-options, what the name substitutes into and what a generated project inherits. If the repository you are generating into
-already exists, [`docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md`](docs/INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md)
-measures the two shapes that work.
+The API answers on <http://localhost:8080>, Scalar on <http://localhost:8080/scalar/v1> and Mailpit
+on <http://localhost:8025>. The generated project's
+[first run](docs/getting-started/first-run.md) continues to an authenticated call and a first
+feature.
+
+Generate outside this repository: output written inside the installed path nests a duplicate.
+
+## Generation options
+
+| Option | Values | Default |
+|---|---|---|
+| `--auth` | `local`, `external`, `none` | `local` |
+| `--examples` | `all`, `notes`, `none` | `all` |
+| `--files` | `true`, `false` | `true` |
+| `--ci` | `true`, `false` | `true` |
+| `--sonar` | `true`, `false` | `true` |
+| `--web` | `none`, `placeholder`, `react`, `angular` | `none` |
+| `--web-name` | PascalCase text | `Site` |
+| `--web-audience` | `public`, `admin` | `public` |
+
+`--auth none` refuses the examples and Files, which belong to a caller, and `--web-audience admin`
+refuses `--auth none`. [Using the template](docs/template/using-the-template.md) says what each value
+generates, the combinations refused, what the name substitutes into, and the item templates
+`cleanarch-webapp` and `cleanarch-webpackage`.
 
 ## Documentation
 
-[`docs/README.md`](docs/README.md) is the index. The six documents most people want first:
+This repository carries the documentation every generated project receives, in its fullest form:
 
-| Document | For |
-|---|---|
-<!--#if (localAuth)-->
-| [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) | getting it running, and the walkthrough from register to first request |
-<!--#else
-| [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) | getting it running |
-<!--#endif-->
-| [`docs/API-CONVENTIONS.md`](docs/API-CONVENTIONS.md) | what holds for every endpoint — error codes, `ETag`, idempotency, paging |
-| [`docs/API-REFERENCE.md`](docs/API-REFERENCE.md) | the endpoints, one table per feature |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | the layers, the dependency rule, and what is deliberately absent |
-| [`docs/ADDING-A-FEATURE.md`](docs/ADDING-A-FEATURE.md) | the vertical, end to end, with the real signatures |
-| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | every key, its default, and what happens when it is wrong |
+- [The documentation index](docs/README.md): getting started, architecture, features, guides,
+  reference and decisions.
+- [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md), which a
+  project receives too.
 
-[`CONTRIBUTING.md`](CONTRIBUTING.md) is the working agreement for changing this repository.
-
-## The tree
-
-```
-Src/
-  Domain/            AppTemplate.Domain.Core, AppTemplate.Domain
-<!--#if (localAuth)-->
-  Application/       AppTemplate.Application.Core, AppTemplate.Application,
-                     AppTemplate.Application.Auth
-<!--#else
-  Application/       AppTemplate.Application.Core, AppTemplate.Application
-<!--#endif-->
-<!--#if (localAuth && files)-->
-  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence, .Auth,
-                     .Email, .Storage, .InMemory
-<!--#elseif (localAuth)-->
-  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence, .Auth,
-                     .Email, .InMemory
-<!--#elseif (files)-->
-  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence,
-                     .Email, .Storage, .InMemory
-<!--#else
-  Infrastructure/    AppTemplate.Infrastructure.Core, .Persistence,
-                     .Email, .InMemory
-<!--#endif-->
-  Presentation/      AppTemplate.Presentation.Core, AppTemplate.Api
-Tests/               a 1:1 mirror of Src/, plus Architecture/ and Integration/
-Tools/               the file-based C# apps this repository runs on itself
-docs/                the documentation index and everything it lists
-```
-
-The directory under `Src/` names the **layer**; the project inside keeps its own name and root
-namespace, so moving a project between layer folders changes no namespace.
-<!--#if (localAuth)-->
-Five of those projects
-<!--#else
-Four of those projects
-<!--#endif-->
-are vendored SDK projects, copied into a derived repository rather than published.
-[`docs/PROJECT-LAYOUT.md`](docs/PROJECT-LAYOUT.md) is the full map, down to what each folder holds
-and which architecture test enforces it.
+[The template documentation](docs/template/README.md) is about the template alone: using it,
+maintaining it, its acceptance matrix and its own decisions. It never reaches a generated project.
 
 ## Licence
 
-MIT — see [`LICENSE`](LICENSE).
+MIT: see [LICENSE](LICENSE).

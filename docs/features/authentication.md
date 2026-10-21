@@ -96,8 +96,8 @@ A client sending `X-Refresh-Token-Mode: cookie` on `login`, `login/two-factor`, 
 `passkeys/sign-in`, `refresh` and `logout` receives the refresh token as the `refresh_token`
 cookie (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1/auth`) instead of in the body.
 The cookie is read only beside that header, which is the defence against cross-site requests;
-`refresh` and `logout` then take no body. A client that never sends the header works as above
-([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)).
+`refresh` and `logout` then take no body. Every local-accounts project answers the header, web app
+or not, and a client that never sends it works as above ([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)).
 
 <!--#if (anyWeb)-->
 The web apps of this project use this mode through the `api-client` package: the access token

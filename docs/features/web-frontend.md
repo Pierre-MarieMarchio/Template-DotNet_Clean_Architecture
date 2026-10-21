@@ -204,9 +204,11 @@ Removing an app is deleting its folder, its `include:` line and its port line, t
 `pnpm install`.
 
 A project generated without a web app adds its first one with the same command plus
-`--workspace` (`--scope` required), which also creates `Src/Web`. Add
-the lines the workspace's README lists (Compose, `.env.example`, `.dockerignore`, Dependabot), then
-create the app as above.
+`--workspace` (`--scope` required), which also creates `Src/Web` and `.github/workflows/web.yml`.
+Nothing on the API side changes: what an app needs from the API, the OpenAPI document written at
+build and the refresh-token cookie, is in every project. Add the lines `Src/Web/README.md` lists
+(Compose, `.env.example`, `.dockerignore`, Dependabot, and the documentation rows), then create the
+app as above.
 
 ## Images and headers
 

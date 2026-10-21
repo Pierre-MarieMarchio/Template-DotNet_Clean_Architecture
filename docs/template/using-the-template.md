@@ -86,7 +86,7 @@ dotnet new cleanarch-webpackage -n tokens --scope <scope>
 
 | Template | Options |
 |---|---|
-| `cleanarch-webapp` | `--framework placeholder\|react\|angular` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth`, `--examples` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
+| `cleanarch-webapp` | `--framework placeholder\|react\|angular` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
 
 An item template can add files but not edit them, so each prints the lines to add to

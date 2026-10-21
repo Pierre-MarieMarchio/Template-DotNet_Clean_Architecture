@@ -176,6 +176,20 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void TheLauncher_ReachesNeitherAProjectNorTheTemplatePackage()
+    {
+        const string launcher = "Launcher/**";
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var alwaysExcluded = manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray()
+            .Where(modifier => !modifier.TryGetProperty("condition", out _))
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!));
+
+        Directory.Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Launcher")).ShouldBeTrue("The launcher's folder was not found.");
+        alwaysExcluded.ShouldContain(launcher, "template.json generates the launcher into every project: add Launcher/** to its unconditional excludes.");
+        PackageExcludes().ShouldContain(launcher, "The template package carries the launcher, which is a package of its own: add Launcher/** to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
     public void TheOverview_RecordsThePackageAndTheVersionGenerationWrites()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;

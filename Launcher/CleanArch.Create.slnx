@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="CleanArch.Create/CleanArch.Create.csproj" />
+  <Project Path="CleanArch.Create.Tests/CleanArch.Create.Tests.csproj" />
+</Solution>

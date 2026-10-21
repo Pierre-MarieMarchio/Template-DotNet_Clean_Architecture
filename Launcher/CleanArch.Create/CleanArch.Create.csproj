@@ -1,0 +1,54 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>CleanArch.Create</RootNamespace>
+    <TemplateConfig>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../.template.config'))/</TemplateConfig>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>cleanarch-create</ToolCommandName>
+    <PackageId>CleanArch.Create</PackageId>
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(TemplateConfig)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</Version>
+    <Title>.NET Clean Architecture API launcher</Title>
+    <Authors>Pierre-MarieMarchio</Authors>
+    <Description>Creates a .NET 10 HTTP API on Clean Architecture from the CleanArch.WebApi.Templates package by asking for each option, or adds a web app or a web package to a project it generated: dnx CleanArch.Create.</Description>
+    <PackageTags>dotnet-new;dotnet-tool;clean-architecture;webapi;scaffolding</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(TemplateConfig)template.json" LogicalName=".template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)dotnetcli.host.json" LogicalName=".template.config/dotnetcli.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)ide.host.json" LogicalName=".template.config/ide.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/template.json" LogicalName=".template.config/webapp/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/ide.host.json" LogicalName=".template.config/webapp/.template.config/ide.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/template.json" LogicalName=".template.config/webpackage/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/ide.host.json" LogicalName=".template.config/webpackage/.template.config/ide.host.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="$(TemplateConfig)icon.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CleanArch.Create.Tests" />
+  </ItemGroup>
+
+  <Target Name="RequireTemplateVersion" BeforeTargets="GenerateNuspec">
+    <Error Condition="'$(Version)' == ''" Text="No templateVersion symbol with a value was found in .template.config/template.json." />
+  </Target>
+
+</Project>

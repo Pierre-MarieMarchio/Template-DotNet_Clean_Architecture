@@ -137,7 +137,9 @@ afterwards. Adding `--apply` deletes the generated files, the manifest and the f
 hashes as written, nothing was added to the feature's folders, and none of the six edits above (nor any other use of the feature)
 exists yet. Otherwise it refuses before deleting anything and prints the same report. A use of its types is
 confirmed only by a name the feature itself declares, so `OrderBy` beside an `Orders` feature, or a type's name in a
-string or a comment, is a possible match and blocks nothing. A migration is never touched.
+string or a comment, is a possible match and blocks nothing. A migration is never touched. The feature page the manifest
+records is deleted with the rest, edited or not, and a page already deleted blocks nothing; its row in `docs/README.md` is
+yours to remove.
 The first owner feature of a project generated with no feature also holds the account-deletion files every owner feature
 shares (below): `--apply` deletes them with it only when no other owner feature and none of the five registrations printed
 for them still use them, and refuses otherwise.
@@ -198,6 +200,13 @@ created. It reads the product prefix off the tree, so it works after the templat
 the code it describes: the options, and every created file with the SHA-256 of what was written. A
 later command that removes a feature can tell what the generator made from what has been edited
 since. Nothing in the template ships one, so nothing excludes the folder from the template.
+
+**The feature page** is `docs/features/<features-kebab>.md`, written from
+[`_templates/feature.md`](_templates/feature.md) with the feature's name, its access, its shape, its endpoints and its
+test folders filled in, and one line under each heading saying what the section holds. The manifest records it apart
+from the hashed files, because the page exists to be edited. A page already there is left as it is and not recorded,
+and a tree without the page template gets none. The command prints the row to add under `## Features` in
+`docs/README.md`.
 
 The sections below describe what to put in what it wrote.
 

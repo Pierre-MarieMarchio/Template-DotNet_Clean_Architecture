@@ -11,6 +11,8 @@ internal static class RemoveFeature
 {
     private const string ManifestFolder = ".feature-manifest";
 
+    private const string DocsFolder = "docs";
+
     private const string Usage =
         "Usage: dotnet run Tools/RemoveFeature.cs <Features> [--apply] [--root <path>]\n"
         + "  <Features>  the folder of the feature, PascalCase and plural, e.g. Widgets\n"
@@ -53,7 +55,7 @@ internal static class RemoveFeature
 
     private sealed record Entry(string Path, string Sha256);
 
-    private sealed record Manifest(string Type, List<Entry> Files, List<string> Shared);
+    private sealed record Manifest(string Type, List<Entry> Files, List<string> Shared, string? Page);
 
     private sealed record Dependent(string Name, string How);
 
@@ -70,7 +72,9 @@ internal static class RemoveFeature
         List<string> Blockers,
         List<string> Shared,
         List<Dependent> Dependents,
-        List<Hit> SharedUses);
+        List<Hit> SharedUses,
+        string? Page,
+        bool PageGone);
 
     private static readonly Regex[] SharedPaths =
     [
@@ -247,7 +251,14 @@ internal static class RemoveFeature
             }
         }
 
+        string? page = manifest?.Page;
         var listed = owned.ToHashSet(StringComparer.Ordinal);
+
+        if (page is not null)
+        {
+            listed.Add(page);
+        }
+
         var extra = new List<string>();
 
         foreach (string folder in folders)
@@ -309,7 +320,7 @@ internal static class RemoveFeature
             SharedDependents(root, features, listed, dependents, uses, blockers);
         }
 
-        return new Analysis(features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, hits, blockers, shared, dependents, uses);
+        return new Analysis(features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, hits, blockers, shared, dependents, uses, page, page is not null && !File.Exists(Path.Combine(root, page)));
     }
 
     private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers)
@@ -467,7 +478,16 @@ internal static class RemoveFeature
                 return null;
             }
 
-            return new Manifest(type, files, shared);
+            string? page = top.TryGetProperty("page", out var written) ? written.GetString() : null;
+
+            if (page is not null && page != PagePath(features))
+            {
+                blockers.Add($"The manifest lists the page '{page}', where the generator writes '{PagePath(features)}'.");
+
+                return null;
+            }
+
+            return new Manifest(type, files, shared, page);
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or IOException)
         {
@@ -535,11 +555,17 @@ internal static class RemoveFeature
         }
     }
 
-    private static string Snake(string pascal) =>
+    private static string Snake(string pascal) => Separated(pascal, '_');
+
+    private static string Kebab(string pascal) => Separated(pascal, '-');
+
+    private static string Separated(string pascal, char separator) =>
         string.Concat(pascal.Select((character, index) =>
             char.IsUpper(character) && index > 0
-                ? "_" + char.ToLowerInvariant(character)
+                ? separator + char.ToLowerInvariant(character).ToString()
                 : char.ToLowerInvariant(character).ToString()));
+
+    private static string PagePath(string features) => $"{DocsFolder}/features/{Kebab(features)}.md";
 
     private static List<string> DeclaredTypes(string root, Manifest manifest, string type)
     {
@@ -786,6 +812,14 @@ internal static class RemoveFeature
                     output.WriteLine($"  {use.Path}:{use.Line}  {use.Text}");
                 }
             }
+
+            if (analysis.Page is not null)
+            {
+                output.WriteLine();
+                output.WriteLine(analysis.PageGone
+                    ? $"Feature page: {analysis.Page} is already gone, which blocks nothing."
+                    : $"Feature page: {analysis.Page}, written by the generator; --apply deletes it, edited or not.");
+            }
         }
         else
         {
@@ -878,6 +912,12 @@ internal static class RemoveFeature
                 RemoveEmptyAncestors(root, file);
             }
 
+            if (analysis.Page is not null)
+            {
+                File.Delete(Path.Combine(root, analysis.Page));
+                RemoveEmpty(Path.Combine(root, Path.GetDirectoryName(analysis.Page)!));
+            }
+
             File.Delete(Path.Combine(root, ManifestFolder, $"{analysis.Features}.json"));
             RemoveEmpty(Path.Combine(root, ManifestFolder));
         }
@@ -890,6 +930,15 @@ internal static class RemoveFeature
         }
 
         output.WriteLine($"Removed {analysis.Owned.Count} generated file(s) of {analysis.Features}, its manifest and the folders left empty.");
+
+        if (analysis.Page is not null)
+        {
+            output.WriteLine(analysis.PageGone
+                ? $"Its page, {analysis.Page}, was already gone."
+                : $"Removed its page, {analysis.Page}.");
+            output.WriteLine($"Remove its row from docs/README.md, and any link to {analysis.Page["docs/".Length..]} from the other pages.");
+        }
+
         PrintHits(output, analysis);
         output.WriteLine();
         output.WriteLine("Run now: dotnet build the solution, then the architecture tests, then dotnet format --verify-no-changes.");
@@ -962,6 +1011,7 @@ internal static class RemoveFeature
             GeneratorCases(scratch, Expect);
             NameCollisionCases(scratch, Expect);
             SharedFilesCases(scratch, Expect);
+            PageCases(scratch, Expect);
         }
         finally
         {
@@ -1359,6 +1409,78 @@ internal static class RemoveFeature
 
         Put(unreadable, $"{ManifestFolder}/Gizmos.json", "{ not json\n");
         Refused("an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
+    }
+
+    private static string PagedTree(string scratch)
+    {
+        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+        string template = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(SourceFile())!)!, "docs", "_templates", "feature.md");
+
+        Projects(root);
+        Ground(root);
+        Put(root, "docs/_templates/feature.md", File.ReadAllText(template));
+        Put(root, "docs/README.md", "| [Widgets](features/widgets.md) | what a caller can do with it |\n");
+
+        return root;
+    }
+
+    private static void PageCases(string scratch, Action<bool, string> expect)
+    {
+        string pagePath = PagePath("Widgets");
+        string[] widgets = ["Widgets", "Widget", "--access", "shared"];
+
+        string fresh = PagedTree(scratch);
+        var original = Snapshot(fresh);
+
+        expect(Generate(fresh, widgets) == 0 && File.Exists(Path.Combine(fresh, pagePath)), "The generator did not write the feature page.");
+
+        var report = Invoke(fresh, "Widgets");
+
+        expect(report.Output.Contains($"Feature page: {pagePath}, written by the generator", StringComparison.Ordinal), $"The report does not name the page: {report.Output}");
+        expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The page was taken for a blocker: {report.Output}");
+        expect(!report.Output.Contains($"{pagePath}:", StringComparison.Ordinal), "The page's own lines were listed as matches.");
+
+        var applied = Invoke(fresh, "Widgets", "--apply");
+
+        expect(applied.Code == 0, $"A feature with its page was refused: {applied.Output}{applied.Error}");
+        expect(applied.Output.Contains("Remove its row from docs/README.md", StringComparison.Ordinal), "The index row to remove was not printed.");
+        expect(Same(original, Snapshot(fresh)), "After removing the feature, its page or the folder of pages was left behind, or the template went with it.");
+
+        string edited = PagedTree(scratch);
+
+        expect(Generate(edited, widgets) == 0, "The generator refused Widgets for the edited page.");
+        File.AppendAllText(Path.Combine(edited, pagePath), "\nWidgets are what the warehouse ships.\n");
+        expect(Invoke(edited, "Widgets", "--apply").Code == 0 && !File.Exists(Path.Combine(edited, pagePath)), "An edited page held the removal back, or was left behind.");
+
+        string gone = PagedTree(scratch);
+
+        expect(Generate(gone, widgets) == 0, "The generator refused Widgets for the deleted page.");
+        File.Delete(Path.Combine(gone, pagePath));
+
+        var goneApplied = Invoke(gone, "Widgets", "--apply");
+
+        expect(goneApplied.Code == 0 && goneApplied.Output.Contains("was already gone", StringComparison.Ordinal), $"A page the team had deleted failed the removal: {goneApplied.Output}{goneApplied.Error}");
+
+        string own = PagedTree(scratch);
+
+        Put(own, pagePath, "# Widgets, as the team wrote them\n");
+        expect(Generate(own, widgets) == 0, "The generator refused Widgets beside a page the team wrote.");
+        expect(Invoke(own, "Widgets", "--apply").Code == 0, "Widgets beside a page the team wrote was refused.");
+        expect(File.Exists(Path.Combine(own, pagePath)), "A page the generator did not write was deleted.");
+
+        string forged = PagedTree(scratch);
+
+        expect(Generate(forged, widgets) == 0, "The generator refused Widgets for the forged page.");
+
+        string manifest = Path.Combine(forged, ManifestFolder, "Widgets.json");
+
+        File.WriteAllText(manifest, File.ReadAllText(manifest).Replace(pagePath, "docs/README.md", StringComparison.Ordinal));
+
+        var snapshot = Snapshot(forged);
+        var refused = Invoke(forged, "Widgets", "--apply");
+
+        expect(refused.Code == 1 && Same(snapshot, Snapshot(forged)), "A manifest naming another page than the feature's was not refused cleanly.");
+        expect(refused.Output.Contains($"where the generator writes '{pagePath}'", StringComparison.Ordinal), "The refusal of a forged page does not say why.");
     }
 
     private static void Ground(string root)

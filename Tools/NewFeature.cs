@@ -9,6 +9,10 @@ internal static class NewFeature
 {
     private const string ManifestFolder = ".feature-manifest";
 
+    private const string DocsFolder = "docs";
+
+    private const string PageTemplate = $"{DocsFolder}/_templates/feature.md";
+
     private const string Usage =
         "Usage: dotnet run Tools/NewFeature.cs <Features> <Feature> --access owner|shared\n"
         + "           [--deletion delete|anonymise]\n"
@@ -147,11 +151,12 @@ internal static class NewFeature
             return Refuse(error, problems);
         }
 
-        var manifest = ManifestOf(spec, plan);
+        var page = PageOf(root, spec, plan, out string? unwritten);
+        var manifest = ManifestOf(spec, plan, page);
 
         try
         {
-            WriteAll(root, [.. plan, manifest.Emission]);
+            WriteAll(root, [.. plan, .. page is null ? Array.Empty<Emission>() : [page], manifest.Emission]);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -161,6 +166,7 @@ internal static class NewFeature
         }
 
         Report(output, root, spec, plan, manifest.Emission.Path, skipped);
+        ReportPage(output, spec, page, unwritten);
 
         return 0;
     }
@@ -917,12 +923,86 @@ internal static class NewFeature
 
     private static string ManifestPath(Spec spec) => $"{ManifestFolder}/{spec.Features}.json";
 
+    private static string PagePath(string features) => $"{DocsFolder}/features/{Kebab(features)}.md";
+
+    private static Emission? PageOf(string root, Spec spec, List<Emission> plan, out string? unwritten)
+    {
+        string path = PagePath(spec.Features);
+        string template = System.IO.Path.Combine(root, PageTemplate);
+
+        if (File.Exists(System.IO.Path.Combine(root, path)))
+        {
+            unwritten = $"'{path}' already exists, so it was left as it is and the manifest does not record it: remove-feature never deletes it.";
+
+            return null;
+        }
+
+        if (!File.Exists(template))
+        {
+            unwritten = $"'{PageTemplate}' is not in this tree, so '{path}' was not written; write it by hand.";
+
+            return null;
+        }
+
+        unwritten = null;
+
+        return new Emission(path, PageText(File.ReadAllText(template), spec, plan));
+    }
+
+    private static string PageText(string template, Spec spec, List<Emission> plan)
+    {
+        string plural = Separated(spec.Features, ' ');
+        string singular = Separated(spec.Type, ' ');
+        string one = (IsVowel(singular[0]) ? "an " : "a ") + singular;
+        string route = $"/api/v1/{Kebab(spec.Features)}";
+        string item = $"{route}/{{{Lower(spec.Type)}Id}}";
+
+        string access = spec.Access == "owner"
+            ? $"each authenticated caller, on their own {plural} only; once an account is deleted, its {plural} are "
+                + (spec.Deletion == "anonymise" ? "anonymised" : "deleted")
+            : $"every authenticated caller, on the same {plural}";
+
+        string shape = (spec.Model == "record"
+                ? "a service over a store, with no domain model"
+                : $"one use case per operation over the {singular} aggregate")
+            + (spec.Concurrency == "etag"
+                ? ", and a write sends If-Match with the ETag a read returned"
+                : ", and the last write wins");
+
+        (string Operation, string Line)[] endpoints =
+        [
+            ("list", $"- `GET {route}`: a page of {plural}"),
+            ("get", $"- `GET {item}`: {one}, and `HEAD` for its headers alone"),
+            ("create", $"- `POST {route}`: creates {one}"),
+            ("update", $"- `PUT {item}`: replaces {one}"),
+            ("delete", $"- `DELETE {item}`: deletes {one}"),
+        ];
+
+        string marker = $"/Features/{spec.Features}";
+        string[] tests = [.. plan
+            .Select(emission => emission.Path)
+            .Where(path => path.StartsWith("Tests/", StringComparison.Ordinal) && path.Contains(marker + "/", StringComparison.Ordinal))
+            .Select(path => path[..(path.IndexOf(marker + "/", StringComparison.Ordinal) + marker.Length)])
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
+
+        return template
+            .Replace("<Feature>", char.ToUpperInvariant(plural[0]) + plural[1..], StringComparison.Ordinal)
+            .Replace("<access>", access, StringComparison.Ordinal)
+            .Replace("<shape>", shape, StringComparison.Ordinal)
+            .Replace("<endpoints>", string.Join('\n', endpoints.Where(endpoint => spec.Has(endpoint.Operation)).Select(endpoint => endpoint.Line)), StringComparison.Ordinal)
+            .Replace(
+                "<tests>",
+                tests.Length == 0 ? "no unit test project of this tree received one" : string.Join(", ", tests.Select(folder => $"`{folder}`")),
+                StringComparison.Ordinal);
+    }
+
     private static byte[] Bytes(Emission emission)
     {
-        bool source = emission.Path.EndsWith(".cs", StringComparison.Ordinal);
+        bool bom = emission.Path.EndsWith(".cs", StringComparison.Ordinal) || emission.Path.EndsWith(".md", StringComparison.Ordinal);
         string text = emission.Content.ReplaceLineEndings("\n");
 
-        return source
+        return bom
             ? [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)]
             : Encoding.UTF8.GetBytes(text);
     }
@@ -930,7 +1010,7 @@ internal static class NewFeature
     private static string HashOf(Emission emission) =>
         Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
 
-    private static (Emission Emission, int Files) ManifestOf(Spec spec, List<Emission> plan)
+    private static (Emission Emission, int Files) ManifestOf(Spec spec, List<Emission> plan, Emission? page)
     {
         using var stream = new MemoryStream();
 
@@ -973,6 +1053,12 @@ internal static class NewFeature
             }
 
             writer.WriteEndArray();
+
+            if (page is not null)
+            {
+                writer.WriteString("page", page.Path);
+            }
+
             writer.WriteEndObject();
         }
 
@@ -1225,6 +1311,27 @@ internal static class NewFeature
         }
     }
 
+    private static void ReportPage(TextWriter output, Spec spec, Emission? page, string? unwritten)
+    {
+        string path = PagePath(spec.Features);
+        string title = Separated(spec.Features, ' ');
+
+        output.WriteLine();
+
+        if (page is null)
+        {
+            output.WriteLine($"Feature page: {unwritten}");
+        }
+        else
+        {
+            output.WriteLine($"Feature page: {path}, from {PageTemplate}. The manifest records it, so remove-feature deletes it, edited or not.");
+            output.WriteLine("Each heading says what its section holds; replace those lines with what this feature does.");
+        }
+
+        output.WriteLine("Then its row under ## Features in docs/README.md:");
+        output.WriteLine($"  | [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |");
+    }
+
     private static int SelfTest()
     {
         string scratch = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "newfeature-selftest-" + Guid.CreateVersion7().ToString("N"));
@@ -1253,6 +1360,7 @@ internal static class NewFeature
             ManifestCases(scratch, Expect);
             RollbackCases(scratch, Expect);
             ReactionCases(scratch, Expect);
+            PageCases(scratch, Expect);
             TemplateGuardCases(Expect);
         }
         finally
@@ -1901,6 +2009,118 @@ internal static class NewFeature
         expect(refused.Code == 1, "An owner feature into a tree with no accounts was not refused.");
         expect(refused.Error.Contains("neither the local accounts", StringComparison.Ordinal), "The refusal did not name the missing account directory.");
         expect(Same(before, Snapshot(publicApi)), "The refused tree was written to.");
+    }
+
+    private static string SourceFile([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
+
+    private static string WithPageTemplate(string root)
+    {
+        string shipped = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(SourceFile())!)!, PageTemplate);
+        string copy = System.IO.Path.Combine(root, PageTemplate);
+
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(copy)!);
+        File.Copy(shipped, copy);
+
+        return root;
+    }
+
+    private static void PageCases(string scratch, Action<bool, string> expect)
+    {
+        string pagePath = PagePath("TodoLists");
+
+        string root = WithPageTemplate(NewTree(scratch));
+        var result = Invoke(
+            root, "TodoLists", "TodoList", "--access", "owner", "--deletion", "anonymise", "--concurrency", "etag", "--operations", "get,list,update");
+
+        expect(result.Code == 0, $"The page case was refused: {result.Error}");
+
+        string full = System.IO.Path.Combine(root, pagePath);
+
+        expect(File.Exists(full), $"{pagePath} was not written from {PageTemplate}.");
+
+        if (!File.Exists(full))
+        {
+            return;
+        }
+
+        byte[] bytes = File.ReadAllBytes(full);
+        string text = Encoding.UTF8.GetString(bytes);
+        string template = File.ReadAllText(System.IO.Path.Combine(root, PageTemplate));
+
+        expect(bytes.Length > 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, "The page has no UTF-8 BOM, which every Markdown file of the tree has.");
+        expect(!text.Contains('\r', StringComparison.Ordinal) && text.EndsWith('\n') && !text.EndsWith("\n\n", StringComparison.Ordinal), "The page is not LF only, ending in one newline.");
+        expect(!Regex.IsMatch(text, "<[A-Za-z]+>", RegexOptions.None, TimeSpan.FromSeconds(2)), "A placeholder of the page template survived.");
+        expect(text.TrimStart('\uFEFF').StartsWith("# Todo lists\n", StringComparison.Ordinal), "The page's title is not the feature's name in words.");
+
+        string[] headings = [.. template.Split('\n').Where(line => line.StartsWith("## ", StringComparison.Ordinal))];
+
+        expect(
+            headings.Length > 0 && headings.SequenceEqual(text.Split('\n').Where(line => line.StartsWith("## ", StringComparison.Ordinal)), StringComparer.Ordinal),
+            "The page does not keep the template's headings in their order.");
+
+        string[] present =
+        [
+            "- `GET /api/v1/todo-lists`: a page of todo lists",
+            "- `GET /api/v1/todo-lists/{todoListId}`: a todo list",
+            "- `PUT /api/v1/todo-lists/{todoListId}`: replaces a todo list",
+            "on their own todo lists only",
+            "are anonymised",
+            "If-Match",
+            "`Tests/Application/Acme.Application.UnitTests/Features/TodoLists`",
+        ];
+
+        foreach (string needle in present)
+        {
+            expect(text.Contains(needle, StringComparison.Ordinal), $"The page does not say '{needle}'.");
+        }
+
+        expect(!text.Contains("POST", StringComparison.Ordinal) && !text.Contains("DELETE", StringComparison.Ordinal), "The page lists an operation the feature was not generated with.");
+
+        using (var document = JsonDocument.Parse(File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest", "TodoLists.json"))))
+        {
+            var manifest = document.RootElement;
+
+            expect(manifest.TryGetProperty("page", out var page) && page.GetString() == pagePath, "The manifest does not record the page.");
+            expect(
+                manifest.GetProperty("files").EnumerateArray().All(file => file.GetProperty("path").GetString() != pagePath),
+                "The page is among the hashed files, so editing it would hold remove-feature back.");
+        }
+
+        expect(result.Output.Contains($"Feature page: {pagePath}", StringComparison.Ordinal), "The page written was not reported.");
+        expect(result.Output.Contains("| [Todo lists](features/todo-lists.md) |", StringComparison.Ordinal), "The row of docs/README.md was not printed.");
+
+        string shared = WithPageTemplate(NewTree(scratch));
+        var sharedResult = Invoke(shared, "Widgets", "Widget", "--access", "shared");
+        string sharedText = sharedResult.Code == 0 ? File.ReadAllText(System.IO.Path.Combine(shared, PagePath("Widgets"))) : string.Empty;
+
+        expect(sharedResult.Code == 0, $"The shared page case was refused: {sharedResult.Error}");
+
+        foreach (string needle in new[] { "every authenticated caller, on the same widgets", "the last write wins", "- `POST /api/v1/widgets`: creates a widget", "- `DELETE /api/v1/widgets/{widgetId}`: deletes a widget" })
+        {
+            expect(sharedText.Contains(needle, StringComparison.Ordinal), $"The shared page does not say '{needle}'.");
+        }
+
+        string written = WithPageTemplate(NewTree(scratch));
+        string own = System.IO.Path.Combine(written, PagePath("Widgets"));
+
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(own)!);
+        File.WriteAllText(own, "# Widgets, as the team wrote them\n");
+
+        var kept = Invoke(written, "Widgets", "Widget", "--access", "shared");
+
+        expect(kept.Code == 0, $"A page already written held the feature back: {kept.Error}");
+        expect(File.ReadAllText(own) == "# Widgets, as the team wrote them\n", "A page the team wrote was overwritten.");
+        expect(kept.Output.Contains("already exists, so it was left as it is", StringComparison.Ordinal), "A page left as it was is not reported.");
+        expect(
+            !File.ReadAllText(System.IO.Path.Combine(written, ".feature-manifest", "Widgets.json")).Contains("\"page\"", StringComparison.Ordinal),
+            "A page the generator did not write is recorded, so remove-feature would delete it.");
+
+        string bare = NewTree(scratch);
+        var none = Invoke(bare, "Widgets", "Widget", "--access", "shared");
+
+        expect(none.Code == 0, $"A tree without the page template was refused: {none.Error}");
+        expect(!Directory.Exists(System.IO.Path.Combine(bare, "docs")), "A page was written without a page template.");
+        expect(none.Output.Contains($"'{PageTemplate}' is not in this tree", StringComparison.Ordinal), "A missing page template is not reported.");
     }
 
     private const string RemovalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";

@@ -336,7 +336,7 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
   readiness and an unmapped route's refusal everywhere; with local accounts, register, the mailed
   link, confirm, sign-in, `/auth/me`, refresh, sign-out and the refresh refused after it; with files,
   a deposit on the signed grant read back once inspected; with a web app, its page and its `/api`
-  relay. `dotnet run Tools/Tasks.cs e2e` starts the stack under its own project name, runs the
+  relay. `dotnet run Tools/Tasks.cs end-to-end` starts the stack under its own project name, runs the
   suite and removes the stack (`--keep-stack` keeps it); `dotnet test` over the solution leaves the
   project out. A CI job runs it after the Compose manifest, and the acceptance matrix's defaults leg
   runs it in the generated project.

@@ -22,7 +22,7 @@ internal static class Tasks
         command it runs before running it, so the printed line gives the same result without this
         file. The repository root is the nearest directory at or above this file holding
         AppTemplate.sln; the compose tasks and the vulnerability listing read the working directory,
-        and e2e runs from the root.
+        and end-to-end runs from the root.
 
         Tasks:
         <tasks>
@@ -30,7 +30,7 @@ internal static class Tasks
         Options:
           --no-integration                 test: run only the projects that set IsTestProject and
                                            reference no Testcontainers, so no Docker daemon is needed
-          --configuration <Debug|Release>  build, test, coverage, e2e, migration-bundle, verify; after
+          --configuration <Debug|Release>  build, test, coverage, end-to-end, migration-bundle, verify; after
                                            a -- separator, because dotnet run claims the name
           --access, --deletion, --operations, --model, --concurrency
                                            new-feature: forwarded to Tools/NewFeature.cs, whose
@@ -39,11 +39,11 @@ internal static class Tasks
                                            --help says what each one means
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
-          --keep-stack                     e2e: leave the stack it started running, data included,
+          --keep-stack                     end-to-end: leave the stack it started running, data included,
                                            for another run or a look at its logs
 
         End-to-end:
-          e2e                              build and start the Compose stack from .env.example under
+          end-to-end                       build and start the Compose stack from .env.example under
                                            a project name of its own, so the development stack keeps
                                            its data; wait until every service is healthy, run
                                            Tests/EndToEnd against it, print the stack's logs on a
@@ -54,7 +54,7 @@ internal static class Tasks
         Examples:
           dotnet run Tools/Tasks.cs test
           dotnet run Tools/Tasks.cs test --no-integration
-          dotnet run Tools/Tasks.cs e2e --keep-stack
+          dotnet run Tools/Tasks.cs end-to-end --keep-stack
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
           dotnet run Tools/Tasks.cs new-use-case TodoLists ArchiveTodoList --kind command
           dotnet run Tools/Tasks.cs remove-feature Widgets
@@ -82,7 +82,7 @@ internal static class Tasks
         "run",
         "compose-up",
         "compose-down",
-        "e2e",
+        "end-to-end",
         //#if (sonar)
         "sonar",
         //#endif
@@ -278,9 +278,9 @@ internal static class Tasks
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
         }
 
-        if (keepStack && task != "e2e")
+        if (keepStack && task != "end-to-end")
         {
-            throw new InvalidOperationException($"'--keep-stack' is an option of the e2e task, not of '{task ?? "(no task)"}'.");
+            throw new InvalidOperationException($"'--keep-stack' is an option of the end-to-end task, not of '{task ?? "(no task)"}'.");
         }
         //#if (templateMaintenance)
 
@@ -452,7 +452,7 @@ internal static class Tasks
                 Step("docker", "compose", "down");
                 break;
 
-            case "e2e":
+            case "end-to-end":
                 EndToEnd(repoRoot, configuration, keepStack);
                 break;
 

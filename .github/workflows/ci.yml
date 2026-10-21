@@ -376,7 +376,7 @@ jobs:
         #if (templateMaintenance)
         if: hashFiles('.template.config/template.json') == ''
         #endif
-        run: dotnet run Tools/Tasks.cs e2e
+        run: dotnet run Tools/Tasks.cs end-to-end
 
   compose:
     name: Compose manifest

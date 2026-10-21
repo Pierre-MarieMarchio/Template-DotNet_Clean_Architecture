@@ -62,7 +62,7 @@ internal sealed class TodoListQueries(AppDbContext context) : ITodoListQueries
         if (filter.Search is { } search)
         {
             string pattern = TodoListLikePattern.Contains(search.Value);
-            source = source.Where(list => EF.Functions.ILike(list.Name, pattern, "\\"));
+            source = source.Where(list => EF.Functions.Like(list.Name.ToLower(), EF.Parameter(pattern).ToLower(), "\\"));
         }
 
         if (filter.CreatedAfter is { } after)

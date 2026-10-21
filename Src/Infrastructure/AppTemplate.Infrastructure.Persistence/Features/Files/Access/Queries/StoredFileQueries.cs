@@ -120,7 +120,7 @@ internal sealed class StoredFileQueries(AppDbContext context) : IStoredFileQueri
         if (filter.Search is { } search)
         {
             string pattern = StoredFileLikePattern.Contains(search.Value);
-            source = source.Where(file => EF.Functions.ILike(file.Name, pattern, "\\"));
+            source = source.Where(file => EF.Functions.Like(file.Name.ToLower(), EF.Parameter(pattern).ToLower(), "\\"));
         }
 
         if (filter.State is { } state)

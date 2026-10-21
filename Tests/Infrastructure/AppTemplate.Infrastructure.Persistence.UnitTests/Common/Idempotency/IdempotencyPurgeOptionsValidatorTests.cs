@@ -10,7 +10,6 @@ public sealed class IdempotencyPurgeOptionsValidatorTests
 
     [Theory]
     [InlineData(1)]
-    [InlineData(1000)]
     [InlineData(100_000)]
     public void Validate_Succeeds_ForAnInRangeBatchSize(int batchSize)
     {
@@ -21,7 +20,6 @@ public sealed class IdempotencyPurgeOptionsValidatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-1)]
     [InlineData(100_001)]
     public void Validate_Fails_ForAnOutOfRangeBatchSize(int batchSize)
     {

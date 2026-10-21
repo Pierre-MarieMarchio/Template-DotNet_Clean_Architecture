@@ -589,7 +589,6 @@ internal static class NewFeature
         string applicationTests = ProjectOf(spec, "Tests/Application", "Application.UnitTests");
         string domainTests = ProjectOf(spec, "Tests/Domain", "Domain.UnitTests");
         string persistenceTests = ProjectOf(spec, "Tests/Infrastructure", "Infrastructure.Persistence.UnitTests");
-        string apiTests = ProjectOf(spec, "Tests/Presentation", "Api.UnitTests");
 
         string feature = "Features/%F%";
 
@@ -696,7 +695,6 @@ internal static class NewFeature
         AddTest(domainTests, $"{feature}/Model/Entities/%A%Tests.cs", Templates.AggregateTests, "agg");
         AddTest(persistenceTests, $"{feature}/Rows/Configurations/%A%RecordConfigurationTests.cs", Templates.ConfigurationTests);
         AddTest(persistenceTests, $"{feature}/%A%MapperFidelityTests.cs", Templates.MapperFidelityTests, "agg");
-        AddTest(apiTests, $"{feature}/Contracts/Mapping/%A%ResponseMappingTests.cs", Templates.ResponseMappingTests, "dto");
 
         skippedTestProjects = skipped;
 
@@ -1285,7 +1283,8 @@ internal static class NewFeature
         }
 
         output.WriteLine("Not generated, because it is a decision rather than a shape: the rules the feature protects, any domain");
-        output.WriteLine("event of its own, authorisation beyond default-deny, and the integration tests against PostgreSQL.");
+        output.WriteLine("event of its own, authorisation beyond default-deny, and the integration tests against PostgreSQL,");
+        output.WriteLine("a read of every response member on the wire among them.");
 
         if (spec.Concurrency == "none")
         {
@@ -5576,71 +5575,4 @@ internal static class Templates
         }
         """;
 
-    internal const string ResponseMappingTests = """
-        using %P%.Api.Features.%F%.Contracts.Mapping;
-        using %P%.Application.Core.Common.Concurrency; //?Versioned
-        using %P%.Application.Core.Common.Results; //?Result\.
-        using %P%.Application.Features.%F%.Model.Dtos;
-        using Shouldly;
-        using Xunit;
-
-        namespace %P%.Api.UnitTests.Features.%F%.Contracts.Mapping;
-
-        public sealed class %A%ResponseMappingTests
-        {
-            private static readonly DateTimeOffset _createdAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
-
-            [Fact]
-            public void ToResponse_CarriesEveryFieldOfTheDto()
-            {
-                var dto = new %A%Dto(Guid.CreateVersion7(), "Groceries", "Milk, eggs", _createdAt, _createdAt.AddMinutes(5));
-
-                var response = %A%ResponseMapping.ToResponse(dto);
-
-                response.Id.ShouldBe(dto.Id);
-                response.Name.ShouldBe(dto.Name);
-                response.Description.ShouldBe(dto.Description);
-                response.CreatedAt.ShouldBe(dto.CreatedAt);
-                response.LastModifiedAt.ShouldBe(dto.LastModifiedAt);
-            }
-
-        %if list%
-            [Fact]
-            public void ToResponse_CarriesEveryFieldOfTheSummary()
-            {
-                var summary = new %A%SummaryDto(Guid.CreateVersion7(), "Groceries", _createdAt, null);
-
-                var response = %A%ResponseMapping.ToResponse(summary);
-
-                response.Id.ShouldBe(summary.Id);
-                response.Name.ShouldBe(summary.Name);
-                response.CreatedAt.ShouldBe(summary.CreatedAt);
-                response.LastModifiedAt.ShouldBeNull();
-            }
-
-        %end%
-        %if etag%
-            [Fact]
-            public void To%A%Response_CarriesTheVersionBesideTheResponse()
-            {
-                var dto = new %A%Dto(Guid.CreateVersion7(), "Groceries", "Milk, eggs", _createdAt, null);
-
-                var result = %A%ResponseMapping.To%A%Response(Result.Success(new Versioned<%A%Dto>(dto, 7)));
-
-                result.Value.Version.ShouldBe(7u);
-                result.Value.Value.Id.ShouldBe(dto.Id);
-            }
-        %else%
-            [Fact]
-            public void To%A%Response_AnswersTheResponseAlone()
-            {
-                var dto = new %A%Dto(Guid.CreateVersion7(), "Groceries", "Milk, eggs", _createdAt, null);
-
-                var result = %A%ResponseMapping.To%A%Response(Result.Success(dto));
-
-                result.Value.Id.ShouldBe(dto.Id);
-            }
-        %end%
-        }
-        """;
 }

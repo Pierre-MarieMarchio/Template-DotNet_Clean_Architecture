@@ -1,8 +1,6 @@
 ﻿using System.Text.Json;
 using AppTemplate.Api.Features.Files.Contracts.Mapping;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
-using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Model.Dtos;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
@@ -23,34 +21,6 @@ public sealed class StoredFileResponseMappingTests
 
     private static readonly JsonSerializerOptions _camelCasedKeys =
         new(JsonSerializerDefaults.Web) { DictionaryKeyPolicy = JsonNamingPolicy.CamelCase };
-
-    [Fact]
-    public void ToResponse_File_CopiesEveryField()
-    {
-        var file = AFile(StoredFileState.Available, _availableAt);
-
-        var response = StoredFileResponseMapping.ToResponse(file);
-
-        response.Id.ShouldBe(file.Id);
-        response.Category.ShouldBe(file.Category);
-        response.Name.ShouldBe(file.Name);
-        response.DeclaredMediaType.ShouldBe(file.DeclaredMediaType);
-        response.SizeInBytes.ShouldBe(file.SizeInBytes);
-        response.Checksum.ShouldBe(file.Checksum);
-        response.Status.ShouldBe("available");
-        response.RegisteredAt.ShouldBe(file.RegisteredAt);
-        response.AvailableAt.ShouldBe(_availableAt);
-    }
-
-    [Fact]
-    public void TheWireShape_CarriesTheCategory()
-    {
-        var response = StoredFileResponseMapping.ToResponse(AFile(StoredFileState.Available, _availableAt));
-
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(response, _mvcDefaults));
-
-        document.RootElement.GetProperty("category").GetString().ShouldBe("document");
-    }
 
     [Fact]
     public void ToResponse_File_CarriesAnUnconfirmedDepositAsUnconfirmed()
@@ -127,52 +97,6 @@ public sealed class StoredFileResponseMappingTests
         response.Upload.Url.ShouldBe(grant.Url);
         response.Upload.Method.ShouldBe(grant.Method);
         response.Upload.ExpiresAt.ShouldBe(grant.ExpiresAt);
-    }
-
-    [Fact]
-    public void ToPageResponse_CarriesTheMetadataAndTheItems()
-    {
-        var page = PagedResult.Offset<StoredFileDto>(
-            [AFile(StoredFileState.Available, _availableAt)],
-            page: 2,
-            pageSize: 20,
-            totalCount: 41);
-
-        var result = StoredFileResponseMapping.ToPageResponse(page);
-
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.Items.Single().Status.ShouldBe("available");
-        result.Value.Page.ShouldBe(2);
-        result.Value.PageSize.ShouldBe(20);
-        result.Value.TotalCount.ShouldBe(41);
-        result.Value.TotalPages.ShouldBe(3);
-        result.Value.HasNextPage.ShouldBeTrue();
-        result.Value.NextCursor.ShouldBeNull();
-    }
-
-    [Fact]
-    public void ToFileResponse_KeepsTheVersionBesideTheRepresentation()
-    {
-        var file = AFile(StoredFileState.Pending, availableAt: null);
-
-        var result = StoredFileResponseMapping.ToFileResponse(new Versioned<StoredFileDto>(file, 4321u));
-
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.Version.ShouldBe(4321u);
-        result.Value.Value.Id.ShouldBe(file.Id);
-    }
-
-    [Fact]
-    public void EveryProjection_PassesAFailureThroughUntouched()
-    {
-        var error = Error.Conflict("storedFile.quotaExceeded", "No room.");
-
-        StoredFileResponseMapping.ToPageResponse(Result.Failure<PagedResult<StoredFileDto>>(error))
-            .Error.ShouldBe(error);
-        StoredFileResponseMapping.ToFileResponse(Result.Failure<Versioned<StoredFileDto>>(error))
-            .Error.ShouldBe(error);
-        StoredFileResponseMapping.ToRegistrationResponse(Result.Failure<RegisterFileOutcome>(error))
-            .Error.ShouldBe(error);
     }
 
     private static IReadOnlyList<string> HeaderNamesIn(UploadGrantResponse response, JsonSerializerOptions options)

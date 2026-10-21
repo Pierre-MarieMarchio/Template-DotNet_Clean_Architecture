@@ -41,10 +41,23 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
         file.DeclaredMediaType.ShouldBe("text/plain");
         file.SizeInBytes.ShouldBe(_contentAboveThe64KiBDefaultBodyLimit.Length);
         file.Checksum.ShouldBe(Convert.ToHexStringLower(SHA256.HashData(_contentAboveThe64KiBDefaultBodyLimit)));
+        file.RegisteredAt.ShouldBe(Clock.UtcNow);
+        file.AvailableAt.ShouldBeNull();
+        file.Tags.ShouldBeEmpty();
         response.Headers.Location!.ToString().ShouldEndWith($"{_filesRoute}/{file.Id}");
 
         using var read = await client.GetAsync(response.Headers.Location, TestToken);
         (await ApiJson.ReadAsync<StoredFileResponse>(read, TestToken)).Status.ShouldBe("deposited");
+        read.Headers.ETag.ShouldBe(response.Headers.ETag);
+
+        using var revalidation = new HttpRequestMessage(HttpMethod.Get, response.Headers.Location);
+        revalidation.Headers.IfNoneMatch.Add(read.Headers.ETag!);
+        using var unchanged = await client.SendAsync(revalidation, TestToken);
+        unchanged.StatusCode.ShouldBe(HttpStatusCode.NotModified);
+
+        using var listed = await client.GetAsync(new Uri(_filesRoute, UriKind.Relative), TestToken);
+        listed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        listed.Headers.ETag.ShouldBeNull("a page has no version a write could name");
     }
 
     [Fact]

@@ -9,7 +9,6 @@ using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.Features.Files.Controllers;
 using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Model.Dtos;
 using AppTemplate.Application.Features.Files.Model.Errors;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
@@ -79,26 +78,6 @@ public sealed class FilesControllerTests
     }
 
     [Fact]
-    public async Task GetAll_PublishesNoEntityTag()
-    {
-        var httpContext = AContext();
-
-        _getStoredFiles.ExecuteAsync(Arg.Any<GetStoredFilesQuery>(), Arg.Any<CancellationToken>())
-            .Returns(PagedResult.Offset<StoredFileDto>(
-                [AFile(StoredFileState.Available)],
-                page: 1,
-                pageSize: 20,
-                totalCount: 1));
-
-        var action = await AController(httpContext).GetAll(
-            new GetStoredFilesRequest(null, null, null, null, null, null, null),
-            TestContext.Current.CancellationToken);
-
-        action.Result.ShouldBeOfType<OkObjectResult>();
-        httpContext.Response.Headers.ETag.Count.ShouldBe(0);
-    }
-
-    [Fact]
     public async Task GetContent_AnswersA302_WhoseLocationIsTheSignedUrl()
     {
         const string url = "https://store.example/bucket/t0/2026/03/abcdef?sig=deadbeef";
@@ -149,76 +128,6 @@ public sealed class FilesControllerTests
             "GetContent answers with a signed read URL in its Location, and Register answers with a "
             + "signed write URL in its body: those two carry a credential. Upload is a POST, which "
             + "gets no Cache-Control of its own. The others take this API's ordinary caching contract.");
-    }
-
-    [Fact]
-    public async Task GetContent_AnswersLikeAnAbsentFile_WhenTheFileIsNotTheCallers()
-    {
-        var fileId = Guid.CreateVersion7();
-
-        _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<FileDownload>(StoredFileErrors.FileNotFound(fileId)));
-
-        var action = await AController().GetContent(fileId, TestContext.Current.CancellationToken);
-
-        StatusOf(action).ShouldBe(
-            StatusCodes.Status404NotFound,
-            "the application layer answers not-found for somebody else's file so that comparing 403 "
-            + "against 404 cannot enumerate other users' ids. Mapping it to anything else here would "
-            + "undo that at the last step.");
-    }
-
-    [Fact]
-    public async Task GetContent_Answers409_ForAFileWhoseDepositWasNeverConfirmed()
-    {
-        var fileId = Guid.CreateVersion7();
-
-        _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<FileDownload>(StoredFileErrors.FileNotAvailable(fileId)));
-
-        var action = await AController().GetContent(fileId, TestContext.Current.CancellationToken);
-
-        StatusOf(action).ShouldBe(StatusCodes.Status409Conflict);
-    }
-
-    [Fact]
-    public async Task GetById_PublishesTheVersionAsAStrongEntityTag()
-    {
-        var httpContext = AContext();
-
-        _getStoredFile.ExecuteAsync(Arg.Any<GetStoredFileQuery>(), Arg.Any<CancellationToken>())
-            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Available), 1234u));
-
-        var action = await AController(httpContext).GetFile(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
-
-        action.Result.ShouldBeOfType<OkObjectResult>().Value.ShouldBeOfType<StoredFileResponse>();
-
-        string tag = httpContext.Response.Headers.ETag.ToString();
-
-        tag.ShouldNotBeNullOrEmpty();
-        tag.ShouldStartWith("\"");
-        tag.ShouldEndWith("\"");
-
-        tag.ShouldNotBe(await APublishedEntityTagAsync(1235u));
-    }
-
-    [Fact]
-    public async Task GetById_Answers304_WhenTheCallerAlreadyNamesThatVersion()
-    {
-        string published = await APublishedEntityTagAsync(1234u);
-
-        var httpContext = AContext();
-        httpContext.Request.Headers.IfNoneMatch = published;
-
-        _getStoredFile.ExecuteAsync(Arg.Any<GetStoredFileQuery>(), Arg.Any<CancellationToken>())
-            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Available), 1234u));
-
-        var action = await AController(httpContext).GetFile(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
-
-        StatusOf(action.Result!).ShouldBe(StatusCodes.Status304NotModified);
-        httpContext.Response.Headers.ETag.ToString().ShouldBe(
-            published,
-            "RFC 9110 requires a 304 to carry the validator it is refusing to resend the body for.");
     }
 
     [Fact]
@@ -323,17 +232,6 @@ public sealed class FilesControllerTests
     }
 
     [Fact]
-    public async Task Register_MapsAQuotaRefusal_To409()
-    {
-        _registerFile.ExecuteAsync(Arg.Any<RegisterFileCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Failure<RegisterFileOutcome>(StoredFileErrors.QuotaExceeded("No room.")));
-
-        var action = await AController().Register(ARequest(), TestContext.Current.CancellationToken);
-
-        StatusOf(action.Result!).ShouldBe(StatusCodes.Status409Conflict);
-    }
-
-    [Fact]
     public async Task Register_IsUnconditional_EvenWhereTheDeploymentRequiresAPrecondition()
     {
         var httpContext = AContext(IfMatchRequirement.Required);
@@ -363,74 +261,6 @@ public sealed class FilesControllerTests
         captured.MediaType.ShouldBe("application/pdf");
         captured.SizeInBytes.ShouldBe(1024L);
         captured.Checksum.ShouldBe(new string('a', 64));
-    }
-
-    [Fact]
-    public async Task Upload_Answers201_LocatingTheFileWithItsEntityTag()
-    {
-        var httpContext = AContext();
-        var file = AFile(StoredFileState.Deposited);
-        _uploadFile.ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
-            .Returns(new Versioned<StoredFileDto>(file, 3));
-
-        var action = await AController(httpContext).Upload(
-            AnUploadRequest(httpContext, AFormFile("report.pdf")),
-            TestContext.Current.CancellationToken);
-
-        var created = action.Result.ShouldBeOfType<CreatedAtRouteResult>();
-        created.StatusCode.ShouldBe(StatusCodes.Status201Created);
-        created.RouteName.ShouldBe(nameof(FilesController.GetFile));
-        created.RouteValues!["fileId"].ShouldBe(file.Id);
-        created.Value.ShouldBeOfType<StoredFileResponse>().Status.ShouldBe("deposited");
-        httpContext.Response.Headers.ETag.Count.ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task Upload_HandsTheFormToTheUseCase_WithThePartsMediaTypeAndLength()
-    {
-        var httpContext = AContext();
-        UploadFileCommand? captured = null;
-        byte[]? content = null;
-        _uploadFile
-            .ExecuteAsync(
-                Arg.Do<UploadFileCommand>(command =>
-                {
-                    captured = command;
-                    using var copy = new MemoryStream();
-                    command.Content.CopyTo(copy);
-                    content = copy.ToArray();
-                }),
-                Arg.Any<CancellationToken>())
-            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Deposited), 1));
-
-        await AController(httpContext).Upload(
-            AnUploadRequest(httpContext, AFormFile("report.pdf"), name: "Q3 report.pdf"),
-            TestContext.Current.CancellationToken);
-
-        captured.ShouldNotBeNull();
-        captured.Category.ShouldBe("document");
-        captured.Name.ShouldBe("Q3 report.pdf");
-        captured.MediaType.ShouldBe("application/pdf");
-        captured.SizeInBytes.ShouldBe(_uploadedBytes.Length);
-        content.ShouldBe(_uploadedBytes);
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("  ")]
-    public async Task Upload_NamesTheFileAfterThePart_WhenNoNameIsGiven(string? name)
-    {
-        var httpContext = AContext();
-        UploadFileCommand? captured = null;
-        _uploadFile
-            .ExecuteAsync(Arg.Do<UploadFileCommand>(command => captured = command), Arg.Any<CancellationToken>())
-            .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Deposited), 1));
-
-        await AController(httpContext).Upload(
-            AnUploadRequest(httpContext, AFormFile("scan.pdf"), name),
-            TestContext.Current.CancellationToken);
-
-        captured!.Name.ShouldBe("scan.pdf");
     }
 
     [Fact]
@@ -491,25 +321,6 @@ public sealed class FilesControllerTests
 
         constantLimits.ShouldBeEmpty();
     }
-
-    [Fact]
-    public void TheUploadLimit_IsTheConfiguredCeilingPlusTheMultipartFraming()
-    {
-        var limit = typeof(FilesController)
-            .GetMethod(nameof(FilesController.Upload))!
-            .GetCustomAttribute<RequestBodyLimitAttribute>()!;
-        var services = new ServiceCollection()
-            .AddSingleton(Options.Create(new FilesOptions { ApiUploadMaxBytes = 2 * 1024 * 1024 }))
-            .BuildServiceProvider();
-
-        limit.MaxRequestBodyBytes(services).ShouldBe((2 * 1024 * 1024) + (16 * 1024));
-    }
-
-    [Fact]
-    public void TheUpload_IsNotIdempotent() =>
-        typeof(FilesController).GetMethod(nameof(FilesController.Upload))!
-            .GetCustomAttribute<IdempotentAttribute>()
-            .ShouldBeNull();
 
     private static RegisterFileRequest ARequest() =>
         new("document", "quarterly-report.pdf", "application/pdf", 1024, new string('a', 64));

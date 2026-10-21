@@ -108,6 +108,10 @@ public sealed class NoteConcurrencyTests(ApiFixture fixture) : NotesTestBase(fix
 
         using var conditional = await UpdateNoteAsync(strict, note.Note.Id, "Conditional", "Body", note.ETag);
         conditional.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        (await CreateNoteAsync(strict, "Created")).Note.Title.ShouldBe(
+            "Created",
+            "a creation names no version, so no policy can ask it for one");
     }
 
     [Fact]

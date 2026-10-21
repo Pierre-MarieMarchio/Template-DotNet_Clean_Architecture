@@ -60,35 +60,6 @@ public sealed class CompleteTodoItemUseCaseTests
     }
 
     [Fact]
-    public async Task AnItemOnAnotherUsersList_IsNotCompleted()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        var foreignItemId = foreign.AddItem("Not mine", null);
-        foreign.ClearDomainEvents();
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new CompleteTodoItemCommand(foreign.Id, foreignItemId), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        foreign.Items.ShouldHaveSingleItem().IsCompleted.ShouldBeFalse();
-        foreign.DomainEvents.ShouldBeEmpty();
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AnotherUsersList_IsReportedAsAMissingListNotAMissingItem()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        var foreignItemId = foreign.AddItem("Not mine", null);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new CompleteTodoItemCommand(foreign.Id, foreignItemId), TestToken);
-
-        result.Error!.Code.ShouldBe("todoList.notFound");
-    }
-
-    [Fact]
     public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);

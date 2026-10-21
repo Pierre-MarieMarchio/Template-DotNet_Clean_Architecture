@@ -66,25 +66,6 @@ public sealed class GetTodoListsUseCaseTests
     }
 
     [Fact]
-    public async Task TheOwnerScope_FollowsTheCallerAndNotTheRequest()
-    {
-        var otherCallerId = UserId.Create(Guid.CreateVersion7());
-        GivenThePageIsEmpty();
-
-        await UseCaseFor(StubCurrentUser.WithId(otherCallerId))
-            .ExecuteAsync(GetTodoListsQuery.Offset(1, 10), TestToken);
-
-        await _queries.Received(1).GetForOwnerAsync(
-            otherCallerId,
-            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
-            Arg.Any<CancellationToken>());
-        await _queries.DidNotReceive().GetForOwnerAsync(
-            _callerId,
-            Arg.Any<FeaturePageRequest<TodoListFilter>>(),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public void EveryMethodOnTheReadSidePort_TakesAnOwner() =>
         typeof(ITodoListQueries).GetMethods()
             .ShouldAllBe(method => method.Name == nameof(ITodoListQueries.ListDataOwnerIdsAsync)

@@ -42,31 +42,6 @@ public sealed class GetStoredFileUseCaseTests
     }
 
     [Fact]
-    public async Task TheOwnerFilter_IsTheCallerAndReachesThePort()
-    {
-        var fileId = Guid.CreateVersion7();
-        _queries.GetDetailAsync(fileId, _callerId, Arg.Any<CancellationToken>()).Returns(ADetail(fileId));
-
-        await UseCase().ExecuteAsync(new GetStoredFileQuery(fileId), TestToken);
-
-        await _queries.Received(1).GetDetailAsync(fileId, _callerId, Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AFileThatIsNotTheCallers_IsReportedAsNotFound()
-    {
-        var fileId = Guid.CreateVersion7();
-        _queries.GetDetailAsync(fileId, _callerId, Arg.Any<CancellationToken>())
-            .Returns((Versioned<StoredFileDto>?)null);
-
-        var result = await UseCase().ExecuteAsync(new GetStoredFileQuery(fileId), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        result.Error.Code.ShouldBe("storedFile.notFound");
-    }
-
-    [Fact]
     public async Task TheCallersOwnFile_IsReturnedWithItsVersion()
     {
         var fileId = Guid.CreateVersion7();

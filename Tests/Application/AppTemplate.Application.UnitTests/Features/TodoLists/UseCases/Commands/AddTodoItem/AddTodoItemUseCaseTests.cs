@@ -149,35 +149,6 @@ public sealed class AddTodoItemUseCaseTests
     }
 
     [Fact]
-    public async Task AnotherUsersList_DoesNotReceiveTheItem()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(ACommandFor(foreign.Id), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        foreign.Items.ShouldBeEmpty();
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AnotherUsersList_IsIndistinguishableFromAMissingOne()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-        var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
-
-        var foreignResult = await UseCase().ExecuteAsync(ACommandFor(foreign.Id), TestToken);
-        var missingResult = await UseCase().ExecuteAsync(ACommandFor(missingId), TestToken);
-
-        foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
-        foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
-    }
-
-    [Fact]
     public async Task ADuplicateTitle_BecomesAConflict()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");

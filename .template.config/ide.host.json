@@ -20,6 +20,13 @@
       "isVisible": true
     },
     {
+      "id": "database",
+      "name": {
+        "text": "Database"
+      },
+      "isVisible": true
+    },
+    {
       "id": "files",
       "name": {
         "text": "Files module"

@@ -27,9 +27,9 @@ The `Storage/` suite starts the object store the stack runs, at the same digest.
 ## Running them
 
 ```bash
-dotnet run Tools/Tasks.cs test                    # the solution
-dotnet run Tools/Tasks.cs test --no-integration   # the projects that need no Docker
-dotnet test Tests/Architecture                    # the architecture rules alone
+dotnet run Tools/Tasks.cs test                                          # the solution
+dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
+dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
 ```
 
 `global.json` names Microsoft.Testing.Platform as the runner: each test project is a console

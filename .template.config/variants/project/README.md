@@ -4,6 +4,8 @@
 
 Replace this paragraph with what your product does, for whom, and what it is not.
 
+Replace this line with the links your team owns: the build status, the environments, the issue tracker.
+
 This project is a .NET 10 HTTP API on Clean Architecture, with PostgreSQL through EF Core, a problem
 document on every failure, and settings validated at start.
 <!--#if (localAuth)-->
@@ -14,6 +16,11 @@ Callers bring a token their OpenID Connect provider issued.
 <!--#endif-->
 <!--#if (publicApi)-->
 Every route is public: the API authenticates nobody.
+<!--#endif-->
+The API's code lives in four layers under `Src/`, mirrored under `Tests/`;
+[project layout](docs/reference/project-layout.md) says where a file goes.
+<!--#if (anyWeb)-->
+The web apps live in the pnpm workspace `Src/Web`.
 <!--#endif-->
 [The overview](docs/getting-started/overview.md) lists what it contains and the options it was
 generated with.
@@ -54,11 +61,21 @@ to start without its identity provider.
 [First run](docs/getting-started/first-run.md) continues from there: running on the host, a first call
 to the API, the tests and a first feature.
 
+## Everyday commands
+
+```bash
+dotnet run Tools/Tasks.cs test --no-integration   # the tests that need no Docker
+dotnet run Tools/Tasks.cs verify                  # the whole gate, Docker needed
+dotnet run Tools/Tasks.cs help                    # every task and its options
+docker compose down                               # stop the stack
+```
+
 ## Documentation
 
 - [The documentation index](docs/README.md): every page, by what you are doing.
-- [AGENTS.md](AGENTS.md): where the truths live, and the rules for changing code and docs.
-- [CONTRIBUTING.md](CONTRIBUTING.md): what has to be true before a change is done.
+- [AGENTS.md](AGENTS.md): how to work in this repository, for people and coding agents alike: the
+  commands, where code goes, what done means.
+- [CONTRIBUTING.md](CONTRIBUTING.md): the pull request rules, and where each rule of this project lives.
 - [SECURITY.md](SECURITY.md): what this project protects, and what a deployment must still do.
 
 ## Licence

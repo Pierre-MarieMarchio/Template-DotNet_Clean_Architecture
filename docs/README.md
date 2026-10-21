@@ -1,68 +1,91 @@
 ﻿# Documentation
 
-Every document here has one subject. This page is how you find the one you need.
+Which page answers your question, and where a new page goes.
 
-## Start here
+## How these pages are organised
 
-| If you are… | Read |
+| Folder | A page belongs here when the reader is |
 |---|---|
-| looking at this repository for the first time | [`../README.md`](../README.md) — what it is, and a five-minute run |
-| about to run it locally | [`GETTING-STARTED.md`](GETTING-STARTED.md) |
-| generating a project from it | [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) |
-| writing a client against the API | [`API-CONVENTIONS.md`](API-CONVENTIONS.md), then [`API-REFERENCE.md`](API-REFERENCE.md) |
-| about to write code in it | [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md), then [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md) |
-| about to deploy it | [`../SECURITY.md`](../SECURITY.md), then [`CONFIGURATION.md`](CONFIGURATION.md) and [`MIGRATIONS.md`](MIGRATIONS.md) |
+| [getting-started](getting-started/overview.md) | new to this project, reading once and in order |
+| [architecture](architecture/README.md) | learning the rules every layer, feature and endpoint follows |
+| features | using, configuring or removing one capability |
+| guides | doing a task again: add, remove, migrate, test, ship |
+| reference | looking up a setting, a route, a code or a folder |
+| [decisions](decisions/README.md) | asking why a choice was made |
 
-## By subject
+## Getting started
 
-**Running it**
-
-| Document | Subject |
+| Page | Answers |
 |---|---|
-<!--#if (localAuth)-->
-| [`GETTING-STARTED.md`](GETTING-STARTED.md) | Compose, running on the host, and a register-to-first-request walkthrough |
-<!--#else
-| [`GETTING-STARTED.md`](GETTING-STARTED.md) | Compose, and running on the host |
+| [Overview](getting-started/overview.md) | what this project is, and how it was generated |
+| [First run](getting-started/first-run.md) | from a clone to an authenticated call and a first feature |
+| [Existing repository](getting-started/existing-repository.md) | moving this project into a repository that already exists |
+
+## Architecture
+
+| Page | Answers |
+|---|---|
+| [Overview](architecture/README.md) | the layers, the dependency rule, what is deliberately absent |
+| [Layers and projects](architecture/layers-and-projects.md) | which projects make each layer, and how the host is composed |
+| [Feature shapes](architecture/feature-shapes.md) | an aggregate, or a service over a store |
+| [Modules and boundaries](architecture/modules-and-boundaries.md) | what a feature or a module may depend on |
+| [Ports and adapters](architecture/ports-and-adapters.md) | how the application reaches storage and the outside world |
+| [Domain and results](architecture/domain-and-results.md) | how rules are enforced, failures reported and facts published |
+| [Persistence model](architecture/persistence-model.md) | how data is mapped, saved and protected from lost updates |
+| [Request pipeline](architecture/request-pipeline.md) | what happens to every request on its way in and out |
+| [HTTP API](architecture/http-api.md) | the contract every endpoint offers a client |
+| [Shared mechanisms](architecture/shared-mechanisms.md) | the cache, outbound HTTP, the clock, the current user |
+
+## Features
+
+| Page | Answers |
+|---|---|
+| [Authentication](features/authentication.md) | who can call the API, and how a caller proves it |
+<!--#if (accounts)-->
+| [Accounts](features/accounts.md) | how an account lives, from registration to deletion |
 <!--#endif-->
-| [`USING-THE-TEMPLATE.md`](USING-THE-TEMPLATE.md) | `dotnet new`, what the project name substitutes into, and the one command that is not optional |
-| [`INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md`](INTEGRATING-INTO-AN-EXISTING-REPOSITORY.md) | moving a generated project into a repository that already has a history |
-| [`REMOVING-THE-EXAMPLE-FEATURES.md`](REMOVING-THE-EXAMPLE-FEATURES.md) | choosing the examples at generation, and deleting the ones a project was generated with once you have read them |
-
-**The HTTP surface**
-
-| Document | Subject |
-|---|---|
-| [`API-CONVENTIONS.md`](API-CONVENTIONS.md) | what holds for every endpoint: versioning, default-deny, error codes, `ETag`, `Idempotency-Key`, collection queries, rate limits |
-| [`API-REFERENCE.md`](API-REFERENCE.md) | the endpoints themselves, one table per feature |
-
-**Understanding the code**
-
-| Document | Subject |
-|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | the four layers, the dependency rule, and the reasoning — including what is deliberately absent |
-| [`PROJECT-LAYOUT.md`](PROJECT-LAYOUT.md) | which project holds what, and the folder rules the architecture tests enforce |
-| [`CONVENTIONS.md`](CONVENTIONS.md) | naming, visibility, where a contract lives, and the comment policy |
-| [`DECISIONS.md`](DECISIONS.md) | the choices a reasonable person could have made differently, and the test holding each one |
-
-**Changing the code**
-
-| Document | Subject |
-|---|---|
-| [`ADDING-A-FEATURE.md`](ADDING-A-FEATURE.md) | the vertical, end to end, with the real signatures at each step |
-| [`TESTING.md`](TESTING.md) | the test stack, how to run it, and the sharp edges that have cost time here |
-<!--#if (localAuth)-->
-| [`MIGRATIONS.md`](MIGRATIONS.md) | two contexts, two histories, and the commands for each |
-<!--#else
-| [`MIGRATIONS.md`](MIGRATIONS.md) | the context, its history, and the commands |
+<!--#if (files)-->
+| [Files](features/files.md) | how files are stored, inspected and served |
 <!--#endif-->
-| [`BUILD-AND-CI.md`](BUILD-AND-CI.md) | the gate, the tools under `Tools/`, the workflows, the container image, the supply chain |
+| [Background jobs](features/background-jobs.md) | what runs on a timer, and on which instance |
+| [Email](features/email.md) | how mail is sent, and in which language |
+| [Observability](features/observability.md) | logs, metrics, traces and health checks |
+<!--#if (anyWeb)-->
+| [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
+<!--#endif-->
 
-**Shipping it**
+## Guides
 
-| Document | Subject |
+| Page | Answers |
 |---|---|
-| [`../SECURITY.md`](../SECURITY.md) | what the template provides, and the longer half: what a deployment still owes |
-| [`CONFIGURATION.md`](CONFIGURATION.md) | every configuration key, its default, its validated range, and what happens when it is wrong |
+| [Adding a feature](guides/adding-a-feature.md) | generating a feature and finishing it by hand |
+| [Removing features](guides/removing-features.md) | taking out a feature, the examples, Files or authentication |
+| [Migrations](guides/migrations.md) | adding, checking and applying a migration |
+| [Testing](guides/testing.md) | running the suites and writing new tests |
+| [Build and CI](guides/build-and-ci.md) | the gate, locally and in CI |
+| [Deployment](guides/deployment.md) | shipping the image to an environment |
 
-For how to record the reasoning behind a change, see
-[`CONVENTIONS.md`](CONVENTIONS.md#comments).
+## Reference
+
+| Page | Answers |
+|---|---|
+| [Configuration](reference/configuration.md) | what each setting does |
+| [API](reference/api.md) | every route and every error code |
+| [Project layout](reference/project-layout.md) | where a file goes, and what it is called |
+
+## Decisions
+
+[The decision index](decisions/README.md) lists every ADR. [ADR 0001](decisions/0001-adopt-the-generated-baseline.md)
+records the choices this project started with.
+
+## Adding a page
+
+| You add | Where | Start from |
+|---|---|---|
+| A feature | `features/<feature>.md`, and a row under Features above | [the feature template](_templates/feature.md); `new-feature` writes it for you |
+| A how-to | `guides/<task>.md`, and a row under Guides | [the how-to template](_templates/how-to.md) |
+| A decision | `decisions/NNNN-<title>.md`, numbered from 1000, and a row in the decision index | [the ADR template](_templates/adr.md) |
+| A setting | a section in the configuration reference | the table shape there |
+| A route or a code | a row in the API reference | the table shape there |
+
+[AGENTS.md](../AGENTS.md) holds the rules for writing them.

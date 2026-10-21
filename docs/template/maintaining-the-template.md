@@ -49,7 +49,10 @@ its headers and an answer only the API gives.
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
 
 A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
-workspace. A separate job asserts each refused combination exits non-zero and writes no file. The legs
+workspace. The leg that adds a first app runs that assertion, then `cleanarch-webapp --workspace` and
+the lines `Src/Web/README.md` lists, and is a web leg from there. `--workspace` only adds files, and
+the engine refuses to overwrite one, so everything a web app needs from the API ships with every
+project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
 
 ## Adding an option

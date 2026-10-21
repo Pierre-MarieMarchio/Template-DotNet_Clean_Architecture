@@ -82,9 +82,9 @@ records the choices this project started with.
 
 | You add | Where | Start from |
 |---|---|---|
-| A feature | `features/<feature>.md`, and a row under Features above | [the feature template](_templates/feature.md); `new-feature` writes it for you |
-| A how-to | `guides/<task>.md`, and a row under Guides | [the how-to template](_templates/how-to.md) |
-| A decision | `decisions/NNNN-<title>.md`, numbered from 1000, and a row in the decision index | [the ADR template](_templates/adr.md) |
+| A feature | `features/<feature>.md`, and a row under Features above | [the feature template](_page-templates/feature.md); `new-feature` writes it for you |
+| A how-to | `guides/<task>.md`, and a row under Guides | [the how-to template](_page-templates/how-to.md) |
+| A decision | `decisions/NNNN-<title>.md`, numbered from 1000, and a row in the decision index | [the ADR template](_page-templates/adr.md) |
 | A setting | a section in the configuration reference | the table shape there |
 | A route or a code | a row in the API reference | the table shape there |
 

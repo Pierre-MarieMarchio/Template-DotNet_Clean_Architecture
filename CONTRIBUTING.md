@@ -52,7 +52,7 @@ Each rule has one home, and a test holds it wherever a test can.
 
 A change that moves a file updates every page that cites it. A change that adds a capability adds its
 page. A choice another team could have made differently adds an ADR, with the test that holds it.
-[AGENTS.md › Writing docs](AGENTS.md#writing-docs) holds the writing rules, and `docs/_templates/`
+[AGENTS.md › Writing docs](AGENTS.md#writing-docs) holds the writing rules, and `docs/_page-templates/`
 the skeleton of each kind of page.
 
 ## Pull requests

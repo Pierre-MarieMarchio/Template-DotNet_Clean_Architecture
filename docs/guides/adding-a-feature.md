@@ -36,7 +36,7 @@ The command writes files and edits none. It writes:
 
 - the feature's folders in each layer, and tests that hold for any feature of its shape;
 - `.feature-manifest/<Features>.json`: the options and the SHA-256 of every file written;
-- the feature page `docs/features/<features>.md`, from `docs/_templates/feature.md`.
+- the feature page `docs/features/<features>.md`, from `docs/_page-templates/feature.md`.
 
 Then it prints the edits that compose the feature: the schema, set and configuration in
 `AppDbContext`, an `Add<Features>()` in `ApplicationModule`, the adapters in `PersistenceModule`, the

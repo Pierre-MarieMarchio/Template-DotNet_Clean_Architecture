@@ -54,7 +54,7 @@ jobs:
     name: Template acceptance (${{ matrix.name }})
     needs: pack
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false
@@ -63,9 +63,11 @@ jobs:
           - name: defaults
             options: ""
             auth_context: "true"
+            integration: "true"
           - name: auth none, smallest project
             options: --auth none --examples none --files false
             auth_context: "false"
+            integration: "true"
           - name: external auth, notes
             options: --auth external --examples notes
             auth_context: "false"
@@ -224,6 +226,23 @@ jobs:
           mapfile -t projects < <(grep -r --include='*.csproj' -L 'Testcontainers' Tests | sort)
           if [ "${#projects[@]}" -eq 0 ]; then
             echo "::error title=No test projects::Discovery found nothing to run in the generated project."
+            exit 1
+          fi
+          for project in "${projects[@]}"; do
+            echo "::group::$project"
+            dotnet test "$project" --configuration Release --no-build --output Detailed
+            echo "::endgroup::"
+          done
+
+      # The projects the Docker-free step leaves out, against the runner's Docker: the HTTP surface the options change most.
+      - name: Run the integration tests (Testcontainers)
+        if: matrix.integration == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          mapfile -t projects < <(grep -r --include='*.csproj' -l 'Testcontainers' Tests | sort)
+          if [ "${#projects[@]}" -eq 0 ]; then
+            echo "::error title=No integration projects::No test project of the generated project references Testcontainers."
             exit 1
           fi
           for project in "${projects[@]}"; do

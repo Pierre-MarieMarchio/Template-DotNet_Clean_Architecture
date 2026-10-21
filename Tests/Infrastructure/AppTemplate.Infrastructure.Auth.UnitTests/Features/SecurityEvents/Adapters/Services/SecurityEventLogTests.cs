@@ -21,13 +21,18 @@ public sealed class SecurityEventLogTests
 
     private readonly MovableDateTimeProvider _clock = new();
 
-    public static TheoryData<SecurityEventKind> EveryKind =>
-        [.. Enum.GetValues<SecurityEventKind>()];
+    [Fact]
+    public void Record_HandlesEveryDeclaredKind()
+    {
+        var log = Log();
 
-    [Theory]
-    [MemberData(nameof(EveryKind))]
-    public void Record_HandlesEveryDeclaredKindWithoutThrowing(SecurityEventKind kind) =>
-        Should.NotThrow(() => Log().Record(new SecurityEvent(kind, Guid.CreateVersion7())));
+        SecurityEventKind[] offenders =
+        [
+            .. Enum.GetValues<SecurityEventKind>().Where(kind => !Records(log, kind)),
+        ];
+
+        offenders.ShouldBeEmpty("A kind the log cannot write is an event the account's history loses.");
+    }
 
     [Fact]
     public void Record_StillWritesTheStructuredEntry_WhenTheRowCannotBeStored()
@@ -43,6 +48,20 @@ public sealed class SecurityEventLogTests
             entry.Level == LogLevel.Error
             && entry.Message.Contains(nameof(SecurityEventKind.LoginSucceeded), StringComparison.Ordinal)
             && entry.Exception != null);
+    }
+
+    private static bool Records(SecurityEventLog log, SecurityEventKind kind)
+    {
+        try
+        {
+            log.Record(new SecurityEvent(kind, Guid.CreateVersion7()));
+
+            return true;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            return false;
+        }
     }
 
     private SecurityEventLog LogFor(ILogger<SecurityEventLog> logger) =>

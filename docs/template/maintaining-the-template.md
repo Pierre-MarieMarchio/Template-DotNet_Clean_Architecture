@@ -25,10 +25,10 @@ does not receive.
 
 ## The acceptance matrix
 
-`.github/workflows/template-acceptance.yml` installs the template from the checkout and, per leg,
-generates under another name, asserts the source name leaked nowhere, bootstraps, builds with warnings
-as errors, runs the Docker-free tests, checks every generated context for pending model changes, and
-runs the generated project's `hygiene`. A web leg also checks its lockfile, adds a second app and a
+`.github/workflows/template-acceptance.yml` packs the template package once, and per leg installs
+that `.nupkg`, generates under another name, asserts the source name leaked nowhere, bootstraps,
+builds with warnings as errors, runs the Docker-free tests, checks every generated context for
+pending model changes, and runs the generated project's `hygiene`. A web leg also checks its lockfile, adds a second app and a
 package with the item templates, scaffolds, runs the workspace's install, lint, test and build,
 checks a second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page,
 its headers and an answer only the API gives.

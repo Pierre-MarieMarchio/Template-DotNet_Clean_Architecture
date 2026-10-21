@@ -2,13 +2,25 @@
 
 ## Install and uninstall
 
+From nuget.org:
+
 ```bash
-dotnet new install <path-to-this-repository>
-dotnet new uninstall <path-to-this-repository>
+dotnet new install CleanArch.WebApi.Templates
+dotnet new update
+dotnet new uninstall CleanArch.WebApi.Templates
+```
+
+From a package packed locally, as [the package](maintaining-the-template.md#the-package) shows:
+
+```bash
+dotnet new install <folder>/CleanArch.WebApi.Templates.<version>.nupkg
 ```
 
 One install brings three templates: `cleanarch-webapi`, the project, and the item templates
-`cleanarch-webapp` and `cleanarch-webpackage`.
+`cleanarch-webapp` and `cleanarch-webpackage`. A checkout installs too, with
+`dotnet new install <path-to-this-repository>`, for a maintainer trying a change: the engine then
+reads every `.template.config` under the path, a worktree's or a scratch copy's included, which the
+package never carries.
 
 ## Generate
 
@@ -18,7 +30,7 @@ cd <Company.Product>
 dotnet run Tools/Tasks.cs bootstrap
 ```
 
-Generate outside the template repository: the engine reads the template from the installed path, so
+With a checkout installed, generate outside it: the engine reads the template from that path, so
 output written inside it is copied into itself and nests a duplicate. Then follow the generated
 project's [first run](../getting-started/first-run.md); bootstrap is its first step and is not
 optional, since the order of sorted using directives depends on the name chosen.

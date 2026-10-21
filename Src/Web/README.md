@@ -18,7 +18,7 @@ pnpm api                 # regenerate packages/api-client from the API's OpenAPI
 ```
 
 `dotnet run Tools/Tasks.cs web-scaffold` at the project root creates each react or angular app that
-still holds its `scaffold.json`, with its framework's official CLI, then installs and runs `pnpm api`;
+still holds its scaffold.json, with its framework's official CLI, then installs and runs `pnpm api`;
 `bootstrap` runs the same step.
 
 ## Adding an app or a package

@@ -373,6 +373,10 @@ jobs:
             exit 1
           fi
 
+      # After the web steps, so a web leg's lockfile exists and git's ignore rules hide node_modules; the tool stays in this checkout.
+      - name: Assert every path the generated pages cite exists
+        run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
+
       - name: Build the images and start the stack
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated

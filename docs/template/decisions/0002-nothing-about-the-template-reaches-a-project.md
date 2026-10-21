@@ -1,0 +1,40 @@
+﻿# 0002. Nothing about the template reaches a project
+
+Status: Accepted
+
+## Context
+
+The template repository holds two kinds of material: the project it generates, documentation
+included, and the machinery that maintains the template itself, such as its acceptance matrix, its
+tree-auditing gates, its changelog and its plans. A generated project that receives the second kind
+carries pages about a template it no longer uses, gates that audit a tree it does not have, and
+sentences like "the template ships" that stop being true the day after generation.
+
+## Decision
+
+- **The documentation under `docs/` is the project's.** It speaks of "this project" and reads true
+  the day after generation and a year later. It is conditioned per option like the code.
+- **What concerns the template lives apart** and is excluded unconditionally: `docs/template/`,
+  with its own decisions, and the template repository's root README. A generated project receives
+  its own README from a variant source instead.
+- **Template maintenance is excluded or conditioned.** The changelog, the plans, the acceptance
+  workflow and the three tree-auditing tools (`Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs`,
+  `Tools/CheckComments.cs`) are excluded by path. Content inside a shared file, such as a link from
+  `CONTRIBUTING.md` to `docs/template/`, is wrapped in a `templateMaintenance` block, a symbol that
+  is false in every generated project.
+
+## Consequences
+
+- A generated project's documentation is the ground its team builds on: its own feature pages,
+  how-tos and ADRs join the same folders.
+- The template repository reads its project documentation as a generated project would, so the
+  template's own gates check what every project receives.
+- A link from a shared file to a template page disappears with its target, so `CheckDocPaths` stays
+  green in a generated project.
+- Writing about the template in a project page is a defect, fixed by moving the sentence to
+  `docs/template/`.
+
+## Revisit when
+
+The project documentation moves out of the repository, to a site built separately, or the template
+starts shipping material a project must keep in step with it.

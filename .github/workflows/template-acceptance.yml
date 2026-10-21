@@ -334,13 +334,17 @@ jobs:
             "Orders Order --access owner --deletion delete"
             "Tags Tag --access shared"
             "Invoices Invoice --access owner --deletion anonymise --model aggregate --concurrency etag"
+            "Receipts Receipt --access owner --deletion delete --model aggregate --concurrency etag --operations get,list,create"
           )
           mapfile -t layers < <(find Src/Domain Src/Application Tests/Domain Tests/Application -name '*.csproj' | sort)
+          mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L 'Testcontainers' | sort)
+          mapfile -t architecture < <(find Tests/Architecture -name '*.csproj')
           write() {
+            local log="${{ runner.temp }}/new-feature-${1%% *}.log"
             # shellcheck disable=SC2086
-            dotnet run Tools/Tasks.cs new-feature $1 > "${{ runner.temp }}/new-feature.log" 2>&1 || { cat "${{ runner.temp }}/new-feature.log"; fail "new-feature $1 failed."; }
+            dotnet run Tools/Tasks.cs new-feature $1 > "$log" 2>&1 || { cat "$log"; fail "new-feature $1 failed."; }
             [ -n "$(git status --porcelain)" ] || fail "new-feature $1 wrote nothing."
-            grep -q 'Feature page: docs/features/' "${{ runner.temp }}/new-feature.log" || fail "new-feature $1 named no feature page."
+            grep -q 'Feature page: docs/features/' "$log" || fail "new-feature $1 named no feature page."
             [ -d .feature-manifest ] || fail "new-feature $1 left no manifest."
           }
           extend() {
@@ -357,17 +361,39 @@ jobs:
               dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "${{ runner.temp }}/new-use-case.log" 2>&1 || { cat "${{ runner.temp }}/new-use-case.log"; fail "new-use-case $feature $usecase failed."; }
             done
           }
-          prove() {
-            for project in "${layers[@]}"; do
-              dotnet build "$project" --configuration Release --no-restore -warnaserror
-            done
+          compose() {
+            local feature status
             for feature in "$@"; do
-              mapfile -t homes < <(find Tests/Domain Tests/Application -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*' | cut -d/ -f1-3 | sort -u)
-              [ "${#homes[@]}" -gt 0 ] || fail "new-feature $feature wrote no test under Tests/Domain or Tests/Application."
+              status=0
+              dotnet run "${{ github.workspace }}/.template.config/acceptance/ApplyFeatureEdits.cs" "${{ runner.temp }}/new-feature-$feature.log" . || status=$?
+              case "$status" in
+                0) ;;
+                2) git checkout --quiet -- . && return 1 ;;
+                *) fail "the edits new-feature printed for $feature could not be applied." ;;
+              esac
+            done
+          }
+          prove() {
+            local projects feature home
+            if compose "$@"; then
+              dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once the edits new-feature printed for $* are made."
+              dotnet test "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once the edits new-feature printed for $* are made."
+              projects=("${docker_free[@]}")
+            else
+              echo "::notice title=Generator round trip::$* holds a first owner feature, whose extra edits are prose, so only the domain and application layers are built."
+              for home in "${layers[@]}"; do
+                dotnet build "$home" --configuration Release --no-restore -warnaserror
+              done
+              mapfile -t projects < <(printf '%s\n' "${layers[@]}" | grep '^Tests/')
+            fi
+            for feature in "$@"; do
+              mapfile -t homes < <(for home in "${projects[@]}"; do [ -n "$(find "$(dirname "$home")" -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*')" ] && echo "$home"; done)
+              [ "${#homes[@]}" -gt 0 ] || fail "new-feature $feature wrote no test in a Docker-free test project."
               for home in "${homes[@]}"; do
                 dotnet test "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
               done
             done
+            git checkout --quiet -- .
           }
           remove() {
             for feature in "$@"; do
@@ -386,7 +412,7 @@ jobs:
             remove "${one%% *}"
             echo "::endgroup::"
           done
-          echo "::group::all three together, removed last in first out"
+          echo "::group::all four together, removed last in first out"
           written=()
           for one in "${cases[@]}"; do
             write "$one"

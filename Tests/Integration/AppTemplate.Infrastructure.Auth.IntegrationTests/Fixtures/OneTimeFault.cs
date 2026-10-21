@@ -1,6 +1,5 @@
 ﻿using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
 
@@ -29,7 +28,7 @@ public sealed class OneTimeFault(FaultPoint point, bool transient)
         }
 
         throw transient
-            ? new NpgsqlException("Injected: the connection was lost.", new TimeoutException())
+            ? DatabaseServer.TransientFault()
             : new InvalidOperationException("Injected: the statement failed.");
     }
 

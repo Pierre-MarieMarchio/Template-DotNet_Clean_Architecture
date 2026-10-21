@@ -5,23 +5,18 @@ using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
 public sealed class LeaseFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(ApiFixture.PostgresImage)
-        .WithDatabase("apptemplate_lease_tests")
-        .WithUsername("apptemplate_tests")
-        .WithPassword("apptemplate_tests")
-        .Build();
+    private readonly DatabaseServer _server = new("apptemplate_lease_tests");
 
     private readonly List<ServiceProvider> _hosts = [];
 
     public async ValueTask InitializeAsync() =>
-        await _container.StartAsync(TestContext.Current.CancellationToken);
+        await _server.StartAsync(TestContext.Current.CancellationToken);
 
     public ILeaderLease CreateLease() => CreateHost().GetRequiredService<ILeaderLease>();
 
@@ -34,7 +29,7 @@ public sealed class LeaseFixture : IAsyncLifetime
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = _container.GetConnectionString(),
+                ["ConnectionStrings:Default"] = _server.ConnectionString,
             })
             .Build();
 
@@ -57,6 +52,6 @@ public sealed class LeaseFixture : IAsyncLifetime
             await host.DisposeAsync();
         }
 
-        await _container.DisposeAsync();
+        await _server.DisposeAsync();
     }
 }

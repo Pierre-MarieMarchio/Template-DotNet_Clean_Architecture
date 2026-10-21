@@ -6,21 +6,13 @@ using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
 public sealed class ApiFixture : IAsyncLifetime
 {
-    internal const string PostgresImage =
-        "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
-
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage)
-        .WithDatabase("apptemplate_integration_tests")
-        .WithUsername("apptemplate_tests")
-        .WithPassword("apptemplate_tests")
-        .Build();
+    private readonly DatabaseServer _server = new("apptemplate_integration_tests");
 
     private ApiFactory? _factory;
     private TestDatabase? _database;
@@ -41,9 +33,9 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await _container.StartAsync(TestContext.Current.CancellationToken);
+        await _server.StartAsync(TestContext.Current.CancellationToken);
 
-        _factory = new ApiFactory(_container.GetConnectionString());
+        _factory = new ApiFactory(_server.ConnectionString);
 
         await using var scope = _factory.Services.CreateAsyncScope();
         //#if (localAuth)
@@ -66,7 +58,7 @@ public sealed class ApiFixture : IAsyncLifetime
             await _factory.DisposeAsync();
         }
 
-        await _container.DisposeAsync();
+        await _server.DisposeAsync();
     }
 
     private static InvalidOperationException NotInitialised() =>

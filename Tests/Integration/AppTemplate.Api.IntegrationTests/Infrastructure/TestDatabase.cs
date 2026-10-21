@@ -14,7 +14,7 @@ public sealed class TestDatabase(IServiceProvider rootServices)
 {
     private const string _dataProtectionKeysTableName = "DataProtectionKeys";
 
-    private string? _truncateStatement;
+    private string? _resetStatement;
 
     public async Task PrepareAsync(CancellationToken cancellationToken)
     {
@@ -42,14 +42,7 @@ public sealed class TestDatabase(IServiceProvider rootServices)
         ];
 
         var tables = await QueryAsync(
-            $"""
-            SELECT '"' || table_schema || '"."' || table_name || '"'
-            FROM information_schema.tables
-            WHERE table_schema IN ({string.Join(", ", schemas.Select(schema => $"'{schema}'"))})
-              AND table_type = 'BASE TABLE'
-              AND table_name NOT IN ('{AppDbContext.MigrationsHistoryTableName}', '{_dataProtectionKeysTableName}')
-            ORDER BY table_schema, table_name
-            """,
+            DatabaseServer.TablesSql(schemas, [AppDbContext.MigrationsHistoryTableName, _dataProtectionKeysTableName]),
             cancellationToken);
 
         if (tables.Count == 0)
@@ -58,13 +51,12 @@ public sealed class TestDatabase(IServiceProvider rootServices)
                 "No feature tables were found. The migrations did not run against the container.");
         }
 
-        _truncateStatement =
-            $"TRUNCATE TABLE {string.Join(", ", tables)} RESTART IDENTITY CASCADE";
+        _resetStatement = DatabaseServer.ResetSql(tables);
     }
 
     public async Task ResetAsync(CancellationToken cancellationToken)
     {
-        string statement = _truncateStatement
+        string statement = _resetStatement
             ?? throw new InvalidOperationException($"{nameof(PrepareAsync)} has not been called.");
 
         await ExecuteAsync(statement, cancellationToken);

@@ -1,7 +1,9 @@
 ﻿# Authentication
 
-Who may call the API, and how a caller proves who it is. How an account lives, from registration
-to deletion, is in [Accounts](accounts.md).
+Who may call the API, and how a caller proves who it is.
+<!--#if (accounts)-->
+How an account lives, from registration to deletion, is in [Accounts](accounts.md).
+<!--#endif-->
 
 ## The mode this project uses
 

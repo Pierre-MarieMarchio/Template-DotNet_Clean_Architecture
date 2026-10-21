@@ -24,7 +24,12 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (sonar)-->
 | `sonar` | the local Sonar analysis |
 <!--#endif-->
+<!--#if (anyWeb)-->
 | `web-scaffold` | create each web app still holding its `scaffold.json` |
+<!--#endif-->
+<!--#if (!anyWeb)-->
+| `web-scaffold` | create the framework app a first `cleanarch-webapp --workspace` adds |
+<!--#endif-->
 | `hygiene` | the self-tests of the gates this tree carries |
 | `verify` | the whole gate, in CI's order |
 

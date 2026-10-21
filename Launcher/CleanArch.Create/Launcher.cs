@@ -203,6 +203,7 @@ public sealed partial class Launcher
             ["scope"] = project.Scope,
             ["auth"] = project.Auth,
             ["ci"] = project.Ci ? Condition.True : Condition.False,
+            ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
         };
         Detected(project, manifest, detected);
 

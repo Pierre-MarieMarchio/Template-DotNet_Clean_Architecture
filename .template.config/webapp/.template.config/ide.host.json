@@ -48,6 +48,13 @@
       "isVisible": true
     },
     {
+      "id": "agentFiles",
+      "name": {
+        "text": "Project generated with --agent-files"
+      },
+      "isVisible": true
+    },
+    {
       "id": "auth",
       "name": {
         "text": "Project authentication"

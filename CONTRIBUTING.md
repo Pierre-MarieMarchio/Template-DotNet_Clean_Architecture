@@ -14,18 +14,30 @@ Each rule has one home, and a test holds it wherever a test can.
 
 | Rule | Home |
 |---|---|
+<!--#if (agentFiles)-->
 | How to work here: the commands, where code goes, what done means | [AGENTS.md](AGENTS.md) |
+<!--#endif-->
 | What may depend on what | [Architecture](docs/architecture/README.md), held by `Tests/Architecture` |
 | Which project and folder a file goes in, and its name | [Project layout](docs/reference/project-layout.md) |
 | A feature's shape: an aggregate, or a service over a store | [Feature shapes](docs/architecture/feature-shapes.md) |
 | The contract every endpoint offers | [HTTP API](docs/architecture/http-api.md) |
+<!--#if (agentFiles)-->
 | Clean comments: the code reads by itself; a comment only says what the code cannot | [AGENTS.md › Changing code](AGENTS.md#changing-code), [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
 | Extract an abstraction only once two real cases prove it | [AGENTS.md › Changing code](AGENTS.md#changing-code) |
+<!--#endif-->
+<!--#if (!agentFiles)-->
+| Clean comments: the code reads by itself; a comment only says what the code cannot | [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
+<!--#endif-->
 | How tests are written | [Testing › House rules](docs/guides/testing.md#house-rules) |
 | Adding and removing a feature | [Adding a feature](docs/guides/adding-a-feature.md), [Removing features](docs/guides/removing-features.md) |
 | Migrations | [Migrations](docs/guides/migrations.md) |
 | Every setting | [Configuration](docs/reference/configuration.md), held by `ConfigurationSurfaceTests` |
+<!--#if (agentFiles)-->
 | How a page is written, and which pages move with the code | [AGENTS.md › Writing docs](AGENTS.md#writing-docs), [AGENTS.md › Done means](AGENTS.md#done-means) |
+<!--#endif-->
+<!--#if (!agentFiles)-->
+| How a page is written | [The documentation index](docs/README.md#adding-a-page) |
+<!--#endif-->
 | Why a choice was made | [Decisions](docs/decisions/README.md) |
 | What a deployment still owes | [SECURITY.md](SECURITY.md) |
 

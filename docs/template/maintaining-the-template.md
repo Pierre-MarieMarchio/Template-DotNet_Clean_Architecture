@@ -100,6 +100,9 @@ No object store runs.
 - No marker inside a mermaid fence. A diagram shows the full shape, unconditioned, and says so.
 - A page about an absent part is excluded by a path condition, not emptied by markers; its links from
   shared pages are conditioned the same way.
+- `AGENTS.md` is the only agent file, and `--agent-files false` leaves it out: a page that points to
+  it conditions that sentence or row on `agentFiles`, and points to the page that owns the rule
+  otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it.
 - A link from a shared file (`CONTRIBUTING.md`, `AGENTS.md`, `SECURITY.md`) to `docs/template/` sits
   in a `templateMaintenance` block, which is always false at generation.
 - Text that names a token (`AppTemplate`, `app-template`, the web app tokens) is replaced in a

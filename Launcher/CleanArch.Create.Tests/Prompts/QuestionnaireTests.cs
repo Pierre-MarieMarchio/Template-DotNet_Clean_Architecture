@@ -88,7 +88,7 @@ public sealed class QuestionnaireTests
 
         Dictionary<string, string> answers = questionnaire.Answer(
             _project,
-            new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["web"] = "none" },
+            new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
             _nothing,
             Launcher.ProjectAskedWhen);
 
@@ -105,6 +105,7 @@ public sealed class QuestionnaireTests
         console.Profile.Width = 200;
         console.Input.PushTextWithEnter("n");
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -114,8 +115,10 @@ public sealed class QuestionnaireTests
             Launcher.ProjectAskedWhen);
 
         console.Output.ShouldContain("Sonar analysis");
+        console.Output.ShouldContain("Agent instructions");
         console.Output.ShouldContain("First web app");
         answers["sonar"].ShouldBe("false");
+        answers["agentFiles"].ShouldBe("true");
         answers["web"].ShouldBe("none");
     }
 }

@@ -11,8 +11,6 @@ internal static class RemoveFeature
 {
     private const string ManifestFolder = ".feature-manifest";
 
-    private const string DocsFolder = "docs";
-
     private const string Usage =
         "Usage: dotnet run Tools/RemoveFeature.cs <Features> [--apply] [--root <path>]\n"
         + "  <Features>  the folder of the feature, PascalCase and plural, e.g. Widgets\n"
@@ -565,7 +563,7 @@ internal static class RemoveFeature
                 ? separator + char.ToLowerInvariant(character).ToString()
                 : char.ToLowerInvariant(character).ToString()));
 
-    private static string PagePath(string features) => $"{DocsFolder}/features/{Kebab(features)}.md";
+    private static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
     private static List<string> DeclaredTypes(string root, Manifest manifest, string type)
     {

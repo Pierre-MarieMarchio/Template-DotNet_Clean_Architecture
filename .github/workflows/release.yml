@@ -43,6 +43,14 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
+      #if (templateMaintenance)
+      # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
+      - name: Create the initial migrations
+        run: |
+          dotnet tool restore
+          dotnet run Tools/Tasks.cs migration-initial
+
+      #endif
       - name: Verify formatting
         run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
 
@@ -92,6 +100,12 @@ jobs:
       - name: Install dotnet-ef
         run: dotnet tool restore
 
+      #if (templateMaintenance)
+      # Template repository only: the bundles carry the migrations created here, as bootstrap creates a project's.
+      - name: Create the initial migrations
+        run: dotnet run Tools/Tasks.cs migration-initial
+
+      #endif
       #if (localAuth)
       # One bundle per context: a release without this one leaves the identity schema absent.
       - name: Build the identity bundle

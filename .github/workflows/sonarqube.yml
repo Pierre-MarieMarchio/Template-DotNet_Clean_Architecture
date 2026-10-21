@@ -84,6 +84,14 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
+      #if (templateMaintenance)
+      # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
+      - name: Create the initial migrations
+        run: |
+          dotnet tool restore
+          dotnet run Tools/Tasks.cs migration-initial
+
+      #endif
       # The mail templates are excluded from duplication only; the report pattern matches the extension, as Tools/CoverageGate.cs does.
       - name: Begin analysis
         run: |

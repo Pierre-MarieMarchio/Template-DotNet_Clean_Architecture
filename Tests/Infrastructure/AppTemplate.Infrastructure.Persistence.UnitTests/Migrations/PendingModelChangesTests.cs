@@ -17,8 +17,9 @@ public sealed class PendingModelChangesTests
         using var context = new AppDbContext(options);
 
         context.Database.HasPendingModelChanges().ShouldBeFalse(
-            "the model has changed since the last migration was generated. "
-            + "Run 'dotnet run Tools/Tasks.cs migration-add <Name>' so the schema change ships with the code that needs it "
+            "the model has changed since the last migration was generated, or the project has none yet. "
+            + "Without one, run 'dotnet run Tools/Tasks.cs bootstrap', which creates the initial migration; after a model change, "
+            + "run 'dotnet run Tools/Tasks.cs migration-add <Name>' so the schema change ships with the code that needs it "
             + "(docs/guides/migrations.md).");
     }
 }

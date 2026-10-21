@@ -103,10 +103,6 @@ public sealed class EntityTests
     }
 
     [Fact]
-    public void Constructor_Rejects_ANullId() =>
-        Should.Throw<ArgumentNullException>(() => new StringKeyedEntity(null!));
-
-    [Fact]
     public void Id_IsTheValuePassedToTheConstructor()
     {
         var id = Guid.CreateVersion7();

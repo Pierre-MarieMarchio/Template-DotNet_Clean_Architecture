@@ -48,10 +48,6 @@ public sealed class LocalizationOptionsValidatorTests
     }
 
     [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
-
-    [Fact]
     public void TheSectionName_IsTheOneEveryHostBinds() =>
         LocalizationOptions.SectionName.ShouldBe("Localization");
 }

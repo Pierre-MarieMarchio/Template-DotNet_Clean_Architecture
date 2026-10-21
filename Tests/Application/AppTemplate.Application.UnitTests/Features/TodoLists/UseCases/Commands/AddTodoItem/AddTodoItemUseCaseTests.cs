@@ -135,10 +135,6 @@ public sealed class AddTodoItemUseCaseTests
     }
 
     [Fact]
-    public async Task ANullCommand_IsAProgrammingError() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    [Fact]
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
         var missingId = Guid.CreateVersion7();

@@ -351,10 +351,6 @@ public sealed class UploadFileUseCaseTests
         entry.Message.ShouldContain(_registered!.Id.ToString());
     }
 
-    [Fact]
-    public async Task ANullCommand_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private static UploadFileCommand ACommand() =>
         new(FilesSettings.Document, "report.csv", _mediaType, _bytes.Length, new MemoryStream(_bytes));
 

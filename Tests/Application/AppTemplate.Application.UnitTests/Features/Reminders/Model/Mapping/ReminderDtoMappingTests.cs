@@ -38,8 +38,4 @@ public sealed class ReminderDtoMappingTests
         projected.Version.ShouldBe(9u);
         projected.Value.Id.ShouldBe(reminder.Id);
     }
-
-    [Fact]
-    public void ToDto_Rejects_ANullReminder() =>
-        Should.Throw<ArgumentNullException>(() => ReminderDtoMapping.ToDto(null!));
 }

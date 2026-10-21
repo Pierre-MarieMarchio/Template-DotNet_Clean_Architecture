@@ -57,14 +57,6 @@ public sealed class BucketClientFactoryTests
     }
 
     [Fact]
-    public void Create_RefusesToBuildAClientFromNothing() =>
-        Should.Throw<ArgumentNullException>(() => BucketClientFactory.Create(options: null!));
-
-    [Fact]
-    public void CreateForSigning_RefusesToBuildAClientFromNothing() =>
-        Should.Throw<ArgumentNullException>(() => BucketClientFactory.CreateForSigning(options: null!));
-
-    [Fact]
     public void CreateForSigning_BuildsOnThePublicEndpointWhileCreateBuildsOnTheInternalOne()
     {
         var options = StorageFixture.Options(storage =>

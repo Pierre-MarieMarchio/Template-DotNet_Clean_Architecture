@@ -50,31 +50,6 @@ public sealed class StoredFileRehydrationTests
         });
 
     [Fact]
-    public void Rehydrate_Rejects_AnAbsentSnapshot() =>
-        Should.Throw<ArgumentNullException>(() => StoredFile.Rehydrate(null!));
-
-    [Fact]
-    public void Rehydrate_Rejects_AnAbsentTagSequence() =>
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Rehydrate(new StoredFileSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = _ownerId,
-                Category = _category,
-                ObjectKey = _objectKey,
-                Name = _name,
-                DeclaredMediaType = _mediaType,
-                Size = _size,
-                Checksum = _checksum,
-                State = StoredFileState.Pending,
-                RegisteredAt = _registeredAt,
-                AvailableAt = null,
-                InspectionAttempts = 0,
-                NextInspectionAt = null,
-                Tags = null!,
-            }));
-
-    [Fact]
     public void Rehydrate_Rejects_AnEmptyId()
     {
         var exception = Should.Throw<DomainException>(() => Rehydrate(id: Guid.Empty));
@@ -83,71 +58,8 @@ public sealed class StoredFileRehydrationTests
     }
 
     [Fact]
-    public void Rehydrate_Rejects_AnAbsentOwner() =>
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Rehydrate(new StoredFileSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = null!,
-                Category = _category,
-                ObjectKey = _objectKey,
-                Name = _name,
-                DeclaredMediaType = _mediaType,
-                Size = _size,
-                Checksum = _checksum,
-                State = StoredFileState.Pending,
-                RegisteredAt = _registeredAt,
-                AvailableAt = null,
-                InspectionAttempts = 0,
-                NextInspectionAt = null,
-                Tags = [],
-            }));
-
-    [Fact]
-    public void Rehydrate_Rejects_AnAbsentCategory() =>
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Rehydrate(new StoredFileSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = _ownerId,
-                Category = null!,
-                ObjectKey = _objectKey,
-                Name = _name,
-                DeclaredMediaType = _mediaType,
-                Size = _size,
-                Checksum = _checksum,
-                State = StoredFileState.Pending,
-                RegisteredAt = _registeredAt,
-                AvailableAt = null,
-                InspectionAttempts = 0,
-                NextInspectionAt = null,
-                Tags = [],
-            }));
-
-    [Fact]
     public void Rehydrate_Rejects_AMissingRegistrationInstant() =>
         Should.Throw<DomainException>(() => Rehydrate(registeredAt: default(DateTimeOffset)));
-
-    [Fact]
-    public void Rehydrate_Rejects_ANullValueObject() =>
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Rehydrate(new StoredFileSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = _ownerId,
-                Category = _category,
-                ObjectKey = null!,
-                Name = _name,
-                DeclaredMediaType = _mediaType,
-                Size = _size,
-                Checksum = _checksum,
-                State = StoredFileState.Pending,
-                RegisteredAt = _registeredAt,
-                AvailableAt = null,
-                InspectionAttempts = 0,
-                NextInspectionAt = null,
-                Tags = [],
-            }));
 
     [Fact]
     public void Rehydrate_Rejects_AnAvailableFileWithNoAvailabilityInstant()

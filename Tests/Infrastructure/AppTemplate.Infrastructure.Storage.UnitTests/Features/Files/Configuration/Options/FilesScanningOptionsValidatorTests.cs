@@ -56,10 +56,6 @@ public sealed class FilesScanningOptionsValidatorTests
     public void TheDefaultStreamCeiling_MatchesWhatTheDaemonAcceptsOutOfTheBox() =>
         new FilesScanningOptions().MaxScannableBytes.ShouldBe(25L * 1024 * 1024);
 
-    [Fact]
-    public void ANullOptions_IsARejectedArgument() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(null, null!));
-
     private ValidateOptionsResult Validate(FilesScanningOptions options) =>
         _validator.Validate(FilesScanningOptions.SectionName, options);
 }

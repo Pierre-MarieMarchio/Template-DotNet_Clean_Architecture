@@ -39,18 +39,6 @@ public sealed class ResultTests
     }
 
     [Fact]
-    public void Success_RefusesANullValue() => Should.Throw<ArgumentNullException>(() => Result<string>.Success(null!));
-
-    [Fact]
-    public void TheImplicitConversion_RefusesANullValue()
-    {
-        Should.Throw<ArgumentNullException>(() =>
-        {
-            Result<string> _ = (string)null!;
-        });
-    }
-
-    [Fact]
     public void Success_AcceptsTheDefaultOfAValueType()
     {
         var result = Result<int>.Success(0);

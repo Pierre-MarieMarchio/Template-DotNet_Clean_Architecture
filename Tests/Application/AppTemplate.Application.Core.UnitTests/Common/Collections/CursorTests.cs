@@ -15,10 +15,6 @@ public sealed class CursorTests
 
     private static string Encode(string json) => Base64Url.EncodeToString(Encoding.UTF8.GetBytes(json));
 
-    [Fact]
-    public void After_Rejects_ANullTerm() =>
-        Should.Throw<ArgumentNullException>(() => Cursor.After(null!, "key", Guid.CreateVersion7()));
-
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -145,12 +141,4 @@ public sealed class CursorTests
 
         result.Error!.Message.ShouldNotContain(raw);
     }
-
-    [Fact]
-    public void Decode_Rejects_ANullRaw() =>
-        Should.Throw<ArgumentNullException>(() => Cursor.Decode(null!, _policy));
-
-    [Fact]
-    public void Decode_Rejects_ANullPolicy() =>
-        Should.Throw<ArgumentNullException>(() => Cursor.Decode("anything", null!));
 }

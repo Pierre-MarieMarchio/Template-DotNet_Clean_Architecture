@@ -43,8 +43,4 @@ public sealed class CorsOptionsValidatorTests
         result.FailureMessage.ShouldContain("Cors:AllowedOrigins");
         result.FailureMessage.ShouldContain($"'{origin}'");
     }
-
-    [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 }

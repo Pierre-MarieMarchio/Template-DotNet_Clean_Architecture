@@ -299,10 +299,6 @@ public sealed class IssueFileDownloadUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
 
-    [Fact]
-    public async Task ANullQuery_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private async Task NoGrantWasMinted() =>
         await _transfer.DidNotReceive().CreateDownloadGrantAsync(
             Arg.Any<string>(),

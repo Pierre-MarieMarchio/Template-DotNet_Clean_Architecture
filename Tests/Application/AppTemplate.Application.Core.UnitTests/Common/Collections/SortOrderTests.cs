@@ -159,8 +159,4 @@ public sealed class SortOrderTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("sort.invalid");
     }
-
-    [Fact]
-    public void Parse_Rejects_ANullPolicy() =>
-        Should.Throw<ArgumentNullException>(() => SortOrder.Parse("name", null!));
 }

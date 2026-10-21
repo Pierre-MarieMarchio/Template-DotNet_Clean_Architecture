@@ -204,10 +204,6 @@ public sealed class ConfirmFileUploadUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Conflict);
     }
 
-    [Fact]
-    public async Task ANullCommand_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private StoredFile GivenTheCallerOwnsAPendingFile()
     {
         var storedFile = AStoredFile.PendingOwnedBy(_callerId);

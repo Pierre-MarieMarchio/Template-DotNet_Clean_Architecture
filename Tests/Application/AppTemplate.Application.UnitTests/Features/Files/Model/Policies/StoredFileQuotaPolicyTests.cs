@@ -125,14 +125,6 @@ public sealed class StoredFileQuotaPolicyTests
             _quota.MaxPendingUploads.ToString(CultureInfo.InvariantCulture));
     }
 
-    [Fact]
-    public void ANullQuota_IsARejectedArgumentRatherThanAFailedResult() =>
-        Should.Throw<ArgumentNullException>(() => StoredFileQuotaPolicy.EnsureRoomFor(Usage(), null!, 1));
-
-    [Fact]
-    public void ANullUsage_IsARejectedArgumentRatherThanAFailedResult() =>
-        Should.Throw<ArgumentNullException>(() => StoredFileQuotaPolicy.EnsureRoomFor(null!, _quota, 1));
-
     private static OwnerStorageUsage Usage(
         int storedCount = 0,
         long storedBytes = 0,

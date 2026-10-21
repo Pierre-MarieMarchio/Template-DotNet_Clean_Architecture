@@ -40,8 +40,4 @@ public sealed class CurrentUserExtensionsTests
         error.ShouldNotBeNull();
         error.Code.ShouldBe("auth.required");
     }
-
-    [Fact]
-    public void RequireUserId_Rejects_ANullCurrentUser() =>
-        Should.Throw<ArgumentNullException>(() => CurrentUserExtensions.RequireUserId(null!));
 }

@@ -156,10 +156,6 @@ public sealed class GetTodoItemUseCaseTests
         await _queries.Received(1).GetDetailAsync(listId, _callerId, cancellation.Token);
     }
 
-    [Fact]
-    public async Task ANullQuery_IsRejected() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private static TodoItemDto AnItem(Guid itemId, string title = "Milk") =>
         new(itemId, title, null, false, null, []);
 

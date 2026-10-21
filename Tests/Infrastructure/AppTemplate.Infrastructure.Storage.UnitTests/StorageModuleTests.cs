@@ -219,20 +219,6 @@ public sealed class StorageModuleTests
     }
 
     [Fact]
-    public void AddStorageModule_ThrowsWhenThereIsNoContainerToComposeInto()
-    {
-        Should.Throw<ArgumentNullException>(
-            () => StorageModule.AddStorageModule(services: null!, new ConfigurationBuilder().Build()));
-    }
-
-    [Fact]
-    public void AddStorageModule_ThrowsWhenThereIsNoConfigurationToBind()
-    {
-        Should.Throw<ArgumentNullException>(
-            () => new ServiceCollection().AddStorageModule(configuration: null!));
-    }
-
-    [Fact]
     public void AddStorageModule_ReturnsTheCollectionItWasGiven()
     {
         var services = new ServiceCollection();

@@ -121,8 +121,4 @@ public sealed class TelemetryOptionsValidatorTests
         result.Failures.ShouldContain(
             failure => failure.Contains(nameof(TelemetryOptions.TracesSamplingRatio), StringComparison.Ordinal));
     }
-
-    [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 }

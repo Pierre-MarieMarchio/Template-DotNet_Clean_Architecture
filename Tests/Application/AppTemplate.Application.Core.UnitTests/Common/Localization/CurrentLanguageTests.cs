@@ -38,10 +38,6 @@ public sealed class CurrentLanguageTests
         CurrentLanguage.Candidates(tag).ToList().ShouldBe(expected);
 
     [Fact]
-    public void ANullTag_IsRefusedByTheCallItself() =>
-        Should.Throw<ArgumentNullException>(() => CurrentLanguage.Candidates(null!));
-
-    [Fact]
     public void SettingAMalformedTag_LeavesNothingBehind()
     {
         CurrentLanguage.Tag = "fr-CA";

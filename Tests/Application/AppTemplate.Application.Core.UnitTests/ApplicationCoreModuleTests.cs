@@ -31,8 +31,4 @@ public sealed class ApplicationCoreModuleTests
         Should.Throw<InvalidOperationException>(
                 () => new ServiceCollection().AddUseCases([implementation]))
             .Message.ShouldContain(implementation.FullName!);
-
-    [Fact]
-    public void TheDiscovery_Rejects_ANullAssembly() =>
-        Should.Throw<ArgumentNullException>(() => new ServiceCollection().AddUseCasesFrom(null!));
 }

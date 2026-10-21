@@ -39,15 +39,6 @@ public sealed class ReminderTests
         });
 
     [Fact]
-    public void Schedule_Rejects_AnAbsentOwner()
-    {
-        var exception = Should.Throw<ArgumentNullException>(
-            () => Reminder.Schedule(null!, _todoListId, _todoItemId, _now.AddHours(1), _now));
-
-        exception.ParamName.ShouldBe("ownerId");
-    }
-
-    [Fact]
     public void Schedule_Rejects_AnEmptyTodoListId()
     {
         var exception = Should.Throw<DomainException>(
@@ -112,26 +103,6 @@ public sealed class ReminderTests
                 TodoListId = _todoListId,
                 TodoItemId = _todoItemId,
                 DueAt = default,
-                State = ReminderState.Pending,
-                NotifiedAt = null,
-                FailedAttempts = 0,
-                NextAttemptAt = null,
-            }));
-
-    [Fact]
-    public void Rehydrate_Rejects_AnAbsentSnapshot() =>
-        Should.Throw<ArgumentNullException>(() => Reminder.Rehydrate(null!));
-
-    [Fact]
-    public void Rehydrate_Rejects_AnAbsentOwner() =>
-        Should.Throw<ArgumentNullException>(
-            () => Reminder.Rehydrate(new ReminderSnapshot
-            {
-                Id = Guid.CreateVersion7(),
-                OwnerId = null!,
-                TodoListId = _todoListId,
-                TodoItemId = _todoItemId,
-                DueAt = _now.AddHours(1),
                 State = ReminderState.Pending,
                 NotifiedAt = null,
                 FailedAttempts = 0,

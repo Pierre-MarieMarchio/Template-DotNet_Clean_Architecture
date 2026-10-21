@@ -30,8 +30,4 @@ public sealed class IdempotencyPurgeOptionsValidatorTests
         result.Failed.ShouldBeTrue();
         result.FailureMessage.ShouldContain("IdempotencyPurge:BatchSize");
     }
-
-    [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 }

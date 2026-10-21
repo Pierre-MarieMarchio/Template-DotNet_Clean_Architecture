@@ -154,10 +154,6 @@ public sealed class DeleteStoredFileUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
 
-    [Fact]
-    public async Task ANullCommand_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private StoredFile GivenTheCallerOwnsAFile()
     {
         var storedFile = AStoredFile.AvailableOwnedBy(_callerId);

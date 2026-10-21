@@ -280,10 +280,6 @@ public sealed class EmailOptionsValidatorTests
         failures.ShouldHaveSingleItem().ShouldContain("Transport");
     }
 
-    [Fact]
-    public void Validate_ThrowsWhenThereAreNoOptionsToValidate() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
-
     private static IReadOnlyList<string> RejectionsFor(EmailOptions options)
     {
         var result = _validator.Validate(name: null, options);

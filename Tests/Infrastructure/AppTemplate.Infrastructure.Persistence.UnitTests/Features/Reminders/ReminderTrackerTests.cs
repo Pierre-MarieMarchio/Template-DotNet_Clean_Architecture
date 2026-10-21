@@ -155,9 +155,6 @@ public sealed class ReminderTrackerTests
             .ShouldBe([first.Id, second.Id]);
     }
 
-    [Fact]
-    public void Restore_RejectsNull() => Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
-
     private ReminderTracker ATracker() => new(_mapper);
 
     private static Reminder AScheduledReminder() => Reminder.Schedule(

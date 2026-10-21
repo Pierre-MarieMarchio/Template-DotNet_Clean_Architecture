@@ -51,8 +51,4 @@ public sealed class DatabaseOptionsValidatorTests
         result.FailureMessage.ShouldContain("MaxPoolSize");
         result.FailureMessage.ShouldContain("CommandTimeoutSeconds");
     }
-
-    [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 }

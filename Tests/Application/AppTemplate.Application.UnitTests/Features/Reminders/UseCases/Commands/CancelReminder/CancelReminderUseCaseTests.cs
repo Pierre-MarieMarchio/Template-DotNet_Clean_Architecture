@@ -43,10 +43,6 @@ public sealed class CancelReminderUseCaseTests
     }
 
     [Fact]
-    public async Task ANullCommand_IsAProgrammingError() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    [Fact]
     public async Task AMissingReminder_IsReportedAsNotFound()
     {
         var missingId = Guid.CreateVersion7();

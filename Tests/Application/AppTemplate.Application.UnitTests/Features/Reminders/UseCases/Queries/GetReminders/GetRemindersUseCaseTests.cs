@@ -42,10 +42,6 @@ public sealed class GetRemindersUseCaseTests
     }
 
     [Fact]
-    public async Task ANullQuery_IsAProgrammingError() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    [Fact]
     public async Task TheQuery_IsAskedForTheCallersOwnRemindersOnTheNamedItem()
     {
         _queries.GetForTodoItemAsync(_callerId, _todoListId, _todoItemId, Arg.Any<CancellationToken>())

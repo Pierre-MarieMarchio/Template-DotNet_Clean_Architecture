@@ -36,7 +36,7 @@ claiming a key and finishing the work.
 - A response too large to keep answers a later retry with `idempotency.notReplayable` rather than a
   partial replay.
 - `IdempotencyLeaseTests` proves the lease and the race against a real database;
-  `IdempotentActionsAreAlwaysPostTests` holds the opt-in to `POST`.
+  `IdempotentActionTests` holds the opt-in to `POST`.
 - Expired keys are purged by a background job, in bounded batches.
 
 [Idempotency-Key](../architecture/http-api.md#idempotency-key) is the client's contract.

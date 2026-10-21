@@ -41,7 +41,7 @@ apart from both.
 | Anonymous routes reveal nothing ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
 <!--#endif-->
 | Optimistic concurrency | integration where two writers meet; unit for the precondition decision | each feature's concurrency tests, `ApiControllerBaseTests` |
-| Idempotency | integration | `IdempotencyLeaseTests`, `IdempotentActionsAreAlwaysPostTests` |
+| Idempotency | integration for the lease; architecture for the opt-in to `POST` | `IdempotencyLeaseTests`, `IdempotentActionTests` |
 | Migrations and model drift | unit, and every integration run migrates a real database | `PendingModelChangesTests` |
 | Background work under a lease | integration; architecture for the hosted services | `LeaderLeaseTests`, `BackgroundWorkTests` |
 <!--#if (files)-->

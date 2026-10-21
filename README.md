@@ -30,7 +30,7 @@ grows on, and the options remove what a product does not need.
 You need the .NET SDK 10.0.300 or a later 10.0.3xx, and Docker with Compose v2.
 
 ```bash
-dotnet new install <path-to-this-repository>
+dotnet new install CleanArch.WebApi.Templates
 dotnet new cleanarch-webapi -n <Company.Product>
 cd <Company.Product>
 dotnet run Tools/Tasks.cs bootstrap     # required once: commit what it changes
@@ -43,7 +43,8 @@ on <http://localhost:8025>. The generated project's
 [first run](docs/getting-started/first-run.md) continues to an authenticated call and a first
 feature.
 
-Generate outside this repository: output written inside the installed path nests a duplicate.
+[Using the template](docs/template/using-the-template.md#install-and-uninstall) also installs a
+package packed locally or this checkout.
 
 ## Generation options
 

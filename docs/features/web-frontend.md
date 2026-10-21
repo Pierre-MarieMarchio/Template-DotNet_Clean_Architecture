@@ -186,9 +186,9 @@ dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin -
 `--framework` is `react`, `angular` or `placeholder`; `--scope` is the package scope of
 `Src/Web/package.json`; `--auth` repeats this project's value. The command prints
 two lines to add, also in the app's `README.md`: an `include:` entry in `docker-compose.yml` and
-`WEB_<NAME>_HOST_PORT` in `.env.example`. Then run `dotnet run Tools/Tasks.cs web-scaffold
-BackOffice` for a framework app, or `pnpm install` for a placeholder, and commit the app with the
-lockfile. CI and Dependabot find apps by folder.
+`WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
+`dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
+placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
 
 Add a framework-agnostic package, one exported function and its test, the same way:
 

@@ -168,7 +168,7 @@ jobs:
           done < <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.json' -print0)
           exit "$status"
 
-      # Using order depends on the generated name, so one bootstrap run must be enough: docs/USING-THE-TEMPLATE.md.
+      # Using order depends on the generated name, so one bootstrap run must be enough: docs/getting-started/first-run.md.
       - name: Bootstrap formatting, then verify it is stable
         working-directory: ${{ runner.temp }}/generated
         run: |

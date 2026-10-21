@@ -19,6 +19,6 @@ public sealed class PendingModelChangesTests
         context.Database.HasPendingModelChanges().ShouldBeFalse(
             "the model has changed since the last migration was generated. "
             + "Run 'dotnet run Tools/Tasks.cs migration-add <Name>' so the schema change ships with the code that needs it "
-            + "(docs/MIGRATIONS.md).");
+            + "(docs/guides/migrations.md).");
     }
 }

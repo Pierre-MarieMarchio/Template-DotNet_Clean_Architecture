@@ -129,8 +129,8 @@ public sealed class ConfigurationSurfaceTests
         bound["TwoFactor"].Keys.ShouldBe(
             ["ChallengeLifetime", "Issuer", "MaxChallengeAttempts", "RecoveryCodeCount"],
             ignoreOrder: true,
-            "TwoFactor is the section this rule was written for: it was bound, validated, described " +
-            "in SECURITY.md's prose, and absent from the configuration guide entirely.");
+            "TwoFactor is the section this rule was written for: bound and validated with these keys, " +
+            "each of which needs its row in docs/reference/configuration.md like any other.");
         /*#else
         bound["Idempotency"].Keys.ShouldBe(
             ["ClaimLease", "Enabled", "MaxKeyLength", "MaxStoredResponseBytes", "Retention"],
@@ -140,7 +140,7 @@ public sealed class ConfigurationSurfaceTests
         #endif*/
     }
 
-    private const string _configurationGuide = "docs/CONFIGURATION.md";
+    private const string _configurationGuide = "docs/reference/configuration.md";
 
     private sealed record SectionFacts(IReadOnlySet<string> Keys, string Origin);
 
@@ -184,7 +184,7 @@ public sealed class ConfigurationSurfaceTests
     private static Dictionary<string, string> DocumentedSections()
     {
         string guide = File.ReadAllText(
-            Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "CONFIGURATION.md"));
+            Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "reference", "configuration.md"));
 
         var headings = _anyHeading.Matches(guide);
         var sections = new Dictionary<string, string>(StringComparer.Ordinal);

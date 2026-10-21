@@ -66,7 +66,7 @@ services:
 
       ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true;Gss Encryption Mode=Disable"
 
-      # Keep replicas x pool size under PostgreSQL's max_connections: docs/CONFIGURATION.md.
+      # Keep replicas x pool size under PostgreSQL's max_connections: docs/reference/configuration.md.
       Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
       Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
 
@@ -87,7 +87,7 @@ services:
       #endif
 
       #if (files)
-      # Inspection off stops the Files feature, and reclaim off leaks storage: docs/CONFIGURATION.md.
+      # Inspection off stops the Files feature, and reclaim off leaks storage: docs/reference/configuration.md.
       Jobs__Files__InspectDepositedFilesInterval: ${JOBS_FILES_INSPECT_INTERVAL:-00:01:00}
       Jobs__Files__InspectDepositedFilesEnabled: ${JOBS_FILES_INSPECT_ENABLED:-true}
       Jobs__Files__PurgeAbandonedRegistrationsInterval: ${JOBS_FILES_PURGE_INTERVAL:-01:00:00}

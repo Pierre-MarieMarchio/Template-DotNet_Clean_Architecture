@@ -404,7 +404,7 @@ internal static class RemoveFeature
                 "The account-deletion files this manifest brought (IDeletedAccountDataPolicy, IUserAccountDirectory, the sweep, its job and the account directory) "
                 + $"are still used by {string.Join(", ", dependents.Select(dependent => $"{dependent.Name} ({dependent.How})"))}. "
                 + $"Deleting them would break those features' build. Remove those features first, or remove {features} by hand and keep these files "
-                + "(docs/ADDING-A-FEATURE.md, \"Undoing it\").");
+                + "(docs/guides/removing-features.md, \"Remove a generated feature\").");
         }
 
         if (uses.Count > 0)

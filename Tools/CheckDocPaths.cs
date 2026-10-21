@@ -429,8 +429,8 @@ internal static class CheckDocPaths
             [
                 ("README.md", "See `Src/Application/Present.cs`.\n"),
                 ("Src/Application/Present.cs", ""),
-                ($"{DocDir}/ARCHITECTURE.md", "`Src/Application/Present.cs`\n"),
-                ("deploy.yaml", $"# rationale: {DocDir}/ARCHITECTURE.md\n"),
+                ($"{DocDir}/architecture/README.md", "`Src/Application/Present.cs`\n"),
+                ("deploy.yaml", $"# rationale: {DocDir}/architecture/README.md\n"),
             ]
         ),
         (

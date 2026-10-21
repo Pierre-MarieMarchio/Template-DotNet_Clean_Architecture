@@ -244,7 +244,7 @@ Content-Type: application/json
 ###
 # 15. Complete the item. 200 with the completed item and the list's new ETag. No If-Match:
 #     Concurrency:IfMatch defaults to Optional, so an unconditional write is still accepted — see
-#     SECURITY.md's "If-Match is optional by default". Raises a domain event, published after the
+#     SECURITY.md's known gaps, "If-Match is optional by default". Raises a domain event, published after the
 #     commit succeeds.
 POST {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}/complete
 Authorization: Bearer {{accessToken}}
@@ -261,8 +261,8 @@ Authorization: Bearer {{accessToken}}
 
 ###
 # 16c. Replace the item's title and description. A PUT carrying the whole representation of the
-#      operation, never a PATCH — see docs/DECISIONS.md's "Writes are named operations", held by
-#      NoEndpoint_AcceptsPatch. A field left out is a field cleared.
+#      operation: a field left out is a field cleared. To-do lists offer no PATCH; a feature that
+#      wants one may add it — see docs/architecture/http-api.md, "Writes: PUT, named operations, PATCH".
 PUT {{api}}/todo-lists/{{todoListId}}/items/{{todoItemId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
@@ -822,7 +822,7 @@ GET {{host}}/health/ready
 # 36. Rate limiting. The auth policy allows 10 requests per minute per client address; run this
 #     block repeatedly to get a 429 carrying Retry-After and a ProblemDetails body.
 #     Behind a proxy this partitions correctly only when ReverseProxy:Enabled is configured —
-#     otherwise every caller shares the proxy's single window. See SECURITY.md.
+#     otherwise every caller shares the proxy's single window. See docs/architecture/request-pipeline.md.
 POST {{api}}/auth/login
 Content-Type: application/json
 

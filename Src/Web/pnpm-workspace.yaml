@@ -5,3 +5,10 @@ packages:
 peerDependencyRules:
   allowedVersions:
     openapi-typescript>typescript: "6"
+
+# Install scripts the Angular CLI's build tools ship, refused: each package has a prebuilt binary to fall back on.
+allowBuilds:
+  "@parcel/watcher": false
+  esbuild: false
+  lmdb: false
+  msgpackr-extract: false

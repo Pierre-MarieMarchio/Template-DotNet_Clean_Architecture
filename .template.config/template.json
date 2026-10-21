@@ -290,6 +290,50 @@
       },
       "replaces": "PLACEHOLDER_SITE"
     },
+    "webNameReact": {
+      "type": "derived",
+      "valueSource": "webName",
+      "valueTransform": "identity",
+      "replaces": "ReactSite",
+      "fileRename": "ReactSite"
+    },
+    "webNameKebabReact": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "webNameWords", "toLower": true },
+      "replaces": "react-site"
+    },
+    "webNameEnvironmentReact": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "webNameUpper",
+        "steps": [{ "regex": "-", "replacement": "_" }]
+      },
+      "replaces": "REACT_SITE"
+    },
+    "webNameAngular": {
+      "type": "derived",
+      "valueSource": "webName",
+      "valueTransform": "identity",
+      "replaces": "AngularSite",
+      "fileRename": "AngularSite"
+    },
+    "webNameKebabAngular": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "webNameWords", "toLower": true },
+      "replaces": "angular-site"
+    },
+    "webNameEnvironmentAngular": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "webNameUpper",
+        "steps": [{ "regex": "-", "replacement": "_" }]
+      },
+      "replaces": "ANGULAR_SITE"
+    },
     "webDefaultPort": {
       "type": "generated",
       "generator": "switch",
@@ -417,6 +461,18 @@
           "condition": "(!webPlaceholder)",
           "exclude": [
             "Src/Web/apps/PlaceholderSite/**"
+          ]
+        },
+        {
+          "condition": "(!webReact)",
+          "exclude": [
+            "Src/Web/apps/ReactSite/**"
+          ]
+        },
+        {
+          "condition": "(!webAngular)",
+          "exclude": [
+            "Src/Web/apps/AngularSite/**"
           ]
         },
         {

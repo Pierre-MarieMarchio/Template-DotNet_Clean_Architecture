@@ -4,6 +4,12 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+//#if (anyWeb)
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+//#endif
 
 return Tasks.Run(args);
 
@@ -63,12 +69,29 @@ internal static class Tasks
         "sonar",
         //#endif
         "bootstrap",
+        //#if (anyWeb)
+        "web-scaffold",
+        //#endif
         "hygiene",
         "verify",
         //#if (templateMaintenance)
         "web-lockfiles",
         //#endif
     ];
+    //#if (anyWeb)
+
+    private const string WebUsage =
+        """
+
+        Web apps:
+          web-scaffold [<App>]             create each app under Src/Web/apps that holds a scaffold.json
+                                           and no package.json, or only <App>: run the framework's
+                                           official CLI at the version scaffold.json pins, lay the
+                                           app's overlay/ over the starter, pin every dependency to the
+                                           version installed, then pnpm install and pnpm api;
+                                           bootstrap runs it, and an app already created is left alone
+        """;
+    //#endif
     //#if (templateMaintenance)
 
     private const string MaintenanceUsage =
@@ -76,9 +99,11 @@ internal static class Tasks
 
         Template repository only:
           web-lockfiles                    write the lockfile of each generated web shape: for every
-                                           app under Src/Web/apps, a copy of the workspace holding
-                                           that app alone, locked by the pinned pnpm, into
-                                           .template.config/variants/web-<App>/Src/Web/pnpm-lock.yaml
+                                           app under Src/Web/apps holding a package.json, a copy of
+                                           the workspace holding that app alone, locked by the pinned
+                                           pnpm, into .template.config/variants/web-<App>/Src/Web/
+                                           pnpm-lock.yaml; an app holding a scaffold.json gets none,
+                                           since web-scaffold writes its lockfile where it is created
           web-lockfiles --check            fail when one of them differs from what the command writes;
                                            verify runs it
         """;
@@ -106,6 +131,9 @@ internal static class Tasks
         if (arguments is ["--help"] or ["-h"] or ["help"])
         {
             Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
+            //#if (anyWeb)
+            Console.WriteLine(WebUsage);
+            //#endif
             //#if (templateMaintenance)
             Console.WriteLine(MaintenanceUsage);
             //#endif
@@ -388,8 +416,7 @@ internal static class Tasks
                 }
 
                 //#if (anyWeb)
-                WebWorkspace(repoRoot, "install");
-                WebWorkspace(repoRoot, "api");
+                WebScaffold(repoRoot, only: null);
                 //#endif
                 Write("Formatting stable and tools restored. Commit this before anything else.", ConsoleColor.Green);
                 break;
@@ -422,6 +449,12 @@ internal static class Tasks
                 VulnerablePackages(solution);
                 break;
 
+            //#if (anyWeb)
+            case "web-scaffold":
+                WebScaffold(repoRoot, name);
+                break;
+
+            //#endif
             //#if (templateMaintenance)
             case "web-lockfiles":
                 WebLockfiles(repoRoot, check);
@@ -536,17 +569,256 @@ internal static class Tasks
 
     //#endif
     //#if (anyWeb)
-    private static void WebWorkspace(string repoRoot, string script)
+    private const string ScaffoldDescriptor = "scaffold.json";
+
+    private static readonly string Pnpm = OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm";
+
+    private static readonly Regex ExactVersion = new(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$");
+
+    private static readonly JsonSerializerOptions WrittenJson = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    private static void WebWorkspace(string repoRoot, params string[] arguments)
     {
         try
         {
-            StepIn(Path.Combine(repoRoot, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", script);
+            StepIn(Path.Combine(repoRoot, "Src", "Web"), Pnpm, arguments);
         }
         catch (InvalidOperationException error)
         {
             throw new InvalidOperationException(
                 error.Message + " The web workspace needs Node.js and pnpm: run `corepack enable` once, then "
                 + "`pnpm install` and `pnpm api` in Src/Web.");
+        }
+    }
+
+    private static void WebScaffold(string repoRoot, string? only)
+    {
+        string web = Path.Combine(repoRoot, "Src", "Web");
+        string apps = Path.Combine(web, "apps");
+        string[] pending = Directory.Exists(apps)
+            ? [.. Directory.GetDirectories(apps)
+                .Where(folder => File.Exists(Path.Combine(folder, ScaffoldDescriptor)) && !File.Exists(Path.Combine(folder, "package.json")))
+                .Order(StringComparer.Ordinal)]
+            : [];
+
+        if (only is not null)
+        {
+            string folder = Path.Combine(apps, only);
+
+            if (File.Exists(Path.Combine(folder, "package.json")))
+            {
+                Write($"Src/Web/apps/{only} holds a package.json: it is created already, and left alone.", ConsoleColor.Green);
+                pending = [];
+            }
+            else if (pending.Contains(folder, StringComparer.Ordinal))
+            {
+                pending = [folder];
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Src/Web/apps/{only} holds no {ScaffoldDescriptor}, so there is nothing to create. "
+                    + "dotnet new cleanarch-webapp writes one in the app's folder.");
+            }
+        }
+
+        foreach (string folder in pending)
+        {
+            ScaffoldApp(web, folder);
+        }
+
+        WebWorkspace(repoRoot, pending.Length > 0 ? ["install", "--no-frozen-lockfile"] : ["install"]);
+
+        string[] created = Directory.Exists(apps)
+            ? [.. Directory.GetDirectories(apps).Where(folder => File.Exists(Path.Combine(folder, "package.json")))]
+            : [];
+        bool[] pinned = [.. created.Select(PinInstalledVersions)];
+
+        if (pinned.Contains(true))
+        {
+            WebWorkspace(repoRoot, "install", "--no-frozen-lockfile");
+        }
+
+        WebWorkspace(repoRoot, "api");
+
+        if (pending.Length > 0)
+        {
+            Write(
+                $"Created {string.Join(", ", pending.Select(Path.GetFileName))}. Commit the app with Src/Web/pnpm-lock.yaml: "
+                + "pnpm install --frozen-lockfile, CI and the image build read the versions it records.",
+                ConsoleColor.Green);
+        }
+    }
+
+    private static void ScaffoldApp(string web, string folder)
+    {
+        string app = Path.GetFileName(folder);
+        JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
+        string name = Text(descriptor, "name", app);
+        string cli = Text(descriptor, "package", app) + "@" + Text(descriptor, "version", app);
+        string scratch = Path.Combine(web, ".web-scaffold-" + Guid.NewGuid().ToString("N"));
+        string starter = Path.Combine(scratch, name);
+        string overlay = Path.Combine(folder, "overlay");
+
+        string[] arguments =
+        [
+            "dlx", cli,
+            .. (descriptor["arguments"]?.AsArray() ?? []).Select(argument => (argument?.GetValue<string>() ?? string.Empty)
+                .Replace("{name}", name, StringComparison.Ordinal)
+                .Replace("{directory}", Path.GetRelativePath(web, starter).Replace('\\', '/'), StringComparison.Ordinal)),
+        ];
+
+        try
+        {
+            Directory.CreateDirectory(scratch);
+
+            try
+            {
+                StepIn(web, Pnpm, arguments);
+            }
+            catch (InvalidOperationException error)
+            {
+                throw new InvalidOperationException(
+                    $"{error.Message} Creating Src/Web/apps/{app} runs {cli}, the framework's official CLI, which pnpm fetches "
+                    + "from the npm registry, so this step needs the network; the output above says what failed. The app's folder "
+                    + $"is unchanged: run `dotnet run Tools/Tasks.cs web-scaffold {app}` again once the cause is fixed.");
+            }
+
+            if (!File.Exists(Path.Combine(starter, "package.json")))
+            {
+                throw new InvalidOperationException($"{cli} wrote no package.json in {starter}, so Src/Web/apps/{app} is left unchanged.");
+            }
+
+            if (Directory.Exists(overlay))
+            {
+                CopyFiles(overlay, starter, overwrite: true);
+            }
+
+            foreach (string removed in (descriptor["remove"]?.AsArray() ?? []).Select(path => Path.Combine(starter, path?.GetValue<string>() ?? ".")))
+            {
+                if (Directory.Exists(removed))
+                {
+                    Directory.Delete(removed, recursive: true);
+                }
+
+                File.Delete(removed);
+            }
+
+            foreach ((string file, JsonNode? patch) in descriptor["merge"]?.AsObject() ?? [])
+            {
+                string path = Path.Combine(starter, file);
+                JsonObject merged = ReadJson(path);
+                Merge(merged, patch?.AsObject() ?? []);
+                File.WriteAllText(path, merged.ToJsonString(WrittenJson) + "\n");
+            }
+
+            CopyFiles(starter, folder, overwrite: false);
+        }
+        finally
+        {
+            if (Directory.Exists(scratch))
+            {
+                Directory.Delete(scratch, recursive: true);
+            }
+        }
+
+        if (Directory.Exists(overlay))
+        {
+            Directory.Delete(overlay, recursive: true);
+        }
+
+        File.Delete(Path.Combine(folder, ScaffoldDescriptor));
+        Write($"Created Src/Web/apps/{app} from {cli} and its overlay.", ConsoleColor.Green);
+    }
+
+    private static bool PinInstalledVersions(string folder)
+    {
+        string manifest = Path.Combine(folder, "package.json");
+        JsonObject package = ReadJson(manifest);
+        bool changed = false;
+
+        foreach (JsonObject dependencies in new[] { package["dependencies"], package["devDependencies"] }.OfType<JsonObject>())
+        {
+            foreach ((string dependency, JsonNode? range) in dependencies.ToList())
+            {
+                string declared = range?.GetValue<string>() ?? string.Empty;
+
+                if (declared.StartsWith("workspace:", StringComparison.Ordinal) || ExactVersion.IsMatch(declared))
+                {
+                    continue;
+                }
+
+                string installed = Path.Combine(folder, "node_modules", dependency, "package.json");
+
+                if (!File.Exists(installed))
+                {
+                    throw new InvalidOperationException($"{manifest} declares {dependency} {declared}, and pnpm installed no version of it.");
+                }
+
+                dependencies[dependency] = Text(ReadJson(installed), "version", installed);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            File.WriteAllText(manifest, package.ToJsonString(WrittenJson) + "\n");
+        }
+
+        return changed;
+    }
+
+    private static void Merge(JsonObject target, JsonObject patch)
+    {
+        foreach ((string key, JsonNode? value) in patch)
+        {
+            if (value is null)
+            {
+                target.Remove(key);
+            }
+            else if (value is JsonObject nested && target[key] is JsonObject existing)
+            {
+                Merge(existing, nested);
+            }
+            else
+            {
+                target[key] = value.DeepClone();
+            }
+        }
+    }
+
+    private static JsonObject ReadJson(string path) =>
+        JsonNode.Parse(
+            File.ReadAllText(path),
+            documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject
+        ?? throw new InvalidOperationException($"{path} holds no JSON object.");
+
+    private static string Text(JsonObject json, string key, string owner) =>
+        json[key]?.GetValue<string>() is { Length: > 0 } value
+            ? value
+            : throw new InvalidOperationException($"'{key}' is missing from the JSON of {owner}.");
+
+    private static void CopyFiles(string source, string target, bool overwrite)
+    {
+        Directory.CreateDirectory(target);
+
+        foreach (string file in Directory.GetFiles(source))
+        {
+            string copy = Path.Combine(target, Path.GetFileName(file));
+
+            if (overwrite || !File.Exists(copy))
+            {
+                File.Copy(file, copy, overwrite);
+            }
+        }
+
+        foreach (string folder in Directory.GetDirectories(source))
+        {
+            CopyFiles(folder, Path.Combine(target, Path.GetFileName(folder)), overwrite);
         }
     }
 

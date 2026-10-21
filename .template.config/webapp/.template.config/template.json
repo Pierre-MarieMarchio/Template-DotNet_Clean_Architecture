@@ -21,8 +21,8 @@
       "isRequired": true,
       "choices": [
         { "choice": "placeholder", "description": "A static page served by nginx, relaying /api to the API." },
-        { "choice": "react", "description": "A React (Vite, TypeScript) app." },
-        { "choice": "angular", "description": "An Angular app." }
+        { "choice": "react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
+        { "choice": "angular", "description": "An Angular app, created by the Angular CLI (ng new) when web-scaffold runs." }
       ],
       "description": "The app's framework."
     },
@@ -101,6 +101,20 @@
       "replaces": "PlaceholderSite",
       "fileRename": "PlaceholderSite"
     },
+    "appNameReact": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "ReactSite",
+      "fileRename": "ReactSite"
+    },
+    "appNameAngular": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "AngularSite",
+      "fileRename": "AngularSite"
+    },
     "appNameWords": {
       "type": "generated",
       "generator": "regex",
@@ -132,6 +146,54 @@
         "steps": [{ "regex": "-", "replacement": "_" }]
       },
       "replaces": "PLACEHOLDER_SITE"
+    },
+    "appNameKebabReact": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "appNameWords", "toLower": true },
+      "replaces": "react-site"
+    },
+    "appNameEnvironmentReact": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "appNameUpper",
+        "steps": [{ "regex": "-", "replacement": "_" }]
+      },
+      "replaces": "REACT_SITE"
+    },
+    "appNameKebabAngular": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "appNameWords", "toLower": true },
+      "replaces": "angular-site"
+    },
+    "appNameEnvironmentAngular": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "appNameUpper",
+        "steps": [{ "regex": "-", "replacement": "_" }]
+      },
+      "replaces": "ANGULAR_SITE"
+    },
+    "reactPort": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [{ "type": "ref", "value": "port" }],
+        "separator": ""
+      },
+      "replaces": "5173"
+    },
+    "angularPort": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [{ "type": "ref", "value": "port" }],
+        "separator": ""
+      },
+      "replaces": "4200"
     }
   },
   "sources": [
@@ -151,6 +213,18 @@
           "exclude": [
             "PlaceholderSite/**"
           ]
+        },
+        {
+          "condition": "(!webReact)",
+          "exclude": [
+            "ReactSite/**"
+          ]
+        },
+        {
+          "condition": "(!webAngular)",
+          "exclude": [
+            "AngularSite/**"
+          ]
         }
       ]
     }
@@ -161,7 +235,7 @@
       "description": "Start the app with the rest of the stack.",
       "manualInstructions": [
         {
-          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. Then run pnpm install in Src/Web and commit the lockfile with the app."
+          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. A react or angular app is created by its official CLI: run dotnet run Tools/Tasks.cs web-scaffold <name> at the project root (or bootstrap), then commit the app with Src/Web/pnpm-lock.yaml. A placeholder needs only pnpm install in Src/Web."
         }
       ],
       "continueOnError": true

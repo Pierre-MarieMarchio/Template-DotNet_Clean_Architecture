@@ -430,6 +430,8 @@
             "TestResults/**",
             ".env",
             ".vs/**",
+            "README.md",
+            "docs/template/**",
             "docs/plans/**",
             "docs/guide_architecture_pour_agent.md",
             "CHANGELOG.md",
@@ -448,7 +450,9 @@
           "condition": "(!anyWeb)",
           "exclude": [
             "Src/Web/**",
-            ".github/workflows/web.yml"
+            ".github/workflows/web.yml",
+            "docs/features/web-frontend.md",
+            "docs/decisions/0019-one-generated-api-client.md"
           ]
         },
         {
@@ -500,7 +504,11 @@
             "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
             "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs"
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs",
+            "docs/decisions/0013-a-session-is-a-refresh-token-family.md",
+            "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
+            "docs/decisions/0015-passkeys-stand-on-their-own.md",
+            "docs/decisions/0016-browser-refresh-token-in-a-cookie.md"
           ]
         },
         {
@@ -519,7 +527,21 @@
             "Tests/**/Features/ExternalIdentity/**",
             "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
             "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs"
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
+            "docs/decisions/0017-external-subjects-map-to-internal-owners.md"
+          ]
+        },
+        {
+          "condition": "(!accounts)",
+          "exclude": [
+            "docs/features/accounts.md",
+            "docs/decisions/0009-ownership-is-in-the-query.md"
+          ]
+        },
+        {
+          "condition": "(!(anyFeature && accounts))",
+          "exclude": [
+            "docs/decisions/0012-account-deletion-each-feature-decides.md"
           ]
         },
         {
@@ -566,7 +588,9 @@
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryBucket.cs",
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs"
+            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
+            "docs/features/files.md",
+            "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md"
           ]
         },
         {
@@ -650,6 +674,10 @@
           ]
         }
       ]
+    },
+    {
+      "source": "./.template.config/variants/project/",
+      "target": "./"
     },
     {
       "source": "./.template.config/variants/no-sonar/",

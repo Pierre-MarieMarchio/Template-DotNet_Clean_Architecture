@@ -69,5 +69,6 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#if (anyWeb)-->
 | [0019](0019-one-generated-api-client.md) | One generated API client | Web front end |
 <!--#endif-->
+| [0020](0020-one-risk-one-type-of-test.md) | One risk, one type of test | Testing |
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

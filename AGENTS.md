@@ -21,23 +21,28 @@ once before a change that adds a type; [the documentation index](docs/README.md)
 
 ## Commands
 
-From the repository root.
+From the repository root. Right after generating, before anything else, run `bootstrap` and commit
+what it writes: it formats the usings the rename reordered, writes the OpenAPI reference, restores
+the local tools and creates each context's initial migration, and the other tasks assume all four.
 
 | When | Command | Needs |
 |---|---|---|
+| Once, right after generating | `dotnet run Tools/Tasks.cs bootstrap` | the network |
 | While you work | `dotnet run Tools/Tasks.cs test --no-integration` | nothing |
 | The structural rules alone | `dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` | nothing |
-| After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` | nothing |
+| After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` (commit apart what it rewrites in files you did not touch) | nothing |
 | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
-| Every task and option | `dotnet run Tools/Tasks.cs help` | nothing |
-| Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker |
+| Every task and option | `dotnet run Tools/Tasks.cs help`; `-m:<N>` caps build and test parallelism | nothing |
+| Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
 
 ## Where code goes
 
 - [Project layout](docs/reference/project-layout.md): which project and folder a file goes in, and its
   name.
-- [Feature shapes](docs/architecture/feature-shapes.md): an aggregate, or a service over a store.
+- [Feature shapes](docs/architecture/feature-shapes.md): an aggregate, or a service over a store;
+  choose the aggregate when use cases beyond the five operations are foreseen (`new-use-case`
+  refuses a service).
 - [Modules and boundaries](docs/architecture/modules-and-boundaries.md): what may depend on what.
 - [HTTP API](docs/architecture/http-api.md): the contract every endpoint offers.
 - A registration, an anonymous endpoint, a folder word, a domain event or a new project joins a list a
@@ -53,8 +58,10 @@ From the repository root.
 - Never silence a diagnostic with `#pragma`, `<NoWarn>`, a lowered severity or a skipped test: fix the
   code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) says why.
 - Extract an abstraction only once two real cases prove its shape.
-- A new setting gets its row in [the configuration reference](docs/reference/configuration.md);
-  `ConfigurationSurfaceTests` fails until it has one.
+- A new setting is an options class with its `IValidateOptions`, bound with `ValidateOnStart`, and
+  gets its own section in [the configuration reference](docs/reference/configuration.md);
+  `ConfigurationSurfaceTests` fails until it has one. [Adding a setting](docs/guides/adding-a-setting.md)
+  has the steps.
 - A test follows [the house rules](docs/guides/testing.md#house-rules), and a test that buys a
   guarantee is seen failing once: break the code, watch it go red, restore it.
 <!--#if (accounts)-->
@@ -96,8 +103,10 @@ dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes 
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
 ```
 
-`new-feature` writes the skeleton, its manifest and its page, then prints the hand edits and the
-`docs/README.md` row; `new-use-case` adds one operation to a rich feature and prints its action.
+`new-feature` writes the skeleton, its manifest and its page, then prints the hand edits, the
+`docs/README.md` row and the `docs/reference/api.md` row; its fields (`Name`, `Description`) are
+placeholders you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is
+promoted first) and prints its action.
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
@@ -113,8 +122,9 @@ shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 <!--#if (ci)-->
   `.github/workflows/ci.yml` runs the same gate on every pull request.
 <!--#endif-->
-- Without Docker, run `test --no-integration` and say the gate did not run; a change is never done on
-  a build alone.
+- Without Docker, or when `verify` or `coverage` stops on the machine rather than on a test, run what
+  can run (`test --no-integration`, the failing step's command by hand) and say which gate did not
+  run and why; a change is never done on a build alone.
 - The report names what ran, with its result, and what did not run. A change that compiles is not a
   guarantee proved: say which test holds it.
 - The docs move with the code: a page that cites a moved file, the page of a new capability, the

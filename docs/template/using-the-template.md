@@ -2,25 +2,38 @@
 
 ## Install and uninstall
 
-From nuget.org:
+From a GitHub Release: download the asset `CleanArch.WebApi.Templates.<version>.nupkg` from the
+release `template-v<version>` on the repository's Releases page, then, in the folder holding it:
+
+```bash
+dotnet new install ./CleanArch.WebApi.Templates.<version>.nupkg
+dotnet new uninstall CleanArch.WebApi.Templates
+```
+
+From nuget.org, once a version is published there, which also lets `dotnet new update` find the
+next one:
 
 ```bash
 dotnet new install CleanArch.WebApi.Templates
 dotnet new update
-dotnet new uninstall CleanArch.WebApi.Templates
 ```
 
-From a package packed locally, as [the package](maintaining-the-template.md#the-package) shows:
-
-```bash
-dotnet new install <folder>/CleanArch.WebApi.Templates.<version>.nupkg
-```
+A package packed locally, as [the package](maintaining-the-template.md#the-package) shows, installs
+like a release asset, from its path.
 
 One install brings three templates: `cleanarch-webapi`, the project, and the item templates
 `cleanarch-webapp` and `cleanarch-webpackage`. A checkout installs too, with
 `dotnet new install <path-to-this-repository>`, for a maintainer trying a change: the engine then
 reads every `.template.config` under the path, a worktree's or a scratch copy's included, which the
 package never carries.
+
+## In an IDE
+
+Once installed, the three templates are listed by Visual Studio's new-project dialog, by Rider's, and
+by the C# Dev Kit's "New Project" command in VS Code, with the options under their labels and the
+refusals hidden. None of them needs a separate extension: each reads the templates `dotnet new`
+installed. Visual Studio takes its labels from `.template.config/ide.host.json`; the others from the
+`displayName` of each option in `template.json`.
 
 ## Generate
 

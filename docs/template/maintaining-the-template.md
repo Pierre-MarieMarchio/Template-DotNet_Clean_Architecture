@@ -134,9 +134,11 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 To release, raise `templateVersion`, merge, and push the tag `template-v<version>`.
 `.github/workflows/template-release.yml` then refuses a tag that does not name the version, packs,
 installs the package alone in a scratch hive, generates and builds the defaults, and uploads the
-`.nupkg` as the `template-package` artifact. Its publishing job is skipped until the repository
-variable `PUBLISH_TEMPLATE_TO_NUGET` is `true`, and reads `NUGET_API_KEY` from the `nuget`
-environment; a version already on nuget.org fails the push.
+`.nupkg` as the `template-package` artifact. Its `github-release` job, the only one with
+`contents: write`, creates the tag's GitHub Release with the `.nupkg` attached, as a prerelease when
+the version has a suffix. Its publishing job is skipped until the repository variable
+`PUBLISH_TEMPLATE_TO_NUGET` is `true`, and reads `NUGET_API_KEY` from the `nuget` environment; a
+version already on nuget.org fails the push. Nothing in the workflow runs but on a tag push.
 
 ## Changelog
 

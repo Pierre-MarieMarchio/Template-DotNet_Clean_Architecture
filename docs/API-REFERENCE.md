@@ -117,6 +117,7 @@ A cleared cookie is the same cookie with an empty value and an expiry in 1970. T
 describes the header, the cookie parameter of `refresh` and `logout`, and the `Set-Cookie` of each
 answer.
 <!--#endif-->
+<!--#endif-->
 
 <!--#if (todoLists)-->
 ## To-do lists — `api/v1/todo-lists/*`

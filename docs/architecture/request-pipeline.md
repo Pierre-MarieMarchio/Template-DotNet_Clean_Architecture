@@ -37,6 +37,8 @@ proxy in front must do, and ADR 0001 records the choice.
 Authorisation is default-deny. A fallback policy requires an authenticated user, so an endpoint is
 protected unless it opts out with `[AllowAnonymous]`. The two health endpoints opt out, and so, in
 Development only, do the OpenAPI document and its reference page.
+`DefaultDenyAuthorizationTests` reads every endpoint the host maps and expects `401` from each one
+that does not opt out, without a token and with a garbage one.
 
 <!--#endif-->
 <!--#if (localAuth)-->

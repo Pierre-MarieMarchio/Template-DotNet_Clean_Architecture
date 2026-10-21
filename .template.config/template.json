@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "http://json.schemastore.org/template",
   "author": "Pierre-MarieMarchio",
   "classifications": [
@@ -517,7 +517,6 @@
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AccountLockoutTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AdministratorPolicyTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AuthenticationProblemDetailsTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/LoginUniformityTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/PasswordPolicyTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RateLimitingTests.cs",
@@ -590,6 +589,7 @@
         {
           "condition": "(publicApi)",
           "exclude": [
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
             "Src/Application/AppTemplate.Application.Core/Common/Events/UserAccountDeleted.cs",
             "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
             "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",

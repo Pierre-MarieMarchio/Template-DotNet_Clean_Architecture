@@ -1,14 +1,19 @@
-﻿//#if (todoLists)
-using System.Net;
-//#endif
+﻿using System.Net;
+//#if (localAuth)
 using System.Reflection;
+//#endif
+using System.Text;
+using System.Text.RegularExpressions;
+//#if (localAuth)
 using AppTemplate.Api.Features.Auth.Controllers;
-//#if (todoLists)
-using AppTemplate.Api.Features.TodoLists.Controllers;
 //#endif
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
+//#if (localAuth)
 using Microsoft.AspNetCore.Mvc.Routing;
+//#endif
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
@@ -16,11 +21,11 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 
 public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    //#if (todoLists)
-    private static readonly Guid _someListId = Guid.CreateVersion7();
-    private static readonly Guid _someItemId = Guid.CreateVersion7();
+    private static readonly Guid _someId = Guid.CreateVersion7();
 
-    //#endif
+    private static readonly Regex _routeParameter = new(@"\{[^}:=?]+(?<constraints>[^}=?]*)[^}]*\}", RegexOptions.None, TimeSpan.FromSeconds(5));
+    //#if (localAuth)
+
     private static readonly Type[] _authControllers =
     [
         typeof(RegistrationController),
@@ -30,99 +35,62 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
         typeof(TwoFactorController),
         typeof(PasswordRecoveryController),
     ];
-    //#if (todoLists)
-
-    private static readonly Type[] _todoListControllers =
-    [
-        typeof(TodoListsController),
-        typeof(TodoItemsController),
-        typeof(TodoItemTagsController),
-    ];
-
-    public static TheoryData<string, string> TodoListEndpoints => new()
-    {
-        { "GET", TodoListsRoute },
-        { "GET", $"{TodoListsRoute}/tags" },
-        { "GET", $"{TodoListsRoute}/{_someListId}" },
-        { "GET", $"{TodoListsRoute}/{_someListId}/items" },
-        { "GET", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },
-        { "POST", TodoListsRoute },
-        { "PUT", $"{TodoListsRoute}/{_someListId}" },
-        { "DELETE", $"{TodoListsRoute}/{_someListId}" },
-        { "POST", $"{TodoListsRoute}/{_someListId}/items" },
-        { "PUT", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },
-        { "POST", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/complete" },
-        { "POST", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/reopen" },
-        { "DELETE", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}" },
-        { "POST", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/tags" },
-        { "PUT", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/tags" },
-        { "DELETE", $"{TodoListsRoute}/{_someListId}/items/{_someItemId}/tags/urgent" },
-    };
-
-    [Theory]
-    [MemberData(nameof(TodoListEndpoints))]
-    public async Task EveryTodoListEndpoint_Answers401WithoutAToken(string method, string path)
-    {
-        var client = CreateClient();
-
-        using var request = new HttpRequestMessage(new HttpMethod(method), path)
-        {
-            Content = method is "POST" or "PUT"
-                ? new StringContent("{}", System.Text.Encoding.UTF8, "application/json")
-                : null,
-        };
-
-        using var response = await client.SendAsync(request, TestToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-    }
-
-    [Theory]
-    [MemberData(nameof(TodoListEndpoints))]
-    public async Task EveryTodoListEndpoint_Answers401ForAGarbageToken(string method, string path)
-    {
-        var client = CreateClient();
-
-        using var request = new HttpRequestMessage(new HttpMethod(method), path);
-        request.Headers.TryAddWithoutValidation("Authorization", "Bearer not-a-token");
-
-        if (method is "POST" or "PUT")
-        {
-            request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
-        }
-
-        using var response = await client.SendAsync(request, TestToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-    }
+    //#endif
 
     [Fact]
-    public void TheEnumerationCoversEveryActionOnTheController()
+    public async Task EveryEndpointNotMarkedAnonymous_Answers401WithoutATokenAndForAGarbageOne()
     {
-        var actions = _todoListControllers.SelectMany(ActionsOf).ToList();
+        var requests = ProtectedRequests();
 
-        actions.Count.ShouldBe(
-            TodoListEndpoints.Count,
-            "A TodoList endpoint was added or removed. Update TodoListEndpoints so it stays a "
-            + "complete default-deny guard.");
-    }
+        requests.ShouldNotBeEmpty("The endpoint data source read as empty, so nothing below is checked.");
+        //#if (signedInRoute)
+        requests.ShouldContain(request => request.Path == ProtectedRoute);
+        //#endif
 
-    [Fact]
-    public void NoTodoListEndpoint_OptsOutOfAuthorisation()
-    {
-        foreach (var controller in _todoListControllers)
+        var offenders = new List<string>();
+
+        foreach (var (method, path) in requests)
         {
-            controller.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
-                .ShouldBeEmpty($"{controller.Name} opts out of the fallback policy for every action on it.");
-
-            foreach (var action in ActionsOf(controller))
+            foreach (string? token in new[] { null, "not-a-token" })
             {
-                action.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true)
-                    .ShouldBeEmpty($"{controller.Name}.{action.Name} opts out of the fallback policy.");
+                using var request = new HttpRequestMessage(new HttpMethod(method), path);
+
+                if (token is not null)
+                {
+                    request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+                }
+
+                if (method is "POST" or "PUT" or "PATCH")
+                {
+                    request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
+                }
+
+                using var response = await CreateClient().SendAsync(request, TestToken);
+
+                if (response.StatusCode != HttpStatusCode.Unauthorized)
+                {
+                    offenders.Add($"{method} {path} {(token is null ? "without a token" : "with a garbage token")}: {(int)response.StatusCode}");
+                }
             }
         }
+
+        offenders.ShouldBeEmpty(
+            "Authorisation is default-deny: an endpoint that does not opt out answers 401 to a caller " +
+            "who is not signed in, whatever its route and its policy.");
+    }
+    //#if (signedInRoute)
+
+    [Fact]
+    public async Task AnAuthenticatedCaller_ReachesAProtectedEndpoint()
+    {
+        var (client, _, _) = await SignInAsync();
+
+        using var response = await client.GetAsync(new Uri(ProtectedRoute, UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
     //#endif
+    //#if (localAuth)
 
     [Fact]
     public void TheAuthenticationEndpoints_OptOutOneByOne()
@@ -181,20 +149,27 @@ public sealed class DefaultDenyAuthorizationTests(ApiFixture fixture) : Integrat
             "An authentication endpoint changed sides. Decide deliberately, then update this list.");
     }
 
-    //#if (todoLists)
-    [Fact]
-    public async Task AnAuthenticatedCaller_ReachesTheSameEndpoints()
-    {
-        var (client, _, _) = await SignInAsync();
-
-        using var response = await client.GetAsync(new Uri(TodoListsRoute, UriKind.Relative), TestToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    }
-
-    //#endif
     private static List<MethodInfo> ActionsOf(Type controller) =>
         [.. controller
             .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(method => method.GetCustomAttributes<HttpMethodAttribute>(inherit: true).Any())];
+    //#endif
+
+    private List<(string Method, string Path)> ProtectedRequests() =>
+        [.. Fixture.Factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null)
+            .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? ["GET"])
+                .Select(method => (Method: method, Path: PathOf(endpoint.RoutePattern.RawText ?? string.Empty))))
+            .Distinct()
+            .OrderBy(request => request.Path, StringComparer.Ordinal)
+            .ThenBy(request => request.Method, StringComparer.Ordinal)];
+
+    private static string PathOf(string template) =>
+        "/" + _routeParameter.Replace(template.TrimStart('/'), parameter => SampleOf(parameter.Groups["constraints"].Value));
+
+    private static string SampleOf(string constraints) =>
+        constraints.Contains(":guid", StringComparison.Ordinal) ? _someId.ToString()
+        : constraints.Contains(":apiVersion", StringComparison.Ordinal) ? "1"
+        : "sample";
 }

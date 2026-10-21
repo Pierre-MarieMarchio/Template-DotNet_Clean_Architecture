@@ -100,7 +100,7 @@ Src/Presentation/
 Src/Web/                                the pnpm workspace: apps/ and packages/
 <!--#endif-->
 Tests/                                  one test project per source project, mirroring its folders,
-                                        plus Architecture/, Integration/ and Load/
+                                        plus Architecture/, EndToEnd/, Integration/ and Load/
 ```
 
 <!--#if (localAuth)-->

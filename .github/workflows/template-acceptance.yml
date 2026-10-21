@@ -65,6 +65,7 @@ jobs:
             auth_context: "true"
             integration: "true"
             generator: "true"
+            end_to_end: "true"
           - name: auth none, smallest project
             options: --auth none --examples none --files false
             auth_context: "false"
@@ -221,12 +222,12 @@ jobs:
           dotnet restore Sample.Generated.Project.sln
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
-      # Selected by a Testcontainers reference in the csproj, not by a name pattern.
+      # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          mapfile -t projects < <(grep -r --include='*.csproj' -L 'Testcontainers' Tests | sort)
+          mapfile -t projects < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L 'Testcontainers' | sort)
           if [ "${#projects[@]}" -eq 0 ]; then
             echo "::error title=No test projects::Discovery found nothing to run in the generated project."
             exit 1
@@ -259,6 +260,12 @@ jobs:
             dotnet test "$project" --configuration Release --no-build --output Detailed
             echo "::endgroup::"
           done
+
+      # The generated project's own task: its Compose stack from .env.example, the suite, then the stack removed.
+      - name: Run the end-to-end suite (end-to-end legs)
+        if: matrix.end_to_end == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs e2e
 
       - name: Assert no context has a pending model change
         working-directory: ${{ runner.temp }}/generated

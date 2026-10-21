@@ -433,7 +433,8 @@
     "94C8988A-429F-40C8-B9EE-6211C4A52FDF",
     "BED911C2-7483-4AFC-893A-380E17C95855",
     "A1C6E4D2-7F3B-4E58-9C21-6B0D5A8F2E13",
-    "C7B9F150-2D64-4A83-8E17-3F5C90A6D4B2"
+    "C7B9F150-2D64-4A83-8E17-3F5C90A6D4B2",
+    "339042C2-8BA1-408E-8582-E2E94AAD9A1E"
   ],
   "sources": [
     {
@@ -475,7 +476,8 @@
             "Src/Web/**",
             ".github/workflows/web.yml",
             "docs/features/web-frontend.md",
-            "docs/decisions/0019-one-generated-api-client.md"
+            "docs/decisions/0019-one-generated-api-client.md",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/WebAppTests.cs"
           ]
         },
         {
@@ -530,7 +532,12 @@
             "docs/decisions/0013-a-session-is-a-refresh-token-family.md",
             "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
             "docs/decisions/0015-passkeys-stand-on-their-own.md",
-            "docs/decisions/0016-browser-refresh-token-in-a-cookie.md"
+            "docs/decisions/0016-browser-refresh-token-in-a-cookie.md",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/Accounts.cs",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/FileTransferTests.cs",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/Mailbox.cs",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/Poll.cs",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/SessionTests.cs"
           ]
         },
         {
@@ -614,7 +621,8 @@
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
             "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
             "docs/features/files.md",
-            "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md"
+            "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md",
+            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/FileTransferTests.cs"
           ]
         },
         {

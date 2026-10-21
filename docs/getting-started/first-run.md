@@ -182,12 +182,14 @@ Paste an access token into its authentication field to call the protected routes
 ## Run the tests
 
 ```bash
-dotnet run Tools/Tasks.cs test                    # everything, Docker needed
+dotnet run Tools/Tasks.cs test                    # the solution's suites, Docker needed
 dotnet run Tools/Tasks.cs test --no-integration   # without Docker
+dotnet run Tools/Tasks.cs e2e                     # the end-to-end suite, against a stack of its own
 ```
 
-The integration suites start their own PostgreSQL in a container; [testing](../guides/testing.md)
-says what each suite proves.
+The integration suites start their own PostgreSQL in a container. The end-to-end suite starts a
+whole stack of its own on the same ports, so stop yours first with `docker compose down`.
+[Testing](../guides/testing.md) says what each suite proves.
 
 <!--#if (canAddFeature)-->
 ## Add a feature

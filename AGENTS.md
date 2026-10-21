@@ -31,6 +31,7 @@ From the repository root.
 | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | nothing |
 | Every task and option | `dotnet run Tools/Tasks.cs help` | nothing |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker |
+| After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs e2e` | Docker |
 
 ## Where code goes
 

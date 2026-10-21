@@ -21,7 +21,8 @@ that fails without it. These three files are excluded from generation, and the p
 task asks the filesystem which gates its tree carries, so one task serves both.
 
 CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a generated project
-does not receive.
+does not receive. Its end-to-end job skips its one step in this repository, whose stack includes web
+apps no CLI has created yet; the acceptance matrix runs the suite instead.
 
 ## The acceptance matrix
 
@@ -30,10 +31,11 @@ that `.nupkg`, generates under another name, asserts the source name leaked nowh
 builds with warnings as errors, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
-run the integration suites, on the runner's Docker through Testcontainers. The defaults leg, the
-local-auth leg without examples and the external-auth leg without examples also run the generator
-round trip: `new-feature` writes an owner feature, a shared one and an aggregate one in turn, each
-builds in the domain and application layers and passes its own unit tests there, and
+run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then
+runs the generated project's `dotnet run Tools/Tasks.cs e2e` against its Compose stack. The defaults
+leg, the local-auth leg without examples and the external-auth leg without examples also run the
+generator round trip: `new-feature` writes an owner feature, a shared one and an aggregate one in
+turn, each builds in the domain and application layers and passes its own unit tests there, and
 `remove-feature --apply` leaves `git status` empty. Then all three are written together, `hygiene`
 passes, and they are removed last in first out. The infrastructure, API and architecture tests wait
 for the hand edits `new-feature` prints, so only the layers that need none are built. A web leg also checks its

@@ -273,6 +273,15 @@
       "include": [
         "web.yml"
       ]
+    },
+    {
+      "source": "../../docs/",
+      "target": "./docs/",
+      "condition": "(workspace)",
+      "include": [
+        "features/web-frontend.md",
+        "decisions/0019-one-generated-api-client.md"
+      ]
     }
   ],
   "postActions": [
@@ -292,7 +301,7 @@
       "description": "Wire the new workspace into the project.",
       "manualInstructions": [
         {
-          "text": "Src/Web/README.md, under 'The first app of a project generated without one', gives the lines --web writes outside Src/Web: the include block in docker-compose.yml, the port in .env.example, Src/Web/ in .dockerignore and the two web entries of .github/dependabot.yml."
+          "text": "Src/Web/README.md, under 'The first app of a project generated without one', gives the lines --web writes outside Src/Web: the include block in docker-compose.yml, the port in .env.example, Src/Web/ in .dockerignore, the two web entries of .github/dependabot.yml, and the web rows of the documentation index, the decision index and ADR 0001 (with --auth local, ADR 0016's web paragraph)."
         }
       ],
       "continueOnError": true

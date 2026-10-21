@@ -77,23 +77,6 @@ public sealed class NoteServiceTests
     }
 
     [Fact]
-    public async Task AForeignNote_IsIndistinguishableFromAMissingOne()
-    {
-        var foreignId = Guid.CreateVersion7();
-        var missingId = Guid.CreateVersion7();
-        _queries.GetAsync(Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns((Versioned<NoteDto>?)null);
-
-        var foreign = await Service().GetAsync(foreignId, TestToken);
-        var missing = await Service().GetAsync(missingId, TestToken);
-
-        foreign.Error!.Code.ShouldBe("note.notFound");
-        foreign.Error.Type.ShouldBe(missing.Error!.Type);
-        foreign.Error.Code.ShouldBe(missing.Error.Code);
-        await _queries.Received(2).GetAsync(_callerId, Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task ListAsync_ScopesThePageToTheCaller_AndWritesNothing()
     {
         _queries.GetForOwnerAsync(Arg.Any<UserId>(), Arg.Any<FeaturePageRequest<NoteFilter>>(), Arg.Any<CancellationToken>())

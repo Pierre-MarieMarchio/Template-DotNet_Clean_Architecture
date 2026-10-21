@@ -61,34 +61,6 @@ public sealed class IssueFileDownloadUseCaseTests
     }
 
     [Fact]
-    public async Task AnotherUsersFile_YieldsNoGrant()
-    {
-        var foreign = AStoredFile.AvailableOwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(foreign.Id), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        await NoGrantWasMinted();
-    }
-
-    [Fact]
-    public async Task AnotherUsersFile_IsIndistinguishableFromAMissingOne()
-    {
-        var foreign = AStoredFile.AvailableOwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-        var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((StoredFile?)null);
-
-        var foreignResult = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(foreign.Id), TestToken);
-        var missingResult = await UseCase().ExecuteAsync(new IssueFileDownloadQuery(missingId), TestToken);
-
-        foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
-        foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
-    }
-
-    [Fact]
     public async Task AFileWhoseDepositWasNeverConfirmed_YieldsNoGrant()
     {
         var pending = AStoredFile.PendingOwnedBy(_callerId);

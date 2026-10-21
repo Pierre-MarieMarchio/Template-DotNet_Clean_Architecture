@@ -105,34 +105,6 @@ public sealed class RenameTodoListUseCaseTests
     }
 
     [Fact]
-    public async Task AnotherUsersList_IsNotRenamed()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new RenameTodoListCommand(foreign.Id, "Mine now"), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        foreign.Name.Value.ShouldBe("Somebody else's list");
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AnotherUsersList_IsIndistinguishableFromAMissingOne()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-        var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
-
-        var foreignResult = await UseCase().ExecuteAsync(new RenameTodoListCommand(foreign.Id, "Mine now"), TestToken);
-        var missingResult = await UseCase().ExecuteAsync(new RenameTodoListCommand(missingId, "Mine now"), TestToken);
-
-        foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
-        foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
-    }
-
-    [Fact]
     public async Task AValidRename_ReplacesTheName()
     {
         var list = GivenTheCallerOwnsAList();

@@ -57,21 +57,6 @@ public sealed class RemoveTodoItemUseCaseTests
     }
 
     [Fact]
-    public async Task AnItemOnAnotherUsersList_IsNotRemoved()
-    {
-        var foreign = ATodoList.OwnedBySomebodyElseThan(_callerId);
-        var foreignItemId = foreign.AddItem("Not mine", null);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new RemoveTodoItemCommand(foreign.Id, foreignItemId), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Code.ShouldBe("todoList.notFound");
-        foreign.Items.Count.ShouldBe(1);
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);

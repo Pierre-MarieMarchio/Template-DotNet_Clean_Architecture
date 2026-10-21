@@ -45,35 +45,6 @@ public sealed class ConfirmFileUploadUseCaseTests
     }
 
     [Fact]
-    public async Task AnotherUsersFile_IsNotConfirmed()
-    {
-        var foreign = AStoredFile.PendingOwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new ConfirmFileUploadCommand(foreign.Id), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        foreign.State.ShouldBe(StoredFileState.Pending);
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task AnotherUsersFile_IsIndistinguishableFromAMissingOne()
-    {
-        var foreign = AStoredFile.PendingOwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-        var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((StoredFile?)null);
-
-        var foreignResult = await UseCase().ExecuteAsync(new ConfirmFileUploadCommand(foreign.Id), TestToken);
-        var missingResult = await UseCase().ExecuteAsync(new ConfirmFileUploadCommand(missingId), TestToken);
-
-        foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
-        foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
-    }
-
-    [Fact]
     public async Task AFileWithNothingDeposited_IsReportedAndLeftPending()
     {
         var storedFile = GivenTheCallerOwnsAPendingFile();

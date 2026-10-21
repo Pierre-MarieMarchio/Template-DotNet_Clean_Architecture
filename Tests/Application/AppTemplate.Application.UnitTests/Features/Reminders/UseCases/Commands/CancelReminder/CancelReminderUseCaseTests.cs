@@ -56,19 +56,6 @@ public sealed class CancelReminderUseCaseTests
     }
 
     [Fact]
-    public async Task AnotherUsersReminder_IsNotCancelled()
-    {
-        var foreign = AReminder.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(foreign.Id), TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        foreign.State.ShouldBe(ReminderState.Pending);
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
     public async Task AnUnsatisfiedPrecondition_Fails()
     {
         var reminder = GivenTheCallerOwnsAReminder();

@@ -43,8 +43,9 @@ on <http://localhost:8025>. The generated project's
 [first run](docs/getting-started/first-run.md) continues to an authenticated call and a first
 feature.
 
-[Using the template](docs/template/using-the-template.md#install-and-uninstall) also installs a
-package packed locally or this checkout.
+[Using the template](docs/template/using-the-template.md#install-and-uninstall) installs the
+`.nupkg` a GitHub Release attaches, a package packed locally, or this checkout; Visual Studio, Rider
+and VS Code's C# Dev Kit then list the templates, with no extension.
 
 ## Generation options
 

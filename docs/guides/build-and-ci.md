@@ -25,7 +25,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `sonar` | the local Sonar analysis |
 <!--#endif-->
 <!--#if (anyWeb)-->
-| `web-scaffold` | create each web app still holding its `scaffold.json` |
+| `web-scaffold` | create each web app still holding its scaffold.json |
 <!--#endif-->
 <!--#if (!anyWeb)-->
 | `web-scaffold` | create the framework app a first `cleanarch-webapp --workspace` adds |

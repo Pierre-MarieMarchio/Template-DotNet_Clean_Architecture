@@ -18,7 +18,7 @@ public sealed class DocumentationCitationTests
     private static readonly string[] _keptDotDirectories = [".github", ".template.config"];
 
     private static readonly Regex _taskCitation = new(
-        @"dotnet run Tools/Tasks\.cs(?:[ \t]+--)?[ \t]+(?<task>[a-z][a-z-]*)(?<rest>[^`\n#]*)",
+        @"dotnet run Tools/Tasks\.cs(?:[ \t]+--)?[ \t]+(?<task>[a-z][a-z0-9-]*)(?<rest>[^`\n#]*)",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -43,7 +43,7 @@ public sealed class DocumentationCitationTests
         TimeSpan.FromSeconds(1));
 
     private static readonly Regex _quotedName = new(
-        @"""(?:--)?(?<name>[a-z][a-z-]*)""",
+        @"""(?:--)?(?<name>[a-z][a-z0-9-]*)""",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -221,6 +221,8 @@ public sealed class DocumentationCitationTests
         _taskCitation.Match("dotnet run Tools/Tasks.cs test --no-integration   # without Docker")
             .Groups["rest"].Value.Trim().ShouldBe("--no-integration");
         _taskCitation.IsMatch("dotnet run Tools/Tasks.cs <task>").ShouldBeFalse();
+        _taskCitation.Match("dotnet run Tools/Tasks.cs e2e --keep-stack").Groups["task"].Value.ShouldBe("e2e");
+        _quotedName.Match("\"e2e\",").Groups["name"].Value.ShouldBe("e2e");
         _citedOption.IsMatch("[--deletion delete|anonymise]").ShouldBeTrue();
         _citedOption.IsMatch("migration-add Add-Things").ShouldBeFalse();
 

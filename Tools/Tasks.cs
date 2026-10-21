@@ -21,25 +21,38 @@ internal static class Tasks
         Thin wrappers over the dotnet and docker commands of this repository. Each task prints the
         command it runs before running it, so the printed line gives the same result without this
         file. The repository root is the nearest directory at or above this file holding
-        AppTemplate.sln; the compose tasks and the vulnerability listing read the working directory.
+        AppTemplate.sln; the compose tasks and the vulnerability listing read the working directory,
+        and e2e runs from the root.
 
         Tasks:
         <tasks>
 
         Options:
-          --no-integration                 test: skip the projects that reference Testcontainers,
-                                           which need a running Docker daemon
-          --configuration <Debug|Release>  build, test, coverage, migration-bundle, verify; only after
+          --no-integration                 test: run only the projects that set IsTestProject and
+                                           reference no Testcontainers, so no Docker daemon is needed
+          --configuration <Debug|Release>  build, test, coverage, e2e, migration-bundle, verify; after
                                            a -- separator, because dotnet run claims the name
           --access, --deletion, --operations, --model, --concurrency
                                            new-feature: forwarded to Tools/NewFeature.cs, whose
                                            --help says what each one means
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
+          --keep-stack                     e2e: leave the stack it started running, data included,
+                                           for another run or a look at its logs
+
+        End-to-end:
+          e2e                              build and start the Compose stack from .env.example under
+                                           a project name of its own, so the development stack keeps
+                                           its data; wait until every service is healthy, run
+                                           Tests/EndToEnd against it, print the stack's logs on a
+                                           failure, then remove the stack and its volumes. A variable
+                                           set in the environment overrides .env.example, for the
+                                           stack and the suite alike
 
         Examples:
           dotnet run Tools/Tasks.cs test
           dotnet run Tools/Tasks.cs test --no-integration
+          dotnet run Tools/Tasks.cs e2e --keep-stack
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
           dotnet run Tools/Tasks.cs remove-feature Widgets
           dotnet run Tools/Tasks.cs remove-feature Widgets --apply
@@ -65,6 +78,7 @@ internal static class Tasks
         "run",
         "compose-up",
         "compose-down",
+        "e2e",
         //#if (sonar)
         "sonar",
         //#endif
@@ -141,6 +155,7 @@ internal static class Tasks
         List<string> featureOptions = [];
         bool noIntegration = false;
         bool apply = false;
+        bool keepStack = false;
         //#if (templateMaintenance)
         bool check = false;
         //#endif
@@ -163,6 +178,10 @@ internal static class Tasks
             else if (argument is "--apply")
             {
                 apply = true;
+            }
+            else if (argument is "--keep-stack")
+            {
+                keepStack = true;
             }
             else if (argument is "--configuration")
             {
@@ -194,9 +213,9 @@ internal static class Tasks
             else if (argument.StartsWith('-'))
             {
                 throw new InvalidOperationException(
-                    $"'{argument}' is not an option of this file. The options are --no-integration and "
-                    + "--configuration <Debug|Release>, the second after a -- separator, and for new-feature "
-                    + $"{string.Join(", ", FeatureOptionNames)}.");
+                    $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
+                    + "--keep-stack and --configuration <Debug|Release>, the last after a -- separator, and for "
+                    + $"new-feature {string.Join(", ", FeatureOptionNames)}.");
             }
             else if (task is null)
             {
@@ -232,6 +251,11 @@ internal static class Tasks
         if (apply && task != "remove-feature")
         {
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
+        }
+
+        if (keepStack && task != "e2e")
+        {
+            throw new InvalidOperationException($"'--keep-stack' is an option of the e2e task, not of '{task ?? "(no task)"}'.");
         }
         //#if (templateMaintenance)
 
@@ -391,6 +415,10 @@ internal static class Tasks
                 Step("docker", "compose", "down");
                 break;
 
+            case "e2e":
+                EndToEnd(repoRoot, configuration, keepStack);
+                break;
+
             //#if (sonar)
             case "sonar":
                 Sonar(repoRoot);
@@ -489,6 +517,60 @@ internal static class Tasks
             "-p:OpenApiGenerateDocumentsOnBuild=true",
             $"-p:OpenApiDocumentsDirectory={reference}",
             "-p:OpenApiGenerateDocumentsOptions=--file-name v1");
+    }
+
+    private static void EndToEnd(string repoRoot, string configuration, bool keepStack)
+    {
+        string[] compose = ["compose", "--project-name", "app-template-end-to-end", "--env-file", ".env.example"];
+        /*#if (externalAuth || files)*/
+        Dictionary<string, string> environment = Unset(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            //#if (externalAuth)
+            ["EXTERNAL_AUTH_AUTHORITY"] = "https://identity-provider.invalid/",
+            ["EXTERNAL_AUTH_AUDIENCE"] = "end-to-end",
+            //#endif
+            //#if (files)
+            ["JOBS_FILES_INSPECT_INTERVAL"] = "00:00:10",
+            //#endif
+        });
+        /*#else
+        Dictionary<string, string> environment = [];
+        #endif*/
+        bool passed = false;
+
+        try
+        {
+            Launch(repoRoot, environment, "docker", [.. compose, "up", "--build", "--detach", "--wait", "--wait-timeout", "300"]);
+            Step(
+                "dotnet", "run",
+                "--project", Path.Combine(repoRoot, "Tests", "EndToEnd", "AppTemplate.EndToEnd.Tests", "AppTemplate.EndToEnd.Tests.csproj"),
+                "--configuration", configuration);
+            passed = true;
+        }
+        finally
+        {
+            if (!passed)
+            {
+                StackLogs(repoRoot, environment, compose);
+            }
+
+            if (!keepStack)
+            {
+                Launch(repoRoot, environment, "docker", [.. compose, "down", "--volumes"]);
+            }
+        }
+    }
+
+    private static void StackLogs(string repoRoot, Dictionary<string, string> environment, string[] compose)
+    {
+        try
+        {
+            Launch(repoRoot, environment, "docker", [.. compose, "logs", "--tail", "100"]);
+        }
+        catch (InvalidOperationException error)
+        {
+            Write(error.Message, ConsoleColor.Red);
+        }
     }
 
     private static void Gates(string repoRoot)
@@ -1026,8 +1108,9 @@ internal static class Tasks
 
         if (dockerFreeOnly)
         {
-            projects = projects.Where(
-                path => !File.ReadAllText(path).Contains("Testcontainers", StringComparison.OrdinalIgnoreCase));
+            projects = projects.Where(path => File.ReadAllText(path) is var project
+                && project.Contains("<IsTestProject>true</IsTestProject>", StringComparison.Ordinal)
+                && !project.Contains("Testcontainers", StringComparison.OrdinalIgnoreCase));
         }
 
         string[] paths = [.. projects.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)];
@@ -1120,13 +1203,12 @@ internal static class Tasks
         Launch(directory, new Dictionary<string, string>(StringComparer.Ordinal), executable, arguments);
 
     private static void StepWith(IReadOnlyDictionary<string, string> defaults, string executable, params string[] arguments) =>
-        Launch(
-            null,
-            defaults
-                .Where(variable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
-                .ToDictionary(variable => variable.Key, variable => variable.Value, StringComparer.Ordinal),
-            executable,
-            arguments);
+        Launch(null, Unset(defaults), executable, arguments);
+
+    private static Dictionary<string, string> Unset(IReadOnlyDictionary<string, string> defaults) =>
+        defaults
+            .Where(variable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
+            .ToDictionary(variable => variable.Key, variable => variable.Value, StringComparer.Ordinal);
 
     private static void Launch(string? directory, Dictionary<string, string> environment, string executable, string[] arguments)
     {

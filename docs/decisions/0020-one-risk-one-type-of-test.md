@@ -16,8 +16,9 @@ ever passed and let the review catch the rest.
 ## Decision
 
 - **Each risk is held by one type of test**, the cheapest that can fail for its real cause: unit,
-  architecture, integration, contract or acceptance. A second type is added only when it can fail
-  for a cause the first cannot see. [Testing](../guides/testing.md) tables the types and the risks.
+  architecture, integration, contract, end-to-end or acceptance. A second type is added only when it
+  can fail for a cause the first cannot see. [Testing](../guides/testing.md) tables the types and the
+  risks.
 - **A population is one test.** It discovers its members, asserts that it found some, and names each
   offender; it never states their number.
 - **What is not tested:** a framework or compiler guarantee, a restated constant or signature, an
@@ -35,6 +36,13 @@ ever passed and let the review catch the rest.
 - **The file content ports do it** through `FileContentStoreContract` and
   `FileContentInventoryContract`, run against the in-memory double and every adapter.
 <!--#endif-->
+- **The stack as shipped is held by a small end-to-end suite**, one test per flow, run over HTTP
+  against the Compose stack by `dotnet run Tools/Tasks.cs e2e`, apart from `verify`: no lower type
+  fails for a broken Compose file, a mail that never reaches the inbox or a relay that drops a
+  request, and none of them needs the whole stack built.
+<!--#if (ci)-->
+- **CI runs that suite as a blocking job.**
+<!--#endif-->
 - **Coverage is a tripwire.** The floor in `coverage.minimum` catches an area shipped with no test.
   It is never raised to reward tests, and a drop is answered by naming the risk left untested.
 - **A new check is seen failing once**, for its real cause, before it counts.
@@ -48,6 +56,8 @@ ever passed and let the review catch the rest.
 - Ownership and a controller's HTTP behaviour are proved against PostgreSQL, so a run without Docker
   no longer exercises them.
 - The coverage figure moves when decorative tests go; it is re-measured, not defended.
+- A change to the stack, a mail or a relay is proved by `e2e` before it is done, since `verify` does
+  not start the stack.
 - The test-stack row of [ADR 0001](0001-adopt-the-generated-baseline.md) is unchanged.
 
 ## Revisit when

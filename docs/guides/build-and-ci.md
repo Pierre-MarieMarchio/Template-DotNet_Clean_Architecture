@@ -18,6 +18,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
+| `e2e` | the end-to-end suite against a Compose stack of its own, removed afterwards unless `--keep-stack` |
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `migration-add`, `database-update` | `dotnet ef` over the business context |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
@@ -67,7 +68,7 @@ which is what makes an unused `using` (IDE0005) fail the build.
 
 | Workflow | When | Does |
 |---|---|---|
-| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the load smoke |
+| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |
 <!--#endif-->
 <!--#if (ci && !anyWeb)-->

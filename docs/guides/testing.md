@@ -14,10 +14,12 @@ Testcontainers for PostgreSQL.
 | Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AppTemplate.Architecture.Tests` |
 | Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `Tests/Integration/` |
 | Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
+| End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
 
 Unit and architecture tests need nothing and run in seconds. The integration and contract tests need
-Docker and run in minutes.
+Docker and run in minutes. The end-to-end suite needs the whole stack built and started, and runs
+apart from both.
 
 ## The risks this project holds
 
@@ -46,6 +48,7 @@ Docker and run in minutes.
 | Doubles that tell the truth | contract tests run against the double and each adapter | `FileContentStoreContract`, `FileContentInventoryContract` |
 | Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
 <!--#endif-->
+| The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests` |
 
 A feature that brings a risk of its own adds a row here.
 
@@ -59,6 +62,8 @@ A feature that brings a risk of its own adds a row here.
   meet; one test that reads every member of every response the feature serves.
 - **Contract:** the feature's codes as rows of [the API reference](../reference/api.md#error-codes),
   and the OpenAPI reference rewritten with `dotnet run Tools/Tasks.cs openapi` and read in the review.
+- **End-to-end:** nothing, unless the feature changes what the stack runs: a new service, a mail, a
+  relay.
 - **Nothing** for composition, default deny or folder conventions: the tests over the whole surface
   pick the feature up.
 
@@ -91,6 +96,7 @@ dotnet run Tools/Tasks.cs test                                          # the so
 dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
 dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
 dotnet run Tools/Tasks.cs openapi                                       # rewrite the OpenAPI reference after a contract change
+dotnet run Tools/Tasks.cs e2e                                           # the end-to-end suite against a stack of its own
 ```
 
 Each integration project starts one PostgreSQL container and one host for the whole suite, and every
@@ -112,6 +118,47 @@ A run killed outright leaves its containers behind, because the resource reaper 
 ```bash
 docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 ```
+
+## The end-to-end suite
+
+`dotnet run Tools/Tasks.cs e2e` builds and starts the Compose stack from `.env.example` under a
+project name of its own, waits until every service is healthy, runs the suite, prints the stack's
+logs on a failure, then removes the stack with its volumes. `--keep-stack` leaves it running. The
+development stack keeps its data, but it holds the same ports: stop it first.
+
+The suite reads the ports from the environment, then from `.env.example`, as Compose does, so a
+variable set before the task moves the stack and the suite together.
+<!--#if (anyWeb)-->
+It finds every web app by its `WEB_<APP>_HOST_PORT` line.
+<!--#endif-->
+<!--#if (externalAuth)-->
+The task names an unreachable placeholder provider when `EXTERNAL_AUTH_AUTHORITY` is unset: no test
+signs in, and the API starts.
+<!--#endif-->
+<!--#if (files)-->
+It sets the file inspection to run every ten seconds, so a deposit becomes readable within seconds.
+<!--#endif-->
+
+| Test class | Risk it holds |
+|---|---|
+| `StackTests` | the stack starts, migrates and reports ready; an unmapped route is refused with the API's problem code |
+<!--#if (localAuth)-->
+| `SessionTests` | the confirmation mail reaches Mailpit with a link that confirms the address; sign-in, `/auth/me`, refresh and sign-out work on the real stack, and the refresh token is refused after sign-out |
+<!--#endif-->
+<!--#if (localAuth && files)-->
+| `FileTransferTests` | a deposit on the signed grant reaches the object store, the inspection pass runs, and the content comes back through its signed URL |
+<!--#endif-->
+<!--#if (anyWeb)-->
+| `WebAppTests` | each web app serves its page and relays `/api` to the API |
+<!--#endif-->
+
+The project sets `IsTestingPlatformApplication` to `false`, so `dotnet test` over the solution, and
+with it `verify` and `coverage`, leaves it out; it stays in `AppTemplate.sln`, so it builds and is
+formatted with the rest. `test --no-integration` runs only the projects that set `IsTestProject`.
+<!--#if (ci)-->
+CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
+test.
+<!--#endif-->
 
 ## Coverage
 
@@ -172,6 +219,11 @@ Async calls pass `TestContext.Current.CancellationToken`; NSubstitute placeholde
 - The injectable clock moves neither token validation nor the account store, which read the system
   clock.
 - The rate limiter's window runs on wall-clock time; `RateLimiting:Window` lets a test host widen it.
+<!--#if (localAuth)-->
+- The end-to-end suite calls the sign-in routes up to nine times, under the ten a minute
+  `RateLimiting:AuthenticationPermitLimit` allows an address: a second run against a kept stack
+  within the minute fails with `429`.
+<!--#endif-->
 - A folder named after the type it holds makes name lookup ambiguous (CS0118), and an `Options/` folder
   shadows `Options.Create`: use `new OptionsWrapper<T>(…)`.
 <!--#if (localAuth)-->

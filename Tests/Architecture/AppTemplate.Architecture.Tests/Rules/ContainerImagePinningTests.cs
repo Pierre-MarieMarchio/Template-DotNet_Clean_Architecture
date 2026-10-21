@@ -49,12 +49,12 @@ public sealed class ContainerImagePinningTests
     {
         var images = ComposeImages();
 
-        images.ShouldNotBeEmpty("docker-compose.yml runs at least the database; a parse that finds none is broken.");
+        images.ShouldNotBeEmpty("docker-compose.yml runs at least the mail catcher; a parse that finds none is broken.");
 
         images
             .Where(image => !_pinned.IsMatch(image))
             .ShouldBeEmpty(
-                "Write each image in docker-compose.yml and in every web app's compose.yml as "
+                "Write each image in docker-compose.yml, docker-compose.database.yml and every web app's compose.yml as "
                 + "name:tag@sha256:<multi-arch index digest>. "
                 + "Resolve it with `docker buildx imagetools inspect name:tag`.");
     }
@@ -130,7 +130,7 @@ public sealed class ContainerImagePinningTests
         var compose = ComposeImages().ToHashSet(StringComparer.Ordinal);
         var fixtures = FixtureImages();
 
-        fixtures.ShouldNotBeEmpty("the integration suites start a PostgreSQL; a search that finds none is broken.");
+        fixtures.ShouldNotBeEmpty("the integration suites start a container; a search that finds none is broken.");
 
         fixtures
             .Where(fixture => !_pinned.IsMatch(fixture.Image) || !compose.Contains(fixture.Image))
@@ -160,9 +160,14 @@ public sealed class ContainerImagePinningTests
     }
 
     private static List<string> ComposeImages() =>
-        [.. new[] { RootComposeFile() }.Concat(WebAppComposeFiles()).SelectMany(ComposeImages)];
+        [.. new[] { RootComposeFile(), DatabaseComposeFile() }
+            .Where(File.Exists)
+            .Concat(WebAppComposeFiles())
+            .SelectMany(ComposeImages)];
 
     private static string RootComposeFile() => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docker-compose.yml");
+
+    private static string DatabaseComposeFile() => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docker-compose.database.yml");
 
     private static List<string> WebAppComposeFiles()
     {

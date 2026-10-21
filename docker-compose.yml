@@ -17,28 +17,15 @@ include:
 
 #endif
 services:
+  #if (serverDatabase)
   db:
-    # Every image is pinned by tag and digest; Dependabot bumps both.
-    image: postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-    ports:
-      # Loopback only, for a client on this machine; remove it for any non-local use.
-      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
-    volumes:
-      # PostgreSQL 18 keeps its data under /var/lib/postgresql: a mount of /var/lib/postgresql/data loses it on down.
-      - db-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -q -d $$POSTGRES_DB -U $$POSTGRES_USER"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 15s
+    # The database server, declared in docker-compose.database.yml.
+    extends:
+      file: docker-compose.database.yml
+      service: db
     networks: [backend]
+
+  #endif
 
   mailpit:
     # The mail catcher: account mails land at http://localhost:8025.
@@ -55,6 +42,10 @@ services:
     networks: [backend]
 
   api:
+    # The connection string, from docker-compose.database.yml.
+    extends:
+      file: docker-compose.database.yml
+      service: database-client
     image: app-template-api:dev
     build:
       context: .
@@ -63,8 +54,6 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_HTTP_PORTS: "8080"
-
-      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Include Error Detail=true;Gss Encryption Mode=Disable"
 
       # Keep replicas x pool size under PostgreSQL's max_connections: docs/reference/configuration.md.
       Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
@@ -166,8 +155,10 @@ services:
     ports:
       - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
     depends_on:
+      #if (serverDatabase)
       db:
         condition: service_healthy
+      #endif
       mailpit:
         condition: service_started
       #if (files)

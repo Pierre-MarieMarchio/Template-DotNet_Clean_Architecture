@@ -30,7 +30,13 @@ that `.nupkg`, generates under another name, asserts the source name leaked nowh
 builds with warnings as errors, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
-run the integration suites, on the runner's Docker through Testcontainers. A web leg also checks its
+run the integration suites, on the runner's Docker through Testcontainers. The defaults leg, the
+local-auth leg without examples and the external-auth leg without examples also run the generator
+round trip: `new-feature` writes an owner feature, a shared one and an aggregate one in turn, each
+builds in the domain and application layers and passes its own unit tests there, and
+`remove-feature --apply` leaves `git status` empty. Then all three are written together, `hygiene`
+passes, and they are removed last in first out. The infrastructure, API and architecture tests wait
+for the hand edits `new-feature` prints, so only the layers that need none are built. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
 install, lint, test and build, checks a second `web-scaffold` changes nothing, starts the whole stack
 and asks each app for its page, its headers and an answer only the API gives.

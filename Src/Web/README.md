@@ -115,6 +115,43 @@ template cannot edit is yours to add, exactly as `--web` would have written it f
             - vitest
   ```
 
+- in `docs/README.md`, the last row under `## Features`:
+
+  ```markdown
+  | [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
+  ```
+
+- in `docs/decisions/README.md`, the last row of the table:
+
+  ```markdown
+  | [0019](0019-one-generated-api-client.md) | One generated API client | Web front end |
+  ```
+
+- in `docs/decisions/0001-adopt-the-generated-baseline.md`, the last row of the table:
+
+  ```markdown
+  | One pnpm workspace under `Src/Web`, Node and pnpm pinned | Apps and packages share one lockfile; nothing in the .NET build needs Node | [Web front end](../features/web-frontend.md) | — |
+  ```
+<!--#if (localAuth)-->
+
+- in `docs/decisions/0016-browser-refresh-token-in-a-cookie.md`, before `## Consequences`, and
+  as the last line of its list:
+
+  ```markdown
+  In this project's web apps, the client package's `createBrowserSession` keeps the access token in
+  a variable only, never in storage, and calls `refresh()` once at start so a reload costs one
+  request. Concurrent refreshes share one request, since two would present one token twice and end
+  the session, and only a refused refresh signs the page out.
+  ```
+
+  ```markdown
+    `Src/Web/packages/api-client/test/session.test.ts` holds the browser side.
+  ```
+<!--#endif-->
+
+`--workspace` adds `docs/features/web-frontend.md` and `docs/decisions/0019-one-generated-api-client.md`
+themselves.
+
 Another app's lines are in its own `README.md`. Then run `dotnet run Tools/Tasks.cs web-scaffold` for
 a react or angular app, or `pnpm install` here for a placeholder, and commit the workspace with its
 `pnpm-lock.yaml`.

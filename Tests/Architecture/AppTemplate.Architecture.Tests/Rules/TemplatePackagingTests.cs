@@ -124,6 +124,79 @@ public sealed class TemplatePackagingTests
             ".template.config/variants/no-sonar/.config/dotnet-tools.json has drifted from .config/dotnet-tools.json.");
     }
 
+    [Fact]
+    public void TheDependabotEntriesTheWebReadmeLists_AreTheOnesWebWrites()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var written = ConditionedBlocks(File.ReadAllLines(Path.Combine(root, ".github", "dependabot.yml")), "anyWeb");
+        var listed = FencedBlocksUnder(File.ReadAllLines(Path.Combine(root, "Src", "Web", "README.md")), "- in `.github/dependabot.yml`");
+
+        written.Count.ShouldBe(2, "dependabot.yml was expected to hold two blocks conditioned on anyWeb: the apps' images and the workspace's packages.");
+
+        listed.ShouldBe(
+            written,
+            "Src/Web/README.md lists Dependabot entries for a project's first web app that differ from what --web writes " +
+            "into .github/dependabot.yml. Copy the anyWeb blocks into the README, as they are.");
+    }
+
+    private static List<string> ConditionedBlocks(string[] lines, string symbol)
+    {
+        string opening = "#" + $"if ({symbol})";
+        string closing = "#" + "endif";
+        var blocks = new List<string>();
+        List<string>? block = null;
+
+        foreach (string line in lines)
+        {
+            if (line.Trim() == opening)
+            {
+                block = [];
+            }
+            else if (block is not null && line.Trim() == closing)
+            {
+                blocks.Add(string.Join('\n', block).TrimEnd());
+                block = null;
+            }
+            else
+            {
+                block?.Add(line);
+            }
+        }
+
+        return blocks;
+    }
+
+    private static List<string> FencedBlocksUnder(string[] lines, string bullet)
+    {
+        int start = Array.FindIndex(lines, line => line.StartsWith(bullet, StringComparison.Ordinal));
+        start.ShouldBeGreaterThanOrEqualTo(0, $"Src/Web/README.md has no bullet starting '{bullet}'.");
+
+        var blocks = new List<string>();
+        List<string>? block = null;
+        int indent = 0;
+
+        foreach (string line in lines.Skip(start + 1).TakeWhile(line => line.Length == 0 || char.IsWhiteSpace(line[0])))
+        {
+            string trimmed = line.TrimStart();
+            if (block is null && trimmed.StartsWith("```", StringComparison.Ordinal))
+            {
+                block = [];
+                indent = line.Length - trimmed.Length;
+            }
+            else if (block is not null && trimmed == "```")
+            {
+                blocks.Add(string.Join('\n', block).TrimEnd());
+                block = null;
+            }
+            else
+            {
+                block?.Add(line.Length >= indent ? line[indent..] : line.TrimStart());
+            }
+        }
+
+        return blocks;
+    }
+
     private static string ManifestPath()
     {
         string manifest = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "template.json");

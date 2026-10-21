@@ -34,13 +34,11 @@ public sealed class ContainerImagePinningTests
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1));
 
-    //#if (anyWeb)
     private static readonly Regex _composeInclude = new(
         @"^\s+-\s+(?:path:\s*)?(?<path>\S+compose\.ya?ml)\s*$",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
-    //#endif
     private static readonly Regex _fixtureImage = new(
         @"(?:Builder\(\s*""(?<ref>[^""]+)""|const\s+string\s+\w*Image\w*\s*=\s*""(?<ref>[^""]+)"")",
         RegexOptions.CultureInvariant,
@@ -56,12 +54,8 @@ public sealed class ContainerImagePinningTests
         images
             .Where(image => !_pinned.IsMatch(image))
             .ShouldBeEmpty(
-                /*#if (anyWeb)*/
                 "Write each image in docker-compose.yml and in every web app's compose.yml as "
                 + "name:tag@sha256:<multi-arch index digest>. "
-                /*#else
-                "Write each image in docker-compose.yml as name:tag@sha256:<multi-arch index digest>. "
-                #endif*/
                 + "Resolve it with `docker buildx imagetools inspect name:tag`.");
     }
 
@@ -113,7 +107,6 @@ public sealed class ContainerImagePinningTests
             + "Dependabot rewrites a literal FROM and skips one built from an ARG.");
     }
 
-    //#if (anyWeb)
     [Fact]
     public void EveryWebApp_IsIncludedInTheRootComposeFile()
     {
@@ -131,7 +124,6 @@ public sealed class ContainerImagePinningTests
                 + "never starts it. Add `  - path: Src/Web/apps/<Name>/compose.yml` there.");
     }
 
-    //#endif
     [Fact]
     public void EveryFixtureImage_IsPinned_AndIsOneTheDevelopmentStackRuns()
     {
@@ -162,22 +154,15 @@ public sealed class ContainerImagePinningTests
         _syntax.IsMatch("# syntax=docker/dockerfile:1").ShouldBeTrue();
         _fixtureImage.IsMatch("new PostgreSqlBuilder(\"postgres:17-alpine\")").ShouldBeTrue();
         _fixtureImage.IsMatch("private const string _storeImage =\n        \"a:b\";").ShouldBeTrue();
-        //#if (anyWeb)
         _composeInclude.Match("  - path: Src/Web/apps/Site/compose.yml").Groups["path"].Value.ShouldBe("Src/Web/apps/Site/compose.yml");
         _composeInclude.IsMatch("  - Src/Web/apps/Site/compose.yaml").ShouldBeTrue();
         _composeInclude.IsMatch("  - db").ShouldBeFalse();
-        //#endif
     }
 
-    /*#if (anyWeb)*/
     private static List<string> ComposeImages() =>
         [.. new[] { RootComposeFile() }.Concat(WebAppComposeFiles()).SelectMany(ComposeImages)];
-    /*#else
-    private static List<string> ComposeImages() => ComposeImages(RootComposeFile());
-    #endif*/
 
     private static string RootComposeFile() => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docker-compose.yml");
-    //#if (anyWeb)
 
     private static List<string> WebAppComposeFiles()
     {
@@ -190,7 +175,6 @@ public sealed class ContainerImagePinningTests
                 .Order(StringComparer.Ordinal)]
             : [];
     }
-    //#endif
 
     private static List<string> ComposeImages(string composeFile)
     {

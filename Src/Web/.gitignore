@@ -1,0 +1,7 @@
+# The workspace's own packages, which the NuGet packages pattern of the root .gitignore would hide.
+!packages/*
+
+# Build output, coverage, and the OpenAPI document pnpm api writes.
+dist/
+coverage/
+packages/api-client/openapi/

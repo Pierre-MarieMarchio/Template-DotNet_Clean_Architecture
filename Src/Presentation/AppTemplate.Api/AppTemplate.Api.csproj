@@ -6,14 +6,12 @@
     <DockerfileContext>..\..\..</DockerfileContext>
   </PropertyGroup>
 
-  <!--#if (anyWeb)-->
   <PropertyGroup>
     <OpenApiGenerateDocumentsOnBuild>false</OpenApiGenerateDocumentsOnBuild>
     <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../Web/packages/api-client/openapi</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocumentsOptions>--file-name document</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 
-  <!--#endif-->
   <PropertyGroup>
     <NoWarn>$(NoWarn);AV0029;AV0030</NoWarn>
   </PropertyGroup>
@@ -29,12 +27,10 @@
     <!--#endif-->
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-    <!--#if (anyWeb)-->
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <!--#endif-->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />

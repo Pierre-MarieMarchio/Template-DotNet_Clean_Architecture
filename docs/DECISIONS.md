@@ -1209,6 +1209,18 @@ and no `__Secure-` prefix, whose acceptance on `http://localhost` — the develo
 the app's relay — is not uniform across browsers; HSTS at the ingress, already a deployment
 obligation, is what keeps a plain-HTTP origin from planting a cookie of that name.
 <!--#endif-->
+
+**The API is ready for a web app before it has one.** An item template can add files and edit
+none, so what a web app needs from the API is in every project, web app or not, and `dotnet new
+cleanarch-webapp --workspace` adds a first one without touching the C#.
+`Microsoft.Extensions.ApiDescription.Server` writes the OpenAPI document only when a build asks for
+it, and `Program.cs` returns before the Development migrations only when that generator is its entry
+point, so an ordinary build and run are unchanged.
+<!--#if (localAuth)-->
+The refresh-token cookie mode answers only a request sending its header, so a client that never
+does sees body mode alone.
+<!--#endif-->
+
 **An idempotency key needs a caller, and a started response keeps its claim.** A key sent on a
 request whose caller cannot be identified is refused with `idempotency.callerNotIdentifiable`
 rather than served unprotected, because keys are scoped per user and an unidentified caller would
@@ -2049,6 +2061,16 @@ prints where the line goes, and the new app's `README.md` gives the line and its
 written out. An app without dependencies, as the placeholder, needs no lockfile entry, so
 `pnpm install --frozen-lockfile` stays green after adding one; a react or angular app is created by
 `web-scaffold`, whose install records it in the lockfile.
+
+**`cleanarch-webapp --workspace` makes a project's first app.** The engine cannot ask whether
+`Src/Web` exists, so the option says it: it adds the workspace's own files, the shared packages and
+the API client, a placeholder's lockfile and the `web.yml` workflow, and in a project that has them
+the engine refuses to overwrite them. It only adds files, so everything a web app needs from the API
+is generated with every project, and the web jobs are a workflow of their own rather than jobs of
+`ci.yml`. The lines `--web` writes into shared files — the include block, the port, the
+`.dockerignore` line and the two Dependabot entries — are what `Src/Web/README.md` lists for the user
+to add. The project then differs from one generated with `--web` by those lines until they are added,
+and by the documentation of the web front ends, this section among it, which only `--web` generates.
 
 **`dotnet new cleanarch-webpackage` creates a framework-agnostic package only.** It holds one exported
 function and its test, exports its sources like `api-client`, and pins only the test tools, lint and

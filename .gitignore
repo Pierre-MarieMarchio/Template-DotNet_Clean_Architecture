@@ -399,13 +399,3 @@ FodyWeavers.xsd
 # rather than reimplementing it, which is what makes one line here enough for all of them.
 # It also keeps `git add -A` from committing a whole nested repository.
 .claude/worktrees/
-
-#if (anyWeb)
-# The workspace's own packages, which the NuGet packages pattern above would hide.
-!Src/Web/packages/*
-
-# Web workspace: build output, coverage, and the OpenAPI document pnpm api writes.
-Src/Web/**/dist/
-Src/Web/**/coverage/
-Src/Web/packages/api-client/openapi/
-#endif

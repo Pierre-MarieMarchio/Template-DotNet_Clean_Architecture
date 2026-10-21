@@ -4,12 +4,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-//#if (anyWeb)
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-//#endif
 
 return Tasks.Run(args);
 
@@ -69,16 +67,13 @@ internal static class Tasks
         "sonar",
         //#endif
         "bootstrap",
-        //#if (anyWeb)
         "web-scaffold",
-        //#endif
         "hygiene",
         "verify",
         //#if (templateMaintenance)
         "web-lockfiles",
         //#endif
     ];
-    //#if (anyWeb)
 
     private const string WebUsage =
         """
@@ -91,7 +86,6 @@ internal static class Tasks
                                            version installed, then pnpm install and pnpm api;
                                            bootstrap runs it, and an app already created is left alone
         """;
-    //#endif
     //#if (templateMaintenance)
 
     private const string MaintenanceUsage =
@@ -131,9 +125,7 @@ internal static class Tasks
         if (arguments is ["--help"] or ["-h"] or ["help"])
         {
             Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
-            //#if (anyWeb)
             Console.WriteLine(WebUsage);
-            //#endif
             //#if (templateMaintenance)
             Console.WriteLine(MaintenanceUsage);
             //#endif
@@ -415,9 +407,11 @@ internal static class Tasks
                         + "Fix the restore and run `dotnet tool restore` again.");
                 }
 
-                //#if (anyWeb)
-                WebScaffold(repoRoot, only: null);
-                //#endif
+                if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
+                {
+                    WebScaffold(repoRoot, only: null);
+                }
+
                 Write("Formatting stable and tools restored. Commit this before anything else.", ConsoleColor.Green);
                 break;
 
@@ -449,12 +443,10 @@ internal static class Tasks
                 VulnerablePackages(solution);
                 break;
 
-            //#if (anyWeb)
             case "web-scaffold":
                 WebScaffold(repoRoot, name);
                 break;
 
-            //#endif
             //#if (templateMaintenance)
             case "web-lockfiles":
                 WebLockfiles(repoRoot, check);
@@ -568,7 +560,6 @@ internal static class Tasks
     }
 
     //#endif
-    //#if (anyWeb)
     private const string ScaffoldDescriptor = "scaffold.json";
 
     private static readonly string Pnpm = OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm";
@@ -598,6 +589,14 @@ internal static class Tasks
     private static void WebScaffold(string repoRoot, string? only)
     {
         string web = Path.Combine(repoRoot, "Src", "Web");
+
+        if (!File.Exists(Path.Combine(web, "package.json")))
+        {
+            throw new InvalidOperationException(
+                "Src/Web holds no package.json, so there is no web workspace to create an app in. "
+                + "dotnet new cleanarch-webapp --workspace adds a first app and the workspace around it.");
+        }
+
         string apps = Path.Combine(web, "apps");
         string[] pending = Directory.Exists(apps)
             ? [.. Directory.GetDirectories(apps)
@@ -822,7 +821,6 @@ internal static class Tasks
         }
     }
 
-    //#endif
     //#if (templateMaintenance)
     private static void WebLockfiles(string repoRoot, bool check)
     {

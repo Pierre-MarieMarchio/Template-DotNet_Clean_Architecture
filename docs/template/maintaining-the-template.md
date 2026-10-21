@@ -45,12 +45,16 @@ with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest
 run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then
 runs the generated project's `dotnet run Tools/Tasks.cs end-to-end` against its Compose stack. The defaults
 leg, the local-auth leg without examples and the external-auth leg without examples also run the
-generator round trip: `new-feature` writes an owner feature, a shared one and an aggregate one in
-turn, each builds in the domain and application layers and passes its own unit tests there, the
-aggregate one after `new-use-case` adds a command, a query and a command without input to it while
-refusing the others, and `remove-feature --apply` leaves `git status` empty. Then all three are written together, `hygiene`
-passes, and they are removed last in first out. The infrastructure, API and architecture tests wait
-for the hand edits `new-feature` prints, so only the layers that need none are built. A web leg also checks its
+generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
+aggregate one on `get,list,create` in turn, the aggregates after `new-use-case` adds a command, a
+query and a command without input to each while refusing the others.
+`.template.config/acceptance/ApplyFeatureEdits.cs` then makes the hand edits `new-feature` printed,
+read from its output; the whole solution builds with warnings as errors, the architecture tests pass,
+and the feature's own tests pass in every Docker-free test project. The edits are undone and
+`remove-feature --apply` leaves `git status` empty. Then all four are written together, proved the
+same way, `hygiene` passes, and they are removed last in first out. In a project generated without an
+owner feature, the first one prints edits as prose, its account-deletion wiring among them, so there
+only the domain and application layers are built and tested. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
 install, lint, test and build, checks a second `web-scaffold` changes nothing, starts the whole stack
 and asks each app for its page, its headers and an answer only the API gives.

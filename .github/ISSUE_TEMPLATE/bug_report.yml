@@ -1,0 +1,81 @@
+name: Bug report
+description: A generated project, or the template itself, does something it should not.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Template version
+      description: The version the generated project's docs/getting-started/overview.md records, or `dotnet new list cleanarch` shows; a commit when installed from a checkout.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Installed from
+      options:
+        - nuget.org
+        - a .nupkg packed locally
+        - a checkout of this repository
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Generation command
+      description: The whole `dotnet new` command, every option included, and any cleanarch-webapp or cleanarch-webpackage run after it.
+      render: shell
+      placeholder: dotnet new cleanarch-webapi -n Acme.Shop --auth none --examples none --files false
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps after generation
+      description: What you ran from there, in order, for example bootstrap, build, test or docker compose up.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The output, error or file that is wrong, pasted as text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: dotnet --info
+      description: Its whole output; with a web app, also node --version and pnpm --version.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: leg
+    attributes:
+      label: Closest acceptance leg
+      description: The shape of docs/template/maintaining-the-template.md's acceptance matrix nearest to your options, if one is.
+      options:
+        - none of them
+        - defaults
+        - auth none, smallest project
+        - external auth, notes
+        - local auth, no files, no ci, no sonar
+        - external auth, all examples
+        - external auth, no examples, no files
+        - web placeholder, smallest project
+        - web react, local auth
+        - web angular, external auth, notes
+        - web react back office, smallest local project
+        - web react, then an angular back office
+        - no web, then a react app and its workspace
+    validations:
+      required: false

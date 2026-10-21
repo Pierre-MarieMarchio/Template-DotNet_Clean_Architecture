@@ -88,8 +88,11 @@ mistaken double enable, but they are not a substitute for that choice.
 
 ## Add a job
 
-A periodic purge or sweep is a maintenance task: a use case returning the count it removed,
-registered where its feature composes the jobs, with its own switch.
+A job takes one of two routes, by whether its pass needs a timer of its own.
+
+**A purge or a sweep joins the maintenance timer.** It is a use case returning the count it
+removed, registered with `AddMaintenanceTask`, internal to `AppTemplate.Api`, from an extension in
+the feature's own `Features/<Feature>/Jobs/` folder, with its own switch:
 
 ```csharp
 services.AddMaintenanceTask<IPurgeExpiredExportsUseCase>(
@@ -98,11 +101,24 @@ services.AddMaintenanceTask<IPurgeExpiredExportsUseCase>(
     provider => provider.GetRequiredService<IOptions<JobsExportsOptions>>().Value.PurgeEnabled);
 ```
 
-A pass with its own interval is a `BackgroundService` running `PeriodicJob.RunAsync`, opening each
-pass with `CreateBackgroundScope()`, with options under `Jobs:<Feature>` bound and validated only
-when `Jobs:Enabled` is true, a meter counting `iterations`, and one call from `AddBackgroundJobs`.
-The files under `Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/` are the model. A
-pass that must run on one instance takes `ILeaderLease` in its use case, not in the loop.
+`Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
+the idempotency purge this way.
+
+**A pass with its own interval is a `BackgroundService`** running `PeriodicJob.RunAsync`, opening
+each pass with `CreateBackgroundScope()`, with options under `Jobs:<Feature>` bound and validated
+only when `Jobs:Enabled` is true, a meter counting `iterations`, and one call from
+`AddBackgroundJobs`.
+<!--#if (reminders)-->
+`Src/Presentation/AppTemplate.Api/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
+`ReminderBackgroundService` beside it are the model.
+<!--#endif-->
+<!--#if (!reminders)-->
+`MaintenanceBackgroundService`, in `Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/`, is
+the model.
+<!--#endif-->
+
+Either way, a pass that must run on one instance takes `ILeaderLease` in its use case, not in the
+loop.
 
 ## Configure
 

@@ -1,4 +1,5 @@
-﻿using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
@@ -28,7 +29,7 @@ public sealed class TodoListLikePatternTests
     public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
     {
         using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=localhost;Database=probe;Username=none;Password=none")
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
             .Options);
 
         string pattern = TodoListLikePattern.Contains("50% off_thing");

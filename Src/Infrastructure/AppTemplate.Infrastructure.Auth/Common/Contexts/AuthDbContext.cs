@@ -6,6 +6,7 @@ using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Configuration
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Configurations;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Rows.Models;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,11 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
     public const string MigrationsHistorySchema = IdentitySchema;
 
+    public static ContextMigrations Migrations { get; } = new(
+        typeof(AuthDbContext).Assembly.GetName().Name!,
+        MigrationsHistoryTableName,
+        MigrationsHistorySchema);
+
     internal DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     internal DbSet<SecurityEventRecord> SecurityEvents => Set<SecurityEventRecord>();
@@ -30,6 +36,13 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     internal DbSet<SpentPasskeyCeremonyRecord> SpentPasskeyCeremonies => Set<SpentPasskeyCeremonyRecord>();
 
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        configurationBuilder.ApplyDatabaseConventions();
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

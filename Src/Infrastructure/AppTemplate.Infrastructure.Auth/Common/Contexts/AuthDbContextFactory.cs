@@ -9,11 +9,7 @@ public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbCon
     public AuthDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<AuthDbContext>()
-            .UseNpgsql(
-                DefaultConnectionString.ResolveForDesignTime(),
-                npgsql => npgsql.MigrationsHistoryTable(
-                    AuthDbContext.MigrationsHistoryTableName,
-                    AuthDbContext.MigrationsHistorySchema))
+            .UseDatabase(DefaultConnectionString.ResolveForDesignTime(), AuthDbContext.Migrations)
             .Options;
 
         return new AuthDbContext(options);

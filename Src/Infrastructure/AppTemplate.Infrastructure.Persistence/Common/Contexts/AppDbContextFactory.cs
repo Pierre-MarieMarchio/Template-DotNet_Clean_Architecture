@@ -9,11 +9,7 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     public AppDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(
-                DefaultConnectionString.ResolveForDesignTime(),
-                npgsql => npgsql.MigrationsHistoryTable(
-                    AppDbContext.MigrationsHistoryTableName,
-                    AppDbContext.MigrationsHistorySchema))
+            .UseDatabase(DefaultConnectionString.ResolveForDesignTime(), AppDbContext.Migrations)
             .Options;
 
         return new AppDbContext(options);

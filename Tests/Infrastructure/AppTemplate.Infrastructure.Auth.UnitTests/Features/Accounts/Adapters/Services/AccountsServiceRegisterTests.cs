@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Shouldly;
@@ -124,9 +123,7 @@ public sealed class AccountsServiceRegisterTests
         _store.FindByEmailAsync(_normalizedEmail, Arg.Any<CancellationToken>())
             .Returns(null, null, null, ExistingAccount(confirmed: false));
         _store.CreateAsync(Arg.Any<AppUser>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new DbUpdateException(
-                "duplicate key",
-                new PostgresException("duplicate key", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation)));
+            .ThrowsAsync(DatabaseFaults.UniqueViolation());
 
         var registration = await CreateAccounts().RegisterAsync(_email, _password, TestToken);
 

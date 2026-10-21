@@ -42,12 +42,10 @@ using AppTemplate.Infrastructure.Core.Common.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth;
 
@@ -134,22 +132,9 @@ public static class AuthModule
         {
             var database = serviceProvider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
-            options
-                .UseNpgsql(WithMaxPoolSize(connectionString, database.MaxPoolSize), npgsql => npgsql
-                    .EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(10),
-                        errorCodesToAdd: null)
-                    .CommandTimeout(database.CommandTimeoutSeconds)
-                    .MigrationsAssembly(typeof(AuthDbContext).Assembly.GetName().Name)
-                    .MigrationsHistoryTable(
-                        AuthDbContext.MigrationsHistoryTableName,
-                        AuthDbContext.MigrationsHistorySchema));
+            options.UseDatabase(connectionString, database, AuthDbContext.Migrations);
         });
     }
-
-    private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
-        new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
     private static void AddValidatedOptions(IServiceCollection services, IConfiguration configuration)
     {

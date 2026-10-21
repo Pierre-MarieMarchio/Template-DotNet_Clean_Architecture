@@ -4,6 +4,7 @@ using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Configuration.Options;
 using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,7 +17,7 @@ public sealed class SecurityEventLogTests
 {
     private static readonly DbContextOptions<AuthDbContext> _unreachableOptions =
         new DbContextOptionsBuilder<AuthDbContext>()
-            .UseNpgsql("Host=127.0.0.1;Port=1;Database=unreachable;Username=none;Password=none")
+            .UseDatabase(DatabaseFaults.UnreachableConnectionString)
             .Options;
 
     private readonly MovableDateTimeProvider _clock = new();

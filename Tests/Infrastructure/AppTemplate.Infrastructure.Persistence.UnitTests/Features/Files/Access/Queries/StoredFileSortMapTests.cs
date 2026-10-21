@@ -4,6 +4,7 @@ using AppTemplate.Application.Core.Common.Policies;
 using AppTemplate.Application.Features.Files.Model.Dtos;
 using AppTemplate.Application.Features.Files.Model.Policies;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Access.Queries;
 using Microsoft.EntityFrameworkCore;
@@ -187,7 +188,7 @@ public sealed class StoredFileSortMapTests
 
     private static AppDbContext AProbeContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=localhost;Database=probe;Username=none;Password=none")
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
             .Options);
 
     private sealed class AllowsOnlyBogusFieldPolicy : ICollectionPolicy

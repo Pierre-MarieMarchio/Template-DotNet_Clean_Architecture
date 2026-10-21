@@ -1,4 +1,6 @@
-﻿using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
+﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
+using AppTemplate.Infrastructure.Core.Common.Options;
+using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -19,6 +21,9 @@ public sealed class PersistenceModuleInterceptorOrderTests
         nameof(AggregateFlushSaveChangesInterceptor),
         nameof(AuditingSaveChangesInterceptor),
         nameof(DomainEventDispatchSaveChangesInterceptor),
+        .. SaveChangesInterceptorNames(new DbContextOptionsBuilder<AppDbContext>()
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString, new DatabaseOptions(), AppDbContext.Migrations)
+            .Options),
     ];
 
     [Fact]
@@ -39,15 +44,17 @@ public sealed class PersistenceModuleInterceptorOrderTests
             + $"{Readable(_expectedOrder)} but the container composed {Readable(attached)}. Flushing "
             + "must come first (it is what makes a root Modified when only a child changed), audit "
             + "stamping second (it only acts on an entry that is already Added or Modified), and event "
-            + "dispatch last (it publishes what the other two prepared).");
+            + "dispatch after them (it publishes what the other two prepared), and whatever the database "
+            + "provider adds comes last, once the rows to write are final.");
     }
 
     private static string Readable(IReadOnlyList<string> names) => string.Join(" -> ", names);
 
-    private static List<string> SaveChangesInterceptorNames(IServiceProvider services)
-    {
-        var options = services.GetRequiredService<DbContextOptions<AppDbContext>>();
+    private static List<string> SaveChangesInterceptorNames(IServiceProvider services) =>
+        SaveChangesInterceptorNames(services.GetRequiredService<DbContextOptions<AppDbContext>>());
 
+    private static List<string> SaveChangesInterceptorNames(DbContextOptions options)
+    {
         var core = options.FindExtension<CoreOptionsExtension>()
             ?? throw new InvalidOperationException(
                 "The composed options carry no core extension, so no interceptor could have been added.");
@@ -62,7 +69,7 @@ public sealed class PersistenceModuleInterceptorOrderTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+                ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
             })
             .Build();
 

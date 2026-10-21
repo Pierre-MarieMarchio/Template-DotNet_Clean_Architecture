@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -34,7 +35,7 @@ public sealed class AuthModuleSignInTests
     {
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+            ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
         };
         foreach (var (key, value) in settings)
         {

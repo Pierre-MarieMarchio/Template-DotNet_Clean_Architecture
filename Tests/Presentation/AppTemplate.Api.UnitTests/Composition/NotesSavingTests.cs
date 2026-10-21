@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Notes.Ports.NoteQueries;
 using AppTemplate.Application.Features.Notes.Ports.NoteStore;
 using AppTemplate.Application.Features.Notes.Services;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -78,7 +79,7 @@ public sealed class NotesSavingTests
 
         status.ShouldBe(NoteChangeStatus.Staged, "the caller's version still matches when the write is staged");
 
-        await host.ExecuteOnBusinessStoreAsync("UPDATE \"Notes\" SET \"Title\" = 'Theirs', \"xmin\" = \"xmin\" + 1", Token);
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"Notes\" SET \"Title\" = 'Theirs', \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
 
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token));
@@ -103,7 +104,7 @@ public sealed class NotesSavingTests
             .StageRemovalAsync(UserId.Create(_caller), noteId, new VersionPrecondition([1u]), Token))
             .ShouldBe(NoteChangeStatus.Staged);
 
-        await host.ExecuteOnBusinessStoreAsync("UPDATE \"Notes\" SET \"xmin\" = \"xmin\" + 1", Token);
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"Notes\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
 
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token));

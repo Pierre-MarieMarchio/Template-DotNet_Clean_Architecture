@@ -8,6 +8,7 @@ using AppTemplate.Application.Features.ExternalIdentity.Ports.ExternalIdentitySt
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.AspNetCore.Http;
@@ -47,7 +48,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+                ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
             })
             .Build();
 

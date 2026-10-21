@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Model.Events;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Mapping;
@@ -15,7 +16,7 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests.Common.Saving.DomainE
 
 public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
 {
-    private const string _neverOpened = "Host=nowhere;Database=never-opened;Username=none;Password=none";
+    private const string _neverOpened = DatabaseProvider.DesignTimeConnectionString;
 
     private static readonly DateTimeOffset _now = new(2026, 6, 7, 8, 9, 10, TimeSpan.Zero);
 
@@ -173,7 +174,7 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
         Track(ANewList("Groceries"));
 
         await using (var unrelated = new UnrelatedContext(
-            new DbContextOptionsBuilder<UnrelatedContext>().UseNpgsql(_neverOpened).Options))
+            new DbContextOptionsBuilder<UnrelatedContext>().UseDatabase(_neverOpened).Options))
         {
             await SaveSucceedsAsync(interceptor, unrelated);
         }
@@ -260,7 +261,7 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
     }
 
     private static AppDbContext AnAppDbContext() =>
-        new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_neverOpened).Options);
+        new(new DbContextOptionsBuilder<AppDbContext>().UseDatabase(_neverOpened).Options);
 
     private sealed class UnrelatedContext(DbContextOptions<UnrelatedContext> options) : DbContext(options);
 }

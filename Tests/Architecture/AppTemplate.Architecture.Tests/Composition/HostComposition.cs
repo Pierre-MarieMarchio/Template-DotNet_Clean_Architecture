@@ -16,6 +16,7 @@ using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Auth;
 //#endif
 using AppTemplate.Infrastructure.Core;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.InMemory;
@@ -45,8 +46,7 @@ internal static class HostComposition
     internal static IReadOnlyDictionary<string, string?> ValidSettings { get; } =
         new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["ConnectionStrings:Default"] =
-                "Host=localhost;Port=5432;Database=apptemplate_architecture_tests;Username=postgres;Password=postgres",
+            ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
 
             //#if (localAuth)
             ["Jwt:Key"] = JwtKey,

@@ -9,22 +9,22 @@ using Xunit;
 
 namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Files.Adapters.Locks;
 
-public sealed class PostgresOwnerQuotaLockTests
+public sealed class OwnerQuotaLockTests
 {
     private static readonly UserId _owner = UserId.Create(Guid.Parse("01890a5d-ac96-774b-bcce-b302099a8057"));
     private static readonly FileCategory _document = FileCategory.Create("document");
 
     [Fact]
     public void TheKey_IsTheNamespacedDigestOfOwnerAndCategory() =>
-        PostgresOwnerQuotaLock.KeyOf(_owner, _document).ShouldBe(5650554713523010619L);
+        OwnerQuotaLock.KeyOf(_owner, _document).ShouldBe(5650554713523010619L);
 
     [Fact]
     public void AnotherCategoryOrOwner_HasAnotherKey()
     {
-        long key = PostgresOwnerQuotaLock.KeyOf(_owner, _document);
+        long key = OwnerQuotaLock.KeyOf(_owner, _document);
 
-        PostgresOwnerQuotaLock.KeyOf(_owner, FileCategory.Create("image")).ShouldNotBe(key);
-        PostgresOwnerQuotaLock.KeyOf(UserId.Create(Guid.CreateVersion7()), _document).ShouldNotBe(key);
+        OwnerQuotaLock.KeyOf(_owner, FileCategory.Create("image")).ShouldNotBe(key);
+        OwnerQuotaLock.KeyOf(UserId.Create(Guid.CreateVersion7()), _document).ShouldNotBe(key);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class PostgresOwnerQuotaLockTests
         using var provider = services.BuildServiceProvider(validateScopes: true);
 
         provider.GetRequiredService<IOwnerQuotaLock>()
-            .ShouldBeOfType<PostgresOwnerQuotaLock>()
+            .ShouldBeOfType<OwnerQuotaLock>()
             .ShouldBeSameAs(provider.GetRequiredService<IOwnerQuotaLock>());
     }
 }

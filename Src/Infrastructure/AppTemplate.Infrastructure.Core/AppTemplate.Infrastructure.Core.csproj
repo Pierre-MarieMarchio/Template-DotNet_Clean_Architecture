@@ -11,6 +11,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <!--#if (sqlServer)
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    #elseif (sqlite)
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    #elseif (postgreSql)-->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!--#endif-->
   </ItemGroup>
 
   <ItemGroup>

@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Policies;
 using AppTemplate.Application.Features.TodoLists.Model.Dtos;
 using AppTemplate.Application.Features.TodoLists.Model.Policies;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Queries;
 using Microsoft.EntityFrameworkCore;
@@ -153,7 +154,7 @@ public sealed class TodoListSortMapTests
 
     private static AppDbContext AProbeContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=localhost;Database=probe;Username=none;Password=none")
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
             .Options);
 
     private sealed class AllowsOnlyBogusFieldPolicy : ICollectionPolicy

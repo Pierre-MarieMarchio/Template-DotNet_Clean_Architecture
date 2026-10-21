@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -58,7 +59,7 @@ public sealed class PersistenceModuleConnectionStringTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+                ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
                 ["Database:MaxPoolSize"] = _configuredMaxPoolSize.ToString(CultureInfo.InvariantCulture),
             })
             .Build();

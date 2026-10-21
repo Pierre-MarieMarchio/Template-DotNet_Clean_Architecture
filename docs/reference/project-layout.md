@@ -193,7 +193,7 @@ A type's suffix names its nature, and the nature names its folder:
 A port carries the nature word and its adapter is the port without its `I`: `IIdempotencyStore` is
 implemented by `IdempotencyStore`. A prefix is right when several adapters implement one port
 (`MailKitEmailSender`, `PostmarkEmailSender`) or when the technology shows at the call site
-(`EfUnitOfWork`, `PostgresLeaderLease`). A port's folder keeps the capability name,
+(`EfUnitOfWork`, `LeaderLease`). A port's folder keeps the capability name,
 `Ports/<Capability>/`, never the interface's: a namespace and a type of one name make every consumer
 ambiguous (CS0118).
 

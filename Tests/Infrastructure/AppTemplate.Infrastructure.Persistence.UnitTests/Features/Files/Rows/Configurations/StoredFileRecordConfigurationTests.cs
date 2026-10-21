@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Features.Files.Model.ValueObjects;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public sealed class StoredFileRecordConfigurationTests
         var version = Entity().FindProperty(nameof(StoredFileRecord.Version))!;
 
         version.IsConcurrencyToken.ShouldBeTrue();
-        version.GetColumnName().ShouldBe("xmin");
+        version.GetColumnName().ShouldBe(DatabaseProvider.VersionColumnName);
     }
 
     [Fact]
@@ -82,7 +83,7 @@ public sealed class StoredFileRecordConfigurationTests
     {
         using var context = new AppDbContext(
             new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+                .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
                 .Options);
 
         var entity = context.Model.FindEntityType(typeof(ContentSweepCheckpointRecord))!;
@@ -108,7 +109,7 @@ public sealed class StoredFileRecordConfigurationTests
     {
         using var context = new AppDbContext(
             new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+                .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
                 .Options);
 
         return context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(StoredFileRecord))!;
@@ -118,7 +119,7 @@ public sealed class StoredFileRecordConfigurationTests
     {
         using var context = new AppDbContext(
             new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+                .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
                 .Options);
 
         return context.Model.FindEntityType(typeof(StoredFileRecord))!;

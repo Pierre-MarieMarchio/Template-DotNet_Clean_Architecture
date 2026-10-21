@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Features.Files.Model.ValueObjects;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 using Microsoft.EntityFrameworkCore;
@@ -65,18 +66,14 @@ internal sealed class StoredFileRecordConfiguration : IEntityTypeConfiguration<S
             .HasDatabaseName("IX_StoredFiles_State_RegisteredAt");
 
         builder.HasIndex(file => new { file.NextInspectionAt, file.RegisteredAt, file.Id })
-            .HasFilter($"\"State\" = {(int)StoredFileState.Deposited}")
+            .WhereColumnEquals(nameof(StoredFileRecord.State), (int)StoredFileState.Deposited)
             .HasDatabaseName("IX_StoredFiles_Deposited_NextInspectionAt_RegisteredAt_Id");
 
         builder.HasIndex(file => new { file.OwnerId, file.Category, file.State })
-            .IncludeProperties(file => file.SizeInBytes)
+            .IncludingColumns(file => file.SizeInBytes)
             .HasDatabaseName("IX_StoredFiles_OwnerId_Category_State");
 
-        builder.Property(file => file.Version)
-            .HasColumnName("xmin")
-            .HasColumnType("xid")
-            .ValueGeneratedOnAddOrUpdate()
-            .IsConcurrencyToken();
+        builder.Property(file => file.Version).IsVersion();
 
         builder.Property(file => file.CreatedAt).IsRequired();
         builder.Property(file => file.CreatedBy);

@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Api.Common.Hosting;
 using AppTemplate.Presentation.Core.Common.Observability;
-using Npgsql;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -30,14 +29,14 @@ public static class ObservabilityExtensions
                         activity.SetTag(_traceIdentifierTagName, request.HttpContext.TraceIdentifier);
                 });
 
-                tracer.AddNpgsql();
+                tracer.AddDatabaseInstrumentation();
             },
             meter =>
             {
                 meter.AddAspNetCoreInstrumentation()
                     .AddMeter("Microsoft.AspNetCore.RateLimiting");
 
-                meter.AddMeter("Npgsql");
+                meter.AddDatabaseInstrumentation();
             });
     }
 

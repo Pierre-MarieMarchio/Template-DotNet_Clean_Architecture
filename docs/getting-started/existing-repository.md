@@ -11,7 +11,7 @@ once, right after generation and bootstrap.
 | In a subdirectory, such as `services/api/` | copy the tree there; the host keeps its own root files | the host's `global.json` learns the test runner; the workflows move to the git root |
 
 Take the root unless the repository must hold more than this service. At the root, the files to merge
-are the ones a host is likely to have already: `README.md`, `LICENSE`, `.gitignore`, `global.json`,
+are the ones a host is likely to have already: `README.md`, `.gitignore`, `global.json`,
 `Directory.Build.props`, `Directory.Packages.props` and `.editorconfig`.
 
 Three facts decide the subdirectory shape:

@@ -63,4 +63,4 @@ to the API, the tests and a first feature.
 
 ## Licence
 
-[LICENSE](LICENSE). Replace it if your product is not released under it.
+This project ships without a licence. Add a licence file at the root before publishing it.

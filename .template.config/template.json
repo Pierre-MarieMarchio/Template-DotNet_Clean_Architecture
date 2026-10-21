@@ -450,6 +450,7 @@
             ".env",
             ".vs/**",
             "README.md",
+            "LICENSE",
             "docs/template/**",
             "docs/plans/**",
             "docs/guide_architecture_pour_agent.md",

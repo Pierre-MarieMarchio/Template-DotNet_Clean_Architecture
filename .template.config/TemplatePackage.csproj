@@ -41,7 +41,7 @@
     <TemplateExclude Include="$(TemplateRoot)**/bin/**;$(TemplateRoot)**/obj/**;$(TemplateRoot)**/node_modules/**;$(TemplateRoot)**/TestResults/**" />
     <TemplateExclude Include="$(TemplateRoot)artifacts/**;$(TemplateRoot).env" />
     <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj" />
-    <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md" />
+    <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md;$(TemplateRoot)LICENSE" />
     <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md" />
     <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/ISSUE_TEMPLATE/**" />
     <TemplateExclude Include="$(TemplateRoot)Tools/CheckDocPaths.cs;$(TemplateRoot)Tools/CheckWorkflows.cs;$(TemplateRoot)Tools/CheckComments.cs" />

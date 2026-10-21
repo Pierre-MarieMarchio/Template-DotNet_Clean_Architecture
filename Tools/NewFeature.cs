@@ -2214,6 +2214,44 @@ internal static class NewFeature
         {
             yield return problem;
         }
+
+        foreach (string problem in PrivateMethodProblems(relative, text))
+        {
+            yield return problem;
+        }
+    }
+
+    private static readonly Regex PrivateMethodDeclaration = new(
+        @"^\s*private\s+(?:static\s+)?(?:async\s+)?[^=;()]+?\s([A-Z][A-Za-z0-9]*)\(",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(2));
+
+    private static readonly Lazy<HashSet<string>> TemplatePrivateMethods = new(() =>
+        [.. typeof(Templates)
+            .GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .SelectMany(field => PrivateMethodDeclaration.Matches((string)field.GetRawConstantValue()!))
+            .Select(match => match.Groups[1].Value.Replace("%", string.Empty, StringComparison.Ordinal))]);
+
+    private static IEnumerable<string> PrivateMethodProblems(string relative, string text)
+    {
+        var declared = PrivateMethodDeclaration.Matches(text)
+            .Select(match => match.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (string name in TemplatePrivateMethods.Value)
+        {
+            int calls = Regex.Count(text, $@"(?<![.\w]){name}\b(?!\s*=)", RegexOptions.None, TimeSpan.FromSeconds(2));
+
+            if (declared.Contains(name) && calls < 2)
+            {
+                yield return $"{relative}: declares the private method '{name}' and never calls it: dead code in every project it reaches.";
+            }
+            else if (!declared.Contains(name) && calls > 0)
+            {
+                yield return $"{relative}: calls '{name}', which it does not declare, so it does not compile.";
+            }
+        }
     }
 
     private static readonly HashSet<string> DocumentationElements =
@@ -4285,7 +4323,7 @@ internal static class Templates
             }
 
         %end%
-        %if change%
+        %if change|owner%
             private %A% LoadOrTrack(%A%Record record)
             {
                 var aggregate = mapper.ToAggregate(record);
@@ -5360,8 +5398,10 @@ internal static class Templates
         %end%
             private %A%Service ServiceFor(ICurrentUser currentUser) =>
                 new(%ServiceArgs%);
+        %if get|create|delete%
 
             private %A%Service Service() => ServiceFor(StubCurrentUser.WithId(_callerId));
+        %end%
         }
         """;
 

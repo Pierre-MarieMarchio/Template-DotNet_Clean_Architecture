@@ -293,7 +293,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
 
-      # A generated feature builds in the layers that need no hand edit and passes its own tests there; the container and architecture tests wait for the edits new-feature prints. The hygiene gates pass with three features present, and remove-feature --apply leaves the tree as it was.
+      # A generated feature builds in the layers that need no hand edit and passes its own tests there; the container and architecture tests wait for the edits new-feature prints. The aggregate one takes three more use cases from new-use-case, which refuses the record ones. The hygiene gates pass with three features present, and remove-feature --apply leaves the tree as it was.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -315,6 +315,20 @@ jobs:
             [ -n "$(git status --porcelain)" ] || fail "new-feature $1 wrote nothing."
             grep -q 'Feature page: docs/features/' "${{ runner.temp }}/new-feature.log" || fail "new-feature $1 named no feature page."
             [ -d .feature-manifest ] || fail "new-feature $1 left no manifest."
+          }
+          extend() {
+            local feature type
+            read -r feature type _ <<< "$1"
+            if [[ "$1" != *"--model aggregate"* ]]; then
+              if dotnet run Tools/Tasks.cs new-use-case "$feature" "Archive${type}" --kind command > "${{ runner.temp }}/new-use-case.log" 2>&1; then
+                fail "new-use-case accepted $feature, a feature of the simple shape."
+              fi
+              return
+            fi
+            for usecase in "Approve${type} --kind command" "Get${type}Totals --kind query" "CloseOverdue${feature} --kind command --input none"; do
+              # shellcheck disable=SC2086
+              dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "${{ runner.temp }}/new-use-case.log" 2>&1 || { cat "${{ runner.temp }}/new-use-case.log"; fail "new-use-case $feature $usecase failed."; }
+            done
           }
           prove() {
             for project in "${layers[@]}"; do
@@ -340,6 +354,7 @@ jobs:
           for one in "${cases[@]}"; do
             echo "::group::$one"
             write "$one"
+            extend "$one"
             prove "${one%% *}"
             remove "${one%% *}"
             echo "::endgroup::"
@@ -348,6 +363,7 @@ jobs:
           written=()
           for one in "${cases[@]}"; do
             write "$one"
+            extend "$one"
             written=("${one%% *}" "${written[@]}")
           done
           prove "${written[@]}"

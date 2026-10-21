@@ -203,8 +203,10 @@ compiles. An app never imports another app. A React or Angular package is the pr
 Removing an app is deleting its folder, its `include:` line and its port line, then running
 `pnpm install`.
 
-A project generated without a web app adds its first one the same way, with `--workspace`, which
-also creates `Src/Web` and its shared packages; `bootstrap` then creates the app.
+A project generated without a web app adds its first one with the same command plus
+`--workspace` (`--scope` required), which also creates `Src/Web`. Add
+the lines the workspace's README lists (Compose, `.env.example`, `.dockerignore`, Dependabot), then
+create the app as above.
 
 ## Images and headers
 

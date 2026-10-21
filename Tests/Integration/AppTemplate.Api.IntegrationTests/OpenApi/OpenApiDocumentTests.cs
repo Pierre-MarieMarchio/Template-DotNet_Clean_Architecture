@@ -94,6 +94,27 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         description.ShouldNotBeNull();
         description.ShouldContain("ConfirmEmailRequest");
     }
+
+    [Theory]
+    [InlineData("LoginResponseAuthenticated")]
+    [InlineData("LoginResponseTwoFactorRequired")]
+    [InlineData("ExternalLoginResponseAuthenticated")]
+    [InlineData("ExternalLoginResponseTwoFactorRequired")]
+    public async Task ABranchOfAPolymorphicResponse_RequiresItsDiscriminator(string schemaName)
+    {
+        using var document = await GetDocumentAsync(_documentPath);
+
+        var schema = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas")
+            .GetProperty(schemaName);
+
+        schema.GetProperty("properties").TryGetProperty("status", out _).ShouldBeTrue();
+
+        string?[] required = [.. schema.GetProperty("required").EnumerateArray().Select(name => name.GetString())];
+
+        required.ShouldContain("status", "a client narrows the answer on status, which it cannot do while status is optional.");
+    }
     //#endif
 
     private async Task<JsonDocument> GetDocumentAsync(string path)

@@ -56,7 +56,7 @@ await session.refresh();
 
 const answer = await unwrap(api.POST('/api/v1/auth/login', { body: { email, password } }));
 
-if ('challengeToken' in answer) {
+if (answer.status === 'twoFactorRequired') {
   // ask for the code, then POST /api/v1/auth/login/two-factor with answer.challengeToken
 } else {
   session.signedIn(answer.tokens);

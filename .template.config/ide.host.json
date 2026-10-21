@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json.schemastore.org/ide.host",
+  "order": 0,
+  "icon": "icon.png",
+  "learnMoreLink": "https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/blob/main/docs/template/using-the-template.md",
+  "defaultSymbolVisibility": false,
+  "symbolInfo": [
+    {
+      "id": "auth",
+      "name": {
+        "text": "Authentication"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "examples",
+      "name": {
+        "text": "Example features"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "files",
+      "name": {
+        "text": "Files module"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "ci",
+      "name": {
+        "text": "GitHub Actions workflows"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "sonar",
+      "name": {
+        "text": "Sonar analysis"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "web",
+      "name": {
+        "text": "First web app"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "webName",
+      "name": {
+        "text": "Web app name"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "webAudience",
+      "name": {
+        "text": "Web app audience"
+      },
+      "isVisible": true
+    }
+  ]
+}

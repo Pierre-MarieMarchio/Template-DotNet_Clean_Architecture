@@ -57,8 +57,11 @@ are the shapes the options produce, not their cross product, and run with `fail-
 
 ## Adding an option
 
-1. Declare the parameter in `.template.config/template.json`, and a computed symbol when pages and
-   code need a name for a combination. A hidden option or a long name goes in `dotnetcli.host.json`.
+1. Declare the parameter in `.template.config/template.json` with its `displayName`, and a computed
+   symbol when pages and code need a name for a combination. A hidden option or a long name goes in
+   `dotnetcli.host.json`. A visible option gets its label in `ide.host.json`, which Visual Studio
+   reads and which hides every symbol it does not list; `TemplatePackagingTests` refuses a refusal
+   shown or an option missing there.
 2. Exclude whole paths with a source modifier under a condition; condition content inside a file in
    that file's own comment syntax.
 3. A combination that cannot hold together is a hidden required parameter, and the same condition in

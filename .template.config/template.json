@@ -1,15 +1,17 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "AppTemplate contributors",
+  "author": "Pierre-MarieMarchio",
   "classifications": [
-    "Web API",
+    "Web",
+    "WebAPI",
     "Clean Architecture",
     "DDD"
   ],
-  "identity": "AppTemplate.Templates.CleanArchitectureApi",
+  "identity": "CleanArch.WebApi.CSharp",
+  "groupIdentity": "CleanArch.WebApi",
   "name": ".NET Clean Architecture API",
   "shortName": "cleanarch-webapi",
-  "description": "A .NET 10 Web API scaffolded on Clean Architecture: Domain, Application, per-module Infrastructure, and a thin Presentation layer, with JWT auth, EF Core/PostgreSQL persistence and an architecture-rule test suite.",
+  "description": "A .NET 10 HTTP API on Clean Architecture, meant to be kept: a domain, use cases, infrastructure modules behind ports and a thin presentation layer, on EF Core and PostgreSQL, with architecture tests, CI and its own documentation. Local accounts, an external OpenID Connect provider or no authentication; Files, the example features and a first web app are options.",
   "sourceName": "AppTemplate",
   "defaultName": "MyCompany.MyProject",
   "preferNameDirectory": true,
@@ -20,6 +22,7 @@
   "symbols": {
     "auth": {
       "type": "parameter",
+      "displayName": "Authentication",
       "datatype": "choice",
       "defaultValue": "local",
       "choices": [
@@ -98,12 +101,14 @@
     },
     "files": {
       "type": "parameter",
+      "displayName": "Files module",
       "datatype": "bool",
       "defaultValue": "true",
       "description": "Include the Files module: stored files, their storage adapters, the object-store container and the Files tables of the business migration."
     },
     "examples": {
       "type": "parameter",
+      "displayName": "Example features",
       "datatype": "choice",
       "defaultValue": "all",
       "choices": [
@@ -156,12 +161,14 @@
     },
     "ci": {
       "type": "parameter",
+      "displayName": "GitHub Actions workflows",
       "datatype": "bool",
       "defaultValue": "true",
       "description": "Include the GitHub Actions workflows that build, test and release the solution (ci.yml, release.yml; web.yml with a web app)."
     },
     "sonar": {
       "type": "parameter",
+      "displayName": "Sonar analysis",
       "datatype": "bool",
       "defaultValue": "true",
       "description": "Include the Sonar analysis: the local SonarQube compose profile, its scanner image and task, and the SonarQube Cloud workflow when --ci is true."
@@ -172,6 +179,7 @@
     },
     "web": {
       "type": "parameter",
+      "displayName": "First web app",
       "datatype": "choice",
       "defaultValue": "none",
       "choices": [
@@ -238,6 +246,7 @@
     },
     "webAudience": {
       "type": "parameter",
+      "displayName": "Web app audience",
       "datatype": "choice",
       "defaultValue": "public",
       "choices": [
@@ -261,6 +270,7 @@
     },
     "webName": {
       "type": "parameter",
+      "displayName": "Web app name",
       "datatype": "text",
       "defaultValue": "Site",
       "description": "The first web app's name, in PascalCase: its folder Src/Web/apps/<name>, its service web-<name>, its port WEB_<NAME>_HOST_PORT.",

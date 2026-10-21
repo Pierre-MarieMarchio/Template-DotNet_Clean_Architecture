@@ -569,6 +569,7 @@
           "condition": "(publicApi)",
           "exclude": [
             "Src/Application/AppTemplate.Application.Core/Common/Events/UserAccountDeleted.cs",
+            "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
             "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
             "Src/Presentation/AppTemplate.Api/Common/Security/AuthorizationPolicies.cs",
             "Src/Presentation/AppTemplate.Api/Features/Maintenance/Controllers/**",

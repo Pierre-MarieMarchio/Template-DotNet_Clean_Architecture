@@ -60,6 +60,7 @@ Which page answers your question, and where a new page goes.
 |---|---|
 | [Adding a feature](guides/adding-a-feature.md) | generating a feature and finishing it by hand |
 | [Removing features](guides/removing-features.md) | taking out a feature, the examples, Files or authentication |
+| [Adding a setting](guides/adding-a-setting.md) | a value a deployment chooses, validated at start-up and documented |
 | [Migrations](guides/migrations.md) | adding, checking and applying a migration |
 | [Testing](guides/testing.md) | running the suites and writing new tests |
 | [Build and CI](guides/build-and-ci.md) | the gate, locally and in CI |

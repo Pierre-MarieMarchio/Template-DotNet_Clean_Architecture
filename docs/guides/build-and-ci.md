@@ -9,10 +9,10 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | Task | Runs |
 |---|---|
 <!--#if (anyWeb)-->
-| `bootstrap` | format, restore the local tools, then `web-scaffold`; once, after generation |
+| `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `web-scaffold`; once, after generation |
 <!--#endif-->
 <!--#if (!anyWeb)-->
-| `bootstrap` | format, then restore the local tools; once, after generation |
+| `bootstrap` | format, write the OpenAPI reference, then restore the local tools; once, after generation |
 <!--#endif-->
 | `restore`, `build`, `test`, `format`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
@@ -21,6 +21,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `migration-add`, `database-update` | `dotnet ef` over the business context |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
+| `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 <!--#if (sonar)-->
 | `sonar` | the local Sonar analysis |
 <!--#endif-->

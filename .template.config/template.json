@@ -453,6 +453,7 @@
             "LICENSE",
             "docs/template/**",
             "docs/plans/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/v1.json",
             "docs/guide_architecture_pour_agent.md",
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",

@@ -35,8 +35,9 @@ run the integration suites, on the runner's Docker through Testcontainers, and t
 runs the generated project's `dotnet run Tools/Tasks.cs e2e` against its Compose stack. The defaults
 leg, the local-auth leg without examples and the external-auth leg without examples also run the
 generator round trip: `new-feature` writes an owner feature, a shared one and an aggregate one in
-turn, each builds in the domain and application layers and passes its own unit tests there, and
-`remove-feature --apply` leaves `git status` empty. Then all three are written together, `hygiene`
+turn, each builds in the domain and application layers and passes its own unit tests there, the
+aggregate one after `new-use-case` adds a command, a query and a command without input to it while
+refusing the others, and `remove-feature --apply` leaves `git status` empty. Then all three are written together, `hygiene`
 passes, and they are removed last in first out. The infrastructure, API and architecture tests wait
 for the hand edits `new-feature` prints, so only the layers that need none are built. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's

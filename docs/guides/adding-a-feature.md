@@ -112,7 +112,7 @@ dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 The command writes in the application layer and edits nothing:
 
 - the use case's folder: its command or query, its validator, its named interface and the use case;
-- for a query, its DTO under `Model/Dtos/`, unless the feature already declares one of that name;
+- for a query, its DTO under `Model/Dtos/`, holding the aggregate's `Guid Id` and nothing else, unless the feature already declares one of that name;
 - with `--input id`, one unit test that an empty id is refused before the use case acts, with its
   control.
 

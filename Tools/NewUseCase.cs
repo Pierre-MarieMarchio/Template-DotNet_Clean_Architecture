@@ -17,7 +17,7 @@ internal static class NewUseCase
         + "  <Features>  the folder of an existing feature of the rich shape, e.g. Invoices\n"
         + "  <UseCase>   the operation, PascalCase, a verb and its subject, e.g. ApproveInvoice\n"
         + "  --kind      required. command: changes state and answers a Result.\n"
-        + "              query: reads, and answers a Result of a DTO named for it.\n"
+        + "              query: reads, and answers a Result of a DTO named for it, carrying the aggregate's id.\n"
         + "  --input     default: id, a request carrying the id of the feature's aggregate, its\n"
         + "              validator and its unit tests. none: no request, no validator, no test.\n"
         + "  --root      the tree to write into, default the current directory.\n"
@@ -62,6 +62,7 @@ internal static class NewUseCase
         string? Aggregate,
         string? Dto,
         bool DtoExists,
+        bool DtoHasId,
         string? Manifest)
     {
         internal bool IsCommand => Kind == "command";
@@ -307,18 +308,18 @@ internal static class NewUseCase
 
         string? aggregate = null;
 
+        string repositories = Path.Combine(domain, "Repositories");
+        string[] found = Directory.Exists(repositories)
+            ? [.. Directory.EnumerateFiles(repositories, "I*Repository.cs")
+                .Select(Path.GetFileNameWithoutExtension)
+                .OfType<string>()
+                .Select(file => file[1..^"Repository".Length])
+                .Where(type => PascalCase.IsMatch(type))
+                .Order(StringComparer.Ordinal)]
+            : [];
+
         if (input == "id")
         {
-            string repositories = Path.Combine(domain, "Repositories");
-            string[] found = Directory.Exists(repositories)
-                ? [.. Directory.EnumerateFiles(repositories, "I*Repository.cs")
-                    .Select(Path.GetFileNameWithoutExtension)
-                    .OfType<string>()
-                    .Select(file => file[1..^"Repository".Length])
-                    .Where(type => PascalCase.IsMatch(type))
-                    .Order(StringComparer.Ordinal)]
-                : [];
-
             if (found.Length != 1)
             {
                 problems.Add(
@@ -377,7 +378,7 @@ internal static class NewUseCase
             }
         }
 
-        return new Spec(prefix, features, name, kind, aggregate, dto, dtoExists, File.Exists(manifestFull) ? manifest : null);
+        return new Spec(prefix, features, name, kind, aggregate, dto, dtoExists, found.Length > 0, File.Exists(manifestFull) ? manifest : null);
     }
 
     private static List<string> NameProblems(string features, string name)
@@ -532,7 +533,7 @@ internal static class NewUseCase
 
         if (spec.Dto is not null && !spec.DtoExists)
         {
-            Add($"{application}/Model/Dtos/{spec.Dto}.cs", Templates.Dto);
+            Add($"{application}/Model/Dtos/{spec.Dto}.cs", spec.DtoHasId ? Templates.DtoWithId : Templates.Dto);
         }
 
         skippedTests = null;
@@ -1099,6 +1100,21 @@ internal static class NewUseCase
         expect(File.ReadAllText(dto) == "public sealed record InvoiceDto(Guid Id);\n", "The existing DTO was overwritten.");
         expect(File.Exists(useCase) && File.ReadAllText(useCase).Contains("Result<InvoiceDto>", StringComparison.Ordinal), "The query does not answer the existing DTO.");
         expect(result.Output.Contains("already declares", StringComparison.Ordinal), "The reuse of an existing DTO was not reported.");
+
+        string fresh = NewTree(scratch);
+        string freshDto = Path.Combine(fresh, "Src/Application/Acme.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
+
+        expect(Invoke(fresh, "Invoices", "GetInvoiceTotals", "--kind", "query").Code == 0, "A query on a feature with a repository was refused.");
+        expect(File.Exists(freshDto) && File.ReadAllText(freshDto).Contains("InvoiceTotalsDto(Guid Id);", StringComparison.Ordinal), "The generated DTO does not carry the aggregate's id.");
+
+        string bare = NewTree(scratch, "Unused");
+        File.Delete(Path.Combine(bare, "Src/Domain/Acme.Domain/Features/Invoices/Repositories/IUnusedRepository.cs"));
+        string bareDto = Path.Combine(bare, "Src/Application/Acme.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
+
+        var bareResult = Invoke(bare, "Invoices", "GetInvoiceTotals", "--kind", "query", "--input", "none");
+
+        expect(bareResult.Code == 0, $"A query on a feature without a repository was refused: {bareResult.Error}");
+        expect(File.Exists(bareDto) && !File.ReadAllText(bareDto).Contains("Id", StringComparison.Ordinal), "The generated DTO invents an id for a feature with no aggregate.");
     }
 
     private static void ManifestCases(string scratch, Action<bool, string> expect)
@@ -1325,6 +1341,12 @@ internal static class Templates
         namespace %P%.Application.Features.%F%.Model.Dtos;
 
         public sealed record %D%;
+        """;
+
+    internal const string DtoWithId = """
+        namespace %P%.Application.Features.%F%.Model.Dtos;
+
+        public sealed record %D%(Guid Id);
         """;
 
     internal const string UseCaseTests = """

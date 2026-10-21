@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -137,6 +138,51 @@ public sealed class TemplatePackagingTests
             written,
             "Src/Web/README.md lists Dependabot entries for a project's first web app that differ from what --web writes " +
             "into .github/dependabot.yml. Copy the anyWeb blocks into the README, as they are.");
+    }
+
+    [Fact]
+    public void ThePackage_LeavesOutWhatGenerationAlwaysLeavesOut()
+    {
+        var packageExcludes = PackageExcludes();
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var modifiers = manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray().ToList();
+
+        var alwaysExcluded = modifiers
+            .Where(modifier => !modifier.TryGetProperty("condition", out var condition) || condition.GetString() == "(!templateMaintenance)")
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!))
+            .Where(pattern => pattern != ".template.config/**")
+            .ToList();
+
+        alwaysExcluded.Count.ShouldBeGreaterThanOrEqualTo(20, "Far fewer unconditional exclusions were read from template.json than it declares.");
+
+        alwaysExcluded
+            .Where(pattern => !packageExcludes.Any(exclude =>
+                exclude == pattern || (exclude.StartsWith("**/", StringComparison.Ordinal) && pattern.EndsWith(exclude[3..], StringComparison.Ordinal))))
+            .ShouldBeEmpty(
+                "template.json never generates these paths, but .template.config/TemplatePackage.csproj packs them: add each to its TemplateExclude items.");
+    }
+
+    [Fact]
+    public void ThePackage_LeavesOutEveryScratchAndMaintenancePath()
+    {
+        string[] scratch =
+        [
+            ".git/**", ".claude/**", ".vs/**", "**/bin/**", "**/obj/**", "**/node_modules/**", "**/TestResults/**",
+            "artifacts/**", ".template.config/TemplatePackage.csproj",
+        ];
+
+        scratch.Except(PackageExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "A checkout can hold these paths, which the template package must not carry: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    private static List<string> PackageExcludes()
+    {
+        string project = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "TemplatePackage.csproj");
+
+        return [.. XDocument.Load(project)
+            .Descendants("TemplateExclude")
+            .SelectMany(item => item.Attribute("Include")!.Value.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            .Select(pattern => pattern.Replace("$(TemplateRoot)", string.Empty, StringComparison.Ordinal))];
     }
 
     private static List<string> ConditionedBlocks(string[] lines, string symbol)

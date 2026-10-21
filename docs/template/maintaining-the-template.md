@@ -112,6 +112,28 @@ into `.template.config/variants/web-<App>/Src/Web/`; a framework app gets none, 
 writes it where the app is created. Run the task after any change to the union lockfile, Dependabot's
 included; `--check` fails until you do.
 
+## The package
+
+`.template.config/TemplatePackage.csproj` packs the three templates into one NuGet package,
+`CleanArch.WebApi.Templates`; its `PackageId` is the one place that names it.
+
+```bash
+dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
+```
+
+| Facet | Where |
+|---|---|
+| Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
+| Version | the `templateVersion` symbol of `.template.config/template.json`, and nowhere else |
+| Metadata | id, authors, description, tags, licence, the repository `README.md` and `.template.config/icon.png`, all in the package project |
+
+To release, raise `templateVersion`, merge, and push the tag `template-v<version>`.
+`.github/workflows/template-release.yml` then refuses a tag that does not name the version, packs,
+installs the package alone in a scratch hive, generates and builds the defaults, and uploads the
+`.nupkg` as the `template-package` artifact. Its publishing job is skipped until the repository
+variable `PUBLISH_TEMPLATE_TO_NUGET` is `true`, and reads `NUGET_API_KEY` from the `nuget`
+environment; a version already on nuget.org fails the push.
+
 ## Changelog
 
 `CHANGELOG.md` follows Keep a Changelog and stays here. Record what changes a generated project: a

@@ -1,0 +1,109 @@
+name: Template release
+
+# Template repository only: a template-v<version> tag packs the template package; nuget.org receives it only once PUBLISH_TEMPLATE_TO_NUGET is true.
+on:
+  push:
+    tags:
+      - "template-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to pack, e.g. template-v1.2.3"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  PACKAGE_PROJECT: .template.config/TemplatePackage.csproj
+
+jobs:
+  pack:
+    name: Pack the template package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # The version lives in template.json alone; the tag must name it.
+      - name: Assert the tag names the package version
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          version=$(dotnet msbuild "$PACKAGE_PROJECT" -getProperty:PackageVersion)
+          if [ "$TAG" != "template-v${version}" ]; then
+            echo "::error title=Tag and version differ::$TAG does not name template-v${version}, the templateVersion of .template.config/template.json."
+            exit 1
+          fi
+
+      - name: Pack
+        run: dotnet pack "$PACKAGE_PROJECT" --configuration Release --output "${{ runner.temp }}/package"
+
+      # What a user installs: the package alone, in a hive of its own, generating and building the defaults.
+      - name: Install the package and build the default project
+        run: |
+          set -euo pipefail
+          hive="${{ runner.temp }}/hive"
+          generated="${{ runner.temp }}/generated"
+          dotnet new install "${{ runner.temp }}"/package/*.nupkg --debug:custom-hive "$hive"
+          dotnet new cleanarch-webapi -n Sample.Released.Project -o "$generated" --debug:custom-hive "$hive"
+          dotnet build "$generated/Sample.Released.Project.sln" --configuration Release
+
+      - name: Upload the package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: template-package
+          path: ${{ runner.temp }}/package/*.nupkg
+          if-no-files-found: error
+
+  # Off until the repository variable PUBLISH_TEMPLATE_TO_NUGET is true; the nuget environment holds the NUGET_API_KEY secret.
+  publish:
+    name: Publish to nuget.org
+    needs: pack
+    if: vars.PUBLISH_TEMPLATE_TO_NUGET == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: nuget
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Download the package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: template-package
+          path: ${{ runner.temp }}/package
+
+      # A version already on nuget.org fails the push: a release is never replaced.
+      - name: Push
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error title=No API key::PUBLISH_TEMPLATE_TO_NUGET is true but the nuget environment has no NUGET_API_KEY secret."
+            exit 1
+          fi
+          dotnet nuget push "${{ runner.temp }}"/package/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json

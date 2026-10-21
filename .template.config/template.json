@@ -87,6 +87,14 @@
       "value": "false",
       "description": "Never true in a generated project. Names the pieces that maintain the template itself - the acceptance matrix, the test-count floor, the tree-auditing gates, the changelog - so they stay in the template repository only."
     },
+    "templateVersion": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "1.0.0"
+      },
+      "description": "The template package's version, read by .template.config/TemplatePackage.csproj; a template-v<version> tag releases it."
+    },
     "files": {
       "type": "parameter",
       "datatype": "bool",
@@ -436,6 +444,7 @@
             "docs/guide_architecture_pour_agent.md",
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",
+            ".github/workflows/template-release.yml",
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",
             "Tools/CheckComments.cs",

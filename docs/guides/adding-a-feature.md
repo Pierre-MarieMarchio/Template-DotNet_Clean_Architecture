@@ -91,8 +91,9 @@ The business context needs a migration.
 dotnet run Tools/Tasks.cs migration-add Add<Features>
 ```
 
-On a project no database has applied a migration to, regenerate `InitialCreate` instead, as
-[migrations](migrations.md#add-a-migration) shows.
+It refuses until bootstrap has created the initial migration; a feature added before bootstrap is
+in that one. While no database has applied the initial migration, recreate it instead, as
+[migrations](migrations.md#the-initial-migration) shows.
 
 ## Add a use case
 

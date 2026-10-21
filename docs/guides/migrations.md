@@ -20,6 +20,25 @@ project holds exactly one context, so naming the project names the context.
 design-time factories read `ConnectionStrings__Default` from the environment and fall back to the
 Compose database, so adding or checking a migration needs no running host.
 
+## The initial migration
+
+This project ships no migration. `bootstrap` creates each context's first one, `InitialCreate`,
+under its project's `Migrations` folder, for this project's own model and database; commit it. Its
+step is a task of its own:
+
+```bash
+dotnet run Tools/Tasks.cs migration-initial
+```
+
+A context that already has a model snapshot is left alone, so a second run changes nothing. Until the
+initial migration exists, `migration-add`, `database-update`, `migration-bundle` and `verify` refuse,
+and `PendingModelChangesTests` fails.
+
+While no database has applied it, change it rather than stacking migrations: delete the context's
+`Migrations` folder and run `migration-initial` again. Once a database has applied it, add a named migration
+instead. Why the first migration is born here is a row of
+[ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).
+
 ## Add a migration
 
 ```bash
@@ -37,11 +56,6 @@ dotnet ef migrations add <Name> \
   --output-dir Migrations
 ```
 <!--#endif-->
-
-Each context ships one `InitialCreate`. While no database has applied it, change it rather than
-stacking migrations: delete the two `InitialCreate` files and the model snapshot under the project's
-`Migrations` folder, then run `migration-add InitialCreate`. Once a database has applied it, add a
-named migration instead.
 
 An empty migration means a configuration nobody applies: a new entity needs its schema constant, its
 set and its `ApplyConfiguration` call in the context.

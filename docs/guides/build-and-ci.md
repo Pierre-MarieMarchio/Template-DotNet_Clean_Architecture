@@ -9,10 +9,10 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | Task | Runs |
 |---|---|
 <!--#if (anyWeb)-->
-| `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `web-scaffold`; once, after generation |
+| `bootstrap` | format, write the OpenAPI reference, restore the local tools, `migration-initial`, then `web-scaffold`; once, after generation |
 <!--#endif-->
 <!--#if (!anyWeb)-->
-| `bootstrap` | format, write the OpenAPI reference, then restore the local tools; once, after generation |
+| `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
 | `restore`, `build`, `test`, `format`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
@@ -21,7 +21,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `end-to-end` | the end-to-end suite against a Compose stack of its own, removed afterwards unless `--keep-stack` |
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `new-use-case` | one more use case in a feature of the rich shape |
-| `migration-add`, `database-update` | `dotnet ef` over the business context |
+| `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
+| `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 <!--#if (sonar)-->
@@ -47,8 +48,9 @@ A change is done when this passes, without overrides:
 dotnet run Tools/Tasks.cs verify
 ```
 
-It runs `hygiene`, restore, `dotnet format --verify-no-changes`, the build, the tests, the
-migration drift check for every context, and the vulnerability listing. The coverage floor is a
+It refuses to start while a context has no migration, then runs `hygiene`, restore,
+`dotnet format --verify-no-changes`, the build, the tests, the migration drift check for every
+context, and the vulnerability listing. The coverage floor is a
 separate task, `coverage`.
 
 Each gate proves it can fail before it judges the tree: `hygiene` runs the `--self-test` of the

@@ -143,10 +143,9 @@ edit:
 <!--#if (localAuth)-->
 Removing a business feature changes the business migration only; authentication has its own.
 <!--#endif-->
-On a project no database has applied a migration to, delete the business `InitialCreate` and
-`AppDbContextModelSnapshot.cs`, then regenerate it as [migrations](migrations.md#add-a-migration)
-shows. Once a database has applied it, add a migration that drops the tables, and review it line by
-line.
+While no database has applied the initial migration, recreate it as
+[migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
+migration that drops the tables, and review it line by line.
 
 <!--#if (localAuth)-->
 ## Remove authentication

@@ -24,11 +24,22 @@ CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a
 does not receive. Its end-to-end job skips its one step in this repository, whose stack includes web
 apps no CLI has created yet; the acceptance matrix runs the suite instead.
 
+## Migrations in this checkout
+
+The template ships no migration, so this checkout has none until
+`dotnet run Tools/Tasks.cs migration-initial` creates them, as bootstrap does in a project; the
+tests, `verify` and the drift check need them. They are git-ignored here only, by a `templateMaintenance` block of `.gitignore`, and
+both `template.json` and `.template.config/TemplatePackage.csproj` exclude them, so a project
+generated from this checkout or from its package starts without them; `TemplatePackagingTests` holds
+the three. After a model change, delete each context's `Migrations` folder and run the task again. The
+CI, Sonar and release workflows run it before building, under `templateMaintenance` blocks.
+
 ## The acceptance matrix
 
 `.github/workflows/template-acceptance.yml` packs the template package once, and per leg installs
-that `.nupkg`, generates under another name, asserts the source name leaked nowhere, bootstraps,
-builds with warnings as errors, runs the Docker-free tests, checks every generated context for
+that `.nupkg`, generates under another name, asserts the source name leaked nowhere, bootstraps
+(the formatting, then `migration-initial` after asserting no migration was generated, and once more to
+prove it creates nothing), builds with warnings as errors, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
 run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then

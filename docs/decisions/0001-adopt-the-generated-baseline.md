@@ -53,7 +53,8 @@ what changing it costs.
 <!--#endif-->
 | Docker Compose for the local stack | One command runs the API and its dependencies | [First run](../getting-started/first-run.md#run-with-compose) | — |
 | TLS terminates upstream: HTTP on 8080, no HTTPS redirection, no HSTS; forwarded headers believed only from a named proxy, none named by default | Only the component terminating TLS knows the domain's commitments | [Behind a proxy](../guides/deployment.md#behind-a-proxy) | — |
-| Migrations applied at release: one bundle per context, built from the image's commit, run by a principal with DDL rights; the API migrates itself in Development only | A process never alters its own schema in production | [Migrations at release](../guides/deployment.md#migrations-at-release) | — |
+| No migration ships with the project: `bootstrap` creates each context's initial migration, and the team commits it | A migration written for every shape the project could take is conditioned by hand and drifts; EF writes the first one from the model and the database this project has | [The initial migration](../guides/migrations.md#the-initial-migration) | — |
+| Migrations applied at release: one bundle per context, built from the migrations the image's commit carries, run by a principal with DDL rights; the API migrates itself in Development only | A process never alters its own schema in production | [Migrations at release](../guides/deployment.md#migrations-at-release) | — |
 | The API image on alpine, running unprivileged | The healthcheck needs `wget`, which the chiseled images lack | [The image](../guides/deployment.md#the-image) | — |
 | xUnit v3, Shouldly, NSubstitute, Testcontainers, NetArchTest | Integration tests run on a real PostgreSQL; the architecture is held by tests | [Testing](../guides/testing.md) | — |
 <!--#if (ci)-->

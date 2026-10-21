@@ -124,7 +124,7 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 | Facet | Where |
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
-| Version | the `templateVersion` symbol of `.template.config/template.json`, and nowhere else |
+| Version | the `templateVersion` symbol of `.template.config/template.json`, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview, as [template decision 0002](decisions/0002-nothing-about-the-template-reaches-a-project.md) allows |
 | Metadata | id, authors, description, tags, licence, the repository `README.md` and `.template.config/icon.png`, all in the package project |
 
 To release, raise `templateVersion`, merge, and push the tag `template-v<version>`.

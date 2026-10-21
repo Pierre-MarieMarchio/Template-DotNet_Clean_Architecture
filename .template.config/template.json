@@ -93,7 +93,8 @@
       "parameters": {
         "value": "1.0.0"
       },
-      "description": "The template package's version, read by .template.config/TemplatePackage.csproj; a template-v<version> tag releases it."
+      "replaces": "0.0.0-checkout",
+      "description": "The template package's version, read by .template.config/TemplatePackage.csproj and recorded in a generated project's overview; a template-v<version> tag releases it."
     },
     "files": {
       "type": "parameter",

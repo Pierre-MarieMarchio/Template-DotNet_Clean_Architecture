@@ -175,6 +175,20 @@ public sealed class TemplatePackagingTests
             "A checkout can hold these paths, which the template package must not carry: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
     }
 
+    [Fact]
+    public void TheOverview_RecordsThePackageAndTheVersionGenerationWrites()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        string packageId = XDocument.Load(Path.Combine(root, ".template.config", "TemplatePackage.csproj"))
+            .Descendants("PackageId").Single().Value;
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        string token = manifest.RootElement.GetProperty("symbols").GetProperty("templateVersion").GetProperty("replaces").GetString()!;
+        string overview = File.ReadAllText(Path.Combine(root, "docs", "getting-started", "overview.md"));
+
+        overview.ShouldContain($"version {token} of", Case.Sensitive, "docs/getting-started/overview.md no longer holds the token templateVersion replaces.");
+        overview.ShouldContain($"`{packageId}`", Case.Sensitive, "docs/getting-started/overview.md no longer names the PackageId of .template.config/TemplatePackage.csproj.");
+    }
+
     private static List<string> PackageExcludes()
     {
         string project = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "TemplatePackage.csproj");

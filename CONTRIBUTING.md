@@ -2,32 +2,11 @@
 
 What has to be true before a change is done, and where each rule is written.
 
-## A green build
-
-```bash
-dotnet run Tools/Tasks.cs bootstrap   # once, after a fresh clone of a new project
-dotnet run Tools/Tasks.cs build
-dotnet run Tools/Tasks.cs test        # Docker for the integration suites
-```
-
-The SDK `global.json` pins and Docker are all it needs: everything under `Tools/` is a file-based C#
-app. [First run](docs/getting-started/first-run.md) starts the stack.
-
 ## The gate
 
-```bash
-dotnet run Tools/Tasks.cs verify
-dotnet run Tools/Tasks.cs coverage
-```
-
-`verify` runs, in CI's order, the self-tests of the gates, restore, formatting, the build with warnings
-as errors, the tests, the migration drift check for every context and the vulnerability listing.
-`coverage` holds the floor in `coverage.minimum`. Both pass without overrides: no `#pragma`, no
-`<NoWarn>`, no lowered severity, no skipped test. [Build and CI](docs/guides/build-and-ci.md) says what
-each step checks.
-
-`.cs` and `.md` files are UTF-8 with BOM; `dotnet run Tools/Tasks.cs format-fix` after creating or
-moving a file.
+A change is done when `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage`,
+pass without overrides; [build and CI](docs/guides/build-and-ci.md#the-gate) says what each step
+checks, and [first run](docs/getting-started/first-run.md) what the machine needs.
 
 ## Rules and where they live
 
@@ -35,6 +14,7 @@ Each rule has one home, and a test holds it wherever a test can.
 
 | Rule | Home |
 |---|---|
+| How to work here: the commands, where code goes, what done means | [AGENTS.md](AGENTS.md) |
 | What may depend on what | [Architecture](docs/architecture/README.md), held by `Tests/Architecture` |
 | Which project and folder a file goes in, and its name | [Project layout](docs/reference/project-layout.md) |
 | A feature's shape: an aggregate, or a service over a store | [Feature shapes](docs/architecture/feature-shapes.md) |
@@ -45,15 +25,9 @@ Each rule has one home, and a test holds it wherever a test can.
 | Adding and removing a feature | [Adding a feature](docs/guides/adding-a-feature.md), [Removing features](docs/guides/removing-features.md) |
 | Migrations | [Migrations](docs/guides/migrations.md) |
 | Every setting | [Configuration](docs/reference/configuration.md), held by `ConfigurationSurfaceTests` |
+| How a page is written, and which pages move with the code | [AGENTS.md › Writing docs](AGENTS.md#writing-docs), [AGENTS.md › Done means](AGENTS.md#done-means) |
 | Why a choice was made | [Decisions](docs/decisions/README.md) |
 | What a deployment still owes | [SECURITY.md](SECURITY.md) |
-
-## Documentation is part of the change
-
-A change that moves a file updates every page that cites it. A change that adds a capability adds its
-page. A choice another team could have made differently adds an ADR, with the test that holds it.
-[AGENTS.md › Writing docs](AGENTS.md#writing-docs) holds the writing rules, and `docs/_page-templates/`
-the skeleton of each kind of page.
 
 ## Pull requests
 

@@ -96,10 +96,9 @@ dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes 
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
 ```
 
-`new-feature` writes the skeleton, its manifest and its page under `docs/features/`, then prints the
-edits to make by hand and the row to add to `docs/README.md`. `new-use-case` adds one operation to a
-feature of the rich shape and prints the action that serves it. [Adding a feature](docs/guides/adding-a-feature.md)
-and [removing features](docs/guides/removing-features.md) give the steps.
+`new-feature` writes the skeleton, its manifest and its page, then prints the hand edits and the
+`docs/README.md` row; `new-use-case` adds one operation to a rich feature and prints its action.
+[Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
 This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from

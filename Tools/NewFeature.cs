@@ -679,7 +679,6 @@ internal static class NewFeature
         Add(api, $"{feature}/Controllers/%F%Controller.cs", Templates.Controller);
         Add(api, $"{feature}/Contracts/Mapping/%A%ResponseMapping.cs", Templates.ResponseMapping, "dto|list");
 
-        AddTest(applicationTests, $"{feature}/Model/Errors/%A%ErrorsTests.cs", Templates.ErrorsTests, "notfound");
         AddTest(applicationTests, $"{feature}/Model/Dtos/%A%ContentDtoValidatorTests.cs", Templates.ContentValidatorTests, "rec&content");
         AddTest(applicationTests, $"{feature}/Services/%A%ServiceTests.cs", Templates.ServiceTests, "rec");
         AddTest(
@@ -1315,6 +1314,12 @@ internal static class NewFeature
 
         output.WriteLine("Then its row under ## Features in docs/README.md:");
         output.WriteLine($"  | [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |");
+
+        if (Flags(spec).Contains("notfound"))
+        {
+            output.WriteLine("And the row of its refusal under ### Resources in docs/reference/api.md, which the error-code tests read:");
+            output.WriteLine($"  | `{Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |");
+        }
     }
 
     private static int SelfTest()
@@ -1798,7 +1803,7 @@ internal static class NewFeature
         expect(Same(afterFirst, Snapshot(root)), "The refused second generation changed the tree.");
 
         string other = NewTree(scratch);
-        string inTheWay = System.IO.Path.Combine(other, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Model/Errors/WidgetErrorsTests.cs");
+        string inTheWay = System.IO.Path.Combine(other, "Src/Application/Acme.Application/Features/Widgets/Model/Errors/WidgetErrors.cs");
 
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(inTheWay)!);
         File.WriteAllText(inTheWay, "// somebody's own test\n");
@@ -5125,30 +5130,6 @@ internal static class Templates
         %end%
             }
         %end%
-        }
-        """;
-
-    internal const string ErrorsTests = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.Model.Errors;
-        using Shouldly;
-        using Xunit;
-
-        namespace %P%.Application.UnitTests.Features.%F%.Model.Errors;
-
-        public sealed class %A%ErrorsTests
-        {
-            [Fact]
-            public void %A%NotFound_IsANotFoundErrorNamingThe%A%()
-            {
-                var %L%Id = Guid.CreateVersion7();
-
-                var error = %A%Errors.%A%NotFound(%L%Id);
-
-                error.Type.ShouldBe(ErrorType.NotFound);
-                error.Code.ShouldBe("%L%.notFound");
-                error.Message.ShouldContain(%L%Id.ToString());
-            }
         }
         """;
 

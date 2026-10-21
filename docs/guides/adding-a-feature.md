@@ -104,6 +104,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 <!--#if (!anyFeature)-->
 | A registration | `HostComposition` in the architecture tests |
 <!--#endif-->
+| An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
 | A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed` |

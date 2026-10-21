@@ -168,13 +168,23 @@ Under `/api/v1/maintenance`, `Administrator` policy; each answers `200` and the 
 
 Branch on a refusal's `code`, never on its `detail`.
 
-<!--#if (accounts)-->
 ### Authentication and authorisation
 
+<!--#if (publicApi)-->
+This project authenticates nobody, so no route answers these two; they are what a `401` or a `403`
+carries once one does.
+
+<!--#endif-->
 | `code` | Status | When |
 |---|---|---|
+<!--#if (accounts)-->
 | `auth.required` | 401 | No valid token, a route that matched nothing, or an account deleted since |
 | `auth.forbidden` | 403 | Authenticated, but the endpoint's policy is not satisfied |
+<!--#endif-->
+<!--#if (publicApi)-->
+| `auth.required` | 401 | A route that requires a caller, called without one |
+| `auth.forbidden` | 403 | A caller the endpoint's policy refuses |
+<!--#endif-->
 <!--#if (localAuth)-->
 | `auth.login.invalidCredentials` | 401 | One answer for an unknown address, a wrong password, an unconfirmed address and a lockout |
 | `auth.login.invalidTwoFactorChallenge` | 401 | The challenge is unknown, spent, expired or out of attempts |
@@ -195,7 +205,6 @@ Branch on a refusal's `code`, never on its `detail`.
 | `externalIdentity.mapping.notFound` | 404 | No mapping names the owner id |
 <!--#endif-->
 
-<!--#endif-->
 ### Resources
 
 | `code` | Status | When |

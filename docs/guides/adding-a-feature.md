@@ -47,7 +47,7 @@ for the account-deletion sweep it brings with it.
 ## What you write by hand
 
 The generator writes the shape; the rules are yours. Each step below has a test that reads it, so run
-`dotnet test Tests/Architecture` before you push.
+`dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` before you push.
 
 ### Domain
 

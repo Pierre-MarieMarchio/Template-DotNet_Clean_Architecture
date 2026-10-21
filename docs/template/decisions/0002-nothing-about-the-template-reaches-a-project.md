@@ -39,8 +39,9 @@ from, and nothing in the generated tree says so.
   how-tos and ADRs join the same folders.
 - The template repository reads its project documentation as a generated project would, so the
   template's own gates check what every project receives.
-- A link from a shared file to a template page disappears with its target, so
-  `DocumentationCitationTests` stays green in a generated project.
+- A link from a shared file to a template page disappears with its target. The acceptance matrix runs
+  `Tools/CheckDocPaths.cs` from this checkout against each generated tree, so every page is checked
+  in the shape it is read in.
 - Writing about the template in a project page is a defect, fixed by moving the sentence to
   `docs/template/`, except the provenance sentence and the item-template commands a project runs.
 - A project compares its version with the template's changelog to see what a later release changes.

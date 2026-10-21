@@ -27,7 +27,7 @@ jobs:
   template:
     name: Template acceptance (${{ matrix.name }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     strategy:
       fail-fast: false
@@ -55,7 +55,25 @@ jobs:
             options: --web placeholder --auth none --examples none --files false
             auth_context: "false"
             web: "true"
-          # The react, angular and combined web legs join here, each with web: "true".
+          - name: web react, local auth
+            options: --web react
+            auth_context: "true"
+            web: "true"
+          # No provider runs in Compose: the API needs one named to start, and fetches nothing from it until a token arrives.
+          - name: web angular, external auth, notes
+            options: --web angular --auth external --examples notes
+            auth_context: "false"
+            web: "true"
+            stack_env: "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
+          - name: web react back office, smallest local project
+            options: --web react --web-audience admin --examples none --files false
+            auth_context: "true"
+            web: "true"
+          - name: web react, then an angular back office
+            options: --web react
+            auth_context: "true"
+            web: "true"
+            second_app: --framework angular --audience admin --scope sample-generated-project
 
     steps:
       - name: Checkout
@@ -193,14 +211,17 @@ jobs:
         if: matrix.web == 'true'
         run: dotnet run Tools/Tasks.cs web-lockfiles --check
 
-      # The added app joins the stack by the two lines its README gives.
+      # The added app joins the stack by the two lines its README gives; the options stay unquoted, being several arguments.
       - name: Add a second app with cleanarch-webapp
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
+        env:
+          SECOND_APP: ${{ matrix.second_app || '--framework placeholder' }}
         run: |
           set -euo pipefail
-          dotnet new cleanarch-webapp -n BackOffice --framework placeholder --port 8082
-          leaked=$(grep -rIl -e PlaceholderSite -e placeholder-site -e PLACEHOLDER_SITE Src/Web/apps/BackOffice || true)
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-webapp -n BackOffice --port 8082 $SECOND_APP
+          leaked=$(grep -rIl -e PlaceholderSite -e placeholder-site -e PLACEHOLDER_SITE -e ReactSite -e react-site -e REACT_SITE -e AngularSite -e angular-site -e ANGULAR_SITE Src/Web/apps/BackOffice || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -209,14 +230,24 @@ jobs:
           printf 'WEB_BACK_OFFICE_HOST_PORT=8082\n' >> .env.example
           grep -A3 '^include:' docker-compose.yml
 
-      # pnpm api first, as bootstrap does: the template ships the client of its full API.
-      - name: Install, regenerate the client, lint, test and build the web workspace
+      # bootstrap's web step: each react or angular app is created by its official CLI, then pnpm install and pnpm api.
+      - name: Create the framework apps, regenerate the client
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          dotnet run Tools/Tasks.cs web-scaffold
+          if [ -n "$(find Src/Web/apps -name scaffold.json -o -name overlay -type d)" ]; then
+            echo "::error title=App not created::An app still holds its scaffold.json or overlay/."
+            exit 1
+          fi
+
+      - name: Install, lint, test and build the web workspace
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated/Src/Web
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
-          pnpm api
           pnpm lint
           pnpm test
           pnpm build
@@ -239,7 +270,8 @@ jobs:
           pnpm test
           pnpm build
 
-      - name: Assert the generated client check passes on a fresh client
+      # A second run creates nothing and changes nothing: the client is reproducible and created apps are left alone.
+      - name: Assert web-scaffold is idempotent
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -247,18 +279,25 @@ jobs:
           git init --quiet
           git add -A
           git -c user.name=acceptance -c user.email=acceptance@localhost commit --quiet -m generated
-          (cd Src/Web && pnpm api)
-          if ! git diff --exit-code -- Src/Web/packages/api-client/src/generated; then
-            echo "::error title=Client not reproducible::pnpm api wrote a different client on its second run."
+          dotnet run Tools/Tasks.cs web-scaffold
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error title=Not idempotent::A second web-scaffold changed the tree."
+            git status --porcelain
+            git diff --stat
             exit 1
           fi
 
       - name: Build the images and start the stack
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
+        env:
+          STACK_ENV: ${{ matrix.stack_env }}
         run: |
           set -euo pipefail
           cp .env.example .env
+          if [ -n "$STACK_ENV" ]; then
+            printf '%b\n' "$STACK_ENV" >> .env
+          fi
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 

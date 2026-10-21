@@ -321,9 +321,13 @@ jobs:
             grep -qi '<html' page.html || fail "$base/ served no page."
             curl -fsS "$base/health" > /dev/null || fail "$base/health is not relayed to the API."
             status=$(curl -sS -o relay.json -D relay.headers -w '%{http_code}' "$base/api/v1/relay-check")
-            [ "$status" = "404" ] || fail "$base/api/ answered $status instead of the API's 404."
+            case "$status" in
+              404) code=route.notFound ;;
+              401) code=auth.required ;;
+              *) fail "$base/api/ answered $status instead of the API's 404, or its 401 under authentication." ;;
+            esac
             grep -qi '^content-type: application/problem+json' relay.headers || fail "$base/api/ was not answered by the API."
-            grep -q '"code":"route.notFound"' relay.json || fail "$base/api/ answered without the API's problem code."
+            grep -q "\"code\":\"$code\"" relay.json || fail "$base/api/ answered $status without the API's $code problem code."
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
           done
 

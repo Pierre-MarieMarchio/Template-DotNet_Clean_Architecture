@@ -53,6 +53,9 @@ It refuses to start while a context has no migration, then runs `hygiene`, resto
 context, and the vulnerability listing. The coverage floor is a
 separate task, `coverage`.
 
+On a machine short of memory, `-m:<N>` caps `restore`, `build`, `test`, `coverage` and `verify` at
+N MSBuild nodes and N test projects running at once, as in `dotnet run Tools/Tasks.cs verify -m:4`.
+
 Each gate proves it can fail before it judges the tree: `hygiene` runs the `--self-test` of the
 generator, the removal command and the coverage gate, each against faulted and sound fixtures. A gate
 also refuses to pass on nothing: a test run that executed no test and a coverage total over no

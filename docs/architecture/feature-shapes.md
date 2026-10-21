@@ -46,6 +46,9 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 `Files` is this shape too: a stored file's states and transitions are rules the aggregate protects.
 <!--#endif-->
 
+`new-use-case` adds one operation to a feature of this shape, as
+[adding a feature](../guides/adding-a-feature.md#add-a-use-case) shows.
+
 ## Side by side
 
 | | Simple | Rich |

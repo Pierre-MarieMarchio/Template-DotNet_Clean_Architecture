@@ -20,6 +20,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
 | `e2e` | the end-to-end suite against a Compose stack of its own, removed afterwards unless `--keep-stack` |
 | `new-feature`, `remove-feature` | the feature generator and its undo |
+| `new-use-case` | one more use case in a feature of the rich shape |
 | `migration-add`, `database-update` | `dotnet ef` over the business context |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |

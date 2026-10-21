@@ -32,8 +32,8 @@ public sealed class DocumentationCitationTests
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
-    private static readonly Regex _featureOptionNames = new(
-        @"FeatureOptionNames\s*=\s*\[(?<body>[^\]]*)\]",
+    private static readonly Regex _taskOptionNames = new(
+        @"(?:Feature|UseCase)OptionNames\s*=\s*\[(?<body>[^\]]*)\]",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -254,7 +254,9 @@ public sealed class DocumentationCitationTests
     private static HashSet<string> LauncherOptions()
     {
         string source = File.ReadAllText(Launcher());
-        var options = QuotedNames(_featureOptionNames.Match(source).Groups["body"].Value);
+        var options = _taskOptionNames.Matches(source)
+            .SelectMany(match => QuotedNames(match.Groups["body"].Value))
+            .ToHashSet(StringComparer.Ordinal);
         options.Add("help");
 
         foreach (Match parsed in _parsedOption.Matches(source))

@@ -1,0 +1,64 @@
+<Project>
+
+  <PropertyGroup>
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
+    <ImportDirectoryPackagesProps>false</ImportDirectoryPackagesProps>
+    <TemplateRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))/</TemplateRoot>
+    <ArtifactsPath>$(TemplateRoot)artifacts/template-package</ArtifactsPath>
+  </PropertyGroup>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageType>Template</PackageType>
+    <PackageId>CleanArch.WebApi.Templates</PackageId>
+    <PackageVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</PackageVersion>
+    <Title>.NET Clean Architecture API templates</Title>
+    <Authors>Pierre-MarieMarchio</Authors>
+    <Description>dotnet new templates for a .NET 10 HTTP API on Clean Architecture, meant to be kept: cleanarch-webapi generates the solution (EF Core on PostgreSQL, local, external or no authentication, Files, jobs, mail, architecture tests, CI and documentation, each part chosen by an option); cleanarch-webapp and cleanarch-webpackage add a web app or a package to its pnpm workspace.</Description>
+    <PackageTags>dotnet-new;templates;clean-architecture;webapi;ddd;aspnetcore;efcore;postgresql</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);NU5128;NU5123</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <TemplateExclude Include="$(TemplateRoot).git/**;$(TemplateRoot).git" />
+    <TemplateExclude Include="$(TemplateRoot).claude/**;$(TemplateRoot).vs/**;$(TemplateRoot).idea/**;$(TemplateRoot).vscode/**" />
+    <TemplateExclude Include="$(TemplateRoot)**/bin/**;$(TemplateRoot)**/obj/**;$(TemplateRoot)**/node_modules/**;$(TemplateRoot)**/TestResults/**" />
+    <TemplateExclude Include="$(TemplateRoot)artifacts/**;$(TemplateRoot).env" />
+    <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj" />
+    <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md" />
+    <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md" />
+    <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml" />
+    <TemplateExclude Include="$(TemplateRoot)Tools/CheckDocPaths.cs;$(TemplateRoot)Tools/CheckWorkflows.cs;$(TemplateRoot)Tools/CheckComments.cs" />
+    <TemplateExclude Include="$(TemplateRoot)Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs" />
+    <TemplateExclude Include="$(TemplateRoot)Src/Web/**/dist/**;$(TemplateRoot)Src/Web/**/coverage/**;$(TemplateRoot)Src/Web/packages/api-client/openapi/**;$(TemplateRoot)Src/Web/pnpm-lock.yaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(TemplateRoot)**/*" Exclude="@(TemplateExclude)" Pack="true" PackagePath="content/" />
+    <None Include="$(TemplateRoot)README.md" Pack="true" PackagePath="/" />
+    <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <Target Name="RequireTemplateVersion" BeforeTargets="GenerateNuspec">
+    <Error Condition="'$(PackageVersion)' == ''" Text="No templateVersion symbol with a value was found in .template.config/template.json." />
+  </Target>
+
+</Project>

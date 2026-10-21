@@ -71,7 +71,8 @@ conditioned on its options. Its `README.md` is the project's own, from
 `.template.config/variants/project/README.md`.
 
 What maintains the template stays here: `docs/template/`, this repository's `README.md`, the
-changelog, the plans, `template-acceptance.yml`, and the three tree-auditing gates
+changelog, the plans, the package project `.template.config/TemplatePackage.csproj`,
+`template-acceptance.yml` and `template-release.yml`, and the three tree-auditing gates
 `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and `Tools/CheckComments.cs`.
 [Template decision 0002](decisions/0002-nothing-about-the-template-reaches-a-project.md) records why.
 

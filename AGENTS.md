@@ -79,6 +79,7 @@ From the repository root.
 - A choice another team could reasonably have made otherwise is an ADR;
   [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
 - Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
+  `DocumentationCitationTests` checks the root pages, the `AGENTS.md` files and every task a page cites.
 - Markdown and C# files are UTF-8 with BOM and LF line endings; `format-fix` repairs them.
 
 ## Adding or removing a feature
@@ -133,7 +134,8 @@ This repository is also the `dotnet new` template the project pages describe; pa
 
 - `verify` also runs the template's gates: `Tools/CheckDocPaths.cs`, `Tools/CheckComments.cs`,
   `Tools/CheckWorkflows.cs` and `dotnet run Tools/Tasks.cs web-lockfiles --check`. Each runs alone
-  with `dotnet run`; a generated project keeps none of them.
+  with `dotnet run`; a generated project keeps none of them, and `DocumentationCitationTests` holds
+  its citations.
 - A shared file conditions a sentence on an option only where the option changes what is true, a
   whole sentence per branch; read it in the default form and in
   `--auth none --examples none --files false`.

@@ -15,5 +15,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj" />
   </ItemGroup>
+  <!--#if (files)-->
+
+  <ItemGroup>
+    <Compile Include="..\AppTemplate.Infrastructure.Storage.UnitTests\Features\Files\Contracts\*.cs" LinkBase="Features\Files\Contracts" />
+  </ItemGroup>
+  <!--#endif-->
 
 </Project>

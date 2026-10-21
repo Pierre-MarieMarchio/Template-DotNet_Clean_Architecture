@@ -24,5 +24,11 @@
     <ProjectReference Include="..\..\..\Src\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
     <!--#endif-->
   </ItemGroup>
+  <!--#if (files)-->
+
+  <ItemGroup>
+    <Compile Include="..\..\Infrastructure\AppTemplate.Infrastructure.Storage.UnitTests\Features\Files\Contracts\*.cs" LinkBase="Storage\Contracts" />
+  </ItemGroup>
+  <!--#endif-->
 
 </Project>

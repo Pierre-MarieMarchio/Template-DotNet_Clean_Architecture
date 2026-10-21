@@ -8,21 +8,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
 
 public sealed class GrantTableFixture : IAsyncLifetime
 {
-    private const string _postgresImage =
-        "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
-
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(_postgresImage)
-        .WithDatabase("apptemplate_identity_unit_tests")
-        .WithUsername("apptemplate_tests")
-        .WithPassword("apptemplate_tests")
-        .Build();
+    private readonly DatabaseServer _server = new("apptemplate_identity_unit_tests");
 
     private IConfiguration? _configuration;
 
@@ -33,12 +25,12 @@ public sealed class GrantTableFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await _container.StartAsync(TestContext.Current.CancellationToken);
+        await _server.StartAsync(TestContext.Current.CancellationToken);
 
         _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = _container.GetConnectionString(),
+                ["ConnectionStrings:Default"] = _server.ConnectionString,
 
                 ["IdentitySeed:Enabled"] = "false",
             })
@@ -61,7 +53,7 @@ public sealed class GrantTableFixture : IAsyncLifetime
             await _services.DisposeAsync();
         }
 
-        await _container.DisposeAsync();
+        await _server.DisposeAsync();
     }
 
     public ServiceProvider ComposeWith(params IInterceptor[] interceptors) =>

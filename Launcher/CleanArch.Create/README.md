@@ -6,7 +6,7 @@ generated, it adds a web app or a web package the same way.
 
 ## Create a project
 
-You need the .NET SDK 10.0.300 or a later 10.0.3xx, which runs a tool without installing it:
+You need a .NET 10 SDK (10.0.100 or later), which runs a tool without installing it:
 
 ```bash
 dnx CleanArch.Create

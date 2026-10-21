@@ -2,7 +2,7 @@
 
 ## With the launcher
 
-With the .NET SDK 10.0.300 or a later 10.0.3xx, one command asks for the name and every option, then
+With a .NET 10 SDK (10.0.100 or later), one command asks for the name and every option, then
 generates the project:
 
 ```bash

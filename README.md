@@ -27,7 +27,7 @@ grows on, and the options remove what a product does not need.
 
 ## Quick start
 
-You need the .NET SDK 10.0.300 or a later 10.0.3xx, and Docker with Compose v2.
+You need a .NET 10 SDK (10.0.100 or later), and Docker with Compose v2.
 
 ```bash
 dnx CleanArch.Create                    # asks for the name and each option, then generates

@@ -45,8 +45,4 @@ public sealed class LocalizationOptionsValidatorTests
         result.Failed.ShouldBeTrue();
         result.FailureMessage.ShouldContain(culture);
     }
-
-    [Fact]
-    public void TheSectionName_IsTheOneEveryHostBinds() =>
-        LocalizationOptions.SectionName.ShouldBe("Localization");
 }

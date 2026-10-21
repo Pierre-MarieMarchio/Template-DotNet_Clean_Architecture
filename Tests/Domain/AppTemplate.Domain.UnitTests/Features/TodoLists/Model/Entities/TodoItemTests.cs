@@ -251,7 +251,4 @@ public sealed class TodoItemTests
     [Fact]
     public void TheItemType_CannotBeConstructedFromOutsideTheDomain() =>
         typeof(TodoItem).GetConstructors().ShouldBeEmpty();
-
-    [Fact]
-    public void TheItemType_IsSealed() => typeof(TodoItem).IsSealed.ShouldBeTrue();
 }

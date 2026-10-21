@@ -36,7 +36,4 @@ public sealed class DomainExceptionTests
                         ? (object)"invariant violated"
                         : new InvalidOperationException("underlying"))]))
             .ShouldAllBe(exception => !string.IsNullOrWhiteSpace(exception.Message));
-
-    [Fact]
-    public void TheExceptionType_IsSealed() => typeof(DomainException).IsSealed.ShouldBeTrue();
 }

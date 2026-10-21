@@ -45,8 +45,10 @@ From the repository root.
 
 ## Changing code
 
-- Code carries no explanatory comment. A name that needs one is renamed; a reason goes to an ADR or a
-  page. Only OpenAPI XML documentation and one guidance line per configuration setting remain.
+- Clean comments: the code reads by itself, through its names and its shape. A comment stays only
+  when it says what the code cannot: a reason, a constraint from outside, a reference. A comment that
+  explains what the code does means the code needs reworking: rename, extract or simplify it. A
+  reason that outlives a line goes to an ADR or a page.
 - Never silence a diagnostic with `#pragma`, `<NoWarn>`, a lowered severity or a skipped test: fix the
   code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) says why.
 - Extract an abstraction only once two real cases prove its shape.

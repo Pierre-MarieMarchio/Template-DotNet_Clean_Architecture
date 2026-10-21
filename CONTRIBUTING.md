@@ -19,7 +19,7 @@ Each rule has one home, and a test holds it wherever a test can.
 | Which project and folder a file goes in, and its name | [Project layout](docs/reference/project-layout.md) |
 | A feature's shape: an aggregate, or a service over a store | [Feature shapes](docs/architecture/feature-shapes.md) |
 | The contract every endpoint offers | [HTTP API](docs/architecture/http-api.md) |
-| Code carries no comment; reasons live in ADRs and pages | [AGENTS.md › Changing code](AGENTS.md#changing-code), [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
+| Clean comments: the code reads by itself; a comment only says what the code cannot | [AGENTS.md › Changing code](AGENTS.md#changing-code), [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
 | Extract an abstraction only once two real cases prove it | [AGENTS.md › Changing code](AGENTS.md#changing-code) |
 | How tests are written | [Testing › House rules](docs/guides/testing.md#house-rules) |
 | Adding and removing a feature | [Adding a feature](docs/guides/adding-a-feature.md), [Removing features](docs/guides/removing-features.md) |

@@ -1221,25 +1221,12 @@ internal static class NewFeature
         output.WriteLine($"     with using {p}.Application; if the file has none yet");
         output.WriteLine();
 
-        string[] ports =
-        [
-            .. record && flags.Contains("stage") ? [$"I{a}Store"] : Array.Empty<string>(),
-            .. !record ? [$"I{a}Repository"] : Array.Empty<string>(),
-            .. flags.Contains("rq") ? [$"I{a}Queries"] : Array.Empty<string>(),
-        ];
-
         string moduleTests = $"Tests/Application/{p}.Application.UnitTests/ApplicationModuleTests.cs";
 
         if (File.Exists(Path.Combine(root, moduleTests)))
         {
-            output.WriteLine($"  6. {moduleTests}: nameof(ApplicationModule.Add{f}) in");
-            output.WriteLine($"     FeatureCalls, services.Add{f}(); in ComposeEveryFeature, and in BuildProvider a double for each port");
-            output.WriteLine($"     the application layer declares ({string.Join(", ", ports)}), so the container builds");
-
-            if (!record)
-            {
-                output.WriteLine($"     and _knownUseCaseCount raised by {spec.Operations.Length}, the use cases this feature declares");
-            }
+            output.WriteLine($"  6. {moduleTests}: services.Add{f}(); in ComposeEveryFeature,");
+            output.WriteLine("     so the registration facts read the feature's use cases and validators");
         }
         else
         {

@@ -37,7 +37,7 @@ ever passed and let the review catch the rest.
   `FileContentInventoryContract`, run against the in-memory double and every adapter.
 <!--#endif-->
 - **The stack as shipped is held by a small end-to-end suite**, one test per flow, run over HTTP
-  against the Compose stack by `dotnet run Tools/Tasks.cs e2e`, apart from `verify`: no lower type
+  against the Compose stack by `dotnet run Tools/Tasks.cs end-to-end`, apart from `verify`: no lower type
   fails for a broken Compose file, a mail that never reaches the inbox or a relay that drops a
   request, and none of them needs the whole stack built.
 <!--#if (ci)-->
@@ -56,7 +56,7 @@ ever passed and let the review catch the rest.
 - Ownership and a controller's HTTP behaviour are proved against PostgreSQL, so a run without Docker
   no longer exercises them.
 - The coverage figure moves when decorative tests go; it is re-measured, not defended.
-- A change to the stack, a mail or a relay is proved by `e2e` before it is done, since `verify` does
+- A change to the stack, a mail or a relay is proved by `end-to-end` before it is done, since `verify` does
   not start the stack.
 - The test-stack row of [ADR 0001](0001-adopt-the-generated-baseline.md) is unchanged.
 

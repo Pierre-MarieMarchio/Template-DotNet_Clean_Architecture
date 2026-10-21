@@ -32,7 +32,7 @@ builds with warnings as errors, runs the Docker-free tests, checks every generat
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
 run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then
-runs the generated project's `dotnet run Tools/Tasks.cs e2e` against its Compose stack. The defaults
+runs the generated project's `dotnet run Tools/Tasks.cs end-to-end` against its Compose stack. The defaults
 leg, the local-auth leg without examples and the external-auth leg without examples also run the
 generator round trip: `new-feature` writes an owner feature, a shared one and an aggregate one in
 turn, each builds in the domain and application layers and passes its own unit tests there, the

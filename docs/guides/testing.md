@@ -96,7 +96,7 @@ dotnet run Tools/Tasks.cs test                                          # the so
 dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
 dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
 dotnet run Tools/Tasks.cs openapi                                       # rewrite the OpenAPI reference after a contract change
-dotnet run Tools/Tasks.cs e2e                                           # the end-to-end suite against a stack of its own
+dotnet run Tools/Tasks.cs end-to-end                                    # the end-to-end suite against a stack of its own
 ```
 
 Each integration project starts one PostgreSQL container and one host for the whole suite, and every
@@ -121,7 +121,7 @@ docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 
 ## The end-to-end suite
 
-`dotnet run Tools/Tasks.cs e2e` builds and starts the Compose stack from `.env.example` under a
+`dotnet run Tools/Tasks.cs end-to-end` builds and starts the Compose stack from `.env.example` under a
 project name of its own, waits until every service is healthy, runs the suite, prints the stack's
 logs on a failure, then removes the stack with its volumes. `--keep-stack` leaves it running. The
 development stack keeps its data, but it holds the same ports: stop it first.

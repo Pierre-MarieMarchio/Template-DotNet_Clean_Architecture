@@ -184,7 +184,7 @@ Paste an access token into its authentication field to call the protected routes
 ```bash
 dotnet run Tools/Tasks.cs test                    # the solution's suites, Docker needed
 dotnet run Tools/Tasks.cs test --no-integration   # without Docker
-dotnet run Tools/Tasks.cs e2e                     # the end-to-end suite, against a stack of its own
+dotnet run Tools/Tasks.cs end-to-end              # the end-to-end suite, against a stack of its own
 ```
 
 The integration suites start their own PostgreSQL in a container. The end-to-end suite starts a

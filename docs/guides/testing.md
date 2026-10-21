@@ -90,7 +90,7 @@ linked into the in-memory and integration suites.
 dotnet run Tools/Tasks.cs test                                          # the solution
 dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
 dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
-dotnet run Tools/Tasks.cs openapi                 # rewrite the OpenAPI reference after a contract change
+dotnet run Tools/Tasks.cs openapi                                       # rewrite the OpenAPI reference after a contract change
 ```
 
 Each integration project starts one PostgreSQL container and one host for the whole suite, and every

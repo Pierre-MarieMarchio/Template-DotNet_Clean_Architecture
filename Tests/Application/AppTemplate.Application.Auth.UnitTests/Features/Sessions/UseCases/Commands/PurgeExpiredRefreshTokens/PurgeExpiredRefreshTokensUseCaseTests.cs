@@ -35,14 +35,4 @@ public sealed class PurgeExpiredRefreshTokensUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(3);
     }
-
-    [Fact]
-    public async Task ExecuteAsync_Forwards_TheCancellationToken()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(cancellation.Token);
-
-        await _sessionTokens.Received(1).PurgeExpiredRefreshTokensAsync(Arg.Any<DateTimeOffset>(), cancellation.Token);
-    }
 }

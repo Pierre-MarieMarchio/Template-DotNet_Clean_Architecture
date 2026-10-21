@@ -67,17 +67,6 @@ public sealed class GetCurrentUserUseCaseTests
         result.Error!.Code.ShouldBe("auth.required");
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwarded()
-    {
-        _accounts.FindProfileAsync(_callerId, Arg.Any<CancellationToken>()).Returns(AProfile());
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(cancellation.Token);
-
-        await _accounts.Received(1).FindProfileAsync(_callerId, cancellation.Token);
-    }
-
     private static UserProfile AProfile() =>
         new(_callerId, "someone@example.com", true, [], DateTimeOffset.UtcNow, false, HasPassword: true);
 

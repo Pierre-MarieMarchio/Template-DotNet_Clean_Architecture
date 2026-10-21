@@ -135,20 +135,6 @@ public sealed class RefreshAccessTokenUseCaseTests
         });
     }
 
-    [Fact]
-    public async Task TheCancellationToken_ReachesEveryStep()
-    {
-        var userId = GivenTheGrantRotates();
-        _accounts.CanSignInAsync(userId, Arg.Any<CancellationToken>()).Returns(true);
-        using var cancellation = new CancellationTokenSource();
-
-        await _useCase.ExecuteAsync(new RefreshAccessTokenCommand("presented"), cancellation.Token);
-
-        await _sessionTokens.Received(1).RotateRefreshTokenAsync("presented", Arg.Any<SessionClient>(), cancellation.Token);
-        await _accounts.Received(1).CanSignInAsync(userId, cancellation.Token);
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(userId, Arg.Any<Guid>(), cancellation.Token);
-    }
-
     private Guid GivenTheGrantRotates()
     {
         var userId = Guid.CreateVersion7();

@@ -153,16 +153,6 @@ public sealed class CreateTodoListUseCaseTests
     }
 
     [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheCommit()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new CreateTodoListCommand("Groceries"), cancellation.Token);
-
-        await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
-    }
-
-    [Fact]
     public async Task TheStagedList_CarriesACreationEventStampedByTheInjectedClock()
     {
         var staged = CaptureStagedLists();

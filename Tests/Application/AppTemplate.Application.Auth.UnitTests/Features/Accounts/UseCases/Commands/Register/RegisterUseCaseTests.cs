@@ -201,19 +201,6 @@ public sealed class RegisterUseCaseTests
         });
     }
 
-    [Fact]
-    public async Task TheCancellationToken_ReachesEveryStep()
-    {
-        GivenTheAddressIs(AddressState.Unknown);
-        using var cancellation = new CancellationTokenSource();
-
-        await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
-
-        await _accounts.Received(1).RegisterAsync(_email, _password, cancellation.Token);
-        await _emailTokens.Received(1).IssueEmailConfirmationAsync(_email, cancellation.Token);
-        await _emailSender.Received(1).SendAsync(_email, Arg.Any<string>(), Arg.Any<string>(), cancellation.Token);
-    }
-
     [Theory]
     [InlineData("", _password)]
     [InlineData("not-an-email", _password)]

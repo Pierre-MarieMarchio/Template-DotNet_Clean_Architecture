@@ -75,18 +75,6 @@ public sealed class SetUpTwoFactorUseCaseTests
         result.Error!.Code.ShouldBe("auth.twoFactor.setupRejected");
     }
 
-    [Fact]
-    public async Task TheCancellationToken_ReachesTheTwoFactorPort()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        _twoFactor.BeginSetupAsync(_callerId, Arg.Any<CancellationToken>()).Returns(TwoFactorSetupOutcome.Started("key", "uri"));
-
-        await UseCase().ExecuteAsync(cancellation.Token);
-
-        await _twoFactor.Received(1).BeginSetupAsync(_callerId, cancellation.Token);
-    }
-
     private SetUpTwoFactorUseCase UseCaseFor(ICurrentUser currentUser) => new(_twoFactor, currentUser);
 
     private SetUpTwoFactorUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));

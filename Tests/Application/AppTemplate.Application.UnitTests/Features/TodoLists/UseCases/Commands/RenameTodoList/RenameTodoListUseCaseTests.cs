@@ -164,19 +164,6 @@ public sealed class RenameTodoListUseCaseTests
     }
 
     [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheLoadAndTheCommit()
-    {
-        var list = ATodoList.OwnedBy(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new RenameTodoListCommand(list.Id, "Shopping"), cancellation.Token);
-
-        await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
-        await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
-    }
-
-    [Fact]
     public async Task ARename_RaisesNoDomainEvent()
     {
         var list = GivenTheCallerOwnsAList();

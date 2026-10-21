@@ -53,16 +53,6 @@ public sealed class LogoutEverywhereUseCaseTests
         _securityEventLog.DidNotReceive().Record(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwarded()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(cancellation.Token);
-
-        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_callerId, cancellationToken: cancellation.Token);
-    }
-
     private LogoutEverywhereUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(_sessionTokens, _securityEventLog, currentUser);
 

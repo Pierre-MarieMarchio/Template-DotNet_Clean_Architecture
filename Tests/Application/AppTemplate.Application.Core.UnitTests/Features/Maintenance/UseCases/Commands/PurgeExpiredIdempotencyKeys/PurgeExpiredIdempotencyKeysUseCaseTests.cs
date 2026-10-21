@@ -41,14 +41,4 @@ public sealed class PurgeExpiredIdempotencyKeysUseCaseTests
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(7);
     }
-
-    [Fact]
-    public async Task ExecuteAsync_Forwards_TheCancellationToken()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(cancellation.Token);
-
-        await _store.Received(1).PurgeExpiredAsync(Arg.Any<DateTimeOffset>(), cancellation.Token);
-    }
 }

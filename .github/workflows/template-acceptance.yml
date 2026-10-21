@@ -152,6 +152,27 @@ jobs:
             exit 1
           fi
 
+      # A project carries one database provider: no other provider's package, type or SQL reaches its code, tests or tooling.
+      - name: Assert no other database provider leaked into the project
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          DATABASE: ${{ matrix.database || 'postgresql' }}
+        run: |
+          set -euo pipefail
+          case "$DATABASE" in
+            postgresql) forbidden='SqlServer|SqlClient|MsSql|MySql|Pomelo|VersionStamping|SchemaAsTablePrefix|database-(sqlserver|mysql|sqlite)' ;;
+            sqlserver) forbidden='Npgsql|PostgreSql|xmin|pg_|MySql|Pomelo|SchemaAsTablePrefix' ;;
+            mysql) forbidden='Npgsql|PostgreSql|xmin|pg_|SqlServer|SqlClient|MsSql' ;;
+            sqlite) forbidden='Npgsql|PostgreSql|xmin|pg_|SqlServer|SqlClient|MsSql|MySql|Pomelo' ;;
+            *) echo "::error title=Unknown database::$DATABASE"; exit 1 ;;
+          esac
+          leaked=$(grep -rIlE "$forbidden" --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj --exclude-dir=node_modules --exclude-dir=docs . || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Database provider leaked::A --database $DATABASE project names another provider."
+            grep -rInE "$forbidden" $leaked | head -50
+            exit 1
+          fi
+
       # The API is ready for a web app in every project; the workspace, its workflow, its Dependabot entry and its Compose wiring come with the first app only.
       - name: Assert a project without a web app carries no web workspace
         if: matrix.web != 'true' || matrix.first_app
@@ -624,3 +645,7 @@ jobs:
           refuse alone --auth none
           refuse notes --auth none --examples notes
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
+          # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
+          refuse sqlserver --database sqlserver
+          refuse mysql --database mysql
+          refuse sqlite --database sqlite

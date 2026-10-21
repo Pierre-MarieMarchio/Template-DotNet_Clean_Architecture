@@ -48,10 +48,16 @@ updates:
           - Asp.Versioning.*
           - FluentValidation*
           - MailKit
+          #if (postgreSql)
           - Npgsql.*
+          #endif
           - Scalar.*
 
+      #if (postgreSql)
       # The OpenTelemetry 1.x band; Npgsql.OpenTelemetry stays with Npgsql.*.
+      #else
+      # The OpenTelemetry 1.x band.
+      #endif
       observability:
         applies-to: version-updates
         patterns:

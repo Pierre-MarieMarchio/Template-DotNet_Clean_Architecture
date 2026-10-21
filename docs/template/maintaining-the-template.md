@@ -81,6 +81,45 @@ the engine refuses to overwrite one, so everything a web app needs from the API 
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
 
+## Database providers
+
+A project carries one provider. PostgreSQL is in-tree: compiled, tested and covered in this checkout.
+Every other provider is a whole-file overlay under `.template.config/variants/database-<name>/`: each
+file replaces the PostgreSQL file at the same path, with the same type names and public members, and
+`template.json` excludes the PostgreSQL file under `(!postgreSql)`. The rest of the code, the domain
+and the application never name a provider.
+
+| Overlaid file | Supplies |
+|---|---|
+| `Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs` | `DesignTimeConnectionString`, `VersionColumnName`, both `UseDatabase` overloads (design time, and run time with `DatabaseOptions` and `ContextMigrations`), `ApplyDatabaseConventions`, `IsVersion`, `IncludingColumns`, `WhereColumnEquals`, `IsUniqueViolation`, `DedicatedConnectionString` |
+| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/LeaderLease.cs` | `LeaderLease`, the `ILeaderLease` adapter, constructed from `IConfiguration` and a logger |
+| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs` | `OwnerQuotaLock`, constructed from the connection string and a logger, throwing `OwnerQuotaLockTimeoutException` after `WaitLimit` |
+| `Src/Presentation/AppTemplate.Api/Common/Observability/DatabaseInstrumentation.cs` | the provider's tracing and metrics, or none |
+| `docker-compose.database.yml` | the `db` service and the `database-client` service whose environment gives the api `ConnectionStrings__Default`; SQLite declares only `database-client`, which mounts the `db-data` volume |
+| `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`; the API one adds `TablesSql` and `ResetSql`, the Auth one `TransientFault` |
+| `Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs` | the provider's own unit tests and faults; an overlay may leave one out by a `template.json` exclusion |
+
+A provider without `xmin` registers `VersionStampingSaveChangesInterceptor` from its run-time
+`UseDatabase`, which the modules call after the saving interceptors; `IsVersion` makes `Version` a
+plain concurrency token. A provider without schemas adds `SchemaAsTablePrefixConvention` in
+`ApplyDatabaseConventions` and names each history table with its `TableName`. Both are in-tree and
+tested on SQLite here, and shipped only under `versionCounter` and `tablePrefixes`.
+
+The shared files carry every provider's lines already: the package references of
+`Src/Infrastructure/AppTemplate.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
+two integration projects, the versions in `Directory.Packages.props`, the variables of `.env.example`,
+and the `developmentConnectionString` switch that rewrites `appsettings.Development.json`. An overlay's
+compose file uses the variable names `.env.example` gives it.
+
+A provider is refused until its overlay is wired. Wiring one is three edits to `template.json`: a
+source copying the folder under its computed symbol, the removal of its `NotYetGenerated` refusal with
+its `dotnetcli.host.json` entry, and its removal from `refusedOptions`. `TemplatePackagingTests`
+fails until the three agree with the folder. Its refusal line in the acceptance refusal job becomes a
+leg, and each leg's provider-leak check reads the leg's `database`.
+
+An overlay file starts as a copy of its PostgreSQL counterpart, so `git log` on both paths finds a
+change one of them missed.
+
 ## Adding an option
 
 1. Declare the parameter in `.template.config/template.json` with its `displayName`, and a computed

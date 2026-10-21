@@ -174,6 +174,22 @@
       "type": "computed",
       "value": "(!sqlite)"
     },
+    "developmentConnectionString": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          { "condition": "(sqlServer)", "value": "Server=localhost,1433;Database=appdb;User Id=sa;Password=Local_dev_sa_1;TrustServerCertificate=True" },
+          { "condition": "(mySql)", "value": "Server=localhost;Port=3306;Database=appdb;User=appuser;Password=appuser_local_dev" },
+          { "condition": "(sqlite)", "value": "Data Source=App_Data/appdb.db" },
+          { "condition": "(true)", "value": "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Include Error Detail=true;Gss Encryption Mode=Disable" }
+        ]
+      },
+      "replaces": "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Include Error Detail=true;Gss Encryption Mode=Disable",
+      "description": "The Default connection string of appsettings.Development.json, for the chosen database and the credentials .env.example gives it."
+    },
     "templateMaintenance": {
       "type": "computed",
       "value": "false",
@@ -567,6 +583,42 @@
             "Src/Web/pnpm-lock.yaml",
             "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/**",
             "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/**"
+          ]
+        },
+        {
+          "condition": "(!postgreSql)",
+          "exclude": [
+            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/LeaderLease.cs",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs",
+            "Src/Presentation/AppTemplate.Api/Common/Observability/DatabaseInstrumentation.cs",
+            "docker-compose.database.yml",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/DatabaseServer.cs",
+            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs"
+          ]
+        },
+        {
+          "condition": "(!serverDatabase)",
+          "exclude": [
+            ".github/workflows/release.yml"
+          ]
+        },
+        {
+          "condition": "(!versionCounter)",
+          "exclude": [
+            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/Versioning/**",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Saving/Versioning/**"
+          ]
+        },
+        {
+          "condition": "(!tablePrefixes)",
+          "exclude": [
+            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/SchemaAsTablePrefixConvention.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/SchemaAsTablePrefixConventionTests.cs"
           ]
         },
         {

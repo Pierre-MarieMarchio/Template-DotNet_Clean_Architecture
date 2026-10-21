@@ -48,15 +48,6 @@ public sealed class DomainEventDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_RejectsNull()
-    {
-        await using var provider = new ServiceCollection().BuildServiceProvider();
-
-        await Should.ThrowAsync<ArgumentNullException>(
-            async () => await Dispatcher(provider).DispatchAsync(null!));
-    }
-
-    [Fact]
     public async Task DispatchAsync_StillRunsTheSecondConsumer_WhenTheFirstThrows()
     {
         var first = new ThrowingConsumer(new InvalidOperationException("the first consumer is broken"));

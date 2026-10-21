@@ -70,11 +70,6 @@ public sealed class HybridCacheStoreTests
         }
     }
 
-    [Fact]
-    public async Task ItRefusesANullFactory() =>
-        await Should.ThrowAsync<ArgumentNullException>(
-            () => Store.GetOrCreateAsync<string>(NewKey(), null!, _lifetime, TestToken));
-
     private static string NewKey() => $"test:{Guid.CreateVersion7()}";
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

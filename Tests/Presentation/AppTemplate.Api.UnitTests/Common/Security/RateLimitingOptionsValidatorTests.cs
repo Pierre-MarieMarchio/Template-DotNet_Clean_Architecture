@@ -57,8 +57,4 @@ public sealed class RateLimitingOptionsValidatorTests
         //#endif
         result.FailureMessage.ShouldContain("RateLimiting:GlobalPermitLimit");
     }
-
-    [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 }

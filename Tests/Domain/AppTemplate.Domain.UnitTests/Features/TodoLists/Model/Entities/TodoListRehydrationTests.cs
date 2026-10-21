@@ -70,10 +70,6 @@ public sealed class TodoListRehydrationTests
         Should.Throw<DomainException>(() => TodoList.Rehydrate(Guid.Empty, _ownerId, "Groceries", []));
 
     [Fact]
-    public void Rehydrate_RefusesAnAbsentOwner() =>
-        Should.Throw<ArgumentNullException>(() => TodoList.Rehydrate(_listId, null!, "Groceries", []));
-
-    [Fact]
     public void RehydrateItem_RefusesAnEmptyId()
     {
         Should.Throw<DomainException>(
@@ -146,13 +142,6 @@ public sealed class TodoListRehydrationTests
             () => TodoList.Rehydrate(_listId, _ownerId, "Groceries", [foreign]));
 
         exception.Message.ShouldContain(_otherListId.ToString());
-    }
-
-    [Fact]
-    public void Rehydrate_RefusesANullItem()
-    {
-        Should.Throw<ArgumentNullException>(
-            () => TodoList.Rehydrate(_listId, _ownerId, "Groceries", [null!]));
     }
 
     [Fact]

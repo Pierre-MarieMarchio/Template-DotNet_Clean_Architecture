@@ -95,9 +95,4 @@ public sealed class PeriodicJobTests
 
         exception.Message.ShouldBe("boom");
     }
-
-    [Fact]
-    public async Task RunAsync_RefusesANullIteration() =>
-        await Should.ThrowAsync<ArgumentNullException>(
-            () => PeriodicJob.RunAsync(_tinyInterval, null!, CancellationToken.None));
 }

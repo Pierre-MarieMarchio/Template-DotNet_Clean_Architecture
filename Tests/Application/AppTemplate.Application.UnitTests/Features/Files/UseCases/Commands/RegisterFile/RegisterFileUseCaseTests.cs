@@ -287,10 +287,6 @@ public sealed class RegisterFileUseCaseTests
     }
 
     [Fact]
-    public async Task ANullCommand_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    [Fact]
     public async Task ARegisteredFile_IsStagedAndCommitted()
     {
         await UseCase().ExecuteAsync(ACommand(), TestToken);

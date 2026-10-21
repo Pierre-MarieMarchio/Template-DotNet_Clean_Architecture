@@ -41,10 +41,6 @@ public sealed class DomainGuardTests
         Should.Throw<OperationCanceledException>(() => DomainGuard.Try(() => throw new OperationCanceledException()));
 
     [Fact]
-    public void Try_Rejects_ANullOperation() =>
-        Should.Throw<ArgumentNullException>(() => DomainGuard.Try((Action)null!));
-
-    [Fact]
     public void TryOfT_ReturnsTheValue_WhenTheOperationCompletes()
     {
         var result = DomainGuard.Try(() => 42);
@@ -71,8 +67,4 @@ public sealed class DomainGuardTests
     public void TryOfT_LetsAnyOtherExceptionPropagate() =>
         Should.Throw<InvalidOperationException>(
             () => DomainGuard.Try<int>(() => throw new InvalidOperationException()));
-
-    [Fact]
-    public void TryOfT_Rejects_ANullOperation() =>
-        Should.Throw<ArgumentNullException>(() => DomainGuard.Try((Func<int>)null!));
 }

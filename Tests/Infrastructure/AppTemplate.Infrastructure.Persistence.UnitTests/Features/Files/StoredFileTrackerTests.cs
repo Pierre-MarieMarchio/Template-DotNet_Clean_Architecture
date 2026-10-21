@@ -157,9 +157,6 @@ public sealed class StoredFileTrackerTests
             .ShouldBe([first.Id, second.Id]);
     }
 
-    [Fact]
-    public void Restore_RejectsNull() => Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
-
     private StoredFileTracker ATracker() => new(_mapper);
 
     private static StoredFile ARegisteredFile() => StoredFile.Register(

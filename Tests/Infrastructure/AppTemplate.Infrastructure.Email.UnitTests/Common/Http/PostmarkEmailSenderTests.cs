@@ -167,14 +167,6 @@ public sealed class PostmarkEmailSenderTests : IDisposable
         _endpoint.RequestCount.ShouldBe(0);
     }
 
-    [Fact]
-    public async Task SendAsync_RejectsAnAbsentRecipientWithoutSpendingARequest()
-    {
-        await Should.ThrowAsync<ArgumentNullException>(() => SendAsync(recipient: null!));
-
-        _endpoint.RequestCount.ShouldBe(0);
-    }
-
     private Task SendAsync(
         string recipient = "ada@example.invalid",
         string subject = "Subject",

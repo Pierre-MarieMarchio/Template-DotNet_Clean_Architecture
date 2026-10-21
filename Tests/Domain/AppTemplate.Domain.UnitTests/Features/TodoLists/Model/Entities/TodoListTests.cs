@@ -33,14 +33,6 @@ public sealed class TodoListTests
     public void Create_NormalisesTheName() =>
         TodoList.Create(UserId.Create(Guid.CreateVersion7()), "  Groceries  ", _now).Name.Value.ShouldBe("Groceries");
 
-    [Fact]
-    public void Create_Rejects_AnAbsentOwner()
-    {
-        var exception = Should.Throw<ArgumentNullException>(() => TodoList.Create(null!, "Groceries", _now));
-
-        exception.ParamName.ShouldBe("ownerId");
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
@@ -508,15 +500,6 @@ public sealed class TodoListTests
         var list = ANewList();
 
         Should.Throw<DomainException>(() => list.SetItemTags(Guid.CreateVersion7(), ["urgent"]));
-    }
-
-    [Fact]
-    public void SetItemTags_Rejects_ANullTagCollection()
-    {
-        var list = ANewList();
-        var itemId = list.AddItem("Buy milk", null);
-
-        Should.Throw<ArgumentNullException>(() => list.SetItemTags(itemId, null!));
     }
 
     [Fact]

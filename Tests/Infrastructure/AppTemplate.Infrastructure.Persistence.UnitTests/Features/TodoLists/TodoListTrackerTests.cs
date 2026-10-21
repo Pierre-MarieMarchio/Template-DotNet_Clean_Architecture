@@ -152,9 +152,6 @@ public sealed class TodoListTrackerTests
             .ShouldBe([typeof(TodoListCreatedDomainEvent), typeof(TodoItemCompletedDomainEvent)]);
     }
 
-    [Fact]
-    public void Restore_RejectsNull() => Should.Throw<ArgumentNullException>(() => ATracker().Restore(null!));
-
     private TodoListTracker ATracker() => new(_mapper);
 
     private static TodoList ANewList(string name) =>

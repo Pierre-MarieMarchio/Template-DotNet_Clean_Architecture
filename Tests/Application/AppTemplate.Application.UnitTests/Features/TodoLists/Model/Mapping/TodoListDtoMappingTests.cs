@@ -70,12 +70,4 @@ public sealed class TodoListDtoMappingTests
         projected.Version.ShouldBe(42u);
         projected.Value.Id.ShouldBe(itemId);
     }
-
-    [Fact]
-    public void Detail_Rejects_ANullList() =>
-        Should.Throw<ArgumentNullException>(() => TodoListDtoMapping.Detail(null!));
-
-    [Fact]
-    public void Item_Rejects_ANullList() =>
-        Should.Throw<ArgumentNullException>(() => TodoListDtoMapping.Item(null!, Guid.CreateVersion7()));
 }

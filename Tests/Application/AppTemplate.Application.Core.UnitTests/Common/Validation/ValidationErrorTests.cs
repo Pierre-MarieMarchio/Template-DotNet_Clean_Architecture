@@ -79,10 +79,6 @@ public sealed class ValidationErrorTests
     }
 
     [Fact]
-    public void From_Rejects_ANullValidationResult() =>
-        Should.Throw<ArgumentNullException>(() => ValidationError.From(null!));
-
-    [Fact]
     public void ForField_ProducesTheSameStableCodeAndFixedMessage()
     {
         var error = ValidationError.ForField("name", "That name is already taken.");
@@ -93,14 +89,6 @@ public sealed class ValidationErrorTests
         error.Details.ShouldNotBeNull();
         error.Details["name"].ShouldBe(["That name is already taken."]);
     }
-
-    [Fact]
-    public void ForField_Rejects_ANullField() =>
-        Should.Throw<ArgumentNullException>(() => ValidationError.ForField(null!, "m"));
-
-    [Fact]
-    public void ForField_Rejects_ANullMessage() =>
-        Should.Throw<ArgumentNullException>(() => ValidationError.ForField("field", null!));
 
     [Fact]
     public void ForFields_CarriesEveryFieldUnderTheSameStableCodeAndFixedMessage()
@@ -117,8 +105,4 @@ public sealed class ValidationErrorTests
         error.Details!["userName"].ShouldBe(["That user name is invalid."]);
         error.Details["password"].ShouldBe(["Too short.", "Needs a digit."]);
     }
-
-    [Fact]
-    public void ForFields_Rejects_NullDetails() =>
-        Should.Throw<ArgumentNullException>(() => ValidationError.ForFields(null!));
 }

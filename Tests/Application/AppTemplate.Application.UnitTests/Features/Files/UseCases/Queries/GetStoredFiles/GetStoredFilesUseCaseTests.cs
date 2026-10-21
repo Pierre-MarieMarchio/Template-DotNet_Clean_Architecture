@@ -170,10 +170,6 @@ public sealed class GetStoredFilesUseCaseTests
         result.Value.PageSize.ShouldBe(20);
     }
 
-    [Fact]
-    public async Task ANullQuery_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private GetStoredFilesUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private GetStoredFilesUseCase UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser);

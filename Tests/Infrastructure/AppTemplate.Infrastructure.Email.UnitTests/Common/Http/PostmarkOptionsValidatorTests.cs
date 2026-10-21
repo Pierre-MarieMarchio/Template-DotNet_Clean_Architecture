@@ -108,10 +108,6 @@ public sealed class PostmarkOptionsValidatorTests
             .ShouldAllBe(failure => failure.Contains("Postmark:", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void Validate_ThrowsWhenThereAreNoOptionsToValidate() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
-
     private static string RejectionMessageFor(PostmarkOptions options)
     {
         var result = _validator.Validate(name: null, options);

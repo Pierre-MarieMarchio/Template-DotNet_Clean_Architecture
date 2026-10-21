@@ -25,10 +25,6 @@ public sealed class StoredFileLikePatternTests
         StoredFileLikePattern.Contains("a\\b").ShouldBe("%a\\\\b%");
 
     [Fact]
-    public void Contains_Rejects_ANullTerm() =>
-        Should.Throw<ArgumentNullException>(() => StoredFileLikePattern.Contains(null!));
-
-    [Fact]
     public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
     {
         using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()

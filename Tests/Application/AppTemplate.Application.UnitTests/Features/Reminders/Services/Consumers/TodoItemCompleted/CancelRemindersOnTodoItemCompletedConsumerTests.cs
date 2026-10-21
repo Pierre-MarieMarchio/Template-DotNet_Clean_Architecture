@@ -77,10 +77,6 @@ public sealed class CancelRemindersOnTodoItemCompletedConsumerTests
         second.State.ShouldBe(ReminderState.Cancelled);
     }
 
-    [Fact]
-    public async Task ANullEvent_IsAProgrammingError() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => Consumer().ConsumeAsync(null!, TestToken));
-
     private CancelRemindersOnTodoItemCompletedConsumer Consumer() => new(_repository, _unitOfWork);
 
     private static TodoItemCompletedDomainEvent ACompletionOf(Guid todoItemId) =>

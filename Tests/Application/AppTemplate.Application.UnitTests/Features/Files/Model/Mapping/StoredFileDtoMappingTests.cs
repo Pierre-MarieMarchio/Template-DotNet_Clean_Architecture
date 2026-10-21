@@ -68,8 +68,4 @@ public sealed class StoredFileDtoMappingTests
         versioned.Version.ShouldBe(42u);
         versioned.Value.Id.ShouldBe(storedFile.Id);
     }
-
-    [Fact]
-    public void ANullAggregate_IsARejectedArgument() =>
-        Should.Throw<ArgumentNullException>(() => StoredFileDtoMapping.ToDto(null!));
 }

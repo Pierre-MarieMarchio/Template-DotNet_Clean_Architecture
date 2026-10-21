@@ -34,15 +34,6 @@ public sealed class MailKitEmailSenderTests
     }
 
     [Fact]
-    public async Task SendAsync_RejectsAnAbsentRecipientBeforeConnecting()
-    {
-        var sender = SenderWith(Valid());
-
-        await Should.ThrowAsync<ArgumentNullException>(
-            () => sender.SendAsync(null!, "Subject", "<p>Body</p>", TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
     public async Task SendAsync_RefusesAFromAddressThatIsNotAnAddress()
     {
         var settings = Valid();

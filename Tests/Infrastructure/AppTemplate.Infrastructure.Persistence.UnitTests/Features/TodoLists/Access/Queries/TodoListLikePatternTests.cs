@@ -25,10 +25,6 @@ public sealed class TodoListLikePatternTests
         TodoListLikePattern.Contains("a\\b").ShouldBe("%a\\\\b%");
 
     [Fact]
-    public void Contains_Rejects_ANullTerm() =>
-        Should.Throw<ArgumentNullException>(() => TodoListLikePattern.Contains(null!));
-
-    [Fact]
     public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
     {
         using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()

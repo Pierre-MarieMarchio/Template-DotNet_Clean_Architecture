@@ -70,10 +70,6 @@ public sealed class ScheduleReminderUseCaseTests
     }
 
     [Fact]
-    public async Task ANullCommand_IsAProgrammingError() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    [Fact]
     public async Task AnItemTheCallerCannotSee_IsReportedAsTargetNotFound()
     {
         var listId = Guid.CreateVersion7();

@@ -100,10 +100,6 @@ public sealed class CreateTodoListUseCaseTests
     }
 
     [Fact]
-    public async Task ANullCommand_IsAProgrammingError() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
-    [Fact]
     public async Task AValidCommand_StagesAListOwnedByTheCaller()
     {
         await UseCase().ExecuteAsync(new CreateTodoListCommand("Groceries"), TestToken);

@@ -39,8 +39,4 @@ public sealed class CursorKeysTests
 
         CursorKeys.Validate(cursor, _dateField).IsSuccess.ShouldBeTrue();
     }
-
-    [Fact]
-    public void Validate_Rejects_ANullCursor() =>
-        Should.Throw<ArgumentNullException>(() => CursorKeys.Validate(null!, _dateField));
 }

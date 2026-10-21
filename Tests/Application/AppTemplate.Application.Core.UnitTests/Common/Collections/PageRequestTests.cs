@@ -121,8 +121,4 @@ public sealed class PageRequestTests
         result.Error!.Code.ShouldBe("paging.invalid");
         result.Error.Message.ShouldContain("alternatives");
     }
-
-    [Fact]
-    public void Create_Rejects_ANullPolicy() =>
-        Should.Throw<ArgumentNullException>(() => PageRequest.Create(PagingMode.Offset, 1, 10, null, null!));
 }

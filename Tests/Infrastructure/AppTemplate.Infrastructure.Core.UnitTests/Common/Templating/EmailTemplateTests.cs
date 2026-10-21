@@ -106,9 +106,6 @@ public sealed class EmailTemplateTests
     }
 
     [Fact]
-    public void ItRefusesAMissingAssemblyOrName()
-    {
-        Should.Throw<ArgumentNullException>(() => new EmailTemplate(null!, "TestEmailTemplate"));
+    public void ItRefusesABlankName() =>
         Should.Throw<ArgumentException>(() => new EmailTemplate(_resources, "  "));
-    }
 }

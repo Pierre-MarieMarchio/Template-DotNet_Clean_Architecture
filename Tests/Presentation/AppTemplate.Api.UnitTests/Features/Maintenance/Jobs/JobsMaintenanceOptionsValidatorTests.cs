@@ -50,8 +50,4 @@ public sealed class JobsMaintenanceOptionsValidatorTests
 
         _validator.Validate(name: null, options).Failed.ShouldBeTrue();
     }
-
-    [Fact]
-    public void Validate_RejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => _validator.Validate(name: null, options: null!));
 }

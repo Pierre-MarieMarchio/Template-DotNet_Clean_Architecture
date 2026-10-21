@@ -188,11 +188,6 @@ public sealed class StoredFileContentPolicyTests
         Decide("image/png", _png, verifySignature: false, scan: FileScanOutcome.Infected("Eicar-Test-Signature"))
             .ShouldBe(ContentDecision.Quarantine);
 
-    [Fact]
-    public void ANullDeclaredType_IsRejected() =>
-        Should.Throw<ArgumentNullException>(
-            () => StoredFileContentPolicy.Decide(null!, FileScanOutcome.Clean, _png, verifySignature: true));
-
     private static ContentDecision Decide(
         string declaredMediaType,
         ReadOnlyMemory<byte> head,

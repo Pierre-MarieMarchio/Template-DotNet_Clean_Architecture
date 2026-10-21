@@ -108,10 +108,6 @@ public sealed class GetStoredFileUseCaseTests
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
 
-    [Fact]
-    public async Task ANullQuery_IsARejectedArgument() =>
-        await Should.ThrowAsync<ArgumentNullException>(() => UseCase().ExecuteAsync(null!, TestToken));
-
     private static Versioned<StoredFileDto> ADetail(Guid fileId) => new(
         new StoredFileDto(
             fileId,

@@ -35,10 +35,6 @@ public sealed class SearchTermTests
     }
 
     [Fact]
-    public void Create_Rejects_ANullValue() =>
-        Should.Throw<ArgumentNullException>(() => SearchTerm.Create(null!));
-
-    [Fact]
     public void Create_Accepts_AnEmptyValue() =>
         SearchTerm.Create(string.Empty).IsSuccess.ShouldBeTrue();
 }

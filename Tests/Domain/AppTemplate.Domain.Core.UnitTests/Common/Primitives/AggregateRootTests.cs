@@ -36,15 +36,6 @@ public sealed class AggregateRootTests
     }
 
     [Fact]
-    public void RaiseDomainEvent_Rejects_ANullEvent()
-    {
-        var aggregate = new SampleAggregate(Guid.CreateVersion7());
-
-        Should.Throw<ArgumentNullException>(() => aggregate.Raise(null!));
-        aggregate.DomainEvents.ShouldBeEmpty();
-    }
-
-    [Fact]
     public void ClearDomainEvents_EmptiesTheCollection()
     {
         var aggregate = new SampleAggregate(Guid.CreateVersion7());

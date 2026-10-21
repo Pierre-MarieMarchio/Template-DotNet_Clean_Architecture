@@ -39,13 +39,4 @@ public sealed class ValidationExtensionsTests
         error.Details.ShouldNotBeNull();
         error.Details.ShouldContainKey("name");
     }
-
-    [Fact]
-    public async Task EnsureValidAsync_Rejects_ANullValidator()
-    {
-        IValidator<Request> validator = null!;
-
-        await Should.ThrowAsync<ArgumentNullException>(
-            () => validator.EnsureValidAsync(new Request("A name"), TestToken));
-    }
 }

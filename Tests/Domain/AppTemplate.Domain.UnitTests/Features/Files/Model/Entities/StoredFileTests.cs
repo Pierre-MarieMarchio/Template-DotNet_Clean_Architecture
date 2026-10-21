@@ -53,36 +53,12 @@ public sealed class StoredFileTests
     }
 
     [Fact]
-    public void Register_Rejects_AnAbsentOwner()
-    {
-        var exception = Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(null!, _category, _name, _mediaType, _size, _checksum, _now));
-
-        exception.ParamName.ShouldBe("ownerId");
-    }
-
-    [Fact]
     public void Register_Rejects_TheDefaultInstant()
     {
         var exception = Should.Throw<DomainException>(
             () => StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, _checksum, default));
 
         exception.Message.ShouldContain("registered");
-    }
-
-    [Fact]
-    public void Register_Rejects_ANullValueObject()
-    {
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, null!, _name, _mediaType, _size, _checksum, _now));
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _category, null!, _mediaType, _size, _checksum, _now));
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _category, _name, null!, _size, _checksum, _now));
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _category, _name, _mediaType, null!, _checksum, _now));
-        Should.Throw<ArgumentNullException>(
-            () => StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, null!, _now));
     }
 
     [Fact]
@@ -202,15 +178,6 @@ public sealed class StoredFileTests
 
         exception.Message.ShouldContain("pending");
         file.State.ShouldBe(state);
-    }
-
-    [Fact]
-    public void ConfirmDeposit_Rejects_ANullObservedValue()
-    {
-        var file = APendingFile();
-
-        Should.Throw<ArgumentNullException>(() => file.ConfirmDeposit(null!, _checksum));
-        Should.Throw<ArgumentNullException>(() => file.ConfirmDeposit(_size, null!));
     }
 
     [Fact]

@@ -7,6 +7,13 @@ a default applies when the key is absent. `Src/Presentation/AppTemplate.Api/apps
 holds no secret, and a key `A:B` is the environment variable `A__B`. Loading and secrets are in
 [Deployment](../guides/deployment.md).
 
+The Default column is what a deployment gets. `appsettings.Development.json` on the host, and
+`.env.example`, from which Compose's `.env` starts, carry development values over it.
+<!--#if (localAuth)-->
+`.env.example`, for one, locks an account out after 10 failures for 1 minute, where the default is
+5 failures for 15 minutes.
+<!--#endif-->
+
 ## Database
 
 ### `ConnectionStrings`

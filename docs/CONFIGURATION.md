@@ -986,19 +986,12 @@ The route names are the defaults the template writes, not a constraint of the AP
 take any absolute page URL, and a front end that routes differently changes the three values.
 <!--#if (anyWeb)-->
 
-**With a web app, the links open the app.** In development `appsettings.Development.json`
-points the three URLs at the first app's own origin,
-<!--#if (webReact)-->
-`http://localhost:5173`, the Vite development server,
-<!--#elseif (webAngular)-->
-`http://localhost:4200`, the Angular development server,
-<!--#elseif (webPlaceholder)-->
-`http://localhost:8081`, the placeholder's nginx container,
-<!--#endif-->
-whose relay forwards the page's `POST /api/...` to the API. Under Compose the same three default to
-`http://localhost:${WEB_SITE_HOST_PORT}` and the route, so changing the app's host port moves the
-links with it. In a deployment set them to the app's public origin, never to the API's: the API
-serves no page.
+**A web app does not move the links by itself.** The three URLs keep their defaults, which name the
+API's origin, until the app has the three pages: the starter its framework's CLI writes has none. Once
+it does, point the three settings at the app — its development server's origin in
+`appsettings.Development.json`, `CONFIRM_EMAIL_URL`, `RESET_PASSWORD_URL` and `CONFIRM_EMAIL_CHANGE_URL`
+under Compose, its public origin in a deployment; the app's relay forwards each page's `POST /api/...`
+to the API.
 <!--#endif-->
 
 **A mail's subject is not configured.** It is the `<title>` of the template that renders its

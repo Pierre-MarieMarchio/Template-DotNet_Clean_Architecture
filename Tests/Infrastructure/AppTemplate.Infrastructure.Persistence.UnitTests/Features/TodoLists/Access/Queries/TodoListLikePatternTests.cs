@@ -26,7 +26,7 @@ public sealed class TodoListLikePatternTests
         TodoListLikePattern.Contains("a\\b").ShouldBe("%a\\\\b%");
 
     [Fact]
-    public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
+    public void LikeOnBothSidesLowered_ProducesEscapeInTheSql()
     {
         using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
@@ -35,10 +35,10 @@ public sealed class TodoListLikePatternTests
         string pattern = TodoListLikePattern.Contains("50% off_thing");
 
         string sql = context.TodoLists
-            .Where(list => EF.Functions.ILike(list.Name, pattern, "\\"))
+            .Where(list => EF.Functions.Like(list.Name.ToLower(), EF.Parameter(pattern).ToLower(), "\\"))
             .ToQueryString();
 
-        sql.ShouldContain("ILIKE @pattern ESCAPE '\\'");
+        sql.ShouldContain("LIKE lower(@pattern) ESCAPE '\\'");
         sql.ShouldContain("@pattern='%50\\% off\\_thing%'");
     }
 }

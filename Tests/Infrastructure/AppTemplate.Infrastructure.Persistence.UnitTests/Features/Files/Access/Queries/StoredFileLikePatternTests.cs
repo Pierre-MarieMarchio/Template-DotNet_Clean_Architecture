@@ -26,7 +26,7 @@ public sealed class StoredFileLikePatternTests
         StoredFileLikePattern.Contains("a\\b").ShouldBe("%a\\\\b%");
 
     [Fact]
-    public void ILikeWithTheEscapedPattern_ProducesEscapeInTheSql()
+    public void LikeOnBothSidesLowered_ProducesEscapeInTheSql()
     {
         using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
             .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
@@ -35,10 +35,10 @@ public sealed class StoredFileLikePatternTests
         string pattern = StoredFileLikePattern.Contains("50% off_thing");
 
         string sql = context.StoredFiles
-            .Where(file => EF.Functions.ILike(file.Name, pattern, "\\"))
+            .Where(file => EF.Functions.Like(file.Name.ToLower(), EF.Parameter(pattern).ToLower(), "\\"))
             .ToQueryString();
 
-        sql.ShouldContain("ILIKE @pattern ESCAPE '\\'");
+        sql.ShouldContain("LIKE lower(@pattern) ESCAPE '\\'");
         sql.ShouldContain("@pattern='%50\\% off\\_thing%'");
     }
 }

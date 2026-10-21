@@ -49,6 +49,7 @@ Three facts decide the subdirectory shape:
 
    ```bash
    mv services/api/.github/workflows/ci.yml      .github/workflows/api-ci.yml
+   mv services/api/.github/workflows/codeql.yml  .github/workflows/api-codeql.yml
    mv services/api/.github/workflows/release.yml .github/workflows/api-release.yml
    ```
 

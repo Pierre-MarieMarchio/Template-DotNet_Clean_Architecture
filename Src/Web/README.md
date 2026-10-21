@@ -1,4 +1,4 @@
-# Web workspace
+﻿# Web workspace
 
 The pnpm workspace holding every web app under `apps/` and every internal package under `packages/`,
 with one lockfile. pnpm is the version `package.json` pins in `packageManager`, which Corepack runs;
@@ -115,6 +115,15 @@ template cannot edit is yours to add, exactly as `--web` would have written it f
             - vitest
   ```
 
+<!--#if (ci)-->
+- in `.github/workflows/codeql.yml`, the workspace's language as the matrix's second entry:
+
+  ```yaml
+          - language: javascript-typescript
+            build-mode: none
+  ```
+
+<!--#endif-->
 - in `docs/README.md`, the last row under `## Features`:
 
   ```markdown

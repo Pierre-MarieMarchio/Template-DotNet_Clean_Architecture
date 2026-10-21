@@ -1,0 +1,82 @@
+name: CodeQL
+
+# Code scanning beside the gate: its alerts land in the repository's Security tab, and the weekly run picks up new queries.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+# One run per ref: a new push cancels the previous one, except on main.
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  SOLUTION: AppTemplate.sln
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # security-events uploads the results; actions reads the run's own metadata in a private repository.
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: csharp
+            build-mode: manual
+          #if (anyWeb)
+          - language: javascript-typescript
+            build-mode: none
+          #endif
+          #if (templateMaintenance)
+          - language: actions
+            build-mode: none
+          #endif
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET SDK (from global.json)
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # The extractor reads what the compiler compiles: the solution, then each file-based tool, which no project holds.
+      - name: Build
+        if: matrix.language == 'csharp'
+        run: |
+          set -euo pipefail
+          dotnet build "$SOLUTION" --configuration Release
+          for tool in Tools/*.cs; do
+            dotnet build "$tool" --configuration Release
+          done
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          category: /language:${{ matrix.language }}

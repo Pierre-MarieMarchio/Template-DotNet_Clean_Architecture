@@ -21,7 +21,7 @@ grows on, and the options remove what a product does not need.
 - **Web apps if you want them**: a pnpm workspace with React, Angular or a static page, and a client
   generated from the API's own document.
 - **A gate that runs from a clone**: formatting, warnings as errors, the tests with a coverage floor,
-  migration drift, vulnerable packages; CI, release and Sonar workflows.
+  migration drift, vulnerable packages; CI, CodeQL, release and Sonar workflows.
 - **Documentation for the project, not the template**: overview, first run, architecture, one page
   per feature, guides, references and ADRs, conditioned on the options chosen.
 

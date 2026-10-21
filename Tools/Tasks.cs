@@ -44,6 +44,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs remove-feature Widgets
           dotnet run Tools/Tasks.cs remove-feature Widgets --apply
           dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
+          dotnet run Tools/Tasks.cs openapi
           dotnet run Tools/Tasks.cs -- build --configuration Release
         """;
 
@@ -60,6 +61,7 @@ internal static class Tasks
         "migration-add",
         "database-update",
         "migration-bundle",
+        "openapi",
         "run",
         "compose-up",
         "compose-down",
@@ -373,6 +375,10 @@ internal static class Tasks
 
                 break;
 
+            case "openapi":
+                OpenApiReference(repoRoot, api);
+                break;
+
             case "run":
                 Step("dotnet", "run", "--project", api);
                 break;
@@ -394,6 +400,7 @@ internal static class Tasks
             case "bootstrap":
                 Step("dotnet", "format", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
+                OpenApiReference(repoRoot, api);
 
                 try
                 {
@@ -412,7 +419,7 @@ internal static class Tasks
                     WebScaffold(repoRoot, only: null);
                 }
 
-                Write("Formatting stable and tools restored. Commit this before anything else.", ConsoleColor.Green);
+                Write("Formatting stable, OpenAPI reference written and tools restored. Commit this before anything else.", ConsoleColor.Green);
                 break;
 
             case "hygiene":
@@ -459,6 +466,29 @@ internal static class Tasks
 
         Write($"'{task}' completed.", ConsoleColor.Green);
         return 0;
+    }
+
+    private static void OpenApiReference(string repoRoot, string api)
+    {
+        string apiName = Path.GetFileName(api);
+        string reference = Path.Combine(repoRoot, "Tests", "Integration", apiName + ".IntegrationTests", "OpenApi");
+
+        File.Delete(Path.Combine(api, "obj", apiName + ".OpenApiFiles.cache"));
+
+        StepWith(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["ASPNETCORE_ENVIRONMENT"] = "Development",
+                //#if (externalAuth)
+                ["Authentication__External__Authority"] = "https://identity-provider.invalid/",
+                ["Authentication__External__Audience"] = "openapi-document",
+                //#endif
+            },
+            "dotnet",
+            "build", Path.Combine(api, apiName + ".csproj"),
+            "-p:OpenApiGenerateDocumentsOnBuild=true",
+            $"-p:OpenApiDocumentsDirectory={reference}",
+            "-p:OpenApiGenerateDocumentsOptions=--file-name v1");
     }
 
     private static void Gates(string repoRoot)
@@ -1086,9 +1116,22 @@ internal static class Tasks
 
     private static void Step(string executable, params string[] arguments) => StepIn(null, executable, arguments);
 
-    private static void StepIn(string? directory, string executable, params string[] arguments)
+    private static void StepIn(string? directory, string executable, params string[] arguments) =>
+        Launch(directory, new Dictionary<string, string>(StringComparer.Ordinal), executable, arguments);
+
+    private static void StepWith(IReadOnlyDictionary<string, string> defaults, string executable, params string[] arguments) =>
+        Launch(
+            null,
+            defaults
+                .Where(variable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
+                .ToDictionary(variable => variable.Key, variable => variable.Value, StringComparer.Ordinal),
+            executable,
+            arguments);
+
+    private static void Launch(string? directory, Dictionary<string, string> environment, string executable, string[] arguments)
     {
-        string line = executable + " " + string.Join(' ', arguments);
+        string line = string.Concat(environment.Select(variable => $"{variable.Key}={variable.Value} "))
+            + executable + " " + string.Join(' ', arguments);
         Write("> " + line + (directory is null ? string.Empty : $"   (in {directory})"), ConsoleColor.Cyan);
         Console.Out.Flush();
 
@@ -1098,6 +1141,11 @@ internal static class Tasks
             UseShellExecute = false,
             WorkingDirectory = directory ?? string.Empty,
         };
+        foreach (var (name, value) in environment)
+        {
+            startInfo.Environment[name] = value;
+        }
+
         foreach (string argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);

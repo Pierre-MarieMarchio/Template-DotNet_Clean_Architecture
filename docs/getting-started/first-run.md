@@ -33,8 +33,9 @@ Run `corepack enable` once per machine so the pinned pnpm is the one that runs.
 dotnet run Tools/Tasks.cs bootstrap
 ```
 
-Commit what it changes before anything else. It formats the solution, then restores the local tools
-(`dotnet-ef` among them).
+Commit what it changes before anything else. It formats the solution, writes the OpenAPI reference
+the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
+then restores the local tools (`dotnet-ef` among them).
 <!--#if (anyWeb)-->
 It then creates the web app with its framework's official CLI where one is still to be created, installs
 the workspace and generates the API client.

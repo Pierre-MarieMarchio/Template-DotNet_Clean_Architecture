@@ -76,6 +76,13 @@ This repository carries the documentation every generated project receives, in i
 [The template documentation](docs/template/README.md) is about the template alone: using it,
 maintaining it, its acceptance matrix and its own decisions. It never reaches a generated project.
 
+## Support
+
+Report a bug or ask for a feature through
+[the repository's issue forms](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/new/choose),
+which ask for the version and the options generated with; report a vulnerability privately, in a
+security advisory.
+
 ## Licence
 
 MIT: see [LICENSE](LICENSE).

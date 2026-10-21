@@ -84,8 +84,9 @@ conditioned on its options. Its `README.md` is the project's own, from
 
 What maintains the template stays here: `docs/template/`, this repository's `README.md`, the
 changelog, the plans, the package project `.template.config/TemplatePackage.csproj`,
-`template-acceptance.yml` and `template-release.yml`, and the three tree-auditing gates
-`Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and `Tools/CheckComments.cs`.
+`template-acceptance.yml`, `template-release.yml`, the issue forms under `.github/ISSUE_TEMPLATE`,
+and the three tree-auditing gates `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and
+`Tools/CheckComments.cs`.
 [Template decision 0002](decisions/0002-nothing-about-the-template-reaches-a-project.md) records why.
 
 ## Item templates

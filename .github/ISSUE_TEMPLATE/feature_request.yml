@@ -1,0 +1,25 @@
+name: Feature request
+description: Something a generated project should have, or an option the template should offer.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: The need
+      description: What a team building on a generated project cannot do today, and how it works around it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: The proposal
+      description: What the project, a page or an option would hold; for an option, which shapes it creates or refuses.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions it touches
+      description: The ADRs under docs/decisions or docs/template/decisions it would change, if you know them.
+    validations:
+      required: false

@@ -456,6 +456,7 @@
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",
             ".github/workflows/template-release.yml",
+            ".github/ISSUE_TEMPLATE/**",
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",
             "Tools/CheckComments.cs",

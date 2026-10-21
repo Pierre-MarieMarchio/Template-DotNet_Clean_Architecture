@@ -30,7 +30,7 @@ dotnet new cleanarch-webapp -n BackOffice --framework react --scope app-template
 dotnet new cleanarch-webpackage -n tokens --scope app-template
 ```
 
-Pass the project's `--auth` and `--examples` to `cleanarch-webapp` when they are not the defaults.
+Pass the project's `--auth` to `cleanarch-webapp` when it is not the default.
 The app's `README.md` gives the two lines that join it to the stack.
 
 ## The first app of a project generated without one
@@ -41,7 +41,7 @@ A project generated with `--web none` has no workspace. Its first app comes with
 dotnet new cleanarch-webapp -n PlaceholderSite --framework <react|angular|placeholder> --scope app-template --workspace
 ```
 
-Pass the project's `--auth`, `--examples` and `--ci` too when they are not the defaults.
+Pass the project's `--auth` and `--ci` too when they are not the defaults.
 
 `--workspace` writes this folder, the shared packages, the API client and, unless `--ci false`,
 `.github/workflows/web.yml`. The API side is in every project already. What lives in files the item

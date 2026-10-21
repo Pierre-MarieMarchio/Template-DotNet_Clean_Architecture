@@ -141,13 +141,38 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 | Metadata | id, authors, description, tags, licence, the repository `README.md` and `.template.config/icon.png`, all in the package project |
 
 To release, raise `templateVersion`, merge, and push the tag `template-v<version>`.
-`.github/workflows/template-release.yml` then refuses a tag that does not name the version, packs,
-installs the package alone in a scratch hive, generates and builds the defaults, and uploads the
-`.nupkg` as the `template-package` artifact. Its `github-release` job, the only one with
-`contents: write`, creates the tag's GitHub Release with the `.nupkg` attached, as a prerelease when
-the version has a suffix. Its publishing job is skipped until the repository variable
+`.github/workflows/template-release.yml` then refuses a tag that does not name the version, packs the
+template package and the launcher, installs the template package alone in a scratch hive, generates
+and builds the defaults, generates them again through the launcher, and uploads both `.nupkg` files
+as the `template-package` artifact. Its `github-release` job, the only one with `contents: write`,
+creates the tag's GitHub Release with both attached, as a prerelease when the version has a suffix. Its publishing job is skipped until the repository variable
 `PUBLISH_TEMPLATE_TO_NUGET` is `true`, and reads `NUGET_API_KEY` from the `nuget` environment; a
 version already on nuget.org fails the push. Nothing in the workflow runs but on a tag push.
+
+## The launcher
+
+`Launcher/CleanArch.Create` is the .NET tool `dnx CleanArch.Create` runs, with its tests in
+`Launcher/CleanArch.Create.Tests` and its own solution, `Launcher/CleanArch.Create.slnx`. Generation
+and the template package leave the folder out, and `TemplatePackagingTests` holds both.
+
+| Facet | Where |
+|---|---|
+| Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) gives the rules an option and a refusal keep |
+| Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
+| Packages | `Spectre.Console`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
+| Gate | `verify` restores, formats, builds and tests the launcher's solution after the project's gate; CI's `launcher` job does the same |
+| Release | `template-release.yml` packs it beside the template package, installs it as a tool and generates the defaults with it, and attaches it to the release |
+
+Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
+some combination, and the launcher refuses exactly where `refusedOptions` does. One test packs the
+templates, runs the launcher without a terminal for a project, its first web app and a package, and
+compares the tree with what `dotnet new` writes from the same answers.
+
+```bash
+dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive
+```
+
+runs it from the checkout; pass `--template-source` a `.nupkg` to try a packed one.
 
 ## Changelog
 
@@ -160,3 +185,4 @@ version means adopting the change in an existing project takes manual work.
 - [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)
 - [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md)
 - [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md)
+- [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)

@@ -476,6 +476,9 @@ internal static class Tasks
                     "--no-build");
                 //#endif
                 VulnerablePackages(solution);
+                //#if (templateMaintenance)
+                LauncherGate(repoRoot, configuration);
+                //#endif
                 break;
 
             case "web-scaffold":
@@ -586,6 +589,18 @@ internal static class Tasks
         OptionalGate(repoRoot, "CheckComments.cs", repoRoot);
     }
 
+    //#if (templateMaintenance)
+    private static void LauncherGate(string repoRoot, string configuration)
+    {
+        string launcher = Path.Combine(repoRoot, "Launcher", "CleanArch.Create.slnx");
+
+        Step("dotnet", "restore", launcher);
+        Step("dotnet", "format", launcher, "--verify-no-changes", "--no-restore");
+        Step("dotnet", "build", launcher, "--configuration", configuration, "--no-restore");
+        Step("dotnet", "test", "--solution", launcher, "--configuration", configuration, "--no-build");
+    }
+
+    //#endif
     private static void OptionalGate(string repoRoot, string fileName, params string[] arguments)
     {
         string path = Path.Combine(repoRoot, "Tools", fileName);

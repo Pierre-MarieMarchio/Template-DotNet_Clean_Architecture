@@ -1,5 +1,43 @@
 ﻿# Using the template
 
+## With the launcher
+
+With the .NET SDK 10.0.300 or a later 10.0.3xx, one command asks for the name and every option, then
+generates the project:
+
+```bash
+dnx CleanArch.Create
+```
+
+`CleanArch.Create` is a .NET tool, run without being installed. Its questions are the options this
+page lists, read from the templates' own manifests with their choices, defaults and descriptions. It
+explains a refused combination before writing anything and asks its options again, installs
+`CleanArch.WebApi.Templates` at its own version when another one or none is installed, runs
+`dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps.
+
+At the root of a generated project, or in any folder under it, it adds a web app or a package to the
+workspace: the project's authentication, workflows and scope are read from its files, and the first
+app also creates the workspace. It then prints the lines its `README.md` asks to add by hand.
+
+```bash
+dnx CleanArch.Create web-app
+dnx CleanArch.Create web-package
+```
+
+Each question is also a flag named like the option, and `--yes` takes the default of each one not
+given. Without a terminal, every answer is a flag or `--yes` is passed:
+
+```bash
+dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
+dnx CleanArch.Create web-app -n BackOffice --framework react --audience admin --yes
+```
+
+`--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the
+published package, and `--hive <folder>` keeps the template engine's settings apart, as
+`--debug:custom-hive` does. Everything below is `dotnet new` itself, which the launcher runs.
+[Template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) records why
+the launcher reads the manifests rather than copying them.
+
 ## Install and uninstall
 
 From a GitHub Release: download the asset `CleanArch.WebApi.Templates.<version>.nupkg` from the

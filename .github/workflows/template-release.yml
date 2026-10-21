@@ -1,6 +1,6 @@
 name: Template release
 
-# Template repository only: a template-v<version> tag packs the template package and attaches it to a GitHub Release; nuget.org receives it only once PUBLISH_TEMPLATE_TO_NUGET is true.
+# Template repository only: a template-v<version> tag packs the template package and the launcher at that version and attaches both to a GitHub Release; nuget.org receives them only once PUBLISH_TEMPLATE_TO_NUGET is true.
 on:
   push:
     tags:
@@ -14,10 +14,11 @@ env:
   DOTNET_NOLOGO: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   PACKAGE_PROJECT: .template.config/TemplatePackage.csproj
+  LAUNCHER_PROJECT: Launcher/CleanArch.Create/CleanArch.Create.csproj
 
 jobs:
   pack:
-    name: Pack the template package
+    name: Pack the template package and the launcher
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -45,15 +46,29 @@ jobs:
       - name: Pack
         run: dotnet pack "$PACKAGE_PROJECT" --configuration Release --output "${{ runner.temp }}/package"
 
+      # The launcher installs the templates at its own version, read from the same templateVersion.
+      - name: Pack the launcher
+        run: dotnet pack "$LAUNCHER_PROJECT" --configuration Release --output "${{ runner.temp }}/package"
+
       # What a user installs: the package alone, in a hive of its own, generating and building the defaults.
       - name: Install the package and build the default project
         run: |
           set -euo pipefail
           hive="${{ runner.temp }}/hive"
           generated="${{ runner.temp }}/generated"
-          dotnet new install "${{ runner.temp }}"/package/*.nupkg --debug:custom-hive "$hive"
+          dotnet new install "${{ runner.temp }}"/package/CleanArch.WebApi.Templates.*.nupkg --debug:custom-hive "$hive"
           dotnet new cleanarch-webapi -n Sample.Released.Project -o "$generated" --debug:custom-hive "$hive"
           dotnet build "$generated/Sample.Released.Project.sln" --configuration Release
+
+      # What dnx CleanArch.Create runs: the launcher from its package, installing the template package beside it.
+      - name: Generate a project with the launcher
+        run: |
+          set -euo pipefail
+          dotnet tool install CleanArch.Create --tool-path "${{ runner.temp }}/tools" --add-source "${{ runner.temp }}/package"
+          "${{ runner.temp }}/tools/cleanarch-create" new -n Sample.Launched.Project -o "${{ runner.temp }}/launched" --yes \
+            --template-source "$(ls "${{ runner.temp }}"/package/CleanArch.WebApi.Templates.*.nupkg)" \
+            --hive "${{ runner.temp }}/launcher-hive"
+          test -f "${{ runner.temp }}/launched/Sample.Launched.Project.sln"
 
       - name: Upload the package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -62,9 +77,9 @@ jobs:
           path: ${{ runner.temp }}/package/*.nupkg
           if-no-files-found: error
 
-  # The only job that writes: it creates the tag's release and attaches the package; a version with a suffix is a prerelease.
+  # The only job that writes: it creates the tag's release and attaches both packages; a version with a suffix is a prerelease.
   github-release:
-    name: Attach the package to the GitHub Release
+    name: Attach the packages to the GitHub Release
     needs: pack
     runs-on: ubuntu-latest
     timeout-minutes: 10

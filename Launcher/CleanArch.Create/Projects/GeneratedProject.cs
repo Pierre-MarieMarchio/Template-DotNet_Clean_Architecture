@@ -1,0 +1,70 @@
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace CleanArch.Create.Projects;
+
+public sealed partial record GeneratedProject(string Root, string Name, bool HasWorkspace, string Scope, string Auth, bool Ci)
+{
+    public string WebFolder => Path.Combine(Root, "Src", "Web");
+
+    public static GeneratedProject? Find(string directory)
+    {
+        for (DirectoryInfo? current = new(directory); current is not null; current = current.Parent)
+        {
+            string[] solutions = [.. Directory.EnumerateFiles(current.FullName, "*.sln"), .. Directory.EnumerateFiles(current.FullName, "*.slnx")];
+            if (solutions.Length == 1 && File.Exists(Path.Combine(current.FullName, "Tools", "Tasks.cs")))
+            {
+                return Read(current.FullName, Path.GetFileNameWithoutExtension(solutions[0]));
+            }
+        }
+
+        return null;
+    }
+
+    private static GeneratedProject Read(string root, string name)
+    {
+        string web = Path.Combine(root, "Src", "Web");
+        bool hasWorkspace = Directory.Exists(web);
+
+        return new GeneratedProject(
+            root,
+            name,
+            hasWorkspace,
+            (hasWorkspace ? WorkspaceScope(Path.Combine(web, "package.json")) : null) ?? KebabName(name),
+            Authentication(root, name),
+            File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")));
+    }
+
+    private static string? WorkspaceScope(string packageJson)
+    {
+        if (!File.Exists(packageJson))
+        {
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(File.ReadAllText(packageJson).TrimStart('﻿'));
+        string? packageName = document.RootElement.TryGetProperty("name", out JsonElement value) ? value.GetString() : null;
+
+        return packageName is { Length: > 1 } && packageName[0] == '@' && packageName.IndexOf('/', StringComparison.Ordinal) is > 1 and int slash
+            ? packageName[1..slash]
+            : null;
+    }
+
+    private static string KebabName(string name) => Separators().Replace(name.ToLowerInvariant(), "-");
+
+    private static string Authentication(string root, string name)
+    {
+        if (Directory.Exists(Path.Combine(root, "Src", "Application", name + ".Application.Auth")))
+        {
+            return "local";
+        }
+
+        string packages = Path.Combine(root, "Directory.Packages.props");
+        return File.Exists(packages) && File.ReadAllText(packages).Contains("Microsoft.AspNetCore.Authentication.JwtBearer", StringComparison.Ordinal)
+            ? "external"
+            : "none";
+    }
+
+    [GeneratedRegex(@"[.\s_]+")]
+    private static partial Regex Separators();
+}

@@ -39,6 +39,9 @@ internal static class Tasks
                                            reference no Testcontainers, so no Docker daemon is needed
           --configuration <Debug|Release>  build, test, coverage, end-to-end, migration-bundle, verify; after
                                            a -- separator, because dotnet run claims the name
+          -m:<N>, -maxcpucount:<N>         restore, build, test, coverage, verify: at most N MSBuild nodes,
+                                           and at most N test projects running at once; test and
+                                           coverage then build first and test with --no-build
           --access, --deletion, --operations, --model, --concurrency
                                            new-feature: forwarded to Tools/NewFeature.cs, whose
                                            --help says what each one means
@@ -69,6 +72,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
           dotnet run Tools/Tasks.cs openapi
           dotnet run Tools/Tasks.cs -- build --configuration Release
+          dotnet run Tools/Tasks.cs verify -m:4
         """;
 
     private static readonly string[] KnownTasks =
@@ -173,6 +177,7 @@ internal static class Tasks
         bool check = false;
         //#endif
         string configuration = "Debug";
+        string? maxCpuCount = null;
 
         for (int i = 0; i < arguments.Length; i++)
         {
@@ -209,6 +214,15 @@ internal static class Tasks
             {
                 configuration = argument["--configuration=".Length..];
             }
+            else if (MaxCpuCountPrefixes.FirstOrDefault(prefix => argument.StartsWith(prefix, StringComparison.Ordinal)) is { } prefix)
+            {
+                maxCpuCount = argument[prefix.Length..];
+
+                if (!int.TryParse(maxCpuCount, NumberStyles.None, CultureInfo.InvariantCulture, out int count) || count < 1)
+                {
+                    throw new InvalidOperationException($"'{argument}' needs a whole number of at least 1 after the colon, as in -m:4.");
+                }
+            }
             else if (FeatureOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
             {
                 featureOptions.Add(argument);
@@ -241,7 +255,7 @@ internal static class Tasks
             {
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
-                    + "--keep-stack and --configuration <Debug|Release>, the last after a -- separator, for "
+                    + "--keep-stack, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
                     + $"new-feature {string.Join(", ", FeatureOptionNames)}, and for new-use-case {string.Join(", ", UseCaseOptionNames)}.");
             }
             else if (task is null)
@@ -286,6 +300,12 @@ internal static class Tasks
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
         }
 
+        if (maxCpuCount is not null && task is not ("restore" or "build" or "test" or "coverage" or "verify"))
+        {
+            throw new InvalidOperationException(
+                $"'-m:{maxCpuCount}' is an option of the restore, build, test, coverage and verify tasks, not of '{task ?? "(no task)"}'.");
+        }
+
         if (keepStack && task != "end-to-end")
         {
             throw new InvalidOperationException($"'--keep-stack' is an option of the end-to-end task, not of '{task ?? "(no task)"}'.");
@@ -326,15 +346,17 @@ internal static class Tasks
         ];
         string api = Path.Combine(repoRoot, "Src", "Presentation", "AppTemplate.Api");
         string runsettings = Path.Combine(repoRoot, "coverage.runsettings");
+        string[] nodes = maxCpuCount is null ? [] : [$"-maxcpucount:{maxCpuCount}"];
+        string[] modules = maxCpuCount is null ? [] : ["--max-parallel-test-modules", maxCpuCount];
 
         switch (task)
         {
             case "restore":
-                Step("dotnet", "restore", solution);
+                Step("dotnet", ["restore", solution, .. nodes]);
                 break;
 
             case "build":
-                Step("dotnet", "build", solution, "--configuration", configuration);
+                Step("dotnet", ["build", solution, "--configuration", configuration, .. nodes]);
                 break;
 
             case "test":
@@ -346,7 +368,15 @@ internal static class Tasks
                     {
                         try
                         {
-                            Step("dotnet", "test", project, "--configuration", configuration);
+                            if (maxCpuCount is null)
+                            {
+                                Step("dotnet", "test", project, "--configuration", configuration);
+                            }
+                            else
+                            {
+                                Step("dotnet", ["build", project, "--configuration", configuration, .. nodes]);
+                                Step("dotnet", "test", project, "--configuration", configuration, "--no-build");
+                            }
                         }
                         catch (InvalidOperationException error)
                         {
@@ -361,15 +391,20 @@ internal static class Tasks
                             $"{failed.Count} test project(s) failed:" + Environment.NewLine + string.Join(Environment.NewLine, failed.Select(name => "  " + name)));
                     }
                 }
-                else
+                else if (maxCpuCount is null)
                 {
                     Step("dotnet", "test", solution, "--configuration", configuration);
+                }
+                else
+                {
+                    Step("dotnet", ["build", solution, "--configuration", configuration, .. nodes]);
+                    Step("dotnet", ["test", solution, "--configuration", configuration, "--no-build", .. modules]);
                 }
 
                 break;
 
             case "coverage":
-                Coverage(repoRoot, solution, configuration, runsettings);
+                Coverage(repoRoot, solution, configuration, runsettings, nodes, modules);
                 break;
 
             case "format":
@@ -526,10 +561,10 @@ internal static class Tasks
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
                 //#endif
-                Step("dotnet", "restore", solution);
+                Step("dotnet", ["restore", solution, .. nodes]);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
-                Step("dotnet", "build", solution, "--configuration", configuration, "--no-restore");
-                Step("dotnet", "test", solution, "--configuration", configuration, "--no-build");
+                Step("dotnet", ["build", solution, "--configuration", configuration, "--no-restore", .. nodes]);
+                Step("dotnet", ["test", solution, "--configuration", configuration, "--no-build", .. modules]);
                 Step(
                     "dotnet", "ef", "migrations", "has-pending-model-changes",
                     "--project", persistence,
@@ -679,7 +714,7 @@ internal static class Tasks
         }
     }
 
-    private static void Coverage(string repoRoot, string solution, string configuration, string runsettings)
+    private static void Coverage(string repoRoot, string solution, string configuration, string runsettings, string[] nodes, string[] modules)
     {
         string results = Path.Combine(repoRoot, "TestResults");
         if (Directory.Exists(results))
@@ -687,14 +722,26 @@ internal static class Tasks
             Directory.Delete(results, recursive: true);
         }
 
+        string[] built = [];
+
+        if (nodes.Length > 0)
+        {
+            Step("dotnet", ["build", solution, "--configuration", configuration, .. nodes]);
+            built = ["--no-build"];
+        }
+
         Step(
             "dotnet",
-            "test", solution,
-            "--configuration", configuration,
-            "--results-directory", results,
-            "--coverage",
-            "--coverage-settings", runsettings,
-            "--coverage-output-format", "cobertura");
+            [
+                "test", solution,
+                "--configuration", configuration,
+                .. built,
+                .. modules,
+                "--results-directory", results,
+                "--coverage",
+                "--coverage-settings", runsettings,
+                "--coverage-output-format", "cobertura",
+            ]);
 
         string minimum = CoverageMinimum(Path.Combine(repoRoot, "coverage.minimum"));
 
@@ -1142,6 +1189,8 @@ internal static class Tasks
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
     private const string InitialMigrationName = "InitialCreate";
+
+    private static readonly string[] MaxCpuCountPrefixes = ["-m:", "-maxcpucount:"];
 
     private static readonly string[] FeatureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
 

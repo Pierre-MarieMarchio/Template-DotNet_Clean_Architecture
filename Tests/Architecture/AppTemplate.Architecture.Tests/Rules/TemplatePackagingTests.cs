@@ -254,6 +254,45 @@ public sealed class TemplatePackagingTests
             $"{folder}/ide.host.json names an icon that is not beside it.");
     }
 
+    [Theory]
+    [InlineData("sqlserver", "sqlServer")]
+    [InlineData("mysql", "mySql")]
+    [InlineData("sqlite", "sqlite")]
+    public void ADatabase_IsRefusedExactlyUntilItsOverlayIsWired(string choice, string symbol)
+    {
+        string overlay = $".template.config/variants/database-{choice}/";
+        bool overlaid = File.Exists(Path.Combine(
+            ProjectReferenceGraph.RepositoryRoot,
+            overlay,
+            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs"));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        string condition = $"(database == \"{choice}\")";
+
+        bool refused = symbols.EnumerateObject().Any(candidate =>
+            IsRefusal(candidate.Value)
+            && candidate.Value.TryGetProperty("isRequired", out var required)
+            && required.GetString() == condition);
+        bool inRefusedOptions = symbols.GetProperty("refusedOptions").GetProperty("value").GetString()!
+            .Contains($"database == \"{choice}\"", StringComparison.Ordinal);
+        bool sourced = manifest.RootElement.GetProperty("sources").EnumerateArray().Any(source =>
+            source.TryGetProperty("source", out var path) && path.GetString() == "./" + overlay
+            && source.TryGetProperty("condition", out var when) && when.GetString() == $"({symbol})");
+
+        if (overlaid)
+        {
+            refused.ShouldBeFalse($"{overlay} holds the {choice} overlay, so template.json must stop refusing --database {choice}: remove its refusal symbol and its dotnetcli.host.json entry.");
+            inRefusedOptions.ShouldBeFalse($"{overlay} holds the {choice} overlay, so refusedOptions must stop naming --database {choice}.");
+            sourced.ShouldBeTrue($"{overlay} holds the {choice} overlay, but no source of template.json copies it under the condition ({symbol}).");
+        }
+        else
+        {
+            refused.ShouldBeTrue($"No overlay for {choice} exists under {overlay}, so --database {choice} must be refused by a symbol required when {condition}.");
+            inRefusedOptions.ShouldBeTrue($"No overlay for {choice} exists, so refusedOptions must name --database {choice}.");
+            sourced.ShouldBeFalse($"template.json copies {overlay}, which holds no overlay.");
+        }
+    }
+
     private static bool IsRefusal(JsonElement symbol) =>
         symbol.TryGetProperty("choices", out var choices)
         && choices.EnumerateArray().All(choice => choice.GetProperty("choice").GetString() == "refused");

@@ -103,6 +103,7 @@ error under warnings as errors. Pick a name with no such segment.
 |---|---|---|---|
 | `--auth` | `local`, `external`, `none` | `local` | `local`: the Auth module, its own context and migration, accounts, two-factor, passkeys, roles. `external`: bearer tokens from an OpenID Connect provider, each subject mapped to an owner in the business context. `none`: a public API, no accounts |
 | `--examples` | `all`, `notes`, `none` | `all` | TodoLists, Reminders and Notes; Notes alone; no example. Reminders needs TodoLists, so they come together |
+| `--database` | `postgresql`, `sqlserver`, `mysql`, `sqlite` | `postgresql` | the database the project runs on, its provider only; this version generates `postgresql` and refuses the others |
 | `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml`, and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
@@ -121,6 +122,9 @@ it, and the generated solution builds and passes its tests.
 | `--auth none` with an example | `--auth-none-needs-examples-none` | add `--examples none` |
 | `--auth none` with `--files true` | `--auth-none-needs-files-false` | add `--files false` |
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
+| `--database sqlserver` | `--sql-server-not-yet-generated` | choose `--database postgresql` |
+| `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
+| `--database sqlite` | `--sqlite-not-yet-generated` | choose `--database postgresql` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing anything. Passing the parameter by hand gets past the engine and generates

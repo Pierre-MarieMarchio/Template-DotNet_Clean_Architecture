@@ -15,6 +15,25 @@
       "shortName": "",
       "isHidden": true
     },
+    "database": {
+      "longName": "database",
+      "shortName": ""
+    },
+    "sqlServerNotYetGenerated": {
+      "longName": "sql-server-not-yet-generated",
+      "shortName": "",
+      "isHidden": true
+    },
+    "mySqlNotYetGenerated": {
+      "longName": "my-sql-not-yet-generated",
+      "shortName": "",
+      "isHidden": true
+    },
+    "sqliteNotYetGenerated": {
+      "longName": "sqlite-not-yet-generated",
+      "shortName": "",
+      "isHidden": true
+    },
     "webName": {
       "longName": "web-name",
       "shortName": ""

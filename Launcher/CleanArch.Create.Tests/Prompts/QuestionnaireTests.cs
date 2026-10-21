@@ -88,7 +88,7 @@ public sealed class QuestionnaireTests
 
         Dictionary<string, string> answers = questionnaire.Answer(
             _project,
-            new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
+            new Dictionary<string, string> { ["auth"] = "none", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
             _nothing,
             Launcher.ProjectAskedWhen);
 
@@ -110,7 +110,7 @@ public sealed class QuestionnaireTests
 
         Dictionary<string, string> answers = questionnaire.Answer(
             _project,
-            new Dictionary<string, string> { ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["ci"] = "true" },
+            new Dictionary<string, string> { ["auth"] = "local", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "true", ["ci"] = "true" },
             _nothing,
             Launcher.ProjectAskedWhen);
 

@@ -7,4 +7,7 @@
 //#if (web != "none" && webAudience == "admin" && auth == "none")
 #error The template refuses --web-audience admin with --auth none, since a back office signs administrators in: generate with --auth local or --auth external.
 //#endif
+//#if (database == "sqlserver" || database == "mysql" || database == "sqlite")
+#error This version of the template generates --database postgresql only: generate with --database postgresql.
+//#endif
 #error Generate the project again without the hidden option that let the combination through.

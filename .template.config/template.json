@@ -83,7 +83,96 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\"))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"sqlserver\" || database == \"mysql\" || database == \"sqlite\")"
+    },
+    "database": {
+      "type": "parameter",
+      "displayName": "Database",
+      "datatype": "choice",
+      "defaultValue": "postgresql",
+      "choices": [
+        {
+          "choice": "postgresql",
+          "description": "PostgreSQL: a schema per feature, the row's xmin as its version, advisory locks for the leases."
+        },
+        {
+          "choice": "sqlserver",
+          "description": "SQL Server: a schema per feature, a version counter the save stamps, application locks for the leases."
+        },
+        {
+          "choice": "mysql",
+          "description": "MySQL 8.4: a table prefix per feature, a version counter the save stamps, named locks for the leases."
+        },
+        {
+          "choice": "sqlite",
+          "description": "SQLite, for development only: one file, a table prefix per feature, in-process leases; the API refuses to start outside Development."
+        }
+      ],
+      "description": "The database the project runs on. A project carries that provider only; PostgreSQL is the one this version of the template generates."
+    },
+    "sqlServerNotYetGenerated": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(database == \"sqlserver\")",
+      "description": "Never set. This version of the template does not generate --database sqlserver yet: choose --database postgresql."
+    },
+    "mySqlNotYetGenerated": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(database == \"mysql\")",
+      "description": "Never set. This version of the template does not generate --database mysql yet: choose --database postgresql."
+    },
+    "sqliteNotYetGenerated": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(database == \"sqlite\")",
+      "description": "Never set. This version of the template does not generate --database sqlite yet: choose --database postgresql."
+    },
+    "postgreSql": {
+      "type": "computed",
+      "value": "(database == \"postgresql\")"
+    },
+    "sqlServer": {
+      "type": "computed",
+      "value": "(database == \"sqlserver\")"
+    },
+    "mySql": {
+      "type": "computed",
+      "value": "(database == \"mysql\")"
+    },
+    "sqlite": {
+      "type": "computed",
+      "value": "(database == \"sqlite\")"
+    },
+    "tablePrefixes": {
+      "type": "computed",
+      "value": "(mySql || sqlite)"
+    },
+    "versionCounter": {
+      "type": "computed",
+      "value": "(!postgreSql)"
+    },
+    "serverDatabase": {
+      "type": "computed",
+      "value": "(!sqlite)"
     },
     "templateMaintenance": {
       "type": "computed",

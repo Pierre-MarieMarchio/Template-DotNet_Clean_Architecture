@@ -538,6 +538,12 @@
           ]
         },
         {
+          "condition": "(!publicApi)",
+          "exclude": [
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AuthorizeWithoutAuthenticationTests.cs"
+          ]
+        },
+        {
           "condition": "(publicApi)",
           "exclude": [
             "Src/Application/AppTemplate.Application.Core/Common/Events/UserAccountDeleted.cs",

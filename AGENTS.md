@@ -1,8 +1,120 @@
 ﻿# Agents
 
-## This project
+How to work in this repository: the commands, where code goes, the rules, and what done means.
+<!--#if (localAuth)-->
+This project is a .NET 10 HTTP API on Clean Architecture whose callers sign in with local accounts.
+<!--#endif-->
+<!--#if (externalAuth)-->
+This project is a .NET 10 HTTP API on Clean Architecture whose callers bring an OpenID Connect token.
+<!--#endif-->
+<!--#if (publicApi)-->
+This project is a .NET 10 HTTP API on Clean Architecture that authenticates nobody.
+<!--#endif-->
 
-A .NET HTTP API on Clean Architecture. [The documentation index](docs/README.md) lists every page.
+Your request comes first, then the `AGENTS.md` nearest the file you change, then this one. A folder
+holding its own `AGENTS.md` adds what that folder needs: read it before changing a file there.
+<!--#if (anyWeb)-->
+`Src/Web/AGENTS.md` is the one for the web workspace.
+<!--#endif-->
+Read [the overview](docs/getting-started/overview.md) and [the architecture](docs/architecture/README.md)
+once before a change that adds a type; [the documentation index](docs/README.md) lists every page.
+
+## Commands
+
+From the repository root.
+
+| When | Command | Needs |
+|---|---|---|
+| While you work | `dotnet run Tools/Tasks.cs test --no-integration` | nothing |
+| The structural rules alone | `dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` | nothing |
+| After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` | nothing |
+| After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | nothing |
+| Every task and option | `dotnet run Tools/Tasks.cs help` | nothing |
+| Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker |
+
+## Where code goes
+
+- [Project layout](docs/reference/project-layout.md): which project and folder a file goes in, and its
+  name.
+- [Feature shapes](docs/architecture/feature-shapes.md): an aggregate, or a service over a store.
+- [Modules and boundaries](docs/architecture/modules-and-boundaries.md): what may depend on what.
+- [HTTP API](docs/architecture/http-api.md): the contract every endpoint offers.
+- A registration, an anonymous endpoint, a folder word, a domain event or a new project joins a list a
+  test reads; [the closed lists](docs/guides/adding-a-feature.md#the-closed-lists-a-feature-joins)
+  name each one and the test that fails until it is there.
+
+## Changing code
+
+- Code carries no explanatory comment. A name that needs one is renamed; a reason goes to an ADR or a
+  page. Only OpenAPI XML documentation and one guidance line per configuration setting remain.
+- Never silence a diagnostic with `#pragma`, `<NoWarn>`, a lowered severity or a skipped test: fix the
+  code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) says why.
+- Extract an abstraction only once two real cases prove its shape.
+- A new setting gets its row in [the configuration reference](docs/reference/configuration.md);
+  `ConfigurationSurfaceTests` fails until it has one.
+- A test follows [the house rules](docs/guides/testing.md#house-rules), and a test that buys a
+  guarantee is seen failing once: break the code, watch it go red, restore it.
+<!--#if (accounts)-->
+- Another caller's record answers `404`, never `403`: the owner is in the query
+  ([ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md)).
+<!--#endif-->
+- A rule checked by hand becomes a test in `Tests/Architecture`; a decision is an ADR and the test
+  that holds it, changed together.
+
+## Files not edited by hand
+
+<!--#if (canAddFeature)-->
+- `.feature-manifest/`: `remove-feature` compares its hashes to know what is untouched.
+<!--#endif-->
+- A migration a database has applied: add a named one instead, as
+  [migrations](docs/guides/migrations.md) says.
+- `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
+  says.
+
+## Writing docs
+
+- One question per page, in the voice of "this project": no history, no plan vocabulary.
+- A new page starts from `docs/_page-templates/` and gets its row in
+  [the documentation index](docs/README.md#adding-a-page).
+- A choice another team could reasonably have made otherwise is an ADR;
+  [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
+- Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
+- Markdown and C# files are UTF-8 with BOM and LF line endings; `format-fix` repairs them.
+
+## Adding or removing a feature
+
+<!--#if (canAddFeature)-->
+```bash
+dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete|anonymise
+dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
+dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
+dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
+```
+
+`new-feature` writes the skeleton, its manifest and its page under `docs/features/`, then prints the
+edits to make by hand and the row to add to `docs/README.md`. [Adding a feature](docs/guides/adding-a-feature.md)
+and [removing features](docs/guides/removing-features.md) give the steps.
+<!--#endif-->
+<!--#if (!canAddFeature)-->
+This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from
+[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`
+and its row in `docs/README.md`. [Removing features](docs/guides/removing-features.md) gives the
+reverse.
+<!--#endif-->
+
+## Done means
+
+- `verify`, then `coverage`, pass without overrides.
+<!--#if (ci)-->
+  `.github/workflows/ci.yml` runs the same gate on every pull request.
+<!--#endif-->
+- Without Docker, run `test --no-integration` and say the gate did not run; a change is never done on
+  a build alone.
+- The report names what ran, with its result, and what did not run. A change that compiles is not a
+  guarantee proved: say which test holds it.
+- The docs move with the code: a page that cites a moved file, the page of a new capability, the
+  configuration row of a new setting, the ADR of a new choice.
+- One concern per change, as [pull requests](CONTRIBUTING.md#pull-requests) asks.
 
 ## Where truths live
 
@@ -12,68 +124,21 @@ When two sources disagree, the first wins, and the disagreement is a defect to f
 2. The ADRs in `docs/decisions/`: why a choice was made.
 3. The pages under `docs/`: how it works and how to use it.
 4. The reference tables in `docs/reference/`: settings, routes, codes, folders.
-
-## How the docs are organised
-
-| Folder | Holds |
-|---|---|
-| `docs/getting-started/` | what a newcomer reads once, in order |
-| `docs/architecture/` | the rules every layer, feature and endpoint follows |
-| `docs/features/` | one capability per page, the product's own included |
-| `docs/guides/` | a task repeated: add, remove, migrate, test, ship |
-| `docs/reference/` | what is looked up, not read |
-| `docs/decisions/` | one decision per file; the product's numbered from 1000 |
-| `docs/_page-templates/` | the skeleton each kind of page starts from |
-
-## Writing docs
-
-- One question per page, answered from what the reader gets to the steps or the facts.
-- Speak of "this project". No history, no plan vocabulary, no narration of how the code came to be.
-- One idea per paragraph; the imperative for steps; tables for options and settings; one short sample
-  per concept.
-- The reason for a choice lives in an ADR, and the page links to it in one line. A decision is an ADR
-  when another team could reasonably have taken it otherwise, a future maintainer must know it before
-  changing it, and the code does not make it obvious; [decisions](docs/decisions/README.md) holds the
-  criteria.
-- Every path written in backticks exists. Write an illustration as a placeholder (`<Feature>`) or as
-  prose.
-- A new setting gets its row in [the configuration reference](docs/reference/configuration.md); a test
-  requires it.
-- Markdown files are UTF-8 with BOM and LF line endings.
-
-## Changing code
-
-- Code carries no explanatory comment. A name that needs one is renamed; a reason goes to an ADR or a
-  page. Only OpenAPI XML documentation and one guidance line per configuration setting remain.
-- Extract an abstraction only once two real cases prove its shape.
-- A rule checked by hand becomes a test in `Tests/Architecture`; a decision is an ADR and the test
-  that holds it, changed together.
-- Run the gate before calling a change done: `dotnet run Tools/Tasks.cs verify`, then
-  `dotnet run Tools/Tasks.cs coverage`. Both pass without overrides.
-
-## Adding or removing a feature
-
-<!--#if (canAddFeature)-->
-`dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared` writes the skeleton
-and its page under `docs/features/`, and prints the edits to make by hand and the row to add to
-`docs/README.md`. `remove-feature <Features>` reports what removing one involves and deletes an
-untouched skeleton with its page. [Adding a feature](docs/guides/adding-a-feature.md) and
-[removing features](docs/guides/removing-features.md) give the steps.
-<!--#endif-->
-<!--#if (!canAddFeature)-->
-This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from
-[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`
-and its row in `docs/README.md`. [Removing features](docs/guides/removing-features.md) gives the
-reverse.
-<!--#endif-->
 <!--#if (templateMaintenance)-->
 
 ## Working on the template
 
-This repository is also the `dotnet new` template the project pages describe. Pages under
-`docs/template/` are about the template and never reach a generated project. A project page
-conditions a sentence, a row or a section on a generation option only where the option changes what
-is true, a whole sentence per branch, and is read in every generated form;
-[maintaining the template](docs/template/maintaining-the-template.md) holds the marker rules, the
-template's own gates and the acceptance matrix.
+This repository is also the `dotnet new` template the project pages describe; pages under
+`docs/template/` are about the template and never reach a generated project.
+
+- `verify` also runs the template's gates: `Tools/CheckDocPaths.cs`, `Tools/CheckComments.cs`,
+  `Tools/CheckWorkflows.cs` and `dotnet run Tools/Tasks.cs web-lockfiles --check`. Each runs alone
+  with `dotnet run`; a generated project keeps none of them.
+- A shared file conditions a sentence on an option only where the option changes what is true, a
+  whole sentence per branch; read it in the default form and in
+  `--auth none --examples none --files false`.
+- Generate outside this repository, and remove every git worktree nested in the checkout before
+  installing from it: the install reads each one as a second copy of the template.
+- [Maintaining the template](docs/template/maintaining-the-template.md) holds the marker rules, the
+  gates and the acceptance matrix.
 <!--#endif-->

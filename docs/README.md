@@ -88,4 +88,4 @@ records the choices this project started with.
 | A setting | a section in the configuration reference | the table shape there |
 | A route or a code | a row in the API reference | the table shape there |
 
-[AGENTS.md](../AGENTS.md) holds the rules for writing them.
+[AGENTS.md › Writing docs](../AGENTS.md#writing-docs) holds the rules for writing them.

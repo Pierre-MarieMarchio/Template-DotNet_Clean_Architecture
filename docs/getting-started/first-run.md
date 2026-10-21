@@ -35,15 +35,19 @@ dotnet run Tools/Tasks.cs bootstrap
 
 Commit what it changes before anything else. It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
-then restores the local tools (`dotnet-ef` among them).
+restores the local tools (`dotnet-ef` among them), then creates each database context's initial
+migration under its project's `Migrations` folder. The project ships no migration: the first one is
+written for this project's own model, and it is the project's from the commit on
+([migrations](../guides/migrations.md#the-initial-migration)).
 <!--#if (anyWeb)-->
 It then creates the web app with its framework's official CLI where one is still to be created, installs
 the workspace and generates the API client.
 <!--#endif-->
 
-The formatting step is required: using directives sort around the project's own name, so their order
-is only right once the project has its name. Until bootstrap runs, `dotnet format --verify-no-changes`
-fails, and `verify` with it.
+Both steps are required. Using directives sort around the project's own name, so their order is only
+right once the project has its name: until bootstrap runs, `dotnet format --verify-no-changes` fails.
+Without a migration, the API cannot create its schema, the migration drift tests fail, and `verify`
+refuses to start.
 <!--#if (ci)-->
 It is also the first step of CI, so a first push would fail.
 <!--#endif-->

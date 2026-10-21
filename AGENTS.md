@@ -28,7 +28,7 @@ From the repository root.
 | While you work | `dotnet run Tools/Tasks.cs test --no-integration` | nothing |
 | The structural rules alone | `dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` | nothing |
 | After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` | nothing |
-| After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | nothing |
+| After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
 | Every task and option | `dotnet run Tools/Tasks.cs help` | nothing |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker |
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
@@ -69,8 +69,8 @@ From the repository root.
 <!--#if (canAddFeature)-->
 - `.feature-manifest/`: `remove-feature` compares its hashes to know what is untouched.
 <!--#endif-->
-- A migration a database has applied: add a named one instead, as
-  [migrations](docs/guides/migrations.md) says.
+- A migration: `dotnet ef` writes it, bootstrap the first; one a database has applied is never
+  rewritten, as [migrations](docs/guides/migrations.md) says.
 - `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
   says.
 

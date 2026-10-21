@@ -84,7 +84,8 @@ dotnet run Tools/Tasks.cs bootstrap
 With a checkout installed, generate outside it: the engine reads the template from that path, so
 output written inside it is copied into itself and nests a duplicate. Then follow the generated
 project's [first run](../getting-started/first-run.md); bootstrap is its first step and is not
-optional, since the order of sorted using directives depends on the name chosen.
+optional, since the order of sorted using directives depends on the name chosen and the project ships
+no migration until bootstrap creates its first one.
 
 ## What the name substitutes into
 

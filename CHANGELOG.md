@@ -778,6 +778,13 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Changed
 
+- **The template ships no migration; `bootstrap` creates each context's first one.** The
+  hand-conditioned `InitialCreate` of the business and authentication contexts is gone. The new
+  `migration-initial` task, which `bootstrap` runs once the local tools are restored, runs
+  `dotnet ef migrations add InitialCreate` on every context whose `Migrations` folder holds no model
+  snapshot, for the project's own model and database, and the team commits the result. It leaves a
+  context that has one alone; `migration-add`, `database-update`, `migration-bundle` and `verify`
+  refuse, naming bootstrap, until it has run.
 - **The email is the account's only identifier.** `POST /auth/register` takes `email` and
   `password`; `GET /auth/me` no longer carries `userName`; the account mails greet without a name;
   a passkey's display name and an account provisioned through an external provider use the address.

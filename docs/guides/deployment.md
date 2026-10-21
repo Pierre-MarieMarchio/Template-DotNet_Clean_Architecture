@@ -43,7 +43,8 @@ alone leaves half the schema absent.
 <!--#if (!localAuth)-->
 It writes one self-contained bundle, `artifacts/migrate/efbundle`.
 <!--#endif-->
-Each bundle carries no connection string and needs no SDK on the target:
+A bundle holds the migrations the commit carries, from the initial one bootstrap created onwards.
+Each carries no connection string and needs no SDK on the target:
 
 ```bash
 ./efbundle --connection "Host=…;Database=…;Username=<migration user>;Password=…"

@@ -27,6 +27,7 @@ Each rule has one home, and a test holds it wherever a test can.
 <!--#endif-->
 <!--#if (!agentFiles)-->
 | Clean comments: the code reads by itself; a comment only says what the code cannot | [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
+| Extract an abstraction only once two real cases prove it | [Architecture › What is deliberately absent](docs/architecture/README.md#what-is-deliberately-absent) |
 <!--#endif-->
 | How tests are written | [Testing › House rules](docs/guides/testing.md#house-rules) |
 | Adding and removing a feature | [Adding a feature](docs/guides/adding-a-feature.md), [Removing features](docs/guides/removing-features.md) |

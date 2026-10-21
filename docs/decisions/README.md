@@ -1,8 +1,9 @@
 ﻿# Decisions
 
 An architecture decision record (ADR) says why this project made one choice over another, in a page
-of its own: the context, the decision, its consequences, and when to revisit it. The code says what
-the project does; an ADR says why it does not do the obvious alternative.
+of its own: the context, the decision, the alternatives it turned down, its consequences, and when
+to revisit it. The code says what the project does; an ADR says why it does not do the obvious
+alternative.
 
 ## When to write one
 

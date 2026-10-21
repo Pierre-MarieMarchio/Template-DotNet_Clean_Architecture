@@ -1412,11 +1412,11 @@ internal static class RemoveFeature
     private static string PagedTree(string scratch)
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
-        string template = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(SourceFile())!)!, "docs", "_templates", "feature.md");
+        string template = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(SourceFile())!)!, "docs", "_page-templates", "feature.md");
 
         Projects(root);
         Ground(root);
-        Put(root, "docs/_templates/feature.md", File.ReadAllText(template));
+        Put(root, "docs/_page-templates/feature.md", File.ReadAllText(template));
         Put(root, "docs/README.md", "| [Widgets](features/widgets.md) | what a caller can do with it |\n");
 
         return root;

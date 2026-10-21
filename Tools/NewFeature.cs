@@ -9,7 +9,7 @@ internal static class NewFeature
 {
     private const string ManifestFolder = ".feature-manifest";
 
-    private const string PageTemplate = "docs/_templates/feature.md";
+    private const string PageTemplate = "docs/_page-templates/feature.md";
 
     private const string Usage =
         "Usage: dotnet run Tools/NewFeature.cs <Features> <Feature> --access owner|shared\n"

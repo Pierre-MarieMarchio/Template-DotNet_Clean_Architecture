@@ -23,7 +23,7 @@ When two sources disagree, the first wins, and the disagreement is a defect to f
 | `docs/guides/` | a task repeated: add, remove, migrate, test, ship |
 | `docs/reference/` | what is looked up, not read |
 | `docs/decisions/` | one decision per file; the product's numbered from 1000 |
-| `docs/_templates/` | the skeleton each kind of page starts from |
+| `docs/_page-templates/` | the skeleton each kind of page starts from |
 
 ## Writing docs
 
@@ -62,7 +62,7 @@ untouched skeleton with its page. [Adding a feature](docs/guides/adding-a-featur
 <!--#endif-->
 <!--#if (!canAddFeature)-->
 This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from
-[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_templates/feature.md`
+[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`
 and its row in `docs/README.md`. [Removing features](docs/guides/removing-features.md) gives the
 reverse.
 <!--#endif-->

@@ -20,7 +20,7 @@ decision and the test that holds it change together, in the same commit.
 
 The ADRs below shipped with the project and keep their numbers; a gap in the sequence is a decision
 about a part this project does not have. This project's own ADRs are numbered from **1000**, the
-next free number each time, and start from [the ADR template](../_templates/adr.md) as `Proposed`
+next free number each time, and start from [the ADR template](../_page-templates/adr.md) as `Proposed`
 until the team accepts them.
 
 A decision is never edited into another. To replace one, write a new ADR and set the old one's

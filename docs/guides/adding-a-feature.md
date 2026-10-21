@@ -99,7 +99,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | You added | What has to say so |
 |---|---|
 <!--#if (anyFeature)-->
-| A registration | `HostComposition` in the architecture tests and `ApplicationModuleTests` (the call, a double per port, the use-case count for the rich shape) |
+| A registration | `HostComposition` in the architecture tests and the call in `ApplicationModuleTests` |
 <!--#endif-->
 <!--#if (!anyFeature)-->
 | A registration | `HostComposition` in the architecture tests |

@@ -1157,7 +1157,7 @@ internal static class RemoveFeature
             "Src/Infrastructure/Acme.Infrastructure.Persistence/PersistenceModule.cs|services.TryAddScoped<IWidgetStore, WidgetStore>();",
             "Src/Presentation/Acme.Api/Program.cs|builder.Services.AddWidgets();",
             "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|services.AddWidgets();",
-            "Tests/Application/Acme.Application.UnitTests/ApplicationModuleTests.cs|nameof(ApplicationModule.AddWidgets),",
+            "Tests/Application/Acme.Application.UnitTests/ApplicationModuleTests.cs|services.AddWidgets();",
         ];
 
         foreach (string edit in edits)

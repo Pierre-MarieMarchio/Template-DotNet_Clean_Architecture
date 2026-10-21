@@ -149,7 +149,7 @@
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include the GitHub Actions workflows that build, test and release the solution (ci.yml, release.yml)."
+      "description": "Include the GitHub Actions workflows that build, test and release the solution (ci.yml, release.yml; web.yml with a web app)."
     },
     "sonar": {
       "type": "parameter",
@@ -203,7 +203,7 @@
     },
     "browserSessions": {
       "type": "computed",
-      "value": "(localAuth && anyWeb)"
+      "value": "(localAuth)"
     },
     "nameLower": {
       "type": "generated",
@@ -361,6 +361,20 @@
         "separator": ""
       },
       "replaces": "${WEB_PLACEHOLDER_SITE_HOST_PORT:-8081}"
+    },
+    "webPortSetting": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          { "type": "const", "value": "WEB_" },
+          { "type": "ref", "value": "webNameEnvironment" },
+          { "type": "const", "value": "_HOST_PORT=" },
+          { "type": "ref", "value": "webDefaultPort" }
+        ],
+        "separator": ""
+      },
+      "replaces": "WEB_PLACEHOLDER_SITE_HOST_PORT=8081"
     }
   },
   "guids": [
@@ -434,7 +448,7 @@
           "condition": "(!anyWeb)",
           "exclude": [
             "Src/Web/**",
-            "Src/Presentation/AppTemplate.Api/Common/Hosting/BuildTimeOpenApiDocument.cs"
+            ".github/workflows/web.yml"
           ]
         },
         {
@@ -612,7 +626,8 @@
           "condition": "(!ci)",
           "exclude": [
             ".github/workflows/ci.yml",
-            ".github/workflows/release.yml"
+            ".github/workflows/release.yml",
+            ".github/workflows/web.yml"
           ]
         },
         {

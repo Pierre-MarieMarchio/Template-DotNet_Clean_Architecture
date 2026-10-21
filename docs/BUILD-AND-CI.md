@@ -200,17 +200,24 @@ launcher.
 #endif-->
 | Vulnerable packages | `dotnet list package --vulnerable --include-transitive`, failing on any hit |
 | Docker image | builds the image, then asserts it does not run as root and exposes only 8080 |
-<!--#if (anyWeb)-->
-| Web workspace | in `Src/Web`: `pnpm install --frozen-lockfile`, lint, test and build every app and package, then `pnpm api` and a failure if the generated API client differs from the committed one |
-| Web image | one leg per folder under `Src/Web/apps` holding a Dockerfile and a `package.json` — a react or angular app counts once `web-scaffold` has created it and it is committed: builds the image from `Src/Web`, then asserts it does not run as root and exposes only 8080 |
-<!--#endif-->
 <!--#if (templateMaintenance)-->
-| Template acceptance (eleven legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task, and on a web leg the web workspace, its images and its stack; see [below](#template-acceptance) |
+| Template acceptance (twelve legs) | install → generate under a different name with one option combination → assert the template's name leaked nowhere → bootstrap → build → Docker-free tests → no pending model change per generated context → the generated project's `hygiene` task, and on a web leg the web workspace, its images and its stack; see [below](#template-acceptance) |
 | Template refuses unsupported options | `--auth none` alone and with `--examples notes` must exit non-zero and write no file |
 <!--#endif-->
 | Load smoke | the k6 script, **non-blocking** — see [`TESTING.md`](TESTING.md#the-load-smoke-test) |
 | Compose manifest | `docker compose config` against `.env.example` |
 
+<!--#if (anyWeb)-->
+`.github/workflows/web.yml`, on the same events, gates the web workspace; it is a file of its own
+so that `dotnet new cleanarch-webapp --workspace` can add it to a project generated without a web
+app:
+
+| Job | Does |
+|---|---|
+| Web workspace | in `Src/Web`: `pnpm install --frozen-lockfile`, lint, test and build every app and package, then `pnpm api` and a failure if the generated API client differs from the committed one |
+| Web image | one leg per folder under `Src/Web/apps` holding a Dockerfile and a `package.json` — a react or angular app counts once `web-scaffold` has created it and it is committed: builds the image from `Src/Web`, then asserts it does not run as root and exposes only 8080 |
+
+<!--#endif-->
 <!--#if (templateMaintenance)-->
 ### Template acceptance
 
@@ -231,12 +238,17 @@ another. The legs are the combinations that exercise a different shape, not the 
 | web angular, external auth, notes | `--web angular --auth external --examples notes` | Persistence |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` | Persistence, Auth |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` | Persistence, Auth |
+| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` | Persistence, Auth |
 
 Each leg builds with `TreatWarningsAsErrors` (from `Directory.Build.props`, as everywhere), runs the
 test projects that do not reference Testcontainers — integration tests stay with the repository's own
 build — and runs `dotnet run Tools/Tasks.cs hygiene` in the generated project, which asks the
 filesystem which gates its tree carries. Only `--auth local` generates the Auth context, so only those legs
-compare its model. A leg without a web app asserts that nothing in the tree names the web workspace.
+compare its model. A leg without a web app asserts that its tree holds no web workspace and that no
+workflow, Dependabot entry, Compose file or ignore file names one; the API side a web app needs is in
+every project. The leg generated without a web app that then takes one runs that assertion first,
+adds the app with `dotnet new cleanarch-webapp -n Site --workspace` and the include block and port
+`Src/Web/README.md` gives, and from there is a web leg like the others.
 A web leg first runs `dotnet run Tools/Tasks.cs web-lockfiles --check` in this checkout, which fails
 when the lockfile a generated web shape receives differs from what the pinned pnpm writes for it.
 The web leg also adds a second app with `dotnet new cleanarch-webapp -n BackOffice`, a placeholder

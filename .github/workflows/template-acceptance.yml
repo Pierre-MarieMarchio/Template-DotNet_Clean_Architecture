@@ -74,6 +74,11 @@ jobs:
             auth_context: "true"
             web: "true"
             second_app: --framework angular --audience admin --scope sample-generated-project
+          - name: no web, then a react app and its workspace
+            options: ""
+            auth_context: "true"
+            web: "true"
+            first_app: --framework react --scope sample-generated-project --workspace
 
     steps:
       - name: Checkout
@@ -108,17 +113,37 @@ jobs:
             exit 1
           fi
 
-      - name: Assert a project without a web app carries no web trace
-        if: matrix.web != 'true'
+      # The API is ready for a web app in every project; the workspace, its workflow, its Dependabot entry and its Compose wiring come with the first app only.
+      - name: Assert a project without a web app carries no web workspace
+        if: matrix.web != 'true' || matrix.first_app
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          trace=$(grep -rIl --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -e 'Src/Web' -e 'ApiDescription' -e 'pnpm' -e 'web-' . || true)
+          trace=$(grep -rIl -e 'Src/Web' -e 'pnpm' -e 'web-' .github docker-compose.yml .env.example .dockerignore .gitignore || true)
           if [ -e Src/Web ] || [ -n "$trace" ]; then
-            echo "::error title=Web trace::A project generated without --web names the web workspace."
+            echo "::error title=Web trace::A project generated without --web holds or wires a web workspace."
             printf '%s\n' "$trace"
             exit 1
           fi
+
+      # A project generated without a web app takes its first one, and the workspace around it, from the item template; the include block and the port are the lines Src/Web/README.md gives.
+      - name: Add the first app with cleanarch-webapp --workspace
+        if: matrix.first_app
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          FIRST_APP: ${{ matrix.first_app }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-webapp -n Site $FIRST_APP
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PlaceholderSite -e placeholder-site -e ReactSite -e react-site -e AngularSite -e angular-site Src/Web .github || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Item template token leaked::$leaked"
+            exit 1
+          fi
+          sed -i 's#^services:$#include:\n  - path: Src/Web/apps/Site/compose.yml\n\nservices:#' docker-compose.yml
+          printf 'WEB_SITE_HOST_PORT=5173\n' >> .env.example
+          grep -A3 '^include:' docker-compose.yml
 
       # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON

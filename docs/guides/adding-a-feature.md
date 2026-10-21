@@ -73,8 +73,9 @@ The request and response contracts, and anything beyond default-deny authorisati
 ### Tests
 
 The rules the feature protects, each with a test you have seen fail, and the integration tests against
-PostgreSQL under `Tests/Integration/AppTemplate.Api.IntegrationTests`. Add the feature's schema to the
-schemas `TestDatabase` truncates between tests.
+PostgreSQL under `Tests/Integration/AppTemplate.Api.IntegrationTests`;
+[testing](testing.md#where-a-new-features-tests-go) says which type holds what. Add the feature's
+schema to the schemas `TestDatabase` truncates between tests.
 
 ### Migration
 

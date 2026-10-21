@@ -8851,7 +8851,7 @@ export interface components {
             /** @description Whether this call is what created the account. */
             accountCreated: boolean;
             /** @enum {string} */
-            status?: "authenticated";
+            status: "authenticated";
             /** @description The token pair, nested as in Authenticated. */
             tokens: components["schemas"]["TokenResponse"];
         };
@@ -8860,7 +8860,7 @@ export interface components {
             /** @description Identifies the pending sign-in. */
             challengeToken: string;
             /** @enum {string} */
-            status?: "twoFactorRequired";
+            status: "twoFactorRequired";
         };
         /** Format: binary */
         IFormFile: string;
@@ -8876,14 +8876,14 @@ export interface components {
         /** @description A completed sign-in, its token pair under `tokens`. */
         LoginResponseAuthenticated: {
             /** @enum {string} */
-            status?: "authenticated";
+            status: "authenticated";
             tokens: components["schemas"]["TokenResponse"];
         };
         LoginResponseTwoFactorRequired: {
             /** @description Identifies the pending sign-in for `POST /auth/login/two-factor`. */
             challengeToken: string;
             /** @enum {string} */
-            status?: "twoFactorRequired";
+            status: "twoFactorRequired";
         };
         LogoutRequest: {
             refreshToken: string;

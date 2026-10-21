@@ -12,7 +12,7 @@ Run every command from the repository root.
 
 | Tool | Version | Needed for |
 |---|---|---|
-| .NET SDK | the band `global.json` pins (10.0.300 or a later 10.0.3xx) | building, running, every task |
+| .NET SDK | 10.0.100 or any later .NET 10 SDK, as `global.json` allows | building, running, every task |
 | Docker with Compose v2 | any recent | the local stack and the integration tests |
 <!--#if (anyWeb)-->
 | Node.js | the version in `Src/Web/.node-version` | the web workspace |

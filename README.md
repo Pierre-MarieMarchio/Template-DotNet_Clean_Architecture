@@ -62,6 +62,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--files` | `true`, `false` | `true` |
 | `--ci` | `true`, `false` | `true` |
 | `--sonar` | `true`, `false` | `true` |
+| `--agent-files` | `true`, `false` | `true` |
 | `--web` | `none`, `placeholder`, `react`, `angular` | `none` |
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
@@ -78,7 +79,7 @@ This repository carries the documentation every generated project receives, in i
 - [The documentation index](docs/README.md): getting started, architecture, features, guides,
   reference and decisions.
 - [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md), which a
-  project receives too.
+  project receives too; `--agent-files false` leaves out `AGENTS.md`, the only agent file there is.
 
 [The template documentation](docs/template/README.md) is about the template alone: using it,
 maintaining it, its acceptance matrix and its own decisions. It never reaches a generated project.

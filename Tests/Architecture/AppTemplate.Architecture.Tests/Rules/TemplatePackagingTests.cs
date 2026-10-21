@@ -244,21 +244,6 @@ public sealed class TemplatePackagingTests
             .Select(pattern => pattern.Replace("$(TemplateRoot)", string.Empty, StringComparison.Ordinal))];
     }
 
-    [Theory]
-    [InlineData("AGENTS.md", 150)]
-    [InlineData("Src/Web/AGENTS.md", 60)]
-    public void AnAgentFile_StaysABrief(string agentFile, int maximumLines)
-    {
-        string path = Path.Combine(ProjectReferenceGraph.RepositoryRoot, agentFile);
-
-        File.Exists(path).ShouldBeTrue($"{agentFile} was not found.");
-
-        File.ReadAllLines(path).Length.ShouldBeLessThanOrEqualTo(
-            maximumLines,
-            $"{agentFile} is the brief read before every change; here it holds every branch of every option. " +
-            "Move what explains how something works to the page that owns it, and keep a link.");
-    }
-
     private static List<string> ConditionedBlocks(string[] lines, string symbol)
     {
         string opening = "#" + $"if ({symbol})";

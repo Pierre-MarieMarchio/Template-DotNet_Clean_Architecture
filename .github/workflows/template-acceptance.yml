@@ -67,7 +67,7 @@ jobs:
             generator: "true"
             end_to_end: "true"
           - name: auth none, smallest project
-            options: --auth none --examples none --files false
+            options: --auth none --examples none --files false --agent-files false
             auth_context: "false"
             integration: "true"
           - name: external auth, notes

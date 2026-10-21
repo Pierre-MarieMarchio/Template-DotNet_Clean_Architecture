@@ -177,6 +177,13 @@
       "type": "computed",
       "value": "(ci && sonar)"
     },
+    "agentFiles": {
+      "type": "parameter",
+      "displayName": "Agent instructions",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include AGENTS.md, the brief for coding agents and people, and Src/Web/AGENTS.md with a web app. It is the only agent file the template writes."
+    },
     "web": {
       "type": "parameter",
       "displayName": "First web app",
@@ -692,6 +699,13 @@
             ".github/workflows/codeql.yml",
             ".github/workflows/release.yml",
             ".github/workflows/web.yml"
+          ]
+        },
+        {
+          "condition": "(!agentFiles)",
+          "exclude": [
+            "AGENTS.md",
+            "Src/Web/AGENTS.md"
           ]
         },
         {

@@ -73,8 +73,10 @@ docker compose down                               # stop the stack
 ## Documentation
 
 - [The documentation index](docs/README.md): every page, by what you are doing.
+<!--#if (agentFiles)-->
 - [AGENTS.md](AGENTS.md): how to work in this repository, for people and coding agents alike: the
   commands, where code goes, what done means.
+<!--#endif-->
 - [CONTRIBUTING.md](CONTRIBUTING.md): the pull request rules, and where each rule of this project lives.
 - [SECURITY.md](SECURITY.md): what this project protects, and what a deployment must still do.
 

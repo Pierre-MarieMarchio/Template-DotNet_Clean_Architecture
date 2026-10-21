@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace CleanArch.Create.Projects;
 
-public sealed partial record GeneratedProject(string Root, string Name, bool HasWorkspace, string Scope, string Auth, bool Ci)
+public sealed partial record GeneratedProject(string Root, string Name, bool HasWorkspace, string Scope, string Auth, bool Ci, bool AgentFiles)
 {
     public string WebFolder => Path.Combine(Root, "Src", "Web");
 
@@ -32,7 +32,8 @@ public sealed partial record GeneratedProject(string Root, string Name, bool Has
             hasWorkspace,
             (hasWorkspace ? WorkspaceScope(Path.Combine(web, "package.json")) : null) ?? KebabName(name),
             Authentication(root, name),
-            File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")));
+            File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")),
+            File.Exists(Path.Combine(root, "AGENTS.md")));
     }
 
     private static string? WorkspaceScope(string packageJson)

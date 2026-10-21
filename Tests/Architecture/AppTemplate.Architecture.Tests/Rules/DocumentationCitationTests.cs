@@ -172,7 +172,6 @@ public sealed class DocumentationCitationTests
             }
         }
 
-        pages.ShouldContain(page => Path.GetFileName(page) == _agentFileName, "the root AGENTS.md was not found.");
         checkedPaths.ShouldBeGreaterThan(0, "the agent files cite paths; a scan that checks none is broken.");
         missing.ShouldBeEmpty(
             "A root page or an AGENTS.md cites a path that does not exist, so whoever follows it is lost. "

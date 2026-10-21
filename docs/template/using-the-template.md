@@ -105,6 +105,7 @@ error under warnings as errors. Pick a name with no such segment.
 | `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml`, and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
+| `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
 | `--web` | `none`, `placeholder`, `react`, `angular` | `none` | the first web app in the pnpm workspace `Src/Web`; a framework app is created by its official CLI at bootstrap |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |

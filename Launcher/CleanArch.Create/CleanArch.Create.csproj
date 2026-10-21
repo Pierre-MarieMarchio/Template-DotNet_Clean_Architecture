@@ -33,6 +33,7 @@
     <EmbeddedResource Include="$(TemplateConfig)dotnetcli.host.json" LogicalName=".template.config/dotnetcli.host.json" />
     <EmbeddedResource Include="$(TemplateConfig)ide.host.json" LogicalName=".template.config/ide.host.json" />
     <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/template.json" LogicalName=".template.config/webapp/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/dotnetcli.host.json" LogicalName=".template.config/webapp/.template.config/dotnetcli.host.json" />
     <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/ide.host.json" LogicalName=".template.config/webapp/.template.config/ide.host.json" />
     <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/template.json" LogicalName=".template.config/webpackage/.template.config/template.json" />
     <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/ide.host.json" LogicalName=".template.config/webpackage/.template.config/ide.host.json" />

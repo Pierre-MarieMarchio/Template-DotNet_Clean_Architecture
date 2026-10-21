@@ -21,6 +21,10 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **`--agent-files`.** A generation option, `true` by default, that leaves out `AGENTS.md` and
+  `Src/Web/AGENTS.md` when `false`; `cleanarch-webapp` takes it too, read from the project by the
+  launcher. The pages that point to `AGENTS.md` point to the page that owns the rule when it is
+  absent.
 - **Callers authenticated by an external OpenID Connect provider.** `AddExternalAuthentication`
   (`Api/Features/ExternalIdentity/Composition/`) validates access tokens from Keycloak, Entra ID,
   Auth0 or any provider with a discovery document, configured by the new, start-up-validated

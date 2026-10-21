@@ -91,6 +91,13 @@
       "defaultValue": "true",
       "description": "The project's --ci value: with --workspace, the web workflow joins the others."
     },
+    "agentFiles": {
+      "type": "parameter",
+      "displayName": "Project generated with --agent-files",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "The project's --agent-files value: with --workspace, Src/Web/AGENTS.md joins the root AGENTS.md."
+    },
     "auth": {
       "type": "parameter",
       "displayName": "Project authentication",
@@ -260,13 +267,23 @@
       "source": "../../Src/Web/",
       "target": "./Src/Web/",
       "condition": "(workspace)",
-      "exclude": [
-        "apps/**",
-        "**/node_modules/**",
-        "**/dist/**",
-        "**/coverage/**",
-        "packages/api-client/openapi/**",
-        "pnpm-lock.yaml"
+      "modifiers": [
+        {
+          "exclude": [
+            "apps/**",
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/coverage/**",
+            "packages/api-client/openapi/**",
+            "pnpm-lock.yaml"
+          ]
+        },
+        {
+          "condition": "(!agentFiles)",
+          "exclude": [
+            "AGENTS.md"
+          ]
+        }
       ]
     },
     {

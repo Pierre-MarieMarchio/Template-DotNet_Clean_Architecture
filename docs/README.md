@@ -88,4 +88,6 @@ records the choices this project started with.
 | A setting | a section in the configuration reference | the table shape there |
 | A route or a code | a row in the API reference | the table shape there |
 
+<!--#if (agentFiles)-->
 [AGENTS.md › Writing docs](../AGENTS.md#writing-docs) holds the rules for writing them.
+<!--#endif-->

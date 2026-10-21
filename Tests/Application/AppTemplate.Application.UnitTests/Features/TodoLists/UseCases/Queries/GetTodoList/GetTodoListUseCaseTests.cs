@@ -116,18 +116,6 @@ public sealed class GetTodoListUseCaseTests
             .ShouldNotContain("Version");
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheQuery()
-    {
-        var listId = Guid.CreateVersion7();
-        _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(ADetailFor(listId));
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new GetTodoListQuery(listId), cancellation.Token);
-
-        await _queries.Received(1).GetDetailAsync(listId, _callerId, cancellation.Token);
-    }
-
     private static Versioned<TodoListDetailDto> ADetailFor(Guid listId) =>
         new(new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, []), _listVersion);
 

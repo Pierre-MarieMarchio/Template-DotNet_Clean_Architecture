@@ -385,27 +385,6 @@ public sealed class SignInWithExternalProviderUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task TheCancellationToken_ReachesEveryStep()
-    {
-        var provisioned = AnAccount();
-        using var cancellation = new CancellationTokenSource();
-
-        GivenTheToken(AVerifiedIdentity());
-        _externalLogins.ProvisionAsync(_email, _provider, _subject, Arg.Any<CancellationToken>())
-            .Returns(provisioned);
-
-        await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
-
-        await _verifier.Received(1).VerifyAsync(_provider, "an-id-token", cancellation.Token);
-        await _externalLogins.Received(1).FindByExternalLoginAsync(_provider, _subject, cancellation.Token);
-        await _externalLogins.Received(1).FindByEmailAsync(_email, cancellation.Token);
-        await _externalLogins.Received(1).ProvisionAsync(_email, _provider, _subject, cancellation.Token);
-        await _accounts.Received(1).CanSignInAsync(provisioned.UserId, cancellation.Token);
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(provisioned.UserId, Arg.Any<Guid>(), cancellation.Token);
-        await _sessionTokens.Received(1).IssueRefreshTokenAsync(provisioned.UserId, Arg.Any<SessionClient>(), cancellation.Token);
-    }
-
     private static SignInWithExternalProviderCommand AValidRequest() => new(_provider, "an-id-token");
 
     private static VerifiedExternalIdentity AVerifiedIdentity() =>

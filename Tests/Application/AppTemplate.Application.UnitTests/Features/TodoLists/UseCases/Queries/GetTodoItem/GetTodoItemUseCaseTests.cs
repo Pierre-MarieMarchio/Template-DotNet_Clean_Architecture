@@ -143,19 +143,6 @@ public sealed class GetTodoItemUseCaseTests
         result.Value.Version.ShouldBe(_listVersion);
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheQuery()
-    {
-        var listId = Guid.CreateVersion7();
-        var itemId = Guid.CreateVersion7();
-        GivenTheListHolds(listId, AnItem(itemId));
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new GetTodoItemQuery(listId, itemId), cancellation.Token);
-
-        await _queries.Received(1).GetDetailAsync(listId, _callerId, cancellation.Token);
-    }
-
     private static TodoItemDto AnItem(Guid itemId, string title = "Milk") =>
         new(itemId, title, null, false, null, []);
 

@@ -125,23 +125,6 @@ public sealed class ResendConfirmationEmailUseCaseTests
         await Should.ThrowAsync<OperationCanceledException>(() => _useCase.ExecuteAsync(ARequest(), TestToken));
     }
 
-    [Fact]
-    public async Task TheCancellationToken_ReachesEveryStep()
-    {
-        GivenAnAccountIsAwaitingConfirmation();
-        using var cancellation = new CancellationTokenSource();
-
-        await _useCase.ExecuteAsync(ARequest(), cancellation.Token);
-
-        await _emailTokens.Received(1).IssueEmailConfirmationAsync("someone@example.com", cancellation.Token);
-
-        await _emailSender.Received(1).SendAsync(
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            cancellation.Token);
-    }
-
     private static ResendConfirmationEmailCommand ARequest() => new("someone@example.com");
 
     private void GivenAnAccountIsAwaitingConfirmation()

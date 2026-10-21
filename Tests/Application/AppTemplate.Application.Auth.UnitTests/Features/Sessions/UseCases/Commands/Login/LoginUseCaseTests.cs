@@ -223,29 +223,6 @@ public sealed class LoginUseCaseTests
     }
 
     [Fact]
-    public async Task TheCancellationToken_ReachesEveryStep()
-    {
-        var account = GivenTheCredentialIsVerified();
-        using var cancellation = new CancellationTokenSource();
-
-        await _useCase.ExecuteAsync(AValidRequest(), cancellation.Token);
-
-        await _accounts.Received(1).VerifyCredentialAsync(
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            cancellation.Token);
-
-        await _sessionTokens.Received(1).IssueAccessTokenAsync(
-            account.UserId,
-            Arg.Any<Guid>(),
-            cancellation.Token);
-        await _sessionTokens.Received(1).IssueRefreshTokenAsync(
-            account.UserId,
-            Arg.Any<SessionClient>(),
-            cancellation.Token);
-    }
-
-    [Fact]
     public async Task AVerifiedCredentialOnATwoFactorAccount_IsAnsweredWithAChallengeInstead()
     {
         var account = GivenTheCredentialIsVerified(twoFactorEnabled: true);

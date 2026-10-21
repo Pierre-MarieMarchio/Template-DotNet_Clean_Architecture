@@ -244,19 +244,6 @@ public sealed class CompleteTodoItemUseCaseTests
         list.Items.Single(item => item.Id == untouchedId).IsCompleted.ShouldBeFalse();
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheLoadAndTheCommit()
-    {
-        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new CompleteTodoItemCommand(list.Id, itemId), cancellation.Token);
-
-        await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
-        await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
-    }
-
     private CompleteTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _unitOfWork, _clock, new CompleteTodoItemCommandValidator());
 

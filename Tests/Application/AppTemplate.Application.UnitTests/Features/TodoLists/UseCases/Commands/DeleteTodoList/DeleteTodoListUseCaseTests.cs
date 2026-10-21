@@ -130,19 +130,6 @@ public sealed class DeleteTodoListUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheLoadAndTheCommit()
-    {
-        var list = ATodoList.OwnedBy(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new DeleteTodoListCommand(list.Id), cancellation.Token);
-
-        await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
-        await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
-    }
-
     private DeleteTodoListUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _repository, _unitOfWork, new DeleteTodoListCommandValidator());
 

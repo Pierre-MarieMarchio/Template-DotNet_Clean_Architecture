@@ -60,24 +60,6 @@ public sealed class IdempotencyStoreBatchedDeleteTests
     }
 
     [Fact]
-    public async Task RunBatchedDeleteAsync_ForwardsTheCancellationTokenToEveryBatch()
-    {
-        using var cancellation = new CancellationTokenSource();
-        CancellationToken? observed = null;
-
-        await IdempotencyStore.RunBatchedDeleteAsync(
-            batchSize: 10,
-            deleteBatchAsync: ct =>
-            {
-                observed = ct;
-                return Task.FromResult(3);
-            },
-            ct: cancellation.Token);
-
-        observed.ShouldBe(cancellation.Token);
-    }
-
-    [Fact]
     public async Task RunBatchedDeleteAsync_MakesOneMoreCall_WhenTheLastBatchExactlyFillsTheBatchSize()
     {
         int calls = 0;

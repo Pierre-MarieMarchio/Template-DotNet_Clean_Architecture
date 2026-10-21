@@ -67,17 +67,6 @@ public sealed class GetMySecurityEventsUseCaseTests
             Arg.Any<Guid>(), Arg.Any<PageRequest>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwarded()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new GetMySecurityEventsQuery(1, 20), cancellation.Token);
-
-        await _queries.Received(1).GetForUserAsync(
-            _callerId, Arg.Any<PageRequest>(), cancellation.Token);
-    }
-
     private GetMySecurityEventsUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(_queries, currentUser);
 

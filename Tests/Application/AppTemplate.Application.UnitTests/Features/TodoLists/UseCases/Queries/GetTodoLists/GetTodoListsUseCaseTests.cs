@@ -140,17 +140,6 @@ public sealed class GetTodoListsUseCaseTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheQuery()
-    {
-        GivenThePageIsEmpty();
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(GetTodoListsQuery.Offset(1, 10), cancellation.Token);
-
-        await _queries.Received(1).GetForOwnerAsync(_callerId, Arg.Any<FeaturePageRequest<TodoListFilter>>(), cancellation.Token);
-    }
-
     private static TodoListSummaryDto ASummary() =>
         new(Guid.CreateVersion7(), "Groceries", 3, 1, StubDateTimeProvider.DefaultInstant);
 

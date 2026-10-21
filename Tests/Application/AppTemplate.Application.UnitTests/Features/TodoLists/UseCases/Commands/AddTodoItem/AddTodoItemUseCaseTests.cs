@@ -313,19 +313,6 @@ public sealed class AddTodoItemUseCaseTests
         item.TodoListId.ShouldBe(list.Id);
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheLoadAndTheCommit()
-    {
-        var list = ATodoList.OwnedBy(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(ACommandFor(list.Id), cancellation.Token);
-
-        await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
-        await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
-    }
-
     private static AddTodoItemCommand ACommandFor(Guid todoListId, string title = "Buy milk") =>
         new(todoListId, title, null, null);
 

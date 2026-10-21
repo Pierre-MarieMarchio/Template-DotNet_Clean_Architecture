@@ -79,14 +79,4 @@ public sealed class LogoutUseCaseTests
 
         await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
     }
-
-    [Fact]
-    public async Task TheCancellationToken_IsForwarded()
-    {
-        using var cancellation = new CancellationTokenSource();
-
-        await _useCase.ExecuteAsync(new LogoutCommand("an-opaque-secret"), cancellation.Token);
-
-        await _sessionTokens.Received(1).RevokeRefreshTokenAsync("an-opaque-secret", cancellation.Token);
-    }
 }

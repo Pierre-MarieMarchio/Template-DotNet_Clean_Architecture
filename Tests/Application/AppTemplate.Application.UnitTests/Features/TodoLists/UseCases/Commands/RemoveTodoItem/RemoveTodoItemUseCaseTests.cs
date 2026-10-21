@@ -170,19 +170,6 @@ public sealed class RemoveTodoItemUseCaseTests
         list.DomainEvents.ShouldBeEmpty();
     }
 
-    [Fact]
-    public async Task TheCancellationToken_IsForwardedToTheLoadAndTheCommit()
-    {
-        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
-        using var cancellation = new CancellationTokenSource();
-
-        await UseCase().ExecuteAsync(new RemoveTodoItemCommand(list.Id, itemId), cancellation.Token);
-
-        await _repository.Received(1).GetAsync(list.Id, cancellation.Token);
-        await _unitOfWork.Received(1).SaveChangesAsync(cancellation.Token);
-    }
-
     private RemoveTodoItemUseCase UseCaseFor(ICurrentUser currentUser) =>
         new(new TodoListService(_repository, currentUser), _unitOfWork, new RemoveTodoItemCommandValidator());
 

@@ -1,0 +1,145 @@
+﻿# Overview
+
+## What it is
+
+This project is a .NET 10 HTTP API built on Clean Architecture: a domain, an application layer of
+use cases, infrastructure modules behind ports, and a thin presentation layer. It stores its data in
+PostgreSQL through EF Core, answers every failure with a problem document, and refuses to start on a
+setting it cannot use.
+<!--#if (anyWeb)-->
+A pnpm workspace beside it holds its web apps.
+<!--#endif-->
+
+It is a starting point. The modules and mechanisms it carries are meant to stay; the product's own
+features grow beside them, and the documentation grows with them.
+
+## What it contains
+
+| Part | Here |
+|---|---|
+| Layers | `Src/Domain`, `Src/Application`, `Src/Infrastructure` and `Src/Presentation`, each mirrored under `Tests/` |
+<!--#if (localAuth && files)-->
+| Modules | Persistence, Auth, Email, Storage, InMemory |
+<!--#endif-->
+<!--#if (localAuth && !files)-->
+| Modules | Persistence, Auth, Email, InMemory |
+<!--#endif-->
+<!--#if (!localAuth && files)-->
+| Modules | Persistence, Email, Storage, InMemory |
+<!--#endif-->
+<!--#if (!localAuth && !files)-->
+| Modules | Persistence, Email, InMemory |
+<!--#endif-->
+<!--#if (todoLists)-->
+| Example features | TodoLists, Reminders and Notes: the rich shape, a flat aggregate, the simple shape |
+<!--#endif-->
+<!--#if (notes && !todoLists)-->
+| Example features | Notes: the simple shape |
+<!--#endif-->
+<!--#if (files)-->
+| Files | stored files, an S3-compatible store and the background passes that inspect and reclaim them |
+<!--#endif-->
+| Background jobs | timers in the API process, switched per instance |
+| Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo |
+<!--#if (anyWeb)-->
+| Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
+<!--#endif-->
+<!--#if (ci)-->
+| CI | GitHub Actions workflows under `.github/workflows` |
+<!--#endif-->
+
+## How this project was generated
+
+The values below decided which parts exist. A part left out is absent, not disabled: no file,
+setting, table or test names it.
+
+| Option | Value | Gives |
+|---|---|---|
+<!--#if (localAuth)-->
+| `--auth` | `local` | local accounts with access and refresh tokens, two-factor, passkeys and roles |
+<!--#endif-->
+<!--#if (externalAuth)-->
+| `--auth` | `external` | callers authenticated by an OpenID Connect provider, each mapped to an internal owner |
+<!--#endif-->
+<!--#if (publicApi)-->
+| `--auth` | `none` | a public API: no accounts, every route open on purpose |
+<!--#endif-->
+<!--#if (todoLists)-->
+| `--examples` | `all` | TodoLists, Reminders and Notes |
+<!--#endif-->
+<!--#if (notes && !todoLists)-->
+| `--examples` | `notes` | Notes only |
+<!--#endif-->
+<!--#if (!notes)-->
+| `--examples` | `none` | no example feature |
+<!--#endif-->
+<!--#if (files)-->
+| `--files` | `true` | the Files feature, its storage module and the object store in Compose |
+<!--#endif-->
+<!--#if (!files)-->
+| `--files` | `false` | no Files feature and no object store |
+<!--#endif-->
+<!--#if (ci && anyWeb)-->
+| `--ci` | `true` | the build, release and web workflows |
+<!--#endif-->
+<!--#if (ci && !anyWeb)-->
+| `--ci` | `true` | the build and release workflows |
+<!--#endif-->
+<!--#if (!ci)-->
+| `--ci` | `false` | no workflow |
+<!--#endif-->
+<!--#if (sonar)-->
+| `--sonar` | `true` | the Sonar analysis, locally and in CI |
+<!--#endif-->
+<!--#if (!sonar)-->
+| `--sonar` | `false` | no Sonar analysis |
+<!--#endif-->
+<!--#if (webReact)-->
+| `--web` | `react` | a React app in `Src/Web/apps/ReactSite`, created by its official CLI at bootstrap |
+<!--#endif-->
+<!--#if (webAngular)-->
+| `--web` | `angular` | an Angular app in `Src/Web/apps/AngularSite`, created by its official CLI at bootstrap |
+<!--#endif-->
+<!--#if (webPlaceholder)-->
+| `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
+<!--#endif-->
+<!--#if (!anyWeb)-->
+| `--web` | `none` | no web app: a pure API |
+<!--#endif-->
+<!--#if (adminAudience)-->
+| `--web-audience` | `admin` | the app is a back office for administrators |
+<!--#endif-->
+<!--#if (anyWeb && !adminAudience)-->
+| `--web-audience` | `public` | the app is a site for the API's users |
+<!--#endif-->
+
+To change a value, remove the part by hand or add it:
+
+<!--#if (anyFeature)-->
+- [Removing features](../guides/removing-features.md) takes a part out.
+<!--#endif-->
+<!--#if (canAddFeature)-->
+- [Adding a feature](../guides/adding-a-feature.md) generates a feature of your own.
+<!--#endif-->
+<!--#if (!anyWeb)-->
+- `dotnet new cleanarch-webapp -n PlaceholderSite --framework react --scope app-template --workspace`
+  adds a first web app and its workspace (`angular` or `placeholder` work too). Pass this
+  project's `--auth`, `--examples` and `--ci` when they are not the defaults; the README it writes in
+  the new workspace lists the lines to add by hand.
+<!--#endif-->
+<!--#if (anyWeb)-->
+- `dotnet new cleanarch-webapp` adds another web app; [the web front end](../features/web-frontend.md) says how.
+<!--#endif-->
+
+## Why it starts like this
+
+The project inherits choices made before any feature existed: the stack, the tools, the
+foundations shipped ahead of their first use, the deployment shape. They are recorded as one decision,
+[ADR 0001](../decisions/0001-adopt-the-generated-baseline.md), one row each with its reason. Reversing
+a row is a decision of your own, written as an ADR that names the row.
+
+## Where to go next
+
+1. [First run](first-run.md): bootstrap, run, call the API, add a feature.
+2. [Architecture](../architecture/README.md): the shape every feature follows.
+3. [The documentation index](../README.md): every page, and where a new one goes.

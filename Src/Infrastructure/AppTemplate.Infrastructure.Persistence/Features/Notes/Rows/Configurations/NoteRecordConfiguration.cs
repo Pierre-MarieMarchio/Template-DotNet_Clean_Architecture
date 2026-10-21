@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Features.Notes.Model.Policies;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Models;
 using Microsoft.EntityFrameworkCore;
@@ -37,10 +38,6 @@ internal sealed class NoteRecordConfiguration : IEntityTypeConfiguration<NoteRec
         builder.Property(note => note.CreatedAt).IsRequired();
         builder.Property(note => note.LastModifiedAt);
 
-        builder.Property(note => note.Version)
-            .HasColumnName("xmin")
-            .HasColumnType("xid")
-            .ValueGeneratedOnAddOrUpdate()
-            .IsConcurrencyToken();
+        builder.Property(note => note.Version).IsVersion();
     }
 }

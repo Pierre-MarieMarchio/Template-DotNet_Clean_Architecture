@@ -4,9 +4,9 @@ using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 
@@ -61,7 +61,7 @@ internal sealed class AccountsService(
             result = await userManager.CreateAsync(user, password);
         }
         catch (DbUpdateException exception)
-            when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            when (DatabaseProvider.IsUniqueViolation(exception))
         {
             return await AlreadyRegisteredAfterALostRaceAsync(email);
         }

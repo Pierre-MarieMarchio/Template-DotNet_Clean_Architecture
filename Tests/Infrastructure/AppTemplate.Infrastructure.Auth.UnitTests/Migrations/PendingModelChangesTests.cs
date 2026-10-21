@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
@@ -11,7 +12,7 @@ public sealed class PendingModelChangesTests
     public void TheModel_IsFullyCoveredByTheMigrations()
     {
         var options = new DbContextOptionsBuilder<AuthDbContext>()
-            .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
             .Options;
 
         using var context = new AuthDbContext(options);

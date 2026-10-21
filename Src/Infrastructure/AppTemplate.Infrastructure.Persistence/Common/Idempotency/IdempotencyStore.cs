@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 
@@ -44,7 +44,7 @@ internal sealed class IdempotencyStore(
             await context.SaveChangesAsync(ct);
             return IdempotencyClaim.Claimed();
         }
-        catch (DbUpdateException exception) when (IsPrimaryKeyViolation(exception))
+        catch (DbUpdateException exception) when (DatabaseProvider.IsUniqueViolation(exception))
         {
             entry.State = EntityState.Detached;
 
@@ -209,7 +209,4 @@ internal sealed class IdempotencyStore(
 
     internal static bool HasExpiredLease(IdempotencyRecord existing, DateTimeOffset now) =>
         !existing.IsCompleted && existing.ClaimedUntil <= now;
-
-    private static bool IsPrimaryKeyViolation(DbUpdateException exception) =>
-        exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 }

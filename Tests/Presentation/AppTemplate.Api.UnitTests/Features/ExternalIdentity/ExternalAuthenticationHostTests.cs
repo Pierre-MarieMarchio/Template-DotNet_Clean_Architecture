@@ -12,6 +12,7 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Services;
 //#endif
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -63,7 +64,7 @@ public sealed class ExternalAuthenticationHostTests : IAsyncLifetime
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+            ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
             ["Authentication:External:Authority"] = _issuer,
             ["Authentication:External:Audience"] = _audience,
             ["Authentication:External:Roles:Source"] = "Claim",

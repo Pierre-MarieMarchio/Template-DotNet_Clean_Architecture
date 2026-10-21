@@ -8,9 +8,6 @@ public static class DefaultConnectionString
 
     public const string EnvironmentVariableName = "ConnectionStrings__Default";
 
-    private const string _localDesignTimeFallback =
-        "Host=localhost;Port=5432;Database=appdb;Username=postgres;Password=postgres";
-
     public static string Require(IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -27,6 +24,6 @@ public static class DefaultConnectionString
     {
         string? connectionString = Environment.GetEnvironmentVariable(EnvironmentVariableName);
 
-        return string.IsNullOrWhiteSpace(connectionString) ? _localDesignTimeFallback : connectionString;
+        return string.IsNullOrWhiteSpace(connectionString) ? DatabaseProvider.DesignTimeConnectionString : connectionString;
     }
 }

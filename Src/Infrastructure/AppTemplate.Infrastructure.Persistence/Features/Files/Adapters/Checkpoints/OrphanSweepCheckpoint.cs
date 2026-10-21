@@ -1,9 +1,9 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Checkpoints;
 
@@ -46,7 +46,7 @@ internal sealed class OrphanSweepCheckpoint(
             await context.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException exception)
-            when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            when (DatabaseProvider.IsUniqueViolation(exception))
         {
             entry.State = EntityState.Detached;
             await UpdateAsync(context, lastKey, now, cancellationToken);

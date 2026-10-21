@@ -17,6 +17,7 @@ using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 //#endif
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.AspNetCore.Http;
@@ -213,7 +214,7 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+                ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
             })
             .Build();
 

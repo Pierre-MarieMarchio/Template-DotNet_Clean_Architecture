@@ -28,7 +28,7 @@ The cross-cutting ports, and what implements each:
 | `IEmailSender` | `MailKitEmailSender` or `PostmarkEmailSender`, chosen by configuration |
 | `ICurrentUser`, `ICurrentAccessToken` | the host, from the request's claims |
 | `IDateTimeProvider` | `SystemDateTimeProvider` |
-| `ILeaderLease` | `PostgresLeaderLease`, a session-level advisory lock |
+| `ILeaderLease` | `LeaderLease`, a session-level advisory lock |
 | `IIdempotencyStore` | `IdempotencyStore`, over the `platform.IdempotencyKeys` table |
 | `ICacheStore` | `HybridCacheStore` |
 | `IDomainEventPublisher` | `DomainEventPublisher` |

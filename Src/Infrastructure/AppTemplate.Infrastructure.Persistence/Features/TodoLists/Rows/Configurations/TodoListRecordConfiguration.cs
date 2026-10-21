@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 using Microsoft.EntityFrameworkCore;
@@ -33,11 +34,7 @@ internal sealed class TodoListRecordConfiguration : IEntityTypeConfiguration<Tod
             .HasMaxLength(TodoListName.MaxLength)
             .IsRequired();
 
-        builder.Property(list => list.Version)
-            .HasColumnName("xmin")
-            .HasColumnType("xid")
-            .ValueGeneratedOnAddOrUpdate()
-            .IsConcurrencyToken();
+        builder.Property(list => list.Version).IsVersion();
 
         builder.Property(list => list.CreatedAt).IsRequired();
         builder.Property(list => list.CreatedBy);

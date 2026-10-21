@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Infrastructure.Auth.Common.Contexts;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -38,7 +39,7 @@ public sealed class AuthModuleSavingTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
-                ["ConnectionStrings:Default"] = "Host=nowhere;Database=apptemplate;Username=u;Password=p",
+                ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
             })
             .Build();
 

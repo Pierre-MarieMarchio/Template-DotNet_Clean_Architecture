@@ -3852,6 +3852,7 @@ internal static class Templates
         %else%
         using %P%.Domain.Features.%F%.Model.Entities;
         %end%
+        using %P%.Infrastructure.Core.Common.Contexts; //?IsVersion
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
         using Microsoft.EntityFrameworkCore;
@@ -3915,11 +3916,7 @@ internal static class Templates
         %end%
         %if etag%
 
-                builder.Property(record => record.Version)
-                    .HasColumnName("xmin")
-                    .HasColumnType("xid")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .IsConcurrencyToken();
+                builder.Property(record => record.Version).IsVersion();
         %end%
             }
         }
@@ -5489,6 +5486,7 @@ internal static class Templates
         %if agg%
         using %P%.Domain.Features.%F%.Model.Entities;
         %end%
+        using %P%.Infrastructure.Core.Common.Contexts;
         using %P%.Infrastructure.Persistence.Common.Contexts;
         using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
         using Microsoft.EntityFrameworkCore;
@@ -5507,8 +5505,7 @@ internal static class Templates
                 var version = Entity().FindProperty(nameof(%A%Record.Version))!;
 
                 version.IsConcurrencyToken.ShouldBeTrue();
-                version.GetColumnName().ShouldBe("xmin");
-                version.GetColumnType().ShouldBe("xid");
+                version.GetColumnName().ShouldBe(DatabaseProvider.VersionColumnName);
             }
         %else%
             [Fact]
@@ -5552,7 +5549,7 @@ internal static class Templates
             private static IEntityType Entity()
             {
                 using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-                    .UseNpgsql("Host=localhost;Database=probe;Username=none;Password=none")
+                    .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
                     .Options);
 
                 return context.Model.FindEntityType(typeof(%A%Record))!;

@@ -1,4 +1,5 @@
-﻿using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Reminders.Rows.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -30,11 +31,7 @@ internal sealed class ReminderRecordConfiguration : IEntityTypeConfiguration<Rem
         builder.HasIndex(reminder => reminder.TodoItemId)
             .HasDatabaseName("IX_Reminders_TodoItemId");
 
-        builder.Property(reminder => reminder.Version)
-            .HasColumnName("xmin")
-            .HasColumnType("xid")
-            .ValueGeneratedOnAddOrUpdate()
-            .IsConcurrencyToken();
+        builder.Property(reminder => reminder.Version).IsVersion();
 
         builder.Property(reminder => reminder.CreatedAt).IsRequired();
         builder.Property(reminder => reminder.CreatedBy);

@@ -6,7 +6,7 @@ using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Leases;
 
-internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<PostgresLeaderLease> logger)
+internal sealed class LeaderLease(IConfiguration configuration, ILogger<LeaderLease> logger)
     : ILeaderLease
 {
     private const string _acquireSql = "SELECT pg_try_advisory_lock(@key)";
@@ -14,7 +14,7 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
     private const string _releaseSql = "SELECT pg_advisory_unlock(@key)";
 
     private readonly string _connectionString =
-        LeaseConnectionString(DefaultConnectionString.Require(configuration));
+        DatabaseProvider.DedicatedConnectionString(DefaultConnectionString.Require(configuration));
 
     public async Task<bool> TryRunExclusivelyAsync(
         string leaseName,
@@ -79,7 +79,4 @@ internal sealed class PostgresLeaderLease(IConfiguration configuration, ILogger<
                 leaseName);
         }
     }
-
-    private static string LeaseConnectionString(string connectionString) =>
-        new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
 }

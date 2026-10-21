@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,7 +10,7 @@ namespace AppTemplate.Infrastructure.Core.UnitTests.Common.Saving;
 
 public sealed class EfUnitOfWorkTests
 {
-    private const string _neverOpened = "Host=localhost;Database=never-opened;Username=none;Password=none";
+    private const string _neverOpened = DatabaseProvider.DesignTimeConnectionString;
 
     [Fact]
     public async Task SaveChangesAsync_TranslatesAConcurrencyConflict_AndKeepsTheOriginal()
@@ -45,7 +46,7 @@ public sealed class EfUnitOfWorkTests
     public async Task AddContextUnitOfWork_CommitsOnItsOwn_WithNoSavingMechanismRegistered()
     {
         var services = new ServiceCollection();
-        services.AddDbContext<EmptyContext>(options => options.UseNpgsql(_neverOpened));
+        services.AddDbContext<EmptyContext>(options => options.UseDatabase(_neverOpened));
         services.AddContextUnitOfWork<EmptyContext>();
 
         await using var provider = services.BuildServiceProvider(
@@ -62,7 +63,7 @@ public sealed class EfUnitOfWorkTests
     private static EmptyContext AContextThatFailsWith(Exception failure)
     {
         var options = new DbContextOptionsBuilder<EmptyContext>()
-            .UseNpgsql(_neverOpened)
+            .UseDatabase(_neverOpened)
             .AddInterceptors(new FailingSaveChangesInterceptor(failure))
             .Options;
 

@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
@@ -78,7 +79,7 @@ public sealed class AuditingSaveChangesInterceptorTests
 
     private static AppDbContext AContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=localhost;Database=never-opened;Username=none;Password=none")
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
             .Options);
 
     private sealed class StubAuditActor(Guid? userId) : IAuditActor

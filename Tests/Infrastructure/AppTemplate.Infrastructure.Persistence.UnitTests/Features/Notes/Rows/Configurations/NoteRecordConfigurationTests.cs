@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Features.Notes.Model.Policies;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Models;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +17,7 @@ public sealed class NoteRecordConfigurationTests
         var version = Entity().FindProperty(nameof(NoteRecord.Version))!;
 
         version.IsConcurrencyToken.ShouldBeTrue();
-        version.GetColumnName().ShouldBe("xmin");
-        version.GetColumnType().ShouldBe("xid");
+        version.GetColumnName().ShouldBe(DatabaseProvider.VersionColumnName);
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public sealed class NoteRecordConfigurationTests
     private static IEntityType Entity()
     {
         using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=localhost;Database=probe;Username=none;Password=none")
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
             .Options);
 
         return context.Model.FindEntityType(typeof(NoteRecord))!;

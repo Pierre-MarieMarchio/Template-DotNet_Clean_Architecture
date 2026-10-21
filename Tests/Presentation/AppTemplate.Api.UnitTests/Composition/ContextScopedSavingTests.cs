@@ -11,6 +11,9 @@ using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
+//#endif
+using AppTemplate.Infrastructure.Core.Common.Contexts;
+//#if (localAuth)
 using AppTemplate.Infrastructure.Core.Common.Saving;
 //#endif
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
@@ -114,13 +117,13 @@ public sealed class ContextScopedSavingTests
         var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, Token))!;
         list.CompleteItem(itemId, DateTimeOffset.UtcNow);
 
-        await host.ExecuteOnBusinessStoreAsync("UPDATE \"TodoLists\" SET \"xmin\" = \"xmin\" + 1", Token);
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"TodoLists\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
 
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token));
         host.Published.OfType<TodoItemCompletedDomainEvent>().ShouldBeEmpty();
 
-        await host.ExecuteOnBusinessStoreAsync("UPDATE \"TodoLists\" SET \"xmin\" = \"xmin\" - 1", Token);
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"TodoLists\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" - 1", Token);
         await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
 
         host.Published.OfType<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem();

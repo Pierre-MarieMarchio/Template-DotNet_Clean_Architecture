@@ -73,7 +73,6 @@ using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Access.Repositor
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Mapping;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Tracking;
 //#endif
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -81,7 +80,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 //#endif
 using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence;
 
@@ -171,7 +169,7 @@ public static class PersistenceModule
     {
         services.AddSystemClock();
 
-        services.TryAddSingleton<ILeaderLease, PostgresLeaderLease>();
+        services.TryAddSingleton<ILeaderLease, LeaderLease>();
 
         services.AddContextUnitOfWork<AppDbContext>();
         services.AddSavingInterceptors();
@@ -197,9 +195,9 @@ public static class PersistenceModule
     //#if (files)
     private static void AddFilesFeature(IServiceCollection services, string connectionString)
     {
-        services.TryAddSingleton<IOwnerQuotaLock>(provider => new PostgresOwnerQuotaLock(
+        services.TryAddSingleton<IOwnerQuotaLock>(provider => new OwnerQuotaLock(
             connectionString,
-            provider.GetRequiredService<ILogger<PostgresOwnerQuotaLock>>()));
+            provider.GetRequiredService<ILogger<OwnerQuotaLock>>()));
 
         services.TryAddSingleton<IStoredFileMapper, StoredFileMapper>();
 
@@ -250,25 +248,12 @@ public static class PersistenceModule
             var database = serviceProvider.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
             options
-                .UseNpgsql(WithMaxPoolSize(connectionString, database.MaxPoolSize), npgsql => npgsql
-                    .EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(10),
-                        errorCodesToAdd: null)
-                    .CommandTimeout(database.CommandTimeoutSeconds)
-                    .MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)
-                    .MigrationsHistoryTable(
-                        AppDbContext.MigrationsHistoryTableName,
-                        AppDbContext.MigrationsHistorySchema))
-
                 .UseAggregateFlushing(serviceProvider)
                 .UseAuditStamping(serviceProvider)
-                .UseDomainEventDispatch(serviceProvider);
+                .UseDomainEventDispatch(serviceProvider)
+                .UseDatabase(connectionString, database, AppDbContext.Migrations);
         });
     }
-
-    private static string WithMaxPoolSize(string connectionString, int maxPoolSize) =>
-        new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = maxPoolSize }.ConnectionString;
 
     private static void AddContextFactory(IServiceCollection services)
     {

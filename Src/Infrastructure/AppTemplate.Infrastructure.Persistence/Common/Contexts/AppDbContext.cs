@@ -1,4 +1,5 @@
-﻿using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
+﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
+using AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 //#if (externalAuth)
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Configurations;
 using AppTemplate.Infrastructure.Persistence.Features.ExternalIdentity.Rows.Models;
@@ -51,6 +52,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public const string MigrationsHistorySchema = "public";
 
+    public static ContextMigrations Migrations { get; } = new(
+        typeof(AppDbContext).Assembly.GetName().Name!,
+        MigrationsHistoryTableName,
+        MigrationsHistorySchema);
+
     //#if (todoLists)
     internal DbSet<TodoListRecord> TodoLists => Set<TodoListRecord>();
 
@@ -76,6 +82,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     //#endif
     internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        configurationBuilder.ApplyDatabaseConventions();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

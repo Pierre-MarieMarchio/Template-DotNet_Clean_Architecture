@@ -2,13 +2,14 @@
 using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Leases;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Locks;
 
-internal sealed class PostgresOwnerQuotaLock(string connectionString, ILogger<PostgresOwnerQuotaLock> logger)
+internal sealed class OwnerQuotaLock(string connectionString, ILogger<OwnerQuotaLock> logger)
     : IOwnerQuotaLock
 {
     internal static readonly TimeSpan WaitLimit = TimeSpan.FromSeconds(10);
@@ -22,7 +23,7 @@ internal sealed class PostgresOwnerQuotaLock(string connectionString, ILogger<Po
     private const string _releaseSql = "SELECT pg_advisory_unlock(@key)";
 
     private readonly string _connectionString =
-        new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
+        DatabaseProvider.DedicatedConnectionString(connectionString);
 
     public async Task<T> RunExclusivelyAsync<T>(
         UserId owner,

@@ -61,7 +61,7 @@ which is what makes an unused `using` (IDE0005) fail the build.
 
 | Workflow | When | Does |
 |---|---|---|
-| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the load smoke |
+| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the load smoke |
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->

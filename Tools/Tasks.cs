@@ -27,6 +27,13 @@ internal static class Tasks
         Tasks:
         <tasks>
 
+        Migrations:
+          migration-initial                restore, then create each context's initial migration,
+                                           InitialCreate, where its Migrations folder holds no model
+                                           snapshot; a context that has one is left alone. bootstrap
+                                           runs it, and migration-add, database-update,
+                                           migration-bundle and verify refuse until it has run
+
         Options:
           --no-integration                 test: run only the projects that set IsTestProject and
                                            reference no Testcontainers, so no Docker daemon is needed
@@ -75,6 +82,7 @@ internal static class Tasks
         "new-feature",
         "new-use-case",
         "remove-feature",
+        "migration-initial",
         "migration-add",
         "database-update",
         "migration-bundle",
@@ -309,6 +317,13 @@ internal static class Tasks
         //#if (localAuth)
         string auth = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Auth");
         //#endif
+        string[] contexts =
+        [
+            //#if (localAuth)
+            auth,
+            //#endif
+            persistence,
+        ];
         string api = Path.Combine(repoRoot, "Src", "Presentation", "AppTemplate.Api");
         string runsettings = Path.Combine(repoRoot, "coverage.runsettings");
 
@@ -401,7 +416,13 @@ internal static class Tasks
                     ]);
                 break;
 
+            case "migration-initial":
+                Step("dotnet", "restore", solution);
+                InitialMigrations(contexts);
+                break;
+
             case "migration-add":
+                RequireInitialMigrations(task, persistence);
                 Step(
                     "dotnet", "ef", "migrations", "add", RequiredName(task, name),
                     "--project", persistence,
@@ -409,6 +430,7 @@ internal static class Tasks
                 break;
 
             case "database-update":
+                RequireInitialMigrations(task, persistence);
                 Step(
                     "dotnet", "ef", "database", "update",
                     "--project", persistence,
@@ -416,6 +438,8 @@ internal static class Tasks
                 break;
 
             case "migration-bundle":
+                RequireInitialMigrations(task, contexts);
+
                 foreach ((string project, string output) in new[]
                 {
                     //#if (localAuth)
@@ -474,17 +498,22 @@ internal static class Tasks
                 catch (InvalidOperationException error)
                 {
                     throw new InvalidOperationException(
-                        error.Message + " The formatting is done and stable, so CI's first step will pass. The local tools are not restored, "
-                        + "so the tasks that run dotnet ef cannot work yet: migration-add, database-update, migration-bundle and the last step of verify. "
-                        + "Fix the restore and run `dotnet tool restore` again.");
+                        error.Message + " The formatting is done and stable. The local tools are not restored, so the initial migrations "
+                        + "are not created and the tasks that run dotnet ef cannot work yet: migration-add, database-update, "
+                        + "migration-bundle and verify. Fix the restore and run bootstrap again.");
                 }
+
+                InitialMigrations(contexts);
 
                 if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
                 {
                     WebScaffold(repoRoot, only: null);
                 }
 
-                Write("Formatting stable, OpenAPI reference written and tools restored. Commit this before anything else.", ConsoleColor.Green);
+                Write(
+                    "Formatting stable, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
+                    + "Commit this before anything else: the migrations are the project's own from now on.",
+                    ConsoleColor.Green);
                 break;
 
             case "hygiene":
@@ -492,6 +521,7 @@ internal static class Tasks
                 break;
 
             case "verify":
+                RequireInitialMigrations(task, contexts);
                 Gates(repoRoot);
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
@@ -1111,6 +1141,8 @@ internal static class Tasks
     //#endif
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
+    private const string InitialMigrationName = "InitialCreate";
+
     private static readonly string[] FeatureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
 
     private static readonly string[] UseCaseOptionNames = ["--kind", "--input"];
@@ -1148,6 +1180,42 @@ internal static class Tasks
         }
 
         return name;
+    }
+
+    private static void InitialMigrations(string[] contexts)
+    {
+        foreach (string context in contexts)
+        {
+            if (HasMigrations(context))
+            {
+                Write($"{Path.GetFileName(context)} already has its migrations; they are left as they are.", ConsoleColor.DarkGray);
+                continue;
+            }
+
+            Step(
+                "dotnet", "ef", "migrations", "add", InitialMigrationName,
+                "--project", context,
+                "--startup-project", context);
+        }
+    }
+
+    private static void RequireInitialMigrations(string task, params string[] contexts)
+    {
+        string[] missing = [.. contexts.Where(context => !HasMigrations(context)).Select(Path.GetFileName).OfType<string>()];
+
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"'{task}' needs the initial migration of {string.Join(" and ", missing)}, and there is none yet. "
+                + "Run `dotnet run Tools/Tasks.cs bootstrap`, which creates it with migration-initial, then commit it (docs/guides/migrations.md).");
+        }
+    }
+
+    private static bool HasMigrations(string context)
+    {
+        string folder = Path.Combine(context, "Migrations");
+
+        return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Any();
     }
 
     private static string CoverageMinimum(string path)

@@ -17,9 +17,10 @@ public sealed class PendingModelChangesTests
         using var context = new AuthDbContext(options);
 
         context.Database.HasPendingModelChanges().ShouldBeFalse(
-            "the model has changed since the last migration was generated. "
-            + "The launcher's migration-add targets the business context only, so run 'dotnet ef migrations add <Name>' "
-            + "with the Auth project on both --project and --startup-project (docs/guides/migrations.md) "
-            + "so the schema change ships with the code that needs it.");
+            "the model has changed since the last migration was generated, or the project has none yet. "
+            + "Without one, run 'dotnet run Tools/Tasks.cs bootstrap', which creates the initial migration; after a model change, "
+            + "migration-add targets the business context only, so run 'dotnet ef migrations add <Name>' with the Auth project "
+            + "on both --project and --startup-project so the schema change ships with the code that needs it "
+            + "(docs/guides/migrations.md).");
     }
 }

@@ -104,7 +104,7 @@
       "displayName": "Files module",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include the Files module: stored files, their storage adapters, the object-store container and the Files tables of the business migration."
+      "description": "Include the Files module: stored files, their storage adapters, the object-store container and the Files tables of the business context."
     },
     "examples": {
       "type": "parameter",
@@ -475,7 +475,9 @@
             "Src/Web/**/dist/**",
             "Src/Web/**/coverage/**",
             "Src/Web/packages/api-client/openapi/**",
-            "Src/Web/pnpm-lock.yaml"
+            "Src/Web/pnpm-lock.yaml",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/**",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/**"
           ]
         },
         {

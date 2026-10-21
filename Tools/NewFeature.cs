@@ -1268,11 +1268,10 @@ internal static class NewFeature
         output.WriteLine($"When integration tests exercise the feature, AppDbContext.{f}Schema also joins the schemas their database");
         output.WriteLine("fixture truncates between tests (Tests/Integration, TestDatabase).");
         output.WriteLine();
-        output.WriteLine("Then the schema, which this does not run. The model changed, so the business context needs a migration.");
-        output.WriteLine("On a project no database has applied a migration to, the repository keeps one InitialCreate per context:");
-        output.WriteLine($"delete the two InitialCreate files and AppDbContextModelSnapshot.cs under Src/Infrastructure/{p}.Infrastructure.Persistence/Migrations,");
-        output.WriteLine("then run  dotnet run Tools/Tasks.cs migration-add InitialCreate");
-        output.WriteLine($"Once a database has applied it, add a migration instead:  dotnet run Tools/Tasks.cs migration-add Add{f}");
+        output.WriteLine("Then the schema, which this does not run. The model changed, so the business context needs a migration:");
+        output.WriteLine($"  dotnet run Tools/Tasks.cs migration-add Add{f}");
+        output.WriteLine("Before bootstrap has run, there is nothing to add to: the initial migration bootstrap creates takes the feature in.");
+        output.WriteLine($"While no database has applied that one, delete Src/Infrastructure/{p}.Infrastructure.Persistence/Migrations and run migration-initial.");
         output.WriteLine();
 
         if (!record)

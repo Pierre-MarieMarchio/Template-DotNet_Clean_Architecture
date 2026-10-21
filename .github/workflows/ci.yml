@@ -53,6 +53,14 @@ jobs:
       - name: Restore
         run: dotnet restore "$SOLUTION"
 
+      #if (templateMaintenance)
+      # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
+      - name: Create the initial migrations
+        run: |
+          dotnet tool restore
+          dotnet run Tools/Tasks.cs migration-initial
+
+      #endif
       # Whitespace, using order and the BOM, which the build's code-style analysis does not check; before the build, to fail fast.
       - name: Verify formatting (.editorconfig)
         run: dotnet format "$SOLUTION" --verify-no-changes --no-restore --verbosity normal
@@ -306,6 +314,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      #if (templateMaintenance)
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # Template repository only: it ships no migration, so each context's first one is created here, as bootstrap creates a project's.
+      - name: Create the initial migrations
+        run: |
+          dotnet tool restore
+          dotnet run Tools/Tasks.cs migration-initial
+
+      #endif
       - name: Start the stack
         run: |
           cp .env.example .env

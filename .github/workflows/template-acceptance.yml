@@ -216,6 +216,33 @@ jobs:
           dotnet format Sample.Generated.Project.sln
           dotnet format Sample.Generated.Project.sln --verify-no-changes --verbosity normal
 
+      # The project ships no migration: bootstrap's migration-initial creates each context's first one, which every later step reads, and a second run creates none.
+      - name: Bootstrap the initial migrations
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          AUTH_CONTEXT: ${{ matrix.auth_context }}
+        run: |
+          set -euo pipefail
+          if [ -n "$(find Src/Infrastructure -path '*/Migrations/*' -name '*.cs')" ]; then
+            echo "::error title=Migrations shipped::The generated project carries a migration; bootstrap creates the first one."
+            exit 1
+          fi
+          dotnet run Tools/Tasks.cs migration-initial
+          contexts=(Persistence)
+          if [ "$AUTH_CONTEXT" = "true" ]; then
+            contexts+=(Auth)
+          fi
+          for context in "${contexts[@]}"; do
+            snapshots=$(find Src/Infrastructure -path "*.Infrastructure.$context/Migrations/*ModelSnapshot.cs" | wc -l)
+            [ "$snapshots" -eq 1 ] || { echo "::error title=No initial migration::$context has $snapshots model snapshots."; exit 1; }
+          done
+          created=$(find Src/Infrastructure -path '*/Migrations/*' -name '*.cs' | sort)
+          dotnet run Tools/Tasks.cs migration-initial
+          if [ "$(find Src/Infrastructure -path '*/Migrations/*' -name '*.cs' | sort)" != "$created" ]; then
+            echo "::error title=Not idempotent::A second migration-initial changed the migrations."
+            exit 1
+          fi
+
       - name: Restore and build the generated project
         working-directory: ${{ runner.temp }}/generated
         run: |

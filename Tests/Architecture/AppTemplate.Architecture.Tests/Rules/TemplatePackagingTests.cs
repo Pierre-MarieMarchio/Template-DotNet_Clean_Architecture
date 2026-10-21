@@ -179,14 +179,38 @@ public sealed class TemplatePackagingTests
     public void TheLauncher_ReachesNeitherAProjectNorTheTemplatePackage()
     {
         const string launcher = "Launcher/**";
-        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
-        var alwaysExcluded = manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray()
-            .Where(modifier => !modifier.TryGetProperty("condition", out _))
-            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!));
+        var alwaysExcluded = UnconditionalExcludes();
 
         Directory.Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Launcher")).ShouldBeTrue("The launcher's folder was not found.");
         alwaysExcluded.ShouldContain(launcher, "template.json generates the launcher into every project: add Launcher/** to its unconditional excludes.");
         PackageExcludes().ShouldContain(launcher, "The template package carries the launcher, which is a package of its own: add Launcher/** to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
+    public void TheCheckoutsMigrations_ReachNeitherAProjectNorTheTemplatePackage()
+    {
+        string[] migrations =
+        [
+            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/**",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/**",
+        ];
+
+        migrations.Except(UnconditionalExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "template.json generates the migrations bootstrap wrote for this checkout, which a project creates for its own model: add each to its unconditional excludes.");
+        migrations.Except(PackageExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "The template package carries the migrations bootstrap wrote for this checkout: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
+    public void OnlyTheTemplateRepository_IgnoresTheMigrations()
+    {
+        const string migrations = "Src/Infrastructure/*/Migrations/";
+        string[] lines = File.ReadAllLines(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".gitignore"));
+
+        lines.Count(line => line.Trim() == migrations).ShouldBe(1, $".gitignore was expected to name {migrations} once.");
+        ConditionedBlocks(lines, "templateMaintenance").ShouldContain(
+            block => block.Split('\n').Any(line => line.Trim() == migrations),
+            $".gitignore ignores {migrations} outside a templateMaintenance block, so a generated project would never commit the migrations bootstrap creates.");
     }
 
     [Fact]
@@ -233,6 +257,15 @@ public sealed class TemplatePackagingTests
     private static bool IsRefusal(JsonElement symbol) =>
         symbol.TryGetProperty("choices", out var choices)
         && choices.EnumerateArray().All(choice => choice.GetProperty("choice").GetString() == "refused");
+
+    private static List<string> UnconditionalExcludes()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+
+        return [.. manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray()
+            .Where(modifier => !modifier.TryGetProperty("condition", out _))
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!))];
+    }
 
     private static List<string> PackageExcludes()
     {

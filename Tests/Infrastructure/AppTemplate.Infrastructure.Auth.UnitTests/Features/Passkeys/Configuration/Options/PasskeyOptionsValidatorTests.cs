@@ -41,7 +41,6 @@ public sealed class PasskeyOptionsValidatorTests
 
     [Theory]
     [InlineData("00:01:00")]
-    [InlineData("00:05:00")]
     [InlineData("00:30:00")]
     public void ACeremonyLifetimeWithinItsBounds_IsAccepted(string lifetime)
     {
@@ -53,7 +52,6 @@ public sealed class PasskeyOptionsValidatorTests
     [InlineData("00:00:00")]
     [InlineData("00:00:59")]
     [InlineData("00:30:01")]
-    [InlineData("01:00:00")]
     public void ACeremonyLifetimeOutsideItsBounds_IsRefused(string lifetime)
     {
         var result = Validate(

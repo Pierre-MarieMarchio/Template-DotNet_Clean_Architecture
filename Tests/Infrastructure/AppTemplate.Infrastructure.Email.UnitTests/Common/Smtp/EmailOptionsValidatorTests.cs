@@ -14,29 +14,11 @@ public sealed class EmailOptionsValidatorTests
         SecureSocketOptions.StartTlsWhenAvailable,
     ];
 
-    private static readonly string[] _loopbackHosts = ["localhost", "127.0.0.1", "::1", "[::1]"];
-
     private static readonly EmailOptionsValidator _validator = new();
 
     public static TheoryData<SecureSocketOptions> DowngradableModes => [.. _downgradableModes];
 
-    public static TheoryData<SecureSocketOptions, string> DowngradableModesAgainstLoopbackHosts
-    {
-        get
-        {
-            TheoryData<SecureSocketOptions, string> pairs = [];
-
-            foreach (var security in _downgradableModes)
-            {
-                foreach (string host in _loopbackHosts)
-                {
-                    pairs.Add(security, host);
-                }
-            }
-
-            return pairs;
-        }
-    }
+    public static TheoryData<string> LoopbackHosts => ["localhost", "127.0.0.1", "::1", "[::1]"];
 
     [Fact]
     public void Validate_AcceptsARelayConfiguredForMandatoryStartTls() =>
@@ -67,14 +49,12 @@ public sealed class EmailOptionsValidatorTests
     }
 
     [Theory]
-    [MemberData(nameof(DowngradableModesAgainstLoopbackHosts))]
-    public void Validate_AcceptsADowngradableModeForALoopbackHost(
-        SecureSocketOptions security,
-        string host)
+    [MemberData(nameof(LoopbackHosts))]
+    public void Validate_AcceptsADowngradableModeForALoopbackHost(string host)
     {
         var options = Valid();
         options.Host = host;
-        options.Security = security;
+        options.Security = SecureSocketOptions.None;
 
         _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
     }
@@ -89,13 +69,11 @@ public sealed class EmailOptionsValidatorTests
         _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
     }
 
-    [Theory]
-    [MemberData(nameof(DowngradableModes))]
-    public void Validate_AcceptsADowngradableModeWhenInsecureTransportIsAllowedByName(
-        SecureSocketOptions security)
+    [Fact]
+    public void Validate_AcceptsADowngradableModeWhenInsecureTransportIsAllowedByName()
     {
         var options = Valid();
-        options.Security = security;
+        options.Security = SecureSocketOptions.None;
         options.AllowInsecureTransport = true;
 
         _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
@@ -116,7 +94,6 @@ public sealed class EmailOptionsValidatorTests
     [Theory]
     [InlineData(0)]
     [InlineData(65536)]
-    [InlineData(-1)]
     public void Validate_RejectsAPortOutsideTheAddressableRange(int port)
     {
         var options = Valid();

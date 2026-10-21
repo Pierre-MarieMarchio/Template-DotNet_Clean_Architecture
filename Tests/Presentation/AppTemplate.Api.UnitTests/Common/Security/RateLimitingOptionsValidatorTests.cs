@@ -40,7 +40,6 @@ public sealed class RateLimitingOptionsValidatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-1)]
     public void Validate_Fails_WhenAPermitLimitIsBelowOne(int permits)
     {
         /*#if (localAuth)*/

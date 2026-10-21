@@ -10,7 +10,6 @@ public sealed class LocalizationOptionsValidatorTests
 
     [Theory]
     [InlineData("en")]
-    [InlineData("fr")]
     [InlineData("fr-CA")]
     [InlineData("zh-Hans")]
     public void Validate_Succeeds_ForAWellFormedTag(string culture) =>

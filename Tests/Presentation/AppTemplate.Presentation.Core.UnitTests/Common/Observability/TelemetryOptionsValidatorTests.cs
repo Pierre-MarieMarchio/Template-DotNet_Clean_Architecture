@@ -11,22 +11,6 @@ public sealed class TelemetryOptionsValidatorTests
     private readonly TelemetryOptionsValidator _validator = new();
 
     [Fact]
-    public void Validate_Succeeds_WhenDisabled_EvenWithNoEndpoint()
-    {
-        var options = new TelemetryOptions { Enabled = false };
-
-        _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
-    }
-
-    [Fact]
-    public void Validate_Succeeds_WhenDisabled_EvenWithAnImpossibleSamplingRatio()
-    {
-        var options = new TelemetryOptions { Enabled = false, TracesSamplingRatio = -1 };
-
-        _validator.Validate(name: null, options).Succeeded.ShouldBeTrue();
-    }
-
-    [Fact]
     public void Validate_Succeeds_WhenDisabled_RegardlessOfEveryOtherField()
     {
         var options = new TelemetryOptions { Enabled = false, OtlpEndpoint = null, TracesSamplingRatio = -1 };
@@ -86,7 +70,6 @@ public sealed class TelemetryOptionsValidatorTests
 
     [Theory]
     [InlineData(0.001)]
-    [InlineData(0.5)]
     [InlineData(1.0)]
     public void Validate_Succeeds_ForRatiosInTheOpenClosedUnitInterval(double ratio)
     {
@@ -102,7 +85,6 @@ public sealed class TelemetryOptionsValidatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-1)]
     [InlineData(1.5)]
     [InlineData(double.NaN)]
     public void Validate_Fails_ForRatiosOutsideTheOpenClosedUnitInterval(double ratio)

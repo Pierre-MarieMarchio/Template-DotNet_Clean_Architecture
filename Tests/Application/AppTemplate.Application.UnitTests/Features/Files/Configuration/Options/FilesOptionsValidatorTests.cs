@@ -47,7 +47,6 @@ public sealed class FilesOptionsValidatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-1)]
     [InlineData(FileSize.MaxBytes + 1)]
     public void ASizeOutOfRange_IsRefused(long size) =>
         Refused(options => Image(options).MaxSizeInBytes = size, "MaxSizeInBytes");

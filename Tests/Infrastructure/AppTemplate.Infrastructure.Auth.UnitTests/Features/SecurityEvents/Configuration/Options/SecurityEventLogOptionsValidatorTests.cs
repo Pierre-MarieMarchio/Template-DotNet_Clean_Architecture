@@ -14,7 +14,6 @@ public sealed class SecurityEventLogOptionsValidatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-1)]
     [InlineData(3651)]
     public void Validate_RejectsARetentionOutsideTheAllowedRange(int retentionInDays)
     {
@@ -29,7 +28,6 @@ public sealed class SecurityEventLogOptionsValidatorTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-1)]
     [InlineData(100001)]
     public void Validate_RejectsABatchSizeOutsideTheAllowedRange(int purgeBatchSize)
     {

@@ -262,7 +262,8 @@ and the template package leave the folder out, and `TemplatePackagingTests` hold
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
-some combination, and the launcher refuses exactly where `refusedOptions` does. One test packs the
+some combination, the launcher refuses exactly where `refusedOptions` does, and answering only what
+it offers never ends in a refusal. One test packs the
 templates, runs the launcher without a terminal for a project, its first web app and a package, and
 compares the tree with what `dotnet new` writes from the same answers.
 

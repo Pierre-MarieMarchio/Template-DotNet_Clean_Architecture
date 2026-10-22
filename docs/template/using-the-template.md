@@ -11,7 +11,9 @@ dnx CleanArch.Create
 
 `CleanArch.Create` is a .NET tool, run without being installed. Its questions are the options this
 page lists, read from the templates' own manifests with their choices, defaults and descriptions. It
-explains a refused combination before writing anything and asks its options again, installs
+offers only the choices the template generates with the answers given so far, answers a question
+left with one choice and says which refusal leaves it, explains a refused combination of flags
+before writing anything and asks its options again, installs
 `CleanArch.WebApi.Templates` at its own version when another one or none is installed, runs
 `dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps.
 

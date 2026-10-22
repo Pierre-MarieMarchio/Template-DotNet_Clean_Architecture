@@ -21,7 +21,7 @@ reads. The persistence record is the only model.
 The rest of the architecture still applies. The owner comes from `ICurrentUser`, never from the body,
 and every store and queries method names it. The store loads the owner's row and stages the change,
 and `IUnitOfWork` commits it. When the feature keeps a version, the store checks the caller's
-`If-Match` against the row, and the database refuses a write whose `xmin` moved in between.
+`If-Match` against the row, and the database refuses a write whose version moved in between.
 
 <!--#if (notes)-->
 `Notes` is this shape: `INoteService` over `INoteStore` and `INoteQueries`, with `NoteRecord` as its
@@ -59,7 +59,12 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 | Persistence | the record is the model; the store stages it | record, mapper, tracker |
 | Validation | FluentValidation | FluentValidation, then the aggregate's invariants |
 | Commit | `IUnitOfWork` | `IUnitOfWork`, the same boundary |
+<!--#if (postgreSql)-->
 | Concurrency | the row's `xmin` | the root's `xmin` |
+<!--#endif-->
+<!--#if (versionCounter)-->
+| Concurrency | the row's `Version` counter | the root's `Version` counter |
+<!--#endif-->
 
 <!--#if (canAddFeature)-->
 The generator writes either shape: `new-feature --model record` the simple one, and

@@ -3,9 +3,20 @@
 ## What it is
 
 This project is a .NET 10 HTTP API built on Clean Architecture: a domain, an application layer of
-use cases, infrastructure modules behind ports, and a thin presentation layer. It stores its data in
-PostgreSQL through EF Core, answers every failure with a problem document, and refuses to start on a
+use cases, infrastructure modules behind ports, and a thin presentation layer.
+<!--#if (postgreSql)-->
+It stores its data in PostgreSQL through EF Core, answers every failure with a problem document, and
+refuses to start on a setting it cannot use.
+<!--#endif-->
+<!--#if (sqlServer)-->
+It stores its data in SQL Server through EF Core, answers every failure with a problem document, and
+refuses to start on a setting it cannot use.
+<!--#endif-->
+<!--#if (sqlite)-->
+It stores its data in a SQLite file through EF Core, a development database it refuses to run on
+outside Development, answers every failure with a problem document, and refuses to start on a
 setting it cannot use.
+<!--#endif-->
 <!--#if (anyWeb)-->
 A pnpm workspace beside it holds its web apps.
 <!--#endif-->
@@ -82,11 +93,17 @@ setting, table or test names it.
 <!--#if (!files)-->
 | `--files` | `false` | no Files feature and no object store |
 <!--#endif-->
-<!--#if (ci && anyWeb)-->
+<!--#if (ci && anyWeb && serverDatabase)-->
 | `--ci` | `true` | the build, code-scanning, release and web workflows |
 <!--#endif-->
-<!--#if (ci && !anyWeb)-->
+<!--#if (ci && anyWeb && sqlite)-->
+| `--ci` | `true` | the build, code-scanning and web workflows; no release, as SQLite is a development database |
+<!--#endif-->
+<!--#if (ci && !anyWeb && serverDatabase)-->
 | `--ci` | `true` | the build, code-scanning and release workflows |
+<!--#endif-->
+<!--#if (ci && !anyWeb && sqlite)-->
+| `--ci` | `true` | the build and code-scanning workflows; no release, as SQLite is a development database |
 <!--#endif-->
 <!--#if (!ci)-->
 | `--ci` | `false` | no workflow |

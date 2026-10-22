@@ -10,8 +10,8 @@ grows on, and the options remove what a product does not need.
   application layer of use cases, infrastructure modules behind ports, a thin presentation layer.
 - **Two feature shapes**, an aggregate when there is a state to protect and a service over a store
   when there is none, and a generator that writes either.
-- **PostgreSQL through EF Core**, with the domain unmapped, optimistic concurrency exposed as `ETag`,
-  and migrations applied at release.
+- **EF Core on PostgreSQL, SQL Server or SQLite**, chosen at generation, with the domain unmapped,
+  optimistic concurrency exposed as `ETag`, and migrations applied at release.
 - **Authentication chosen at generation**: local accounts with rotating refresh tokens, two-factor,
   passkeys and roles; an external OpenID Connect provider; or a public API.
 - **An HTTP contract every endpoint keeps**: problem documents with stable codes, default-deny

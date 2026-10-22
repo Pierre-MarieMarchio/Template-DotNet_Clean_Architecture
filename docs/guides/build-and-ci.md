@@ -23,7 +23,9 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `new-use-case` | one more use case in a feature of the rich shape |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
 | `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration |
+<!--#if (serverDatabase)-->
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
+<!--#endif-->
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 <!--#if (sonar)-->
 | `sonar` | the local Sonar analysis |
@@ -75,6 +77,8 @@ which is what makes an unused `using` (IDE0005) fail the build.
 | Workflow | When | Does |
 |---|---|---|
 | `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
+<!--#endif-->
+<!--#if (ci && serverDatabase)-->
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |
 <!--#endif-->
 <!--#if (ci && !anyWeb)-->
@@ -125,7 +129,7 @@ It builds into `artifacts/sonar`, leaving your `bin/` and `obj/` alone. It runs 
 only, so it reports less coverage than CI.
 
 <!--#endif-->
-<!--#if (ci)-->
+<!--#if (ci && serverDatabase)-->
 ## Release
 
 Push a tag such as `v1.2.3`. The release re-runs the gate, then publishes the API image to GHCR as

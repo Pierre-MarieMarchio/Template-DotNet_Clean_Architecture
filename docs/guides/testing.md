@@ -4,7 +4,15 @@ Each risk this project carries is held by one type of test, the cheapest that ca
 cause. A second type is added only when it can fail for a cause the first cannot see
 ([ADR 0020](../decisions/0020-one-risk-one-type-of-test.md)). The stack is xUnit v3 on
 Microsoft.Testing.Platform, Shouldly, NSubstitute, NetArchTest for the architecture rules and
+<!--#if (postgreSql)-->
 Testcontainers for PostgreSQL.
+<!--#endif-->
+<!--#if (sqlServer)-->
+Testcontainers for SQL Server.
+<!--#endif-->
+<!--#if (sqlite)-->
+a SQLite file for the database.
+<!--#endif-->
 
 ## The test types
 
@@ -17,8 +25,15 @@ Testcontainers for PostgreSQL.
 | End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
 
-Unit and architecture tests need nothing and run in seconds. The integration and contract tests need
-Docker and run in minutes. The end-to-end suite needs the whole stack built and started, and runs
+Unit and architecture tests need nothing and run in seconds.
+<!--#if (serverDatabase)-->
+The integration and contract tests need Docker and run in minutes.
+<!--#endif-->
+<!--#if (sqlite)-->
+The integration and contract tests run in minutes, on a SQLite file of their own rather than a database
+container.
+<!--#endif-->
+The end-to-end suite needs the whole stack built and started, and runs
 apart from both.
 
 ## The risks this project holds
@@ -99,8 +114,18 @@ dotnet run Tools/Tasks.cs openapi                                       # rewrit
 dotnet run Tools/Tasks.cs end-to-end                                    # the end-to-end suite against a stack of its own
 ```
 
+<!--#if (postgreSql)-->
 Each integration project starts one PostgreSQL container and one host for the whole suite, and every
-class joins one collection, so tests run one after another. `IntegrationTestBase` resets the rows, the
+class joins one collection, so tests run one after another.
+<!--#endif-->
+<!--#if (sqlServer)-->
+Each integration project starts one SQL Server container and one host for the whole suite, and every
+class joins one collection, so tests run one after another.
+<!--#endif-->
+<!--#if (sqlite)-->
+Each integration project creates one SQLite file and one host for the whole suite, and every
+class joins one collection, so tests run one after another.
+<!--#endif--> `IntegrationTestBase` resets the rows, the
 mailbox, the captured log and the clock before each test; `TestDatabase` truncates the schemas it
 lists, and a schema it does not list leaks rows into the next test.
 <!--#if (files)-->
@@ -112,12 +137,14 @@ application, and the platform runs the modules the solution lists. A test projec
 `AppTemplate.sln` never runs, so a new one needs `<IsTestProject>true</IsTestProject>` and an entry in
 the solution; CI fails when one is missing.
 
+<!--#if (serverDatabase || files)-->
 A run killed outright leaves its containers behind, because the resource reaper is off
 (`ResourceReaperSwitch`). Remove them by label:
 
 ```bash
 docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 ```
+<!--#endif-->
 
 ## The end-to-end suite
 

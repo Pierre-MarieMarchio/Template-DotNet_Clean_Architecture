@@ -76,7 +76,7 @@ module (`OnlyAHost_ReferencesInfrastructureModules`). The modules themselves are
 | The loop recurring work runs on | `PeriodicJob` |
 
 It has no `FrameworkReference`, no ASP.NET Core package and no database driver, so a CLI, a desktop
-client or a second API host composes the same use cases without inheriting ASP.NET or PostgreSQL.
+client or a second API host composes the same use cases without inheriting ASP.NET or a database provider.
 `PortabilityTests` reads the project files and their reference closure and fails if the domain, the
 application, the infrastructure or this project reaches the ASP.NET Core shared framework.
 <!--#if (localAuth)-->
@@ -84,8 +84,19 @@ The one exemption is `AppTemplate.Infrastructure.Auth`, whose JWT bearer handler
 framework; the test names it with that reason and fails if the reason stops being true.
 <!--#endif-->
 
+<!--#if (postgreSql)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and Npgsql instrumentation and its own meters, because only it may reference those packages.
+<!--#endif-->
+<!--#if (sqlServer)-->
+A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
+and SqlClient instrumentation and its own meters, because only it may reference those packages.
+<!--#endif-->
+<!--#if (sqlite)-->
+A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
+instrumentation and its own meters, because only it may reference those packages. SQLite has no
+database instrumentation to add.
+<!--#endif-->
 
 ## The API host
 

@@ -20,18 +20,29 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-<!--#if (localAuth)-->
-| `Default` | string | — | **Required.** The one connection string, Npgsql format, used by both contexts. A blank value fails the DI registration. |
+<!--#if (postgreSql)-->
+| `Default` | string | — | **Required.** The one connection string, Npgsql format (`Host=…;Database=…;Username=…;Password=…`), used by every context. A blank value fails the DI registration. |
 <!--#endif-->
-<!--#if (!localAuth)-->
-| `Default` | string | — | **Required.** The one connection string, Npgsql format. A blank value fails the DI registration. |
+<!--#if (sqlServer)-->
+| `Default` | string | — | **Required.** The one connection string, SqlClient format (`Server=…;Database=…;User Id=…;Password=…`), used by every context. A blank value fails the DI registration. |
+<!--#endif-->
+<!--#if (sqlite)-->
+| `Default` | string | — | **Required.** The one connection string, SQLite format (`Data Source=<file>`, relative to the content root), used by every context. A blank value fails the DI registration. |
 <!--#endif-->
 
 ### `Database`
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
+<!--#if (postgreSql)-->
 | `MaxPoolSize` | int | `20` | 1–500. Npgsql's `Maximum Pool Size`, per instance. The sum over every instance, plus PostgreSQL's reserved connections, must stay under `max_connections`. |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| `MaxPoolSize` | int | `20` | 1–500. SqlClient's `Max Pool Size`, per instance. The sum over every instance must stay under the server's connection limit. |
+<!--#endif-->
+<!--#if (sqlite)-->
+| `MaxPoolSize` | int | `20` | 1–500. Has no effect on SQLite, which has no server-side connection limit. |
+<!--#endif-->
 | `CommandTimeoutSeconds` | int | `30` | 1–300. Per command. `RequestTimeouts:Default` must stay above this times the retries. |
 
 <!--#if (localAuth)-->
@@ -151,7 +162,7 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 | `Categories:<name>:VerifySignature` | bool | `true` | Leading bytes must match the declared type. Markup is refused either way. |
 | `Categories:<name>:Visibility` | string | `Private` | `Private` or `Authenticated` (any signed-in caller reads an available file's content). |
 | `Categories:<name>:UploadModes` | string[] | — | At least one of `Direct` and `Api`. `Direct` alone is refused with the `FileSystem` provider. |
-| `Categories:<name>:Quota:Mode` | string | `Strict` | `Strict` (advisory lock) or `Indicative`. |
+| `Categories:<name>:Quota:Mode` | string | `Strict` | `Strict` (a lock on the owner and category) or `Indicative`. |
 | `Categories:<name>:Quota:MaxFiles` | int | `1000` | Per owner. |
 | `Categories:<name>:Quota:MaxBytes` | long | `10737418240` | Per owner, pending files at their declared size. |
 | `Categories:<name>:Quota:MaxPendingUploads` | int | `20` | Per owner. |

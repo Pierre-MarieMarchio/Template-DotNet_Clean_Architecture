@@ -44,9 +44,20 @@ A use case that needs a caller fails loudly there instead of acting for no one.
 
 ## Leases
 
+<!--#if (postgreSql)-->
 A pass that must not run twice at once takes `ILeaderLease` inside its use case: a PostgreSQL
-advisory lock held on a dedicated, unpooled connection for the duration of the pass. A second
-instance's pass logs that it stood by and reports zero.
+advisory lock held on a dedicated, unpooled connection for the duration of the pass.
+<!--#endif-->
+<!--#if (sqlServer)-->
+A pass that must not run twice at once takes `ILeaderLease` inside its use case: a SQL Server
+application lock (`sp_getapplock`, owned by the session) held on a dedicated, unpooled connection for
+the duration of the pass.
+<!--#endif-->
+<!--#if (sqlite)-->
+A pass that must not run twice at once takes `ILeaderLease` inside its use case: an in-process lock
+held for the duration of the pass, since SQLite is a file for one instance.
+<!--#endif-->
+A second instance's pass logs that it stood by and reports zero.
 <!--#if (!anyFeature)-->
 No pass of this project takes one yet: the maintenance purges are idempotent.
 <!--#endif-->
@@ -73,8 +84,19 @@ that one reminder twice: delivery is at least once. A failed send is retried aft
 doubling up to an hour, behind the reminders that waited longer.
 <!--#endif-->
 
+<!--#if (postgreSql)-->
 Each leased pass holds one connection beyond `Database:MaxPoolSize`. A pooler in transaction mode
 (pgBouncer) breaks the advisory lock silently; give the lease a session-mode or direct route.
+<!--#endif-->
+<!--#if (sqlServer)-->
+Each leased pass holds one connection beyond `Database:MaxPoolSize`. The application lock belongs to
+that session, so a proxy that multiplexes sessions breaks it silently; give the lease a direct route.
+<!--#endif-->
+<!--#if (sqlite)-->
+A lease excludes only the callers of its own process, so a second instance is not stood by; this
+project runs as one instance, which [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md)
+explains.
+<!--#endif-->
 
 ## Several instances
 

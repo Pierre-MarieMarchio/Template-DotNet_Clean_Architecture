@@ -1,6 +1,15 @@
 ﻿# Persistence model
 
-This project stores everything in one PostgreSQL database through EF Core. EF maps row records,
+<!--#if (postgreSql)-->
+This project stores everything in one PostgreSQL database through EF Core.
+<!--#endif-->
+<!--#if (sqlServer)-->
+This project stores everything in one SQL Server database through EF Core.
+<!--#endif-->
+<!--#if (sqlite)-->
+This project stores everything in one SQLite file through EF Core.
+<!--#endif-->
+EF maps row records,
 never the domain types; a use case commits once through `IUnitOfWork`; and every write that names a
 version is refused when the row has moved since. Adding, checking and applying migrations is
 [the migrations guide](../guides/migrations.md).
@@ -29,13 +38,29 @@ editing a shared model, and the tables no feature owns live in `platform`.
 | `external_identity` | `ExternalIdentities`, `RoleAssignments` | `AppDbContext` |
 <!--#endif-->
 | `platform` | `IdempotencyKeys` | `AppDbContext` |
+<!--#if (postgreSql)-->
 | `public` | `__EFMigrationsHistory` of the business context | `AppDbContext` |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| `dbo` | `__EFMigrationsHistory` of the business context | `AppDbContext` |
+<!--#endif-->
 <!--#if (localAuth)-->
 | `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `UserPasskeys`, `SpentPasskeyCeremonies`, `SecurityEvents`, `DataProtectionKeys`, and its own `__EFMigrationsHistory` | `AuthDbContext` |
 <!--#endif-->
 
 Each context declares its schema names as constants, and every table names its schema in its own
 configuration, so no default schema is set and a mapping cannot drift into the wrong one by omission.
+
+<!--#if (tablePrefixes)-->
+This database has no schemas. `SchemaAsTablePrefixConvention` turns each table's schema into a prefix
+of its name, `<schema>_<Table>` (`platform_IdempotencyKeys`), when the model is finalised, so the
+mappings and the table above stay as written. The business context's history table is
+`__EFMigrationsHistory`.
+<!--#endif-->
+<!--#if (tablePrefixes && localAuth)-->
+The identity context's history table is `identity___EFMigrationsHistory`, because two contexts cannot
+share one name once no schema tells them apart.
+<!--#endif-->
 
 <!--#if (localAuth)-->
 The identity tables have a context of their own, `AuthDbContext`, with its own migrations history.
@@ -48,9 +73,20 @@ No foreign key crosses from a business table to an account. A record's `OwnerId`
 column, and an aggregate's owner is a `UserId` in a project that knows neither EF Core nor any
 identity provider.
 
+<!--#if (postgreSql)-->
 All contexts built on the one connection string share one Npgsql pool, bounded once by
 `Database:MaxPoolSize`; [the configuration reference](../reference/configuration.md) says how to size
 it against replicas.
+<!--#endif-->
+<!--#if (sqlServer)-->
+All contexts built on the one connection string share one SqlClient pool, bounded once by
+`Database:MaxPoolSize`; [the configuration reference](../reference/configuration.md) says how to size
+it against replicas.
+<!--#endif-->
+<!--#if (sqlite)-->
+SQLite keeps no server-side connection limit, so `Database:MaxPoolSize` has no effect;
+[the configuration reference](../reference/configuration.md) lists the setting.
+<!--#endif-->
 
 <!--#if (aggregates)-->
 ## Rows are not aggregates
@@ -95,6 +131,12 @@ synchronous one included, flushes and publishes too. The business context attach
 The identity context attaches none: it has no aggregate and no audited row.
 <!--#endif-->
 
+<!--#if (versionCounter)-->
+A fourth, `VersionStampingSaveChangesInterceptor`, runs after these three, from the provider's
+registration: it gives each added row `Version` 1 and each modified one the version it loaded plus
+one, which [Concurrency](#concurrency) explains.
+
+<!--#endif-->
 Stamps record the actor `IAuditActor` names: the caller in a request, nobody in a background job.
 An unattributed write stores null, never `Guid.Empty`.
 
@@ -130,9 +172,17 @@ forgotten filter turns into a data leak, and retention is a question for an audi
 
 ## Concurrency
 
+<!--#if (postgreSql)-->
 The version of a row is PostgreSQL's `xmin`: never written by this process, read by the same query
-that reads the value, and published as the resource's `ETag`. A write puts the version it loaded in
-its `WHERE` clause, so a writer that loses a race between its load and its commit matches no row.
+that reads the value, and published as the resource's `ETag`.
+<!--#endif-->
+<!--#if (versionCounter)-->
+The version of a row is a `Version` column: a counter that `VersionStampingSaveChangesInterceptor`
+stamps on every save, 1 on insert and the loaded value plus one on update, and published as the
+resource's `ETag`. The domain's version is a `uint` and this database has no row version of that
+size, so the save pipeline keeps the counter itself.
+<!--#endif-->
+A write puts the version it loaded in its `WHERE` clause, so a writer that loses a race between its load and its commit matches no row.
 `EfUnitOfWork` turns EF's conflict into `ConcurrencyConflictException`, and the API answers `409`
 `concurrency.conflict`. Nothing retries it: re-applying a decision made against a state that no
 longer exists is the lost update the version prevents.
@@ -145,6 +195,26 @@ states the client's side.
 Ownership is part of the read: a query names the owner in its predicate, so another user's row never
 leaves the database and is answered exactly as a missing one. A command that loads an aggregate by id
 compares the owner in one place per feature, and answers the same `404`.
+<!--#endif-->
+
+## Text and time
+
+A name search lowercases both sides and compares them with `LIKE`, so what it ignores beyond case is
+the database's own collation.
+<!--#if (postgreSql)-->
+Compose initialises the cluster with `--locale=C`, so the database compares text byte for byte: a
+unique index tells `a` from `A`, and an accent matters.
+<!--#endif-->
+<!--#if (sqlServer)-->
+A column takes the database's default collation, usually case-insensitive and accent-sensitive
+(`*_CI_AS`), so `LIKE` and a unique index on text treat `a` and `A` as one value.
+<!--#endif-->
+<!--#if (sqlite)-->
+SQLite folds the case of ASCII letters only: a search for `é` does not find `É`.
+`DateTimeOffset` columns are stored as binary integers, which keeps their order, at a resolution of
+0.1 ms, coarser than a server database keeps.
+The file has one writer at a time: the journal is in WAL mode, and a second writer waits for the
+connection's `Default Timeout`.
 <!--#endif-->
 
 ## Decisions

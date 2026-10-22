@@ -21,6 +21,18 @@ Nothing is released yet. The first tag will publish `1.0.0`, and
 
 ### Added
 
+- **`--database`.** A generation option naming the database a project runs on: `postgresql` (the
+  default), `sqlserver` or `sqlite`; `mysql` stays refused, as its stable EF Core 10 provider cannot map
+  the owned JSON entity Identity's passkeys use. A project carries its provider only, no setting
+  chooses it, and none ships a migration: `bootstrap` creates each context's initial one. SQL Server
+  keeps the schemas, takes its leases from `sp_getapplock` and keeps the row version as a counter the
+  save stamps (`VersionStampingSaveChangesInterceptor`). SQLite is a development database: each
+  feature's schema becomes a table prefix (`SchemaAsTablePrefixConvention`), leases are in process,
+  `DateTimeOffset` is stored as binary at 0.1 ms, text folds ASCII case only, the API refuses to start
+  outside Development, and the project has no release workflow, migration bundle or database service
+  in Compose. A search lowercases both sides and compares with `LIKE` on every provider. The pages
+  that name PostgreSQL, a schema or `xmin` say the right thing for each provider, and
+  ADR 0021, generated with SQLite projects only, records the SQLite refusal.
 - **`--agent-files`.** A generation option, `true` by default, that leaves out `AGENTS.md` and
   `Src/Web/AGENTS.md` when `false`; `cleanarch-webapp` takes it too, read from the project by the
   launcher. The pages that point to `AGENTS.md` point to the page that owns the rule when it is

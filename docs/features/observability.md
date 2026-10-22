@@ -19,7 +19,12 @@ client's report joins the log line, and the line joins the trace.
 ## Metrics
 
 With `OpenTelemetry:Enabled`, the API exports over OTLP the meters of ASP.NET Core, `HttpClient`,
+<!--#if (postgreSql)-->
 the .NET runtime, the Npgsql connection pool and the rate limiter.
+<!--#endif-->
+<!--#if (!postgreSql)-->
+the .NET runtime and the rate limiter.
+<!--#endif-->
 
 <!--#if (files && reminders)-->
 On an instance that runs jobs, the loops add `AppTemplate.Jobs.Files`, `AppTemplate.Jobs.Maintenance`
@@ -43,8 +48,19 @@ series where `outcome != "disabled"`: that is a loop that stopped.
 
 ## Traces
 
+<!--#if (postgreSql)-->
 Traces cover incoming requests (health probes excluded), outgoing `HttpClient` calls and Npgsql
-commands. Every trace is sampled unless `OpenTelemetry:TracesSamplingRatio` says otherwise. The
+commands.
+<!--#endif-->
+<!--#if (sqlServer)-->
+Traces cover incoming requests (health probes excluded), outgoing `HttpClient` calls and SqlClient
+commands.
+<!--#endif-->
+<!--#if (sqlite)-->
+Traces cover incoming requests (health probes excluded) and outgoing `HttpClient` calls; SQLite
+commands are not traced.
+<!--#endif-->
+Every trace is sampled unless `OpenTelemetry:TracesSamplingRatio` says otherwise. The
 service name and version are read from the `AppTemplate.Api` assembly; `OpenTelemetry:ServiceName`
 overrides the name when several deployments share a collector.
 

@@ -11,7 +11,6 @@ using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Domain.Features.Files.Model.Entities;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
-using AppTemplate.Domain.Features.Files.Repositories;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,10 +21,7 @@ public sealed class UploadFileUseCase(
     IStoredFileRegistrationService registrations,
     IStoredFileDepositService deposits,
     IFileContentStore content,
-    IStoredFileRepository repository,
-    IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider,
     IOptions<FilesOptions> options,
     IValidator<UploadFileCommand> validator,
     ILogger<UploadFileUseCase> logger) : IUploadFileUseCase
@@ -122,9 +118,7 @@ public sealed class UploadFileUseCase(
     {
         try
         {
-            storedFile.Delete(dateTimeProvider.UtcNow);
-            repository.Remove(storedFile);
-            await unitOfWork.SaveChangesAsync(CancellationToken.None);
+            await registrations.WithdrawAsync(storedFile, CancellationToken.None);
         }
         catch (Exception exception)
         {

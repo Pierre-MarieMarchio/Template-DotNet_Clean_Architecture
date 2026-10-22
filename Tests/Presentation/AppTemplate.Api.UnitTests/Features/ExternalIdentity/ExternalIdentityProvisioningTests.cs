@@ -341,14 +341,19 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
                 reader.GetGuid(0),
                 await reader.IsDBNullAsync(1, TestToken) ? null : reader.GetString(1),
                 await reader.IsDBNullAsync(2, TestToken) ? null : reader.GetString(2),
-                /*#if (sqlite)
-                (DateTimeOffset)new Microsoft.EntityFrameworkCore.Storage.ValueConversion.DateTimeOffsetToBinaryConverter().ConvertFromProvider(reader.GetInt64(3))!));
-                #else*/
-                reader.GetFieldValue<DateTimeOffset>(3)));
-                /*#endif*/
+                LastSeenAtOf(reader)));
         }
 
         return rows;
+    }
+
+    private static DateTimeOffset LastSeenAtOf(SqliteDataReader reader)
+    {
+        /*#if (sqlite)
+        return (DateTimeOffset)new Microsoft.EntityFrameworkCore.Storage.ValueConversion.DateTimeOffsetToBinaryConverter().ConvertFromProvider(reader.GetInt64(3))!;
+        #else*/
+        return reader.GetFieldValue<DateTimeOffset>(3);
+        /*#endif*/
     }
 
     private async Task ExecuteAsync(string sql)

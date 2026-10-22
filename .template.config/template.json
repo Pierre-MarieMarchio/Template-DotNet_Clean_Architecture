@@ -190,7 +190,7 @@
         "value": "1.0.0"
       },
       "replaces": "0.0.0-checkout",
-      "description": "The template package's version, read by .template.config/TemplatePackage.csproj and recorded in a generated project's overview; a template-v<version> tag releases it."
+      "description": "The template package's version, which release-please raises, read by .template.config/TemplatePackage.csproj and recorded in a generated project's overview; its release is tagged v<version>."
     },
     "files": {
       "type": "parameter",
@@ -640,6 +640,7 @@
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",
             ".github/workflows/template-release.yml",
+            ".github/release-please/**",
             ".github/ISSUE_TEMPLATE/**",
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",

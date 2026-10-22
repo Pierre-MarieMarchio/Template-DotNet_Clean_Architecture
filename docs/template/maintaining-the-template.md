@@ -207,17 +207,35 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 | Facet | Where |
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
-| Version | the `templateVersion` symbol of `.template.config/template.json`, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview, as [template decision 0002](decisions/0002-nothing-about-the-template-reaches-a-project.md) allows |
+| Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview, as [template decision 0002](decisions/0002-nothing-about-the-template-reaches-a-project.md) allows |
 | Metadata | id, authors, description, tags, licence, the repository `README.md` and `.template.config/icon.png`, all in the package project |
 
-To release, raise `templateVersion`, merge, and push the tag `template-v<version>`.
-`.github/workflows/template-release.yml` then refuses a tag that does not name the version, packs the
-template package and the launcher, installs the template package alone in a scratch hive, generates
-and builds the defaults, generates them again through the launcher, and uploads both `.nupkg` files
-as the `template-package` artifact. Its `github-release` job, the only one with `contents: write`,
-creates the tag's GitHub Release with both attached, as a prerelease when the version has a suffix. Its publishing job is skipped until the repository variable
-`PUBLISH_TEMPLATE_TO_NUGET` is `true`, and reads `NUGET_API_KEY` from the `nuget` environment; a
-version already on nuget.org fails the push. Nothing in the workflow runs but on a tag push.
+## Branches and releases
+
+| Branch | Holds | Moves by |
+|---|---|---|
+| `develop` | the next version; the default branch | a pull request from a `<type>/<subject>` branch, rebased, the history kept linear |
+| `main` | the released commits only | `template-release.yml` fast-forwarding it to each release; nobody pushes to it |
+| `net<major>.0` | the last release built on an earlier .NET major, for its fixes | a pull request, cut from that major's last tag when `develop` moves to the next .NET |
+
+Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/): a `feat` or a
+`fix` lands in the changelog, a `!` or a `BREAKING CHANGE` footer makes the next version a major one,
+and the other types stay out of it. A working branch is kept after its merge.
+
+`.github/workflows/template-release.yml` runs release-please on every push to `develop`, from
+`.github/release-please/config.json`; both reach neither a project nor the package. It keeps one
+pull request open that raises `templateVersion` and adds the version's `CHANGELOG.md` entry from the
+commits since the last release. Merging that pull request is the release: release-please tags
+`v<version>` and creates the GitHub Release, and the same workflow then checks out the tag, refuses
+it if it does not name `templateVersion`, packs the template package and the launcher, installs the
+template package alone in a scratch hive, generates and builds the defaults, generates them again
+through the launcher, attests both packages' provenance and attaches them to the release. Its
+`publish` job waits in the `nuget` environment for a reviewer, exchanges the workflow's identity
+for a short-lived nuget.org key (Trusted Publishing, with `NUGET_USER` the account's name as a
+repository variable) and pushes both packages; a version already on nuget.org fails the push. Last,
+`promote` fast-forwards `main` to the release commit, and refuses if `main` is not its ancestor.
+[Template decision 0006](decisions/0006-develop-integrates-main-holds-the-releases.md) gives the
+reasons.
 
 ## The launcher
 
@@ -231,7 +249,7 @@ and the template package leave the folder out, and `TemplatePackagingTests` hold
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
 | Packages | `Spectre.Console`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
 | Gate | `verify` restores, formats, builds and tests the launcher's solution after the project's gate; CI's `launcher` job does the same |
-| Release | `template-release.yml` packs it beside the template package, installs it as a tool and generates the defaults with it, and attaches it to the release |
+| Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
 some combination, and the launcher refuses exactly where `refusedOptions` does. One test packs the
@@ -257,3 +275,4 @@ version means adopting the change in an existing project takes manual work.
 - [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md)
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
 - [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
+- [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)

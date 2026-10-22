@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this template are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

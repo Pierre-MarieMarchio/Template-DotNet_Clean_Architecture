@@ -22,3 +22,4 @@ matrix, adding an option, and writing pages that condition on the options.
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
 - [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
 - [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)
+- [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)

@@ -597,11 +597,11 @@ public sealed class PasskeyServiceTests
 
     private ITimeLimitedDataProtector RegistrationProtector(Guid userId) =>
         _dataProtection
-            .CreateProtector(PasskeyService.RegistrationStatePurpose, userId.ToString("N"))
+            .CreateProtector(PasskeyCeremonyStateIssuer.RegistrationStatePurpose, userId.ToString("N"))
             .ToTimeLimitedDataProtector();
 
     private ITimeLimitedDataProtector SignInProtector() =>
-        _dataProtection.CreateProtector(PasskeyService.SignInStatePurpose).ToTimeLimitedDataProtector();
+        _dataProtection.CreateProtector(PasskeyCeremonyStateIssuer.SignInStatePurpose).ToTimeLimitedDataProtector();
 
     private string RegistrationState(Guid? userId = null) =>
         RegistrationProtector(userId ?? _userId).Protect("the-state", _clockAtTheMachinesTime.UtcNow.Add(_lifetime));
@@ -633,10 +633,11 @@ public sealed class PasskeyServiceTests
             _handler,
             _httpContextAccessor,
             _directory,
-            _dataProtection,
-            spentCeremonies ?? _spentCeremonies,
-            clock ?? _clockAtTheMachinesTime,
-            new OptionsWrapper<PasskeyOptions>(new PasskeyOptions()));
+            new PasskeyCeremonyStateIssuer(
+                _dataProtection,
+                spentCeremonies ?? _spentCeremonies,
+                clock ?? _clockAtTheMachinesTime,
+                new OptionsWrapper<PasskeyOptions>(new PasskeyOptions())));
     }
 }
 

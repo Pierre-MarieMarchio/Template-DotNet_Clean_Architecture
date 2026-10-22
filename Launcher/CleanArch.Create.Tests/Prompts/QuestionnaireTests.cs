@@ -81,9 +81,6 @@ public sealed class QuestionnaireTests
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;
         console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.DownArrow);
-        console.Input.PushKey(ConsoleKey.DownArrow);
-        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -120,5 +117,76 @@ public sealed class QuestionnaireTests
         answers["sonar"].ShouldBe("false");
         answers["agentFiles"].ShouldBe("true");
         answers["web"].ShouldBe("none");
+    }
+
+    [Fact]
+    public void InATerminal_MySql_IsNeverOffered()
+    {
+        var console = new TestConsole().Interactive();
+        console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
+        var questionnaire = new Questionnaire(console, interactive: true, yes: false);
+
+        Dictionary<string, string> answers = questionnaire.Answer(
+            _project,
+            new Dictionary<string, string> { ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
+            _nothing,
+            Launcher.ProjectAskedWhen);
+
+        console.Output.ShouldContain("postgresql");
+        console.Output.ShouldNotContain("mysql", Case.Sensitive);
+        answers["database"].ShouldBe("postgresql");
+    }
+
+    [Fact]
+    public void InATerminal_AuthNone_AnswersWhatItRefuses_AndOffersNoAdministrators()
+    {
+        var console = new TestConsole().Interactive();
+        console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        var questionnaire = new Questionnaire(console, interactive: true, yes: false);
+
+        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, Launcher.ProjectAskedWhen);
+
+        answers["auth"].ShouldBe("none");
+        answers["examples"].ShouldBe("none");
+        answers["files"].ShouldBe("false");
+        answers["web"].ShouldBe("placeholder");
+        answers["webAudience"].ShouldBe("public");
+        _project.RefusalsFor(answers).ShouldBeEmpty();
+        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "authNoneNeedsExamplesNone").Explanation);
+        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "adminWebNeedsAccounts").Explanation);
+        _project.CommandArguments(answers).ShouldBe(["--auth", "none", "--files", "false", "--examples", "none", "--web", "placeholder"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void InATerminal_AWebAppOfAPublicApi_IsForItsUsers()
+    {
+        TemplateManifest webApp = Repository.Source.Manifest(TemplateKind.WebApp);
+        var console = new TestConsole().Interactive();
+        console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        var questionnaire = new Questionnaire(console, interactive: true, yes: false);
+
+        Dictionary<string, string> answers = questionnaire.Answer(
+            webApp,
+            _nothing,
+            new Dictionary<string, string> { ["auth"] = "none", ["ci"] = "true", ["agentFiles"] = "true", ["scope"] = "acme-shop" },
+            new Dictionary<string, Condition>());
+
+        answers["audience"].ShouldBe("public");
+        console.Output.ShouldNotContain("A back office");
+        console.Output.ShouldContain(webApp.Refusals.Single().Explanation);
     }
 }

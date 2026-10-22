@@ -53,8 +53,18 @@ ever passed and let the review catch the rest.
   whole surface pick it up.
 - A change to a route, a contract or a summary lands with its new OpenAPI reference, written by
   `dotnet run Tools/Tasks.cs openapi`, and the review reads the difference a client will see.
+<!--#if (postgreSql)-->
 - Ownership and a controller's HTTP behaviour are proved against PostgreSQL, so a run without Docker
   no longer exercises them.
+<!--#endif-->
+<!--#if (sqlServer)-->
+- Ownership and a controller's HTTP behaviour are proved against SQL Server, so a run without Docker
+  no longer exercises them.
+<!--#endif-->
+<!--#if (sqlite)-->
+- Ownership and a controller's HTTP behaviour are proved against a SQLite file, which needs no
+  database container.
+<!--#endif-->
 - The coverage figure moves when decorative tests go; it is re-measured, not defended.
 - A change to the stack, a mail or a relay is proved by `end-to-end` before it is done, since `verify` does
   not start the stack.

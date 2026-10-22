@@ -195,7 +195,7 @@ Nothing to configure.
 ## Tests
 
 <!--#if (localAuth)-->
-The flows run against a real PostgreSQL in `Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/`
+The flows run against the project's real database in `Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/`
 (registration, two-factor, passkeys, password and email changes). The guarantees each have a test in
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Security/`: `LoginUniformityTests` (one answer,
 one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay, the cookie),

@@ -6,8 +6,19 @@ Replace this paragraph with what your product does, for whom, and what it is not
 
 Replace this line with the links your team owns: the build status, the environments, the issue tracker.
 
+<!--#if (postgreSql)-->
 This project is a .NET 10 HTTP API on Clean Architecture, with PostgreSQL through EF Core, a problem
 document on every failure, and settings validated at start.
+<!--#endif-->
+<!--#if (sqlServer)-->
+This project is a .NET 10 HTTP API on Clean Architecture, with SQL Server through EF Core, a problem
+document on every failure, and settings validated at start.
+<!--#endif-->
+<!--#if (sqlite)-->
+This project is a .NET 10 HTTP API on Clean Architecture, with SQLite through EF Core, a problem
+document on every failure, and settings validated at start. SQLite is a development database: the API
+refuses to start outside Development.
+<!--#endif-->
 <!--#if (localAuth)-->
 Callers sign in with local accounts: rotating refresh tokens, two-factor and passkeys.
 <!--#endif-->

@@ -74,7 +74,12 @@ healthy. The API runs in Development, so it applies its migrations at start.
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI (Development only) | <http://localhost:8080/scalar/v1> |
 | Mailpit, where mails land | <http://localhost:8025> |
+<!--#if (postgreSql)-->
 | PostgreSQL | `127.0.0.1:5432` |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| SQL Server | `127.0.0.1:1433` |
+<!--#endif-->
 <!--#if (files)-->
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
 <!--#endif-->
@@ -96,7 +101,7 @@ The web app relays `/api` to the API, so a browser talks to one origin.
 
 ```bash
 docker compose logs -f api    # follow the API
-docker compose down           # stop, keep the database
+docker compose down           # stop, keep the data
 docker compose down -v        # stop and delete the data
 ```
 
@@ -104,21 +109,40 @@ docker compose down -v        # stop and delete the data
 
 For a debugger, start only the dependencies and run the API yourself:
 
-<!--#if (files)-->
+<!--#if (files && serverDatabase)-->
 ```bash
 docker compose up -d --wait db mailpit objectstore
 dotnet run Tools/Tasks.cs run
 ```
 <!--#endif-->
-<!--#if (!files)-->
+<!--#if (!files && serverDatabase)-->
 ```bash
 docker compose up -d --wait db mailpit
 dotnet run Tools/Tasks.cs run
 ```
 <!--#endif-->
+<!--#if (files && sqlite)-->
+```bash
+docker compose up -d --wait mailpit objectstore
+dotnet run Tools/Tasks.cs run
+```
+<!--#endif-->
+<!--#if (!files && sqlite)-->
+```bash
+docker compose up -d --wait mailpit
+dotnet run Tools/Tasks.cs run
+```
+<!--#endif-->
 
-The API then answers on <http://localhost:5187>. `appsettings.Development.json` already points at
-the Compose database and mail sink, so nothing else needs setting.
+The API then answers on <http://localhost:5187>.
+<!--#if (serverDatabase)-->
+`appsettings.Development.json` already points at the Compose database and mail sink, so nothing else
+needs setting.
+<!--#endif-->
+<!--#if (sqlite)-->
+It creates and migrates its database file, `App_Data/appdb.db`, under the API's content root on first start.
+`appsettings.Development.json` already points at the mail sink, so nothing else needs setting.
+<!--#endif-->
 [Migrations](../guides/migrations.md#your-own-database) covers your own database.
 
 ## Call the API
@@ -191,7 +215,16 @@ dotnet run Tools/Tasks.cs test --no-integration   # without Docker
 dotnet run Tools/Tasks.cs end-to-end              # the end-to-end suite, against a stack of its own
 ```
 
-The integration suites start their own PostgreSQL in a container. The end-to-end suite starts a
+<!--#if (postgreSql)-->
+The integration suites start their own PostgreSQL in a container.
+<!--#endif-->
+<!--#if (sqlServer)-->
+The integration suites start their own SQL Server in a container.
+<!--#endif-->
+<!--#if (sqlite)-->
+The integration suites create their own SQLite file.
+<!--#endif-->
+The end-to-end suite starts a
 whole stack of its own on the same ports, so stop yours first with `docker compose down`.
 [Testing](../guides/testing.md) says what each suite proves.
 

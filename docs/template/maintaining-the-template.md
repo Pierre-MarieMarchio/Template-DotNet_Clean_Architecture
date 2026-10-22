@@ -68,13 +68,17 @@ and asks each app for its page, its headers and an answer only the API gives.
 | external auth, all examples | `--auth external --examples all --files true` |
 | external auth, no examples, no files | `--auth external --examples none --files false` |
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false` |
+| sqlserver, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
+| sqlite, defaults | `--database sqlite` |
 | web react, local auth | `--web react` |
 | web angular, external auth, notes | `--web angular --auth external --examples notes` |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
 
-A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
+Every leg also greps its project for the other database providers' packages and types, reading its own
+`database`; the SQLite leg runs its integration suites on a file and starts no database container, and
+the SQL Server leg starts one large image, so it has the longest timeout. A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
 workspace. The leg that adds a first app runs that assertion, then `cleanarch-webapp --workspace` and
 the lines `Src/Web/README.md` lists, and is a web leg from there. `--workspace` only adds files, and
 the engine refuses to overwrite one, so everything a web app needs from the API ships with every
@@ -83,7 +87,9 @@ are the shapes the options produce, not their cross product, and run with `fail-
 
 ## Database providers
 
-A project carries one provider. PostgreSQL is in-tree: compiled, tested and covered in this checkout.
+A project carries one provider ([decision 0005](decisions/0005-a-project-carries-one-database-provider.md)),
+and none ships a migration: `bootstrap` creates each context's `InitialCreate` from the project's own
+model. PostgreSQL is in-tree: compiled, tested and covered in this checkout.
 Every other provider is a whole-file overlay under `.template.config/variants/database-<name>/`: each
 file replaces the PostgreSQL file at the same path, with the same type names and public members, and
 `template.json` excludes the PostgreSQL file under `(!postgreSql)`. The rest of the code, the domain
@@ -116,6 +122,10 @@ source copying the folder under its computed symbol, the removal of its `NotYetG
 its `dotnetcli.host.json` entry, and its removal from `refusedOptions`. `TemplatePackagingTests`
 fails until the three agree with the folder. Its refusal line in the acceptance refusal job becomes a
 leg, and each leg's provider-leak check reads the leg's `database`.
+
+This version generates PostgreSQL, SQL Server and SQLite. MySQL stays refused, because the stable EF
+Core 10 providers cannot map the owned JSON entity Identity's passkeys use; no page names a MySQL
+branch, and the `tablePrefixes` symbol covers SQLite alone until it is generated.
 
 An overlay file starts as a copy of its PostgreSQL counterpart, so `git log` on both paths finds a
 change one of them missed.
@@ -244,3 +254,4 @@ version means adopting the change in an existing project takes manual work.
 - [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md)
 - [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md)
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
+- [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)

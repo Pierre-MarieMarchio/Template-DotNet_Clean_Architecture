@@ -33,7 +33,15 @@ what changing it costs.
 | .NET SDK pinned by `global.json`, package versions in `Directory.Packages.props`, warnings as errors | One toolchain on every machine and in CI | [Build and CI](../guides/build-and-ci.md#the-gate) | — |
 | Every dependency at an exact version: packages, container images by digest, workflow actions by commit; Dependabot proposes updates in bands and ignores none | A tag or a range moves under you; an ignored dependency is one nobody revisits | [Supply chain](../guides/build-and-ci.md#supply-chain) | — |
 | ASP.NET Core MVC controllers, `Asp.Versioning`, `Microsoft.AspNetCore.OpenApi`; Scalar in Development | Attribute-routed controllers carry the conventions; the framework's own generator writes the document | [HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document) | — |
+<!--#if (postgreSql)-->
 | PostgreSQL through EF Core and Npgsql | One relational store with schemas, advisory locks and `xmin` | [Persistence model](../architecture/persistence-model.md) | — |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| SQL Server through EF Core | One relational store with schemas, application locks, and a version counter the save stamps | [Persistence model](../architecture/persistence-model.md) | — |
+<!--#endif-->
+<!--#if (sqlite)-->
+| SQLite through EF Core, for development | One file, no server to run; a table prefix per feature, in-process locks and a version counter the save stamps | [Persistence model](../architecture/persistence-model.md) | Moving to a server database: [ADR 0021](0021-sqlite-is-a-development-database.md) |
+<!--#endif-->
 | FluentValidation, run by each use case | Validation is a use case's first line, testable without HTTP | [Request pipeline](../architecture/request-pipeline.md#validation) | — |
 <!--#if (localAuth)-->
 | Local accounts on ASP.NET Core Identity: JWT access tokens, rotating refresh tokens | The API is its own identity provider; the mode decides which modules exist | [Authentication](../features/authentication.md) | — |
@@ -54,9 +62,22 @@ what changing it costs.
 | Docker Compose for the local stack | One command runs the API and its dependencies | [First run](../getting-started/first-run.md#run-with-compose) | — |
 | TLS terminates upstream: HTTP on 8080, no HTTPS redirection, no HSTS; forwarded headers believed only from a named proxy, none named by default | Only the component terminating TLS knows the domain's commitments | [Behind a proxy](../guides/deployment.md#behind-a-proxy) | — |
 | No migration ships with the project: `bootstrap` creates each context's initial migration, and the team commits it | A migration written for every shape the project could take is conditioned by hand and drifts; EF writes the first one from the model and the database this project has | [The initial migration](../guides/migrations.md#the-initial-migration) | — |
+<!--#if (serverDatabase)-->
 | Migrations applied at release: one bundle per context, built from the migrations the image's commit carries, run by a principal with DDL rights; the API migrates itself in Development only | A process never alters its own schema in production | [Migrations at release](../guides/deployment.md#migrations-at-release) | — |
+<!--#endif-->
+<!--#if (sqlite)-->
+| The API migrates itself in Development, and refuses to start anywhere else | A SQLite file is a development database; no release applies migrations to it | [Migrations](../guides/migrations.md) | Moving to a server database: [ADR 0021](0021-sqlite-is-a-development-database.md) |
+<!--#endif-->
 | The API image on alpine, running unprivileged | The healthcheck needs `wget`, which the chiseled images lack | [The image](../guides/deployment.md#the-image) | — |
+<!--#if (postgreSql)-->
 | xUnit v3, Shouldly, NSubstitute, Testcontainers, NetArchTest | Integration tests run on a real PostgreSQL; the architecture is held by tests | [Testing](../guides/testing.md) | — |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| xUnit v3, Shouldly, NSubstitute, Testcontainers, NetArchTest | Integration tests run on a real SQL Server; the architecture is held by tests | [Testing](../guides/testing.md) | — |
+<!--#endif-->
+<!--#if (sqlite)-->
+| xUnit v3, Shouldly, NSubstitute, NetArchTest | Integration tests run on a real SQLite file; the architecture is held by tests | [Testing](../guides/testing.md) | — |
+<!--#endif-->
 <!--#if (ci)-->
 | GitHub Actions | The gate runs where the repository lives | [Workflows](../guides/build-and-ci.md#workflows) | — |
 | CodeQL code scanning beside the gate, weekly and on every change to `main` | Taint paths a test does not walk, reported where GitHub shows alerts | [Workflows](../guides/build-and-ci.md#workflows) | — |

@@ -98,9 +98,18 @@ users feel: `availableAt` stays `null` until then.
 
 Each category bounds, per owner, the files kept (1 000), the bytes held (10 GiB) and the uploads
 waiting for their bytes (20); going over any is `409` `storedFile.quotaExceeded`. In `Strict` mode,
-the default, the check and the insert run under a PostgreSQL advisory lock on (owner, category), so
-the bound holds across every instance; a registration that waits more than 10 seconds for it is
-`409` `storedFile.quotaBusy`. `Indicative` takes no lock, and N concurrent registrations may
+the default, the check and the insert run under a lock on (owner, category); a registration that waits
+more than 10 seconds for it is `409` `storedFile.quotaBusy`.
+<!--#if (postgreSql)-->
+The lock is a PostgreSQL advisory lock, so the bound holds across every instance.
+<!--#endif-->
+<!--#if (sqlServer)-->
+The lock is a SQL Server application lock, so the bound holds across every instance.
+<!--#endif-->
+<!--#if (sqlite)-->
+The lock is held in the process, so the bound holds inside the one instance this project runs.
+<!--#endif-->
+ `Indicative` takes no lock, and N concurrent registrations may
 overshoot by N − 1 files.
 
 ## Background passes
@@ -132,7 +141,7 @@ feature: nothing becomes readable.
 ## Tests
 
 The domain and use-case rules are unit-tested under `Features/Files` in each test project. The
-integration suite runs against PostgreSQL and SeaweedFS: the API flows, ownership, quotas under
+integration suite runs against the project's database and SeaweedFS: the API flows, ownership, quotas under
 concurrency and the passes in `Tests/Integration/AppTemplate.Api.IntegrationTests/Files/`, and the
 store itself (signed grants, the public endpoint, the inventory) in
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/`.

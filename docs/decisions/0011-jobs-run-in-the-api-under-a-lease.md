@@ -16,9 +16,22 @@ run them, and two instances must not run the same pass at once.
 - **A trigger, not a guard.** A job's background service only starts its pass. The operation that
   must not run twice takes `ILeaderLease` inside its use case, so every caller is excluded, a timer
   or an HTTP request alike.
+<!--#if (postgreSql)-->
 - **The lease is a PostgreSQL advisory lock.** It is a session-level lock on a connection of its
   own, outside the pool, keyed by a stable hash of the lease's name. A crashed process releases it;
   nothing waits for a timeout. An instance that does not get the lease skips the pass.
+<!--#endif-->
+<!--#if (sqlServer)-->
+- **The lease is a SQL Server application lock.** It is a session-owned `sp_getapplock` on a
+  connection of its own, outside the pool, named by the lease's name. A crashed process releases it;
+  nothing waits for a timeout. An instance that does not get the lease skips the pass.
+<!--#endif-->
+<!--#if (sqlite)-->
+- **The lease is an in-process lock.** SQLite is a file for one instance, so the lease is a keyed
+  semaphore in the process and excludes only the callers inside it. A second instance is not
+  excluded; [ADR 0021](0021-sqlite-is-a-development-database.md) is why this project never runs as
+  one outside development. An instance that does not get the lease skips the pass.
+<!--#endif-->
 - **It is not a fencing token.** Leadership can be lost mid-run, so every leased operation must
   survive a second instance running it too: re-derive, never assume
   ([ADR 0006](0006-events-after-commit-without-an-outbox.md)).
@@ -30,7 +43,15 @@ run them, and two instances must not run the same pass at once.
 - A lease name is part of the deployment: two releases running side by side during a rolling deploy
   must spell it the same, or both run the pass.
 - `BackgroundWorkTests` holds that no background service takes the lease and that a use case does;
+<!--#if (postgreSql)-->
   `LeaderLeaseTests` proves the exclusion on a real PostgreSQL.
+<!--#endif-->
+<!--#if (sqlServer)-->
+  `LeaderLeaseTests` proves the exclusion on a real SQL Server.
+<!--#endif-->
+<!--#if (sqlite)-->
+  `LeaderLeaseTests` proves the exclusion inside one process.
+<!--#endif-->
 - A pass that is idempotent by shape, such as a purge of expired rows in bounded batches, takes no
   lease at all.
 

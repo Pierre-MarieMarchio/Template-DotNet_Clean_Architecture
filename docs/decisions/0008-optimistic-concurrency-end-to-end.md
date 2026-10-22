@@ -11,8 +11,17 @@ reaches the client lets the client say which state it decided against.
 
 ## Decision
 
+<!--#if (postgreSql)-->
 - **The version is PostgreSQL's `xmin`.** The process never writes it. It is read by the same query
   that reads the value, so the version always describes the body it travels with.
+<!--#endif-->
+<!--#if (versionCounter)-->
+- **The version is a counter the save pipeline stamps.** `VersionStampingSaveChangesInterceptor`
+  writes 1 on insert and the loaded value plus one on update, and the value is read by the same
+  query that reads the body, so the version always describes the body it travels with. The domain's
+  version is a `uint` and no database row version has that size, which is why `rowversion` is not
+  used.
+<!--#endif-->
 - **It travels as `ETag`.** A response carrying a versioned resource returns its version; the
   resource's representation carries no version field.
 - **`If-Match` is checked when sent.** The write compares it with the state it has just loaded and

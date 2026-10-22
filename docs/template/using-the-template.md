@@ -103,9 +103,9 @@ error under warnings as errors. Pick a name with no such segment.
 |---|---|---|---|
 | `--auth` | `local`, `external`, `none` | `local` | `local`: the Auth module, its own context and migration, accounts, two-factor, passkeys, roles. `external`: bearer tokens from an OpenID Connect provider, each subject mapped to an owner in the business context. `none`: a public API, no accounts |
 | `--examples` | `all`, `notes`, `none` | `all` | TodoLists, Reminders and Notes; Notes alone; no example. Reminders needs TodoLists, so they come together |
-| `--database` | `postgresql`, `sqlserver`, `mysql`, `sqlite` | `postgresql` | the database the project runs on, its provider only; this version generates `postgresql` and refuses the others |
+| `--database` | `postgresql`, `sqlserver`, `mysql`, `sqlite` | `postgresql` | `postgresql`: a schema per feature, the row's `xmin` as its version, advisory locks for the leases. `sqlserver`: schemas, a version counter the save stamps, application locks (`sp_getapplock`). `sqlite`, for development only: one file, a table prefix per feature (`<schema>_<Table>`), in-process leases, and an API that refuses to start outside Development. A project carries its provider only, and `mysql` is refused: this version does not generate it |
 | `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
-| `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml`, and `web.yml` with a web app |
+| `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
 | `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
 | `--web` | `none`, `placeholder`, `react`, `angular` | `none` | the first web app in the pnpm workspace `Src/Web`; a framework app is created by its official CLI at bootstrap |
@@ -122,9 +122,7 @@ it, and the generated solution builds and passes its tests.
 | `--auth none` with an example | `--auth-none-needs-examples-none` | add `--examples none` |
 | `--auth none` with `--files true` | `--auth-none-needs-files-false` | add `--files false` |
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
-| `--database sqlserver` | `--sql-server-not-yet-generated` | choose `--database postgresql` |
 | `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
-| `--database sqlite` | `--sqlite-not-yet-generated` | choose `--database postgresql` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing anything. Passing the parameter by hand gets past the engine and generates

@@ -2,8 +2,15 @@
 
 ## When
 
+<!--#if (serverDatabase)-->
 The API goes to an environment other than your machine. It ships as one image that serves HTTP and
 runs the periodic jobs; the schema changes in a step of its own before the image starts.
+<!--#endif-->
+<!--#if (sqlite)-->
+This project is not deployed. It runs on SQLite, a development database, and the API refuses to start
+outside Development; [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) says why and
+how to move to a server database. The rest of this page applies once the move is made.
+<!--#endif-->
 
 ## The image
 
@@ -26,6 +33,7 @@ Each web app has its own nginx image, built from `Src/Web`; [the web front end](
 describes them.
 
 <!--#endif-->
+<!--#if (serverDatabase)-->
 ## Migrations at release
 
 Outside Development the API never touches its schema. Apply migrations before starting a version that
@@ -46,9 +54,16 @@ It writes one self-contained bundle, `artifacts/migrate/efbundle`.
 A bundle holds the migrations the commit carries, from the initial one bootstrap created onwards.
 Each carries no connection string and needs no SDK on the target:
 
+<!--#if (postgreSql)-->
 ```bash
 ./efbundle --connection "Host=…;Database=…;Username=<migration user>;Password=…"
 ```
+<!--#endif-->
+<!--#if (sqlServer)-->
+```bash
+./efbundle --connection "Server=…;Database=…;User Id=<migration user>;Password=…;TrustServerCertificate=True"
+```
+<!--#endif-->
 
 <!--#if (ci)-->
 The release workflow builds the bundles from the tagged commit and uploads them as artifacts;
@@ -58,6 +73,7 @@ running them is the deployment's step.
 Running migrations at release is a row of [ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).
 Moving them into the process would give the runtime user DDL rights and race every replica on the
 history table.
+<!--#endif-->
 
 ## Configuration and secrets
 
@@ -96,9 +112,17 @@ nothing trusted, which ASP.NET Core would read as trusting everyone.
 | Background jobs | `Jobs:Enabled` is `true` on one instance and `false` on the others; a pass that must not run twice also takes a lease |
 | Rate limiting | each instance counts its own window, so the effective limit is the limit times the instances |
 | Cache | `HybridCache` is in process; a shared level is an `IDistributedCache` registration |
+<!--#if (postgreSql)-->
 | Connection pool | keep instances × `Database:MaxPoolSize` under the server's `max_connections` |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| Connection pool | keep instances × `Database:MaxPoolSize` under the server's connection limit |
+<!--#endif-->
+<!--#if (sqlite)-->
+| Instances | run one: the leases are in process and the file has one writer |
+<!--#endif-->
 <!--#if (localAuth)-->
-| Mailed tokens | the Data Protection key ring is persisted in the `identity` schema, so every instance reads the same keys |
+| Mailed tokens | the Data Protection key ring is persisted with the identity tables, so every instance reads the same keys |
 <!--#endif-->
 
 [Background jobs](../features/background-jobs.md#several-instances) covers the leases.

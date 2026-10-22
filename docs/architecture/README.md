@@ -88,7 +88,12 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 | Output caching | revalidation headers on responses, `ICacheStore` for values | [Shared mechanisms](shared-mechanisms.md#cache) |
 | An abstraction made for a single case | one extracted only once two real cases prove its shape | [Ports and adapters](ports-and-adapters.md#ports-are-named-for-intent) |
 | A `.Core` and a `.<Technology>` project per module | one project per capability | [Modules and boundaries](modules-and-boundaries.md#infrastructure-per-capability) |
+<!--#if (serverDatabase)-->
 | Migrations at start-up outside Development | one bundle per context, applied at release | [Deployment](../guides/deployment.md#migrations-at-release) |
+<!--#endif-->
+<!--#if (sqlite)-->
+| Running outside Development | SQLite is a development database, and the API refuses to start elsewhere | [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) |
+<!--#endif-->
 | HTTPS redirection, HSTS | TLS terminates upstream | [Deployment](../guides/deployment.md#behind-a-proxy) |
 <!--#if (accounts)-->
 | Permissions, tenants | one `Administrator` policy beside the default-deny fallback | [Request pipeline](request-pipeline.md#authorisation) |
@@ -121,3 +126,6 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 <!--#endif-->
 - [0010. Idempotency-Key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
 - [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
+<!--#if (sqlite)-->
+- [0021. SQLite is a development database](../decisions/0021-sqlite-is-a-development-database.md)
+<!--#endif-->

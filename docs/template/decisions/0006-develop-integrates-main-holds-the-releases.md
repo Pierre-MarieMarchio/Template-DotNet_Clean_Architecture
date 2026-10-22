@@ -15,8 +15,9 @@ read an API key stored as a secret, or trust the workflow's own identity.
 
 ## Decision
 
-- **`develop` integrates.** It is the default branch; every change reaches it by a pull request from
-  a `<type>/<subject>` branch, rebased, so its history stays linear, and the branch is kept.
+- **`develop` integrates.** It is the default branch, so Dependabot, a pull request opened from the
+  web and a contributor's fork target it; every change reaches it by a pull request from a
+  `<type>/<subject>` branch, rebased, so its history stays linear, and the branch is kept.
 - **`main` holds the released commits only.** The release workflow fast-forwards it to each release
   commit; nobody pushes to it, and it never takes a merge, so it never needs merging back.
 - **release-please cuts the versions.** It keeps a release pull request on `develop` that raises

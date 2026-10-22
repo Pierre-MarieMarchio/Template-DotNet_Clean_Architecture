@@ -55,7 +55,7 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
             }
 
             var container = new MsSqlBuilder(Image)
-                .WithPassword("Apptemplate_tests_1")
+                .WithPassword("Integration_tests_1")
                 .WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "1024")
                 .Build();
 

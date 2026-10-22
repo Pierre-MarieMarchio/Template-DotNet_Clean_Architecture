@@ -17,8 +17,8 @@
     <PackageVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</PackageVersion>
     <Title>.NET Clean Architecture API templates</Title>
     <Authors>Pierre-MarieMarchio</Authors>
-    <Description>dotnet new templates for a .NET 10 HTTP API on Clean Architecture, meant to be kept: cleanarch-webapi generates the solution (EF Core on PostgreSQL, local, external or no authentication, Files, jobs, mail, architecture tests, CI and documentation, each part chosen by an option); cleanarch-webapp and cleanarch-webpackage add a web app or a package to its pnpm workspace.</Description>
-    <PackageTags>dotnet-new;templates;clean-architecture;webapi;ddd;aspnetcore;efcore;postgresql</PackageTags>
+    <Description>dotnet new templates for a .NET 10 HTTP API on Clean Architecture, meant to be kept: cleanarch-webapi generates the solution (EF Core on PostgreSQL, SQL Server or SQLite, local, external or no authentication, Files, jobs, mail, architecture tests, CI and documentation, each part chosen by an option); cleanarch-webapp and cleanarch-webpackage add a web app or a package to its pnpm workspace.</Description>
+    <PackageTags>dotnet-new;templates;clean-architecture;webapi;ddd;aspnetcore;efcore;postgresql;sqlserver;sqlite</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
@@ -32,7 +32,6 @@
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <NoDefaultExcludes>true</NoDefaultExcludes>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);NU5128;NU5123</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,7 +43,7 @@
     <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj" />
     <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md;$(TemplateRoot)LICENSE" />
     <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md" />
-    <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/ISSUE_TEMPLATE/**" />
+    <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/release-please/**;$(TemplateRoot).github/ISSUE_TEMPLATE/**" />
     <TemplateExclude Include="$(TemplateRoot)Tools/CheckDocPaths.cs;$(TemplateRoot)Tools/CheckWorkflows.cs;$(TemplateRoot)Tools/CheckComments.cs" />
     <TemplateExclude Include="$(TemplateRoot)Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs;$(TemplateRoot)Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/v1.json" />
     <TemplateExclude Include="$(TemplateRoot)Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/**;$(TemplateRoot)Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/**" />

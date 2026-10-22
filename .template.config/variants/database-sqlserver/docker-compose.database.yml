@@ -1,0 +1,28 @@
+﻿# The database server and the api's connection to it, which docker-compose.yml extends; every value comes from .env.
+
+services:
+  db:
+    # Every image is pinned by tag and digest; Dependabot bumps both. SQL Server publishes linux/amd64 only.
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04@sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+    ports:
+      # Loopback only, for a client on this machine; remove it for any non-local use.
+      - "127.0.0.1:${MSSQL_HOST_PORT:-1433}:1433"
+    volumes:
+      - db-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  database-client:
+    environment:
+      ConnectionStrings__Default: "Server=db,1433;Database=appdb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+
+volumes:
+  db-data:

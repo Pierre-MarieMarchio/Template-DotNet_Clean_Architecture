@@ -9,12 +9,13 @@ public sealed class ArgumentsTests
     public void Parse_SeparatesTheLaunchersOptionsFromTheTemplates()
     {
         Arguments parsed = Arguments.Parse(
-            ["new", "-n", "Acme.Shop", "--output=out", "--auth", "none", "--files", "--yes", "--web-audience=admin", "--template-source", "pkg.nupkg", "--hive", "hive"]);
+            ["new", "-n", "Acme.Shop", "--output=out", "--auth", "none", "--files", "--yes", "--setup", "--web-audience=admin", "--template-source", "pkg.nupkg", "--hive", "hive"]);
 
         parsed.Command.ShouldBe("new");
         parsed.Name.ShouldBe("Acme.Shop");
         parsed.Output.ShouldBe("out");
         parsed.Yes.ShouldBeTrue();
+        parsed.Setup.ShouldBeTrue();
         parsed.TemplateSource.ShouldBe("pkg.nupkg");
         parsed.Hive.ShouldBe("hive");
         parsed.TemplateOptions.ShouldBe(

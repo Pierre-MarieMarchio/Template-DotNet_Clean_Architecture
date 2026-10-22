@@ -29,6 +29,24 @@ and `dotnet new` generates, whose output shows only when it fails. With `--yes`,
 or with `NO_COLOR` set, the output stays plain: no banner, no thread, no spinner, the template
 engine's own lines.
 
+## Set the project up
+
+The last question, every step checked, offers the first steps the project's first run asks for by
+hand. Each runs under its own spinner, in this order:
+
+| Step | What it runs |
+|---|---|
+| First commit | `git init` unless the folder is in a git work tree already, then a commit of the generated files, `chore: generate from cleanarch-webapi <version>` |
+| Bootstrap | `dotnet run Tools/Tasks.cs bootstrap`, which needs the network |
+| Bootstrap commit | a commit of what bootstrap wrote, `chore: bootstrap` |
+| Copy .env | `.env.example` to the git-ignored `.env`, unless one is there |
+
+The commits carry your own git identity; without `user.name` or `user.email` they are skipped, with
+the `git config` lines to run. A step that fails says why and leaves the next independent ones to
+run, and a commit is skipped when a step before it did not succeed. The commands left at the end are
+the ones still to run: the stack's, and those of each step that did not succeed. Without questions,
+`--setup` runs every step; without it nothing is set up.
+
 ## Add a web app or a package
 
 At the root of a generated project, or in any folder under it:
@@ -57,5 +75,6 @@ dnx CleanArch.Create web-app -n BackOffice --framework react --audience admin --
 | `-n`, `--name` | the project, app or package name |
 | `-o`, `--output` | where `new` writes the project, `./<name>` by default |
 | `-y`, `--yes` | the default of every option not given |
+| `--setup` | after `new`, every step of [Set the project up](#set-the-project-up), without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |
 | `--hive <folder>` | the template engine's settings folder, passed as `--debug:custom-hive` |

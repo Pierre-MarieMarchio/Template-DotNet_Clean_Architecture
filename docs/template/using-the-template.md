@@ -20,6 +20,13 @@ terminal the questions follow one another on a thread under a banner, a summary 
 comes before anything is written, and answering No to it asks again with the previous answers as
 defaults; with `--yes`, without a terminal, or with `NO_COLOR` set, the output stays plain text.
 
+Its last question offers to set the project up as [the first run](../getting-started/first-run.md)
+asks: a first commit, after `git init` unless the folder is in a work tree already, then
+`dotnet run Tools/Tasks.cs bootstrap`, a commit of what it wrote, and `.env` copied from
+`.env.example`. The commits carry your own git identity, a step that fails says why without stopping
+the independent ones, and the commands printed at the end are only those left to run. Without
+questions, `--setup` runs every step.
+
 At the root of a generated project, or in any folder under it, it adds a web app or a package to the
 workspace: the project's authentication, workflows and scope are read from its files, and the first
 app also creates the workspace. It then prints the lines its `README.md` asks to add by hand.

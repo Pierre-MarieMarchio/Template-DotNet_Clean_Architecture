@@ -34,6 +34,23 @@ public sealed class PlainConversation : Conversation
         return selected;
     }
 
+    public override IReadOnlyList<string> ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
+    {
+        var prompt = new MultiSelectionPrompt<string>()
+            .Title($"[bold]{Markup.Escape(label)}[/]")
+            .NotRequired()
+            .AddChoices(choices.Select(choice => choice.Value))
+            .UseConverter(value => $"{Markup.Escape(value)} [grey]{Markup.Escape(choices.First(choice => choice.Value == value).Description)}[/]");
+        foreach (string value in selected)
+        {
+            prompt.Select(value);
+        }
+
+        List<string> chosen = _console.Prompt(prompt);
+        _console.MarkupLine($"[bold]{Markup.Escape(label)}[/]: [green]{Markup.Escape(string.Join(", ", chosen))}[/]");
+        return chosen;
+    }
+
     public override bool Confirm(string label, string description, bool defaultValue) =>
         _console.Prompt(new ConfirmationPrompt(Title(label, description)) { DefaultValue = defaultValue });
 
@@ -63,6 +80,18 @@ public sealed class PlainConversation : Conversation
     public override bool Review(string subject, IReadOnlyList<KeyValuePair<string, string>> rows) => true;
 
     public override void Perform(string running, string done, Action work) => work();
+
+    public override T Spin<T>(string running, Func<T> work) => work();
+
+    public override void Reported(string text, bool succeeded, string? why, IReadOnlyList<string> rerun)
+    {
+        string colour = succeeded ? "green" : "yellow";
+        _console.MarkupLine($"[{colour}]{Markup.Escape(text)}.[/]" + (why is null ? string.Empty : " " + Markup.Escape(why)));
+        foreach (string command in rerun)
+        {
+            _console.Verbatim("  " + command);
+        }
+    }
 
     public override void Equivalents(IReadOnlyList<string> commandLines)
     {

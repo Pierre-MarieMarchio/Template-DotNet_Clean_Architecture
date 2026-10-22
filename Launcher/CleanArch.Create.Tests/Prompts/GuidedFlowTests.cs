@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using CleanArch.Create.Projects;
 using CleanArch.Create.Prompts;
 using Shouldly;
 using Spectre.Console;
@@ -9,6 +10,7 @@ namespace CleanArch.Create.Tests.Prompts;
 
 public sealed partial class GuidedFlowTests : IDisposable
 {
+    private const string _created = "The template was created successfully.";
     private const string _runIt =
         """
         ## Run it
@@ -16,7 +18,8 @@ public sealed partial class GuidedFlowTests : IDisposable
         You need Docker.
 
         ```bash
-        dotnet run Tools/Tasks.cs bootstrap
+        dotnet run Tools/Tasks.cs bootstrap     # once, after a fresh clone; commit what it changes
+        cp .env.example .env
         docker compose up -d --build --wait
         ```
 
@@ -25,49 +28,62 @@ public sealed partial class GuidedFlowTests : IDisposable
 
     private readonly string _root = Directory.CreateTempSubdirectory("cleanarch-create-").FullName;
     private readonly FakeProcesses _processes;
+    private bool _identity = true;
+    private bool _initialised;
+    private ProcessResult _bootstrap = new(0, string.Empty);
 
     public GuidedFlowTests()
     {
-        _processes = new FakeProcesses(call =>
-        {
-            int output = call.Arguments.ToList().IndexOf("-o");
-            if (output > 0)
-            {
-                Directory.CreateDirectory(call.Arguments[output + 1]);
-                File.WriteAllText(Path.Combine(call.Arguments[output + 1], "README.md"), _runIt);
-            }
-
-            return new ProcessResult(0, "The template was created successfully.");
-        });
+        _processes = new FakeProcesses(Answer);
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     [Fact]
-    public void ANewProject_IsABannerThenAThread_ASummary_AndTheCommandsLeft()
+    public void ANewProject_IsABannerThenAThread_ASummary_TheSetUp_AndTheCommandsLeft()
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 10);
+        PushEnters(console, 11);
 
-        new Launcher(console, _root, interactive: true, _processes).Run(["new", "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+        Run(console, "new");
 
         string output = Plain(console);
         output.ShouldContain("/ ___|");
         output.ShouldContain(Banner.Tool);
         output.ShouldContain(Banner.Tagline);
-        output.ShouldContain("┌  Create a project");
         output.ShouldContain("◇  Project name\n│  Demo\n");
         output.ShouldContain("◇  Database\n│  postgresql\n");
-        Order(output, "┌  Create a project", "◇  Authentication", "◇  Database", "◇  First web app", "Summary", "◇  Generated Demo", "The same, without questions", "└  Done. Now run:");
+        output.ShouldContain("◇  Set up the project now?\n│  First commit, Bootstrap, Bootstrap commit, Copy .env\n");
+        Order(
+            output,
+            "┌  Create a project",
+            "◇  Authentication",
+            "◇  Database",
+            "◇  First web app",
+            "◆  Set up the project now?",
+            "Summary",
+            "◇  Generated Demo",
+            "◇  First commit done",
+            "◇  Bootstrap done",
+            "◇  Bootstrap commit done",
+            "◇  Copy .env done",
+            "The same, without questions",
+            "--setup",
+            "└  Done. Now run:");
         output.ShouldContain("╭");
         output.ShouldMatch(@"│ Authentication\s+│ local\s+│");
         output.ShouldMatch(@"│ Output folder\s+│ ./Demo\s+│");
-        output.ShouldContain("     cd ./Demo");
-        output.ShouldContain("     docker compose up -d --build --wait");
-        output.ShouldNotContain("```");
-        output.ShouldNotContain("The template was created successfully.");
+        output.ShouldMatch(@"│ Set up\s+│ First commit, Bootstrap, Bootstrap commit, Copy .env\s+│");
+        string left = Closing(output);
+        left.ShouldContain("     cd ./Demo");
+        left.ShouldContain("     docker compose up -d --build --wait");
+        left.ShouldNotContain(ProjectSetup.BootstrapCommand);
+        left.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        left.ShouldNotContain("```");
+        output.ShouldNotContain(_created);
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal));
+        File.Exists(Path.Combine(_root, "Demo", ".env")).ShouldBeTrue();
     }
 
     [Fact]
@@ -79,7 +95,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.End);
         PushEnters(console, 10);
 
-        new Launcher(console, _root, interactive: true, _processes).Run(["new", "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+        Run(console, "new");
 
         string output = Plain(console);
         output.ShouldContain("◇  Example features\n│  none · --auth none refuses the example features");
@@ -95,33 +111,84 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
         PushEnters(console, 8);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Spacebar);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.RightArrow);
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
-        new Launcher(console, _root, interactive: true, _processes).Run(["new", "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+        Run(console, "new");
 
-        Regex.Count(Plain(console), "Summary").ShouldBe(2);
+        string output = Plain(console);
+        Regex.Count(output, "Summary").ShouldBe(2);
+        output.ShouldNotContain("◇  Bootstrap done");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--auth external", StringComparison.Ordinal));
+        _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
+        Closing(output).ShouldContain(ProjectSetup.BootstrapCommand);
+    }
+
+    [Fact]
+    public void AFailedBootstrap_IsReported_ItsCommitSkipped_AndBothLeftToRun()
+    {
+        _bootstrap = new ProcessResult(1, "error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.");
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 11);
+
+        Run(console, "new");
+
+        string output = Plain(console);
+        Order(output, "◇  First commit done", "▲  Bootstrap failed", "exited with code 1", "NU1301", "▲  Bootstrap commit skipped", "◇  Copy .env done", "└  Done. Now run:");
+        string left = Closing(output);
+        left.ShouldContain(ProjectSetup.BootstrapCommand);
+        left.ShouldContain("git commit -m \"chore: bootstrap\"");
+        left.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+    }
+
+    [Fact]
+    public void WithoutAGitIdentity_TheCommitsAreSkipped_WithTheConfigToRun()
+    {
+        _identity = false;
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 11);
+
+        Run(console, "new");
+
+        string output = Plain(console);
+        Order(output, "▲  First commit skipped", "git has no user.name nor user.email", "◇  Bootstrap done", "▲  Bootstrap commit skipped");
+        Closing(output).ShouldContain("git config --global user.email \"<your email>\"");
+        _processes.CommandLines.ShouldNotContain(line => line.StartsWith("git commit", StringComparison.Ordinal));
     }
 
     [Fact]
     public void AWebApp_ReadsTheProject_AndOffersAPublicApiNoAdministrators()
     {
-        File.WriteAllText(Path.Combine(_root, "Acme.Shop.sln"), string.Empty);
-        Directory.CreateDirectory(Path.Combine(_root, "Tools"));
-        File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
+        AGeneratedProject();
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("BackOffice");
         PushEnters(console, 4);
 
-        new Launcher(console, _root, interactive: true, _processes).Run(["web-app", "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+        Run(console, "web-app");
 
         string output = Plain(console);
         output.ShouldContain("┌  Add a web app to Acme.Shop");
         output.ShouldContain("●  Read from Acme.Shop: --workspace true");
         output.ShouldContain("◇  Audience\n│  public · --audience admin signs administrators in");
+        output.ShouldNotContain("Set up the project now?");
         Order(output, "◇  App name", "◇  Framework", "Summary", "◇  Added BackOffice", "└  Done. By hand, in Src/Web/README.md:");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapp -n BackOffice", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AWebApp_TakesNoSetup()
+    {
+        AGeneratedProject();
+        var console = new TestConsole();
+
+        new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "BackOffice", "--framework", "react", "--yes", "--setup"]).ShouldBe(1);
+
+        console.Output.ShouldContain("web-app takes no --setup");
     }
 
     [Fact]
@@ -129,30 +196,46 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal().Colors(ColorSystem.NoColors);
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 9);
+        PushEnters(console, 10);
 
-        new Launcher(console, _root, interactive: true, _processes).Run(["new", "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+        Run(console, "new");
 
         string output = Plain(console);
         output.ShouldNotContain(Banner.Tagline);
         output.ShouldNotContain(Rail.Answered);
         output.ShouldNotContain("Summary");
         output.ShouldContain("Done. The same, without questions:");
-        output.ShouldContain("The template was created successfully.");
+        output.ShouldContain(_created);
     }
 
     [Fact]
-    public void WithYes_TheOutputIsTheTemplateEnginesThenTheCommands_WithNoRail()
+    public void WithYes_NothingIsSetUp_AndTheOutputIsTheTemplateEnginesThenTheCommands()
     {
         TestConsole console = Terminal();
 
-        new Launcher(console, _root, interactive: true, _processes).Run(["new", "-n", "Demo", "--yes", "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+        Run(console, "new", "-n", "Demo", "--yes");
 
         string output = Plain(console);
         output.ShouldNotContain(Banner.Tagline);
         output.ShouldNotContain(Rail.Bar);
         output.ShouldNotContain(Rail.Answered);
-        Order(output, "The template was created successfully.", "Done. The same, without questions:", "Next", "cd Demo", "```bash");
+        Order(output, _created, "Done. The same, without questions:", "Next", "cd Demo", "```bash", ProjectSetup.BootstrapCommand);
+        _processes.Calls.ShouldNotContain(call => call.FileName == "git");
+        _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
+    }
+
+    [Fact]
+    public void WithYesAndSetup_EveryStepRuns_InPlainLines()
+    {
+        TestConsole console = Terminal();
+
+        Run(console, "new", "-n", "Demo", "--yes", "--setup");
+
+        string output = Plain(console);
+        output.ShouldNotContain(Rail.Answered);
+        Order(output, "First commit done.", "Bootstrap done.", "Bootstrap commit done.", "Copy .env done.", "--yes --setup", "Next", "cd Demo", "docker compose up -d --build --wait");
+        output.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        _processes.CommandLines.ShouldContain("git commit -q -m chore: bootstrap -- .");
     }
 
     private static TestConsole Terminal()
@@ -172,6 +255,13 @@ public sealed partial class GuidedFlowTests : IDisposable
 
     private static string Plain(TestConsole console) => Ansi().Replace(console.Output, string.Empty).Replace("\r", string.Empty, StringComparison.Ordinal);
 
+    private static string Closing(string output)
+    {
+        int done = output.LastIndexOf("└  Done.", StringComparison.Ordinal);
+        done.ShouldBeGreaterThanOrEqualTo(0, "The run printed no closing block.");
+        return output[done..];
+    }
+
     private static void Order(string output, params string[] markers)
     {
         int position = -1;
@@ -185,4 +275,44 @@ public sealed partial class GuidedFlowTests : IDisposable
 
     [GeneratedRegex(@"\x1b\[[0-9;?]*[ -/]*[@-~]")]
     private static partial Regex Ansi();
+
+    private void Run(TestConsole console, params string[] arguments) =>
+        new Launcher(console, _root, interactive: true, _processes).Run([.. arguments, "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
+
+    private void AGeneratedProject()
+    {
+        File.WriteAllText(Path.Combine(_root, "Acme.Shop.sln"), string.Empty);
+        Directory.CreateDirectory(Path.Combine(_root, "Tools"));
+        File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
+    }
+
+    private ProcessResult Answer(ProcessCall call)
+    {
+        if (call.FileName == "git")
+        {
+            _initialised |= call.Arguments[0] == "init";
+            return call.Arguments[0] switch
+            {
+                "rev-parse" => _initialised ? new ProcessResult(0, "true") : new ProcessResult(128, "fatal: not a git repository"),
+                "config" => _identity ? new ProcessResult(0, "Ada Lovelace") : new ProcessResult(1, string.Empty),
+                "status" => new ProcessResult(0, " A README.md"),
+                _ => new ProcessResult(0, string.Empty),
+            };
+        }
+
+        if (call.Arguments[0] == "run")
+        {
+            return _bootstrap;
+        }
+
+        int output = call.Arguments.ToList().IndexOf("-o");
+        if (output > 0)
+        {
+            Directory.CreateDirectory(call.Arguments[output + 1]);
+            File.WriteAllText(Path.Combine(call.Arguments[output + 1], "README.md"), _runIt);
+            File.WriteAllText(Path.Combine(call.Arguments[output + 1], ".env.example"), "API_HOST_PORT=8080");
+        }
+
+        return new ProcessResult(0, _created);
+    }
 }

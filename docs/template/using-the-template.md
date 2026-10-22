@@ -15,7 +15,10 @@ offers only the choices the template generates with the answers given so far, an
 left with one choice and says which refusal leaves it, explains a refused combination of flags
 before writing anything and asks its options again, installs
 `CleanArch.WebApi.Templates` at its own version when another one or none is installed, runs
-`dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps.
+`dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps. In a
+terminal the questions follow one another on a thread under a banner, a summary of every option
+comes before anything is written, and answering No to it asks again with the previous answers as
+defaults; with `--yes`, without a terminal, or with `NO_COLOR` set, the output stays plain text.
 
 At the root of a generated project, or in any folder under it, it adds a web app or a package to the
 workspace: the project's authentication, workflows and scope are read from its files, and the first

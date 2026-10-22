@@ -1,20 +1,26 @@
-﻿using System.Diagnostics;
-using System.Text;
-using CleanArch.Create.Manifests;
+﻿using CleanArch.Create.Manifests;
 using Spectre.Console;
 
 namespace CleanArch.Create;
 
 public sealed class TemplateEngine
 {
+    private static readonly IReadOnlyDictionary<string, string> _environment = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["DOTNET_CLI_UI_LANGUAGE"] = "en",
+    };
+
     private readonly IAnsiConsole _console;
     private readonly string? _hive;
-    private readonly Lock _output = new();
+    private readonly bool _echo;
+    private readonly IProcessRunner _processes;
 
-    public TemplateEngine(IAnsiConsole console, string? hive)
+    public TemplateEngine(IAnsiConsole console, string? hive, bool echo, IProcessRunner processes)
     {
         _console = console;
         _hive = hive;
+        _echo = echo;
+        _processes = processes;
     }
 
     public static string CommandLine(string prefix, IEnumerable<string> arguments) =>
@@ -49,78 +55,39 @@ public sealed class TemplateEngine
 
             Run(workingDirectory, ["install", package]);
         }
-        else if (installed == version)
-        {
-            _console.MarkupLine($"[grey]{TemplateSource.PackageId} {Markup.Escape(version)} is installed.[/]");
-        }
-        else
+        else if (installed != version)
         {
             Run(workingDirectory, ["install", $"{TemplateSource.PackageId}@{version}"]);
+        }
+        else if (_echo)
+        {
+            _console.MarkupLine($"[grey]{TemplateSource.PackageId} {Markup.Escape(version)} is installed.[/]");
         }
     }
 
     public void Run(string workingDirectory, IReadOnlyList<string> arguments)
     {
-        (int exitCode, _) = Execute(workingDirectory, arguments, echo: true);
+        (int exitCode, string output) = Execute(workingDirectory, arguments, echo: true);
         if (exitCode != 0)
         {
-            throw new LauncherException($"{CommandLine("dotnet new", arguments)} failed with exit code {exitCode}.");
+            string failure = $"{CommandLine("dotnet new", arguments)} failed with exit code {exitCode}.";
+            throw new LauncherException(_echo ? failure : output.TrimEnd() + Environment.NewLine + failure);
         }
     }
 
     private (int ExitCode, string Output) Execute(string workingDirectory, IReadOnlyList<string> arguments, bool echo)
     {
-        var start = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-        };
-        start.Environment["DOTNET_CLI_UI_LANGUAGE"] = "en";
-        start.ArgumentList.Add("new");
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
+        List<string> command = ["new", .. arguments];
         if (_hive is not null)
         {
-            start.ArgumentList.Add("--debug:custom-hive");
-            start.ArgumentList.Add(_hive);
+            command.AddRange(["--debug:custom-hive", _hive]);
         }
 
-        var captured = new StringBuilder();
-        using var process = new Process { StartInfo = start };
-        DataReceivedEventHandler collect = (_, line) =>
-        {
-            if (line.Data is null)
-            {
-                return;
-            }
+        ProcessResult result = _processes.Run(
+            new ProcessCall("dotnet", workingDirectory, command, _environment),
+            echo && _echo ? _console.Verbatim : null);
 
-            lock (_output)
-            {
-                captured.AppendLine(line.Data);
-                if (echo)
-                {
-                    _console.Verbatim(line.Data);
-                }
-            }
-        };
-        process.OutputDataReceived += collect;
-        process.ErrorDataReceived += collect;
-
-        if (!process.Start())
-        {
-            throw new LauncherException("dotnet could not be started; the .NET SDK must be on the PATH.");
-        }
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        process.WaitForExit();
-
-        return (process.ExitCode, captured.ToString());
+        return (result.ExitCode, result.Output);
     }
 
     private static string Quoted(string argument) =>

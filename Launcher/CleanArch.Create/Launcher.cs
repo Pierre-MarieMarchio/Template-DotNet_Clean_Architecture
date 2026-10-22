@@ -43,16 +43,24 @@ public sealed partial class Launcher
     private readonly IAnsiConsole _console;
     private readonly string _workingDirectory;
     private readonly bool _interactive;
+    private readonly IProcessRunner _processes;
 
     public Launcher(IAnsiConsole console, string workingDirectory, bool interactive)
+        : this(console, workingDirectory, interactive, new ProcessRunner())
+    {
+    }
+
+    public Launcher(IAnsiConsole console, string workingDirectory, bool interactive, IProcessRunner processes)
     {
         _console = console;
         _workingDirectory = workingDirectory;
         _interactive = interactive;
+        _processes = processes;
     }
 
     public int Run(IReadOnlyList<string> arguments)
     {
+        Conversation conversation = new PlainConversation(_console);
         try
         {
             Arguments parsed = Arguments.Parse(arguments);
@@ -66,19 +74,25 @@ public sealed partial class Launcher
                 ? TemplateSource.FromPath(Path.GetFullPath(path, _workingDirectory))
                 : TemplateSource.Embedded();
             var questionnaire = new Questionnaire(_console, _interactive, parsed.Yes);
-            var dotnet = new TemplateEngine(_console, parsed.Hive is { } hive ? Path.GetFullPath(hive, _workingDirectory) : null);
+            conversation = questionnaire.Conversation;
+            var dotnet = new TemplateEngine(
+                _console,
+                parsed.Hive is { } hive ? Path.GetFullPath(hive, _workingDirectory) : null,
+                conversation.EchoesTheTemplateEngine,
+                _processes);
+            var session = new Session(parsed, source, questionnaire, dotnet, source.Manifest(TemplateKind.Project).Version);
             GeneratedProject? project = GeneratedProject.Find(_workingDirectory);
 
-            switch (parsed.Command ?? Choose(project, questionnaire))
+            switch (parsed.Command ?? Choose(project, session))
             {
                 case Arguments.WebAppCommand:
-                    WebApp(parsed, source, questionnaire, dotnet, Required(project, Arguments.WebAppCommand));
+                    WebApp(session, Required(project, Arguments.WebAppCommand));
                     break;
                 case Arguments.WebPackageCommand:
-                    WebPackage(parsed, source, questionnaire, dotnet, Required(project, Arguments.WebPackageCommand));
+                    WebPackage(session, Required(project, Arguments.WebPackageCommand));
                     break;
                 default:
-                    New(parsed, source, questionnaire, dotnet);
+                    New(session);
                     break;
             }
 
@@ -86,7 +100,7 @@ public sealed partial class Launcher
         }
         catch (LauncherException error)
         {
-            _console.MarkupLine("[red]" + Markup.Escape(error.Message) + "[/]");
+            conversation.Fail(error.Message);
             return 1;
         }
     }
@@ -148,108 +162,45 @@ public sealed partial class Launcher
     private static string? PackageNameProblem(string name) =>
         PackageName().IsMatch(name) ? null : "a package name is letters, digits and dashes, starting with a letter, as tokens.";
 
-    private string Choose(GeneratedProject? project, Questionnaire questionnaire)
+    private static Asked Reviewed(
+        Conversation conversation,
+        Func<Asked?, Asked> ask,
+        Func<Asked, IEnumerable<KeyValuePair<string, string>>> recap,
+        Func<Asked, string> subject)
     {
-        if (project is null || !questionnaire.Asks)
+        Asked asked = ask(null);
+        while (!conversation.Review(subject(asked), [.. recap(asked)]))
         {
-            return Arguments.NewCommand;
+            asked = ask(asked);
         }
 
-        var descriptions = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [Arguments.WebAppCommand] = $"add a web app to {project.Name}",
-            [Arguments.WebPackageCommand] = $"add a package to {project.Name}'s web workspace",
-            [Arguments.NewCommand] = "create another project",
-        };
-
-        return _console.Prompt(new SelectionPrompt<string>()
-            .Title($"[bold]{Markup.Escape(project.Name)}[/] is a generated project. What next?")
-            .AddChoices(project.HasWorkspace ? descriptions.Keys : descriptions.Keys.Where(command => command != Arguments.WebPackageCommand))
-            .UseConverter(command => $"{command} [grey]{Markup.Escape(descriptions[command])}[/]"));
+        return asked;
     }
 
-    private void New(Arguments parsed, TemplateSource source, Questionnaire questionnaire, TemplateEngine dotnet)
+    private static Asked AskItem(
+        Session session,
+        TemplateManifest manifest,
+        string label,
+        Func<string, string?> problem,
+        IReadOnlyDictionary<string, string> detected,
+        string subject) =>
+        Reviewed(
+            session.Conversation,
+            previous => new Asked(
+                session.Questionnaire.Text("--name", label, previous is null ? session.Parsed.Name : null, previous?.Name, problem),
+                null,
+                session.Questionnaire.Answer(manifest, previous is null ? session.Parsed.TemplateOptions : _nothing, detected, _alwaysAsked, previous?.Options)),
+            asked => [KeyValuePair.Create(label, asked.Name!), .. Questionnaire.Recap(manifest, asked.Options)],
+            _ => subject);
+
+    private static void Install(Session session, string workingDirectory)
     {
-        TemplateManifest manifest = source.Manifest(TemplateKind.Project);
-        string? name = questionnaire.Text("--name", "Project name", parsed.Name, manifest.DefaultName, ProjectNameProblem);
-        string? output = parsed.Output
-            ?? (questionnaire.Asks && name is not null
-                ? questionnaire.Text("--output", "Output folder", null, Path.Combine(".", name), _ => null)
-                : name);
-        Dictionary<string, string> answers = questionnaire.Answer(manifest, parsed.TemplateOptions, _nothing, ProjectAskedWhen);
-
-        string target = Path.GetFullPath(output!, _workingDirectory);
-        if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
-        {
-            throw new LauncherException($"'{target}' is not empty: choose another --output.");
-        }
-
-        IReadOnlyList<string> options = manifest.CommandArguments(answers);
-        dotnet.EnsureInstalled(source, Version(source), _workingDirectory);
-        dotnet.Run(_workingDirectory, [manifest.ShortName, "-n", name!, "-o", target, .. options]);
-
-        Equivalents(parsed, Arguments.NewCommand, [manifest.ShortName, "-n", name!, "-o", output!, .. options]);
-        _console.MarkupLine("[bold]Next[/]");
-        _console.Verbatim(TemplateEngine.CommandLine("cd", [output!]));
-        _console.Verbatim(MarkdownSection(Path.Combine(target, "README.md"), "## Run it") ?? "Read the project's README.md.");
+        string version = Version(session.Source);
+        string package = $"{TemplateSource.PackageId} {version}";
+        session.Conversation.Perform($"Installing {package}", $"{package} ready", () => session.Dotnet.EnsureInstalled(session.Source, version, workingDirectory));
     }
 
-    private void WebApp(Arguments parsed, TemplateSource source, Questionnaire questionnaire, TemplateEngine dotnet, GeneratedProject project)
-    {
-        TemplateManifest manifest = source.Manifest(TemplateKind.WebApp);
-        var detected = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["workspace"] = project.HasWorkspace ? Condition.False : Condition.True,
-            ["scope"] = project.Scope,
-            ["auth"] = project.Auth,
-            ["ci"] = project.Ci ? Condition.True : Condition.False,
-            ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
-        };
-        Detected(project, manifest, detected);
-
-        string? name = questionnaire.Text("--name", "App name", parsed.Name, null, AppNameProblem);
-        Dictionary<string, string> answers = questionnaire.Answer(manifest, parsed.TemplateOptions, detected, _alwaysAsked);
-
-        string folder = Path.Combine(project.WebFolder, "apps", name!);
-        if (Directory.Exists(folder))
-        {
-            throw new LauncherException($"'{folder}' exists: choose another --name.");
-        }
-
-        IReadOnlyList<string> options = manifest.CommandArguments(answers);
-        dotnet.EnsureInstalled(source, Version(source), project.Root);
-        dotnet.Run(project.Root, [manifest.ShortName, "-n", name!, .. options]);
-
-        Equivalents(parsed, Arguments.WebAppCommand, [manifest.ShortName, "-n", name!, .. options]);
-        bool workspace = Condition.IsTruthy(manifest.Resolve("workspace", answers));
-        string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : Path.Combine(folder, "README.md");
-        string heading = workspace ? "## The first app of a project generated without one" : "## Join the stack";
-        _console.MarkupLine("[bold]By hand[/] " + Markup.Escape(Path.GetRelativePath(project.Root, readme)) + ":");
-        _console.Verbatim(MarkdownSection(readme, heading) ?? $"Read {readme}.");
-    }
-
-    private void WebPackage(Arguments parsed, TemplateSource source, Questionnaire questionnaire, TemplateEngine dotnet, GeneratedProject project)
-    {
-        if (!project.HasWorkspace)
-        {
-            throw new LauncherException($"{project.Name} has no web workspace Src/Web: add its first app with web-app, which creates it.");
-        }
-
-        TemplateManifest manifest = source.Manifest(TemplateKind.WebPackage);
-        var detected = new Dictionary<string, string>(StringComparer.Ordinal) { ["scope"] = project.Scope };
-        Detected(project, manifest, detected);
-
-        string? name = questionnaire.Text("--name", "Package name", parsed.Name, null, PackageNameProblem);
-        Dictionary<string, string> answers = questionnaire.Answer(manifest, parsed.TemplateOptions, detected, _alwaysAsked);
-
-        IReadOnlyList<string> options = manifest.CommandArguments(answers);
-        dotnet.EnsureInstalled(source, Version(source), project.Root);
-        dotnet.Run(project.Root, [manifest.ShortName, "-n", name!, .. options]);
-
-        Equivalents(parsed, Arguments.WebPackageCommand, [manifest.ShortName, "-n", name!, .. options]);
-    }
-
-    private void Detected(GeneratedProject project, TemplateManifest manifest, Dictionary<string, string> detected)
+    private static void Detected(Conversation conversation, GeneratedProject project, TemplateManifest manifest, Dictionary<string, string> detected)
     {
         foreach (string symbol in detected.Keys.Where(symbol => manifest.Options.All(option => option.Symbol != symbol)).ToList())
         {
@@ -259,21 +210,145 @@ public sealed partial class Launcher
         string facts = string.Join(", ", manifest.Options
             .Where(option => detected.ContainsKey(option.Symbol))
             .Select(option => $"--{option.CliName} {detected[option.Symbol]}"));
-        _console.MarkupLine($"[grey]Read from {Markup.Escape(project.Name)}: {Markup.Escape(facts)}[/]");
+        conversation.Note($"Read from {project.Name}: {facts}");
     }
 
-    private void Equivalents(Arguments parsed, string command, IReadOnlyList<string> dotnetNew)
+    private static void Equivalents(Session session, string command, IReadOnlyList<string> dotnetNew)
     {
         List<string> launcher = [command, .. dotnetNew.Skip(1), "--yes"];
-        if (parsed.TemplateSource is { } source)
+        if (session.Parsed.TemplateSource is { } source)
         {
             launcher.AddRange(["--template-source", source]);
         }
 
-        _console.MarkupLine("[bold]Done.[/] The same, without questions:");
-        _console.Verbatim("  " + TemplateEngine.CommandLine(Invocation, launcher));
-        _console.Verbatim("  " + TemplateEngine.CommandLine("dotnet new", dotnetNew));
+        session.Conversation.Equivalents([TemplateEngine.CommandLine(Invocation, launcher), TemplateEngine.CommandLine("dotnet new", dotnetNew)]);
     }
+
+    private static string Choose(GeneratedProject? project, Session session)
+    {
+        if (project is null || !session.Questionnaire.Asks)
+        {
+            return Arguments.NewCommand;
+        }
+
+        OptionChoice[] commands =
+        [
+            new(Arguments.WebAppCommand, $"add a web app to {project.Name}"),
+            new(Arguments.WebPackageCommand, $"add a package to {project.Name}'s web workspace"),
+            new(Arguments.NewCommand, "create another project"),
+        ];
+
+        session.Conversation.Begin(project.Name, session.Version);
+        return session.Conversation.Choose(
+            "What next?",
+            $"{project.Name} is a generated project.",
+            [.. commands.Where(command => project.HasWorkspace || command.Value != Arguments.WebPackageCommand)],
+            null);
+    }
+
+    private void New(Session session)
+    {
+        TemplateManifest manifest = session.Source.Manifest(TemplateKind.Project);
+        Questionnaire questionnaire = session.Questionnaire;
+        Arguments parsed = session.Parsed;
+        session.Conversation.Begin("Create a project", session.Version);
+
+        Asked asked = Reviewed(
+            session.Conversation,
+            previous =>
+            {
+                string? name = questionnaire.Text("--name", "Project name", previous is null ? parsed.Name : null, previous?.Name ?? manifest.DefaultName, ProjectNameProblem);
+                string? output = (previous is null ? parsed.Output : null)
+                    ?? (questionnaire.Asks && name is not null
+                        ? questionnaire.Text("--output", "Output folder", null, Path.Combine(".", name), _ => null)
+                        : name);
+                return new Asked(name, output, questionnaire.Answer(manifest, previous is null ? parsed.TemplateOptions : _nothing, _nothing, ProjectAskedWhen, previous?.Options));
+            },
+            asked => [KeyValuePair.Create("Project name", asked.Name!), KeyValuePair.Create("Output folder", asked.Output!), .. Questionnaire.Recap(manifest, asked.Options)],
+            asked => $"Generate {asked.Name}");
+        string name = asked.Name!;
+        string output = asked.Output!;
+
+        string target = Path.GetFullPath(output, _workingDirectory);
+        if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
+        {
+            throw new LauncherException($"'{target}' is not empty: choose another --output.");
+        }
+
+        IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
+        Install(session, _workingDirectory);
+        session.Conversation.Perform($"Generating {name}", $"Generated {name}", () => session.Dotnet.Run(_workingDirectory, [manifest.ShortName, "-n", name, "-o", target, .. options]));
+
+        Equivalents(session, Arguments.NewCommand, [manifest.ShortName, "-n", name, "-o", output, .. options]);
+        session.Conversation.Close(new Closing(
+            null,
+            [TemplateEngine.CommandLine("cd", [output])],
+            MarkdownSection(Path.Combine(target, "README.md"), "## Run it") ?? "Read the project's README.md."));
+    }
+
+    private static void WebApp(Session session, GeneratedProject project)
+    {
+        TemplateManifest manifest = session.Source.Manifest(TemplateKind.WebApp);
+        session.Conversation.Begin($"Add a web app to {project.Name}", session.Version);
+        var detected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["workspace"] = project.HasWorkspace ? Condition.False : Condition.True,
+            ["scope"] = project.Scope,
+            ["auth"] = project.Auth,
+            ["ci"] = project.Ci ? Condition.True : Condition.False,
+            ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
+        };
+        Detected(session.Conversation, project, manifest, detected);
+
+        Asked asked = AskItem(session, manifest, "App name", AppNameProblem, detected, $"Add it to {project.Name}");
+        string name = asked.Name!;
+
+        string folder = Path.Combine(project.WebFolder, "apps", name);
+        if (Directory.Exists(folder))
+        {
+            throw new LauncherException($"'{folder}' exists: choose another --name.");
+        }
+
+        IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
+        Install(session, project.Root);
+        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
+
+        Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options]);
+        bool workspace = Condition.IsTruthy(manifest.Resolve("workspace", asked.Options));
+        string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : Path.Combine(folder, "README.md");
+        string heading = workspace ? "## The first app of a project generated without one" : "## Join the stack";
+        session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme), [], MarkdownSection(readme, heading) ?? $"Read {readme}."));
+    }
+
+    private static void WebPackage(Session session, GeneratedProject project)
+    {
+        if (!project.HasWorkspace)
+        {
+            throw new LauncherException($"{project.Name} has no web workspace Src/Web: add its first app with web-app, which creates it.");
+        }
+
+        TemplateManifest manifest = session.Source.Manifest(TemplateKind.WebPackage);
+        session.Conversation.Begin($"Add a package to {project.Name}'s web workspace", session.Version);
+        var detected = new Dictionary<string, string>(StringComparer.Ordinal) { ["scope"] = project.Scope };
+        Detected(session.Conversation, project, manifest, detected);
+
+        Asked asked = AskItem(session, manifest, "Package name", PackageNameProblem, detected, $"Add it to {project.Name}");
+        string name = asked.Name!;
+
+        IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
+        Install(session, project.Root);
+        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
+
+        Equivalents(session, Arguments.WebPackageCommand, [manifest.ShortName, "-n", name, .. options]);
+        session.Conversation.Close(null);
+    }
+
+    private sealed record Session(Arguments Parsed, TemplateSource Source, Questionnaire Questionnaire, TemplateEngine Dotnet, string? Version)
+    {
+        public Conversation Conversation => Questionnaire.Conversation;
+    }
+
+    private sealed record Asked(string? Name, string? Output, Dictionary<string, string> Options);
 
     [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")]
     private static partial Regex ProjectName();

@@ -28,7 +28,7 @@ public sealed class RequestPasswordResetUseCase(
             return validation;
         }
 
-        var token = await emailTokens.IssuePasswordResetAsync(request.Email, cancellationToken);
+        string? token = await emailTokens.IssuePasswordResetAsync(request.Email, cancellationToken);
 
         if (token is not null)
         {

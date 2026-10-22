@@ -11,18 +11,12 @@ public sealed class PasskeyOptionsValidatorTests
     private readonly PasskeyOptionsValidator _validator = new();
 
     [Fact]
-    public void AnAbsentServerDomain_IsAccepted()
-    {
-        Validate(new PasskeyOptions()).Succeeded.ShouldBeTrue();
-    }
+    public void AnAbsentServerDomain_IsAccepted() => Validate(new PasskeyOptions()).Succeeded.ShouldBeTrue();
 
     [Theory]
     [InlineData("api.example.org")]
     [InlineData("example.org")]
-    public void ABareDomain_IsAccepted(string domain)
-    {
-        Validate(new PasskeyOptions { ServerDomain = domain }).Succeeded.ShouldBeTrue();
-    }
+    public void ABareDomain_IsAccepted(string domain) => Validate(new PasskeyOptions { ServerDomain = domain }).Succeeded.ShouldBeTrue();
 
     [Theory]
     [InlineData("https://api.example.org")]

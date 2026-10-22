@@ -33,10 +33,7 @@ public sealed class InMemoryExternalIdentityVerifierTests : IDisposable
     }
 
     [Fact]
-    public async Task VerifyAsync_RefusesATokenNobodyArranged()
-    {
-        (await Verify(_provider, _idToken)).ShouldBeNull();
-    }
+    public async Task VerifyAsync_RefusesATokenNobodyArranged() => (await Verify(_provider, _idToken)).ShouldBeNull();
 
     [Fact]
     public async Task VerifyAsync_RefusesATokenPresentedForADifferentProvider()

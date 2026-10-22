@@ -255,8 +255,5 @@ public static class PersistenceModule
         });
     }
 
-    private static void AddContextFactory(IServiceCollection services)
-    {
-        services.AddDbContextFactory<AppDbContext>(lifetime: ServiceLifetime.Scoped);
-    }
+    private static void AddContextFactory(IServiceCollection services) => services.AddDbContextFactory<AppDbContext>(lifetime: ServiceLifetime.Scoped);
 }

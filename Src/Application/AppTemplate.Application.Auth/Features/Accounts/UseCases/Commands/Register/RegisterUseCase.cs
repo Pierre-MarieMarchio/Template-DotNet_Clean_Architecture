@@ -76,7 +76,7 @@ public sealed class RegisterUseCase(
 
     private async Task<AccountEmail?> CreateConfirmationAsync(string email, CancellationToken cancellationToken)
     {
-        var token = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
+        string? token = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
 
         return token is null ? null : await emailFactory.CreateConfirmationAsync(email, token, cancellationToken);
     }

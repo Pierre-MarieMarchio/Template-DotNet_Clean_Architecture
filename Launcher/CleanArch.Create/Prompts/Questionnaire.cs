@@ -51,18 +51,17 @@ public sealed class Questionnaire
         IReadOnlyDictionary<string, string> preset,
         IReadOnlyDictionary<string, Condition> askedWhen)
     {
-        Dictionary<string, string> chosen = Given(manifest, given);
-        var answers = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (TemplateOption option in manifest.Options)
+        Dictionary<string, string> answers = Given(manifest, given);
+        foreach ((string symbol, string value) in preset)
         {
-            if (chosen.TryGetValue(option.Symbol, out string? value) || preset.TryGetValue(option.Symbol, out value))
+            answers.TryAdd(symbol, value);
+        }
+
+        foreach (TemplateOption option in manifest.Options.Where(option => !answers.ContainsKey(option.Symbol)).ToList())
+        {
+            if (!askedWhen.TryGetValue(option.Symbol, out Condition? when) || manifest.Holds(when, answers))
             {
-                answers[option.Symbol] = value;
-            }
-            else if (!askedWhen.TryGetValue(option.Symbol, out Condition? when) || manifest.Holds(when, answers))
-            {
-                Fill(manifest, option, answers);
+                Fill(manifest, option, answers, askedWhen);
             }
         }
 
@@ -82,15 +81,17 @@ public sealed class Questionnaire
             _console.MarkupLine("[yellow]" + Markup.Escape(explanation) + "[/]");
 
             var involved = refused.SelectMany(refusal => manifest.ParametersBehind(refusal.When)).ToHashSet(StringComparer.Ordinal);
+            var previous = new Dictionary<string, string>(answers, StringComparer.Ordinal);
+            foreach (string symbol in involved)
+            {
+                answers.Remove(symbol);
+            }
+
             foreach (TemplateOption option in manifest.Options.Where(option => involved.Contains(option.Symbol)))
             {
-                if (askedWhen.TryGetValue(option.Symbol, out Condition? when) && !manifest.Holds(when, answers))
+                if (!askedWhen.TryGetValue(option.Symbol, out Condition? when) || manifest.Holds(when, answers))
                 {
-                    answers.Remove(option.Symbol);
-                }
-                else
-                {
-                    Store(answers, option.Symbol, Ask(manifest, option, answers, answers.GetValueOrDefault(option.Symbol) ?? option.DefaultValue));
+                    Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, previous.GetValueOrDefault(option.Symbol) ?? option.DefaultValue));
                 }
             }
         }
@@ -158,11 +159,11 @@ public sealed class Questionnaire
         }
     }
 
-    private void Fill(TemplateManifest manifest, TemplateOption option, Dictionary<string, string> answers)
+    private void Fill(TemplateManifest manifest, TemplateOption option, Dictionary<string, string> answers, IReadOnlyDictionary<string, Condition> askedWhen)
     {
         if (Asks)
         {
-            Store(answers, option.Symbol, Ask(manifest, option, answers, option.DefaultValue));
+            Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, option.DefaultValue));
             return;
         }
 
@@ -177,18 +178,31 @@ public sealed class Questionnaire
         }
     }
 
-    private string? Ask(TemplateManifest manifest, TemplateOption option, Dictionary<string, string> answers, string? defaultValue)
+    private string? Ask(
+        TemplateManifest manifest,
+        TemplateOption option,
+        Dictionary<string, string> answers,
+        IReadOnlyDictionary<string, Condition> askedWhen,
+        string? defaultValue)
     {
         string title = $"[bold]{Markup.Escape(option.Label)}[/] [grey]{Markup.Escape(option.Description)}[/]";
+        Offer offer = Offer.For(manifest, option, answers, askedWhen);
+        if (offer.Values.Count == 1)
+        {
+            string forced = offer.Values[0];
+            string reasons = string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation));
+            _console.MarkupLine($"[bold]{Markup.Escape(option.Label)}[/]: [green]{Markup.Escape(forced)}[/] [grey]{Markup.Escape(reasons)}[/]");
+            return forced;
+        }
 
         switch (option.Kind)
         {
             case OptionKind.Choice:
                 var selection = new SelectionPrompt<string>()
                     .Title(title)
-                    .AddChoices(option.Choices.Select(choice => choice.Value))
+                    .AddChoices(offer.Values)
                     .UseConverter(value => $"{Markup.Escape(value)} [grey]{Markup.Escape(option.Choices.First(choice => choice.Value == value).Description)}[/]");
-                if (defaultValue is not null && option.Choices.Any(choice => choice.Value == defaultValue))
+                if (defaultValue is not null && offer.Values.Contains(defaultValue))
                 {
                     selection.DefaultValue(defaultValue);
                 }

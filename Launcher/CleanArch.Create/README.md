@@ -13,8 +13,11 @@ dnx CleanArch.Create
 ```
 
 The launcher asks for the name, the folder and each option, with the template's own choices,
-defaults and descriptions. A combination the template refuses is explained before anything is
-written, and its options are asked again. It installs the `CleanArch.WebApi.Templates` package at
+defaults and descriptions. It offers only what the template generates with the answers given so far:
+a choice the template refuses whatever follows, as `--database mysql`, is never offered, and a
+question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
+the refusal that says why. A combination of flags the template refuses is explained before anything
+is written, and its options are asked again. It installs the `CleanArch.WebApi.Templates` package at
 its own version when another one or none is installed, generates the project, then prints the
 equivalent command and the first steps.
 

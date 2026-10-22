@@ -36,10 +36,7 @@ public sealed class NotesController(INoteService notes) : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(NoteResponse))]
     [ProducesResponseType(StatusCodes.Status304NotModified)]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
-    public async Task<ActionResult<NoteResponse>> GetNote(Guid noteId, CancellationToken cancellationToken)
-    {
-        return OkOrProblem(NoteResponseMapping.ToNoteResponse(await notes.GetAsync(noteId, cancellationToken)));
-    }
+    public async Task<ActionResult<NoteResponse>> GetNote(Guid noteId, CancellationToken cancellationToken) => OkOrProblem(NoteResponseMapping.ToNoteResponse(await notes.GetAsync(noteId, cancellationToken)));
 
     /// <summary>Creates a note owned by the caller.</summary>
     [HttpPost]

@@ -30,7 +30,7 @@ public sealed class DeleteTodoListsOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         GivenTheOwnerHolds(list);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeTrue();
         _repository.Received(1).Remove(list);
@@ -44,7 +44,7 @@ public sealed class DeleteTodoListsOnAccountDeletedConsumerTests
         GivenTheAccountIsBack();
         GivenTheOwnerHolds(list);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         _repository.ReceivedCalls().ShouldBeEmpty();
@@ -57,7 +57,7 @@ public sealed class DeleteTodoListsOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         GivenTheOwnerHolds();
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());

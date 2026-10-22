@@ -33,7 +33,7 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         GivenTheOwnerHolds(pending, available);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeTrue();
         _repository.Received(1).Remove(pending);
@@ -49,7 +49,7 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
         GivenTheAccountIsBack();
         GivenTheOwnerHolds(AStoredFile.PendingOwnedBy(_ownerId));
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         _repository.ReceivedCalls().ShouldBeEmpty();
@@ -62,7 +62,7 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         GivenTheOwnerHolds();
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());

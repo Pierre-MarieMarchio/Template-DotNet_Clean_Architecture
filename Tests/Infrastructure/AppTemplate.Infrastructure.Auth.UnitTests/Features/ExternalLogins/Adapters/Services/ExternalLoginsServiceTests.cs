@@ -71,7 +71,7 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         var user = GivenTheAccountExists("someone", "someone@example.com");
 
-        var linked = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
+        bool linked = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
 
         linked.ShouldBeTrue();
         _rows.IsLinked(user.Id, _provider, _subject).ShouldBeTrue();
@@ -82,7 +82,7 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         _directory.FindByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
-        var linked = await CreateService().LinkAsync(Guid.CreateVersion7(), _provider, _subject, TestToken);
+        bool linked = await CreateService().LinkAsync(Guid.CreateVersion7(), _provider, _subject, TestToken);
 
         linked.ShouldBeFalse();
     }
@@ -95,7 +95,7 @@ public sealed class ExternalLoginsServiceTests : IDisposable
 
         var user = GivenTheAccountExists("second", "second@example.com");
 
-        var linked = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
+        bool linked = await CreateService().LinkAsync(user.Id, _provider, _subject, TestToken);
 
         linked.ShouldBeFalse();
         _rows.IsLinked(user.Id, _provider, _subject).ShouldBeFalse();

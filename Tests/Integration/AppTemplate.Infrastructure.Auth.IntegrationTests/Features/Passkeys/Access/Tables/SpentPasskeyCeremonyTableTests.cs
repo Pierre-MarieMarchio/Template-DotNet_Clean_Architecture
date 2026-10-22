@@ -23,7 +23,7 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(5);
         var rendezvous = new Rendezvous(participants: 2);
 
-        var spends = await Task.WhenAll(
+        bool[] spends = await Task.WhenAll(
             SpendAsync(stateHash, expiresAt, rendezvous),
             SpendAsync(stateHash, expiresAt, rendezvous));
 

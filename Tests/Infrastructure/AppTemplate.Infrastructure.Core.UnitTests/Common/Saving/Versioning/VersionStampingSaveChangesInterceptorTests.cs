@@ -135,9 +135,6 @@ public sealed class VersionStampingSaveChangesInterceptorTests : IAsyncLifetime
 
         public DbSet<UnversionedRow> Unversioned => Set<UnversionedRow>();
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<VersionedRow>().Property(row => row.Version).IsConcurrencyToken();
-        }
+        protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder.Entity<VersionedRow>().Property(row => row.Version).IsConcurrencyToken();
     }
 }

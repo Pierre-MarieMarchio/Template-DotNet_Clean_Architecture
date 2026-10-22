@@ -9,10 +9,7 @@ public sealed class RateLimitingOptionsValidatorTests
     private readonly RateLimitingOptionsValidator _validator = new();
 
     [Fact]
-    public void Validate_Succeeds_ForTheDefaults()
-    {
-        _validator.Validate(name: null, new RateLimitingOptions()).Succeeded.ShouldBeTrue();
-    }
+    public void Validate_Succeeds_ForTheDefaults() => _validator.Validate(name: null, new RateLimitingOptions()).Succeeded.ShouldBeTrue();
 
     [Theory]
     [InlineData("00:00:01")]

@@ -22,7 +22,7 @@ public sealed class ExternalIdentityUserAccountDirectoryTests
         _externalIdentities.FindProfileAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(new ExternalIdentityProfile("a@example.com", "Ada"));
 
-        var exists = await new ExternalIdentityUserAccountDirectory(_externalIdentities)
+        bool exists = await new ExternalIdentityUserAccountDirectory(_externalIdentities)
             .ExistsAsync(UserId.Create(_ownerId), TestToken);
 
         exists.ShouldBeTrue();
@@ -34,7 +34,7 @@ public sealed class ExternalIdentityUserAccountDirectoryTests
         _externalIdentities.FindProfileAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns((ExternalIdentityProfile?)null);
 
-        var exists = await new ExternalIdentityUserAccountDirectory(_externalIdentities)
+        bool exists = await new ExternalIdentityUserAccountDirectory(_externalIdentities)
             .ExistsAsync(UserId.Create(_ownerId), TestToken);
 
         exists.ShouldBeFalse();

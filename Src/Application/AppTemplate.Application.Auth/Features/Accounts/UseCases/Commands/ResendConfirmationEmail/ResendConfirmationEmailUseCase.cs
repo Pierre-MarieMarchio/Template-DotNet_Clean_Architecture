@@ -28,7 +28,7 @@ public sealed class ResendConfirmationEmailUseCase(
             return validation;
         }
 
-        var token = await emailTokens.IssueEmailConfirmationAsync(request.Email, cancellationToken);
+        string? token = await emailTokens.IssueEmailConfirmationAsync(request.Email, cancellationToken);
 
         if (token is not null)
         {

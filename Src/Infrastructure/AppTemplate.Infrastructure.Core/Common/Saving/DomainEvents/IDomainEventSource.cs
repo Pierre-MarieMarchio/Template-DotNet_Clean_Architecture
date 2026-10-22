@@ -1,12 +1,10 @@
 ﻿using AppTemplate.Domain.Core.Common.Events;
-using Microsoft.EntityFrameworkCore;
+using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 
-public interface IDomainEventSource
+public interface IDomainEventSource : IStagedOnContext
 {
-    bool IsStagedOn(DbContext context);
-
     IReadOnlyCollection<IDomainEvent> DrainDomainEvents();
 
     void Restore(IEnumerable<IDomainEvent> domainEvents);

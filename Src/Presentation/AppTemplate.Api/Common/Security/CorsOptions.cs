@@ -17,15 +17,12 @@ internal sealed class CorsOptionsValidator : IValidateOptions<CorsOptions>
 
         var failures = new List<string>();
 
-        foreach (string origin in options.AllowedOrigins)
+        foreach (string origin in options.AllowedOrigins.Where(origin => !IsWellFormedOrigin(origin)))
         {
-            if (!IsWellFormedOrigin(origin))
-            {
-                failures.Add(
-                    $"'{CorsOptions.SectionName}:{nameof(CorsOptions.AllowedOrigins)}' contains " +
-                    $"'{origin}', which is not an origin. Write scheme and host, with an optional port " +
-                    "and nothing after it: 'https://app.example'.");
-            }
+            failures.Add(
+                $"'{CorsOptions.SectionName}:{nameof(CorsOptions.AllowedOrigins)}' contains " +
+                $"'{origin}', which is not an origin. Write scheme and host, with an optional port " +
+                "and nothing after it: 'https://app.example'.");
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

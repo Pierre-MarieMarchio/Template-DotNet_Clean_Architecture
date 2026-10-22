@@ -77,8 +77,15 @@ internal sealed partial class SecurityEventLog(
     private static string? DetailOf(SecurityEvent securityEvent) =>
         securityEvent.Status?.ToString() ?? securityEvent.Role;
 
-    private static string? Truncate(string? value, int maxLength) =>
-        string.IsNullOrEmpty(value) ? null : value.Length <= maxLength ? value : value[..maxLength];
+    private static string? Truncate(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        return value.Length <= maxLength ? value : value[..maxLength];
+    }
 
     private void WriteLogEntry(SecurityEvent securityEvent)
     {

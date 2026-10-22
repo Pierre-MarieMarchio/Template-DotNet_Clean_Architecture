@@ -3,6 +3,9 @@ version: 2
 updates:
   # NuGet: every version lives in Directory.Packages.props.
   - package-ecosystem: nuget
+    #if (templateMaintenance)
+    target-branch: develop
+    #endif
     directory: /
     schedule:
       interval: weekly
@@ -65,6 +68,9 @@ updates:
 
   # GitHub Actions, pinned by SHA with the tag in a trailing comment.
   - package-ecosystem: github-actions
+    #if (templateMaintenance)
+    target-branch: develop
+    #endif
     directory: /
     schedule:
       interval: weekly
@@ -85,6 +91,9 @@ updates:
 
   # Dockerfile base images; docker-compose.yml is its own ecosystem, below.
   - package-ecosystem: docker
+    #if (templateMaintenance)
+    target-branch: develop
+    #endif
     directories:
       - /Src/Presentation/AppTemplate.Api
       #if (anyWeb)
@@ -148,8 +157,14 @@ updates:
           - vitest
 
   #endif
+  #if (templateMaintenance && anyWeb)
+    target-branch: develop
+  #endif
   # docker-compose.yml's images, version updates only.
   - package-ecosystem: docker-compose
+    #if (templateMaintenance)
+    target-branch: develop
+    #endif
     directory: /
     schedule:
       interval: weekly

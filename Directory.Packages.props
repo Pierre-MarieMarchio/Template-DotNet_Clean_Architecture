@@ -57,6 +57,9 @@
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+    <!--#if (sqlServer)-->
+    <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.18.0" />
+    <!--#endif-->
   </ItemGroup>
 
   <!--#if (files)-->

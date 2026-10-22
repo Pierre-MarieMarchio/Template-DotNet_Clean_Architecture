@@ -36,6 +36,9 @@
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <!--#endif-->
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <!--#if (sqlServer)-->
+    <PackageReference Include="OpenTelemetry.Instrumentation.SqlClient" />
+    <!--#endif-->
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 

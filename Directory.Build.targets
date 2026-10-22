@@ -4,4 +4,13 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <!--#if (sqlServer)
+  <Target Name="UseIcuGlobalization" BeforeTargets="GenerateBuildRuntimeConfigurationFiles;GeneratePublishRuntimeConfigurationFiles">
+    <ItemGroup>
+      <RuntimeHostConfigurationOption Remove="System.Globalization.Invariant" />
+      <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="false" />
+    </ItemGroup>
+  </Target>
+  #endif-->
+
 </Project>

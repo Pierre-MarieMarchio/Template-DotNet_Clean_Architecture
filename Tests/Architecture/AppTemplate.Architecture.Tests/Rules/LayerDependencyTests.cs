@@ -22,6 +22,9 @@ public sealed class LayerDependencyTests
         /*#if (sqlite)
         "Microsoft.Data.Sqlite",
         #endif*/
+        /*#if (sqlServer)
+        "Microsoft.Data.SqlClient",
+        #endif*/
         "MailKit",
         "System.Text.Json",
     ];
@@ -37,6 +40,9 @@ public sealed class LayerDependencyTests
         //#endif
         /*#if (sqlite)
         "Microsoft.Data.Sqlite",
+        #endif*/
+        /*#if (sqlServer)
+        "Microsoft.Data.SqlClient",
         #endif*/
         "MailKit",
         "MediatR",

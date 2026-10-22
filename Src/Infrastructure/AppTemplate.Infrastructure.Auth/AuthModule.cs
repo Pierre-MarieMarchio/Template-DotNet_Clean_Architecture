@@ -85,6 +85,7 @@ public static class AuthModule
         services.AddScoped<ISessionsService, SessionsService>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<IPasskeyService, PasskeyService>();
+        services.AddScoped<PasskeyCeremonyStateIssuer>();
         services.AddScoped<IAccountAdministrationService, AccountAdministrationService>();
         services.AddScoped<IReAuthenticationService, ReAuthenticationService>();
         services.AddScoped<IExternalIdentityVerifier, ExternalIdentityVerifier>();

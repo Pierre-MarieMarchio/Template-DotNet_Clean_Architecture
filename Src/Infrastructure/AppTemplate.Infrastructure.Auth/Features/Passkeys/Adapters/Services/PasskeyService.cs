@@ -1,17 +1,9 @@
-﻿using System.Buffers.Text;
-using System.Security.Cryptography;
-using System.Text;
-using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.Passkeys.Ports.Passkeys;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
-using AppTemplate.Infrastructure.Auth.Features.Passkeys.Access.Tables;
-using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Auth.Features.Passkeys.Adapters.Services;
 
@@ -20,17 +12,8 @@ internal sealed class PasskeyService(
     IPasskeyHandler<AppUser> passkeyHandler,
     IHttpContextAccessor httpContextAccessor,
     IAppUserDirectory directory,
-    IDataProtectionProvider dataProtectionProvider,
-    ISpentPasskeyCeremonyTable spentCeremonies,
-    IDateTimeProvider dateTimeProvider,
-    IOptions<PasskeyOptions> options) : IPasskeyService
+    PasskeyCeremonyStateIssuer ceremonyStates) : IPasskeyService
 {
-    internal const string RegistrationStatePurpose = "AppTemplate.Infrastructure.Auth.Passkeys.RegistrationState";
-
-    internal const string SignInStatePurpose = "AppTemplate.Infrastructure.Auth.Passkeys.SignInState";
-
-    private static readonly TimeSpan _clockSkewAllowance = TimeSpan.FromMinutes(5);
-
     private HttpContext Context => httpContextAccessor.HttpContext
         ?? throw new InvalidOperationException("A passkey ceremony needs an HTTP request.");
 
@@ -55,11 +38,11 @@ internal sealed class PasskeyService(
         string state = challenge.AttestationState
             ?? throw new InvalidOperationException("The passkey handler issued no attestation state.");
 
-        await PurgeSpentCeremoniesAsync(cancellationToken);
+        await ceremonyStates.PurgeSpentAsync(cancellationToken);
 
         return new PasskeyRegistrationChallenge(
             challenge.CreationOptionsJson,
-            Seal(RegistrationProtector(userId), state));
+            ceremonyStates.SealRegistrationState(userId, state));
     }
 
     public async Task<PasskeyRegistrationOutcome> CompleteRegistrationAsync(
@@ -71,7 +54,7 @@ internal sealed class PasskeyService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string? state = await SpendAsync(RegistrationProtector(userId), registrationState, cancellationToken);
+        string? state = await ceremonyStates.SpendRegistrationStateAsync(userId, registrationState, cancellationToken);
 
         if (state is null)
         {
@@ -175,9 +158,9 @@ internal sealed class PasskeyService(
         string state = challenge.AssertionState
             ?? throw new InvalidOperationException("The passkey handler issued no assertion state.");
 
-        await PurgeSpentCeremoniesAsync(cancellationToken);
+        await ceremonyStates.PurgeSpentAsync(cancellationToken);
 
-        return new PasskeySignInChallenge(challenge.RequestOptionsJson, Seal(SignInProtector(), state));
+        return new PasskeySignInChallenge(challenge.RequestOptionsJson, ceremonyStates.SealSignInState(state));
     }
 
     public async Task<PasskeySignInOutcome> CompleteSignInAsync(
@@ -187,7 +170,7 @@ internal sealed class PasskeyService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        string? state = await SpendAsync(SignInProtector(), authenticationState, cancellationToken);
+        string? state = await ceremonyStates.SpendSignInStateAsync(authenticationState, cancellationToken);
 
         if (state is null)
         {
@@ -218,48 +201,4 @@ internal sealed class PasskeyService(
             assertion.User.Email!,
             assertion.User.TwoFactorEnabled));
     }
-
-    private ITimeLimitedDataProtector RegistrationProtector(Guid userId) =>
-        dataProtectionProvider
-            .CreateProtector(RegistrationStatePurpose, userId.ToString("N"))
-            .ToTimeLimitedDataProtector();
-
-    private ITimeLimitedDataProtector SignInProtector() =>
-        dataProtectionProvider.CreateProtector(SignInStatePurpose).ToTimeLimitedDataProtector();
-
-    private string Seal(ITimeLimitedDataProtector protector, string state) =>
-        protector.Protect(state, dateTimeProvider.UtcNow.Add(options.Value.CeremonyLifetime));
-
-    private async Task<string?> SpendAsync(
-        ITimeLimitedDataProtector protector,
-        string sealedState,
-        CancellationToken cancellationToken)
-    {
-        string state;
-        DateTimeOffset expiresAt;
-
-        try
-        {
-            state = protector.Unprotect(sealedState, out expiresAt);
-        }
-        catch (CryptographicException)
-        {
-            return null;
-        }
-
-        if (expiresAt <= dateTimeProvider.UtcNow)
-        {
-            return null;
-        }
-
-        return await spentCeremonies.TrySpendAsync(Hash(state), expiresAt, cancellationToken)
-            ? state
-            : null;
-    }
-
-    private Task<int> PurgeSpentCeremoniesAsync(CancellationToken cancellationToken) =>
-        spentCeremonies.PurgeExpiredAsync(dateTimeProvider.UtcNow.Subtract(_clockSkewAllowance), cancellationToken);
-
-    private static string Hash(string state) =>
-        Base64Url.EncodeToString(SHA256.HashData(Encoding.UTF8.GetBytes(state)));
 }

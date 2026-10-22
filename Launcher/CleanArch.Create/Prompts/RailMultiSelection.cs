@@ -24,6 +24,7 @@ public sealed class RailMultiSelection
         live.AutoClear = true;
         live.Start(context =>
         {
+            context.Refresh();
             for (ConsoleKeyInfo key = RailKeys.Read(console); key.Key != ConsoleKey.Enter; key = RailKeys.Read(console))
             {
                 Handle(key);
@@ -74,8 +75,8 @@ public sealed class RailMultiSelection
         List<IRenderable> lines =
         [
             Rail.Line(Rail.Asking, "cyan", $"[bold]{Markup.Escape(_label)}[/]"),
-            Rail.Of("[grey]space to check or uncheck, a for all, enter to go on[/]"),
             new Rail(grid),
+            Rail.Of("[grey]↑/↓ move · space toggle · a all · enter confirm[/]"),
             Rail.Line(Rail.End, "cyan", string.Empty),
         ];
 

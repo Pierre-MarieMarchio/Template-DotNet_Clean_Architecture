@@ -11,6 +11,7 @@ public sealed class RailSelection
     private readonly IReadOnlyList<OptionChoice> _choices;
     private readonly bool _inline;
     private readonly Func<string, string?> _accent;
+    private readonly int _default;
     private int _index;
 
     public RailSelection(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue, bool inline, Func<string, string?> accent)
@@ -20,7 +21,8 @@ public sealed class RailSelection
         _choices = choices;
         _inline = inline;
         _accent = accent;
-        _index = Math.Max(0, choices.ToList().FindIndex(choice => choice.Value == defaultValue));
+        _default = Math.Max(0, choices.ToList().FindIndex(choice => choice.Value == defaultValue));
+        _index = _default;
     }
 
     public string Show(IAnsiConsole console)
@@ -29,6 +31,7 @@ public sealed class RailSelection
         live.AutoClear = true;
         live.Start(context =>
         {
+            context.Refresh();
             for (ConsoleKeyInfo key = RailKeys.Read(console); key.Key != ConsoleKey.Enter; key = RailKeys.Read(console))
             {
                 _index = Moved(key);
@@ -64,10 +67,16 @@ public sealed class RailSelection
         }
 
         lines.Add(new Rail(_inline ? Inline() : List()));
+        lines.Add(Rail.Of($"[grey]{Markup.Escape(Hint())}[/]"));
         lines.Add(Rail.Line(Rail.End, "cyan", string.Empty));
 
         return new Rows(lines);
     }
+
+    private string Hint() =>
+        _inline
+            ? $"{string.Join('/', _choices.Select(choice => char.ToLowerInvariant(choice.Value[0])))} · enter = {_choices[_default].Value}"
+            : "↑/↓ move · enter select · first letter jumps";
 
     private Markup Inline() =>
         new(string.Join(" [grey]/[/] ", _choices.Select((choice, index) => Marker(index) + " " + Value(choice.Value, index))));

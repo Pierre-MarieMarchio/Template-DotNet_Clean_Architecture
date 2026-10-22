@@ -112,6 +112,17 @@ jobs:
             auth_context: "true"
             web: "true"
             first_app: --framework react --scope sample-generated-project --workspace
+          - name: sqlite, defaults
+            options: --database sqlite
+            database: sqlite
+            auth_context: "true"
+            integration: "true"
+            end_to_end: "true"
+          - name: sqlite, smallest project
+            options: --database sqlite --auth none --examples none --files false
+            database: sqlite
+            auth_context: "false"
+            integration: "true"
 
     steps:
       - name: Checkout
@@ -648,4 +659,3 @@ jobs:
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse sqlserver --database sqlserver
           refuse mysql --database mysql
-          refuse sqlite --database sqlite

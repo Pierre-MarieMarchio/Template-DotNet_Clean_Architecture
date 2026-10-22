@@ -214,13 +214,18 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 
 | Branch | Holds | Moves by |
 |---|---|---|
-| `develop` | the next version; the default branch | a pull request from a `<type>/<subject>` branch, rebased, the history kept linear |
+| `develop` | the next version; the default branch | a pull request from a `<type>/<subject>` branch, up to date with `develop` and rebased, the history kept linear |
 | `main` | the released commits only | `template-release.yml` fast-forwarding it to each release; nobody pushes to it |
 | `net<major>.0` | the last release built on an earlier .NET major, for its fixes | a pull request, cut from that major's last tag when `develop` moves to the next .NET |
 
 Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/): a `feat` or a
 `fix` lands in the changelog, a `!` or a `BREAKING CHANGE` footer makes the next version a major one,
 and the other types stay out of it. A working branch is kept after its merge.
+
+The checks run on the pull request, which must be up to date with `develop`, so the merged tree is
+the one they passed and a push to `develop` does not run them again: it runs CodeQL and SonarQube,
+which keep the default branch's analysis to compare pull requests with, and the release workflow.
+SonarCloud's free plan analyses one branch, so its project names `develop` as its main branch.
 
 `.github/workflows/template-release.yml` runs release-please on every push to `develop`, from
 `.github/release-please/config.json`; both reach neither a project nor the package. It keeps one

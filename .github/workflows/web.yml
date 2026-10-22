@@ -3,15 +3,15 @@ name: Web
 # The web workspace Src/Web, apart from ci.yml so that adding the first web app adds this file and edits none.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
 
-# One run per ref: a new push cancels the previous one, except on main and develop.
+# One run per ref: a new push cancels the previous one, except on main.
 concurrency:
   group: web-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Least privilege; a job that needs more opts in locally.
 permissions:

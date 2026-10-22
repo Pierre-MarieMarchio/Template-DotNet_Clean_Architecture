@@ -1,23 +1,22 @@
 ﻿# Changelog
 
-All notable changes to this template are recorded here.
-
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+All notable changes to this template are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+From 1.0.0 on, release-please writes each version's entry from the conventional commits merged into
+`develop`: a `feat` is a feature, a `fix` a fix, and a `!` or a `BREAKING CHANGE` footer makes the
+next version a major one. The section after the first entry describes 1.0.0 as a whole.
 
 **What counts as notable in a template**, since it is cloned rather than referenced: anything that
 changes the *generated* project — a layer's shape, a convention the architecture tests enforce, a
-configuration key, a default that affects security or deployment. A refactor invisible to someone
-starting a new project from this repository does not belong here.
+configuration key, a default that affects security or deployment. A change invisible to someone
+starting a new project is a `refactor`, `test`, `build` or `ci` commit, and stays out of this file.
 
 **What "breaking" means here**: `Src/` is a starting point, not an API, so it cannot break a caller.
 A major version signals that adopting the change in an existing project derived from this template
 requires manual work — a renamed configuration section, a moved namespace, a new mandatory setting.
 
-## [Unreleased]
-
-Nothing is released yet. The first tag will publish `1.0.0`, and
-`.github/workflows/release.yml` builds the image and the migration bundle from it.
+## 1.0.0: what the first release contains
 
 ### Added
 

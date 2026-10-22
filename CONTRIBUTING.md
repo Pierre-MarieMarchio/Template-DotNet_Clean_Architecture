@@ -54,7 +54,9 @@ Each rule has one home, and a test holds it wherever a test can.
 <!--#if (templateMaintenance)-->
 ## Working on the template
 
-This repository is also the template. Its own gates, the acceptance matrix and the rules for writing
-pages that condition on the generation options are in
+This repository is also the template. A change starts from `develop` on a `<type>/<subject>` branch,
+as a conventional commit, and returns to `develop` by a pull request; `main` holds the releases.
+The branches and releases, its own gates, the acceptance matrix and the rules for writing pages that
+condition on the generation options are in
 [maintaining the template](docs/template/maintaining-the-template.md).
 <!--#endif-->

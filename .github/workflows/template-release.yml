@@ -1,13 +1,17 @@
 name: Template release
 
-# Template repository only: a template-v<version> tag packs the template package and the launcher at that version and attaches both to a GitHub Release; nuget.org receives them only once PUBLISH_TEMPLATE_TO_NUGET is true.
+# Template repository only: release-please keeps a release pull request on develop, and merging it tags v<version>; the jobs below then pack, check, attest, attach and publish both packages and move main to the release, here because a release made with GITHUB_TOKEN raises no release event.
 on:
   push:
-    tags:
-      - "template-v*.*.*"
+    branches: [develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: template-release
+  cancel-in-progress: false
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -17,38 +21,67 @@ env:
   LAUNCHER_PROJECT: Launcher/CleanArch.Create/CleanArch.Create.csproj
 
 jobs:
-  pack:
-    name: Pack the template package and the launcher
+  release-please:
+    name: Keep the release pull request
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
 
     steps:
-      - name: Checkout
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: .github/release-please/config.json
+          manifest-file: .github/release-please/manifest.json
+          target-branch: develop
+
+  pack:
+    name: Pack the template package and the launcher
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout the release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Set up .NET SDK (from global.json)
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
-      # The version lives in template.json alone; the tag must name it.
+      # release-please writes the version into template.json; the tag must name the version both packages read.
       - name: Assert the tag names the package version
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
           set -euo pipefail
           version=$(dotnet msbuild "$PACKAGE_PROJECT" -getProperty:PackageVersion)
-          if [ "$TAG" != "template-v${version}" ]; then
-            echo "::error title=Tag and version differ::$TAG does not name template-v${version}, the templateVersion of .template.config/template.json."
+          if [ "$TAG" != "v${version}" ]; then
+            echo "::error title=Tag and version differ::$TAG does not name v${version}, the templateVersion of .template.config/template.json."
             exit 1
           fi
 
       - name: Pack
-        run: dotnet pack "$PACKAGE_PROJECT" --configuration Release --output "${{ runner.temp }}/package"
+        run: dotnet pack "$PACKAGE_PROJECT" --configuration Release --output "${{ runner.temp }}/package" -p:ContinuousIntegrationBuild=true
 
       # The launcher installs the templates at its own version, read from the same templateVersion.
       - name: Pack the launcher
-        run: dotnet pack "$LAUNCHER_PROJECT" --configuration Release --output "${{ runner.temp }}/package"
+        run: dotnet pack "$LAUNCHER_PROJECT" --configuration Release --output "${{ runner.temp }}/package" -p:ContinuousIntegrationBuild=true
 
       # What a user installs: the package alone, in a hive of its own, generating and building the defaults.
       - name: Install the package and build the default project
@@ -70,78 +103,99 @@ jobs:
             --hive "${{ runner.temp }}/launcher-hive"
           test -f "${{ runner.temp }}/launched/Sample.Launched.Project.sln"
 
-      - name: Upload the package
+      - name: Attest the packages' provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/package/*.nupkg
+
+      - name: Upload the packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: template-package
-          path: ${{ runner.temp }}/package/*.nupkg
+          path: |
+            ${{ runner.temp }}/package/*.nupkg
+            ${{ runner.temp }}/package/*.snupkg
           if-no-files-found: error
 
-  # The only job that writes: it creates the tag's release and attaches both packages; a version with a suffix is a prerelease.
-  github-release:
+  attach:
     name: Attach the packages to the GitHub Release
-    needs: pack
+    needs: [release-please, pack]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
 
     steps:
-      - name: Download the package
+      - name: Download the packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: template-package
           path: ${{ runner.temp }}/package
 
-      - name: Create the release
+      - name: Attach them
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          prerelease=()
-          case "$TAG" in
-            *-*) prerelease=(--prerelease) ;;
-          esac
-          gh release create "$TAG" "${{ runner.temp }}"/package/*.nupkg \
-            --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
-            --title "$TAG" \
-            --generate-notes \
-            "${prerelease[@]}"
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release upload "$TAG" "${{ runner.temp }}"/package/*.nupkg --repo "$GITHUB_REPOSITORY"
 
-  # Off until the repository variable PUBLISH_TEMPLATE_TO_NUGET is true; the nuget environment holds the NUGET_API_KEY secret.
+  # Trusted Publishing: nuget.org trusts this workflow in the nuget environment, which waits for a reviewer; no API key is stored.
   publish:
     name: Publish to nuget.org
-    needs: pack
-    if: vars.PUBLISH_TEMPLATE_TO_NUGET == 'true'
+    needs: [release-please, pack]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download the packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: template-package
+          path: ${{ runner.temp }}/package
+
+      - name: Exchange the workflow's identity for a short-lived key
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # A version already on nuget.org fails the push: a release is never replaced. The launcher's symbol package goes with it.
+      - name: Push
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "${{ runner.temp }}"/package/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+
+  # main holds the released commits only: it moves by fast-forward to the commit the release tagged, never by a merge.
+  promote:
+    name: Move main to the release
+    needs: [release-please, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up .NET SDK (from global.json)
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          global-json-file: global.json
+          fetch-depth: 0
 
-      - name: Download the package
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: template-package
-          path: ${{ runner.temp }}/package
-
-      # A version already on nuget.org fails the push: a release is never replaced.
-      - name: Push
+      - name: Fast-forward main
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          SHA: ${{ needs.release-please.outputs.sha }}
         run: |
           set -euo pipefail
-          if [ -z "$NUGET_API_KEY" ]; then
-            echo "::error title=No API key::PUBLISH_TEMPLATE_TO_NUGET is true but the nuget environment has no NUGET_API_KEY secret."
+          git fetch origin main
+          if ! git merge-base --is-ancestor origin/main "$SHA"; then
+            echo "::error title=main diverged::main is not an ancestor of the release commit $SHA; it must only ever move forward to a release."
             exit 1
           fi
-          dotnet nuget push "${{ runner.temp }}"/package/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+          git push origin "$SHA:refs/heads/main"

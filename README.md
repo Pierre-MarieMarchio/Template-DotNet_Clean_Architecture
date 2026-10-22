@@ -49,7 +49,7 @@ dotnet new install CleanArch.WebApi.Templates
 dotnet new cleanarch-webapi -n <Company.Product>
 ```
 
-[Using the template](docs/template/using-the-template.md#install-and-uninstall) installs the
+[Using the template](docs/template/using-the-template.md#install-and-uninstall) also installs the
 `.nupkg` a GitHub Release attaches, a package packed locally, or this checkout; Visual Studio, Rider
 and VS Code's C# Dev Kit then list the templates, with no extension.
 

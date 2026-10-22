@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this template are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -15,6 +15,13 @@ starting a new project is a `refactor`, `test`, `build` or `ci` commit, and stay
 **What "breaking" means here**: `Src/` is a starting point, not an API, so it cannot break a caller.
 A major version signals that adopting the change in an existing project derived from this template
 requires manual work — a renamed configuration section, a moved namespace, a new mandatory setting.
+
+## 1.0.0 (2026-10-22)
+
+
+### Documentation
+
+* **security:** ask a SQLite project to move to a server database before it deploys ([32b93c6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/32b93c6dee8d384f567039de1699a83e508a414a))
 
 ## 1.0.0: what the first release contains
 

@@ -54,7 +54,7 @@ jobs:
     name: Template acceptance (${{ matrix.name }})
     needs: pack
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: ${{ matrix.timeout_minutes || 45 }}
 
     strategy:
       fail-fast: false
@@ -80,6 +80,14 @@ jobs:
           - name: external auth, all examples
             options: --auth external --examples all --files true
             auth_context: "false"
+          # The SQL Server image is linux/amd64 only and about 1.6 GB: one leg, with a longer timeout.
+          - name: sql server, external auth, all examples
+            options: --database sqlserver --auth external --examples all --files true
+            database: sqlserver
+            auth_context: "false"
+            integration: "true"
+            end_to_end: "true"
+            timeout_minutes: 60
           - name: external auth, no examples, no files
             options: --auth external --examples none --files false
             auth_context: "false"
@@ -668,5 +676,4 @@ jobs:
           refuse notes --auth none --examples notes
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
-          refuse sqlserver --database sqlserver
           refuse mysql --database mysql

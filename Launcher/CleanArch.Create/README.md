@@ -21,6 +21,14 @@ is written, and its options are asked again. It installs the `CleanArch.WebApi.T
 its own version when another one or none is installed, generates the project, then prints the
 equivalent command and the first steps.
 
+In a terminal it opens on a banner and asks each question on a thread: the arrow keys, or a choice's
+first letter, pick an answer, each choice with its description beside it, and every answer stays on
+the thread. A summary of every option comes before anything is written; answering No asks the
+questions again, the previous answers as their defaults. A spinner runs while the package installs
+and `dotnet new` generates, whose output shows only when it fails. With `--yes`, without a terminal,
+or with `NO_COLOR` set, the output stays plain: no banner, no thread, no spinner, the template
+engine's own lines.
+
 ## Add a web app or a package
 
 At the root of a generated project, or in any folder under it:
@@ -32,6 +40,7 @@ dnx CleanArch.Create web-package
 
 The project's authentication, workflows and package scope are read from its files. The first web app
 also creates the pnpm workspace, and the launcher prints the lines its README asks to add by hand.
+Both ask on the same thread, with the same summary, as a new project.
 
 ## Without questions
 

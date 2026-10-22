@@ -140,7 +140,7 @@ The API then answers on <http://localhost:5187>.
 needs setting.
 <!--#endif-->
 <!--#if (sqlite)-->
-It creates and migrates its database file, `App_Data/appdb.db`, under the API's content root on first start.
+It creates and migrates its database file, `App_Data/appdb.db`, under the directory it starts in, on first start.
 `appsettings.Development.json` already points at the mail sink, so nothing else needs setting.
 <!--#endif-->
 [Migrations](../guides/migrations.md#your-own-database) covers your own database.

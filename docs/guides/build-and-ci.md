@@ -23,9 +23,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `new-use-case` | one more use case in a feature of the rich shape |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
 | `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration |
-<!--#if (serverDatabase)-->
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
-<!--#endif-->
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 <!--#if (sonar)-->
 | `sonar` | the local Sonar analysis |

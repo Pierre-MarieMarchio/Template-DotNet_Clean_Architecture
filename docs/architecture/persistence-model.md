@@ -213,8 +213,8 @@ A column takes the database's default collation, usually case-insensitive and ac
 SQLite folds the case of ASCII letters only: a search for `é` does not find `É`.
 `DateTimeOffset` columns are stored as binary integers, which keeps their order, at a resolution of
 0.1 ms, coarser than a server database keeps.
-The file has one writer at a time: the journal is in WAL mode, and a second writer waits for the
-connection's `Default Timeout`.
+The file has one writer at a time: the journal is in WAL mode, a second writer waits for the
+connection's `Default Timeout`, and a save that still finds the file busy is retried.
 <!--#endif-->
 
 ## Decisions

@@ -27,7 +27,7 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 | `Default` | string | — | **Required.** The one connection string, SqlClient format (`Server=…;Database=…;User Id=…;Password=…`), used by every context. A blank value fails the DI registration. |
 <!--#endif-->
 <!--#if (sqlite)-->
-| `Default` | string | — | **Required.** The one connection string, SQLite format (`Data Source=<file>`, relative to the content root), used by every context. A blank value fails the DI registration. |
+| `Default` | string | — | **Required.** The one connection string, SQLite format (`Data Source=<file>`, relative to the directory the API starts in), used by every context. A blank value fails the DI registration. |
 <!--#endif-->
 
 ### `Database`

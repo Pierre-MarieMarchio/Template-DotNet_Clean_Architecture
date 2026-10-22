@@ -11,10 +11,6 @@ namespace AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphan
 
 public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCase
 {
-    internal const int DefaultPageSize = 500;
-
-    internal const int DefaultMaxPagesPerPass = 500;
-
     private const string _leaseName = "apptemplate.files.reclaim-orphans";
 
     private static readonly string _prefix = $"{ObjectKey.UnpartitionedPrefix}/";
@@ -25,8 +21,7 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
     private readonly IOrphanSweepCheckpoint _checkpoint;
     private readonly ILeaderLease _lease;
     private readonly ILogger<ReclaimOrphanedContentUseCase> _logger;
-    private readonly int _pageSize;
-    private readonly int _maxPagesPerPass;
+    private readonly SweepBudget _budget;
 
     public ReclaimOrphanedContentUseCase(
         IFileContentInventory inventory,
@@ -35,7 +30,7 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
         IOrphanSweepCheckpoint checkpoint,
         ILeaderLease lease,
         ILogger<ReclaimOrphanedContentUseCase> logger)
-        : this(inventory, content, queries, checkpoint, lease, logger, DefaultPageSize, DefaultMaxPagesPerPass)
+        : this(inventory, content, queries, checkpoint, lease, logger, SweepBudget.Default)
     {
     }
 
@@ -46,20 +41,15 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
         IOrphanSweepCheckpoint checkpoint,
         ILeaderLease lease,
         ILogger<ReclaimOrphanedContentUseCase> logger,
-        int pageSize,
-        int maxPagesPerPass)
+        SweepBudget budget)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPagesPerPass);
-
         _inventory = inventory;
         _content = content;
         _queries = queries;
         _checkpoint = checkpoint;
         _lease = lease;
         _logger = logger;
-        _pageSize = pageSize;
-        _maxPagesPerPass = maxPagesPerPass;
+        _budget = budget;
     }
 
     public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -89,7 +79,7 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
 
         do
         {
-            var page = await _inventory.ListKeysAsync(_prefix, startAfter, _pageSize, cancellationToken);
+            var page = await _inventory.ListKeysAsync(_prefix, startAfter, _budget.PageSize, cancellationToken);
             pages++;
 
             reclaimed += await ReclaimAsync(page.Items, cancellationToken);
@@ -97,7 +87,7 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
             startAfter = page.NextCursor;
             await _checkpoint.SaveAsync(startAfter, cancellationToken);
         }
-        while (startAfter is not null && pages < _maxPagesPerPass);
+        while (startAfter is not null && pages < _budget.MaxPagesPerPass);
 
         if (startAfter is not null && _logger.IsEnabled(LogLevel.Information))
         {
@@ -136,5 +126,23 @@ public sealed class ReclaimOrphanedContentUseCase : IReclaimOrphanedContentUseCa
         }
 
         return reclaimed;
+    }
+
+    internal sealed record SweepBudget
+    {
+        internal static readonly SweepBudget Default = new(pageSize: 500, maxPagesPerPass: 500);
+
+        internal SweepBudget(int pageSize, int maxPagesPerPass)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPagesPerPass);
+
+            PageSize = pageSize;
+            MaxPagesPerPass = maxPagesPerPass;
+        }
+
+        public int PageSize { get; }
+
+        public int MaxPagesPerPass { get; }
     }
 }

@@ -37,59 +37,49 @@ internal sealed class StoredFileRegistrationService(
         var quota = (options.Value.Find(category)
             ?? throw new InvalidOperationException($"Category '{category.Value}' is not declared.")).Quota;
 
-        Task<Result<StoredFile>> Register(CancellationToken token) =>
-            CheckQuotaAndCommitAsync(owner, category, quota, name, mediaType, sizeInBytes, checksum, token);
+        async Task<Result<StoredFile>> CheckQuotaAndCommitAsync(CancellationToken token)
+        {
+            var usage = await queries.GetUsageForOwnerAsync(owner, category, token);
+            var room = StoredFileQuotaPolicy.EnsureRoomFor(usage, quota, sizeInBytes);
+
+            if (room.IsFailure)
+            {
+                return room.To<StoredFile>();
+            }
+
+            var registration = DomainGuard.Try(() => StoredFile.Register(
+                owner,
+                category,
+                StoredFileDeclaration.Create(
+                    StoredFileName.Create(name),
+                    DeclaredMediaType.Create(mediaType),
+                    FileSize.Create(sizeInBytes),
+                    Sha256Checksum.Create(checksum)),
+                dateTimeProvider.UtcNow));
+
+            if (registration.IsFailure)
+            {
+                return registration;
+            }
+
+            repository.Add(registration.Value);
+            await unitOfWork.SaveChangesAsync(token);
+
+            return registration;
+        }
 
         if (!quota.IsStrict)
         {
-            return await Register(cancellationToken);
+            return await CheckQuotaAndCommitAsync(cancellationToken);
         }
 
         try
         {
-            return await quotaLock.RunExclusivelyAsync(owner, category, Register, cancellationToken);
+            return await quotaLock.RunExclusivelyAsync(owner, category, CheckQuotaAndCommitAsync, cancellationToken);
         }
         catch (OwnerQuotaLockTimeoutException)
         {
             return Result.Failure<StoredFile>(StoredFileErrors.QuotaBusy(category.Value));
         }
-    }
-
-    private async Task<Result<StoredFile>> CheckQuotaAndCommitAsync(
-        UserId owner,
-        FileCategory category,
-        FileCategoryQuotaOptions quota,
-        string name,
-        string mediaType,
-        long sizeInBytes,
-        string checksum,
-        CancellationToken cancellationToken)
-    {
-        var usage = await queries.GetUsageForOwnerAsync(owner, category, cancellationToken);
-        var room = StoredFileQuotaPolicy.EnsureRoomFor(usage, quota, sizeInBytes);
-
-        if (room.IsFailure)
-        {
-            return room.To<StoredFile>();
-        }
-
-        var registration = DomainGuard.Try(() => StoredFile.Register(
-            owner,
-            category,
-            StoredFileName.Create(name),
-            DeclaredMediaType.Create(mediaType),
-            FileSize.Create(sizeInBytes),
-            Sha256Checksum.Create(checksum),
-            dateTimeProvider.UtcNow));
-
-        if (registration.IsFailure)
-        {
-            return registration;
-        }
-
-        repository.Add(registration.Value);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return registration;
     }
 }

@@ -103,10 +103,11 @@ public sealed class BackgroundPassStorageTests(ApiFixture fixture) : Integration
         var file = StoredFile.Register(
             owner,
             FileCategory.Create("document"),
-            StoredFileName.Create("report.pdf"),
-            DeclaredMediaType.Create("application/pdf"),
-            FileSize.Create(_size),
-            Sha256Checksum.Create(_checksum),
+            StoredFileDeclaration.Create(
+                StoredFileName.Create("report.pdf"),
+                DeclaredMediaType.Create("application/pdf"),
+                FileSize.Create(_size),
+                Sha256Checksum.Create(_checksum)),
             registeredAt);
 
         advance(file);

@@ -162,10 +162,11 @@ public sealed class StoredFileTrackerTests
     private static StoredFile ARegisteredFile() => StoredFile.Register(
         AStoredFileAggregate.OwnerId,
         FileCategory.Create(AStoredFileAggregate.CategoryName),
-        StoredFileName.Create(AStoredFileAggregate.NameValue),
-        DeclaredMediaType.Create(AStoredFileAggregate.DeclaredMediaTypeValue),
-        FileSize.Create(AStoredFileAggregate.SizeInBytes),
-        Sha256Checksum.Create(AStoredFileAggregate.ChecksumValue),
+        StoredFileDeclaration.Create(
+            StoredFileName.Create(AStoredFileAggregate.NameValue),
+            DeclaredMediaType.Create(AStoredFileAggregate.DeclaredMediaTypeValue),
+            FileSize.Create(AStoredFileAggregate.SizeInBytes),
+            Sha256Checksum.Create(AStoredFileAggregate.ChecksumValue)),
         _registeredAt);
 
     private static StoredFile AConfirmedFile()

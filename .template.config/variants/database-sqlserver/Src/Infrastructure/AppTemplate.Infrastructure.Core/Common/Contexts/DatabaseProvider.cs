@@ -15,10 +15,9 @@ public static class DatabaseProvider
 
     public const string VersionColumnName = "Version";
 
-    // The business context names "public" as its history schema, which SQL Server does not have.
-    private const string _contextsDefaultSchema = "public";
+    private const string _contextsHistorySchema = "public";
 
-    private const string _defaultSchema = "dbo";
+    private const string _sqlServerHistorySchema = "dbo";
 
     private const int _duplicateKeyIndex = 2601;
 
@@ -118,5 +117,5 @@ public static class DatabaseProvider
         new SqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
 
     private static string HistorySchemaOf(ContextMigrations migrations) =>
-        migrations.HistorySchema == _contextsDefaultSchema ? _defaultSchema : migrations.HistorySchema;
+        migrations.HistorySchema == _contextsHistorySchema ? _sqlServerHistorySchema : migrations.HistorySchema;
 }

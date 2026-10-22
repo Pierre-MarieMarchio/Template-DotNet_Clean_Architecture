@@ -12,7 +12,6 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
     private const string _createDatabaseSql =
         "DECLARE @sql nvarchar(max) = N'CREATE DATABASE ' + QUOTENAME(@database); EXEC (@sql);";
 
-    // One server per test assembly, each instance getting its own database: a SQL Server container takes about 2 GB of memory.
     private static readonly SemaphoreSlim _startGate = new(1, 1);
 
     private static MsSqlContainer? _container;

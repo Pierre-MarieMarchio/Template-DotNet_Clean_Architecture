@@ -120,7 +120,8 @@ class joins one collection, so tests run one after another.
 <!--#endif-->
 <!--#if (sqlServer)-->
 Each integration project starts one SQL Server container and one host for the whole suite, and every
-class joins one collection, so tests run one after another.
+class joins one collection, so tests run one after another. A SQL Server container holds up to 1 GB of
+memory, so every fixture of a project shares that one server, each in a database of its own.
 <!--#endif-->
 <!--#if (sqlite)-->
 Each integration project creates one SQLite file and one host for the whole suite, and every

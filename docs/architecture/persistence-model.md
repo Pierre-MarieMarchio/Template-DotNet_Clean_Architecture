@@ -50,6 +50,12 @@ editing a shared model, and the tables no feature owns live in `platform`.
 
 Each context declares its schema names as constants, and every table names its schema in its own
 configuration, so no default schema is set and a mapping cannot drift into the wrong one by omission.
+<!--#if (sqlServer)-->
+SQL Server has no `public` schema, so the business context's history table lives in `dbo`, and the
+test servers read it back under the context's own name. SQL Server also refuses a foreign key that
+gives a table a second cascade path from one principal: `RedundantCascadePathsConvention` drops the
+direct cascade the same rows already follow through a longer path, so nothing outlives its principal.
+<!--#endif-->
 
 <!--#if (tablePrefixes)-->
 This database has no schemas. `SchemaAsTablePrefixConvention` turns each table's schema into a prefix

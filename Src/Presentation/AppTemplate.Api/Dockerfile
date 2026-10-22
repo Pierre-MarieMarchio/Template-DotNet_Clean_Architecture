@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
 # Build from the repository root: docker build -f Src/Presentation/AppTemplate.Api/Dockerfile -t app-template-api:local .
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.302-noble@sha256:72dd743782f2ae7e5476fd64f6a460045e3998dc862218b80e6944cba79a01b0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.402-noble@sha256:747cbade5bfd918a175ac32f8f1d931edec2c7d0d5397a3de72eaef1ac1f66d2 AS build
 
 ARG BUILD_CONFIGURATION=Release
 
@@ -45,7 +45,7 @@ RUN dotnet publish "Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj" \
         -o /app/publish
 
 # For a smaller surface, use aspnet:10.0.13-noble-chiseled and drop the HEALTHCHECK, which needs alpine's wget.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-alpine3.24@sha256:819bd3649d8bf53f35527c68d62e17b348ef6f24ae73073f497f00a878348062 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-alpine3.24@sha256:ecf8dcbaab8ebc4bdfb2322d6fe4217bbb118894310ebb6d53c580874ab4b27d AS final
 
 ARG TARGETARCH
 ARG TARGETPLATFORM

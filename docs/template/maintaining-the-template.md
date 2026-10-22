@@ -70,6 +70,8 @@ and asks each app for its page, its headers and an answer only the API gives.
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false` |
 | sqlserver, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |
+| sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
+| sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |
 | web react, local auth | `--web react` |
 | web angular, external auth, notes | `--web angular --auth external --examples notes` |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
@@ -77,7 +79,7 @@ and asks each app for its page, its headers and an answer only the API gives.
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
-`database`; the SQLite leg runs its integration suites on a file and starts no database container, and
+`database`; the SQLite legs run their integration suites on a file and start no database container, and
 the SQL Server leg starts one large image, so it has the longest timeout. A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
 workspace. The leg that adds a first app runs that assertion, then `cleanarch-webapp --workspace` and
 the lines `Src/Web/README.md` lists, and is a web leg from there. `--workspace` only adds files, and
@@ -102,7 +104,7 @@ and the application never name a provider.
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs` | `OwnerQuotaLock`, constructed from the connection string and a logger, throwing `OwnerQuotaLockTimeoutException` after `WaitLimit` |
 | `Src/Presentation/AppTemplate.Api/Common/Observability/DatabaseInstrumentation.cs` | the provider's tracing and metrics, or none |
 | `docker-compose.database.yml` | the `db` service and the `database-client` service whose environment gives the api `ConnectionStrings__Default`; SQLite declares only `database-client`, which mounts the `db-data` volume |
-| `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`; the API one adds `TablesSql` and `ResetSql`, the Auth one `TransientFault` |
+| `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`, and `Table(schema, table)`, the name a test's raw SQL uses; the API one adds `TablesSql`, `ResetSql`, `SchemasSql`, `HistorySchemasSql(table)`, and `Value` and `Literal` for a `Guid` or a `DateTimeOffset` as the provider stores it; the Auth one adds `TransientFault` |
 | `Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs` | the provider's own unit tests and faults; an overlay may leave one out by a `template.json` exclusion |
 
 A provider without `xmin` registers `VersionStampingSaveChangesInterceptor` from its run-time

@@ -123,6 +123,11 @@ jobs:
             database: sqlite
             auth_context: "false"
             integration: "true"
+          - name: sqlite, external auth, all examples
+            options: --database sqlite --auth external --examples all --files true
+            database: sqlite
+            auth_context: "false"
+            integration: "true"
 
     steps:
       - name: Checkout

@@ -79,7 +79,11 @@ public sealed class NotesSavingTests
 
         status.ShouldBe(NoteChangeStatus.Staged, "the caller's version still matches when the write is staged");
 
+        /*#if (tablePrefixes)
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"notes_Notes\" SET \"Title\" = 'Theirs', \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
+        #else*/
         await host.ExecuteOnBusinessStoreAsync($"UPDATE \"Notes\" SET \"Title\" = 'Theirs', \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
+        /*#endif*/
 
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token));
@@ -104,7 +108,11 @@ public sealed class NotesSavingTests
             .StageRemovalAsync(UserId.Create(_caller), noteId, new VersionPrecondition([1u]), Token))
             .ShouldBe(NoteChangeStatus.Staged);
 
+        /*#if (tablePrefixes)
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"notes_Notes\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
+        #else*/
         await host.ExecuteOnBusinessStoreAsync($"UPDATE \"Notes\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
+        /*#endif*/
 
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token));

@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using AppTemplate.Api.Features.Reminders.Contracts.Requests;
 using AppTemplate.Api.Features.Reminders.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -102,8 +103,11 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"""UPDATE reminders."Reminders" SET "DueAt" = {dueAt} WHERE "Id" = {reminderId}""",
+        await context.Database.ExecuteSqlAsync(
+            FormattableStringFactory.Create(
+                $$"""UPDATE {{DatabaseServer.Table("reminders", "Reminders")}} SET "DueAt" = {0} WHERE "Id" = {1}""",
+                DatabaseServer.Value(dueAt),
+                DatabaseServer.Value(reminderId)),
             TestToken);
     }
 
@@ -112,8 +116,11 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"""UPDATE reminders."Reminders" SET "FailedAttempts" = 1, "NextAttemptAt" = {nextAttemptAt} WHERE "Id" = {reminderId}""",
+        await context.Database.ExecuteSqlAsync(
+            FormattableStringFactory.Create(
+                $$"""UPDATE {{DatabaseServer.Table("reminders", "Reminders")}} SET "FailedAttempts" = 1, "NextAttemptAt" = {0} WHERE "Id" = {1}""",
+                DatabaseServer.Value(nextAttemptAt),
+                DatabaseServer.Value(reminderId)),
             TestToken);
     }
 
@@ -122,8 +129,11 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"""UPDATE todo."TodoItems" SET "CompletedAt" = {completedAt} WHERE "Id" = {todoItemId}""",
+        await context.Database.ExecuteSqlAsync(
+            FormattableStringFactory.Create(
+                $$"""UPDATE {{DatabaseServer.Table("todo", "TodoItems")}} SET "CompletedAt" = {0} WHERE "Id" = {1}""",
+                DatabaseServer.Value(completedAt),
+                DatabaseServer.Value(todoItemId)),
             TestToken);
     }
 

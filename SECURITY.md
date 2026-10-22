@@ -45,7 +45,7 @@ Each row links to the page that describes it.
 | Security headers on every response, a default-deny CSP, CORS that allows nothing until told | [Request pipeline › CORS and security headers](docs/architecture/request-pipeline.md#cors-and-security-headers) |
 | No exception text reaches a client; every refusal is a problem document with a `code` and a `traceId` | [Request pipeline › Problem details](docs/architecture/request-pipeline.md#problem-details) |
 | Request logs carry a fixed field list: never the `Authorization` header, cookies, the query or the body | [Request pipeline › Request logging](docs/architecture/request-pipeline.md#request-logging) |
-| Lost updates refused: `xmin` exposed as `ETag`, checked from `If-Match` | [ADR 0008](docs/decisions/0008-optimistic-concurrency-end-to-end.md) |
+| Lost updates refused: the row version exposed as `ETag`, checked from `If-Match` | [ADR 0008](docs/decisions/0008-optimistic-concurrency-end-to-end.md) |
 <!--#if (files)-->
 | Stored files keyed by a random key, bound to their digest, inspected from their bytes, served through narrow signed grants | [Files › Inspection and scanning](docs/features/files.md#inspection-and-scanning), [ADR 0018](docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md) |
 <!--#endif-->

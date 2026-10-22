@@ -14,8 +14,8 @@ namespace AppTemplate.Api.IntegrationTests.Security;
 
 public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
-    private const string _refreshTokenHashes = """
-        SELECT "TokenHash" FROM identity."RefreshTokens" ORDER BY "CreatedAt"
+    private static readonly string _refreshTokenHashes = $"""
+        SELECT "TokenHash" FROM {DatabaseServer.Table("identity", "RefreshTokens")} ORDER BY "CreatedAt"
         """;
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         afterReplay.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
 
         int live = await Database.CountAsync(
-            """SELECT count(*) FROM identity."RefreshTokens" WHERE "RevokedAt" IS NULL""",
+            $"""SELECT count(*) FROM {DatabaseServer.Table("identity", "RefreshTokens")} WHERE "RevokedAt" IS NULL""",
             TestToken);
         live.ShouldBe(0);
     }
@@ -148,7 +148,7 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         (await ApiJson.ReadProblemAsync(refreshed, TestToken)).Code.ShouldBe("auth.refreshToken.invalid");
 
         int live = await Database.CountAsync(
-            """SELECT count(*) FROM identity."RefreshTokens" WHERE "RevokedAt" IS NULL""",
+            $"""SELECT count(*) FROM {DatabaseServer.Table("identity", "RefreshTokens")} WHERE "RevokedAt" IS NULL""",
             TestToken);
         live.ShouldBe(0);
     }
@@ -235,8 +235,8 @@ public sealed class RefreshTokenTests(ApiFixture fixture) : IntegrationTestBase(
         stored.Select(hash => hash.Trim()).ShouldNotContain(second.RefreshToken);
 
         var successors = await Database.QueryAsync(
-            """
-            SELECT "ReplacedByTokenHash" FROM identity."RefreshTokens" WHERE "ReplacedByTokenHash" IS NOT NULL
+            $"""
+            SELECT "ReplacedByTokenHash" FROM {DatabaseServer.Table("identity", "RefreshTokens")} WHERE "ReplacedByTokenHash" IS NOT NULL
             """,
             TestToken);
 

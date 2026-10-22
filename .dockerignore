@@ -105,6 +105,11 @@ CHANGELOG.md
 **/azds.yaml
 **/charts
 
+#if (sqlite)
+# The local SQLite database: the container keeps its own on the db-data volume.
+**/App_Data/
+
+#endif
 #if (anyWeb)
 # ---------------------------------------------------------------------------
 # The web workspace: each web app builds from Src/Web with its own image.

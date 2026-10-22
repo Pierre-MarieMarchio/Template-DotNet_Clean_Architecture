@@ -130,7 +130,7 @@ internal static class PasskeyTestSupport
     public static async Task<uint> SignCountAsync(TestDatabase database, Guid userId, CancellationToken cancellationToken)
     {
         var counts = await database.QueryAsync(
-            $"""SELECT "Data"->>'SignCount' FROM "identity"."UserPasskeys" WHERE "UserId" = '{userId}'""",
+            $"""SELECT "Data"->>'SignCount' FROM {DatabaseServer.Table("identity", "UserPasskeys")} WHERE "UserId" = {DatabaseServer.Literal(userId)}""",
             cancellationToken);
 
         return uint.Parse(counts.ShouldHaveSingleItem(), CultureInfo.InvariantCulture);

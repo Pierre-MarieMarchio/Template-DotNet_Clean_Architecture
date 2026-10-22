@@ -37,7 +37,11 @@ internal sealed class PublishedEvents(string businessDatabase)
         await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
+        /*#if (tablePrefixes)
+        command.CommandText = "SELECT COUNT(*) FROM \"todo_TodoLists\" WHERE \"Id\" = $id";
+        #else*/
         command.CommandText = "SELECT COUNT(*) FROM \"TodoLists\" WHERE \"Id\" = $id";
+        /*#endif*/
 
         command.Parameters.AddWithValue("$id", todoListId.ToString().ToUpperInvariant());
 

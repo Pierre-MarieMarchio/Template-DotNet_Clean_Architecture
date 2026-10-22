@@ -35,6 +35,10 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+/*#if (sqlite)
+
+DevelopmentOnlyDatabase.RefuseOutsideDevelopment(builder.Environment);
+#endif*/
 
 builder.Logging.ClearProviders();
 

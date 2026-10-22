@@ -281,6 +281,12 @@ jobs:
           dotnet restore Sample.Generated.Project.sln
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
+      # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it.
+      - name: Write the OpenAPI reference (integration legs)
+        if: matrix.integration == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs openapi
+
       # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
@@ -297,19 +303,19 @@ jobs:
             echo "::endgroup::"
           done
 
-      # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it.
-      - name: Write the OpenAPI reference (integration legs)
-        if: matrix.integration == 'true'
-        working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs openapi
-
       # The projects the Docker-free step leaves out, against the runner's Docker: the HTTP surface the options change most.
       - name: Run the integration tests (Testcontainers)
         if: matrix.integration == 'true'
         working-directory: ${{ runner.temp }}/generated
+        env:
+          DATABASE: ${{ matrix.database || 'postgresql' }}
         run: |
           set -euo pipefail
           mapfile -t projects < <(grep -r --include='*.csproj' -l 'Testcontainers' Tests | sort)
+          # A SQLite project without files starts no container: its integration suites ran with the Docker-free tests.
+          if [ "${#projects[@]}" -eq 0 ] && [ "$DATABASE" = "sqlite" ]; then
+            exit 0
+          fi
           if [ "${#projects[@]}" -eq 0 ]; then
             echo "::error title=No integration projects::No test project of the generated project references Testcontainers."
             exit 1

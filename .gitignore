@@ -390,6 +390,11 @@ FodyWeavers.xsd
 
 # Agent worktrees: a second checkout nested in this one, which every tool walking the tree reads again.
 .claude/worktrees/
+#if (sqlite)
+
+# The SQLite database the API creates on its first connection.
+**/App_Data/
+#endif
 #if (templateMaintenance)
 
 # Template repository only: the migrations bootstrap writes for the checkout; a generated project commits its own.

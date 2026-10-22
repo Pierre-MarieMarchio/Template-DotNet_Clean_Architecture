@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"sqlserver\" || database == \"mysql\")"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\")"
     },
     "database": {
       "type": "parameter",
@@ -109,18 +109,6 @@
         }
       ],
       "description": "The database the project runs on. A project carries that provider only; PostgreSQL is the one this version of the template generates."
-    },
-    "sqlServerNotYetGenerated": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        {
-          "choice": "refused",
-          "description": "Not an option to set: it names the refusal."
-        }
-      ],
-      "isRequired": "(database == \"sqlserver\")",
-      "description": "Never set. This version of the template does not generate --database sqlserver yet: choose --database postgresql."
     },
     "mySqlNotYetGenerated": {
       "type": "parameter",
@@ -908,6 +896,32 @@
       "source": "./.template.config/variants/database-sqlite/",
       "target": "./",
       "condition": "(sqlite)",
+      "modifiers": [
+        {
+          "condition": "(!files)",
+          "exclude": [
+            "Src/**/Features/Files/**",
+            "Tests/**/Features/Files/**"
+          ]
+        },
+        {
+          "condition": "(!todoLists)",
+          "exclude": [
+            "Tests/**/Features/TodoLists/**"
+          ]
+        },
+        {
+          "condition": "(!notes)",
+          "exclude": [
+            "Tests/**/Features/Notes/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./.template.config/variants/database-sqlserver/",
+      "target": "./",
+      "condition": "(sqlServer)",
       "modifiers": [
         {
           "condition": "(!files)",

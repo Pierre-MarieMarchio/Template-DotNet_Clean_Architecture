@@ -95,6 +95,10 @@ healthy. The API runs in Development, so it applies its migrations at start.
 
 Every port binds to `127.0.0.1`. The API speaks plain HTTP on 8080: TLS terminates upstream, as
 [deployment](../guides/deployment.md#behind-a-proxy) describes.
+<!--#if (sqlServer)-->
+SQL Server runs capped at 1 GB of memory (`MSSQL_MEMORY_LIMIT_MB`); where a local SQL Server or the
+host already holds port 1433, set `MSSQL_HOST_PORT` in `.env`.
+<!--#endif-->
 <!--#if (anyWeb)-->
 The web app relays `/api` to the API, so a browser talks to one origin.
 <!--#endif-->

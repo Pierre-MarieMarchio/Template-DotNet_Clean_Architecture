@@ -68,7 +68,7 @@ and asks each app for its page, its headers and an answer only the API gives.
 | external auth, all examples | `--auth external --examples all --files true` |
 | external auth, no examples, no files | `--auth external --examples none --files false` |
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false` |
-| sqlserver, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
+| sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |

@@ -223,9 +223,12 @@ Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v
 and the other types stay out of it. A working branch is kept after its merge.
 
 The checks run on the pull request, which must be up to date with `develop`, so the merged tree is
-the one they passed and a push to `develop` does not run them again: it runs CodeQL and SonarQube,
-which keep the default branch's analysis to compare pull requests with, and the release workflow.
-SonarCloud's free plan analyses one branch, so its project names `develop` as its main branch.
+the one they passed and a push to `develop` does not run them again: it runs CodeQL, SonarQube and
+the release workflow. SonarQube analyses a push to the default branch only, as SonarCloud's free
+plan analyses one branch, so the SonarCloud project names `develop` as its main branch; it skips a
+Dependabot pull request, which gets no repository secret. Dependabot reads its configuration on the
+default branch, and `.github/dependabot.yml` names `develop` for each ecosystem in this repository
+only.
 
 `.github/workflows/template-release.yml` runs release-please on every push to `develop`, from
 `.github/release-please/config.json`; both reach neither a project nor the package. It keeps one

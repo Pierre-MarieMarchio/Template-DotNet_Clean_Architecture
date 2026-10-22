@@ -11,7 +11,7 @@ namespace AppTemplate.Infrastructure.Core.Common.Contexts;
 public static class DatabaseProvider
 {
     public const string DesignTimeConnectionString =
-        "Server=localhost,1433;Database=appdb;User Id=sa;Password=Local_dev_sa_1;TrustServerCertificate=True";
+        "Server=localhost,1433;Database=appdb;TrustServerCertificate=True";
 
     public const string VersionColumnName = "Version";
 

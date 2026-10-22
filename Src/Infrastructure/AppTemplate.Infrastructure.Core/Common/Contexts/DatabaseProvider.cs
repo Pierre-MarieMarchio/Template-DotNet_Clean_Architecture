@@ -10,7 +10,7 @@ namespace AppTemplate.Infrastructure.Core.Common.Contexts;
 public static class DatabaseProvider
 {
     public const string DesignTimeConnectionString =
-        "Host=localhost;Port=5432;Database=appdb;Username=postgres;Password=postgres";
+        "Host=localhost;Port=5432;Database=appdb";
 
     public const string VersionColumnName = "xmin";
 

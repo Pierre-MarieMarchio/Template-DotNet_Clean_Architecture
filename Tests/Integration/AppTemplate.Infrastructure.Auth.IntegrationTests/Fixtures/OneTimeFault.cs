@@ -36,7 +36,7 @@ public sealed class OneTimeFault(FaultPoint point, bool transient)
     private static bool Names(DbCommand command, string verb) =>
         Regex.IsMatch(
             command.CommandText,
-            $@"\b{verb}\b[^;]*\bRefreshTokens\b",
+            $@"\b{verb}\b[^;]*RefreshTokens\b",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
             TimeSpan.FromSeconds(1));
 

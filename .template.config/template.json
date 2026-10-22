@@ -1056,6 +1056,24 @@
       "path": "AppTemplate.sln"
     }
   ],
+  "postActions": [
+    {
+      "condition": "(!refusedOptions)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Bootstrap the project before anything else.",
+      "manualInstructions": [
+        {
+          "condition": "(!webReact && !webAngular)",
+          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the formatting, the OpenAPI reference and each context's initial migration. The tests, verify and the stack all assume it ran; docs/getting-started/first-run.md continues from there."
+        },
+        {
+          "condition": "(webReact || webAngular)",
+          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the formatting, the OpenAPI reference, each context's initial migration and the web app. Until it runs, the app's folder under Src/Web/apps holds only scaffold.json and overlay/: bootstrap creates the app with its framework's official CLI, which needs Node.js, pnpm (corepack enable) and the network. The tests, verify and the stack all assume it ran; docs/getting-started/first-run.md continues from there."
+        }
+      ],
+      "continueOnError": true
+    }
+  ],
   "SpecialCustomOperations": {
     "**/.env.example": {
       "operations": [

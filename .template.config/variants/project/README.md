@@ -44,10 +44,15 @@ The web workspace also needs Node.js and pnpm (`corepack enable`).
 <!--#endif-->
 
 ```bash
-dotnet run Tools/Tasks.cs bootstrap     # once, after a fresh clone; commit what it changes
+dotnet run Tools/Tasks.cs bootstrap     # once, right after generating; commit what it writes
 cp .env.example .env
 docker compose up -d --build --wait
 ```
+<!--#if (webReact || webAngular)-->
+
+Bootstrap also creates the web app: until it runs, its folder under `Src/Web/apps` holds only
+`scaffold.json` and `overlay/`, and `pnpm install` leaves it out of the workspace.
+<!--#endif-->
 
 <!--#if (externalAuth)-->
 Set `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_AUDIENCE` in `.env` before starting: the API refuses

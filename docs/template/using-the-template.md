@@ -95,7 +95,9 @@ With a checkout installed, generate outside it: the engine reads the template fr
 output written inside it is copied into itself and nests a duplicate. Then follow the generated
 project's [first run](../getting-started/first-run.md); bootstrap is its first step and is not
 optional, since the order of sorted using directives depends on the name chosen and the project ships
-no migration until bootstrap creates its first one.
+no migration until bootstrap creates its first one. With `--web react` or `--web angular`, it is also
+the step that creates the app: until then its folder holds only `scaffold.json` and `overlay/`, and
+`pnpm install` leaves it out of the workspace. `dotnet new` ends by printing this instruction.
 
 ## What the name substitutes into
 

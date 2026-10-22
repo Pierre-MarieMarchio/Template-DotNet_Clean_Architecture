@@ -14,8 +14,9 @@ public sealed class Rail : IRenderable
     public const string Note = "●";
     public const string Gutter = "  ";
 
+    public static readonly int Width = Bar.Length + Gutter.Length;
+
     private static readonly Style _barStyle = new(Color.Grey);
-    private static readonly int _width = Bar.Length + Gutter.Length;
 
     private readonly IRenderable _content;
 
@@ -33,13 +34,13 @@ public sealed class Rail : IRenderable
 
     public Measurement Measure(RenderOptions options, int maxWidth)
     {
-        Measurement content = _content.Measure(options, Math.Max(1, maxWidth - _width));
-        return new Measurement(content.Min + _width, content.Max + _width);
+        Measurement content = _content.Measure(options, Math.Max(1, maxWidth - Width));
+        return new Measurement(content.Min + Width, content.Max + Width);
     }
 
     public IEnumerable<Segment> Render(RenderOptions options, int maxWidth)
     {
-        foreach (SegmentLine line in Segment.SplitLines(_content.Render(options, Math.Max(1, maxWidth - _width))))
+        foreach (SegmentLine line in Segment.SplitLines(_content.Render(options, Math.Max(1, maxWidth - Width))))
         {
             yield return new Segment(Bar, _barStyle);
             yield return new Segment(Gutter);

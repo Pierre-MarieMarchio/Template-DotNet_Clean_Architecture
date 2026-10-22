@@ -12,6 +12,8 @@ public abstract class Conversation
 
     public abstract bool EchoesTheTemplateEngine { get; }
 
+    public bool CanGoBack { get; set; }
+
     public static Conversation For(IAnsiConsole console, bool asks) =>
         asks && console.Profile.Capabilities.Ansi && console.Profile.Capabilities.ColorSystem != ColorSystem.NoColors
             ? new GuidedConversation(console)
@@ -19,13 +21,13 @@ public abstract class Conversation
 
     public abstract void Begin(string title, string? version);
 
-    public abstract string Choose(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue);
+    public abstract string? Choose(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue);
 
-    public abstract IReadOnlyList<string> ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected);
+    public abstract IReadOnlyList<string>? ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected);
 
-    public abstract bool Confirm(string label, string description, bool defaultValue);
+    public abstract bool? Confirm(string label, string description, bool defaultValue);
 
-    public abstract string Text(string label, string? description, string? defaultValue, bool allowEmpty, Func<string, string?> problem);
+    public abstract string? Text(string label, string? description, string? defaultValue, bool allowEmpty, Func<string, string?> problem);
 
     public abstract void Answered(string label, string value, string reason);
 
@@ -34,6 +36,10 @@ public abstract class Conversation
     public abstract void Note(string text);
 
     public abstract bool Review(string subject, IReadOnlyList<KeyValuePair<string, string>> rows);
+
+    public abstract int Mark();
+
+    public abstract void Rewind(int mark);
 
     public abstract void Perform(string running, string done, Action work);
 

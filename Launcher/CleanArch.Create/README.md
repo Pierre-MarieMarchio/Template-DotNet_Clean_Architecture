@@ -21,13 +21,26 @@ is written, and its options are asked again. It installs the `CleanArch.WebApi.T
 its own version when another one or none is installed, generates the project, then prints the
 equivalent command and the first steps.
 
-In a terminal it opens on a banner and asks each question on a thread: the arrow keys, or a choice's
-first letter, pick an answer, each choice with its description beside it, and every answer stays on
-the thread. A summary of every option comes before anything is written; answering No asks the
-questions again, the previous answers as their defaults. A spinner runs while the package installs
-and `dotnet new` generates, whose output shows only when it fails. With `--yes`, without a terminal,
-or with `NO_COLOR` set, the output stays plain: no banner, no thread, no spinner, the template
-engine's own lines.
+In a terminal it opens on a banner and asks each question on a thread, each choice with its
+description beside it and the default selected, and every answer stays on the thread. A dim line
+under each question names its keys:
+
+| Question | Keys |
+|---|---|
+| A choice | `↑`/`↓` move, `enter` selects, a choice's first letter jumps to it |
+| Yes or no | `y`/`n`, `enter` takes the default |
+| Several steps | `↑`/`↓` move, `space` checks or unchecks, `a` all, `enter` confirms |
+| A text | type a value, `enter` keeps the default shown |
+| Any but the first | `esc` goes back to the previous question, as do `←` in a list and `backspace` in an empty text |
+
+Going back reopens the previous question with its answer selected, erases the answers after it, and
+asks the following questions again, so a changed answer changes what they offer; a question answered
+for you, as `--examples none` after `--auth none`, is passed over. A summary of every option comes
+before anything is written; answering No to it goes back to the last question, and when every answer
+came as a flag it stops without writing anything. `ctrl+c` stops at any point. A spinner runs while
+the package installs and `dotnet new` generates, whose output shows only when it fails. With
+`--yes`, without a terminal, or with `NO_COLOR` set, the output stays plain: no banner, no thread, no
+spinner, the template engine's own lines.
 
 ## Set the project up
 

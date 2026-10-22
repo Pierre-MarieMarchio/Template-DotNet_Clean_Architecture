@@ -16,9 +16,11 @@ left with one choice and says which refusal leaves it, explains a refused combin
 before writing anything and asks its options again, installs
 `CleanArch.WebApi.Templates` at its own version when another one or none is installed, runs
 `dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps. In a
-terminal the questions follow one another on a thread under a banner, a summary of every option
-comes before anything is written, and answering No to it asks again with the previous answers as
-defaults; with `--yes`, without a terminal, or with `NO_COLOR` set, the output stays plain text.
+terminal the questions follow one another on a thread under a banner, each with a line naming its
+keys; `esc` goes back to the previous question, whose answer it keeps selected, and the questions
+after it are asked again. A summary of every option comes before anything is written, and answering
+No to it goes back to the last question; with `--yes`, without a terminal, or with `NO_COLOR` set,
+the output stays plain text.
 
 Its last question offers to set the project up as [the first run](../getting-started/first-run.md)
 asks: a first commit, after `git init` unless the folder is in a work tree already, then

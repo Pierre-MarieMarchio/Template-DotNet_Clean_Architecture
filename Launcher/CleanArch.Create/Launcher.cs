@@ -41,6 +41,12 @@ public sealed partial class Launcher
     private static readonly IReadOnlyDictionary<string, string> _nothing = new Dictionary<string, string>();
     private static readonly IReadOnlyDictionary<string, Condition> _alwaysAsked = new Dictionary<string, Condition>();
 
+    private const string _nameKey = "--name";
+    private const string _outputKey = "--output";
+    private const string _setupKey = "--setup";
+    private const string _reviewKey = "--review";
+    private const char _setupSeparator = '|';
+
     private readonly IAnsiConsole _console;
     private readonly string _workingDirectory;
     private readonly bool _interactive;
@@ -169,20 +175,18 @@ public sealed partial class Launcher
     private static string? PackageNameProblem(string name) =>
         PackageName().IsMatch(name) ? null : "a package name is letters, digits and dashes, starting with a letter, as tokens.";
 
-    private static Asked Reviewed(
-        Conversation conversation,
-        Func<Asked?, Asked> ask,
-        Func<Asked, IEnumerable<KeyValuePair<string, string>>> recap,
-        Func<Asked, string> subject)
-    {
-        Asked asked = ask(null);
-        while (!conversation.Review(subject(asked), [.. recap(asked)]))
+    private static Question Reviewed(Session session, Func<IReadOnlyDictionary<string, string>, IEnumerable<KeyValuePair<string, string>>> recap, Func<IReadOnlyDictionary<string, string>, string> subject) =>
+        new(_reviewKey, (answers, _) =>
         {
-            asked = ask(asked);
-        }
+            if (session.Conversation.Review(subject(answers), [.. recap(answers)]))
+            {
+                return Reply.Passed(null);
+            }
 
-        return asked;
-    }
+            return session.Conversation.CanGoBack
+                ? Reply.Backward
+                : throw new LauncherException("Stopped before anything was written.");
+        });
 
     private static Asked AskItem(
         Session session,
@@ -190,16 +194,18 @@ public sealed partial class Launcher
         string label,
         Func<string, string?> problem,
         IReadOnlyDictionary<string, string> detected,
-        string subject) =>
-        Reviewed(
-            session.Conversation,
-            previous => new Asked(
-                session.Questionnaire.Text("--name", label, previous is null ? session.Parsed.Name : null, previous?.Name, problem),
-                null,
-                session.Questionnaire.Answer(manifest, previous is null ? session.Parsed.TemplateOptions : _nothing, detected, _alwaysAsked, previous?.Options),
-                []),
-            asked => [KeyValuePair.Create(label, asked.Name!), .. Questionnaire.Recap(manifest, asked.Options)],
-            _ => subject);
+        string subject)
+    {
+        Dictionary<string, string> answers = session.Questionnaire.Answer(
+            manifest,
+            session.Parsed.TemplateOptions,
+            detected,
+            _alwaysAsked,
+            [new(_nameKey, (_, remembered) => session.Questionnaire.Text("--name", label, session.Parsed.Name, remembered, problem))],
+            [Reviewed(session, given => [KeyValuePair.Create(label, given.GetValueOrDefault(_nameKey) ?? string.Empty), .. Questionnaire.Recap(manifest, given)], _ => subject)]);
+
+        return new Asked(answers.GetValueOrDefault(_nameKey), null, answers, []);
+    }
 
     private static void Install(Session session, string workingDirectory)
     {
@@ -221,23 +227,30 @@ public sealed partial class Launcher
         conversation.Note($"Read from {project.Name}: {facts}");
     }
 
-    private static IReadOnlyList<string> SetupChosen(Session session, Asked? previous)
-    {
-        string[] every = [.. ProjectSetup.Steps.Select(step => step.Title)];
-        if (session.Parsed.Setup)
+    private static Question SetupQuestion(Session session) =>
+        new(_setupKey, (_, remembered) =>
         {
-            return every;
-        }
+            string[] every = [.. ProjectSetup.Steps.Select(step => step.Title)];
+            if (session.Parsed.Setup)
+            {
+                return Reply.Passed(string.Join(_setupSeparator, every));
+            }
 
-        return session.Questionnaire.Asks
-            ? session.Conversation.ChooseMany(
+            if (!session.Questionnaire.Asks)
+            {
+                return Reply.Passed(string.Empty);
+            }
+
+            IReadOnlyList<string>? chosen = session.Conversation.ChooseMany(
                 "Set up the project now?",
                 [.. ProjectSetup.Steps.Select(step => new OptionChoice(step.Title, step.Description))],
-                previous?.Setup ?? every)
-            : [];
-    }
+                remembered is null ? every : Steps(remembered));
+            return chosen is null ? Reply.Backward : Reply.Answer(string.Join(_setupSeparator, chosen));
+        });
 
-    private static string Recalled(IReadOnlyList<string> setup) => setup.Count == 0 ? "Nothing" : string.Join(", ", setup);
+    private static string[] Steps(string? chosen) => chosen?.Split(_setupSeparator, StringSplitOptions.RemoveEmptyEntries) ?? [];
+
+    private static string Recalled(string[] setup) => setup.Length == 0 ? "Nothing" : string.Join(", ", setup);
 
     private static string? Without(string? section, IReadOnlyCollection<string> commands) =>
         section is null
@@ -279,7 +292,7 @@ public sealed partial class Launcher
             "What next?",
             $"{project.Name} is a generated project.",
             [.. commands.Where(command => project.HasWorkspace || command.Value != Arguments.WebPackageCommand)],
-            null);
+            null) ?? Arguments.NewCommand;
     }
 
     private void New(Session session)
@@ -289,26 +302,36 @@ public sealed partial class Launcher
         Arguments parsed = session.Parsed;
         session.Conversation.Begin("Create a project", session.Version);
 
-        Asked asked = Reviewed(
-            session.Conversation,
-            previous =>
+        Question[] before =
+        [
+            new(_nameKey, (_, remembered) => questionnaire.Text("--name", "Project name", parsed.Name, remembered ?? manifest.DefaultName, ProjectNameProblem)),
+            new(_outputKey, (answers, _) =>
             {
-                string? name = questionnaire.Text("--name", "Project name", previous is null ? parsed.Name : null, previous?.Name ?? manifest.DefaultName, ProjectNameProblem);
-                string? output = (previous is null ? parsed.Output : null)
-                    ?? (questionnaire.Asks && name is not null
-                        ? questionnaire.Text("--output", "Output folder", null, Path.Combine(".", name), _ => null)
-                        : name);
-                Dictionary<string, string> answers = questionnaire.Answer(manifest, previous is null ? parsed.TemplateOptions : _nothing, _nothing, ProjectAskedWhen, previous?.Options);
-                return new Asked(name, output, answers, SetupChosen(session, previous));
-            },
-            asked =>
-            [
-                KeyValuePair.Create("Project name", asked.Name!),
-                KeyValuePair.Create("Output folder", asked.Output!),
-                .. Questionnaire.Recap(manifest, asked.Options),
-                KeyValuePair.Create("Set up", Recalled(asked.Setup)),
-            ],
-            asked => $"Generate {asked.Name}");
+                string? named = answers.GetValueOrDefault(_nameKey);
+                if (parsed.Output is not null || !questionnaire.Asks || named is null)
+                {
+                    return Reply.Passed(parsed.Output ?? named);
+                }
+
+                return questionnaire.Text("--output", "Output folder", null, Path.Combine(".", named), _ => null);
+            }),
+        ];
+        Question[] after =
+        [
+            SetupQuestion(session),
+            Reviewed(
+                session,
+                given =>
+                [
+                    KeyValuePair.Create("Project name", given.GetValueOrDefault(_nameKey) ?? string.Empty),
+                    KeyValuePair.Create("Output folder", given.GetValueOrDefault(_outputKey) ?? string.Empty),
+                    .. Questionnaire.Recap(manifest, given),
+                    KeyValuePair.Create("Set up", Recalled(Steps(given.GetValueOrDefault(_setupKey)))),
+                ],
+                given => $"Generate {given.GetValueOrDefault(_nameKey)}"),
+        ];
+        Dictionary<string, string> answers = questionnaire.Answer(manifest, parsed.TemplateOptions, _nothing, ProjectAskedWhen, before, after);
+        var asked = new Asked(answers.GetValueOrDefault(_nameKey), answers.GetValueOrDefault(_outputKey), answers, Steps(answers.GetValueOrDefault(_setupKey)));
         string name = asked.Name!;
         string output = asked.Output!;
 

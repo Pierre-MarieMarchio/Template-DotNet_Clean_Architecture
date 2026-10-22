@@ -104,7 +104,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
-    public void ASummaryRefused_AsksAgain_WithThePreviousAnswersAsDefaults()
+    public void ASummaryRefused_GoesBackToTheLastQuestion_WithItsAnswerKept()
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
@@ -115,16 +115,40 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.RightArrow);
-        PushEnters(console, 13);
+        PushEnters(console, 3);
 
         Run(console, "new");
 
         string output = Plain(console);
         Regex.Count(output, "Summary").ShouldBe(2);
+        Regex.Count(output, "◇  Set up the project now\\?\n│  First commit, Bootstrap commit, Copy .env").ShouldBe(2);
+        Regex.Count(output, "◇  Authentication").ShouldBe(1);
         output.ShouldNotContain("◇  Bootstrap done");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--auth external", StringComparison.Ordinal));
         _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
         Closing(output).ShouldContain(ProjectSetup.BootstrapCommand);
+    }
+
+    [Fact]
+    public void GoingBack_ReopensTheLastQuestionAsked_AndWhatFollowsIsOfferedAnew()
+    {
+        TestConsole console = Terminal();
+        console.Input.PushKey(ConsoleKey.Escape);
+        console.Input.PushTextWithEnter("Demo");
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.End);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Escape);
+        console.Input.PushKey(ConsoleKey.Home);
+        PushEnters(console, 10);
+
+        Run(console, "new");
+
+        string output = Plain(console);
+        Order(output, "◇  Authentication\n│  none", "◇  Example features\n│  none ·", "◆  Database", "◇  Authentication\n│  local", "○ notes", "◇  Example features\n│  all");
+        output.ShouldMatch(@"│ Authentication\s+│ local\s+│");
+        output.ShouldMatch(@"│ Example features\s+│ all\s+│");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && !line.Contains("--auth", StringComparison.Ordinal));
     }
 
     [Fact]

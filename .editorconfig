@@ -14,6 +14,12 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 charset = utf-8-bom
+#if (templateMaintenance)
+
+# release-please rewrites the changelog without a BOM.
+[CHANGELOG.md]
+charset = utf-8
+#endif
 
 [*.cs]
 indent_size = 4

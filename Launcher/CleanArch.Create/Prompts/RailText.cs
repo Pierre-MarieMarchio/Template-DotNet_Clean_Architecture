@@ -12,19 +12,22 @@ public sealed class RailText
     private readonly string? _description;
     private readonly string? _defaultValue;
     private readonly Func<string, string?> _problem;
+    private readonly bool _canGoBack;
     private readonly StringBuilder _input = new();
     private string? _error;
+    private bool _back;
     private string _answer = string.Empty;
 
-    public RailText(string label, string? description, string? defaultValue, Func<string, string?> problem)
+    public RailText(string label, string? description, string? defaultValue, bool canGoBack, Func<string, string?> problem)
     {
+        _canGoBack = canGoBack;
         _label = label;
         _description = description;
         _defaultValue = defaultValue;
         _problem = problem;
     }
 
-    public string Show(IAnsiConsole console)
+    public string? Show(IAnsiConsole console)
     {
         LiveDisplay live = console.Live(Render());
         live.AutoClear = true;
@@ -37,11 +40,17 @@ public sealed class RailText
             }
         });
 
-        return _answer;
+        return _back ? null : _answer;
     }
 
     private bool Accepted(ConsoleKeyInfo key)
     {
+        if (_canGoBack && (key.Key == ConsoleKey.Escape || (key.Key == ConsoleKey.Backspace && _input.Length == 0)))
+        {
+            _back = true;
+            return true;
+        }
+
         if (key.Key == ConsoleKey.Enter)
         {
             string value = _input.Length == 0 ? _defaultValue ?? string.Empty : _input.ToString();
@@ -63,6 +72,8 @@ public sealed class RailText
         return false;
     }
 
+    private string Back() => _canGoBack ? RailKeys.Back : string.Empty;
+
     private Rows Render()
     {
         string colour = _error is null ? "cyan" : "yellow";
@@ -81,8 +92,8 @@ public sealed class RailText
         }
 
         lines.Add(Rail.Of(string.IsNullOrEmpty(_defaultValue)
-            ? "[grey]type a value · enter confirms[/]"
-            : $"[grey]type a value · enter keeps {Markup.Escape(_defaultValue)}[/]"));
+            ? $"[grey]type a value · enter confirms{Back()}[/]"
+            : $"[grey]type a value · enter keeps {Markup.Escape(_defaultValue)}{Back()}[/]"));
         lines.Add(Rail.Line(Rail.End, colour, string.Empty));
 
         return new Rows(lines);

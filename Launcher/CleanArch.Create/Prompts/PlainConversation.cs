@@ -18,7 +18,7 @@ public sealed class PlainConversation : Conversation
     {
     }
 
-    public override string Choose(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue)
+    public override string? Choose(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue)
     {
         var selection = new SelectionPrompt<string>()
             .Title(Title(label, description))
@@ -34,7 +34,7 @@ public sealed class PlainConversation : Conversation
         return selected;
     }
 
-    public override IReadOnlyList<string> ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
+    public override IReadOnlyList<string>? ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
     {
         var prompt = new MultiSelectionPrompt<string>()
             .Title($"[bold]{Markup.Escape(label)}[/]")
@@ -51,10 +51,10 @@ public sealed class PlainConversation : Conversation
         return chosen;
     }
 
-    public override bool Confirm(string label, string description, bool defaultValue) =>
+    public override bool? Confirm(string label, string description, bool defaultValue) =>
         _console.Prompt(new ConfirmationPrompt(Title(label, description)) { DefaultValue = defaultValue });
 
-    public override string Text(string label, string? description, string? defaultValue, bool allowEmpty, Func<string, string?> problem)
+    public override string? Text(string label, string? description, string? defaultValue, bool allowEmpty, Func<string, string?> problem)
     {
         var prompt = new TextPrompt<string>(description is null ? Markup.Escape(label) + ":" : Title(label, description))
             .Validate(value => problem(value) is { } refused ? ValidationResult.Error(Markup.Escape(refused)) : ValidationResult.Success());
@@ -78,6 +78,12 @@ public sealed class PlainConversation : Conversation
     public override void Note(string text) => _console.MarkupLine("[grey]" + Markup.Escape(text) + "[/]");
 
     public override bool Review(string subject, IReadOnlyList<KeyValuePair<string, string>> rows) => true;
+
+    public override int Mark() => 0;
+
+    public override void Rewind(int mark)
+    {
+    }
 
     public override void Perform(string running, string done, Action work) => work();
 

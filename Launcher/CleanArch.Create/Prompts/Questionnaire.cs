@@ -25,27 +25,27 @@ public sealed class Questionnaire
             .Where(option => answers.ContainsKey(option.Symbol))
             .Select(option => KeyValuePair.Create(option.Label, Shown(option, answers[option.Symbol])))];
 
-    public string? Text(string flag, string label, string? given, string? defaultValue, Func<string, string?> problem)
+    public Reply Text(string flag, string label, string? given, string? defaultValue, Func<string, string?> problem)
     {
         if (given is not null)
         {
             return problem(given) is { } refused
                 ? throw new LauncherException($"{flag} '{given}': {refused}")
-                : given;
+                : Reply.Passed(given);
         }
 
         if (Asks)
         {
-            return Conversation.Text(label, null, defaultValue, allowEmpty: false, problem);
+            return Conversation.Text(label, null, defaultValue, allowEmpty: false, problem) is { } text ? Reply.Answer(text) : Reply.Backward;
         }
 
         if (_yes && defaultValue is not null)
         {
-            return defaultValue;
+            return Reply.Passed(defaultValue);
         }
 
         _missing.Add(flag);
-        return null;
+        return Reply.Passed(null);
     }
 
     public Dictionary<string, string> Answer(
@@ -53,7 +53,8 @@ public sealed class Questionnaire
         IReadOnlyDictionary<string, string> given,
         IReadOnlyDictionary<string, string> preset,
         IReadOnlyDictionary<string, Condition> askedWhen,
-        IReadOnlyDictionary<string, string>? defaults = null)
+        IReadOnlyList<Question>? before = null,
+        IReadOnlyList<Question>? after = null)
     {
         Dictionary<string, string> answers = Given(manifest, given);
         foreach ((string symbol, string value) in preset)
@@ -61,28 +62,35 @@ public sealed class Questionnaire
             answers.TryAdd(symbol, value);
         }
 
-        foreach (TemplateOption option in manifest.Options.Where(option => !answers.ContainsKey(option.Symbol)).ToList())
+        var remembered = new Dictionary<string, string>(answers, StringComparer.Ordinal);
+        if (Asks && Offer.Unavoidable(manifest, answers, askedWhen) is { Count: > 0 } unavoidable)
         {
-            if (!askedWhen.TryGetValue(option.Symbol, out Condition? when) || manifest.Holds(when, answers))
+            Conversation.Warn(Explanation(unavoidable));
+            foreach (string symbol in unavoidable.SelectMany(refusal => manifest.ParametersBehind(refusal.When)))
             {
-                Fill(manifest, option, answers, askedWhen, defaults?.GetValueOrDefault(option.Symbol) ?? option.DefaultValue);
+                answers.Remove(symbol);
             }
         }
+
+        Interview(
+            [
+                .. before ?? [],
+                .. manifest.Options.Where(option => !answers.ContainsKey(option.Symbol)).Select(option => OptionQuestion(manifest, option, askedWhen)),
+                .. after ?? [],
+            ],
+            answers,
+            remembered);
 
         ThrowIfMissing();
 
         while (manifest.RefusalsFor(answers) is { Count: > 0 } refused)
         {
-            string explanation = string.Join(
-                Environment.NewLine,
-                refused.Select(refusal => $"{refusal.Explanation} (refused by --{refusal.CliName})"));
-
             if (!Asks)
             {
-                throw new LauncherException("These options are refused together:" + Environment.NewLine + explanation);
+                throw new LauncherException("These options are refused together:" + Environment.NewLine + Explanation(refused));
             }
 
-            Conversation.Warn(explanation);
+            Conversation.Warn(Explanation(refused));
 
             var involved = refused.SelectMany(refusal => manifest.ParametersBehind(refusal.When)).ToHashSet(StringComparer.Ordinal);
             var previous = new Dictionary<string, string>(answers, StringComparer.Ordinal);
@@ -95,7 +103,7 @@ public sealed class Questionnaire
             {
                 if (!askedWhen.TryGetValue(option.Symbol, out Condition? when) || manifest.Holds(when, answers))
                 {
-                    Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, previous.GetValueOrDefault(option.Symbol) ?? option.DefaultValue));
+                    Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, previous.GetValueOrDefault(option.Symbol) ?? option.DefaultValue).Value);
                 }
             }
         }
@@ -112,6 +120,9 @@ public sealed class Questionnaire
                 + ". Pass each, or --yes to take the defaults.");
         }
     }
+
+    private static string Explanation(IReadOnlyList<Refusal> refused) =>
+        string.Join(Environment.NewLine, refused.Select(refusal => $"{refusal.Explanation} (refused by --{refusal.CliName})"));
 
     private static Dictionary<string, string> Given(TemplateManifest manifest, IReadOnlyDictionary<string, string> given)
     {
@@ -163,64 +174,6 @@ public sealed class Questionnaire
         }
     }
 
-    private void Fill(
-        TemplateManifest manifest,
-        TemplateOption option,
-        Dictionary<string, string> answers,
-        IReadOnlyDictionary<string, Condition> askedWhen,
-        string? defaultValue)
-    {
-        if (Asks)
-        {
-            Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, defaultValue));
-            return;
-        }
-
-        bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
-        if (_yes && option.DefaultValue is not null)
-        {
-            answers[option.Symbol] = option.DefaultValue;
-        }
-        else if (required || (!_yes && option.DefaultValue is not null))
-        {
-            _missing.Add("--" + option.CliName);
-        }
-    }
-
-    private string? Ask(
-        TemplateManifest manifest,
-        TemplateOption option,
-        Dictionary<string, string> answers,
-        IReadOnlyDictionary<string, Condition> askedWhen,
-        string? defaultValue)
-    {
-        Offer offer = Offer.For(manifest, option, answers, askedWhen);
-        if (offer.Values.Count == 1)
-        {
-            string forced = offer.Values[0];
-            Conversation.Answered(option.Label, Shown(option, forced), string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation)));
-            return forced;
-        }
-
-        switch (option.Kind)
-        {
-            case OptionKind.Choice:
-                return Conversation.Choose(
-                    option.Label,
-                    option.Description,
-                    [.. option.Choices.Where(choice => offer.Values.Contains(choice.Value))],
-                    defaultValue);
-
-            case OptionKind.Bool:
-                return Conversation.Confirm(option.Label, option.Description, Condition.IsTruthy(defaultValue)) ? Condition.True : Condition.False;
-
-            default:
-                bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
-                string text = Conversation.Text(option.Label, option.Description, defaultValue, allowEmpty: !required, value => Problem(option, value, required));
-                return text.Length == 0 ? null : text;
-        }
-    }
-
     private static string Shown(TemplateOption option, string value)
     {
         if (option.Kind != OptionKind.Bool)
@@ -241,5 +194,111 @@ public sealed class Questionnaire
         return option.Kind == OptionKind.WholeNumber && !int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out _)
             ? "A whole number is expected."
             : null;
+    }
+
+    private void Interview(IReadOnlyList<Question> questions, Dictionary<string, string> answers, Dictionary<string, string> remembered)
+    {
+        var asked = new Stack<(int Index, int Mark)>();
+        int index = 0;
+        while (index < questions.Count)
+        {
+            Question question = questions[index];
+            Conversation.CanGoBack = asked.Count > 0;
+            int mark = Conversation.Mark();
+            Reply reply = question.Ask(answers, remembered.GetValueOrDefault(question.Key));
+            if (!reply.Back)
+            {
+                Store(answers, question.Key, reply.Value);
+                if (reply.Asked)
+                {
+                    Store(remembered, question.Key, reply.Value);
+                    asked.Push((index, mark));
+                }
+
+                index++;
+                continue;
+            }
+
+            (int Index, int Mark) previous = asked.TryPop(out (int Index, int Mark) popped) ? popped : (index, mark);
+            Conversation.Rewind(previous.Mark);
+            foreach (Question undone in questions.Skip(previous.Index).Take(index - previous.Index))
+            {
+                answers.Remove(undone.Key);
+            }
+
+            index = previous.Index;
+        }
+
+        Conversation.CanGoBack = false;
+    }
+
+    private Question OptionQuestion(TemplateManifest manifest, TemplateOption option, IReadOnlyDictionary<string, Condition> askedWhen) =>
+        new(option.Symbol, (answers, remembered) =>
+        {
+            if (askedWhen.TryGetValue(option.Symbol, out Condition? when) && !manifest.Holds(when, answers))
+            {
+                return Reply.Passed(null);
+            }
+
+            return Asks
+                ? Ask(manifest, option, answers, askedWhen, remembered ?? option.DefaultValue)
+                : Reply.Passed(Filled(manifest, option, answers));
+        });
+
+    private string? Filled(TemplateManifest manifest, TemplateOption option, IReadOnlyDictionary<string, string> answers)
+    {
+        bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
+        if (_yes && option.DefaultValue is not null)
+        {
+            return option.DefaultValue;
+        }
+
+        if (required || (!_yes && option.DefaultValue is not null))
+        {
+            _missing.Add("--" + option.CliName);
+        }
+
+        return null;
+    }
+
+    private Reply Ask(
+        TemplateManifest manifest,
+        TemplateOption option,
+        IReadOnlyDictionary<string, string> answers,
+        IReadOnlyDictionary<string, Condition> askedWhen,
+        string? defaultValue)
+    {
+        Offer offer = Offer.For(manifest, option, answers, askedWhen);
+        if (offer.Values.Count == 1)
+        {
+            string forced = offer.Values[0];
+            Conversation.Answered(option.Label, Shown(option, forced), string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation)));
+            return Reply.Passed(forced);
+        }
+
+        switch (option.Kind)
+        {
+            case OptionKind.Choice:
+                string? chosen = Conversation.Choose(
+                    option.Label,
+                    option.Description,
+                    [.. option.Choices.Where(choice => offer.Values.Contains(choice.Value))],
+                    defaultValue);
+                return chosen is null ? Reply.Backward : Reply.Answer(chosen);
+
+            case OptionKind.Bool:
+                bool? confirmed = Conversation.Confirm(option.Label, option.Description, Condition.IsTruthy(defaultValue));
+                return confirmed is { } flag ? Reply.Answer(flag ? Condition.True : Condition.False) : Reply.Backward;
+
+            default:
+                bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
+                string? text = Conversation.Text(option.Label, option.Description, defaultValue, allowEmpty: !required, value => Problem(option, value, required));
+                return text switch
+                {
+                    null => Reply.Backward,
+                    { Length: 0 } => Reply.Answer(null),
+                    _ => Reply.Answer(text),
+                };
+        }
     }
 }

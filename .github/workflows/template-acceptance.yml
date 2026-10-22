@@ -549,7 +549,7 @@ jobs:
             exit 1
           fi
           cd Src/Web
-          pnpm install
+          pnpm install --no-frozen-lockfile
           pnpm lint
           pnpm test
           pnpm build

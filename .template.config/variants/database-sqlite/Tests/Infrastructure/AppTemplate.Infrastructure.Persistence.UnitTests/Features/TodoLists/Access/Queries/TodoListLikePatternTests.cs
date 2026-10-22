@@ -39,6 +39,6 @@ public sealed class TodoListLikePatternTests
             .ToQueryString();
 
         sql.ShouldContain("LIKE lower(@pattern) ESCAPE '\\'");
-        sql.ShouldContain("@pattern='%50\\% off\\_thing%'");
+        sql.ShouldContain(".param set @pattern '%50\\% off\\_thing%'");
     }
 }

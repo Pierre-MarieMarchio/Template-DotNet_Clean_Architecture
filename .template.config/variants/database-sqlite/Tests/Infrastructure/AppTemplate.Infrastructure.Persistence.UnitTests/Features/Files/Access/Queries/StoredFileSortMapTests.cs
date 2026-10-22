@@ -51,7 +51,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyOrder(context.StoredFiles, sort).ToQueryString();
 
-        sql.ShouldContain($"ORDER BY s.\"{ColumnOf(field)}\", s.\"Id\"");
+        sql.ShouldContain($"ORDER BY \"f\".\"{ColumnOf(field)}\", \"f\".\"Id\"");
         sql.ShouldNotContain("DESC");
     }
 
@@ -64,7 +64,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyOrder(context.StoredFiles, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY s.\"{ColumnOf(field)}\" DESC, s.\"Id\" DESC");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY \"f\".\"{ColumnOf(field)}\" DESC, \"f\".\"Id\" DESC");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyOrder(context.StoredFiles, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith("ORDER BY s.\"RegisteredAt\" DESC, s.\"Id\" DESC");
+        sql.TrimEnd().ShouldEndWith("ORDER BY \"f\".\"RegisteredAt\" DESC, \"f\".\"Id\" DESC");
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyOrder(context.StoredFiles, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith("ORDER BY s.\"RegisteredAt\", s.\"Name\" DESC, s.\"Id\" DESC");
+        sql.TrimEnd().ShouldEndWith("ORDER BY \"f\".\"RegisteredAt\", \"f\".\"Name\" DESC, \"f\".\"Id\" DESC");
     }
 
     private static string ColumnOf(string field) =>
@@ -111,7 +111,7 @@ public sealed class StoredFileSortMapTests
         string sql = StoredFileSortMap.ApplyKeyset(context.StoredFiles, term, cursor).ToQueryString();
 
         sql.ShouldContain(
-            "WHERE s.\"Name\" > @cursor_Key OR (s.\"Name\" = @cursor_Key AND s.\"Id\" > @cursor_Id)");
+            "WHERE \"f\".\"Name\" > @cursor_Key OR (\"f\".\"Name\" = @cursor_Key AND \"f\".\"Id\" > @cursor_Id)");
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyKeyset(context.StoredFiles, term, cursor).ToQueryString();
 
-        sql.ShouldContain("WHERE s.\"RegisteredAt\" < @key OR (s.\"RegisteredAt\" = @key AND s.\"Id\" < @cursor_Id)");
+        sql.ShouldContain("WHERE \"f\".\"RegisteredAt\" < @key OR (\"f\".\"RegisteredAt\" = @key AND \"f\".\"Id\" < @cursor_Id)");
     }
 
     [Fact]

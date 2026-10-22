@@ -50,7 +50,7 @@ public sealed class TodoListSortMapTests
 
         string sql = TodoListSortMap.ApplyOrder(context.TodoLists, sort).ToQueryString();
 
-        sql.ShouldContain($"ORDER BY t.\"{ColumnOf(field)}\", t.\"Id\"");
+        sql.ShouldContain($"ORDER BY \"t\".\"{ColumnOf(field)}\", \"t\".\"Id\"");
         sql.ShouldNotContain("DESC");
     }
 
@@ -63,7 +63,7 @@ public sealed class TodoListSortMapTests
 
         string sql = TodoListSortMap.ApplyOrder(context.TodoLists, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY t.\"{ColumnOf(field)}\" DESC, t.\"Id\" DESC");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY \"t\".\"{ColumnOf(field)}\" DESC, \"t\".\"Id\" DESC");
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class TodoListSortMapTests
 
         string sql = TodoListSortMap.ApplyOrder(context.TodoLists, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith("ORDER BY t.\"CreatedAt\", t.\"Name\" DESC, t.\"Id\" DESC");
+        sql.TrimEnd().ShouldEndWith("ORDER BY \"t\".\"CreatedAt\", \"t\".\"Name\" DESC, \"t\".\"Id\" DESC");
     }
 
     private static string ColumnOf(string field) =>
@@ -99,7 +99,7 @@ public sealed class TodoListSortMapTests
         string sql = TodoListSortMap.ApplyKeyset(context.TodoLists, term, cursor).ToQueryString();
 
         sql.ShouldContain(
-            "WHERE t.\"Name\" > @cursor_Key OR (t.\"Name\" = @cursor_Key AND t.\"Id\" > @cursor_Id)");
+            "WHERE \"t\".\"Name\" > @cursor_Key OR (\"t\".\"Name\" = @cursor_Key AND \"t\".\"Id\" > @cursor_Id)");
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class TodoListSortMapTests
 
         string sql = TodoListSortMap.ApplyKeyset(context.TodoLists, term, cursor).ToQueryString();
 
-        sql.ShouldContain("WHERE t.\"CreatedAt\" < @key OR (t.\"CreatedAt\" = @key AND t.\"Id\" < @cursor_Id)");
+        sql.ShouldContain("WHERE \"t\".\"CreatedAt\" < @key OR (\"t\".\"CreatedAt\" = @key AND \"t\".\"Id\" < @cursor_Id)");
     }
 
     [Fact]

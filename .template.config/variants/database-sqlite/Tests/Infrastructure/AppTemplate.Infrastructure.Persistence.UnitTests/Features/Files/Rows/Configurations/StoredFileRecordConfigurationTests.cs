@@ -50,10 +50,10 @@ public sealed class StoredFileRecordConfigurationTests
     }
 
     [Fact]
-    public void TheTable_LivesInTheFeaturesOwnSchema()
+    public void TheTable_IsPrefixedWithTheFeaturesOwnSchema()
     {
-        Entity().GetSchema().ShouldBe(AppDbContext.FilesSchema);
-        Entity().GetTableName().ShouldBe("StoredFiles");
+        Entity().GetSchema().ShouldBeNull();
+        Entity().GetTableName().ShouldBe($"{AppDbContext.FilesSchema}_StoredFiles");
     }
 
     [Fact]
@@ -63,8 +63,7 @@ public sealed class StoredFileRecordConfigurationTests
             candidate.Properties.Select(property => property.Name).SequenceEqual(
                 [nameof(StoredFileRecord.OwnerId), nameof(StoredFileRecord.Category), nameof(StoredFileRecord.State)]));
 
-        index.ShouldNotBeNull();
-        index.GetIncludeProperties().ShouldBe([nameof(StoredFileRecord.SizeInBytes)]);
+        index.ShouldNotBeNull("SQLite has no covering index: the key finds the rows, and the size is read from each.");
     }
 
     [Fact]
@@ -79,7 +78,7 @@ public sealed class StoredFileRecordConfigurationTests
     }
 
     [Fact]
-    public void TheOrphanSweepCheckpoint_IsOneRowPerWalkInTheFeaturesOwnSchema()
+    public void TheOrphanSweepCheckpoint_IsOneRowPerWalkPrefixedWithTheFeaturesOwnSchema()
     {
         using var context = new AppDbContext(
             new DbContextOptionsBuilder<AppDbContext>()
@@ -88,8 +87,8 @@ public sealed class StoredFileRecordConfigurationTests
 
         var entity = context.Model.FindEntityType(typeof(ContentSweepCheckpointRecord))!;
 
-        entity.GetSchema().ShouldBe(AppDbContext.FilesSchema);
-        entity.GetTableName().ShouldBe("ContentSweepCheckpoints");
+        entity.GetSchema().ShouldBeNull();
+        entity.GetTableName().ShouldBe($"{AppDbContext.FilesSchema}_ContentSweepCheckpoints");
         entity.FindPrimaryKey()!.Properties.Select(property => property.Name)
             .ShouldBe([nameof(ContentSweepCheckpointRecord.Name)]);
         entity.FindProperty(nameof(ContentSweepCheckpointRecord.LastKey))!.IsNullable.ShouldBeTrue();

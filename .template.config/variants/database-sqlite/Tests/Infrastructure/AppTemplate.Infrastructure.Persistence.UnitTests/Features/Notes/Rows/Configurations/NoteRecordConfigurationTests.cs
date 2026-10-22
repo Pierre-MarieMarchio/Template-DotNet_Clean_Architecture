@@ -43,10 +43,10 @@ public sealed class NoteRecordConfigurationTests
     }
 
     [Fact]
-    public void TheTable_LivesInTheNotesSchema()
+    public void TheTable_IsPrefixedWithTheNotesSchema()
     {
-        Entity().GetTableName().ShouldBe("Notes");
-        Entity().GetSchema().ShouldBe(AppDbContext.NotesSchema);
+        Entity().GetTableName().ShouldBe($"{AppDbContext.NotesSchema}_Notes");
+        Entity().GetSchema().ShouldBeNull();
     }
 
     private static IEntityType Entity()

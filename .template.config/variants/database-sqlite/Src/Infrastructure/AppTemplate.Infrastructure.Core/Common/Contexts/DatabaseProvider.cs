@@ -1,18 +1,27 @@
 ﻿using System.Globalization;
 using System.Linq.Expressions;
 using AppTemplate.Infrastructure.Core.Common.Options;
+using AppTemplate.Infrastructure.Core.Common.Saving.Versioning;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Npgsql;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace AppTemplate.Infrastructure.Core.Common.Contexts;
 
 public static class DatabaseProvider
 {
-    public const string DesignTimeConnectionString =
-        "Host=localhost;Port=5432;Database=appdb;Username=postgres;Password=postgres";
+    public const string DesignTimeConnectionString = "Data Source=App_Data/appdb.db";
 
-    public const string VersionColumnName = "xmin";
+    public const string VersionColumnName = "Version";
+
+    private const int _constraintViolation = 19;
+
+    private const int _uniqueViolation = 2067;
+
+    private const int _primaryKeyViolation = 1555;
+
+    private static readonly VersionStampingSaveChangesInterceptor _versionStamping = new();
 
     public static TBuilder UseDatabase<TBuilder>(
         this TBuilder options,
@@ -22,13 +31,15 @@ public static class DatabaseProvider
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        options.UseNpgsql(connectionString, npgsql =>
+        options.UseSqlite(connectionString, sqlite =>
         {
             if (migrations is not null)
             {
-                npgsql.MigrationsHistoryTable(migrations.HistoryTable, migrations.HistorySchema);
+                sqlite.MigrationsHistoryTable(HistoryTableOf(migrations));
             }
         });
+
+        options.AddInterceptors(SqliteDatabaseFile.Interceptor);
 
         return options;
     }
@@ -44,16 +55,15 @@ public static class DatabaseProvider
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(migrations);
 
-        options.UseNpgsql(
-            new NpgsqlConnectionStringBuilder(connectionString) { MaxPoolSize = database.MaxPoolSize }.ConnectionString,
-            npgsql => npgsql
-                .EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(10),
-                    errorCodesToAdd: null)
+        options.UseSqlite(
+            new SqliteConnectionStringBuilder(connectionString) { DefaultTimeout = database.CommandTimeoutSeconds }.ToString(),
+            sqlite => sqlite
+                .ExecutionStrategy(dependencies => new SqliteBusyRetryStrategy(dependencies))
                 .CommandTimeout(database.CommandTimeoutSeconds)
                 .MigrationsAssembly(migrations.Assembly)
-                .MigrationsHistoryTable(migrations.HistoryTable, migrations.HistorySchema));
+                .MigrationsHistoryTable(HistoryTableOf(migrations)));
+
+        options.AddInterceptors(SqliteDatabaseFile.Interceptor, _versionStamping);
 
         return options;
     }
@@ -61,6 +71,11 @@ public static class DatabaseProvider
     public static ModelConfigurationBuilder ApplyDatabaseConventions(this ModelConfigurationBuilder configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+
+        configuration.Conventions.Add(_ => new SchemaAsTablePrefixConvention());
+
+        configuration.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
+        configuration.Properties<DateTimeOffset?>().HaveConversion<DateTimeOffsetToBinaryConverter>();
 
         return configuration;
     }
@@ -71,8 +86,6 @@ public static class DatabaseProvider
 
         return property
             .HasColumnName(VersionColumnName)
-            .HasColumnType("xid")
-            .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
     }
 
@@ -81,8 +94,9 @@ public static class DatabaseProvider
         Expression<Func<TEntity, object?>> columns)
     {
         ArgumentNullException.ThrowIfNull(index);
+        ArgumentNullException.ThrowIfNull(columns);
 
-        return index.IncludeProperties(columns);
+        return index;
     }
 
     public static IndexBuilder<TEntity> WhereColumnEquals<TEntity>(
@@ -99,9 +113,16 @@ public static class DatabaseProvider
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        return exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+        return exception.InnerException is SqliteException
+        {
+            SqliteErrorCode: _constraintViolation,
+            SqliteExtendedErrorCode: _uniqueViolation or _primaryKeyViolation,
+        };
     }
 
     public static string DedicatedConnectionString(string connectionString) =>
-        new NpgsqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
+        new SqliteConnectionStringBuilder(connectionString) { Pooling = false }.ToString();
+
+    private static string HistoryTableOf(ContextMigrations migrations) =>
+        SchemaAsTablePrefixConvention.TableName(migrations.HistorySchema, migrations.HistoryTable);
 }

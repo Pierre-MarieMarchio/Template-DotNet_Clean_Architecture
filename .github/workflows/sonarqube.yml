@@ -3,15 +3,15 @@ name: SonarQube
 # Static analysis, apart from ci.yml so that a project without Sonar stays green; the build runs under the scanner.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 # Same policy as ci.yml.
 concurrency:
   group: sonarqube-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
 permissions:
   contents: read

@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     environment:
       ACCEPT_EULA: "Y"
+      # Caps the server so a development machine keeps its memory; raise it for real data.
+      MSSQL_MEMORY_LIMIT_MB: "1024"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
     ports:
       # Loopback only, for a client on this machine; remove it for any non-local use.

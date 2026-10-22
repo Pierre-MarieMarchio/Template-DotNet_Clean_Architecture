@@ -12,27 +12,61 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
     private const string _createDatabaseSql =
         "DECLARE @sql nvarchar(max) = N'CREATE DATABASE ' + QUOTENAME(@database); EXEC (@sql);";
 
-    private readonly MsSqlContainer _container = new MsSqlBuilder(Image)
-        .WithPassword("Apptemplate_tests_1")
-        .Build();
+    // One server per test assembly, each instance getting its own database: a SQL Server container takes about 2 GB of memory.
+    private static readonly SemaphoreSlim _startGate = new(1, 1);
+
+    private static MsSqlContainer? _container;
+
+    private readonly string _database = $"{database}_{Guid.NewGuid():N}";
 
     public string ConnectionString =>
-        new SqlConnectionStringBuilder(_container.GetConnectionString()) { InitialCatalog = database }.ConnectionString;
+        new SqlConnectionStringBuilder(Container.GetConnectionString()) { InitialCatalog = _database }.ConnectionString;
+
+    private static MsSqlContainer Container =>
+        _container ?? throw new InvalidOperationException($"{nameof(StartAsync)} has not been called.");
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _container.StartAsync(cancellationToken);
+        await StartContainerAsync(cancellationToken);
 
-        await using var connection = new SqlConnection(_container.GetConnectionString());
+        await using var connection = new SqlConnection(Container.GetConnectionString());
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand(_createDatabaseSql, connection);
-        command.Parameters.Add("@database", SqlDbType.NVarChar, 128).Value = database;
+        command.Parameters.Add("@database", SqlDbType.NVarChar, 128).Value = _database;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    internal static string Table(string schema, string table) => $"[{schema}].[{table}]";
 
     internal static Exception TransientFault() =>
         new TimeoutException("Injected: the connection was lost.");
+
+    private static async Task StartContainerAsync(CancellationToken cancellationToken)
+    {
+        await _startGate.WaitAsync(cancellationToken);
+
+        try
+        {
+            if (_container is not null)
+            {
+                return;
+            }
+
+            var container = new MsSqlBuilder(Image)
+                .WithPassword("Apptemplate_tests_1")
+                .WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "1024")
+                .Build();
+
+            await container.StartAsync(cancellationToken);
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => container.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _container = container;
+        }
+        finally
+        {
+            _startGate.Release();
+        }
+    }
 }

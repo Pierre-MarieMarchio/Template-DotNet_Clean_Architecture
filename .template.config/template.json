@@ -617,6 +617,13 @@
           ]
         },
         {
+          "condition": "(sqlServer)",
+          "exclude": [
+            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs"
+          ]
+        },
+        {
           "condition": "(tablePrefixes)",
           "exclude": [
             "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs",
@@ -624,7 +631,7 @@
           ]
         },
         {
-          "condition": "(sqlite)",
+          "condition": "(sqlite || sqlServer)",
           "exclude": [
             "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileLikePatternTests.cs",
             "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileSortMapTests.cs",

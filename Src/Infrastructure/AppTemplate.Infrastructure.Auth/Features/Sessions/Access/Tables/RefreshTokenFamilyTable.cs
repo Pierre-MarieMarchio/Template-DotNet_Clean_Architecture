@@ -120,9 +120,7 @@ internal sealed class RefreshTokenFamilyTable(AuthDbContext context) : IRefreshT
             .ExecuteDeleteAsync(cancellationToken);
 
     private static string? Shorten(string? userAgent) =>
-        userAgent is null
-            ? null
-            : userAgent.Length <= RefreshTokenFamilyConfiguration.UserAgentLength
-                ? userAgent
-                : userAgent[..RefreshTokenFamilyConfiguration.UserAgentLength];
+        userAgent is null || userAgent.Length <= RefreshTokenFamilyConfiguration.UserAgentLength
+            ? userAgent
+            : userAgent[..RefreshTokenFamilyConfiguration.UserAgentLength];
 }

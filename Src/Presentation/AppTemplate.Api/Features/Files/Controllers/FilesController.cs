@@ -215,6 +215,7 @@ public sealed class FilesController(
         return NoContentOrProblem(result);
     }
 
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
     private sealed class ApiUploadBodyLimitAttribute : RequestBodyLimitAttribute
     {
         private const long _framingBytes = 16 * 1024;

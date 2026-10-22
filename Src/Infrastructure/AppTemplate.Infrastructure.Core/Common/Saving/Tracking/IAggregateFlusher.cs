@@ -2,10 +2,8 @@
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
 
-public interface IAggregateFlusher
+public interface IAggregateFlusher : IStagedOnContext
 {
-    bool IsStagedOn(DbContext context);
-
     void FlushTo(DbContext context);
 
     void RefreshFromStore();

@@ -228,6 +228,28 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
+    [InlineData("(!webReact && !webAngular)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData("(webReact || webAngular)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData("(webReact || webAngular)", "Src/Web/apps")]
+    public void Generation_PrintsTheBootstrapInstruction(string condition, string named)
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var instructions = manifest.RootElement.TryGetProperty("postActions", out var actions)
+            ? actions.EnumerateArray()
+                .Where(action => action.GetProperty("actionId").GetString() == "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C")
+                .SelectMany(action => action.GetProperty("manualInstructions").EnumerateArray())
+                .Where(instruction => instruction.TryGetProperty("condition", out var when) && when.GetString() == condition)
+                .Select(instruction => instruction.GetProperty("text").GetString()!)
+                .ToList()
+            : [];
+
+        instructions.ShouldContain(
+            text => text.Contains(named, StringComparison.Ordinal),
+            $"dotnet new prints no manual instruction naming '{named}' when {condition}, so a project is generated without "
+            + "saying that bootstrap must run, and a react or angular app stays a scaffold.json nobody creates.");
+    }
+
+    [Theory]
     [InlineData(".template.config")]
     [InlineData(".template.config/webapp/.template.config")]
     [InlineData(".template.config/webpackage/.template.config")]

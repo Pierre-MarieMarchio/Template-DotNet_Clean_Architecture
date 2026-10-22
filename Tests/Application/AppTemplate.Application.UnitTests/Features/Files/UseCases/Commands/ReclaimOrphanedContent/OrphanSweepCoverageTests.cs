@@ -119,6 +119,5 @@ public sealed class OrphanSweepCoverageTests
         _checkpoint,
         new StubLeaderLease(),
         NullLogger<ReclaimOrphanedContentUseCase>.Instance,
-        _pageSize,
-        _maxPagesPerPass);
+        new ReclaimOrphanedContentUseCase.SweepBudget(_pageSize, _maxPagesPerPass));
 }

@@ -30,12 +30,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    # Skipped while the SONAR_ORGANIZATION and SONAR_PROJECT_KEY repository variables are unset, and for a fork's pull request, which gets no secret.
+    # Skipped while the SONAR_ORGANIZATION and SONAR_PROJECT_KEY repository variables are unset, for a fork's pull request, which gets no secret, and for a push to a branch other than the default one, which SonarCloud's free plan does not analyse.
     if: >-
       vars.SONAR_ORGANIZATION != ''
       && vars.SONAR_PROJECT_KEY != ''
       && (github.event_name != 'pull_request'
           || github.event.pull_request.head.repo.full_name == github.repository)
+      && (github.event_name != 'push'
+          || github.ref_name == github.event.repository.default_branch)
 
     env:
       SONAR_HOST_URL: https://sonarcloud.io

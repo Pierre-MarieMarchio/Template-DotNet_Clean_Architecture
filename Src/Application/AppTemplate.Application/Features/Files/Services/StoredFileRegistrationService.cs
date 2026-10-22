@@ -82,4 +82,13 @@ internal sealed class StoredFileRegistrationService(
             return Result.Failure<StoredFile>(StoredFileErrors.QuotaBusy(category.Value));
         }
     }
+
+    public async Task WithdrawAsync(StoredFile storedFile, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(storedFile);
+
+        storedFile.Delete(dateTimeProvider.UtcNow);
+        repository.Remove(storedFile);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
 }

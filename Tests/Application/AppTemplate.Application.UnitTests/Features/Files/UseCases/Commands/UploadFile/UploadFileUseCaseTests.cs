@@ -393,10 +393,7 @@ public sealed class UploadFileUseCaseTests
             _files.AsOptions()),
         new StoredFileDepositService(_content, _unitOfWork),
         _content,
-        _repository,
-        _unitOfWork,
         currentUser,
-        new StubDateTimeProvider(),
         _files.AsOptions(),
         new UploadFileCommandValidator(_files.AsOptions()),
         _logger);

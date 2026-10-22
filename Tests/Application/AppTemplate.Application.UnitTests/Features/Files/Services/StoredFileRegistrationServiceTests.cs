@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Files.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.Events;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
 using NSubstitute;
@@ -156,6 +157,18 @@ public sealed class StoredFileRegistrationServiceTests
                 AStoredFile.SizeInBytes,
                 AStoredFile.Checksum,
                 TestToken));
+
+    [Fact]
+    public async Task Withdraw_DeletesTheFileRemovesItAndCommits()
+    {
+        var storedFile = AStoredFile.PendingOwnedBy(_ownerId);
+
+        await Service(new RecordingOwnerQuotaLock()).WithdrawAsync(storedFile, TestToken);
+
+        storedFile.DomainEvents.OfType<StoredFileDeletedDomainEvent>().ShouldHaveSingleItem();
+        _repository.Received(1).Remove(storedFile);
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
 
     private static void Record(List<string> steps, RecordingOwnerQuotaLock quotaLock, string step)
     {

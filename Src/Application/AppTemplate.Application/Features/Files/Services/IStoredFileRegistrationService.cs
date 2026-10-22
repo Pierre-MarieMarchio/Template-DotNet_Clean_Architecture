@@ -15,4 +15,6 @@ public interface IStoredFileRegistrationService
         long sizeInBytes,
         string checksum,
         CancellationToken cancellationToken = default);
+
+    Task WithdrawAsync(StoredFile storedFile, CancellationToken cancellationToken = default);
 }

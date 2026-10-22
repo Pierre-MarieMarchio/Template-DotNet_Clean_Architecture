@@ -23,10 +23,9 @@
               </Exclude>
             </Sources>
 
-            <!-- Compiler-synthesised members, and the explicit opt-out. -->
+            <!-- The explicit opt-out only: compiler-generated types hold every async, iterator and lambda body. -->
             <Attributes>
               <Exclude>
-                <Attribute>^System\.Runtime\.CompilerServices\.CompilerGeneratedAttribute$</Attribute>
                 <Attribute>^System\.Diagnostics\.CodeAnalysis\.ExcludeFromCodeCoverageAttribute$</Attribute>
               </Exclude>
             </Attributes>

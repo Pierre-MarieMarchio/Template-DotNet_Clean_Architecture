@@ -1,2 +1,2 @@
 # Line-coverage floor in percent, read by CI and Tools/Tasks.cs: set a few points under a Debug measurement with Docker present.
-90
+89

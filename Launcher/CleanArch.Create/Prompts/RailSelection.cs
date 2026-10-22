@@ -10,12 +10,14 @@ public sealed class RailSelection
     private readonly string _description;
     private readonly IReadOnlyList<OptionChoice> _choices;
     private readonly bool _inline;
+    private readonly bool _canGoBack;
     private readonly Func<string, string?> _accent;
     private readonly int _default;
     private int _index;
 
-    public RailSelection(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue, bool inline, Func<string, string?> accent)
+    public RailSelection(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue, bool inline, bool canGoBack, Func<string, string?> accent)
     {
+        _canGoBack = canGoBack;
         _label = label;
         _description = description;
         _choices = choices;
@@ -25,22 +27,32 @@ public sealed class RailSelection
         _index = _default;
     }
 
-    public string Show(IAnsiConsole console)
+    public string? Show(IAnsiConsole console)
     {
+        string? answer = null;
         LiveDisplay live = console.Live(Render());
         live.AutoClear = true;
         live.Start(context =>
         {
             context.Refresh();
-            for (ConsoleKeyInfo key = RailKeys.Read(console); key.Key != ConsoleKey.Enter; key = RailKeys.Read(console))
+            for (ConsoleKeyInfo key = RailKeys.Read(console); !Backs(key); key = RailKeys.Read(console))
             {
+                if (key.Key == ConsoleKey.Enter)
+                {
+                    answer = _choices[_index].Value;
+                    return;
+                }
+
                 _index = Moved(key);
                 context.UpdateTarget(Render());
             }
         });
 
-        return _choices[_index].Value;
+        return answer;
     }
+
+    private bool Backs(ConsoleKeyInfo key) =>
+        _canGoBack && (key.Key == ConsoleKey.Escape || (!_inline && key.Key == ConsoleKey.LeftArrow));
 
     private int Moved(ConsoleKeyInfo key) => key.Key switch
     {
@@ -75,8 +87,8 @@ public sealed class RailSelection
 
     private string Hint() =>
         _inline
-            ? $"{string.Join('/', _choices.Select(choice => char.ToLowerInvariant(choice.Value[0])))} · enter = {_choices[_default].Value}"
-            : "↑/↓ move · enter select · first letter jumps";
+            ? $"{string.Join('/', _choices.Select(choice => char.ToLowerInvariant(choice.Value[0])))} · enter = {_choices[_default].Value}{(_canGoBack ? RailKeys.Back : string.Empty)}"
+            : "↑/↓ move · enter select · first letter jumps" + (_canGoBack ? RailKeys.BackOrLeft : string.Empty);
 
     private Markup Inline() =>
         new(string.Join(" [grey]/[/] ", _choices.Select((choice, index) => Marker(index) + " " + Value(choice.Value, index))));

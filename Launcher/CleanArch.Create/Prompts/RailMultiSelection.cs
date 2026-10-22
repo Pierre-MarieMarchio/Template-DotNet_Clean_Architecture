@@ -9,17 +9,20 @@ public sealed class RailMultiSelection
     private readonly string _label;
     private readonly IReadOnlyList<OptionChoice> _choices;
     private readonly bool[] _checked;
+    private readonly bool _canGoBack;
     private int _index;
 
-    public RailMultiSelection(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
+    public RailMultiSelection(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected, bool canGoBack)
     {
+        _canGoBack = canGoBack;
         _label = label;
         _choices = choices;
         _checked = [.. choices.Select(choice => selected.Contains(choice.Value))];
     }
 
-    public IReadOnlyList<string> Show(IAnsiConsole console)
+    public IReadOnlyList<string>? Show(IAnsiConsole console)
     {
+        bool back = false;
         LiveDisplay live = console.Live(Render());
         live.AutoClear = true;
         live.Start(context =>
@@ -27,12 +30,18 @@ public sealed class RailMultiSelection
             context.Refresh();
             for (ConsoleKeyInfo key = RailKeys.Read(console); key.Key != ConsoleKey.Enter; key = RailKeys.Read(console))
             {
+                if (_canGoBack && key.Key is ConsoleKey.Escape or ConsoleKey.LeftArrow)
+                {
+                    back = true;
+                    return;
+                }
+
                 Handle(key);
                 context.UpdateTarget(Render());
             }
         });
 
-        return [.. _choices.Where((_, index) => _checked[index]).Select(choice => choice.Value)];
+        return back ? null : [.. _choices.Where((_, index) => _checked[index]).Select(choice => choice.Value)];
     }
 
     private void Handle(ConsoleKeyInfo key)
@@ -76,7 +85,7 @@ public sealed class RailMultiSelection
         [
             Rail.Line(Rail.Asking, "cyan", $"[bold]{Markup.Escape(_label)}[/]"),
             new Rail(grid),
-            Rail.Of("[grey]↑/↓ move · space toggle · a all · enter confirm[/]"),
+            Rail.Of($"[grey]↑/↓ move · space toggle · a all · enter confirm{(_canGoBack ? RailKeys.BackOrLeft : string.Empty)}[/]"),
             Rail.Line(Rail.End, "cyan", string.Empty),
         ];
 

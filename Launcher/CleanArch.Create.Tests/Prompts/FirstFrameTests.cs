@@ -23,7 +23,7 @@ public sealed partial class FirstFrameTests
     [Fact]
     public void ASelection_ShowsEveryChoice_TheDefaultSelected_AndItsKeys_BeforeAnyKey()
     {
-        Unanswered(() => new RailSelection("Database", "The database.", _databases, "sqlserver", inline: false, _ => null).Show(_console));
+        Unanswered(() => new RailSelection("Database", "The database.", _databases, "sqlserver", inline: false, canGoBack: false, _ => null).Show(_console));
 
         string frame = Plain(_console);
         frame.ShouldContain("◆  Database");
@@ -36,7 +36,7 @@ public sealed partial class FirstFrameTests
     [Fact]
     public void AYesNo_ShowsBothAnswers_AndItsDefault_BeforeAnyKey()
     {
-        Unanswered(() => new RailSelection("Files module", string.Empty, [new(Conversation.Yes, string.Empty), new(Conversation.No, string.Empty)], Conversation.No, inline: true, _ => null).Show(_console));
+        Unanswered(() => new RailSelection("Files module", string.Empty, [new(Conversation.Yes, string.Empty), new(Conversation.No, string.Empty)], Conversation.No, inline: true, canGoBack: false, _ => null).Show(_console));
 
         string frame = Plain(_console);
         frame.ShouldContain("○ Yes / ● No");
@@ -46,7 +46,7 @@ public sealed partial class FirstFrameTests
     [Fact]
     public void AMultiSelection_ShowsEveryStep_Checked_AndItsKeys_BeforeAnyKey()
     {
-        Unanswered(() => new RailMultiSelection("Set up the project now?", _databases, [.. _databases.Select(choice => choice.Value)]).Show(_console));
+        Unanswered(() => new RailMultiSelection("Set up the project now?", _databases, [.. _databases.Select(choice => choice.Value)], canGoBack: false).Show(_console));
 
         string frame = Plain(_console);
         frame.ShouldContain("◼ postgresql");
@@ -57,7 +57,7 @@ public sealed partial class FirstFrameTests
     [Fact]
     public void AText_ShowsItsDefault_AndItsKeys_BeforeAnyKey()
     {
-        Unanswered(() => new RailText("Web app name", null, "Site", _ => null).Show(_console));
+        Unanswered(() => new RailText("Web app name", null, "Site", canGoBack: false, _ => null).Show(_console));
 
         string frame = Plain(_console);
         frame.ShouldContain("◆  Web app name");

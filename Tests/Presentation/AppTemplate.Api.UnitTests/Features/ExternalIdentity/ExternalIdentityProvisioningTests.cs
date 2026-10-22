@@ -24,6 +24,13 @@ namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity;
 public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
 {
     private const string _issuer = "https://idp.example.com/realms/app";
+    /*#if (tablePrefixes)
+    private const string _identitiesTable = "\"external_identity_ExternalIdentities\"";
+    private const string _rolesTable = "\"external_identity_RoleAssignments\"";
+    #else*/
+    private const string _identitiesTable = "\"ExternalIdentities\"";
+    private const string _rolesTable = "\"RoleAssignments\"";
+    /*#endif*/
 
     private readonly SettableClock _clock = new();
     private readonly RecordingPublisher _published = new();
@@ -221,7 +228,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     {
         var owner = await ResolveAsync(Caller("subject-1"));
         await ExecuteAsync(
-            $"INSERT INTO \"RoleAssignments\" (\"UserId\", \"Role\") VALUES ('{owner.Value.ToString().ToUpperInvariant()}', 'Reader'), ('{owner.Value.ToString().ToUpperInvariant()}', 'Admin')");
+            $"INSERT INTO {_rolesTable} (\"UserId\", \"Role\") VALUES ('{owner.Value.ToString().ToUpperInvariant()}', 'Reader'), ('{owner.Value.ToString().ToUpperInvariant()}', 'Admin')");
 
         await using var scope = _services.CreateAsyncScope();
         var roles = await scope.ServiceProvider.GetRequiredService<IExternalIdentityService>()
@@ -257,7 +264,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     {
         var owner = await ResolveAsync(Caller("subject-1", "a@example.com", "Ada"));
         await ExecuteAsync(
-            $"INSERT INTO \"RoleAssignments\" (\"UserId\", \"Role\") VALUES ('{owner.Value.ToString().ToUpperInvariant()}', 'Admin')");
+            $"INSERT INTO {_rolesTable} (\"UserId\", \"Role\") VALUES ('{owner.Value.ToString().ToUpperInvariant()}', 'Admin')");
 
         await using var scope = _services.CreateAsyncScope();
         var deletion = await scope.ServiceProvider.GetRequiredService<IExternalIdentityService>()
@@ -323,7 +330,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     {
         await using var command = _keeper.CreateCommand();
         command.CommandText =
-            "SELECT \"UserId\", \"Email\", \"DisplayName\", \"LastSeenAt\" FROM \"ExternalIdentities\"";
+            $"SELECT \"UserId\", \"Email\", \"DisplayName\", \"LastSeenAt\" FROM {_identitiesTable}";
 
         await using var reader = await command.ExecuteReaderAsync(TestToken);
         List<Row> rows = [];
@@ -334,7 +341,11 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
                 reader.GetGuid(0),
                 await reader.IsDBNullAsync(1, TestToken) ? null : reader.GetString(1),
                 await reader.IsDBNullAsync(2, TestToken) ? null : reader.GetString(2),
+                /*#if (sqlite)
+                (DateTimeOffset)new Microsoft.EntityFrameworkCore.Storage.ValueConversion.DateTimeOffsetToBinaryConverter().ConvertFromProvider(reader.GetInt64(3))!));
+                #else*/
                 reader.GetFieldValue<DateTimeOffset>(3)));
+                /*#endif*/
         }
 
         return rows;

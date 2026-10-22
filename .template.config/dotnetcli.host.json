@@ -29,11 +29,6 @@
       "shortName": "",
       "isHidden": true
     },
-    "sqliteNotYetGenerated": {
-      "longName": "sqlite-not-yet-generated",
-      "shortName": "",
-      "isHidden": true
-    },
     "webName": {
       "longName": "web-name",
       "shortName": ""

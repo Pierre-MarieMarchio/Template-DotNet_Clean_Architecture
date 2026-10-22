@@ -107,7 +107,7 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
         manifest.Refusals.Select(refusal => refusal.CliName).Order(StringComparer.Ordinal).ShouldBe(
-            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "my-sql-not-yet-generated", "sql-server-not-yet-generated", "sqlite-not-yet-generated"]);
+            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "my-sql-not-yet-generated", "sql-server-not-yet-generated"]);
     }
 
     [Fact]

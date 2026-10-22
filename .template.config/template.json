@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"sqlserver\" || database == \"mysql\" || database == \"sqlite\")"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"sqlserver\" || database == \"mysql\")"
     },
     "database": {
       "type": "parameter",
@@ -133,18 +133,6 @@
       ],
       "isRequired": "(database == \"mysql\")",
       "description": "Never set. This version of the template does not generate --database mysql yet: choose --database postgresql."
-    },
-    "sqliteNotYetGenerated": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        {
-          "choice": "refused",
-          "description": "Not an option to set: it names the refusal."
-        }
-      ],
-      "isRequired": "(database == \"sqlite\")",
-      "description": "Never set. This version of the template does not generate --database sqlite yet: choose --database postgresql."
     },
     "postgreSql": {
       "type": "computed",
@@ -608,6 +596,12 @@
           ]
         },
         {
+          "condition": "(!sqlite)",
+          "exclude": [
+            "docs/decisions/0021-sqlite-is-a-development-database.md"
+          ]
+        },
+        {
           "condition": "(!versionCounter)",
           "exclude": [
             "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/Versioning/**",
@@ -879,6 +873,32 @@
       "source": "./.template.config/variants/web-PlaceholderSite/",
       "target": "./",
       "condition": "(webPlaceholder)"
+    },
+    {
+      "source": "./.template.config/variants/database-sqlite/",
+      "target": "./",
+      "condition": "(sqlite)",
+      "modifiers": [
+        {
+          "condition": "(!files)",
+          "exclude": [
+            "Src/**/Features/Files/**",
+            "Tests/**/Features/Files/**"
+          ]
+        },
+        {
+          "condition": "(!todoLists)",
+          "exclude": [
+            "Tests/**/Features/TodoLists/**"
+          ]
+        },
+        {
+          "condition": "(!notes)",
+          "exclude": [
+            "Tests/**/Features/Notes/**"
+          ]
+        }
+      ]
     },
     {
       "source": "./.template.config/variants/refused/",

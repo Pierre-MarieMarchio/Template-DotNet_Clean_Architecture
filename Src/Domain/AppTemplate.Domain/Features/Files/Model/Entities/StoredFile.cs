@@ -22,10 +22,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         UserId ownerId,
         FileCategory category,
         ObjectKey objectKey,
-        StoredFileName name,
-        DeclaredMediaType declaredMediaType,
-        FileSize size,
-        Sha256Checksum checksum,
+        StoredFileDeclaration declaration,
         DateTimeOffset registeredAt)
         : base(id)
     {
@@ -37,10 +34,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         ArgumentNullException.ThrowIfNull(ownerId);
         ArgumentNullException.ThrowIfNull(category);
         ArgumentNullException.ThrowIfNull(objectKey);
-        ArgumentNullException.ThrowIfNull(name);
-        ArgumentNullException.ThrowIfNull(declaredMediaType);
-        ArgumentNullException.ThrowIfNull(size);
-        ArgumentNullException.ThrowIfNull(checksum);
+        ArgumentNullException.ThrowIfNull(declaration);
 
         if (registeredAt == default)
         {
@@ -50,10 +44,10 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         OwnerId = ownerId;
         Category = category;
         ObjectKey = objectKey;
-        Name = name;
-        DeclaredMediaType = declaredMediaType;
-        Size = size;
-        Checksum = checksum;
+        Name = declaration.Name;
+        DeclaredMediaType = declaration.MediaType;
+        Size = declaration.Size;
+        Checksum = declaration.Checksum;
         RegisteredAt = registeredAt;
     }
 
@@ -86,21 +80,9 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
     public static StoredFile Register(
         UserId ownerId,
         FileCategory category,
-        StoredFileName name,
-        DeclaredMediaType declaredMediaType,
-        FileSize size,
-        Sha256Checksum checksum,
+        StoredFileDeclaration declaration,
         DateTimeOffset now) =>
-        new(
-            Guid.CreateVersion7(),
-            ownerId,
-            category,
-            ObjectKey.New(now),
-            name,
-            declaredMediaType,
-            size,
-            checksum,
-            now);
+        new(Guid.CreateVersion7(), ownerId, category, ObjectKey.New(now), declaration, now);
 
     public static StoredFile Rehydrate(StoredFileSnapshot stored)
     {
@@ -130,10 +112,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
             stored.OwnerId,
             stored.Category,
             stored.ObjectKey,
-            stored.Name,
-            stored.DeclaredMediaType,
-            stored.Size,
-            stored.Checksum,
+            StoredFileDeclaration.Create(stored.Name, stored.DeclaredMediaType, stored.Size, stored.Checksum),
             stored.RegisteredAt)
         {
             State = stored.State,

@@ -28,10 +28,11 @@ internal static class AStoredFile
         StoredFile.Register(
             ownerId,
             FileCategory.Create(category),
-            StoredFileName.Create(name),
-            DeclaredMediaType.Create(MediaType),
-            FileSize.Create(sizeInBytes),
-            Sha256Checksum.Create(checksum),
+            StoredFileDeclaration.Create(
+                StoredFileName.Create(name),
+                DeclaredMediaType.Create(MediaType),
+                FileSize.Create(sizeInBytes),
+                Sha256Checksum.Create(checksum)),
             registeredAt ?? StubDateTimeProvider.DefaultInstant);
 
     internal static StoredFile PendingOwnedBySomebodyElseThan(UserId notThisUserId) =>
@@ -72,10 +73,11 @@ internal static class AStoredFile
         var storedFile = StoredFile.Register(
             ownerId,
             FileCategory.Create(category),
-            StoredFileName.Create("holiday.png"),
-            DeclaredMediaType.Create(mediaType),
-            FileSize.Create(SizeInBytes),
-            Sha256Checksum.Create(Checksum),
+            StoredFileDeclaration.Create(
+                StoredFileName.Create("holiday.png"),
+                DeclaredMediaType.Create(mediaType),
+                FileSize.Create(SizeInBytes),
+                Sha256Checksum.Create(Checksum)),
             registeredAt ?? StubDateTimeProvider.DefaultInstant);
 
         storedFile.ConfirmDeposit(FileSize.Create(SizeInBytes), Sha256Checksum.Create(Checksum));

@@ -64,6 +64,12 @@ EXPOSE 8080
 
 WORKDIR /app
 COPY --from=build /app/publish .
+#if (sqlServer)
+
+# SqlClient needs ICU, which the alpine image leaves out and turns off.
+RUN apk add --no-cache icu-libs
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+#endif
 #if (sqlite)
 
 # The SQLite file's folder, which the db-data volume mounts, owned by the user the API runs as.

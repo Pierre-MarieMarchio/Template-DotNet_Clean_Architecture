@@ -117,6 +117,14 @@ jobs:
         with:
           driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
 
+      # Docker refuses an image name with capitals, and an app's folder is PascalCase.
+      - name: Name the image
+        id: image
+        env:
+          APP: ${{ matrix.app }}
+          SHA: ${{ github.sha }}
+        run: echo "name=web-${APP,,}:ci-${SHA}" >> "$GITHUB_OUTPUT"
+
       # The workspace is the context, so an image holds its app and the packages it uses.
       - name: Build the image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -126,13 +134,13 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: web-${{ matrix.app }}:ci-${{ github.sha }}
+          tags: ${{ steps.image.outputs.name }}
           cache-from: type=gha,scope=web-${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=web-${{ matrix.app }}
 
       - name: Assert image runs unprivileged and exposes only 8080
         env:
-          IMAGE: web-${{ matrix.app }}:ci-${{ github.sha }}
+          IMAGE: ${{ steps.image.outputs.name }}
         run: |
           set -euo pipefail
           user=$(docker image inspect "$IMAGE" --format '{{.Config.User}}')

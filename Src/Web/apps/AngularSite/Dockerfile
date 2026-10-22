@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
 # Built from Src/Web once web-scaffold has created the app: docker build -f apps/AngularSite/Dockerfile Src/Web
-FROM node:24.18.0-alpine3.24@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS build
+FROM node:26.12.0-alpine3.24@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS build
 
 ENV CI=true \
     NG_CLI_ANALYTICS=false \
@@ -16,7 +16,7 @@ COPY . .
 RUN pnpm install --offline --frozen-lockfile --filter angular-site... \
     && pnpm --filter angular-site build
 
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03 AS runtime
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS runtime
 
 ENV API_UPSTREAM=http://api:8080 \
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1

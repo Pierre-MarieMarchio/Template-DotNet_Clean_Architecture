@@ -925,7 +925,8 @@ internal static class Tasks
             {
                 throw new InvalidOperationException(
                     $"{error.Message} Creating Src/Web/apps/{app} runs {cli}, the framework's official CLI, which pnpm fetches "
-                    + "from the npm registry, so this step needs the network; the output above says what failed. The app's folder "
+                    + "from the npm registry, so this step needs Node.js, pnpm (`corepack enable` once) and the network; the output "
+                    + "above says what failed. The app's folder "
                     + $"is unchanged: run `dotnet run Tools/Tasks.cs web-scaffold {app}` again once the cause is fixed.");
             }
 

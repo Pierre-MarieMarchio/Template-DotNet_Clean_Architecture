@@ -1,0 +1,60 @@
+﻿using AppTemplate.Application.Features.Notes.Model.Policies;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
+using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Infrastructure.Persistence.Features.Notes.Rows.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Infrastructure.Persistence.UnitTests.Features.Notes.Rows.Configurations;
+
+public sealed class NoteRecordConfigurationTests
+{
+    [Fact]
+    public void TheVersion_IsTheDatabasesOwnConcurrencyToken()
+    {
+        var version = Entity().FindProperty(nameof(NoteRecord.Version))!;
+
+        version.IsConcurrencyToken.ShouldBeTrue();
+        version.GetColumnName().ShouldBe(DatabaseProvider.VersionColumnName);
+    }
+
+    [Theory]
+    [InlineData(nameof(NoteRecord.Title), NoteInputPolicy.TitleMaxLength)]
+    [InlineData(nameof(NoteRecord.Body), NoteInputPolicy.BodyMaxLength)]
+    public void EveryTextColumn_IsAsLongAsTheValidatorAllows(string property, int expected) =>
+        Entity().FindProperty(property)!.GetMaxLength().ShouldBe(expected);
+
+    [Fact]
+    public void EverySortIndex_LeadsWithTheOwner_AndEndsWithTheId()
+    {
+        var indexes = Entity().GetIndexes().ToList();
+
+        indexes.Count.ShouldBe(NoteCollectionPolicy.Instance.SortableFields.Count);
+
+        foreach (var index in indexes)
+        {
+            var names = index.Properties.Select(property => property.Name).ToList();
+
+            names[0].ShouldBe(nameof(NoteRecord.OwnerId));
+            names[^1].ShouldBe(nameof(NoteRecord.Id));
+        }
+    }
+
+    [Fact]
+    public void TheTable_LivesInTheNotesSchema()
+    {
+        Entity().GetTableName().ShouldBe("Notes");
+        Entity().GetSchema().ShouldBe(AppDbContext.NotesSchema);
+    }
+
+    private static IEntityType Entity()
+    {
+        using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
+            .Options);
+
+        return context.Model.FindEntityType(typeof(NoteRecord))!;
+    }
+}

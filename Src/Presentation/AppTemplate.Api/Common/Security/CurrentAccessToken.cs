@@ -12,7 +12,7 @@ internal sealed class CurrentAccessToken(IHttpContextAccessor httpContextAccesso
         {
             string? issuedAt = httpContextAccessor.HttpContext?.User.FindFirstValue("iat");
 
-            return long.TryParse(issuedAt, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds)
+            return long.TryParse(issuedAt, NumberStyles.Integer, CultureInfo.InvariantCulture, out long seconds)
                 ? DateTimeOffset.FromUnixTimeSeconds(seconds)
                 : null;
         }

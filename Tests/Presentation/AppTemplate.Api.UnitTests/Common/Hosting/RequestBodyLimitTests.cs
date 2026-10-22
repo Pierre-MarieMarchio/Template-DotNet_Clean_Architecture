@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 using Shouldly;
 using Xunit;
@@ -145,8 +144,8 @@ public sealed class RequestBodyLimitTests
     private static ResourceExecutingContext AResourceContext(HttpContext httpContext) =>
         new(
             new ActionContext(httpContext, new RouteData(), new ActionDescriptor()),
-            new List<IFilterMetadata>(),
-            new List<IValueProviderFactory>());
+            [],
+            []);
 
     private static byte[] AMultipartBody(int fileBytes)
     {

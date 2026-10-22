@@ -24,10 +24,10 @@ public sealed class EmailTokensServiceConfirmationTests
 
         string token = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
-        var first = await tokens.ConfirmEmailAsync(_knownEmail, token, TestToken);
+        bool first = await tokens.ConfirmEmailAsync(_knownEmail, token, TestToken);
         first.ShouldBeTrue();
 
-        var replay = await tokens.ConfirmEmailAsync(_knownEmail, token, TestToken);
+        bool replay = await tokens.ConfirmEmailAsync(_knownEmail, token, TestToken);
         replay.ShouldBeFalse();
     }
 
@@ -52,7 +52,7 @@ public sealed class EmailTokensServiceConfirmationTests
         var tokens = CreateTokens(store, out _);
         string stampBeforeConfirmation = user.SecurityStamp!;
 
-        var confirmed = await tokens.ConfirmEmailAsync(_knownEmail, "not-the-real-token", TestToken);
+        bool confirmed = await tokens.ConfirmEmailAsync(_knownEmail, "not-the-real-token", TestToken);
 
         confirmed.ShouldBeFalse();
         user.SecurityStamp.ShouldBe(stampBeforeConfirmation);
@@ -64,7 +64,7 @@ public sealed class EmailTokensServiceConfirmationTests
         var store = Substitute.For<IUserEmailStore<AppUser>, IUserSecurityStampStore<AppUser>>();
         store.FindByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((AppUser?)null);
 
-        var confirmed = await CreateTokens(store, out _).ConfirmEmailAsync(_knownEmail, "any-token", TestToken);
+        bool confirmed = await CreateTokens(store, out _).ConfirmEmailAsync(_knownEmail, "any-token", TestToken);
 
         confirmed.ShouldBeFalse();
     }

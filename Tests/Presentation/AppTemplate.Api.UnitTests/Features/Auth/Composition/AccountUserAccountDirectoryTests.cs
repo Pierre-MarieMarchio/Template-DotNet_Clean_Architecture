@@ -28,7 +28,7 @@ public sealed class AccountUserAccountDirectoryTests
                 TwoFactorEnabled: false,
                 HasPassword: true));
 
-        var exists = await new AccountUserAccountDirectory(_accounts).ExistsAsync(UserId.Create(_ownerId), TestToken);
+        bool exists = await new AccountUserAccountDirectory(_accounts).ExistsAsync(UserId.Create(_ownerId), TestToken);
 
         exists.ShouldBeTrue();
     }
@@ -38,7 +38,7 @@ public sealed class AccountUserAccountDirectoryTests
     {
         _accounts.FindProfileAsync(_ownerId, Arg.Any<CancellationToken>()).Returns((UserProfile?)null);
 
-        var exists = await new AccountUserAccountDirectory(_accounts).ExistsAsync(UserId.Create(_ownerId), TestToken);
+        bool exists = await new AccountUserAccountDirectory(_accounts).ExistsAsync(UserId.Create(_ownerId), TestToken);
 
         exists.ShouldBeFalse();
     }

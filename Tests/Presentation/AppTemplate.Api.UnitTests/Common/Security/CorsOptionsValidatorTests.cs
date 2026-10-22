@@ -9,10 +9,7 @@ public sealed class CorsOptionsValidatorTests
     private readonly CorsOptionsValidator _validator = new();
 
     [Fact]
-    public void Validate_Succeeds_ForTheDefaults()
-    {
-        _validator.Validate(name: null, new CorsOptions()).Succeeded.ShouldBeTrue();
-    }
+    public void Validate_Succeeds_ForTheDefaults() => _validator.Validate(name: null, new CorsOptions()).Succeeded.ShouldBeTrue();
 
     [Theory]
     [InlineData("https://app.example")]

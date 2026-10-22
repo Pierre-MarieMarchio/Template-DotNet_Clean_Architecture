@@ -96,7 +96,7 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
         await using var scope = fixture.Services.CreateAsyncScope();
         var log = scope.ServiceProvider.GetRequiredService<ISecurityEventLog>();
 
-        var purged = await log.PurgeExpiredAsync(_now, TestToken);
+        int purged = await log.PurgeExpiredAsync(_now, TestToken);
 
         purged.ShouldBe(1, "the default retention is 90 days: the 100-day-old row goes, the 10-day-old one stays");
         (await CountRowsAsync(fixture, account)).ShouldBe(1);

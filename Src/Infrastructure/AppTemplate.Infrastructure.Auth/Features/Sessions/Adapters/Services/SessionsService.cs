@@ -13,10 +13,7 @@ internal sealed class SessionsService(
 {
     public async Task<IReadOnlyList<ActiveSession>> ListActiveAsync(
         Guid userId,
-        CancellationToken cancellationToken = default)
-    {
-        return await families.ListLiveAsync(userId, dateTimeProvider.UtcNow, cancellationToken);
-    }
+        CancellationToken cancellationToken = default) => await families.ListLiveAsync(userId, dateTimeProvider.UtcNow, cancellationToken);
 
     public async Task<bool> RevokeAsync(
         Guid userId,

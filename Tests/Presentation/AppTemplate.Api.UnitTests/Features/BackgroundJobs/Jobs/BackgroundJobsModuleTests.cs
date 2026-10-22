@@ -41,7 +41,7 @@ public sealed class BackgroundJobsModuleTests
     [Fact]
     public void Enabled_IsTheDefault_AndStartsEveryJob_UnderStrictContainerValidation()
     {
-        var services = Compose(new Dictionary<string, string?>());
+        var services = Compose([]);
 
         using var provider = services.BuildServiceProvider(_strict);
 

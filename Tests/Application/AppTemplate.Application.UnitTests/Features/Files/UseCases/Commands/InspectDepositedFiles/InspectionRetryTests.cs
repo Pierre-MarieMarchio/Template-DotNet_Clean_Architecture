@@ -140,7 +140,7 @@ public sealed class InspectionRetryTests
                 return new MemoryStream(_png, writable: false);
             });
 
-        var result = await RunPassAsync(_start.AddMinutes(5));
+        int result = await RunPassAsync(_start.AddMinutes(5));
 
         result.ShouldBe(1);
         _store.Committed(first.Id).State.ShouldBe(StoredFileState.Available);

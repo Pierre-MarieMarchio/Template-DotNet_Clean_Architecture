@@ -27,7 +27,7 @@ public sealed class DeleteNotesOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         _notes.StageRemovalForOwnerAsync(_ownerId, Arg.Any<CancellationToken>()).Returns(3);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeTrue();
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
@@ -39,7 +39,7 @@ public sealed class DeleteNotesOnAccountDeletedConsumerTests
         GivenTheAccountIsBack();
         _notes.StageRemovalForOwnerAsync(_ownerId, Arg.Any<CancellationToken>()).Returns(3);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         _notes.ReceivedCalls().ShouldBeEmpty();
@@ -52,7 +52,7 @@ public sealed class DeleteNotesOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         _notes.StageRemovalForOwnerAsync(_ownerId, Arg.Any<CancellationToken>()).Returns(0);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());

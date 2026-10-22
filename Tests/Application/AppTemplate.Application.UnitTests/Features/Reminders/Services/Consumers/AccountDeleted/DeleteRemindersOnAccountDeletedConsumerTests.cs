@@ -32,7 +32,7 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         GivenTheOwnerHolds(pending, fired);
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeTrue();
         _repository.Received(1).Remove(pending);
@@ -46,7 +46,7 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
         GivenTheAccountIsBack();
         GivenTheOwnerHolds(AReminder.OwnedBy(_ownerId, todoItemId: Guid.CreateVersion7()));
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         _repository.ReceivedCalls().ShouldBeEmpty();
@@ -59,7 +59,7 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
         GivenTheAccountIsGone();
         GivenTheOwnerHolds();
 
-        var applied = await Consumer().ApplyAsync(_ownerId, TestToken);
+        bool applied = await Consumer().ApplyAsync(_ownerId, TestToken);
 
         applied.ShouldBeFalse();
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());

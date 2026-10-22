@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "http://json.schemastore.org/template",
   "author": "Pierre-MarieMarchio",
   "classifications": [
@@ -157,10 +157,22 @@
         "evaluator": "C++",
         "datatype": "string",
         "cases": [
-          { "condition": "(sqlServer)", "value": "Server=localhost,1433;Database=appdb;User Id=sa;Password=Local_dev_sa_1;TrustServerCertificate=True" },
-          { "condition": "(mySql)", "value": "Server=localhost;Port=3306;Database=appdb;User=appuser;Password=appuser_local_dev" },
-          { "condition": "(sqlite)", "value": "Data Source=App_Data/appdb.db" },
-          { "condition": "(true)", "value": "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Include Error Detail=true;Gss Encryption Mode=Disable" }
+          {
+            "condition": "(sqlServer)",
+            "value": "Server=localhost,1433;Database=appdb;User Id=sa;Password=Local_dev_sa_1;TrustServerCertificate=True"
+          },
+          {
+            "condition": "(mySql)",
+            "value": "Server=localhost;Port=3306;Database=appdb;User=appuser;Password=appuser_local_dev"
+          },
+          {
+            "condition": "(sqlite)",
+            "value": "Data Source=App_Data/appdb.db"
+          },
+          {
+            "condition": "(true)",
+            "value": "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Include Error Detail=true;Gss Encryption Mode=Disable"
+          }
         ]
       },
       "replaces": "Host=localhost;Port=5432;Database=appdb;Username=appuser;Password=appuser_local_dev;Include Error Detail=true;Gss Encryption Mode=Disable",
@@ -338,12 +350,21 @@
       "datatype": "choice",
       "defaultValue": "public",
       "choices": [
-        { "choice": "public", "description": "A site for the API's users." },
-        { "choice": "admin", "description": "A back office for administrators; needs --auth local or external." }
+        {
+          "choice": "public",
+          "description": "A site for the API's users."
+        },
+        {
+          "choice": "admin",
+          "description": "A back office for administrators; needs --auth local or external."
+        }
       ],
       "description": "Who the first web app is for; the framework apps shape their screens by it."
     },
-    "adminAudience": { "type": "computed", "value": "(anyWeb && webAudience == \"admin\")" },
+    "adminAudience": {
+      "type": "computed",
+      "value": "(anyWeb && webAudience == \"admin\")"
+    },
     "adminWebNeedsAccounts": {
       "type": "parameter",
       "datatype": "choice",
@@ -371,29 +392,49 @@
       "parameters": {
         "source": "webName",
         "steps": [
-          { "regex": "([A-Z]+)([A-Z][a-z])", "replacement": "$1-$2" },
-          { "regex": "([a-z0-9])([A-Z])", "replacement": "$1-$2" },
-          { "regex": "[.\\s_-]+", "replacement": "-" }
+          {
+            "regex": "([A-Z]+)([A-Z][a-z])",
+            "replacement": "$1-$2"
+          },
+          {
+            "regex": "([a-z0-9])([A-Z])",
+            "replacement": "$1-$2"
+          },
+          {
+            "regex": "[.\\s_-]+",
+            "replacement": "-"
+          }
         ]
       }
     },
     "webNameKebab": {
       "type": "generated",
       "generator": "casing",
-      "parameters": { "source": "webNameWords", "toLower": true },
+      "parameters": {
+        "source": "webNameWords",
+        "toLower": true
+      },
       "replaces": "placeholder-site"
     },
     "webNameUpper": {
       "type": "generated",
       "generator": "casing",
-      "parameters": { "source": "webNameWords", "toLower": false }
+      "parameters": {
+        "source": "webNameWords",
+        "toLower": false
+      }
     },
     "webNameEnvironment": {
       "type": "generated",
       "generator": "regex",
       "parameters": {
         "source": "webNameUpper",
-        "steps": [{ "regex": "-", "replacement": "_" }]
+        "steps": [
+          {
+            "regex": "-",
+            "replacement": "_"
+          }
+        ]
       },
       "replaces": "PLACEHOLDER_SITE"
     },
@@ -407,7 +448,10 @@
     "webNameKebabReact": {
       "type": "generated",
       "generator": "casing",
-      "parameters": { "source": "webNameWords", "toLower": true },
+      "parameters": {
+        "source": "webNameWords",
+        "toLower": true
+      },
       "replaces": "react-site"
     },
     "webNameEnvironmentReact": {
@@ -415,7 +459,12 @@
       "generator": "regex",
       "parameters": {
         "source": "webNameUpper",
-        "steps": [{ "regex": "-", "replacement": "_" }]
+        "steps": [
+          {
+            "regex": "-",
+            "replacement": "_"
+          }
+        ]
       },
       "replaces": "REACT_SITE"
     },
@@ -429,7 +478,10 @@
     "webNameKebabAngular": {
       "type": "generated",
       "generator": "casing",
-      "parameters": { "source": "webNameWords", "toLower": true },
+      "parameters": {
+        "source": "webNameWords",
+        "toLower": true
+      },
       "replaces": "angular-site"
     },
     "webNameEnvironmentAngular": {
@@ -437,7 +489,12 @@
       "generator": "regex",
       "parameters": {
         "source": "webNameUpper",
-        "steps": [{ "regex": "-", "replacement": "_" }]
+        "steps": [
+          {
+            "regex": "-",
+            "replacement": "_"
+          }
+        ]
       },
       "replaces": "ANGULAR_SITE"
     },
@@ -448,9 +505,18 @@
         "evaluator": "C++",
         "datatype": "string",
         "cases": [
-          { "condition": "(webReact)", "value": "5173" },
-          { "condition": "(webAngular)", "value": "4200" },
-          { "condition": "(true)", "value": "8081" }
+          {
+            "condition": "(webReact)",
+            "value": "5173"
+          },
+          {
+            "condition": "(webAngular)",
+            "value": "4200"
+          },
+          {
+            "condition": "(true)",
+            "value": "8081"
+          }
         ]
       }
     },
@@ -459,11 +525,26 @@
       "generator": "join",
       "parameters": {
         "symbols": [
-          { "type": "const", "value": "${WEB_" },
-          { "type": "ref", "value": "webNameEnvironment" },
-          { "type": "const", "value": "_HOST_PORT:-" },
-          { "type": "ref", "value": "webDefaultPort" },
-          { "type": "const", "value": "}" }
+          {
+            "type": "const",
+            "value": "${WEB_"
+          },
+          {
+            "type": "ref",
+            "value": "webNameEnvironment"
+          },
+          {
+            "type": "const",
+            "value": "_HOST_PORT:-"
+          },
+          {
+            "type": "ref",
+            "value": "webDefaultPort"
+          },
+          {
+            "type": "const",
+            "value": "}"
+          }
         ],
         "separator": ""
       },
@@ -474,10 +555,22 @@
       "generator": "join",
       "parameters": {
         "symbols": [
-          { "type": "const", "value": "WEB_" },
-          { "type": "ref", "value": "webNameEnvironment" },
-          { "type": "const", "value": "_HOST_PORT=" },
-          { "type": "ref", "value": "webDefaultPort" }
+          {
+            "type": "const",
+            "value": "WEB_"
+          },
+          {
+            "type": "ref",
+            "value": "webNameEnvironment"
+          },
+          {
+            "type": "const",
+            "value": "_HOST_PORT="
+          },
+          {
+            "type": "ref",
+            "value": "webDefaultPort"
+          }
         ],
         "separator": ""
       },
@@ -1037,10 +1130,18 @@
         {
           "type": "conditional",
           "configuration": {
-            "if": ["#if"],
-            "else": ["#else"],
-            "elseif": ["#elseif"],
-            "endif": ["#endif"],
+            "if": [
+              "#if"
+            ],
+            "else": [
+              "#else"
+            ],
+            "elseif": [
+              "#elseif"
+            ],
+            "endif": [
+              "#endif"
+            ],
             "trim": true,
             "wholeLine": true
           }
@@ -1052,10 +1153,18 @@
         {
           "type": "conditional",
           "configuration": {
-            "if": ["#if"],
-            "else": ["#else"],
-            "elseif": ["#elseif"],
-            "endif": ["#endif"],
+            "if": [
+              "#if"
+            ],
+            "else": [
+              "#else"
+            ],
+            "elseif": [
+              "#elseif"
+            ],
+            "endif": [
+              "#endif"
+            ],
             "trim": true,
             "wholeLine": true
           }

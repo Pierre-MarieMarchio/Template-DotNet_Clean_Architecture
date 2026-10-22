@@ -16,6 +16,23 @@ starting a new project is a `refactor`, `test`, `build` or `ci` commit, and stay
 A major version signals that adopting the change in an existing project derived from this template
 requires manual work — a renamed configuration section, a moved namespace, a new mandatory setting.
 
+## [1.1.0](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/compare/v1.0.0...v1.1.0) (2026-10-22)
+
+
+### Features
+
+* **launcher:** a guided, styled prompt flow in the terminal ([c1836d6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/c1836d6296dc86244eb2306c0f13fb44babc034f))
+* **launcher:** finish setting up the generated project ([16af0e6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/16af0e6f30406b9200d7dea0563283033a7ae404))
+* **launcher:** go back to the previous question ([6ed4e95](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/6ed4e9507f662fee77231e32fdcc2969add18f71))
+
+
+### Bug fixes
+
+* **coverage:** measure async method bodies ([8a995d6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/8a995d675a8ff5ad4018d77d76690cf45d0204bc))
+* **launcher:** draw each question's choices before the first key, with a hint of the keys ([94e88ac](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/94e88ac92dabb9b001f9de8c3d52b478771af3d0))
+* **launcher:** offer only the choices the template can generate ([c8e34ec](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/c8e34ecde1716b8c2beee741cbf676d6218576ff))
+* **persistence:** name the design-time database without credentials ([3a81b08](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/3a81b080d2a6e519cd2c46bf3611dd5b074fac0e))
+
 ## 1.0.0 (2026-10-22)
 
 

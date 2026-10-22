@@ -100,10 +100,11 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
         var file = StoredFile.Register(
             owner,
             category ?? _document,
-            StoredFileName.Create("quarterly-report.png"),
-            DeclaredMediaType.Create("image/png"),
-            FileSize.Create(_size),
-            Sha256Checksum.Create(new string('a', Sha256Checksum.Length)),
+            StoredFileDeclaration.Create(
+                StoredFileName.Create("quarterly-report.png"),
+                DeclaredMediaType.Create("image/png"),
+                FileSize.Create(_size),
+                Sha256Checksum.Create(new string('a', Sha256Checksum.Length))),
             Fixture.Clock.UtcNow);
 
         advance(file);

@@ -23,8 +23,11 @@ public sealed class StoredFileTests
     private static readonly Sha256Checksum _otherChecksum =
         Sha256Checksum.Create("2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae");
 
+    private static readonly StoredFileDeclaration _declaration =
+        StoredFileDeclaration.Create(_name, _mediaType, _size, _checksum);
+
     private static StoredFile APendingFile(DateTimeOffset? registeredAt = null) =>
-        StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, _checksum, registeredAt ?? _now);
+        StoredFile.Register(_ownerId, _category, _declaration, registeredAt ?? _now);
 
     private static StoredFile ADepositedFile()
     {
@@ -56,7 +59,7 @@ public sealed class StoredFileTests
     public void Register_Rejects_TheDefaultInstant()
     {
         var exception = Should.Throw<DomainException>(
-            () => StoredFile.Register(_ownerId, _category, _name, _mediaType, _size, _checksum, default));
+            () => StoredFile.Register(_ownerId, _category, _declaration, default));
 
         exception.Message.ShouldContain("registered");
     }

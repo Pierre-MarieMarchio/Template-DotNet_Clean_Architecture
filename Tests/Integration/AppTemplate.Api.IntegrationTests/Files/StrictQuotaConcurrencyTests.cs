@@ -64,10 +64,11 @@ public sealed class StrictQuotaConcurrencyTests(ApiFixture fixture) : Integratio
             repository.Add(StoredFile.Register(
                 owner,
                 FileCategory.Create(_category),
-                StoredFileName.Create($"earlier-{index}.pdf"),
-                DeclaredMediaType.Create("application/pdf"),
-                FileSize.Create(4_096),
-                Sha256Checksum.Create(new string('a', Sha256Checksum.Length)),
+                StoredFileDeclaration.Create(
+                    StoredFileName.Create($"earlier-{index}.pdf"),
+                    DeclaredMediaType.Create("application/pdf"),
+                    FileSize.Create(4_096),
+                    Sha256Checksum.Create(new string('a', Sha256Checksum.Length))),
                 Fixture.Clock.UtcNow));
         }
 

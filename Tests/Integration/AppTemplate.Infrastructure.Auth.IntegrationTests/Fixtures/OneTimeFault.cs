@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
@@ -33,8 +34,11 @@ public sealed class OneTimeFault(FaultPoint point, bool transient)
     }
 
     private static bool Names(DbCommand command, string verb) =>
-        command.CommandText.TrimStart().StartsWith(verb, StringComparison.OrdinalIgnoreCase)
-        && command.CommandText.Contains("RefreshTokens", StringComparison.Ordinal);
+        Regex.IsMatch(
+            command.CommandText,
+            $@"\b{verb}\b[^;]*\bRefreshTokens\b",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+            TimeSpan.FromSeconds(1));
 
     private sealed class Commands(OneTimeFault fault) : DbCommandInterceptor
     {

@@ -34,7 +34,7 @@ public sealed class NoteSortMapTests
 
         string sql = NoteSortMap.ApplyOrder(context.Notes, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY n.\"{ColumnOf(field)}\", [n].[Id]");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY [n].[{ColumnOf(field)}], [n].[Id]");
     }
 
     [Theory]
@@ -46,7 +46,7 @@ public sealed class NoteSortMapTests
 
         string sql = NoteSortMap.ApplyOrder(context.Notes, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY n.\"{ColumnOf(field)}\" DESC, [n].[Id] DESC");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY [n].[{ColumnOf(field)}] DESC, [n].[Id] DESC");
     }
 
     [Fact]

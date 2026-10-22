@@ -1,6 +1,6 @@
-﻿using System.Globalization;
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -130,10 +130,12 @@ internal static class PasskeyTestSupport
     public static async Task<uint> SignCountAsync(TestDatabase database, Guid userId, CancellationToken cancellationToken)
     {
         var counts = await database.QueryAsync(
-            $"""SELECT "Data"->>'SignCount' FROM {DatabaseServer.Table("identity", "UserPasskeys")} WHERE "UserId" = {DatabaseServer.Literal(userId)}""",
+            $"""SELECT "Data" FROM {DatabaseServer.Table("identity", "UserPasskeys")} WHERE "UserId" = {DatabaseServer.Literal(userId)}""",
             cancellationToken);
 
-        return uint.Parse(counts.ShouldHaveSingleItem(), CultureInfo.InvariantCulture);
+        using var data = JsonDocument.Parse(counts.ShouldHaveSingleItem());
+
+        return data.RootElement.GetProperty("SignCount").GetUInt32();
     }
 
     public static PasskeyCeremonyFailures Failures(ApiFixture fixture) =>

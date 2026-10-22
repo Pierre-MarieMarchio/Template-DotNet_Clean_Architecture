@@ -409,8 +409,9 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
         await Database.ExecuteAsync(
             $"""
             INSERT INTO {DatabaseServer.Table(AuthDbContext.IdentitySchema, "Role")} ("Id", "Name", "NormalizedName", "ConcurrencyStamp")
-            VALUES ({DatabaseServer.Literal(Guid.CreateVersion7())}, '{role}', '{normalizedRole}', '{Guid.CreateVersion7()}')
-            ON CONFLICT ("NormalizedName") DO NOTHING
+            SELECT {DatabaseServer.Literal(Guid.CreateVersion7())}, '{role}', '{normalizedRole}', '{Guid.CreateVersion7()}'
+            WHERE NOT EXISTS (
+                SELECT 1 FROM {DatabaseServer.Table(AuthDbContext.IdentitySchema, "Role")} WHERE "NormalizedName" = '{normalizedRole}')
             """,
             TestToken);
     }

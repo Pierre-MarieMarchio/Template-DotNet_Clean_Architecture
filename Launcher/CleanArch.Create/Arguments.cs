@@ -20,6 +20,8 @@ public sealed class Arguments
 
     public bool Help { get; private set; }
 
+    public bool Setup { get; private set; }
+
     public string? TemplateSource { get; private set; }
 
     public string? Hive { get; private set; }
@@ -58,6 +60,9 @@ public sealed class Arguments
                     break;
                 case "-y" or "--yes":
                     parsed.Yes = true;
+                    break;
+                case "--setup":
+                    parsed.Setup = true;
                     break;
                 case "-n" or "--name":
                     parsed.Name = inline ?? Value(arguments, ref index, key);

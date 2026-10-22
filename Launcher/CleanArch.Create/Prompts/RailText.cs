@@ -30,6 +30,7 @@ public sealed class RailText
         live.AutoClear = true;
         live.Start(context =>
         {
+            context.Refresh();
             for (ConsoleKeyInfo key = RailKeys.Read(console); !Accepted(key); key = RailKeys.Read(console))
             {
                 context.UpdateTarget(Render());
@@ -79,6 +80,9 @@ public sealed class RailText
             lines.Add(Rail.Of($"[yellow]{Markup.Escape(_error)}[/]"));
         }
 
+        lines.Add(Rail.Of(string.IsNullOrEmpty(_defaultValue)
+            ? "[grey]type a value · enter confirms[/]"
+            : $"[grey]type a value · enter keeps {Markup.Escape(_defaultValue)}[/]"));
         lines.Add(Rail.Line(Rail.End, colour, string.Empty));
 
         return new Rows(lines);

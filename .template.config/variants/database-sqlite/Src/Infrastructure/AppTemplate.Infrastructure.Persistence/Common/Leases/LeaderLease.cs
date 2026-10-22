@@ -1,20 +1,19 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using System.Collections.Concurrent;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 
 namespace AppTemplate.Infrastructure.Persistence.Common.Leases;
 
 internal sealed class LeaderLease(IConfiguration configuration, ILogger<LeaderLease> logger)
     : ILeaderLease
 {
-    private const string _acquireSql = "SELECT pg_try_advisory_lock(@key)";
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _leases = new(StringComparer.Ordinal);
 
-    private const string _releaseSql = "SELECT pg_advisory_unlock(@key)";
-
-    private readonly string _connectionString =
-        DatabaseProvider.DedicatedConnectionString(DefaultConnectionString.Require(configuration));
+    private readonly string _database = Path.GetFullPath(
+        new SqliteConnectionStringBuilder(DefaultConnectionString.Require(configuration)).DataSource);
 
     public async Task<bool> TryRunExclusivelyAsync(
         string leaseName,
@@ -24,13 +23,15 @@ internal sealed class LeaderLease(IConfiguration configuration, ILogger<LeaderLe
         ArgumentException.ThrowIfNullOrWhiteSpace(leaseName);
         ArgumentNullException.ThrowIfNull(work);
 
-        long key = AdvisoryLockKey.Of(leaseName);
+        var lease = _leases.GetOrAdd($"{_database}|{leaseName}", _ => new SemaphoreSlim(1, 1));
 
-        await using var connection = new NpgsqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        if (!await TryAcquireAsync(connection, key, cancellationToken))
+        if (!await lease.WaitAsync(TimeSpan.Zero, cancellationToken))
         {
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("The '{LeaseName}' lease is held by another runner of this process.", leaseName);
+            }
+
             return false;
         }
 
@@ -40,43 +41,9 @@ internal sealed class LeaderLease(IConfiguration configuration, ILogger<LeaderLe
         }
         finally
         {
-            await ReleaseAsync(connection, key, leaseName);
+            lease.Release();
         }
 
         return true;
-    }
-
-    private static async Task<bool> TryAcquireAsync(
-        NpgsqlConnection connection,
-        long key,
-        CancellationToken cancellationToken)
-    {
-        await using var command = new NpgsqlCommand(_acquireSql, connection);
-        command.Parameters.AddWithValue("key", key);
-
-        return await command.ExecuteScalarAsync(cancellationToken) is true;
-    }
-
-    private async Task ReleaseAsync(NpgsqlConnection connection, long key, string leaseName)
-    {
-        try
-        {
-            await using var command = new NpgsqlCommand(_releaseSql, connection);
-            command.Parameters.AddWithValue("key", key);
-
-            if (await command.ExecuteScalarAsync(CancellationToken.None) is not true)
-            {
-                logger.LogWarning(
-                    "The '{LeaseName}' lease was not held by this session at release time.",
-                    leaseName);
-            }
-        }
-        catch (NpgsqlException exception)
-        {
-            logger.LogWarning(
-                exception,
-                "Releasing the '{LeaseName}' lease failed; the lock goes when the session closes.",
-                leaseName);
-        }
     }
 }

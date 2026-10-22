@@ -2,10 +2,10 @@
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 using Shouldly;
 using Xunit;
 
@@ -13,21 +13,21 @@ namespace AppTemplate.Infrastructure.Persistence.UnitTests;
 
 public sealed class PersistenceModuleConnectionStringTests
 {
-    private const int _configuredMaxPoolSize = 37;
+    private const int _configuredCommandTimeoutSeconds = 37;
 
     [Fact]
-    public void ScopedContext_UsesThe_configuredMaxPoolSize()
+    public void ScopedContext_WaitsOutABusyFileFor_theConfiguredCommandTimeout()
     {
         using var provider = Compose();
         using var scope = provider.CreateScope();
 
         using var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        MaxPoolSizeOf(context).ShouldBe(_configuredMaxPoolSize);
+        BusyTimeoutOf(context).ShouldBe(_configuredCommandTimeoutSeconds);
     }
 
     [Fact]
-    public void FactoryContext_UsesThe_configuredMaxPoolSize()
+    public void FactoryContext_WaitsOutABusyFileFor_theConfiguredCommandTimeout()
     {
         using var provider = Compose();
         using var scope = provider.CreateScope();
@@ -35,7 +35,7 @@ public sealed class PersistenceModuleConnectionStringTests
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         using var context = factory.CreateDbContext();
 
-        MaxPoolSizeOf(context).ShouldBe(_configuredMaxPoolSize);
+        BusyTimeoutOf(context).ShouldBe(_configuredCommandTimeoutSeconds);
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public sealed class PersistenceModuleConnectionStringTests
         created.Database.GetConnectionString().ShouldBe(scoped.Database.GetConnectionString());
     }
 
-    private static int MaxPoolSizeOf(DbContext context) =>
-        new NpgsqlConnectionStringBuilder(context.Database.GetConnectionString()).MaxPoolSize;
+    private static int BusyTimeoutOf(DbContext context) =>
+        new SqliteConnectionStringBuilder(context.Database.GetConnectionString()).DefaultTimeout;
 
     private static ServiceProvider Compose()
     {
@@ -60,7 +60,7 @@ public sealed class PersistenceModuleConnectionStringTests
             .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
             {
                 ["ConnectionStrings:Default"] = DatabaseProvider.DesignTimeConnectionString,
-                ["Database:MaxPoolSize"] = _configuredMaxPoolSize.ToString(CultureInfo.InvariantCulture),
+                ["Database:CommandTimeoutSeconds"] = _configuredCommandTimeoutSeconds.ToString(CultureInfo.InvariantCulture),
             })
             .Build();
 

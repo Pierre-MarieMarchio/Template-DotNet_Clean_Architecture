@@ -1,15 +1,19 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Npgsql;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 
 internal static class DatabaseFaults
 {
     internal const string UnreachableConnectionString =
-        "Host=127.0.0.1;Port=1;Database=unreachable;Username=none;Password=none";
+        "Data Source=unreachable/none.db;Mode=ReadOnly";
+
+    private const int _constraintViolation = 19;
+
+    private const int _uniqueViolation = 2067;
 
     internal static DbUpdateException UniqueViolation() =>
         new(
             "duplicate key",
-            new PostgresException("duplicate key", "ERROR", "ERROR", PostgresErrorCodes.UniqueViolation));
+            new SqliteException("UNIQUE constraint failed", _constraintViolation, _uniqueViolation));
 }

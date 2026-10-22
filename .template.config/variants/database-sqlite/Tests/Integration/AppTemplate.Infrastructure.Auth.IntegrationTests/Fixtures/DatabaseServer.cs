@@ -1,25 +1,38 @@
-﻿using Npgsql;
-using Testcontainers.PostgreSql;
+﻿using System.Globalization;
+using Microsoft.Data.Sqlite;
 
 namespace AppTemplate.Infrastructure.Auth.IntegrationTests.Fixtures;
 
 public sealed class DatabaseServer(string database) : IAsyncDisposable
 {
-    internal const string Image =
-        "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
+    private const int _busy = 5;
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(Image)
-        .WithDatabase(database)
-        .WithUsername("apptemplate_tests")
-        .WithPassword("apptemplate_tests")
-        .Build();
+    private readonly string _path = Path.Combine(
+        Path.GetTempPath(),
+        string.Create(CultureInfo.InvariantCulture, $"{database}-{Guid.CreateVersion7():N}.db"));
 
-    public string ConnectionString => _container.GetConnectionString();
+    public string ConnectionString => new SqliteConnectionStringBuilder { DataSource = _path }.ToString();
 
-    public Task StartAsync(CancellationToken cancellationToken) => _container.StartAsync(cancellationToken);
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = new SqliteConnection(ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+    }
 
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        SqliteConnection.ClearAllPools();
+
+        foreach (string file in new[] { _path, _path + "-wal", _path + "-shm" })
+        {
+            File.Delete(file);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    internal static string Table(string schema, string table) => $"\"{schema}_{table}\"";
 
     internal static Exception TransientFault() =>
-        new NpgsqlException("Injected: the connection was lost.", new TimeoutException());
+        new SqliteException("Injected: the database is locked.", _busy);
 }

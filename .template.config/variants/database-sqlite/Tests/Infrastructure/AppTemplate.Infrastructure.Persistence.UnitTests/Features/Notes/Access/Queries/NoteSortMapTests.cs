@@ -34,7 +34,7 @@ public sealed class NoteSortMapTests
 
         string sql = NoteSortMap.ApplyOrder(context.Notes, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY n.\"{ColumnOf(field)}\", n.\"Id\"");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY \"n\".\"{ColumnOf(field)}\", \"n\".\"Id\"");
     }
 
     [Theory]
@@ -46,7 +46,7 @@ public sealed class NoteSortMapTests
 
         string sql = NoteSortMap.ApplyOrder(context.Notes, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY n.\"{ColumnOf(field)}\" DESC, n.\"Id\" DESC");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY \"n\".\"{ColumnOf(field)}\" DESC, \"n\".\"Id\" DESC");
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class NoteSortMapTests
 
         string sql = NoteSortMap.ApplyKeyset(context.Notes, term, ACursor(term, "Groceries")).ToQueryString();
 
-        sql.ShouldContain("WHERE n.\"Title\" > @cursor_Key OR (n.\"Title\" = @cursor_Key AND n.\"Id\" > @cursor_Id)");
+        sql.ShouldContain("WHERE \"n\".\"Title\" > @cursor_Key OR (\"n\".\"Title\" = @cursor_Key AND \"n\".\"Id\" > @cursor_Id)");
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class NoteSortMapTests
         string sql = NoteSortMap.ApplyKeyset(context.Notes, term, ACursor(term, DateTimeOffset.UtcNow.ToString("O")))
             .ToQueryString();
 
-        sql.ShouldContain("WHERE n.\"CreatedAt\" < @key OR (n.\"CreatedAt\" = @key AND n.\"Id\" < @cursor_Id)");
+        sql.ShouldContain("WHERE \"n\".\"CreatedAt\" < @key OR (\"n\".\"CreatedAt\" = @key AND \"n\".\"Id\" < @cursor_Id)");
     }
 
     [Fact]

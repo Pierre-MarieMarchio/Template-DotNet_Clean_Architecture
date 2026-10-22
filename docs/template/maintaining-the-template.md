@@ -240,7 +240,9 @@ template package alone in a scratch hive, generates and builds the defaults, gen
 through the launcher, attests both packages' provenance and attaches them to the release. Its
 `publish` job waits in the `nuget` environment for a reviewer, exchanges the workflow's identity
 for a short-lived nuget.org key (Trusted Publishing, with `NUGET_USER` the account's name as a
-repository variable) and pushes both packages; a version already on nuget.org fails the push. Last,
+repository variable) and pushes both packages; a version already on nuget.org fails the push. Its
+`mirror` job then pushes the same packages to GitHub Packages, so the repository page lists them
+([template decision 0007](decisions/0007-github-packages-mirrors-nuget-org.md)). Last,
 `promote` fast-forwards `main` to the release commit, and refuses if `main` is not its ancestor.
 [Template decision 0006](decisions/0006-develop-integrates-main-holds-the-releases.md) gives the
 reasons.
@@ -284,3 +286,4 @@ version means adopting the change in an existing project takes manual work.
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
 - [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
 - [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)
+- [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)

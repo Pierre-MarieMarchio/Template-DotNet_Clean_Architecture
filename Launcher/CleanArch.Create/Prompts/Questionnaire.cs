@@ -6,18 +6,24 @@ namespace CleanArch.Create.Prompts;
 
 public sealed class Questionnaire
 {
-    private readonly IAnsiConsole _console;
     private readonly bool _yes;
     private readonly List<string> _missing = [];
 
     public Questionnaire(IAnsiConsole console, bool interactive, bool yes)
     {
-        _console = console;
         _yes = yes;
         Asks = interactive && !yes;
+        Conversation = Conversation.For(console, Asks);
     }
 
     public bool Asks { get; }
+
+    public Conversation Conversation { get; }
+
+    public static List<KeyValuePair<string, string>> Recap(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers) =>
+        [.. manifest.Options
+            .Where(option => answers.ContainsKey(option.Symbol))
+            .Select(option => KeyValuePair.Create(option.Label, Shown(option, answers[option.Symbol])))];
 
     public string? Text(string flag, string label, string? given, string? defaultValue, Func<string, string?> problem)
     {
@@ -30,10 +36,7 @@ public sealed class Questionnaire
 
         if (Asks)
         {
-            var prompt = new TextPrompt<string>(Markup.Escape(label) + ":")
-                .Validate(value => problem(value) is { } refused ? ValidationResult.Error(Markup.Escape(refused)) : ValidationResult.Success());
-
-            return _console.Prompt(defaultValue is null ? prompt : prompt.DefaultValue(defaultValue));
+            return Conversation.Text(label, null, defaultValue, allowEmpty: false, problem);
         }
 
         if (_yes && defaultValue is not null)
@@ -49,7 +52,8 @@ public sealed class Questionnaire
         TemplateManifest manifest,
         IReadOnlyDictionary<string, string> given,
         IReadOnlyDictionary<string, string> preset,
-        IReadOnlyDictionary<string, Condition> askedWhen)
+        IReadOnlyDictionary<string, Condition> askedWhen,
+        IReadOnlyDictionary<string, string>? defaults = null)
     {
         Dictionary<string, string> answers = Given(manifest, given);
         foreach ((string symbol, string value) in preset)
@@ -61,7 +65,7 @@ public sealed class Questionnaire
         {
             if (!askedWhen.TryGetValue(option.Symbol, out Condition? when) || manifest.Holds(when, answers))
             {
-                Fill(manifest, option, answers, askedWhen);
+                Fill(manifest, option, answers, askedWhen, defaults?.GetValueOrDefault(option.Symbol) ?? option.DefaultValue);
             }
         }
 
@@ -78,7 +82,7 @@ public sealed class Questionnaire
                 throw new LauncherException("These options are refused together:" + Environment.NewLine + explanation);
             }
 
-            _console.MarkupLine("[yellow]" + Markup.Escape(explanation) + "[/]");
+            Conversation.Warn(explanation);
 
             var involved = refused.SelectMany(refusal => manifest.ParametersBehind(refusal.When)).ToHashSet(StringComparer.Ordinal);
             var previous = new Dictionary<string, string>(answers, StringComparer.Ordinal);
@@ -159,11 +163,16 @@ public sealed class Questionnaire
         }
     }
 
-    private void Fill(TemplateManifest manifest, TemplateOption option, Dictionary<string, string> answers, IReadOnlyDictionary<string, Condition> askedWhen)
+    private void Fill(
+        TemplateManifest manifest,
+        TemplateOption option,
+        Dictionary<string, string> answers,
+        IReadOnlyDictionary<string, Condition> askedWhen,
+        string? defaultValue)
     {
         if (Asks)
         {
-            Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, option.DefaultValue));
+            Store(answers, option.Symbol, Ask(manifest, option, answers, askedWhen, defaultValue));
             return;
         }
 
@@ -185,54 +194,41 @@ public sealed class Questionnaire
         IReadOnlyDictionary<string, Condition> askedWhen,
         string? defaultValue)
     {
-        string title = $"[bold]{Markup.Escape(option.Label)}[/] [grey]{Markup.Escape(option.Description)}[/]";
         Offer offer = Offer.For(manifest, option, answers, askedWhen);
         if (offer.Values.Count == 1)
         {
             string forced = offer.Values[0];
-            string reasons = string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation));
-            _console.MarkupLine($"[bold]{Markup.Escape(option.Label)}[/]: [green]{Markup.Escape(forced)}[/] [grey]{Markup.Escape(reasons)}[/]");
+            Conversation.Answered(option.Label, Shown(option, forced), string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation)));
             return forced;
         }
 
         switch (option.Kind)
         {
             case OptionKind.Choice:
-                var selection = new SelectionPrompt<string>()
-                    .Title(title)
-                    .AddChoices(offer.Values)
-                    .UseConverter(value => $"{Markup.Escape(value)} [grey]{Markup.Escape(option.Choices.First(choice => choice.Value == value).Description)}[/]");
-                if (defaultValue is not null && offer.Values.Contains(defaultValue))
-                {
-                    selection.DefaultValue(defaultValue);
-                }
-
-                string selected = _console.Prompt(selection);
-                _console.MarkupLine($"[bold]{Markup.Escape(option.Label)}[/]: [green]{Markup.Escape(selected)}[/]");
-                return selected;
+                return Conversation.Choose(
+                    option.Label,
+                    option.Description,
+                    [.. option.Choices.Where(choice => offer.Values.Contains(choice.Value))],
+                    defaultValue);
 
             case OptionKind.Bool:
-                return _console.Prompt(new ConfirmationPrompt(title) { DefaultValue = Condition.IsTruthy(defaultValue) })
-                    ? Condition.True
-                    : Condition.False;
+                return Conversation.Confirm(option.Label, option.Description, Condition.IsTruthy(defaultValue)) ? Condition.True : Condition.False;
 
             default:
                 bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
-                var prompt = new TextPrompt<string>(title).Validate(value => Problem(option, value, required) is { } problem
-                    ? ValidationResult.Error(Markup.Escape(problem))
-                    : ValidationResult.Success());
-                if (!string.IsNullOrEmpty(defaultValue))
-                {
-                    prompt.DefaultValue(defaultValue);
-                }
-                else if (!required)
-                {
-                    prompt.AllowEmpty();
-                }
-
-                string text = _console.Prompt(prompt);
+                string text = Conversation.Text(option.Label, option.Description, defaultValue, allowEmpty: !required, value => Problem(option, value, required));
                 return text.Length == 0 ? null : text;
         }
+    }
+
+    private static string Shown(TemplateOption option, string value)
+    {
+        if (option.Kind != OptionKind.Bool)
+        {
+            return value;
+        }
+
+        return Condition.IsTruthy(value) ? Conversation.Yes : Conversation.No;
     }
 
     private static string? Problem(TemplateOption option, string value, bool required)

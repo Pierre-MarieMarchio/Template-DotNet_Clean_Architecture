@@ -40,8 +40,18 @@ the launcher reads the manifests rather than copying them.
 
 ## Install and uninstall
 
+From nuget.org, where each release is published:
+
+```bash
+dotnet new install CleanArch.WebApi.Templates
+dotnet new update
+dotnet new uninstall CleanArch.WebApi.Templates
+```
+
+`dotnet new update` moves an installed package to its latest version.
+
 From a GitHub Release: download the asset `CleanArch.WebApi.Templates.<version>.nupkg` from the
-release `template-v<version>` on the repository's Releases page, then, in the folder holding it:
+release `v<version>` on the repository's Releases page, then, in the folder holding it:
 
 ```bash
 dotnet new install ./CleanArch.WebApi.Templates.<version>.nupkg

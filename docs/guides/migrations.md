@@ -30,7 +30,9 @@ project holds exactly one context, so naming the project names the context.
 `dotnet-ef` is a local tool, pinned in `.config/dotnet-tools.json` and restored by bootstrap. The
 design-time factories read `ConnectionStrings__Default` from the environment and fall back to the
 <!--#if (serverDatabase)-->
-Compose database, so adding or checking a migration needs no running host.
+Compose database's address without credentials, so adding or checking a migration needs no running
+host. `database-update` connects: set `ConnectionStrings__Default` to the connection string of
+`appsettings.Development.json`, or of the database you migrate, before running it.
 <!--#endif-->
 <!--#if (sqlite)-->
 development file `App_Data/appdb.db`, so adding or checking a migration needs no running host.

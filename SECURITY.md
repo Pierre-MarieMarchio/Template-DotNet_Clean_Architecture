@@ -74,9 +74,15 @@ Required:
 3. **Supply `ConnectionStrings:Default` and the mail credentials from a secret manager.**
 <!--#endif-->
 4. **Set `Cors:AllowedOrigins`** to your origins and **narrow `AllowedHosts`** from `*`.
+<!--#if (serverDatabase)-->
 5. **Apply migrations as their own step**, with a principal that holds DDL rights, and give the API's
    runtime user none: [Deployment › Migrations at release](docs/guides/deployment.md#migrations-at-release).
 6. **Grant the runtime user least privilege**: DML on its own tables, no DDL, no superuser.
+<!--#endif-->
+<!--#if (sqlite)-->
+5. **Move to a server database first.** This project runs on SQLite, a development database, and the API
+   refuses to start outside Development: [Deployment](docs/guides/deployment.md).
+<!--#endif-->
 
 Recommended:
 

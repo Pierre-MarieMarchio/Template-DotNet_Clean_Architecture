@@ -79,6 +79,8 @@ public static class InfrastructureCoreModule
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(provider);
 
-        return options.AddInterceptors(provider.GetRequiredService<TInterceptor>());
+        IInterceptor[] interceptors = [provider.GetRequiredService<TInterceptor>()];
+
+        return options.AddInterceptors(interceptors);
     }
 }

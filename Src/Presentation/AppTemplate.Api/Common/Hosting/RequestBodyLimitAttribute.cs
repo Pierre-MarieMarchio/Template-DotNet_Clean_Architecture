@@ -15,24 +15,32 @@ public abstract class RequestBodyLimitAttribute : Attribute, IAsyncResourceFilte
 
         var httpContext = context.HttpContext;
 
-        if (httpContext.Request.HasFormContentType)
+        if (httpContext.Request.HasFormContentType && await IsTooLargeAsync(httpContext))
         {
-            try
-            {
-                await httpContext.Request.ReadFormAsync(httpContext.RequestAborted);
-            }
-            catch (BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge)
-            {
-                await RequestLimitsExtensions.WriteTooLargeAsync(httpContext);
-                context.Result = new EmptyResult();
+            await RequestLimitsExtensions.WriteTooLargeAsync(httpContext);
+            context.Result = new EmptyResult();
 
-                return;
-            }
-            catch (Exception exception) when (exception is InvalidDataException or IOException)
-            {
-            }
+            return;
         }
 
         await next();
+    }
+
+    private static async Task<bool> IsTooLargeAsync(HttpContext httpContext)
+    {
+        try
+        {
+            await httpContext.Request.ReadFormAsync(httpContext.RequestAborted);
+
+            return false;
+        }
+        catch (BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            return true;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException)
+        {
+            return false;
+        }
     }
 }

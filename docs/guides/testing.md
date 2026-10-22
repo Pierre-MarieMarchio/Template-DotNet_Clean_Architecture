@@ -199,6 +199,12 @@ It runs the suite with coverage and compares the merged line coverage with the f
 (file, line), so an assembly two modules exercise counts once. Settings reach the platform through
 `--coverage-settings`; `--settings` is accepted and ignored.
 
+`coverage.runsettings` leaves out the test assemblies, the migrations, what a source generator wrote
+under `obj/`, auto-properties and a member marked `[ExcludeFromCodeCoverage]`. It keeps the types
+the compiler generates: an async method, an iterator and a lambda have their body in one, and
+excluding them leaves a file whose code is all async out of the report. `CoverageSettingsTests`
+holds it.
+
 The floor is a tripwire: it catches an area shipped with no test, which no review of single tests
 sees. It is measured, never invented: a Debug run with Docker present, both integration suites
 contributing, a few points under the figure. Re-measure it when your own code lands, under the same

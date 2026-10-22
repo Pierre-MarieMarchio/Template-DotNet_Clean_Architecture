@@ -1,6 +1,9 @@
 ﻿using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving;
+/*#if (versionCounter)
+using AppTemplate.Infrastructure.Core.Common.Saving.Versioning;
+#endif*/
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -22,7 +25,11 @@ public sealed class AuthModuleSavingTests
         var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<AuthDbContext>>();
         var interceptors = options.FindExtension<CoreOptionsExtension>()?.Interceptors ?? [];
 
-        interceptors.OfType<ISaveChangesInterceptor>().ShouldBeEmpty();
+        interceptors.OfType<ISaveChangesInterceptor>()
+            /*#if (versionCounter)
+            .Where(interceptor => interceptor is not VersionStampingSaveChangesInterceptor)
+            #endif*/
+            .ShouldBeEmpty();
     }
 
     [Fact]

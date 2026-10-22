@@ -34,7 +34,7 @@ public sealed class OneTimeFault(FaultPoint point, bool transient)
 
     private static bool Names(DbCommand command, string verb) =>
         command.CommandText.TrimStart().StartsWith(verb, StringComparison.OrdinalIgnoreCase)
-        && command.CommandText.Contains("\"RefreshTokens\"", StringComparison.Ordinal);
+        && command.CommandText.Contains("RefreshTokens", StringComparison.Ordinal);
 
     private sealed class Commands(OneTimeFault fault) : DbCommandInterceptor
     {

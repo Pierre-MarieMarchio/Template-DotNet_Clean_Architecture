@@ -102,7 +102,7 @@ public sealed class GrantTableFixture : IAsyncLifetime
         await using var command = connection.CreateCommand();
         command.CommandText =
             $"""
-            SELECT count(*) FROM {AuthDbContext.IdentitySchema}."RefreshTokens"
+            SELECT count(*) FROM {DatabaseServer.Table(AuthDbContext.IdentitySchema, "RefreshTokens")}
             WHERE "UserId" = @userId AND "RevokedAt" IS NULL
             """;
 
@@ -125,10 +125,10 @@ public sealed class GrantTableFixture : IAsyncLifetime
         await using var command = connection.CreateCommand();
         command.CommandText =
             $"""
-            SELECT count(*) FROM {AuthDbContext.IdentitySchema}."RefreshTokenFamilies" AS f
+            SELECT count(*) FROM {DatabaseServer.Table(AuthDbContext.IdentitySchema, "RefreshTokenFamilies")} AS f
             WHERE f."UserId" = @userId AND f."RevokedAt" IS NULL
               AND EXISTS (
-                SELECT 1 FROM {AuthDbContext.IdentitySchema}."RefreshTokens" AS t
+                SELECT 1 FROM {DatabaseServer.Table(AuthDbContext.IdentitySchema, "RefreshTokens")} AS t
                 WHERE t."FamilyId" = f."Id" AND t."RevokedAt" IS NULL)
             """;
 

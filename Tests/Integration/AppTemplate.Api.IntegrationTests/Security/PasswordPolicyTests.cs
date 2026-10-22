@@ -71,7 +71,7 @@ public sealed class PasswordPolicyTests(ApiFixture fixture) : IntegrationTestBas
 
         rejected.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        int users = await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken);
+        int users = await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("identity", "User")} """, TestToken);
         users.ShouldBe(0);
 
         using var accepted = await client.PostAsJsonAsync(

@@ -18,8 +18,8 @@ public sealed class RefreshTokenCookieTests(ApiFixture fixture) : IntegrationTes
     private const string _cookieName = "refresh_token";
     private const string _cookiePath = "/api/v1/auth";
 
-    private const string _liveGrants = """
-        SELECT count(*) FROM identity."RefreshTokens" WHERE "RevokedAt" IS NULL AND "ReplacedByTokenHash" IS NULL
+    private static readonly string _liveGrants = $"""
+        SELECT count(*) FROM {DatabaseServer.Table("identity", "RefreshTokens")} WHERE "RevokedAt" IS NULL AND "ReplacedByTokenHash" IS NULL
         """;
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class RefreshTokenCookieTests(ApiFixture fixture) : IntegrationTes
         afterReplay.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, "the replay killed the token it had been rotated into.");
 
         int live = await Database.CountAsync(
-            """SELECT count(*) FROM identity."RefreshTokens" WHERE "RevokedAt" IS NULL""",
+            $"""SELECT count(*) FROM {DatabaseServer.Table("identity", "RefreshTokens")} WHERE "RevokedAt" IS NULL""",
             TestToken);
         live.ShouldBe(0);
     }
@@ -234,7 +234,7 @@ public sealed class RefreshTokenCookieTests(ApiFixture fixture) : IntegrationTes
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("request.validationFailed");
         response.Headers.Contains(HeaderNames.SetCookie).ShouldBeFalse();
 
-        int issued = await Database.CountAsync("""SELECT count(*) FROM identity."RefreshTokens" """, TestToken);
+        int issued = await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("identity", "RefreshTokens")} """, TestToken);
         issued.ShouldBe(0, "a refused mode must refuse the sign-in, not fall back to answering in the body.");
     }
 

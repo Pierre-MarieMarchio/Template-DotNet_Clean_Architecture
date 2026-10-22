@@ -117,13 +117,21 @@ public sealed class ContextScopedSavingTests
         var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, Token))!;
         list.CompleteItem(itemId, DateTimeOffset.UtcNow);
 
+        /*#if (tablePrefixes)
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"todo_TodoLists\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
+        #else*/
         await host.ExecuteOnBusinessStoreAsync($"UPDATE \"TodoLists\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" + 1", Token);
+        /*#endif*/
 
         await Should.ThrowAsync<ConcurrencyConflictException>(
             () => services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token));
         host.Published.OfType<TodoItemCompletedDomainEvent>().ShouldBeEmpty();
 
+        /*#if (tablePrefixes)
+        await host.ExecuteOnBusinessStoreAsync($"UPDATE \"todo_TodoLists\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" - 1", Token);
+        #else*/
         await host.ExecuteOnBusinessStoreAsync($"UPDATE \"TodoLists\" SET \"{DatabaseProvider.VersionColumnName}\" = \"{DatabaseProvider.VersionColumnName}\" - 1", Token);
+        /*#endif*/
         await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
 
         host.Published.OfType<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem();

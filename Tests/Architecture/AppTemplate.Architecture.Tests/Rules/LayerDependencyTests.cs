@@ -16,7 +16,12 @@ public sealed class LayerDependencyTests
         "Microsoft.AspNetCore",
         "Microsoft.Extensions.DependencyInjection",
         "FluentValidation",
+        //#if (postgreSql)
         "Npgsql",
+        //#endif
+        /*#if (sqlite)
+        "Microsoft.Data.Sqlite",
+        #endif*/
         "MailKit",
         "System.Text.Json",
     ];
@@ -27,7 +32,12 @@ public sealed class LayerDependencyTests
         ArchitectureAssemblies.PresentationNamespace,
         "Microsoft.EntityFrameworkCore",
         "Microsoft.AspNetCore",
+        //#if (postgreSql)
         "Npgsql",
+        //#endif
+        /*#if (sqlite)
+        "Microsoft.Data.Sqlite",
+        #endif*/
         "MailKit",
         "MediatR",
     ];

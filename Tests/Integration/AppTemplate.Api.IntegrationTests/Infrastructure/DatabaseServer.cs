@@ -19,6 +19,22 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
 
     public ValueTask DisposeAsync() => _container.DisposeAsync();
 
+    internal static string Table(string schema, string table) => $"{schema}.\"{table}\"";
+
+    internal static object Value(Guid value) => value;
+
+    internal static object Value(DateTimeOffset value) => value;
+
+    internal static string Literal(Guid value) => $"'{value}'";
+
+    internal static string Literal(DateTimeOffset value) => $"'{value:O}'";
+
+    internal static string SchemasSql =>
+        "SELECT DISTINCT table_schema FROM information_schema.tables WHERE table_type = 'BASE TABLE'";
+
+    internal static string HistorySchemasSql(string historyTable) =>
+        $"SELECT table_schema FROM information_schema.tables WHERE table_name = '{historyTable}' ORDER BY table_schema";
+
     internal static string TablesSql(IEnumerable<string> schemas, IEnumerable<string> keptTables) =>
         $"""
         SELECT '"' || table_schema || '"."' || table_name || '"'

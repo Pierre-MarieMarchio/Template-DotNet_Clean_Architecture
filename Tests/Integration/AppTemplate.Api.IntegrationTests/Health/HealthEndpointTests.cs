@@ -57,13 +57,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     [Fact]
     public async Task BothFeatureSchemasWereMigrated()
     {
-        var schemas = await Database.QueryAsync(
-            """
-            SELECT DISTINCT table_schema
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
-            """,
-            TestToken);
+        var schemas = await Database.QueryAsync(DatabaseServer.SchemasSql, TestToken);
 
         schemas.ShouldContain(AppDbContext.PlatformSchema);
         //#if (localAuth)
@@ -75,12 +69,7 @@ public sealed class HealthEndpointTests(ApiFixture fixture) : IntegrationTestBas
     public async Task EachContextHasAMigrationsHistoryOfItsOwn()
     {
         var histories = await Database.QueryAsync(
-            $"""
-            SELECT table_schema
-            FROM information_schema.tables
-            WHERE table_name = '{AppDbContext.MigrationsHistoryTableName}'
-            ORDER BY table_schema
-            """,
+            DatabaseServer.HistorySchemasSql(AppDbContext.MigrationsHistoryTableName),
             TestToken);
 
         /*#if (localAuth)*/

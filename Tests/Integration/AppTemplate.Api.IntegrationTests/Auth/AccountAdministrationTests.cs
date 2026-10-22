@@ -408,8 +408,8 @@ public sealed class AccountAdministrationTests(ApiFixture fixture) : Integration
 
         await Database.ExecuteAsync(
             $"""
-            INSERT INTO {AuthDbContext.IdentitySchema}."Role" ("Id", "Name", "NormalizedName", "ConcurrencyStamp")
-            VALUES ('{Guid.CreateVersion7()}', '{role}', '{normalizedRole}', '{Guid.CreateVersion7()}')
+            INSERT INTO {DatabaseServer.Table(AuthDbContext.IdentitySchema, "Role")} ("Id", "Name", "NormalizedName", "ConcurrencyStamp")
+            VALUES ({DatabaseServer.Literal(Guid.CreateVersion7())}, '{role}', '{normalizedRole}', '{Guid.CreateVersion7()}')
             ON CONFLICT ("NormalizedName") DO NOTHING
             """,
             TestToken);

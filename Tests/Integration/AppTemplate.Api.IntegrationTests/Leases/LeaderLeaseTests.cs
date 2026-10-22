@@ -145,7 +145,7 @@ public sealed class LeaderLeaseTests(LeaseFixture fixture) : IClassFixture<Lease
         {
             throw new ShouldAssertException(
                 $"An attempt on a held lease was still waiting after {_refusalCap.TotalSeconds} " +
-                "seconds. pg_try_advisory_lock never queues, and a standby that queued would run the " +
+                "seconds. Taking a lease never queues, and a standby that queued would run the " +
                 "work late instead of not at all — for a scheduled pass, the same thing done twice.");
         }
     }

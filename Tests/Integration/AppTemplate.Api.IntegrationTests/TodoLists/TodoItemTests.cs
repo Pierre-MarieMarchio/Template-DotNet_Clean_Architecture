@@ -53,7 +53,7 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         item.Tags.ShouldBe(["urgent", "home"], ignoreOrder: true);
 
         var stored = await Database.QueryAsync(
-            """SELECT "Value" FROM todo."TodoItemTags" ORDER BY "Value" """,
+            $"""SELECT "Value" FROM {DatabaseServer.Table("todo", "TodoItemTags")} ORDER BY "Value" """,
             TestToken);
 
         stored.ShouldBe(["home", "urgent"]);
@@ -75,8 +75,8 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await ApiJson.ReadProblemAsync(response, TestToken)).Code.ShouldBe("request.validationFailed");
 
-        (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItems" """, TestToken)).ShouldBe(0);
-        (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItemTags" """, TestToken)).ShouldBe(0);
+        (await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("todo", "TodoItems")} """, TestToken)).ShouldBe(0);
+        (await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("todo", "TodoItemTags")} """, TestToken)).ShouldBe(0);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         response.Headers.ETag.ShouldNotBeNull();
 
         (await ReadDetailAsync(client, listId)).Items.ShouldBeEmpty();
-        (await Database.CountAsync("""SELECT count(*) FROM todo."TodoItemTags" """, TestToken)).ShouldBe(0);
+        (await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("todo", "TodoItemTags")} """, TestToken)).ShouldBe(0);
     }
 
     [Fact]

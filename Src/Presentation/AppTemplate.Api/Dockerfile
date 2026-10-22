@@ -64,6 +64,11 @@ EXPOSE 8080
 
 WORKDIR /app
 COPY --from=build /app/publish .
+#if (sqlite)
+
+# The SQLite file's folder, which the db-data volume mounts, owned by the user the API runs as.
+RUN mkdir App_Data && chown "$APP_UID" App_Data
+#endif
 
 # The alpine image defines this user without switching to it.
 USER $APP_UID

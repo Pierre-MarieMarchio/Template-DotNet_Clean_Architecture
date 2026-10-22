@@ -207,7 +207,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         thirdMail.HtmlBody.ShouldNotContain("href", Case.Insensitive);
         Emails.Snapshot().ShouldHaveSingleItem();
 
-        (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(1);
+        (await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("identity", "User")} """, TestToken)).ShouldBe(1);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
 
         answers.ShouldAllBe(answer => answer == answers[0]);
         answers[0].Status.ShouldBe(HttpStatusCode.Accepted);
-        (await Database.CountAsync("""SELECT count(*) FROM identity."User" """, TestToken)).ShouldBe(1);
+        (await Database.CountAsync($"""SELECT count(*) FROM {DatabaseServer.Table("identity", "User")} """, TestToken)).ShouldBe(1);
         Emails.Snapshot().ShouldAllBe(sent => sent.Recipient == email);
     }
 

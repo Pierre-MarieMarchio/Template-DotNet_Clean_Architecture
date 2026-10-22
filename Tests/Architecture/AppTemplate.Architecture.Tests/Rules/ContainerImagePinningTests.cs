@@ -130,7 +130,9 @@ public sealed class ContainerImagePinningTests
         var compose = ComposeImages().ToHashSet(StringComparer.Ordinal);
         var fixtures = FixtureImages();
 
+        //#if (serverDatabase || files)
         fixtures.ShouldNotBeEmpty("the integration suites start a container; a search that finds none is broken.");
+        //#endif
 
         fixtures
             .Where(fixture => !_pinned.IsMatch(fixture.Image) || !compose.Contains(fixture.Image))
@@ -152,7 +154,7 @@ public sealed class ContainerImagePinningTests
 
         _from.Match("FROM --platform=$BUILDPLATFORM sdk:1 AS build").Groups["alias"].Value.ShouldBe("build");
         _syntax.IsMatch("# syntax=docker/dockerfile:1").ShouldBeTrue();
-        _fixtureImage.IsMatch("new PostgreSqlBuilder(\"postgres:17-alpine\")").ShouldBeTrue();
+        _fixtureImage.IsMatch("new ContainerBuilder(\"store:17-alpine\")").ShouldBeTrue();
         _fixtureImage.IsMatch("private const string _storeImage =\n        \"a:b\";").ShouldBeTrue();
         _composeInclude.Match("  - path: Src/Web/apps/Site/compose.yml").Groups["path"].Value.ShouldBe("Src/Web/apps/Site/compose.yml");
         _composeInclude.IsMatch("  - Src/Web/apps/Site/compose.yaml").ShouldBeTrue();

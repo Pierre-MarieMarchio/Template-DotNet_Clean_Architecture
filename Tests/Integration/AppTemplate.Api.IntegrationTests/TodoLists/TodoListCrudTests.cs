@@ -155,7 +155,7 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
             TestToken);
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        int items = await Database.CountAsync("SELECT count(*) FROM todo.\"TodoItems\"", TestToken);
+        int items = await Database.CountAsync($"SELECT count(*) FROM {DatabaseServer.Table("todo", "TodoItems")}", TestToken);
         items.ShouldBe(0);
     }
 

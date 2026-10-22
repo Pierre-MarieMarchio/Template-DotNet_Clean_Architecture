@@ -90,6 +90,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
         (await ReadETagAsync(client, listId)).ShouldNotBe(before);
     }
 
+    //#if (!versionCounter)
     [Fact]
     public async Task TwoDifferentLists_DoNotShareOneETag()
     {
@@ -99,6 +100,7 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
 
         (await ReadETagAsync(client, first)).ShouldNotBe(await ReadETagAsync(client, second));
     }
+    //#endif
 
     [Fact]
     public async Task TheCurrentETag_IsAcceptedOnEveryMutatingEndpoint()

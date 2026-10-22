@@ -602,6 +602,19 @@
           ]
         },
         {
+          "condition": "(sqlite)",
+          "exclude": [
+            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
+            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/ResourceReaperSwitch.cs"
+          ]
+        },
+        {
+          "condition": "(sqlite && !files)",
+          "exclude": [
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ResourceReaperSwitch.cs"
+          ]
+        },
+        {
           "condition": "(!versionCounter)",
           "exclude": [
             "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/Versioning/**",
@@ -613,6 +626,23 @@
           "exclude": [
             "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/SchemaAsTablePrefixConvention.cs",
             "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/SchemaAsTablePrefixConventionTests.cs"
+          ]
+        },
+        {
+          "condition": "(tablePrefixes)",
+          "exclude": [
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Notes/Rows/Configurations/NoteRecordConfigurationTests.cs"
+          ]
+        },
+        {
+          "condition": "(sqlite)",
+          "exclude": [
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileLikePatternTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileSortMapTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Notes/Access/Queries/NoteSortMapTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListLikePatternTests.cs",
+            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListSortMapTests.cs"
           ]
         },
         {

@@ -112,8 +112,8 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         int matches = await Database.CountAsync(
             $"""
-            SELECT count(*) FROM todo."TodoLists"
-            WHERE "Id" = '{listId}' AND "CreatedAt" = '{aggregate.CreatedAt:O}'
+            SELECT count(*) FROM {DatabaseServer.Table("todo", "TodoLists")}
+            WHERE "Id" = {DatabaseServer.Literal(listId)} AND "CreatedAt" = {DatabaseServer.Literal(aggregate.CreatedAt)}
             """,
             TestToken);
 

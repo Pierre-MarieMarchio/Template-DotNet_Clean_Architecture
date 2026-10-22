@@ -115,7 +115,7 @@ public sealed class SpentPasskeyCeremonyTableTests(GrantTableFixture fixture) : 
 
         await using var command = connection.CreateCommand();
         command.CommandText =
-            $"""SELECT count(*) FROM {AuthDbContext.IdentitySchema}."SpentPasskeyCeremonies" WHERE "StateHash" = @stateHash""";
+            $"""SELECT count(*) FROM {DatabaseServer.Table(AuthDbContext.IdentitySchema, "SpentPasskeyCeremonies")} WHERE "StateHash" = @stateHash""";
 
         var parameter = command.CreateParameter();
         parameter.ParameterName = "stateHash";

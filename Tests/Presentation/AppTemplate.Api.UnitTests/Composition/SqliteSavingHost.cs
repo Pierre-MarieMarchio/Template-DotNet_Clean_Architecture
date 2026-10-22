@@ -1,6 +1,8 @@
 ﻿using System.Globalization;
 using System.Security.Claims;
+//#if (postgreSql)
 using System.Text.RegularExpressions;
+//#endif
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
 //#if (todoLists || notes)
@@ -206,7 +208,11 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
         string script = scope.ServiceProvider.GetRequiredService<TContext>().Database.GenerateCreateScript();
 
         await using var command = connection.CreateCommand();
+        /*#if (postgreSql)*/
         command.CommandText = XminColumn().Replace(script, "\"xmin\" INTEGER NOT NULL DEFAULT 1");
+        /*#else
+        command.CommandText = script;
+        #endif*/
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -218,8 +224,10 @@ internal sealed partial class SqliteSavingHost : IAsyncDisposable
             })
             .Build();
 
+    //#if (postgreSql)
     [GeneratedRegex("\"xmin\" xid NOT NULL")]
     private static partial Regex XminColumn();
+    //#endif
 
     //#if (todoLists)
     private sealed class RecordingCreatedConsumer(PublishedEvents published)

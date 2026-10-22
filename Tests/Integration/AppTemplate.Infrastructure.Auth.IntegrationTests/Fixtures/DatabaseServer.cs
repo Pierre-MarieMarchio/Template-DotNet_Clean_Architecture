@@ -20,6 +20,8 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
 
     public ValueTask DisposeAsync() => _container.DisposeAsync();
 
+    internal static string Table(string schema, string table) => $"{schema}.\"{table}\"";
+
     internal static Exception TransientFault() =>
         new NpgsqlException("Injected: the connection was lost.", new TimeoutException());
 }

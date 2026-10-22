@@ -70,5 +70,8 @@ Accepted, and its table shows which inherited choices still hold.
 | [0019](0019-one-generated-api-client.md) | One generated API client | Web front end |
 <!--#endif-->
 | [0020](0020-one-risk-one-type-of-test.md) | One risk, one type of test | Testing |
+<!--#if (sqlite)-->
+| [0021](0021-sqlite-is-a-development-database.md) | SQLite is a development database | Persistence |
+<!--#endif-->
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

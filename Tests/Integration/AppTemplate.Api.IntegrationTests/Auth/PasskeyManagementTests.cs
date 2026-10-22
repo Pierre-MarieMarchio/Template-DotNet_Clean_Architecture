@@ -127,7 +127,7 @@ public sealed class PasskeyManagementTests(ApiFixture fixture) : IntegrationTest
         }
 
         (await Database.CountAsync(
-            $"""SELECT COUNT(*) FROM "identity"."UserPasskeys" WHERE "UserId" = '{session.UserId}'""",
+            $"""SELECT COUNT(*) FROM {DatabaseServer.Table("identity", "UserPasskeys")} WHERE "UserId" = {DatabaseServer.Literal(session.UserId)}""",
             TestToken)).ShouldBe(0);
 
         var device = CreateClient();

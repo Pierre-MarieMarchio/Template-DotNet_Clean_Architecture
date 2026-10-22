@@ -12,7 +12,6 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
     private const string _createDatabaseSql =
         "DECLARE @sql nvarchar(max) = N'CREATE DATABASE ' + QUOTENAME(@database); EXEC (@sql);";
 
-    // One server per test assembly, each instance getting its own database: a SQL Server container takes about 2 GB of memory.
     private static readonly SemaphoreSlim _startGate = new(1, 1);
 
     private static MsSqlContainer? _container;
@@ -52,7 +51,6 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
     internal static string SchemasSql =>
         "SELECT DISTINCT table_schema FROM information_schema.tables WHERE table_type = 'BASE TABLE'";
 
-    // The business context names "public" as its history schema, which SQL Server keeps in dbo.
     internal static string HistorySchemasSql(string historyTable) =>
         $"SELECT CASE table_schema WHEN 'dbo' THEN 'public' ELSE table_schema END AS table_schema FROM information_schema.tables WHERE table_name = '{historyTable}' ORDER BY 1";
 

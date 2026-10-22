@@ -5,8 +5,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 
 namespace AppTemplate.Infrastructure.Core.Common.Contexts;
 
-// SQL Server refuses a foreign key that gives a table two cascade paths from one principal.
-// A cascade the same rows already follow through a longer path is dropped, so nothing outlives its principal.
 public sealed class RedundantCascadePathsConvention : IModelFinalizingConvention
 {
     public void ProcessModelFinalizing(

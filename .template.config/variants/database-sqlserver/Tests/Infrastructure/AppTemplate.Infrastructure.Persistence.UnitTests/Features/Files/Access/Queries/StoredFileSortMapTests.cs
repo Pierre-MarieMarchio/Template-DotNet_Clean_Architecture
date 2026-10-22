@@ -51,7 +51,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyOrder(context.StoredFiles, sort).ToQueryString();
 
-        sql.ShouldContain($"ORDER BY s.\"{ColumnOf(field)}\", [s].[Id]");
+        sql.ShouldContain($"ORDER BY [s].[{ColumnOf(field)}], [s].[Id]");
         sql.ShouldNotContain("DESC");
     }
 
@@ -64,7 +64,7 @@ public sealed class StoredFileSortMapTests
 
         string sql = StoredFileSortMap.ApplyOrder(context.StoredFiles, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY s.\"{ColumnOf(field)}\" DESC, [s].[Id] DESC");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY [s].[{ColumnOf(field)}] DESC, [s].[Id] DESC");
     }
 
     [Fact]

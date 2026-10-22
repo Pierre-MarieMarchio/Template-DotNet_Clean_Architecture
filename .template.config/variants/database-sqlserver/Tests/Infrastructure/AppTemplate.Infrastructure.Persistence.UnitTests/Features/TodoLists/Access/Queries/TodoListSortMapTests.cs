@@ -50,7 +50,7 @@ public sealed class TodoListSortMapTests
 
         string sql = TodoListSortMap.ApplyOrder(context.TodoLists, sort).ToQueryString();
 
-        sql.ShouldContain($"ORDER BY t.\"{ColumnOf(field)}\", [t].[Id]");
+        sql.ShouldContain($"ORDER BY [t].[{ColumnOf(field)}], [t].[Id]");
         sql.ShouldNotContain("DESC");
     }
 
@@ -63,7 +63,7 @@ public sealed class TodoListSortMapTests
 
         string sql = TodoListSortMap.ApplyOrder(context.TodoLists, sort).ToQueryString();
 
-        sql.TrimEnd().ShouldEndWith($"ORDER BY t.\"{ColumnOf(field)}\" DESC, [t].[Id] DESC");
+        sql.TrimEnd().ShouldEndWith($"ORDER BY [t].[{ColumnOf(field)}] DESC, [t].[Id] DESC");
     }
 
     [Fact]

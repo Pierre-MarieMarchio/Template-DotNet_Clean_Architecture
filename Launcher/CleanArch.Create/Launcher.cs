@@ -29,6 +29,7 @@ public sealed partial class Launcher
           -n, --name <name>            the project, app or package name
           -o, --output <folder>        where new writes the project (default: ./<name>)
           -y, --yes                    take the default of every option not given
+          --setup                      after new: commit, bootstrap, commit again and copy .env without asking
           --template-source <path>     install the templates from a checkout or a .nupkg instead of nuget.org
           --hive <folder>              the template engine's settings folder (dotnet new --debug:custom-hive)
           -h, --help                   show this help
@@ -83,7 +84,13 @@ public sealed partial class Launcher
             var session = new Session(parsed, source, questionnaire, dotnet, source.Manifest(TemplateKind.Project).Version);
             GeneratedProject? project = GeneratedProject.Find(_workingDirectory);
 
-            switch (parsed.Command ?? Choose(project, session))
+            string command = parsed.Command ?? Choose(project, session);
+            if (parsed.Setup && command != Arguments.NewCommand)
+            {
+                throw new LauncherException($"--setup sets up a project new generates; {command} takes no --setup.");
+            }
+
+            switch (command)
             {
                 case Arguments.WebAppCommand:
                     WebApp(session, Required(project, Arguments.WebAppCommand));
@@ -189,7 +196,8 @@ public sealed partial class Launcher
             previous => new Asked(
                 session.Questionnaire.Text("--name", label, previous is null ? session.Parsed.Name : null, previous?.Name, problem),
                 null,
-                session.Questionnaire.Answer(manifest, previous is null ? session.Parsed.TemplateOptions : _nothing, detected, _alwaysAsked, previous?.Options)),
+                session.Questionnaire.Answer(manifest, previous is null ? session.Parsed.TemplateOptions : _nothing, detected, _alwaysAsked, previous?.Options),
+                []),
             asked => [KeyValuePair.Create(label, asked.Name!), .. Questionnaire.Recap(manifest, asked.Options)],
             _ => subject);
 
@@ -213,9 +221,37 @@ public sealed partial class Launcher
         conversation.Note($"Read from {project.Name}: {facts}");
     }
 
-    private static void Equivalents(Session session, string command, IReadOnlyList<string> dotnetNew)
+    private static IReadOnlyList<string> SetupChosen(Session session, Asked? previous)
+    {
+        string[] every = [.. ProjectSetup.Steps.Select(step => step.Title)];
+        if (session.Parsed.Setup)
+        {
+            return every;
+        }
+
+        return session.Questionnaire.Asks
+            ? session.Conversation.ChooseMany(
+                "Set up the project now?",
+                [.. ProjectSetup.Steps.Select(step => new OptionChoice(step.Title, step.Description))],
+                previous?.Setup ?? every)
+            : [];
+    }
+
+    private static string Recalled(IReadOnlyList<string> setup) => setup.Count == 0 ? "Nothing" : string.Join(", ", setup);
+
+    private static string? Without(string? section, IReadOnlyCollection<string> commands) =>
+        section is null
+            ? null
+            : string.Join('\n', section.Split('\n').Where(line => !commands.Any(command => line.TrimStart().StartsWith(command, StringComparison.Ordinal))));
+
+    private static void Equivalents(Session session, string command, IReadOnlyList<string> dotnetNew, bool setup = false)
     {
         List<string> launcher = [command, .. dotnetNew.Skip(1), "--yes"];
+        if (setup)
+        {
+            launcher.Add("--setup");
+        }
+
         if (session.Parsed.TemplateSource is { } source)
         {
             launcher.AddRange(["--template-source", source]);
@@ -262,9 +298,16 @@ public sealed partial class Launcher
                     ?? (questionnaire.Asks && name is not null
                         ? questionnaire.Text("--output", "Output folder", null, Path.Combine(".", name), _ => null)
                         : name);
-                return new Asked(name, output, questionnaire.Answer(manifest, previous is null ? parsed.TemplateOptions : _nothing, _nothing, ProjectAskedWhen, previous?.Options));
+                Dictionary<string, string> answers = questionnaire.Answer(manifest, previous is null ? parsed.TemplateOptions : _nothing, _nothing, ProjectAskedWhen, previous?.Options);
+                return new Asked(name, output, answers, SetupChosen(session, previous));
             },
-            asked => [KeyValuePair.Create("Project name", asked.Name!), KeyValuePair.Create("Output folder", asked.Output!), .. Questionnaire.Recap(manifest, asked.Options)],
+            asked =>
+            [
+                KeyValuePair.Create("Project name", asked.Name!),
+                KeyValuePair.Create("Output folder", asked.Output!),
+                .. Questionnaire.Recap(manifest, asked.Options),
+                KeyValuePair.Create("Set up", Recalled(asked.Setup)),
+            ],
             asked => $"Generate {asked.Name}");
         string name = asked.Name!;
         string output = asked.Output!;
@@ -278,12 +321,34 @@ public sealed partial class Launcher
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
         Install(session, _workingDirectory);
         session.Conversation.Perform($"Generating {name}", $"Generated {name}", () => session.Dotnet.Run(_workingDirectory, [manifest.ShortName, "-n", name, "-o", target, .. options]));
+        List<SetupOutcome> outcomes = SetUp(session, target, asked.Setup);
 
-        Equivalents(session, Arguments.NewCommand, [manifest.ShortName, "-n", name, "-o", output, .. options]);
+        Equivalents(session, Arguments.NewCommand, [manifest.ShortName, "-n", name, "-o", output, .. options], asked.Setup.Count == ProjectSetup.Steps.Count);
+        string? section = Without(
+            MarkdownSection(Path.Combine(target, "README.md"), "## Run it"),
+            [.. outcomes.Where(outcome => outcome.Status == SetupStatus.Done && outcome.Step.Replaces is not null).Select(outcome => outcome.Step.Replaces!)]);
+        IEnumerable<string> left = outcomes
+            .SelectMany(outcome => outcome.Rerun)
+            .Distinct(StringComparer.Ordinal)
+            .Where(command => section?.Contains(command, StringComparison.Ordinal) != true);
         session.Conversation.Close(new Closing(
             null,
-            [TemplateEngine.CommandLine("cd", [output])],
-            MarkdownSection(Path.Combine(target, "README.md"), "## Run it") ?? "Read the project's README.md."));
+            [TemplateEngine.CommandLine("cd", [output]), .. left],
+            section ?? "Read the project's README.md."));
+    }
+
+    private List<SetupOutcome> SetUp(Session session, string target, IReadOnlyList<string> chosen)
+    {
+        var setup = new ProjectSetup(_processes, target, Version(session.Source), session.Conversation.EchoesTheTemplateEngine ? _console.Verbatim : null);
+        var outcomes = new List<SetupOutcome>();
+        foreach (SetupStep step in ProjectSetup.Steps.Where(step => chosen.Contains(step.Title)))
+        {
+            SetupOutcome outcome = session.Conversation.Spin(step.Running, () => setup.Run(step, outcomes));
+            session.Conversation.Reported(outcome.Text, outcome.Status == SetupStatus.Done, outcome.Why, outcome.Rerun);
+            outcomes.Add(outcome);
+        }
+
+        return outcomes;
     }
 
     private static void WebApp(Session session, GeneratedProject project)
@@ -348,7 +413,7 @@ public sealed partial class Launcher
         public Conversation Conversation => Questionnaire.Conversation;
     }
 
-    private sealed record Asked(string? Name, string? Output, Dictionary<string, string> Options);
+    private sealed record Asked(string? Name, string? Output, Dictionary<string, string> Options, IReadOnlyList<string> Setup);
 
     [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")]
     private static partial Regex ProjectName();

@@ -46,6 +46,13 @@ public sealed class GuidedConversation : Conversation
         return selected;
     }
 
+    public override IReadOnlyList<string> ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
+    {
+        IReadOnlyList<string> chosen = new RailMultiSelection(label, choices, selected).Show(_console);
+        Recall(label, chosen.Count == 0 ? "Nothing" : string.Join(", ", chosen), null);
+        return chosen;
+    }
+
     public override bool Confirm(string label, string description, bool defaultValue)
     {
         string selected = new RailSelection(label, description, _yesNo, defaultValue ? Yes : No, inline: true, _ => null).Show(_console);
@@ -96,11 +103,42 @@ public sealed class GuidedConversation : Conversation
 
     public override void Perform(string running, string done, Action work)
     {
+        Spin(running, () =>
+        {
+            work();
+            return done;
+        });
+        Mark(Rail.Answered, "green", Markup.Escape(done));
+        Gap();
+    }
+
+    public override T Spin<T>(string running, Func<T> work) =>
         _console.Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(new Style(Color.Aqua))
             .Start(Markup.Escape(running), _ => work());
-        Mark(Rail.Answered, "green", Markup.Escape(done));
+
+    public override void Reported(string text, bool succeeded, string? why, IReadOnlyList<string> rerun)
+    {
+        if (succeeded)
+        {
+            Mark(Rail.Answered, "green", Markup.Escape(text));
+        }
+        else
+        {
+            Mark(Rail.Warning, "yellow", $"[yellow]{Markup.Escape(text)}[/]");
+        }
+
+        if (why is not null)
+        {
+            _console.Write(Rail.Of($"[grey]{Markup.Escape(why)}[/]"));
+        }
+
+        foreach (string command in rerun)
+        {
+            _console.Write(Rail.Of($"[bold]{Markup.Escape(command)}[/]"));
+        }
+
         Gap();
     }
 

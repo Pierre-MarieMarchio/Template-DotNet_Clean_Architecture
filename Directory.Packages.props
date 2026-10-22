@@ -38,7 +38,7 @@
 
   <!--#if (localAuth)-->
   <ItemGroup Label="Identity model">
-    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
   </ItemGroup>
   <!--#endif-->
 

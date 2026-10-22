@@ -52,8 +52,9 @@ public sealed class DatabaseServer(string database) : IAsyncDisposable
     internal static string SchemasSql =>
         "SELECT DISTINCT table_schema FROM information_schema.tables WHERE table_type = 'BASE TABLE'";
 
+    // The business context names "public" as its history schema, which SQL Server keeps in dbo.
     internal static string HistorySchemasSql(string historyTable) =>
-        $"SELECT table_schema FROM information_schema.tables WHERE table_name = '{historyTable}' ORDER BY table_schema";
+        $"SELECT CASE table_schema WHEN 'dbo' THEN 'public' ELSE table_schema END AS table_schema FROM information_schema.tables WHERE table_name = '{historyTable}' ORDER BY 1";
 
     internal static string TablesSql(IEnumerable<string> schemas, IEnumerable<string> keptTables) =>
         $"""

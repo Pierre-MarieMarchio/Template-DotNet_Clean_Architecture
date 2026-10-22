@@ -3,17 +3,17 @@ name: CodeQL
 # Code scanning beside the gate: its alerts land in the repository's Security tab, and the weekly run picks up new queries.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   schedule:
     - cron: "23 4 * * 1"
   workflow_dispatch:
 
-# One run per ref: a new push cancels the previous one, except on main.
+# One run per ref: a new push cancels the previous one, except on main and develop.
 concurrency:
   group: codeql-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
 permissions:
   contents: read

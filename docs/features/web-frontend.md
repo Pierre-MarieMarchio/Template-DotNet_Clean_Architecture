@@ -28,6 +28,10 @@ It writes the CLI's starter, lays the wiring over it (the `/api` relay, the pack
 `api-client` dependency, the `dev`, `build`, `lint` and `test` scripts), pins every dependency to
 the version installed, then runs `pnpm install` and `pnpm api`.
 
+The CLI runs with its input closed, from the scratch folder it writes into. A CLI that asks a
+question therefore makes `web-scaffold` fail, leaving the app's folder unchanged, instead of waiting
+for an answer: the descriptor in the app's folder gives the CLI every answer in its arguments.
+
 Commit the app with the lockfile. From then on the app is this project's own: `web-scaffold` leaves
 it alone, and the pages are yours to write.
 <!--#endif-->

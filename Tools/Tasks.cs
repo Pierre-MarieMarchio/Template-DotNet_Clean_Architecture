@@ -910,7 +910,7 @@ internal static class Tasks
             "dlx", cli,
             .. (descriptor["arguments"]?.AsArray() ?? []).Select(argument => (argument?.GetValue<string>() ?? string.Empty)
                 .Replace("{name}", name, StringComparison.Ordinal)
-                .Replace("{directory}", Path.GetRelativePath(web, starter).Replace('\\', '/'), StringComparison.Ordinal)),
+                .Replace("{directory}", name, StringComparison.Ordinal)),
         ];
 
         try
@@ -919,7 +919,7 @@ internal static class Tasks
 
             try
             {
-                StepIn(web, Pnpm, arguments);
+                Launch(scratch, new Dictionary<string, string>(StringComparer.Ordinal), Pnpm, arguments, closeInput: true);
             }
             catch (InvalidOperationException error)
             {
@@ -1393,7 +1393,7 @@ internal static class Tasks
             .Where(variable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
             .ToDictionary(variable => variable.Key, variable => variable.Value, StringComparer.Ordinal);
 
-    private static void Launch(string? directory, Dictionary<string, string> environment, string executable, string[] arguments)
+    private static void Launch(string? directory, Dictionary<string, string> environment, string executable, string[] arguments, bool closeInput = false)
     {
         string line = string.Concat(environment.Select(variable => $"{variable.Key}={variable.Value} "))
             + executable + " " + string.Join(' ', arguments);
@@ -1405,6 +1405,7 @@ internal static class Tasks
             FileName = executable,
             UseShellExecute = false,
             WorkingDirectory = directory ?? string.Empty,
+            RedirectStandardInput = closeInput,
         };
         foreach (var (name, value) in environment)
         {
@@ -1429,6 +1430,11 @@ internal static class Tasks
 
         using (process)
         {
+            if (closeInput)
+            {
+                process.StandardInput.Close();
+            }
+
             process.WaitForExit();
             if (process.ExitCode != 0)
             {

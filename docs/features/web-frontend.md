@@ -18,7 +18,7 @@ Each app is its own deployable. Its development server, and in Compose its nginx
 `/api/` and `/health` to the API, so the browser talks to one origin per app and the API keeps
 CORS closed.
 
-<!--#if (webReact || webAngular)-->
+<!--#if (webFramework)-->
 ## Creating the app
 
 The app is written by its framework's official CLI, `create-vite` with the `react-ts` template or

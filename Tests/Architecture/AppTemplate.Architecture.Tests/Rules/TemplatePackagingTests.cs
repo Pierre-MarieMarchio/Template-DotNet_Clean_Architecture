@@ -293,6 +293,43 @@ public sealed class TemplatePackagingTests
         }
     }
 
+    [Theory]
+    [InlineData(".template.config", "web", "./.template.config/starters/")]
+    [InlineData(".template.config/webapp/.template.config", "framework", "../starters/")]
+    public void EveryFrameworkChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource)
+    {
+        string starters = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "starters");
+        string[] folders = [.. Directory.GetDirectories(starters).Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal)];
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        string[] frameworks = [.. symbols.GetProperty(option).GetProperty("choices").EnumerateArray()
+            .Select(choice => choice.GetProperty("choice").GetString()!)
+            .Where(choice => choice is not "none" and not "placeholder")
+            .Order(StringComparer.Ordinal)];
+        var computed = symbols.EnumerateObject()
+            .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
+            .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
+        var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
+
+        folders.ShouldBe(frameworks, $"Each --{option} value with a CLI has its folder under .template.config/starters, named after it, and no other folder is there.");
+
+        foreach (string framework in frameworks)
+        {
+            File.Exists(Path.Combine(starters, framework, "FrameworkSite", "scaffold.json")).ShouldBeTrue(
+                $".template.config/starters/{framework}/FrameworkSite holds no scaffold.json, so web-scaffold would find nothing to run.");
+            string chosenBy = computed.Single(symbol => symbol.Value == $"({option} == \"{framework}\")").Key;
+            sources.ShouldContain(
+                source => Text(source, "source") == $"{startersSource}{framework}/"
+                    && Text(source, "target") == "./Src/Web/apps/"
+                    && Text(source, "condition") == $"({chosenBy})",
+                $"{folder}/template.json must copy {startersSource}{framework}/ into ./Src/Web/apps/ under the condition ({chosenBy}).");
+            computed["webFramework"].ShouldContain(chosenBy, Case.Sensitive, $"webFramework in {folder}/template.json must name {chosenBy}, so the shared wiring comes with the {framework} starter.");
+        }
+    }
+
+    private static string? Text(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) ? value.GetString() : null;
+
     private static bool IsRefusal(JsonElement symbol) =>
         symbol.TryGetProperty("choices", out var choices)
         && choices.EnumerateArray().All(choice => choice.GetProperty("choice").GetString() == "refused");

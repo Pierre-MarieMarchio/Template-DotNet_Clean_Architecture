@@ -59,11 +59,8 @@ to start without its identity provider.
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI | <http://localhost:8080/scalar/v1> |
 | Mailpit | <http://localhost:8025> |
-<!--#if (webReact)-->
+<!--#if (webFramework)-->
 | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webAngular)-->
-| Web app | <http://localhost:4200> |
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 | Web app | <http://localhost:8081> |

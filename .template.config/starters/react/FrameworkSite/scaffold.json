@@ -1,12 +1,12 @@
 {
   "framework": "react",
-  "name": "react-site",
+  "name": "framework-site",
   "package": "create-vite",
   "version": "9.3.1",
   "arguments": ["{directory}", "--template", "react-ts", "--no-interactive", "--no-immediate"],
   "merge": {
     "package.json": {
-      "name": "react-site",
+      "name": "framework-site",
       "scripts": {
         "test": "vitest run --passWithNoTests"
       },

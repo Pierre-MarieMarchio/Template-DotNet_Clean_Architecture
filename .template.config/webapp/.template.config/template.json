@@ -128,6 +128,7 @@
     "webPlaceholder": { "type": "computed", "value": "(framework == \"placeholder\")" },
     "webReact": { "type": "computed", "value": "(framework == \"react\")" },
     "webAngular": { "type": "computed", "value": "(framework == \"angular\")" },
+    "webFramework": { "type": "computed", "value": "(webReact || webAngular)" },
     "adminAudience": { "type": "computed", "value": "(audience == \"admin\")" },
     "appName": {
       "type": "derived",
@@ -136,19 +137,12 @@
       "replaces": "PlaceholderSite",
       "fileRename": "PlaceholderSite"
     },
-    "appNameReact": {
+    "appNameFramework": {
       "type": "derived",
       "valueSource": "name",
       "valueTransform": "identity",
-      "replaces": "ReactSite",
-      "fileRename": "ReactSite"
-    },
-    "appNameAngular": {
-      "type": "derived",
-      "valueSource": "name",
-      "valueTransform": "identity",
-      "replaces": "AngularSite",
-      "fileRename": "AngularSite"
+      "replaces": "FrameworkSite",
+      "fileRename": "FrameworkSite"
     },
     "appNameWords": {
       "type": "generated",
@@ -182,35 +176,20 @@
       },
       "replaces": "PLACEHOLDER_SITE"
     },
-    "appNameKebabReact": {
+    "appNameKebabFramework": {
       "type": "generated",
       "generator": "casing",
       "parameters": { "source": "appNameWords", "toLower": true },
-      "replaces": "react-site"
+      "replaces": "framework-site"
     },
-    "appNameEnvironmentReact": {
+    "appNameEnvironmentFramework": {
       "type": "generated",
       "generator": "regex",
       "parameters": {
         "source": "appNameUpper",
         "steps": [{ "regex": "-", "replacement": "_" }]
       },
-      "replaces": "REACT_SITE"
-    },
-    "appNameKebabAngular": {
-      "type": "generated",
-      "generator": "casing",
-      "parameters": { "source": "appNameWords", "toLower": true },
-      "replaces": "angular-site"
-    },
-    "appNameEnvironmentAngular": {
-      "type": "generated",
-      "generator": "regex",
-      "parameters": {
-        "source": "appNameUpper",
-        "steps": [{ "regex": "-", "replacement": "_" }]
-      },
-      "replaces": "ANGULAR_SITE"
+      "replaces": "FRAMEWORK_SITE"
     },
     "reactPort": {
       "type": "generated",
@@ -250,18 +229,22 @@
           ]
         },
         {
-          "condition": "(!webReact)",
+          "condition": "(!webFramework)",
           "exclude": [
-            "ReactSite/**"
-          ]
-        },
-        {
-          "condition": "(!webAngular)",
-          "exclude": [
-            "AngularSite/**"
+            "FrameworkSite/**"
           ]
         }
       ]
+    },
+    {
+      "source": "../starters/react/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webReact)"
+    },
+    {
+      "source": "../starters/angular/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webAngular)"
     },
     {
       "source": "../../Src/Web/",

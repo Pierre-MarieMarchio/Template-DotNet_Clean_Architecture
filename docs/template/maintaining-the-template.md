@@ -56,8 +56,11 @@ same way, `hygiene` passes, and they are removed last in first out. In a project
 owner feature, the first one prints edits as prose, its account-deletion wiring among them, so there
 only the domain and application layers are built and tested. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
-install, lint, test and build, checks a second `web-scaffold` changes nothing, starts the whole stack
-and asks each app for its page, its headers and an answer only the API gives.
+install, lint, test and build, fails when a built `index.html` holds an inline script or an
+event-handler attribute (and reports its inline styles), checks a second `web-scaffold` changes
+nothing, starts the whole stack and asks each app for its page, its headers and an answer only the
+API gives. The every-starter leg adds each framework starter its first app is not, so one workspace
+proves them all together.
 
 | Leg | Options |
 |---|---|
@@ -77,6 +80,7 @@ and asks each app for its page, its headers and an answer only the API gives.
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
+| web, every starter | `--web vue --examples none --files false`, then `cleanarch-webapp` once per other framework starter, each on its own `--port` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and

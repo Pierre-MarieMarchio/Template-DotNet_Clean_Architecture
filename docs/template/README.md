@@ -14,6 +14,11 @@ choose the options, and the combinations it refuses.
 [Maintaining the template](maintaining-the-template.md): the template's own gates, the acceptance
 matrix, adding an option, and writing pages that condition on the options.
 
+## What is coming
+
+[Roadmap](roadmap.md): the items coming in order, the ones for later, what stays out, and how to
+propose one.
+
 ## Its decisions
 
 - [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)

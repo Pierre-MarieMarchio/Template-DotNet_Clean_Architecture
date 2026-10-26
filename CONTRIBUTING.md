@@ -59,4 +59,6 @@ as a conventional commit, and returns to `develop` by a pull request; `main` hol
 The branches and releases, its own gates, the acceptance matrix and the rules for writing pages that
 condition on the generation options are in
 [maintaining the template](docs/template/maintaining-the-template.md).
+[The roadmap](docs/template/roadmap.md) says what is coming and in which order; a change it does not
+list starts from an issue.
 <!--#endif-->

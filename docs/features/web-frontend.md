@@ -21,12 +21,13 @@ CORS closed.
 <!--#if (webFramework)-->
 ## Creating the app
 
-The app is written by its framework's official CLI, `create-vite` with the `react-ts` template or
-the Angular CLI's `ng new`, at a version pinned in the app's folder. `bootstrap` runs that step
-once, through `dotnet run Tools/Tasks.cs web-scaffold`, and needs the network to fetch the CLI.
-It writes the CLI's starter, lays the wiring over it (the `/api` relay, the package name, the
-`api-client` dependency, the `dev`, `build`, `lint` and `test` scripts), pins every dependency to
-the version installed, then runs `pnpm install` and `pnpm api`.
+The app is written by its framework's official CLI, at a version pinned in the app's folder:
+`create-vue` for `vue`; `create-vite` with its `react-ts`, `vue-ts` or `svelte-ts` template for
+`vite-react` (or `react`, the same app), `vite-vue` and `vite-svelte`; the Angular CLI's `ng new`
+for `angular`. `bootstrap` runs that step once, through `dotnet run Tools/Tasks.cs web-scaffold`,
+and needs the network to fetch the CLI. It writes the CLI's starter, lays the wiring over it (the
+`/api` relay, the package name, the `api-client` dependency, the scripts the workspace runs), pins
+every dependency to the version installed, then runs `pnpm install` and `pnpm api`.
 
 The CLI runs with its input closed, from the scratch folder it writes into. A CLI that asks a
 question therefore makes `web-scaffold` fail, leaving the app's folder unchanged, instead of waiting
@@ -187,7 +188,8 @@ Add an app at the project root; it gets its own folder, image and Compose servic
 dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin --scope app-template --port 8082
 ```
 
-`--framework` is `react`, `angular` or `placeholder`; `--scope` is the package scope of
+`--framework` is `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `angular` or `placeholder`, and
+`react` names the same app as `vite-react`; `--scope` is the package scope of
 `Src/Web/package.json`; `--auth` repeats this project's value. The command prints
 two lines to add, also in the app's `README.md`: an `include:` entry in `docker-compose.yml` and
 `WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
@@ -202,7 +204,7 @@ dotnet new cleanarch-webpackage -n tokens --scope app-template
 
 Run `pnpm install` in `Src/Web` and add `"@app-template/tokens": "workspace:*"` to each app that
 uses it. Internal packages are private and export their TypeScript sources, which each app's bundler
-compiles. An app never imports another app. A React or Angular package is the project's to write.
+compiles. An app never imports another app. A package for one framework is the project's to write.
 
 Removing an app is deleting its folder, its `include:` line and its port line, then running
 `pnpm install`.

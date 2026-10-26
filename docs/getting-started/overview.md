@@ -114,11 +114,23 @@ setting, table or test names it.
 <!--#if (!sonar)-->
 | `--sonar` | `false` | no Sonar analysis |
 <!--#endif-->
-<!--#if (webReact)-->
+<!--#if (web == "react")-->
 | `--web` | `react` | a React app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
 <!--#endif-->
 <!--#if (webAngular)-->
 | `--web` | `angular` | an Angular app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
+<!--#endif-->
+<!--#if (webVue)-->
+| `--web` | `vue` | a Vue app in `Src/Web/apps/FrameworkSite`, created by Vue's official CLI, `create-vue`, at bootstrap |
+<!--#endif-->
+<!--#if (web == "vite-react")-->
+| `--web` | `vite-react` | a React app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
+<!--#endif-->
+<!--#if (webViteVue)-->
+| `--web` | `vite-vue` | a Vue app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
+<!--#endif-->
+<!--#if (webViteSvelte)-->
+| `--web` | `vite-svelte` | a Svelte app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 | `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
@@ -142,10 +154,10 @@ To change a value, remove the part by hand or add it:
 - [Adding a feature](../guides/adding-a-feature.md) generates a feature of your own.
 <!--#endif-->
 <!--#if (!anyWeb)-->
-- `dotnet new cleanarch-webapp -n PlaceholderSite --framework react --scope app-template --workspace`
-  adds a first web app and its workspace (`angular` or `placeholder` work too). Pass this
-  project's `--auth`, `--examples` and `--ci` when they are not the defaults; the README it writes in
-  the new workspace lists the lines to add by hand.
+- `dotnet new cleanarch-webapp -n PlaceholderSite --framework vite-react --scope app-template --workspace`
+  adds a first web app and its workspace (`vue`, `vite-vue`, `vite-svelte`, `angular` or
+  `placeholder` work too). Pass this project's `--auth`, `--examples` and `--ci` when they are not
+  the defaults; the README it writes in the new workspace lists the lines to add by hand.
 <!--#endif-->
 <!--#if (anyWeb)-->
 - `dotnet new cleanarch-webapp` adds another web app; [the web front end](../features/web-frontend.md) says how.

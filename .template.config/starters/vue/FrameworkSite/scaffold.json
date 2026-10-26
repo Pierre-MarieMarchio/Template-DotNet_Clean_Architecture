@@ -1,0 +1,23 @@
+{
+  "framework": "vue",
+  "name": "framework-site",
+  "package": "create-vue",
+  "version": "3.24.0",
+  "arguments": ["{directory}", "--ts", "--router", "--vitest", "--eslint"],
+  "merge": {
+    "package.json": {
+      "name": "framework-site",
+      "scripts": {
+        "test": "vitest run",
+        "lint:oxlint": "oxlint .",
+        "lint:eslint": "eslint ."
+      },
+      "dependencies": {
+        "@app-template/api-client": "workspace:*"
+      },
+      "devDependencies": {
+        "vitest": "5.0.5"
+      }
+    }
+  }
+}

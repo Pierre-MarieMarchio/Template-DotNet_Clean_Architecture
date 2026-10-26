@@ -43,7 +43,7 @@ given. Without a terminal, every answer is a flag or `--yes` is passed:
 
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
-dnx CleanArch.Create web-app -n BackOffice --framework react --audience admin --yes
+dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
 ```
 
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the
@@ -132,9 +132,21 @@ error under warnings as errors. Pick a name with no such segment.
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
 | `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
-| `--web` | `none`, `placeholder`, `react`, `angular` | `none` | the first web app in the pnpm workspace `Src/Web`; a framework app is created by its official CLI at bootstrap |
+| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `angular`, `react` | `none` | the first web app in the pnpm workspace `Src/Web`; a framework app is created by its official CLI at bootstrap, as the table below says |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
+
+Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
+writes the app and never changes meaning:
+
+| Value | Generator | Template or flags | Dev port |
+|---|---|---|---|
+| `vue` | `create-vue`, Vue's official CLI | TypeScript, Vue Router, Vitest, ESLint | 5173 |
+| `vite-react` | `create-vite`, Vite's official CLI | `react-ts` | 5173 |
+| `vite-vue` | `create-vite` | `vue-ts` | 5173 |
+| `vite-svelte` | `create-vite` | `svelte-ts` | 5173 |
+| `angular` | `ng new`, the Angular CLI | standalone, routing, CSS, no server-side rendering, Vitest | 4200 |
+| `react` | the same app as `vite-react`, under the name it had first; kept until the next major version | | 5173 |
 
 What an option leaves out is absent, not disabled: no project, file, setting, table, test or page names
 it, and the generated solution builds and passes its tests.
@@ -173,13 +185,13 @@ and the three tree-auditing gates `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflow
 Run both at the root of a generated project, with its workspace scope:
 
 ```bash
-dotnet new cleanarch-webapp -n BackOffice --framework react --scope <scope> --audience admin
+dotnet new cleanarch-webapp -n BackOffice --framework vite-react --scope <scope> --audience admin
 dotnet new cleanarch-webpackage -n tokens --scope <scope>
 ```
 
 | Template | Options |
 |---|---|
-| `cleanarch-webapp` | `--framework placeholder\|react\|angular` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
+| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|angular\|react` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
 
 An item template can add files but not edit them, so each prints the lines to add to

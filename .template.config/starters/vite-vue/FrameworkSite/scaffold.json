@@ -1,0 +1,21 @@
+{
+  "framework": "vue",
+  "name": "framework-site",
+  "package": "create-vite",
+  "version": "9.3.1",
+  "arguments": ["{directory}", "--template", "vue-ts", "--no-interactive", "--no-immediate"],
+  "merge": {
+    "package.json": {
+      "name": "framework-site",
+      "scripts": {
+        "test": "vitest run --passWithNoTests"
+      },
+      "dependencies": {
+        "@app-template/api-client": "workspace:*"
+      },
+      "devDependencies": {
+        "vitest": "5.0.5"
+      }
+    }
+  }
+}

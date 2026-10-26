@@ -311,20 +311,56 @@ public sealed class TemplatePackagingTests
             .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
         var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
 
-        folders.ShouldBe(frameworks, $"Each --{option} value with a CLI has its folder under .template.config/starters, named after it, and no other folder is there.");
+        folders.ShouldBeSubsetOf(frameworks, $"Each folder under .template.config/starters is named after the --{option} value it creates.");
 
         foreach (string framework in frameworks)
         {
-            File.Exists(Path.Combine(starters, framework, "FrameworkSite", "scaffold.json")).ShouldBeTrue(
-                $".template.config/starters/{framework}/FrameworkSite holds no scaffold.json, so web-scaffold would find nothing to run.");
-            string chosenBy = computed.Single(symbol => symbol.Value == $"({option} == \"{framework}\")").Key;
-            sources.ShouldContain(
-                source => Text(source, "source") == $"{startersSource}{framework}/"
-                    && Text(source, "target") == "./Src/Web/apps/"
-                    && Text(source, "condition") == $"({chosenBy})",
-                $"{folder}/template.json must copy {startersSource}{framework}/ into ./Src/Web/apps/ under the condition ({chosenBy}).");
-            computed["webFramework"].ShouldContain(chosenBy, Case.Sensitive, $"webFramework in {folder}/template.json must name {chosenBy}, so the shared wiring comes with the {framework} starter.");
+            string[] chosenBy = [.. computed.Where(symbol => ChosenValues(symbol.Value, option).Contains(framework)).Select(symbol => symbol.Key)];
+            chosenBy.Length.ShouldBe(1, $"Exactly one computed symbol of {folder}/template.json must hold ({option} == \"{framework}\"), the one that copies its starter.");
+            string symbol = chosenBy[0];
+            string[] copied = [.. sources
+                .Where(source => Text(source, "target") == "./Src/Web/apps/"
+                    && Text(source, "condition") == $"({symbol})"
+                    && Text(source, "source") is { } path && path.StartsWith(startersSource, StringComparison.Ordinal))
+                .Select(source => Text(source, "source")![startersSource.Length..].TrimEnd('/'))];
+            copied.Length.ShouldBe(1, $"{folder}/template.json must copy one folder of {startersSource} into ./Src/Web/apps/ under the condition ({symbol}), so --{option} {framework} gets its starter.");
+            string starter = copied[0];
+
+            folders.ShouldContain(starter, $"{folder}/template.json copies {startersSource}{starter}/, which does not exist.");
+            File.Exists(Path.Combine(starters, starter, "FrameworkSite", "scaffold.json")).ShouldBeTrue(
+                $".template.config/starters/{starter}/FrameworkSite holds no scaffold.json, so web-scaffold would find nothing to run.");
+            ChosenValues(computed[symbol], option).ShouldContain(starter, $"--{option} {framework} is copied from the {starter} starter, so {symbol} must also choose {starter}: an alias names the same app as the value it repeats.");
+            Reaches(computed, "webFramework", symbol).ShouldBeTrue($"webFramework in {folder}/template.json must reach {symbol}, so the shared wiring comes with the {framework} starter.");
         }
+    }
+
+    private static List<string> ChosenValues(string expression, string option) =>
+        [.. Regex.Matches(expression, $@"\b{option} == ""([^""]+)""", RegexOptions.None, TimeSpan.FromSeconds(5)).Select(match => match.Groups[1].Value)];
+
+    private static bool Reaches(Dictionary<string, string> computed, string from, string target)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<string>([from]);
+
+        while (pending.TryPop(out string? symbol))
+        {
+            if (symbol == target)
+            {
+                return true;
+            }
+
+            if (!seen.Add(symbol) || !computed.TryGetValue(symbol, out string? expression))
+            {
+                continue;
+            }
+
+            foreach (Match name in Regex.Matches(expression, @"\b[A-Za-z]\w*\b", RegexOptions.None, TimeSpan.FromSeconds(5)))
+            {
+                pending.Push(name.Value);
+            }
+        }
+
+        return false;
     }
 
     private static string? Text(JsonElement element, string property) =>

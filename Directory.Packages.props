@@ -65,7 +65,7 @@
   <!--#if (files)-->
   <!-- AWSSDK.S3 only: the client is built from the module's own validated options. -->
   <ItemGroup Label="Object storage">
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.5" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.104.6" />
   </ItemGroup>
 
   <!--#endif-->

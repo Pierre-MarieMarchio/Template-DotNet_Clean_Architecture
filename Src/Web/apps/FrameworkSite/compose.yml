@@ -1,11 +1,11 @@
 services:
-  web-react-site:
+  web-framework-site:
     build:
       context: ../..
-      dockerfile: apps/ReactSite/Dockerfile
+      dockerfile: apps/FrameworkSite/Dockerfile
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${WEB_REACT_SITE_HOST_PORT:-5173}:8080"
+      - "127.0.0.1:${WEB_FRAMEWORK_SITE_HOST_PORT:-5173}:8080"
     depends_on:
       api:
         condition: service_healthy

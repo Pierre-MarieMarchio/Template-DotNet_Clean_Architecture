@@ -318,6 +318,10 @@
       "type": "computed",
       "value": "(web == \"angular\")"
     },
+    "webFramework": {
+      "type": "computed",
+      "value": "(webReact || webAngular)"
+    },
     "browserSessions": {
       "type": "computed",
       "value": "(localAuth)"
@@ -438,23 +442,23 @@
       },
       "replaces": "PLACEHOLDER_SITE"
     },
-    "webNameReact": {
+    "webNameFramework": {
       "type": "derived",
       "valueSource": "webName",
       "valueTransform": "identity",
-      "replaces": "ReactSite",
-      "fileRename": "ReactSite"
+      "replaces": "FrameworkSite",
+      "fileRename": "FrameworkSite"
     },
-    "webNameKebabReact": {
+    "webNameKebabFramework": {
       "type": "generated",
       "generator": "casing",
       "parameters": {
         "source": "webNameWords",
         "toLower": true
       },
-      "replaces": "react-site"
+      "replaces": "framework-site"
     },
-    "webNameEnvironmentReact": {
+    "webNameEnvironmentFramework": {
       "type": "generated",
       "generator": "regex",
       "parameters": {
@@ -466,37 +470,7 @@
           }
         ]
       },
-      "replaces": "REACT_SITE"
-    },
-    "webNameAngular": {
-      "type": "derived",
-      "valueSource": "webName",
-      "valueTransform": "identity",
-      "replaces": "AngularSite",
-      "fileRename": "AngularSite"
-    },
-    "webNameKebabAngular": {
-      "type": "generated",
-      "generator": "casing",
-      "parameters": {
-        "source": "webNameWords",
-        "toLower": true
-      },
-      "replaces": "angular-site"
-    },
-    "webNameEnvironmentAngular": {
-      "type": "generated",
-      "generator": "regex",
-      "parameters": {
-        "source": "webNameUpper",
-        "steps": [
-          {
-            "regex": "-",
-            "replacement": "_"
-          }
-        ]
-      },
-      "replaces": "ANGULAR_SITE"
+      "replaces": "FRAMEWORK_SITE"
     },
     "webDefaultPort": {
       "type": "generated",
@@ -518,7 +492,19 @@
             "value": "8081"
           }
         ]
-      }
+      },
+      "replaces": "5173",
+      "onlyIf": [
+        {
+          "after": "_HOST_PORT:-"
+        },
+        {
+          "after": "_HOST_PORT="
+        },
+        {
+          "after": "<http://localhost:"
+        }
+      ]
     },
     "webPortReference": {
       "type": "generated",
@@ -751,15 +737,9 @@
           ]
         },
         {
-          "condition": "(!webReact)",
+          "condition": "(!webFramework)",
           "exclude": [
-            "Src/Web/apps/ReactSite/**"
-          ]
-        },
-        {
-          "condition": "(!webAngular)",
-          "exclude": [
-            "Src/Web/apps/AngularSite/**"
+            "Src/Web/apps/FrameworkSite/**"
           ]
         },
         {
@@ -992,6 +972,16 @@
       "source": "./.template.config/variants/web-PlaceholderSite/",
       "target": "./",
       "condition": "(webPlaceholder)"
+    },
+    {
+      "source": "./.template.config/starters/react/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webReact)"
+    },
+    {
+      "source": "./.template.config/starters/angular/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webAngular)"
     },
     {
       "source": "./.template.config/variants/database-sqlite/",

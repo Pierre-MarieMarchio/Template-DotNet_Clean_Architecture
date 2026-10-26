@@ -10,7 +10,7 @@ From `Src/Web`, after `corepack enable` once per machine:
 | When | Command |
 |---|---|
 | After a clone or a pull | `pnpm install --frozen-lockfile` |
-<!--#if (webReact || webAngular)-->
+<!--#if (webFramework)-->
 | While you work on one app | `pnpm --filter <app> dev`, `<app>` being the folder's kebab name |
 <!--#endif-->
 | After a change to the API's routes or bodies | `pnpm api` |
@@ -27,7 +27,7 @@ From `Src/Web`, after `corepack enable` once per machine:
 
 ## Rules
 
-<!--#if (webReact || webAngular)-->
+<!--#if (webFramework)-->
 - A framework app starts from its framework's official CLI, which `dotnet run Tools/Tasks.cs web-scaffold`
   runs once; from then on the app is this project's own, and `web-scaffold` leaves it alone.
 <!--#endif-->

@@ -13,9 +13,10 @@ dnx CleanArch.Create
 page lists, read from the templates' own manifests with their choices, defaults and descriptions. It
 offers only the choices the template generates with the answers given so far, answers a question
 left with one choice and says which refusal leaves it, explains a refused combination of flags
-before writing anything and asks its options again, installs
-`CleanArch.WebApi.Templates` at its own version when another one or none is installed, runs
-`dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps. In a
+before writing anything and asks its options again, refuses an output folder that holds files at its
+own question, installs `CleanArch.WebApi.Templates` at its own version when another one or none is
+installed, runs `dotnet new cleanarch-webapi`, and prints the equivalent commands and the first
+steps. `--help` lists the options with the values the template generates. In a
 terminal the questions follow one another on a thread under a banner, each with a line naming its
 keys; `esc` goes back to the previous question, whose answer it keeps selected, and the questions
 after it are asked again. A summary of every option comes before anything is written, and answering

@@ -13,6 +13,7 @@ public sealed class ProjectSetupTests : IDisposable
     private bool _identity = true;
     private string _status = " A README.md";
     private ProcessResult _bootstrap = new(0, string.Empty);
+    private ProcessResult _add = new(0, string.Empty);
 
     public ProjectSetupTests()
     {
@@ -115,6 +116,37 @@ public sealed class ProjectSetupTests : IDisposable
     }
 
     [Fact]
+    public void AFailedFirstCommit_AfterASuccessfulInit_LeavesNoInit_AndItsCommitTakesWhatBootstrapWrote()
+    {
+        _add = new ProcessResult(128, "error: open(\"Src/Application/Acme.Shop.Application.Auth/Features/Accounts/Model/Errors/AccountsErrors.cs\"): Filename too long\nfatal: adding files failed\n");
+
+        List<SetupOutcome> outcomes = RunAll();
+
+        outcomes.Select(outcome => outcome.Status).ShouldBe([SetupStatus.Failed, SetupStatus.Done, SetupStatus.Skipped, SetupStatus.Done]);
+        outcomes[0].Why.ShouldNotBeNull().ShouldContain("Turn on long paths");
+        outcomes[2].Rerun.ShouldBeEmpty();
+        ProjectSetup.Left(outcomes).ShouldBe(
+        [
+            "git config --global core.longpaths true",
+            "git add -A",
+            "git commit -m \"chore: generate from cleanarch-webapi 1.2.3\"",
+        ]);
+    }
+
+    [Fact]
+    public void TheCommandsLeft_StageBeforeEachCommit_AndConfigureGitOnce()
+    {
+        _identity = false;
+        _bootstrap = new ProcessResult(1, "error NU1301");
+
+        List<string> left = [.. ProjectSetup.Left(RunAll())];
+
+        left.Count(command => command == "git add -A").ShouldBe(2);
+        left.Count(command => command == "git config --global user.name \"<your name>\"").ShouldBe(1);
+        left.IndexOf(ProjectSetup.BootstrapCommand).ShouldBeLessThan(left.LastIndexOf("git add -A"));
+    }
+
+    [Fact]
     public void NothingToCommit_IsNoCommit()
     {
         _status = string.Empty;
@@ -164,6 +196,7 @@ public sealed class ProjectSetupTests : IDisposable
         ("git", "rev-parse") => _insideAWorkTree ? new ProcessResult(0, "true\n") : new ProcessResult(128, "fatal: not a git repository"),
         ("git", "config") => _identity ? new ProcessResult(0, "Ada Lovelace\n") : new ProcessResult(1, string.Empty),
         ("git", "status") => new ProcessResult(0, _status),
+        ("git", "add") => _add,
         ("dotnet", "run") => _bootstrap,
         _ => new ProcessResult(0, string.Empty),
     };

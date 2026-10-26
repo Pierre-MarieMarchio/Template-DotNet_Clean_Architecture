@@ -41,7 +41,7 @@ public sealed class Arguments
             {
                 parsed.Command = Commands.Contains(argument, StringComparer.Ordinal)
                     ? argument
-                    : throw new LauncherException($"'{argument}' is not a command: use {string.Join(", ", Commands)}, or none.");
+                    : throw new LauncherException($"'{argument}' isn't a command. Use {string.Join(", ", Commands)}, or leave it out.");
                 continue;
             }
 
@@ -81,7 +81,7 @@ public sealed class Arguments
                     parsed._templateOptions[key[2..]] = inline ?? OptionalValue(arguments, ref index);
                     break;
                 default:
-                    throw new LauncherException($"'{argument}' is not an option of this launcher; --help lists them.");
+                    throw new LauncherException($"Unknown option '{argument}'. --help lists them all.");
             }
         }
 

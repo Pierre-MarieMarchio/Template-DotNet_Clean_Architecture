@@ -51,7 +51,7 @@ public sealed class TemplateSource
         {
             if (!File.Exists(Path.Combine(path, TemplateKind.Project.Folder, "template.json")))
             {
-                throw new LauncherException($"'{path}' holds no .template.config/template.json: --template-source names a checkout of the template or its .nupkg.");
+                throw new LauncherException($"'{path}' has no .template.config/template.json. --template-source takes a checkout of the template or its .nupkg.");
             }
 
             return new TemplateSource(path, relative =>

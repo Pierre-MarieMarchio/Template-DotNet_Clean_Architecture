@@ -36,7 +36,7 @@ public sealed class Questionnaire
 
         if (Asks)
         {
-            return Conversation.Text(label, null, defaultValue, allowEmpty: false, problem) is { } text ? Reply.Answer(text) : Reply.Backward;
+            return Conversation.Text(label, null, defaultValue, allowEmpty: false, value => Sentence(problem(value))) is { } text ? Reply.Answer(text) : Reply.Backward;
         }
 
         if (_yes && defaultValue is not null)
@@ -65,7 +65,7 @@ public sealed class Questionnaire
         var remembered = new Dictionary<string, string>(answers, StringComparer.Ordinal);
         if (Asks && Offer.Unavoidable(manifest, answers, askedWhen) is { Count: > 0 } unavoidable)
         {
-            Conversation.Warn(Explanation(unavoidable));
+            Conversation.Warn(AskedAgain(manifest, unavoidable));
             foreach (string symbol in unavoidable.SelectMany(refusal => manifest.ParametersBehind(refusal.When)))
             {
                 answers.Remove(symbol);
@@ -87,10 +87,10 @@ public sealed class Questionnaire
         {
             if (!Asks)
             {
-                throw new LauncherException("These options are refused together:" + Environment.NewLine + Explanation(refused));
+                throw new LauncherException("The template can't generate a project with these options:" + Environment.NewLine + Explanation(refused));
             }
 
-            Conversation.Warn(Explanation(refused));
+            Conversation.Warn(AskedAgain(manifest, refused));
 
             var involved = refused.SelectMany(refusal => manifest.ParametersBehind(refusal.When)).ToHashSet(StringComparer.Ordinal);
             var previous = new Dictionary<string, string>(answers, StringComparer.Ordinal);
@@ -116,13 +116,37 @@ public sealed class Questionnaire
         if (_missing.Count > 0)
         {
             throw new LauncherException(
-                "No terminal to ask in, and these answers were not given: " + string.Join(", ", _missing)
-                + ". Pass each, or --yes to take the defaults.");
+                "There's no terminal to ask questions in, and these weren't given: " + string.Join(", ", _missing)
+                + ". Pass them as options, or add --yes to use the defaults.");
         }
     }
 
     private static string Explanation(IReadOnlyList<Refusal> refused) =>
         string.Join(Environment.NewLine, refused.Select(refusal => $"{refusal.Explanation} (refused by --{refusal.CliName})"));
+
+    private static string? Sentence(string? problem) =>
+        string.IsNullOrEmpty(problem) ? problem : char.ToUpperInvariant(problem[0]) + problem[1..];
+
+    private static string AskedAgain(TemplateManifest manifest, IReadOnlyList<Refusal> refused)
+    {
+        var involved = refused.SelectMany(refusal => manifest.ParametersBehind(refusal.When)).ToHashSet(StringComparer.Ordinal);
+        IEnumerable<string> labels = manifest.Options.Where(option => involved.Contains(option.Symbol)).Select(option => option.Label);
+
+        return string.Join(Environment.NewLine, refused.Select(refusal => refusal.Explanation))
+            + Environment.NewLine + "Asking again: " + string.Join(", ", labels) + ".";
+    }
+
+    private static string OnlyChoice(TemplateManifest manifest, TemplateOption option, Offer offer, IReadOnlyDictionary<string, string> answers)
+    {
+        var behind = offer.Reasons.SelectMany(refusal => manifest.ParametersBehind(refusal.When)).ToHashSet(StringComparer.Ordinal);
+        string[] causes = [.. manifest.Options
+            .Where(other => other.Symbol != option.Symbol && behind.Contains(other.Symbol) && answers.ContainsKey(other.Symbol))
+            .Select(other => $"{other.Label} is {Shown(other, answers[other.Symbol])}")];
+
+        return causes.Length == 0
+            ? string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation))
+            : "the only option when " + string.Join(" and ", causes);
+    }
 
     private static Dictionary<string, string> Given(TemplateManifest manifest, IReadOnlyDictionary<string, string> given)
     {
@@ -132,7 +156,7 @@ public sealed class Questionnaire
         {
             TemplateOption option = manifest.Options.FirstOrDefault(option => string.Equals(option.CliName, name, StringComparison.OrdinalIgnoreCase))
                 ?? throw new LauncherException(
-                    $"--{name} is not an option of {manifest.ShortName}; its options are "
+                    $"Unknown option --{name}. {manifest.ShortName} takes "
                     + string.Join(", ", manifest.Options.Select(option => "--" + option.CliName)) + ".");
 
             chosen[option.Symbol] = Checked(option, value);
@@ -148,7 +172,7 @@ public sealed class Questionnaire
             case OptionKind.Choice:
                 return option.Choices.FirstOrDefault(choice => string.Equals(choice.Value, value, StringComparison.OrdinalIgnoreCase))?.Value
                     ?? throw new LauncherException(
-                        $"--{option.CliName} '{value}' is not one of {string.Join(", ", option.Choices.Select(choice => choice.Value))}.");
+                        $"--{option.CliName} can't be '{value}'. Use one of {string.Join(", ", option.Choices.Select(choice => choice.Value))}.");
             case OptionKind.Bool when bool.TryParse(value, out bool flag):
                 return flag ? Condition.True : Condition.False;
             case OptionKind.Bool:
@@ -192,7 +216,7 @@ public sealed class Questionnaire
         }
 
         return option.Kind == OptionKind.WholeNumber && !int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out _)
-            ? "A whole number is expected."
+            ? "This needs a whole number."
             : null;
     }
 
@@ -259,6 +283,12 @@ public sealed class Questionnaire
         }
 
         bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
+        if (_yes && Offer.For(manifest, option, answers, askedWhen) is { Values.Count: 1 } offer)
+        {
+            Conversation.Answered(option.Label, Shown(option, offer.Values[0]), OnlyChoice(manifest, option, offer, answers));
+            return offer.Values[0];
+        }
+
         if (_yes && option.DefaultValue is not null)
         {
             return option.DefaultValue;
@@ -283,7 +313,7 @@ public sealed class Questionnaire
         if (offer.Values.Count == 1)
         {
             string forced = offer.Values[0];
-            Conversation.Answered(option.Label, Shown(option, forced), string.Join(" ", offer.Reasons.Select(refusal => refusal.Explanation)));
+            Conversation.Answered(option.Label, Shown(option, forced), OnlyChoice(manifest, option, offer, answers));
             return Reply.Passed(forced);
         }
 

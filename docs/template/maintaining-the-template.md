@@ -56,8 +56,11 @@ same way, `hygiene` passes, and they are removed last in first out. In a project
 owner feature, the first one prints edits as prose, its account-deletion wiring among them, so there
 only the domain and application layers are built and tested. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
-install, lint, test and build, checks a second `web-scaffold` changes nothing, starts the whole stack
-and asks each app for its page, its headers and an answer only the API gives.
+install, lint, test and build, fails when a built `index.html` holds an inline script or an
+event-handler attribute (and reports its inline styles), checks a second `web-scaffold` changes
+nothing, starts the whole stack and asks each app for its page, its headers and an answer only the
+API gives. The every-starter leg adds each framework starter its first app is not, so one workspace
+proves them all together.
 
 | Leg | Options |
 |---|---|
@@ -77,6 +80,7 @@ and asks each app for its page, its headers and an answer only the API gives.
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
+| web, every starter | `--web vue --examples none --files false`, then `cleanarch-webapp` once per other framework starter, each on its own `--port` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
@@ -192,26 +196,44 @@ Angular's inline styles in `nginx.conf`, its `NG_CLI_ANALYTICS` in the `Dockerfi
 sentences of the `README.md` that name the CLI.
 
 The app itself comes from a starter, one folder per `--web` value under `.template.config/starters`
-([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `react` and `angular`,
-each holding `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy
-into the app's folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither
-template copies anything else from there.
+([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `angular`, `vue`,
+`vite-react`, `vite-vue` and `vite-svelte`, each holding `FrameworkSite/scaffold.json` and
+`FrameworkSite/overlay/`, which both templates copy into the app's folder by the framework chosen
+and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. `react`
+has no folder: it is an alias of `vite-react`, chosen by the same computed symbol, `webViteReact`,
+so it copies the same starter.
 
 Adding a starter, for a CLI that keeps the contract of decision 0008:
 
 1. Write `.template.config/starters/<value>/FrameworkSite/scaffold.json`: the CLI's package, its
-   exact version, its arguments (`{name}` and `{directory}` are replaced), the JSON merges that make
-   it build into `dist/`, relay `/api/` and `/health`, name the package `framework-site` and give it
-   the `@app-template/api-client` dependency and a `test` script; and `overlay/` for a file the CLI's
-   own settings cannot reach.
+   exact version, its arguments (`{name}` and `{directory}` are replaced; the CLI runs with its input
+   closed, so every answer is an argument), the JSON merges that make it build into `dist/`, relay
+   `/api/` and `/health`, name the package `framework-site` and give it the
+   `@app-template/api-client` dependency and a `test` script; and `overlay/` for a file the CLI's own
+   settings cannot reach, a Vite config being one. The workspace's scripts run once and rewrite
+   nothing: a `test` that watches or a `lint` that fixes is merged into one that does not, and Vitest
+   is pinned to the version `Src/Web/packages/api-client/package.json` uses. Import the client from
+   a scratch file of the created app once and run its type-check: the workspace packages export
+   their sources and import each other by `.ts` path, so a compiler setting the CLI leaves off, such
+   as `allowImportingTsExtensions`, is a merge too.
 2. Add `<value>` to the choices of `web` in `.template.config/template.json` and of `framework` in
-   `.template.config/webapp/.template.config/template.json`, each with its computed symbol, a source
-   copying the starter folder into `./Src/Web/apps/` under that symbol, the symbol in
-   `webFramework`, and the dev server's default port in `webDefaultPort` and `defaultPort`.
-   `TemplatePackagingTests` fails until both templates agree with the folder.
+   `.template.config/webapp/.template.config/template.json`, each description naming the generator
+   and its template, with its computed symbol, a source copying the starter folder into
+   `./Src/Web/apps/` under that symbol, and the symbol reached from `webFramework`: through
+   `webVite` for a Vite-based starter, which also gives it port 5173 in `webDefaultPort` and
+   `defaultPort`; directly otherwise, with its own port in both. `TemplatePackagingTests` fails until
+   both templates agree with the folder. An alias is a choice without a folder, added to the
+   computed symbol of the value it repeats.
 3. Condition the wiring only where the new framework differs, and the README sentences that name
-   its CLI.
-4. Add its acceptance leg.
+   its CLI and list what the starter adds. Give the value its row in
+   `docs/getting-started/overview.md` and `docs/template/using-the-template.md`, and its name where
+   `docs/features/web-frontend.md`, `Src/Web/README.md` and the repository `README.md` list the
+   values.
+4. Give it an accent colour in `Launcher/CleanArch.Create/Prompts/GuidedConversation.cs`; its
+   question comes from the manifests.
+5. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
+   scaffolds, builds and serves it beside the others and refuses an inline script in its built
+   page; a starter that differs in the wiring gets a leg of its own as well.
 
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
 `dotnet run Tools/Tasks.cs web-lockfiles` writes the lockfile of each shape holding a `package.json`

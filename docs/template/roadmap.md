@@ -24,23 +24,17 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 ## Coming, in order
 
-1. **More web apps**
-   ([#114](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/114)).
-   `--web vue` from `create-vue`, and `--web vite-react`, `vite-vue` and `vite-svelte` from the
-   templates of `create-vite`. `--web react` keeps generating what it does today, the same app as
-   `vite-react`, until the next major version. Every web app shares one wiring, so a framework costs
-   its descriptor and nothing more.
-2. **React from React Router**
+1. **React from React Router**
    ([#115](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/115)).
    `--web react-router`, a single-page app from `create-react-router`. Its page carries inline
    scripts, which the content security policy will allow by their hash, computed when the image is
    built.
-3. **A presentation project on the application layer**
+2. **A presentation project on the application layer**
    ([#116](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/116)).
    `--presentation blazor-server`, a Blazor Web App that calls the use cases in process, with the
    host composition it shares with the API. A project adds one later with a `cleanarch-presentation`
    item template and a `presentation` command of the launcher.
-4. **.NET clients of the API**
+3. **.NET clients of the API**
    ([#117](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/117)). A
    .NET client generated from the API's OpenAPI document, then `--web blazor-wasm`, a Blazor
    WebAssembly app served beside the other web apps, and `--presentation avalonia`, a desktop app
@@ -48,7 +42,7 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 ## Later
 
-Each group comes once the four items above have shipped, in no fixed order:
+Each group comes once the three items above have shipped, in no fixed order:
 
 - **The other templates of `create-vite`**
   ([#118](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/118)):

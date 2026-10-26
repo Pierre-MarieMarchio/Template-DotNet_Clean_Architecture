@@ -120,6 +120,12 @@ jobs:
             auth_context: "true"
             web: "true"
             first_app: --framework react --scope sample-generated-project --workspace
+          # Every framework starter in one workspace: the project's own app, then each other starter beside it, on a port of its own.
+          - name: web, every starter
+            options: --web vue --examples none --files false
+            auth_context: "true"
+            web: "true"
+            more_apps: ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular
           - name: sqlite, defaults
             options: --database sqlite
             database: sqlite
@@ -514,7 +520,30 @@ jobs:
           printf 'WEB_BACK_OFFICE_HOST_PORT=8082\n' >> .env.example
           grep -A3 '^include:' docker-compose.yml
 
-      # bootstrap's web step: each react or angular app is created by its official CLI, then pnpm install and pnpm api.
+      # Each entry is Name:port:framework; the app joins the stack by the two lines its README gives.
+      - name: Add every other starter with cleanarch-webapp
+        if: matrix.more_apps
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          MORE_APPS: ${{ matrix.more_apps }}
+        run: |
+          set -euo pipefail
+          for app in $MORE_APPS; do
+            IFS=: read -r name port framework <<< "$app"
+            dotnet new cleanarch-webapp -n "$name" --framework "$framework" --port "$port" --scope sample-generated-project
+            leaked=$(grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE "Src/Web/apps/$name" || true)
+            if [ -n "$leaked" ]; then
+              echo "::error title=Item template token leaked::$leaked"
+              exit 1
+            fi
+            variable=$(sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' <<< "$name" | tr '[:lower:]' '[:upper:]')
+            sed -i "s#^include:\$#include:\n  - path: Src/Web/apps/$name/compose.yml#" docker-compose.yml
+            printf 'WEB_%s_HOST_PORT=%s\n' "$variable" "$port" >> .env.example
+          done
+          grep -A8 '^include:' docker-compose.yml
+          grep '^WEB_' .env.example
+
+      # bootstrap's web step: each framework app is created by its official CLI, then pnpm install and pnpm api.
       - name: Create the framework apps, regenerate the client
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -535,6 +564,35 @@ jobs:
           pnpm lint
           pnpm test
           pnpm build
+
+      # The page's Content-Security-Policy says script-src 'self': an inline script or an event-handler attribute in a built page would be refused. Inline styles are counted, since only Angular's policy allows them.
+      - name: Assert no built page holds an inline script
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, re, sys
+          status = 0
+          for manifest in sorted(pathlib.Path("Src/Web/apps").glob("*/package.json")):
+              if "build" not in json.loads(manifest.read_text(encoding="utf-8")).get("scripts", {}):
+                  continue
+              page = manifest.parent / "dist" / "index.html"
+              if not page.is_file():
+                  print(f"::error title=No built page::{manifest.parent} has a build script and no dist/index.html.")
+                  status = 1
+                  continue
+              html = page.read_text(encoding="utf-8")
+              scripts = sum(1 for body in re.findall(r"<script\b[^>]*>(.*?)</script\s*>", html, re.I | re.S) if body.strip())
+              handlers = len(re.findall(r"<[^>]*\son[a-z]+\s*=", html, re.I))
+              styles = sum(1 for body in re.findall(r"<style\b[^>]*>(.*?)</style\s*>", html, re.I | re.S) if body.strip())
+              attributes = len(re.findall(r"<[^>]*\sstyle\s*=", html, re.I))
+              print(f"{page}: {scripts} inline script(s), {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
+              if scripts or handlers:
+                  print(f"::error file={page},title=Inline script::{page} holds an inline script, which script-src 'self' refuses.")
+                  status = 1
+          sys.exit(status)
+          PY
 
       # The workspace's globs pick the package up: no file but its own is edited, and the lockfile gains its importer.
       - name: Add a package with cleanarch-webpackage

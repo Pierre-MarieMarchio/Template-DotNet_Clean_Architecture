@@ -23,8 +23,12 @@
       "isRequired": true,
       "choices": [
         { "choice": "placeholder", "description": "A static page served by nginx, relaying /api to the API." },
-        { "choice": "react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
-        { "choice": "angular", "description": "An Angular app, created by the Angular CLI (ng new) when web-scaffold runs." }
+        { "choice": "react", "description": "The same app as vite-react, kept under this name until the next major version." },
+        { "choice": "angular", "description": "An Angular app, created by the Angular CLI (ng new) when web-scaffold runs." },
+        { "choice": "vue", "description": "A Vue app, created by Vue's official CLI (create-vue, with TypeScript, Vue Router, Vitest and ESLint) when web-scaffold runs." },
+        { "choice": "vite-react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
+        { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
+        { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." }
       ],
       "description": "The app's framework."
     },
@@ -68,8 +72,8 @@
         "evaluator": "C++",
         "datatype": "string",
         "cases": [
-          { "condition": "(workspace && framework == \"react\")", "value": "5173" },
-          { "condition": "(workspace && framework == \"angular\")", "value": "4200" },
+          { "condition": "(workspace && webVite)", "value": "5173" },
+          { "condition": "(workspace && webAngular)", "value": "4200" },
           { "condition": "(workspace)", "value": "8081" },
           { "condition": "(true)", "value": "8082" }
         ]
@@ -126,9 +130,13 @@
     "browserSessions": { "type": "computed", "value": "(localAuth)" },
     "anyWeb": { "type": "computed", "value": "true" },
     "webPlaceholder": { "type": "computed", "value": "(framework == \"placeholder\")" },
-    "webReact": { "type": "computed", "value": "(framework == \"react\")" },
     "webAngular": { "type": "computed", "value": "(framework == \"angular\")" },
-    "webFramework": { "type": "computed", "value": "(webReact || webAngular)" },
+    "webVue": { "type": "computed", "value": "(framework == \"vue\")" },
+    "webViteReact": { "type": "computed", "value": "(framework == \"vite-react\" || framework == \"react\")" },
+    "webViteVue": { "type": "computed", "value": "(framework == \"vite-vue\")" },
+    "webViteSvelte": { "type": "computed", "value": "(framework == \"vite-svelte\")" },
+    "webVite": { "type": "computed", "value": "(webVue || webViteReact || webViteVue || webViteSvelte)" },
+    "webFramework": { "type": "computed", "value": "(webAngular || webVite)" },
     "adminAudience": { "type": "computed", "value": "(audience == \"admin\")" },
     "appName": {
       "type": "derived",
@@ -191,7 +199,7 @@
       },
       "replaces": "FRAMEWORK_SITE"
     },
-    "reactPort": {
+    "vitePort": {
       "type": "generated",
       "generator": "join",
       "parameters": {
@@ -237,14 +245,29 @@
       ]
     },
     {
-      "source": "../starters/react/",
-      "target": "./Src/Web/apps/",
-      "condition": "(webReact)"
-    },
-    {
       "source": "../starters/angular/",
       "target": "./Src/Web/apps/",
       "condition": "(webAngular)"
+    },
+    {
+      "source": "../starters/vue/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webVue)"
+    },
+    {
+      "source": "../starters/vite-react/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webViteReact)"
+    },
+    {
+      "source": "../starters/vite-vue/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webViteVue)"
+    },
+    {
+      "source": "../starters/vite-svelte/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webViteSvelte)"
     },
     {
       "source": "../../Src/Web/",
@@ -298,7 +321,7 @@
       "description": "Start the app with the rest of the stack.",
       "manualInstructions": [
         {
-          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. A react or angular app is created by its official CLI: run dotnet run Tools/Tasks.cs web-scaffold <name> at the project root (or bootstrap), then commit the app with Src/Web/pnpm-lock.yaml. A placeholder needs only pnpm install in Src/Web."
+          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. A framework app is created by its official CLI: run dotnet run Tools/Tasks.cs web-scaffold <name> at the project root (or bootstrap), then commit the app with Src/Web/pnpm-lock.yaml. A placeholder needs only pnpm install in Src/Web."
         }
       ],
       "continueOnError": true

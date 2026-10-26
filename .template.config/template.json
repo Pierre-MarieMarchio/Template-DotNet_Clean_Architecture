@@ -293,11 +293,27 @@
         },
         {
           "choice": "react",
-          "description": "One React (Vite, TypeScript) web app in the pnpm workspace Src/Web."
+          "description": "The same app as vite-react, kept under this name until the next major version."
         },
         {
           "choice": "angular",
-          "description": "One Angular web app in the pnpm workspace Src/Web."
+          "description": "One Angular web app in the pnpm workspace Src/Web, created by the Angular CLI (ng new)."
+        },
+        {
+          "choice": "vue",
+          "description": "One Vue web app in the pnpm workspace Src/Web, created by Vue's official CLI (create-vue, with TypeScript, Vue Router, Vitest and ESLint)."
+        },
+        {
+          "choice": "vite-react",
+          "description": "One React web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, react-ts)."
+        },
+        {
+          "choice": "vite-vue",
+          "description": "One Vue web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, vue-ts)."
+        },
+        {
+          "choice": "vite-svelte",
+          "description": "One Svelte web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, svelte-ts)."
         }
       ],
       "description": "The first web front end, in the pnpm workspace Src/Web. More apps are added later with dotnet new cleanarch-webapp."
@@ -310,17 +326,33 @@
       "type": "computed",
       "value": "(web == \"placeholder\")"
     },
-    "webReact": {
-      "type": "computed",
-      "value": "(web == \"react\")"
-    },
     "webAngular": {
       "type": "computed",
       "value": "(web == \"angular\")"
     },
+    "webVue": {
+      "type": "computed",
+      "value": "(web == \"vue\")"
+    },
+    "webViteReact": {
+      "type": "computed",
+      "value": "(web == \"vite-react\" || web == \"react\")"
+    },
+    "webViteVue": {
+      "type": "computed",
+      "value": "(web == \"vite-vue\")"
+    },
+    "webViteSvelte": {
+      "type": "computed",
+      "value": "(web == \"vite-svelte\")"
+    },
+    "webVite": {
+      "type": "computed",
+      "value": "(webVue || webViteReact || webViteVue || webViteSvelte)"
+    },
     "webFramework": {
       "type": "computed",
-      "value": "(webReact || webAngular)"
+      "value": "(webAngular || webVite)"
     },
     "browserSessions": {
       "type": "computed",
@@ -480,7 +512,7 @@
         "datatype": "string",
         "cases": [
           {
-            "condition": "(webReact)",
+            "condition": "(webVite)",
             "value": "5173"
           },
           {
@@ -974,14 +1006,29 @@
       "condition": "(webPlaceholder)"
     },
     {
-      "source": "./.template.config/starters/react/",
-      "target": "./Src/Web/apps/",
-      "condition": "(webReact)"
-    },
-    {
       "source": "./.template.config/starters/angular/",
       "target": "./Src/Web/apps/",
       "condition": "(webAngular)"
+    },
+    {
+      "source": "./.template.config/starters/vue/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webVue)"
+    },
+    {
+      "source": "./.template.config/starters/vite-react/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webViteReact)"
+    },
+    {
+      "source": "./.template.config/starters/vite-vue/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webViteVue)"
+    },
+    {
+      "source": "./.template.config/starters/vite-svelte/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webViteSvelte)"
     },
     {
       "source": "./.template.config/variants/database-sqlite/",

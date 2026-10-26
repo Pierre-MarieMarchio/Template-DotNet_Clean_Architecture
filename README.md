@@ -18,7 +18,7 @@ grows on, and the options remove what a product does not need.
   authorisation, `Idempotency-Key`, offset and keyset paging, rate limits, timeouts.
 - **Files, background jobs and mail**: an S3-compatible file store with inspection and quotas, timers
   in the API process under leases, multilingual mail over SMTP or Postmark.
-- **Web apps if you want them**: a pnpm workspace with React, Angular or a static page, and a client
+- **Web apps if you want them**: a pnpm workspace with Vue, React, Svelte, Angular or a static page, and a client
   generated from the API's own document.
 - **A gate that runs from a clone**: formatting, warnings as errors, the tests with a coverage floor,
   migration drift, vulnerable packages; CI, CodeQL, release and Sonar workflows.
@@ -63,7 +63,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--ci` | `true`, `false` | `true` |
 | `--sonar` | `true`, `false` | `true` |
 | `--agent-files` | `true`, `false` | `true` |
-| `--web` | `none`, `placeholder`, `react`, `angular` | `none` |
+| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `angular`, `react` | `none` |
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
 

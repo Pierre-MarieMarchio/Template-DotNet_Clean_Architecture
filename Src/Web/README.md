@@ -17,8 +17,8 @@ pnpm build
 pnpm api                 # regenerate packages/api-client from the API's OpenAPI document
 ```
 
-`dotnet run Tools/Tasks.cs web-scaffold` at the project root creates each react or angular app that
-still holds its scaffold.json, with its framework's official CLI, then installs and runs `pnpm api`;
+`dotnet run Tools/Tasks.cs web-scaffold` at the project root creates each framework app that still
+holds its scaffold.json, with its framework's official CLI, then installs and runs `pnpm api`;
 `bootstrap` runs the same step.
 
 ## Adding an app or a package
@@ -26,7 +26,7 @@ still holds its scaffold.json, with its framework's official CLI, then installs 
 At the project root, `@app-template` being this workspace's scope:
 
 ```bash
-dotnet new cleanarch-webapp -n BackOffice --framework react --scope app-template --audience admin
+dotnet new cleanarch-webapp -n BackOffice --framework vite-react --scope app-template --audience admin
 dotnet new cleanarch-webpackage -n tokens --scope app-template
 ```
 
@@ -38,7 +38,7 @@ The app's `README.md` gives the two lines that join it to the stack.
 A project generated with `--web none` has no workspace. Its first app comes with the workspace:
 
 ```bash
-dotnet new cleanarch-webapp -n PlaceholderSite --framework <react|angular|placeholder> --scope app-template --workspace
+dotnet new cleanarch-webapp -n PlaceholderSite --framework <vue|vite-react|vite-vue|vite-svelte|angular|placeholder> --scope app-template --workspace
 ```
 
 Pass the project's `--auth` and `--ci` too when they are not the defaults.
@@ -162,5 +162,5 @@ template cannot edit is yours to add, exactly as `--web` would have written it f
 themselves.
 
 Another app's lines are in its own `README.md`. Then run `dotnet run Tools/Tasks.cs web-scaffold` for
-a react or angular app, or `pnpm install` here for a placeholder, and commit the workspace with its
+a framework app, or `pnpm install` here for a placeholder, and commit the workspace with its
 `pnpm-lock.yaml`.

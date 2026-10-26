@@ -80,7 +80,7 @@ given. Without a terminal, every answer is a flag or `--yes` is passed.
 
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
-dnx CleanArch.Create web-app -n BackOffice --framework react --audience admin --yes
+dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
 ```
 
 | Option | Meaning |

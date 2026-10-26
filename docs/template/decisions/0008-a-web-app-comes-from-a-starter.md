@@ -35,15 +35,18 @@ every new value would cost a copy of the wiring.
   - a package named by the app's kebab token, depending on `@app-template/api-client`, with the
     `build` and `test` scripts the workspace runs. A `lint` script is the CLI's own: `create-vite`
     writes one, the Angular CLI does not, and the workspace's `lint` skips an app without it.
-- **A `--web` value names its generator and never changes meaning.** `react` is `create-vite` with
-  `react-ts`, `angular` is `ng new`; a different generator for the same framework is a new value.
+- **A `--web` value names its generator and never changes meaning.** `vite-react` is `create-vite`
+  with `react-ts`, `vue` is `create-vue`, `angular` is `ng new`; a different generator for the same
+  framework is a new value. `react`, the name `vite-react` had first, stays as its alias until the
+  next major version: one computed symbol chooses both, so both copy the same starter.
 - **Server-side rendering is out of scope.** A starter builds a static site served by nginx; one
   that needs a Node server is not a starter of this catalogue.
 - **The wiring differs by framework only through markers.** A difference is a marker on that
   framework's symbol in the shared file, never a second copy of the file.
 - `TemplatePackagingTests` holds that each folder under `.template.config/starters` is a choice of
-  `--web` and of `--framework`, that both templates copy it under that choice's symbol, and that
-  `webFramework` names it.
+  `--web` and of `--framework`, that each framework choice is chosen by one computed symbol under
+  which both templates copy one starter, that an alias's symbol also chooses the starter it copies,
+  and that `webFramework` reaches that symbol.
 
 ## Alternatives considered
 

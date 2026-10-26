@@ -11,6 +11,7 @@ namespace CleanArch.Create.Tests.Prompts;
 public sealed partial class GuidedFlowTests : IDisposable
 {
     private const string _created = "The template was created successfully.";
+    private const string _bootstrapInstruction = "Manual instructions: In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes.";
     private const string _runIt =
         """
         ## Run it
@@ -25,6 +26,8 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         ## Everyday commands
         """;
+
+    private const string _wgl4AboveLatin1 = "─│┌┐└┘├┤┬┴┼═║╒╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡╢╣╤╥╦╧╨╩╪╫╬▀▄█▌▐░▒▓■□▪▫▬▲►▼◄◊○●◘◙◦♦←↑→↓–—‘’“”…";
 
     private readonly string _root = Directory.CreateTempSubdirectory("cleanarch-create-").FullName;
     private readonly FakeProcesses _processes;
@@ -49,32 +52,32 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new");
 
         string output = Plain(console);
-        output.ShouldContain("/ ___|");
+        output.ShouldContain("██████╗");
         output.ShouldContain(Banner.Tool);
         output.ShouldContain(Banner.Tagline);
-        output.ShouldContain("◇  Project name\n│  Demo\n");
-        output.ShouldContain("◇  Database\n│  postgresql\n");
-        output.ShouldContain("◇  Set up the project now?\n│  First commit, Bootstrap, Bootstrap commit, Copy .env\n");
+        output.ShouldContain("◊  Project name\n│  Demo\n");
+        output.ShouldContain("◊  Database\n│  postgresql\n");
+        output.ShouldContain("◊  Set up the project now?\n│  First commit, Bootstrap, Bootstrap commit, Copy .env\n");
         Order(
             output,
             "┌  Create a project",
-            "◇  Authentication",
-            "◇  Database",
-            "◇  First web app",
-            "◆  Set up the project now?",
+            "◊  Authentication",
+            "◊  Database",
+            "◊  First web app",
+            "♦  Set up the project now?",
             "Summary",
-            "◇  Generated Demo",
-            "◇  First commit done",
-            "◇  Bootstrap done",
-            "◇  Bootstrap commit done",
-            "◇  Copy .env done",
-            "The same, without questions",
+            "◊  Generated Demo",
+            "◊  First commit done",
+            "◊  Bootstrap done",
+            "◊  Bootstrap commit done",
+            "◊  Copy .env done",
+            "Next time, skip the questions with",
             "--setup",
-            "└  Done. Now run:");
-        output.ShouldContain("╭");
+            "└  All set. Now run:");
+        output.ShouldContain("┌──");
         output.ShouldMatch(@"│ Authentication\s+│ local\s+│");
         output.ShouldMatch(@"│ Output folder\s+│ ./Demo\s+│");
-        output.ShouldMatch(@"│ Set up\s+│ First commit, Bootstrap, Bootstrap commit, Copy .env\s+│");
+        output.ShouldMatch(@"│ Setup steps\s+│ First commit, Bootstrap, Bootstrap commit, Copy .env\s+│");
         string left = Closing(output);
         left.ShouldContain("     cd ./Demo");
         left.ShouldContain("     docker compose up -d --build --wait");
@@ -84,6 +87,52 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(_created);
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal));
         File.Exists(Path.Combine(_root, "Demo", ".env")).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void EveryGlyphDrawn_IsOneConsoleFontsCarry_SoTheThreadStaysAligned()
+    {
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 11);
+
+        Run(console, "new");
+
+        Plain(console).Where(glyph => glyph > 'ÿ' && !_wgl4AboveLatin1.Contains(glyph)).Distinct().ShouldBeEmpty(
+            "Outside the WGL4 set, a terminal takes the glyph from a fallback font, which draws it off the rail.");
+    }
+
+    [Fact]
+    public void AfterQuestions_TheLaunchersCommand_KeepsTheHiveGiven()
+    {
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 11);
+
+        Run(console, "new", "--hive", "hive");
+
+        string output = Plain(console);
+        output.ShouldContain("dnx CleanArch.Create new -n Demo -o ./Demo --yes --setup");
+        output.ShouldMatch(@"[^:]--hive\s+(│\s+)?hive");
+        output.ShouldContain("--debug:custom-hive hive");
+    }
+
+    [Fact]
+    public void AnOutputFolderWithFiles_IsRefusedAtItsQuestion_NotAfterTheSummary()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "Demo"));
+        File.WriteAllText(Path.Combine(_root, "Demo", "kept.txt"), string.Empty);
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("./Other");
+        PushEnters(console, 10);
+
+        Run(console, "new");
+
+        string output = Plain(console);
+        Order(output, "That folder already has files in it.", "◊  Output folder\n│  ./Other\n", "◊  Authentication");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("Other", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -98,8 +147,8 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new");
 
         string output = Plain(console);
-        output.ShouldContain("◇  Example features\n│  none · --auth none refuses the example features");
-        output.ShouldContain("◇  Files module\n│  No · --auth none refuses the Files module");
+        output.ShouldContain("◊  Example features\n│  none · the only option when Authentication is none\n");
+        output.ShouldContain("◊  Files module\n│  No · the only option when Authentication is none\n");
         output.ShouldMatch(@"│ Example features\s+│ none\s+│");
     }
 
@@ -121,9 +170,9 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         string output = Plain(console);
         Regex.Count(output, "Summary").ShouldBe(2);
-        Regex.Count(output, "◇  Set up the project now\\?\n│  First commit, Bootstrap commit, Copy .env").ShouldBe(2);
-        Regex.Count(output, "◇  Authentication").ShouldBe(1);
-        output.ShouldNotContain("◇  Bootstrap done");
+        Regex.Count(output, "◊  Set up the project now\\?\n│  First commit, Bootstrap commit, Copy .env").ShouldBe(2);
+        Regex.Count(output, "◊  Authentication").ShouldBe(1);
+        output.ShouldNotContain("◊  Bootstrap done");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--auth external", StringComparison.Ordinal));
         _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
         Closing(output).ShouldContain(ProjectSetup.BootstrapCommand);
@@ -145,7 +194,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new");
 
         string output = Plain(console);
-        Order(output, "◇  Authentication\n│  none", "◇  Example features\n│  none ·", "◆  Database", "◇  Authentication\n│  local", "○ notes", "◇  Example features\n│  all");
+        Order(output, "◊  Authentication\n│  none", "◊  Example features\n│  none ·", "♦  Database", "◊  Authentication\n│  local", "○ notes", "◊  Example features\n│  all");
         output.ShouldMatch(@"│ Authentication\s+│ local\s+│");
         output.ShouldMatch(@"│ Example features\s+│ all\s+│");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && !line.Contains("--auth", StringComparison.Ordinal));
@@ -162,7 +211,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new");
 
         string output = Plain(console);
-        Order(output, "◇  First commit done", "▲  Bootstrap failed", "exited with code 1", "NU1301", "▲  Bootstrap commit skipped", "◇  Copy .env done", "└  Done. Now run:");
+        Order(output, "◊  First commit done", "▲  Bootstrap failed", "exited with code 1", "NU1301", "▲  Bootstrap commit skipped", "◊  Copy .env done", "└  Almost there. Now run:");
         string left = Closing(output);
         left.ShouldContain(ProjectSetup.BootstrapCommand);
         left.ShouldContain("git commit -m \"chore: bootstrap\"");
@@ -180,9 +229,25 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new");
 
         string output = Plain(console);
-        Order(output, "▲  First commit skipped", "git has no user.name nor user.email", "◇  Bootstrap done", "▲  Bootstrap commit skipped");
+        Order(output, "▲  First commit skipped", "git doesn't know who you are yet: user.name and user.email aren't set.", "◊  Bootstrap done", "▲  Bootstrap commit skipped");
         Closing(output).ShouldContain("git config --global user.email \"<your email>\"");
         _processes.CommandLines.ShouldNotContain(line => line.StartsWith("git commit", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnAppNameTaken_IsRefusedAtItsQuestion()
+    {
+        AGeneratedProject();
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps", "BackOffice"));
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("BackOffice");
+        console.Input.PushTextWithEnter("2");
+        PushEnters(console, 5);
+
+        Run(console, "web-app");
+
+        Order(Plain(console), "There's already an app with that name.", "◊  App name\n│  BackOffice2\n");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapp -n BackOffice2", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -197,10 +262,10 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         string output = Plain(console);
         output.ShouldContain("┌  Add a web app to Acme.Shop");
-        output.ShouldContain("●  Read from Acme.Shop: --workspace true");
-        output.ShouldContain("◇  Audience\n│  public · --audience admin signs administrators in");
+        output.ShouldContain("●  Taken from Acme.Shop: --workspace true");
+        output.ShouldContain("◊  Audience\n│  public · the only option when Project authentication is none\n");
         output.ShouldNotContain("Set up the project now?");
-        Order(output, "◇  App name", "◇  Framework", "Summary", "◇  Added BackOffice", "└  Done. By hand, in Src/Web/README.md:");
+        Order(output, "◊  App name", "◊  Framework", "Summary", "◊  Added BackOffice", "└  All set. A few things to do by hand, from Src/Web/README.md:");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapp -n BackOffice", StringComparison.Ordinal));
     }
 
@@ -228,7 +293,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(Banner.Tagline);
         output.ShouldNotContain(Rail.Answered);
         output.ShouldNotContain("Summary");
-        output.ShouldContain("Done. The same, without questions:");
+        output.ShouldContain("Done. Next time, skip the questions with:");
         output.ShouldContain(_created);
     }
 
@@ -243,7 +308,9 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(Banner.Tagline);
         output.ShouldNotContain(Rail.Bar);
         output.ShouldNotContain(Rail.Answered);
-        Order(output, _created, "Done. The same, without questions:", "Next", "cd Demo", "```bash", ProjectSetup.BootstrapCommand);
+        Order(output, _created, _bootstrapInstruction, "Done. The same with dotnet new:", "Next:", "cd Demo", ProjectSetup.BootstrapCommand);
+        output.ShouldNotContain("```");
+        output.ShouldNotContain(Launcher.Invocation);
         _processes.Calls.ShouldNotContain(call => call.FileName == "git");
         _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
     }
@@ -257,8 +324,10 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         string output = Plain(console);
         output.ShouldNotContain(Rail.Answered);
-        Order(output, "First commit done.", "Bootstrap done.", "Bootstrap commit done.", "Copy .env done.", "--yes --setup", "Next", "cd Demo", "docker compose up -d --build --wait");
+        Order(output, "First commit done.", "Bootstrap done.", "Bootstrap commit done.", "Copy .env done.", "Done. The same with dotnet new:", "Next", "cd Demo", "docker compose up -d --build --wait");
         output.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        output.ShouldNotContain("Manual instructions:");
+        output.ShouldNotContain("Processing post-creation actions...");
         _processes.CommandLines.ShouldContain("git commit -q -m chore: bootstrap -- .");
     }
 
@@ -281,7 +350,7 @@ public sealed partial class GuidedFlowTests : IDisposable
 
     private static string Closing(string output)
     {
-        int done = output.LastIndexOf("└  Done.", StringComparison.Ordinal);
+        int done = output.LastIndexOf("Now run:", StringComparison.Ordinal);
         done.ShouldBeGreaterThanOrEqualTo(0, "The run printed no closing block.");
         return output[done..];
     }
@@ -335,6 +404,7 @@ public sealed partial class GuidedFlowTests : IDisposable
             Directory.CreateDirectory(call.Arguments[output + 1]);
             File.WriteAllText(Path.Combine(call.Arguments[output + 1], "README.md"), _runIt);
             File.WriteAllText(Path.Combine(call.Arguments[output + 1], ".env.example"), "API_HOST_PORT=8080");
+            return new ProcessResult(0, $"{_created}\nProcessing post-creation actions...\nDescription: Bootstrap the project.\n{_bootstrapInstruction}\n");
         }
 
         return new ProcessResult(0, _created);

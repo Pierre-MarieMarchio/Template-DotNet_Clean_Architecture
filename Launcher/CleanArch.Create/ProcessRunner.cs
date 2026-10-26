@@ -60,7 +60,7 @@ public sealed class ProcessRunner : IProcessRunner
         }
         catch (Win32Exception)
         {
-            throw new LauncherException($"{command.FileName} could not be started: it must be on the PATH.");
+            throw new LauncherException($"Couldn't start {command.FileName}. Is it installed and on your PATH?");
         }
 
         process.BeginOutputReadLine();

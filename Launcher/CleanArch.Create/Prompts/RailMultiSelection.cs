@@ -73,7 +73,7 @@ public sealed class RailMultiSelection
 
         for (int index = 0; index < _choices.Count; index++)
         {
-            string box = _checked[index] ? "[cyan]◼[/]" : "[grey]◻[/]";
+            string box = _checked[index] ? "[cyan]■[/]" : "[grey]□[/]";
             string value = Markup.Escape(_choices[index].Value);
             grid.AddRow(
                 new Markup(box),

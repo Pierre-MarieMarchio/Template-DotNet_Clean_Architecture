@@ -41,6 +41,23 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
+    public void Yes_TakesTheOnlyValueTheTemplateLeaves_AsTheQuestionsDo()
+    {
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var questionnaire = new Questionnaire(console, interactive: false, yes: true);
+
+        Dictionary<string, string> answers = questionnaire.Answer(
+            _project, new Dictionary<string, string> { ["auth"] = "none" }, _nothing, Launcher.ProjectAskedWhen);
+
+        answers["examples"].ShouldBe("none");
+        answers["files"].ShouldBe("false");
+        answers["database"].ShouldBe("postgresql");
+        _project.RefusalsFor(answers).ShouldBeEmpty();
+        console.Output.ShouldContain("Example features: none (the only option when Authentication is none)");
+    }
+
+    [Fact]
     public void Yes_AsksForTheWebAppsName_OnceThereIsOne()
     {
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
@@ -57,7 +74,8 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
         LauncherException error = Should.Throw<LauncherException>(() =>
-            questionnaire.Answer(_project, new Dictionary<string, string> { ["auth"] = "none", ["files"] = "false" }, _nothing, Launcher.ProjectAskedWhen));
+            questionnaire.Answer(
+                _project, new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false" }, _nothing, Launcher.ProjectAskedWhen));
 
         error.Message.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "authNoneNeedsExamplesNone").Explanation);
         error.Message.ShouldNotContain("--files false.");
@@ -90,6 +108,7 @@ public sealed class QuestionnaireTests
             Launcher.ProjectAskedWhen);
 
         console.Output.ShouldContain("--auth none refuses the example features");
+        console.Output.ShouldContain("Asking again: Authentication, Example features.");
         answers["auth"].ShouldBe("none");
         answers["examples"].ShouldBe("none");
         _project.RefusalsFor(answers).ShouldBeEmpty();
@@ -163,8 +182,9 @@ public sealed class QuestionnaireTests
         answers["web"].ShouldBe("placeholder");
         answers["webAudience"].ShouldBe("public");
         _project.RefusalsFor(answers).ShouldBeEmpty();
-        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "authNoneNeedsExamplesNone").Explanation);
-        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "adminWebNeedsAccounts").Explanation);
+        console.Output.ShouldContain("none · the only option when Authentication is none");
+        console.Output.ShouldContain("public · the only option when Authentication is none");
+        console.Output.ShouldNotContain("add --examples none");
         _project.CommandArguments(answers).ShouldBe(["--auth", "none", "--files", "false", "--examples", "none", "--web", "placeholder"], ignoreOrder: true);
     }
 
@@ -187,6 +207,6 @@ public sealed class QuestionnaireTests
 
         answers["audience"].ShouldBe("public");
         console.Output.ShouldNotContain("A back office");
-        console.Output.ShouldContain(webApp.Refusals.Single().Explanation);
+        console.Output.ShouldContain("public · the only option when Project authentication is none");
     }
 }

@@ -16,14 +16,18 @@ The launcher asks for the name, the folder and each option, with the template's 
 defaults and descriptions. It offers only what the template generates with the answers given so far:
 a choice the template refuses whatever follows, as `--database mysql`, is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
-the refusal that says why. A combination of flags the template refuses is explained before anything
-is written, and its options are asked again. It installs the `CleanArch.WebApi.Templates` package at
-its own version when another one or none is installed, generates the project, then prints the
-equivalent command and the first steps.
+the answer that leaves it. A combination of flags the template refuses is explained before anything
+is written, and its options are asked again. An output folder that already holds files, or an app
+name already taken, is refused at its own question. It installs the `CleanArch.WebApi.Templates`
+package at its own version when another one or none is installed, generates the project, then prints
+the equivalent commands, with `--template-source` and `--hive` when they were given, and the first
+steps of the project's `README.md`, as plain text.
 
 In a terminal it opens on a banner and asks each question on a thread, each choice with its
-description beside it and the default selected, and every answer stays on the thread. A dim line
-under each question names its keys:
+description beside it and the default selected, and every answer stays on the thread. The thread
+uses only glyphs every console font carries, so no marker is drawn off the rail by a fallback font,
+and the output is UTF-8 whatever the console's code page. A dim line under each question names its
+keys:
 
 | Question | Keys |
 |---|---|
@@ -57,8 +61,9 @@ hand. Each runs under its own spinner, in this order:
 The commits carry your own git identity; without `user.name` or `user.email` they are skipped, with
 the `git config` lines to run. A step that fails says why and leaves the next independent ones to
 run, and a commit is skipped when a step before it did not succeed. The commands left at the end are
-the ones still to run: the stack's, and those of each step that did not succeed. Without questions,
-`--setup` runs every step; without it nothing is set up.
+the ones still to run: the stack's, and those of each step that did not succeed. With Bootstrap among
+the steps, `dotnet new`'s own reminder to run it is left out of what the launcher relays. Without
+questions, `--setup` runs every step; without it nothing is set up.
 
 ## Add a web app or a package
 
@@ -76,7 +81,8 @@ Both ask on the same thread, with the same summary, as a new project.
 ## Without questions
 
 Every question is a flag named like the template's option; `--yes` takes the default of each one not
-given. Without a terminal, every answer is a flag or `--yes` is passed.
+given. Without a terminal, every answer is a flag or `--yes` is passed. `--help` lists the options
+with the values the template generates and their defaults.
 
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes

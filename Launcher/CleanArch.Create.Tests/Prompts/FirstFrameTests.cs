@@ -26,7 +26,7 @@ public sealed partial class FirstFrameTests
         Unanswered(() => new RailSelection("Database", "The database.", _databases, "sqlserver", inline: false, canGoBack: false, _ => null).Show(_console));
 
         string frame = Plain(_console);
-        frame.ShouldContain("◆  Database");
+        frame.ShouldContain("♦  Database");
         frame.ShouldContain("○ postgresql");
         frame.ShouldContain("● sqlserver");
         frame.ShouldContain("○ sqlite");
@@ -49,8 +49,8 @@ public sealed partial class FirstFrameTests
         Unanswered(() => new RailMultiSelection("Set up the project now?", _databases, [.. _databases.Select(choice => choice.Value)], canGoBack: false).Show(_console));
 
         string frame = Plain(_console);
-        frame.ShouldContain("◼ postgresql");
-        frame.ShouldContain("◼ sqlite");
+        frame.ShouldContain("■ postgresql");
+        frame.ShouldContain("■ sqlite");
         frame.ShouldContain("↑/↓ move · space toggle · a all · enter confirm");
     }
 
@@ -60,7 +60,7 @@ public sealed partial class FirstFrameTests
         Unanswered(() => new RailText("Web app name", null, "Site", canGoBack: false, _ => null).Show(_console));
 
         string frame = Plain(_console);
-        frame.ShouldContain("◆  Web app name");
+        frame.ShouldContain("♦  Web app name");
         frame.ShouldContain("Site");
         frame.ShouldContain("type a value · enter keeps Site");
     }

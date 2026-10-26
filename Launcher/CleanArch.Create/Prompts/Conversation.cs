@@ -3,7 +3,7 @@ using Spectre.Console;
 
 namespace CleanArch.Create.Prompts;
 
-public sealed record Closing(string? Readme, IReadOnlyList<string> Commands, string? Section);
+public sealed record Closing(string? Readme, IReadOnlyList<string> Commands, string? Section, bool StepsLeft = false);
 
 public abstract class Conversation
 {
@@ -47,7 +47,7 @@ public abstract class Conversation
 
     public abstract void Reported(string text, bool succeeded, string? why, IReadOnlyList<string> rerun);
 
-    public abstract void Equivalents(IReadOnlyList<string> commandLines);
+    public abstract void Equivalents(IReadOnlyList<string> commandLines, bool asked);
 
     public abstract void Close(Closing? closing);
 

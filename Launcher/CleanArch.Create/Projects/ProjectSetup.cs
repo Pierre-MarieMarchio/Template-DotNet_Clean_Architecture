@@ -22,31 +22,33 @@ public sealed class ProjectSetup
 
     public static readonly SetupStep FirstCommit = new(
         "First commit",
-        "git init, unless the folder is in a git work tree already, then a commit of the generated files.",
+        "Commits the generated files, after a git init if the folder isn't in a repository yet.",
         "Committing the generated project",
         null);
 
     public static readonly SetupStep Bootstrap = new(
         "Bootstrap",
-        BootstrapCommand + ": formats, writes the OpenAPI document, restores the tools, creates the initial migrations; needs the network.",
-        "Bootstrapping, which takes a few minutes",
+        "Runs " + BootstrapCommand + ": formatting, OpenAPI document, tools and first migrations. Needs internet.",
+        "Running bootstrap, this takes a few minutes",
         BootstrapCommand);
 
     public static readonly SetupStep BootstrapCommit = new(
         "Bootstrap commit",
-        "A second commit, of what bootstrap wrote, as the first run asks before anything else.",
-        "Committing what bootstrap wrote",
+        "Commits what bootstrap changed, in a commit of its own.",
+        "Committing what bootstrap changed",
         null);
 
     public static readonly SetupStep EnvironmentFile = new(
         "Copy .env",
-        ".env.example to the git-ignored .env, whose defaults work on localhost.",
+        "Copies .env.example to .env, which git ignores. The defaults work as they are on your machine.",
         "Copying .env.example to .env",
         EnvironmentCommand);
 
     public static readonly IReadOnlyList<SetupStep> Steps = [FirstCommit, Bootstrap, BootstrapCommit, EnvironmentFile];
 
     private const int _tail = 6;
+    private const string _init = "git init";
+    private const string _longPaths = "git config --global core.longpaths true";
 
     private static readonly IReadOnlyDictionary<string, string> _noVariables = new Dictionary<string, string>(StringComparer.Ordinal);
     private static readonly string[] _identity = ["user.name", "user.email"];
@@ -62,6 +64,19 @@ public sealed class ProjectSetup
         _root = root;
         _generatedMessage = $"chore: generate from cleanarch-webapi {version}";
         _echo = echo;
+    }
+
+    public static IEnumerable<string> Left(IEnumerable<SetupOutcome> outcomes)
+    {
+        var once = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string command in outcomes.SelectMany(outcome => outcome.Rerun))
+        {
+            bool repeatable = command != _init && !command.StartsWith("git config", StringComparison.Ordinal);
+            if (repeatable || once.Add(command))
+            {
+                yield return command;
+            }
+        }
     }
 
     public SetupOutcome Run(SetupStep step, IReadOnlyList<SetupOutcome> before)
@@ -92,6 +107,12 @@ public sealed class ProjectSetup
     {
         string[] tail = [.. result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).TakeLast(_tail)];
         string why = string.Join(Environment.NewLine, tail.Prepend($"{command} exited with code {result.ExitCode}."));
+        if (result.Output.Contains("Filename too long", StringComparison.Ordinal))
+        {
+            why += Environment.NewLine + "Some paths in the project are too long for git on Windows. Turn on long paths, or create the project in a shorter folder.";
+            rerun = [_longPaths, .. rerun];
+        }
+
         return new SetupOutcome(step, SetupStatus.Failed, why, rerun);
     }
 
@@ -100,20 +121,22 @@ public sealed class ProjectSetup
         List<string> rerun = Rerun(step);
         if (before.FirstOrDefault(outcome => outcome.Status != SetupStatus.Done) is { } unfinished)
         {
-            return new SetupOutcome(step, SetupStatus.Skipped, $"{unfinished.Step.Title} did not succeed.", rerun);
+            bool absorbed = unfinished.Step == FirstCommit && before.Any(outcome => outcome.Step == Bootstrap && outcome.Status == SetupStatus.Done);
+            return absorbed
+                ? new SetupOutcome(step, SetupStatus.Skipped, "Skipped because the first commit didn't go through. Once you make it, it will hold bootstrap's changes too.", [])
+                : new SetupOutcome(step, SetupStatus.Skipped, $"Skipped because the {unfinished.Step.Title.ToLowerInvariant()} step didn't go through.", rerun);
         }
 
         if (!InsideAWorkTree())
         {
-            rerun.Insert(0, "git init");
             if (!initialise)
             {
-                return new SetupOutcome(step, SetupStatus.Skipped, "The project is not in a git work tree.", rerun);
+                return new SetupOutcome(step, SetupStatus.Skipped, "The project isn't in a git repository.", [_init, .. rerun]);
             }
 
             if (Git("init") is { ExitCode: not 0 } refused)
             {
-                return Failed(step, "git init", refused, rerun);
+                return Failed(step, _init, refused, [_init, .. rerun]);
             }
         }
 
@@ -122,7 +145,7 @@ public sealed class ProjectSetup
             return new SetupOutcome(
                 step,
                 SetupStatus.Skipped,
-                $"git has no {string.Join(" nor ", missing)} to sign the commit with.",
+                $"git doesn't know who you are yet: {string.Join(" and ", missing)} {(missing.Count == 1 ? "isn't" : "aren't")} set.",
                 [.. missing.Select(setting => $"git config --global {setting} \"<your {setting[(setting.IndexOf('.') + 1)..]}>\""), .. rerun]);
         }
 
@@ -155,12 +178,12 @@ public sealed class ProjectSetup
         string environment = Path.Combine(_root, ".env");
         if (File.Exists(environment))
         {
-            return new SetupOutcome(EnvironmentFile, SetupStatus.Done, ".env is there already.", []);
+            return new SetupOutcome(EnvironmentFile, SetupStatus.Done, ".env already exists, so it was left as it is.", []);
         }
 
         if (!File.Exists(example))
         {
-            return new SetupOutcome(EnvironmentFile, SetupStatus.Skipped, "The project holds no .env.example.", []);
+            return new SetupOutcome(EnvironmentFile, SetupStatus.Skipped, "There's no .env.example in the project.", []);
         }
 
         File.Copy(example, environment);

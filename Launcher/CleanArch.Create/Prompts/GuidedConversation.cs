@@ -6,7 +6,6 @@ namespace CleanArch.Create.Prompts;
 
 public sealed class GuidedConversation : Conversation
 {
-    private const string _fence = "```";
     private const string _eraseBelow = "\u001b[0J";
 
     private static readonly IReadOnlyDictionary<string, string> _accents = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -105,7 +104,7 @@ public sealed class GuidedConversation : Conversation
     public override bool Review(string subject, IReadOnlyList<KeyValuePair<string, string>> rows)
     {
         var table = new Table()
-            .Border(TableBorder.Rounded)
+            .Border(TableBorder.Square)
             .BorderColor(Color.Grey)
             .AddColumn(new TableColumn("[grey]Option[/]"))
             .AddColumn(new TableColumn("[grey]Value[/]"));
@@ -148,7 +147,7 @@ public sealed class GuidedConversation : Conversation
 
     public override T Spin<T>(string running, Func<T> work) =>
         _console.Status()
-            .Spinner(Spinner.Known.Dots)
+            .Spinner(new RailSpinner())
             .SpinnerStyle(new Style(Color.Aqua))
             .Start(Markup.Escape(running), _ => work());
 
@@ -176,9 +175,9 @@ public sealed class GuidedConversation : Conversation
         Gap();
     }
 
-    public override void Equivalents(IReadOnlyList<string> commandLines)
+    public override void Equivalents(IReadOnlyList<string> commandLines, bool asked)
     {
-        Line(Rail.Answered, "green", "The same, without questions");
+        Line(Rail.Answered, "green", "Next time, skip the questions with");
         foreach (string line in commandLines)
         {
             Railed(new Markup($"[grey]{Markup.Escape(line)}[/]"));
@@ -192,8 +191,9 @@ public sealed class GuidedConversation : Conversation
         string heading = closing switch
         {
             null => "Done.",
-            { Readme: null } => "Done. Now run:",
-            { Readme: { } readme } => $"Done. By hand, in {readme}:",
+            { Readme: null, StepsLeft: true } => "Almost there. Now run:",
+            { Readme: null } => "All set. Now run:",
+            { Readme: { } readme } => $"All set. A few things to do by hand, from {readme}:",
         };
         Line(Rail.End, "grey", $"[bold]{Markup.Escape(heading)}[/]");
         if (closing is null)
@@ -212,7 +212,7 @@ public sealed class GuidedConversation : Conversation
             _console.WriteLine();
         }
 
-        foreach ((string text, bool code) in Blocks(closing.Section ?? string.Empty))
+        foreach ((string text, bool code) in ReadmeText.Blocks(closing.Section ?? string.Empty))
         {
             Indented(text, code ? "bold" : "grey");
         }
@@ -231,41 +231,6 @@ public sealed class GuidedConversation : Conversation
             ? $"[grey]{Markup.Escape(value)}[/]"
             : $"[grey]{Markup.Escape(value)}[/] [grey italic]· {Markup.Escape(reason)}[/]"));
         Gap();
-    }
-
-    private static IEnumerable<(string Text, bool Code)> Blocks(string markdown)
-    {
-        bool code = false;
-        string? paragraph = null;
-        foreach (string line in markdown.Split('\n').Select(line => line.TrimEnd('\r')))
-        {
-            bool fence = line.TrimStart().StartsWith(_fence, StringComparison.Ordinal);
-            if (!code && !fence && line.Length > 0 && !line.StartsWith('|'))
-            {
-                paragraph = paragraph is null ? line : paragraph + " " + line;
-                continue;
-            }
-
-            if (paragraph is not null)
-            {
-                yield return (paragraph, false);
-                paragraph = null;
-            }
-
-            if (fence)
-            {
-                code = !code;
-            }
-            else
-            {
-                yield return (line, code);
-            }
-        }
-
-        if (paragraph is not null)
-        {
-            yield return (paragraph, false);
-        }
     }
 
     private void Line(string glyph, string colour, string markup)

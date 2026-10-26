@@ -71,7 +71,7 @@ public sealed class PlainConversation : Conversation
     }
 
     public override void Answered(string label, string value, string reason) =>
-        _console.MarkupLine($"[bold]{Markup.Escape(label)}[/]: [green]{Markup.Escape(value)}[/] [grey]{Markup.Escape(reason)}[/]");
+        _console.MarkupLine($"[bold]{Markup.Escape(label)}[/]: [green]{Markup.Escape(value)}[/] [grey]({Markup.Escape(reason)})[/]");
 
     public override void Warn(string text) => _console.MarkupLine("[yellow]" + Markup.Escape(text) + "[/]");
 
@@ -99,9 +99,9 @@ public sealed class PlainConversation : Conversation
         }
     }
 
-    public override void Equivalents(IReadOnlyList<string> commandLines)
+    public override void Equivalents(IReadOnlyList<string> commandLines, bool asked)
     {
-        _console.MarkupLine("[bold]Done.[/] The same, without questions:");
+        _console.MarkupLine(asked ? "[bold]Done.[/] Next time, skip the questions with:" : "[bold]Done.[/] The same with dotnet new:");
         foreach (string line in commandLines)
         {
             _console.Verbatim("  " + line);
@@ -115,7 +115,8 @@ public sealed class PlainConversation : Conversation
             return;
         }
 
-        _console.MarkupLine(closing.Readme is null ? "[bold]Next[/]" : "[bold]By hand[/] " + Markup.Escape(closing.Readme) + ":");
+        _console.WriteLine();
+        _console.MarkupLine(closing.Readme is null ? "[bold]Next:[/]" : "[bold]To do by hand, from[/] " + Markup.Escape(closing.Readme) + ":");
         foreach (string command in closing.Commands)
         {
             _console.Verbatim(command);
@@ -123,7 +124,7 @@ public sealed class PlainConversation : Conversation
 
         if (closing.Section is not null)
         {
-            _console.Verbatim(closing.Section);
+            _console.Verbatim(ReadmeText.Plain(closing.Section));
         }
     }
 

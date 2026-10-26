@@ -1,7 +1,8 @@
 ﻿using CleanArch.Create;
 using Spectre.Console;
 
-bool interactive = !Console.IsInputRedirected && AnsiConsole.Profile.Capabilities.Interactive;
-Console.CancelKeyPress += (_, _) => AnsiConsole.Cursor.Show();
+IAnsiConsole console = Terminal.Open();
+bool interactive = !Console.IsInputRedirected && console.Profile.Capabilities.Interactive;
+Console.CancelKeyPress += (_, _) => console.Cursor.Show();
 
-return new Launcher(AnsiConsole.Console, Environment.CurrentDirectory, interactive).Run(args);
+return new Launcher(console, Environment.CurrentDirectory, interactive).Run(args);

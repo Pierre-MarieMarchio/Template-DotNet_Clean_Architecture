@@ -65,9 +65,9 @@ public sealed class TemplateEngine
         }
     }
 
-    public void Run(string workingDirectory, IReadOnlyList<string> arguments)
+    public void Run(string workingDirectory, IReadOnlyList<string> arguments, string? runByTheLauncher = null)
     {
-        (int exitCode, string output) = Execute(workingDirectory, arguments, echo: true);
+        (int exitCode, string output) = Execute(workingDirectory, arguments, echo: true, runByTheLauncher);
         if (exitCode != 0)
         {
             string failure = $"{CommandLine("dotnet new", arguments)} failed with exit code {exitCode}.";
@@ -75,7 +75,7 @@ public sealed class TemplateEngine
         }
     }
 
-    private (int ExitCode, string Output) Execute(string workingDirectory, IReadOnlyList<string> arguments, bool echo)
+    private (int ExitCode, string Output) Execute(string workingDirectory, IReadOnlyList<string> arguments, bool echo, string? runByTheLauncher = null)
     {
         List<string> command = ["new", .. arguments];
         if (_hive is not null)
@@ -83,9 +83,11 @@ public sealed class TemplateEngine
             command.AddRange(["--debug:custom-hive", _hive]);
         }
 
+        var relayed = new RelayedOutput(_console.Verbatim, runByTheLauncher);
         ProcessResult result = _processes.Run(
             new ProcessCall("dotnet", workingDirectory, command, _environment),
-            echo && _echo ? _console.Verbatim : null);
+            echo && _echo ? relayed.Line : null);
+        relayed.Flush();
 
         return (result.ExitCode, result.Output);
     }

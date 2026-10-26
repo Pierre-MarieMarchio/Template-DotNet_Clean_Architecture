@@ -1,6 +1,6 @@
 {
   "framework": "angular",
-  "name": "angular-site",
+  "name": "framework-site",
   "package": "@angular/cli",
   "version": "22.2.3",
   "arguments": [
@@ -10,7 +10,7 @@
   ],
   "merge": {
     "package.json": {
-      "name": "angular-site",
+      "name": "framework-site",
       "packageManager": null,
       "scripts": {
         "dev": "ng serve",
@@ -28,9 +28,15 @@
     },
     "angular.json": {
       "projects": {
-        "angular-site": {
+        "framework-site": {
           "architect": {
             "build": {
+              "options": {
+                "outputPath": {
+                  "base": "dist",
+                  "browser": ""
+                }
+              },
               "configurations": {
                 "production": {
                   "optimization": {

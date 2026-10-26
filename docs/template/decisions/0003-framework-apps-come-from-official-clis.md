@@ -1,6 +1,6 @@
 ﻿# 0003. Framework apps come from their official CLIs
 
-Status: Accepted
+Status: Superseded by [0008](0008-a-web-app-comes-from-a-starter.md)
 
 ## Context
 

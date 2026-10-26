@@ -83,11 +83,8 @@ healthy. The API runs in Development, so it applies its migrations at start.
 <!--#if (files)-->
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
 <!--#endif-->
-<!--#if (webReact)-->
+<!--#if (webFramework)-->
 | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webAngular)-->
-| Web app | <http://localhost:4200> |
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 | Web app | <http://localhost:8081> |

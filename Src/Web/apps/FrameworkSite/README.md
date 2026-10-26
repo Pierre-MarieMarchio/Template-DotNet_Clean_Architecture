@@ -1,12 +1,25 @@
-# AngularSite
+# FrameworkSite
 
-<!--#if (adminAudience)-->
+<!--#if (webReact && adminAudience)-->
+A React back office over the API, for administrators.
+<!--#endif-->
+<!--#if (webReact && !adminAudience)-->
+A React front end over the API.
+<!--#endif-->
+<!--#if (webAngular && adminAudience)-->
 An Angular back office over the API, for administrators.
-<!--#else-->
+<!--#endif-->
+<!--#if (webAngular && !adminAudience)-->
 An Angular front end over the API.
 <!--#endif-->
+<!--#if (webReact)-->
+The app itself is what Vite's official CLI, `create-vite`, writes for its `react-ts` template; this
+folder adds the wiring around it.
+<!--#endif-->
+<!--#if (webAngular)-->
 The app itself is what the Angular CLI's `ng new` writes (standalone components, routing, CSS,
 no server-side rendering, Vitest); this folder adds the wiring around it.
+<!--#endif-->
 
 ## Create the app
 
@@ -14,7 +27,7 @@ The folder starts with the wiring only: scaffold.json names the CLI, the version
 and its arguments, and overlay/ holds what is laid over the CLI's starter. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs web-scaffold AngularSite
+dotnet run Tools/Tasks.cs web-scaffold FrameworkSite
 ```
 
 `bootstrap` runs the same step. It needs the network once, to fetch the CLI. It writes the starter,
@@ -24,21 +37,35 @@ pins every dependency to the version installed, removes scaffold.json and overla
 on `pnpm install --frozen-lockfile`, CI and the image build use exactly those versions, and the step
 leaves the app alone.
 
+<!--#if (webReact)-->
+What the template adds to the CLI's starter, and nothing else:
+
+- `vite.config.ts`, replaced whole, since a Vite dev server is configured there and nowhere else:
+  the CLI's React plugin, port 5173, and `/api/` and `/health` relayed to the API (`API_UPSTREAM`,
+  default <http://localhost:5187>), so the browser talks to a single origin and the API keeps CORS
+  closed;
+- in `package.json`: the name `framework-site`, which `pnpm --filter` takes, the dependency
+  `@app-template/api-client` (`workspace:*`), the client generated from the API in
+  `Src/Web/packages/api-client`, and a `test` script running Vitest beside the CLI's `dev`, `build`
+  and `lint` (Oxlint), so `pnpm build`, `pnpm lint` and `pnpm test` in `Src/Web` include the app.
+<!--#endif-->
+<!--#if (webAngular)-->
 What the template adds to the CLI's starter, and nothing else; no file the CLI writes is replaced:
 
 - `proxy.conf.json`, which `ng serve` reads through angular.json: `/api` and `/health` relayed to
   the API at <http://localhost:5187>, so the browser talks to a single origin and the API keeps CORS
   closed;
-- in angular.json: that proxy, port 4200, and production styles without inlined critical CSS,
-  whose `onload` handler the Content-Security-Policy refuses;
+- in angular.json: the build output in the app's dist folder, that proxy, port 4200, and production
+  styles without inlined critical CSS, whose `onload` handler the Content-Security-Policy refuses;
 - in `tsconfig.json`: `allowImportingTsExtensions` with `noEmit`, since the workspace packages export
   their TypeScript sources and import each other by `.ts` path (the Angular builder emits through its
   own bundler either way);
-- in `package.json`: the name `angular-site`, which `pnpm --filter` takes, the dependency
+- in `package.json`: the name `framework-site`, which `pnpm --filter` takes, the dependency
   `@app-template/api-client` (`workspace:*`), the client generated from the API in
   `Src/Web/packages/api-client`, a `dev` script and a `test` script that runs once instead of
   watching, so `pnpm build` and `pnpm test` in `Src/Web` include the app. The CLI writes no linter;
   `ng add angular-eslint` adds one and its `lint` script.
+<!--#endif-->
 
 ## Calling the API and signing in
 
@@ -115,31 +142,36 @@ Confirmation, password-reset and email-change mails link to pages this app does 
 With the API running (`dotnet run Tools/Tasks.cs run` at the project root), from `Src/Web`:
 
 ```bash
-pnpm --filter angular-site dev
+pnpm --filter framework-site dev
 ```
 
 Under Compose, from the project root with the stack's `.env` in place, `docker compose up --build
---wait` serves the build through nginx on <http://localhost:4200>, or on the port
-`WEB_ANGULAR_SITE_HOST_PORT` sets.
+--wait` serves the build through nginx on <http://localhost:5173>, or on the port
+`WEB_FRAMEWORK_SITE_HOST_PORT` sets.
 
 | File | What it is |
 |---|---|
+<!--#if (!webAngular)-->
+| `nginx.conf` | the server: the page security headers, a strict Content-Security-Policy among them, caching, the `index.html` fallback, the `/api/` and `/health` relay |
+<!--#endif-->
+<!--#if (webAngular)-->
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, and styles from it or inline, since Angular inserts each component's styles as a `<style>` element when the page runs |
+<!--#endif-->
 | `Dockerfile` | the image, built from `Src/Web` with the workspace lockfile |
-| `compose.yml` | the `web-angular-site` service |
+| `compose.yml` | the `web-framework-site` service |
 
 ## Join the stack
 
 `docker compose up` starts the app once `docker-compose.yml` includes it, under `include:`:
 
 ```yaml
-  - path: Src/Web/apps/AngularSite/compose.yml
+  - path: Src/Web/apps/FrameworkSite/compose.yml
 ```
 
 and `.env.example` names its port:
 
 ```bash
-WEB_ANGULAR_SITE_HOST_PORT=4200
+WEB_FRAMEWORK_SITE_HOST_PORT=5173
 ```
 
 Removing the app is deleting this folder and those two lines, then running `pnpm install` in

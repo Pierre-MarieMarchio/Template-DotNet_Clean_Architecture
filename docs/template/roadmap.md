@@ -7,7 +7,7 @@ item ships on its own; a shipped item leaves this page for [the changelog](../..
 
 A web app or a presentation project comes from its framework's official generator when there is
 one: `bootstrap` runs it at a pinned version, then the template wires its output in and leaves the
-rest to the project, as [ADR 0003](decisions/0003-framework-apps-come-from-official-clis.md) does
+rest to the project, as [ADR 0008](decisions/0008-a-web-app-comes-from-a-starter.md) does
 for the web apps today. A framework without a generator gets its project written by the template,
 as the placeholder app is.
 

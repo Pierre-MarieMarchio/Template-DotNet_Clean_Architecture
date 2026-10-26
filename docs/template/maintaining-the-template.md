@@ -182,12 +182,36 @@ absent module.
 
 ## Web sources and lockfiles
 
-One folder per framework, `Src/Web/apps/PlaceholderSite`, `ReactSite` and `AngularSite`, is the source
-of both `--web` and `cleanarch-webapp`: the project template keeps the chosen one and renames it from
-`--web-name`, the item template renames it from `-n`. Each name is a token in three spellings (for
-example `PlaceholderSite`, `placeholder-site`, `PLACEHOLDER_SITE`). A framework folder holds only the
-wiring, its `scaffold.json` and its overlay; the app itself comes from the framework's official CLI at
-bootstrap.
+Two folders under `Src/Web/apps` are the source of both `--web` and `cleanarch-webapp`:
+`PlaceholderSite`, the static page, and `FrameworkSite`, the wiring every framework app shares (its
+`Dockerfile`, `nginx.conf`, `compose.yml` and `README.md`). The project template keeps the one the
+choice needs and renames it from `--web-name`, the item template renames it from `-n`. Each name is a
+token in three spellings (`PlaceholderSite`, `placeholder-site`, `PLACEHOLDER_SITE`, and the same for
+`FrameworkSite`). Where one framework differs, the wiring says so by a marker on its own symbol:
+Angular's inline styles in `nginx.conf`, its `NG_CLI_ANALYTICS` in the `Dockerfile`, and the
+sentences of the `README.md` that name the CLI.
+
+The app itself comes from a starter, one folder per `--web` value under `.template.config/starters`
+([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `react` and `angular`,
+each holding `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy
+into the app's folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither
+template copies anything else from there.
+
+Adding a starter, for a CLI that keeps the contract of decision 0008:
+
+1. Write `.template.config/starters/<value>/FrameworkSite/scaffold.json`: the CLI's package, its
+   exact version, its arguments (`{name}` and `{directory}` are replaced), the JSON merges that make
+   it build into `dist/`, relay `/api/` and `/health`, name the package `framework-site` and give it
+   the `@app-template/api-client` dependency and a `test` script; and `overlay/` for a file the CLI's
+   own settings cannot reach.
+2. Add `<value>` to the choices of `web` in `.template.config/template.json` and of `framework` in
+   `.template.config/webapp/.template.config/template.json`, each with its computed symbol, a source
+   copying the starter folder into `./Src/Web/apps/` under that symbol, the symbol in
+   `webFramework`, and the dev server's default port in `webDefaultPort` and `defaultPort`.
+   `TemplatePackagingTests` fails until both templates agree with the folder.
+3. Condition the wiring only where the new framework differs, and the README sentences that name
+   its CLI.
+4. Add its acceptance leg.
 
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
 `dotnet run Tools/Tasks.cs web-lockfiles` writes the lockfile of each shape holding a `package.json`
@@ -284,8 +308,9 @@ version means adopting the change in an existing project takes manual work.
 
 - [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)
 - [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md)
-- [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md)
+- [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md), superseded by 0008
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
 - [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
 - [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)
 - [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)
+- [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)

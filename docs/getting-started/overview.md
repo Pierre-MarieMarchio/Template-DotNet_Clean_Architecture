@@ -115,10 +115,10 @@ setting, table or test names it.
 | `--sonar` | `false` | no Sonar analysis |
 <!--#endif-->
 <!--#if (webReact)-->
-| `--web` | `react` | a React app in `Src/Web/apps/ReactSite`, created by its official CLI at bootstrap |
+| `--web` | `react` | a React app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
 <!--#endif-->
 <!--#if (webAngular)-->
-| `--web` | `angular` | an Angular app in `Src/Web/apps/AngularSite`, created by its official CLI at bootstrap |
+| `--web` | `angular` | an Angular app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 | `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |

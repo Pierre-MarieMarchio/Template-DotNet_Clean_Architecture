@@ -84,6 +84,12 @@ This repository carries the documentation every generated project receives, in i
 [The template documentation](docs/template/README.md) is about the template alone: using it,
 maintaining it, its acceptance matrix and its own decisions. It never reaches a generated project.
 
+## Roadmap
+
+[The roadmap](docs/template/roadmap.md) lists what is coming, in order: more web apps from their
+official generators, then presentation projects wired to the API or straight to the application
+layer. It also says what the template leaves out on purpose, and how to propose an item.
+
 ## Support
 
 Report a bug or ask for a feature through

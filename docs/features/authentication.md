@@ -163,8 +163,8 @@ default), read from a claim of the token (`Roles:Source` = `Claim`) or from the
 <!--#endif-->
 
 A new policy is a constant beside `Administrator` in
-`Src/Presentation/AppTemplate.Api/Common/Security/AuthorizationPolicies.cs` and one `AddPolicy`
-call where the module composes its authentication.
+`Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
+`AddPolicy` call where the module composes its authentication.
 
 <!--#endif-->
 ## Configure

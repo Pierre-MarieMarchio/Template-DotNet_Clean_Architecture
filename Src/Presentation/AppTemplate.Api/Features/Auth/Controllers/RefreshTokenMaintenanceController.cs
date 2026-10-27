@@ -1,8 +1,8 @@
 ﻿using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Maintenance.Contracts.Mapping;
 using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

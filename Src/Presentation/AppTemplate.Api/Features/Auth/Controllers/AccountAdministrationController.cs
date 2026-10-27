@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Api.Common.Contracts;
 using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Contracts.Mapping;
 using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
@@ -12,6 +11,7 @@ using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.UnlockAcc
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Queries.ListAccounts;
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Queries.GetAccountSecurityEvents;
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.DisableAccountTwoFactor;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

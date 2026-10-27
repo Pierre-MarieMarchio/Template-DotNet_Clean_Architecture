@@ -43,6 +43,11 @@ Then it prints the edits that compose the feature: the schema, set and configura
 call in `Program.cs`, and the two test compositions. The solution compiles again after the first edit,
 and the feature composes after the last. An owner feature that is the project's first prints five more,
 for the account-deletion sweep it brings with it.
+<!--#if (anyPresentation)-->
+Each host composes itself, so the call goes in the presentation project's `Program.cs` too, and a first
+owner feature writes and registers that host's account directory beside the API's; the printed edits
+name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+<!--#endif-->
 
 ## What you write by hand
 

@@ -9,6 +9,10 @@ layers are drawn this way is [the architecture](../architecture/README.md).
 Every project has the same shape: `Common/` for what knows no feature, `Features/<Feature>/` for the
 rest, and a root that holds only the `.csproj`, one composition file (`Program.cs` or the project's
 `…Module.cs`) and the folders `Common/`, `Features/`, `Migrations/` and `Properties/`.
+<!--#if (presentationBlazorServer)-->
+The presentation project's root also holds `Components/` and `wwwroot/`, which its framework's
+template writes and which are its own from then on.
+<!--#endif-->
 
 A brace lists every word a project allows at that level; a feature holds only the words it has
 content for.
@@ -96,6 +100,21 @@ Src/Presentation/
 <!--#endif-->
                                                       Contracts/{Mapping,Requests,Responses},
                                                       Controllers,Jobs}
+<!--#if (presentationBlazorServer && localAuth)-->
+  <Project>.<Name>                      Common/{Hosting,Security}
+                                        Features/<F>/Composition
+                                        Components/, wwwroot/: dotnet new blazor's, at bootstrap
+<!--#endif-->
+<!--#if (presentationBlazorServer && externalAuth)-->
+  <Project>.<Name>                      Common/{Hosting,Security}
+                                        Features/<F>/{Composition,Configuration/Options}
+                                        Components/, wwwroot/: dotnet new blazor's, at bootstrap
+<!--#endif-->
+<!--#if (presentationBlazorServer && publicApi)-->
+  <Project>.<Name>                      Common/{Hosting,Security}
+                                        no Features/
+                                        Components/, wwwroot/: dotnet new blazor's, at bootstrap
+<!--#endif-->
 <!--#if (anyWeb)-->
 Src/Web/                                the pnpm workspace: apps/ and packages/
 <!--#endif-->

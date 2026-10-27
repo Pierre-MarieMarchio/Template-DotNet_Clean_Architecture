@@ -20,6 +20,9 @@ setting it cannot use.
 <!--#if (anyWeb)-->
 A pnpm workspace beside it holds its web apps.
 <!--#endif-->
+<!--#if (presentationBlazorServer)-->
+A Blazor Web App beside it calls the same use cases in its own process.
+<!--#endif-->
 
 It is a starting point. The modules and mechanisms it carries are meant to stay; the product's own
 features grow beside them, and the documentation grows with them.
@@ -146,6 +149,12 @@ setting, table or test names it.
 <!--#endif-->
 <!--#if (anyWeb && !adminAudience)-->
 | `--web-audience` | `public` | the app is a site for the API's users |
+<!--#endif-->
+<!--#if (presentationBlazorServer)-->
+| `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation project](../features/presentation.md)) |
+<!--#endif-->
+<!--#if (!anyPresentation)-->
+| `--presentation` | `none` | no presentation project beside the API |
 <!--#endif-->
 
 To change a value, remove the part by hand or add it:

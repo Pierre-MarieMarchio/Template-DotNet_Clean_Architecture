@@ -73,5 +73,6 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#if (sqlite)-->
 | [0021](0021-sqlite-is-a-development-database.md) | SQLite is a development database | Persistence |
 <!--#endif-->
+| [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) | A presentation project reaches the core through the API or the application layer | Architecture |
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

@@ -61,7 +61,10 @@ second `web-scaffold` changes nothing, starts the whole stack and asks each app 
 headers and an answer only the API gives; it fails when a served page holds an event-handler
 attribute or an inline script whose hash the served `script-src` lacks, and reports its inline
 styles. The every-starter leg adds each framework starter its first app is not, so one workspace
-proves them all together.
+proves them all together. Every leg runs `presentation-scaffold` before the formatting, a step that
+does nothing without a presentation project; the three web legs that pass `--presentation
+blazor-server`, one per authentication mode, create it, build and test it, and ask it in the stack
+for its page and `/health`.
 
 | Leg | Options |
 |---|---|
@@ -71,13 +74,13 @@ proves them all together.
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` |
 | external auth, all examples | `--auth external --examples all --files true` |
 | external auth, no examples, no files | `--auth external --examples none --files false` |
-| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false` |
+| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |
-| web react, local auth | `--web react` |
-| web angular, external auth, notes | `--web angular --auth external --examples notes` |
+| web react, local auth | `--web react --presentation blazor-server` |
+| web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server` |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
@@ -185,7 +188,7 @@ Read a page in the default form, in `--auth none --examples none --files false`,
 markers distinguish: no broken link or anchor, no marker left, no orphan punctuation, no page about an
 absent module.
 
-## Web sources and lockfiles
+## Web sources
 
 Two folders under `Src/Web/apps` are the source of both `--web` and `cleanarch-webapp`:
 `PlaceholderSite`, the static page, and `FrameworkSite`, the wiring every framework app shares (its
@@ -241,6 +244,33 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
    scaffolds, builds and serves it beside the others and refuses an inline script its served policy
    does not allow by hash; a starter that differs in the wiring gets a leg of its own as well, unless
    the every-starter leg already proves what differs, as it does for React Router's hash step.
+
+## Presentation starters
+
+A `--presentation` value is a starter too, of kind `dotnet`
+([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)):
+`.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
+`.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationApp` (its `scaffold.json`, project file,
+`Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
+project template copies the folder into the project's root under `presentationBlazorServer`. `PresentationApp` is the token
+`--presentation-name` replaces, with `presentation-app` and `PRESENTATION_APP` beside it. The
+starter's C# is compiled only in a generated project, so a change to it is proved by generating one
+and by the three acceptance legs that pass `--presentation`.
+
+`presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
+runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
+post-action scripts declined: `dotnet new` asks again for ever on a closed input, and accepts the
+option only from a template that has such a script, so one that would ask fails instead of waiting
+for an answer. It keeps the folders the descriptor names and refuses a generated project file that
+declares a package or a property the starter's lacks. The package is pinned by hand: bump its
+`version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
+`--presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
+
+`presentationNameIsTaken` refuses each name that would make `<Project>.<Name>` or its test project one
+of the template's own projects; `ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites` lists
+the projects under `Src` and `Tests` and fails until a new one is refused too.
+
+## Web lockfiles
 
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
 `dotnet run Tools/Tasks.cs web-lockfiles` writes the lockfile of each shape holding a `package.json`
@@ -343,3 +373,4 @@ version means adopting the change in an existing project takes manual work.
 - [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)
 - [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)
 - [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
+- [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)

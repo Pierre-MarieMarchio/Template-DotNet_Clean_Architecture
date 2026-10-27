@@ -74,6 +74,9 @@ module (`OnlyAHost_ReferencesInfrastructureModules`). The modules themselves are
 | OTLP traces and metrics, named after the host's assembly | `AddObservability` |
 | The caller of a process that has no request | `NoCallerCurrentUser` |
 | The loop recurring work runs on | `PeriodicJob` |
+<!--#if (externalAuth)-->
+| The provider every host signs callers in with, and the roles read from its tokens | `AuthenticationExternalOptions`, `TokenRoleMapping` |
+<!--#endif-->
 
 It has no `FrameworkReference`, no ASP.NET Core package and no database driver, so a CLI, a desktop
 client or a second API host composes the same use cases without inheriting ASP.NET or a database provider.
@@ -100,17 +103,33 @@ database instrumentation to add.
 
 ## The API host
 
+<!--#if (!anyPresentation)-->
 `AppTemplate.Api` is the one project on the Web SDK. It holds the controllers, the background jobs,
+<!--#endif-->
+<!--#if (anyPresentation)-->
+`AppTemplate.Api` is the host of the HTTP contract. It holds the controllers, the background jobs,
+<!--#endif-->
 the composition root in `Program.cs`, and under `Common/` the HTTP mechanisms every feature shares.
 
 A wire type is the API's own: each feature declares its requests and responses under `Contracts/`
 and maps them by hand in `Contracts/Mapping/`. No application type and no port type is serialised
 as it is, so a field added inside the application is never published by that edit alone.
 
+<!--#if (presentationBlazorServer)-->
+## The presentation project
+
+`Src/Presentation/<Project>.<Name>` is a second host: a Blazor Web App that calls the use cases in
+its own process. It references the application projects and the modules it composes, like the API,
+and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
+its own caller, its sign-in and the adapters a host supplies. [Presentation project](../features/presentation.md)
+describes it.
+
+<!--#endif-->
 ## Composition
 
-Each project exposes one registration class, and each feature one line in `Program.cs`. There is no
-call that adds a whole layer: deleting a feature's folder and its line is the whole removal, and a
+Each project exposes one registration class, and each feature one line in the `Program.cs` of each
+host that composes features. There is no call that adds a whole layer, and no project that composes
+a host on another's behalf: deleting a feature's folder and its lines is the whole removal, and a
 module stays optional because nothing registers its ports on its behalf.
 
 ```csharp
@@ -166,3 +185,4 @@ to owners and the `Administrator` policy.
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): four layers, and a host-agnostic Presentation.Core.
 - [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0022. A presentation project reaches the core through the API or the application layer](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)

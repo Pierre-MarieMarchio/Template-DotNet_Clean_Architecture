@@ -136,6 +136,13 @@ means bringing an authentication module and its fallback policy back.
 
 <!--#endif-->
 <!--#if (accounts)-->
+<!--#if (presentationBlazorServer && !publicApi)-->
+## The presentation project
+
+The presentation project signs people in to itself, with a cookie, over the same accounts: the
+[presentation project](presentation.md#signing-in) describes its sign-in and its session.
+
+<!--#endif-->
 ## Roles and policies
 
 Authorisation is default-deny: every endpoint requires an authenticated caller unless it carries

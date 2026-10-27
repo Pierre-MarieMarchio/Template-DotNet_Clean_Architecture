@@ -22,8 +22,13 @@ work twice.
 <!--#endif-->
 
 Every pass calls an application use case, exactly as a controller would; a job adds a trigger, not
-logic. A pass that throws is logged and retried at the next tick, never stops the host, and never
-stops its sibling tasks in the same tick.
+logic.
+<!--#if (anyPresentation)-->
+The jobs run in the API alone: the presentation project composes the same use cases and runs none
+of them on a timer.
+<!--#endif-->
+A pass that throws is logged and retried at the next tick, never stops the host, and never stops its
+sibling tasks in the same tick.
 <!--#if (accounts)-->
 The maintenance purges are also routes under `/api/v1/maintenance`, for an outside scheduler,
 behind the `Administrator` policy.

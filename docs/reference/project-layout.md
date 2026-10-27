@@ -85,15 +85,9 @@ Src/Infrastructure/
 Src/Presentation/
   AppTemplate.Presentation.Core         Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
-<!--#if (!publicApi)-->
   AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Jobs,Localization,Observability,OpenApi,
                                                 Security}
-<!--#endif-->
-<!--#if (publicApi)-->
-  AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
-                                                Idempotency,Jobs,Localization,Observability,Security}
-<!--#endif-->
                                         Features/<F>/{Composition,
 <!--#if (externalAuth)-->
                                                       Configuration/Options,

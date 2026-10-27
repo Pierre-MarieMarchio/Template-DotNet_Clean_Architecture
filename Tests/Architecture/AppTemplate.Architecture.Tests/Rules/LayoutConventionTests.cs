@@ -142,10 +142,7 @@ public sealed class LayoutConventionTests
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-                "Idempotency", "Jobs", "Localization", "Observability",
-                //#if (!publicApi)
-                "OpenApi",
-                //#endif
+                "Idempotency", "Jobs", "Localization", "Observability", "OpenApi",
                 "Security",
             ],
         ["Src/Presentation/AppTemplate.Presentation.Core"] =

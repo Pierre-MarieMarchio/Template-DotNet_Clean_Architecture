@@ -13,18 +13,21 @@
 # Secrets are supplied at runtime through environment variables
 # (ConnectionStrings__Default, Jwt__Key, ...) — never baked in.
 #
-# Every appsettings file is excluded first, then exactly ONE is re-included: the host's own
-# Src/Presentation/AppTemplate.Api/appsettings.json. It is tracked in git
+# Every appsettings file is excluded first, then each host's own appsettings.json is
+# re-included, and nothing else. They are tracked in git
 # precisely because they document the configuration schema and hold no secret
-# (secret-shaped keys are empty strings), and shipping it keeps the image's
-# Logging / Identity / Jwt defaults intact. It is not optional: it is the only place
-# Microsoft.EntityFrameworkCore.Database.Command is pinned to Warning, and without it
+# (secret-shaped keys are empty strings), and shipping them keeps the image's
+# Logging / Identity / Jwt / Files defaults intact. They are not optional: they are the only place
+# Microsoft.EntityFrameworkCore.Database.Command is pinned to Warning, and without them
 # the image logs every SQL statement — parameters included — at Information.
 # Everything else stays out — in particular
 # appsettings.Development.json, which legitimately holds a real local password,
 # and any appsettings.Production.json a developer drops in locally.
 **/appsettings*.json
 !Src/Presentation/AppTemplate.Api/appsettings.json
+#if (presentationBlazorServer)
+!Src/Presentation/AppTemplate.PresentationApp/appsettings.json
+#endif
 
 **/*.pfx
 **/*.p12

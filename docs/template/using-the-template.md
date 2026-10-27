@@ -87,7 +87,8 @@ One install brings three templates: `cleanarch-webapi`, the project, and the ite
 `cleanarch-webapp` and `cleanarch-webpackage`. A checkout installs too, with
 `dotnet new install <path-to-this-repository>`, for a maintainer trying a change: the engine then
 reads every `.template.config` under the path, a worktree's or a scratch copy's included, which the
-package never carries.
+package never carries. Both leave out the editor and assistant folders of the checkout, which
+are `.claude`, `.idea`, `.vs` and `.vscode`.
 
 ## In an IDE
 

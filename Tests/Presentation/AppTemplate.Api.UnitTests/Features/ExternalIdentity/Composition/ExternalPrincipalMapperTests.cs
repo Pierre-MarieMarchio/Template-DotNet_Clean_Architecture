@@ -1,15 +1,15 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Api.Features.ExternalIdentity.Composition;
-using AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
 using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using NSubstitute;
 using Shouldly;
 using Xunit;
-using RoleSource = AppTemplate.Api.Features.ExternalIdentity.Configuration.Options.AuthenticationExternalOptions.RoleSource;
+using RoleSource = AppTemplate.Presentation.Core.Common.Security.AuthenticationExternalOptions.RoleSource;
 
 namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity.Composition;
 

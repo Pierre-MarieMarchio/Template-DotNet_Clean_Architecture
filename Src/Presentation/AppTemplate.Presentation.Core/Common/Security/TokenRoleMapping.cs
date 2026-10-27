@@ -1,24 +1,23 @@
-﻿using System.Text.Json;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
+﻿using System.Buffers.Text;
+using System.Text.Json;
 
-namespace AppTemplate.Api.Features.ExternalIdentity.Composition;
+namespace AppTemplate.Presentation.Core.Common.Security;
 
-internal static class TokenRoleMapping
+public static class TokenRoleMapping
 {
-    internal static IReadOnlyList<string> Read(SecurityToken? token, string path)
+    public static IReadOnlyList<string> Read(string? encodedPayload, string path)
     {
-        if (token is not JsonWebToken jwt)
+        if (string.IsNullOrEmpty(encodedPayload))
         {
             return [];
         }
 
-        using var payload = JsonDocument.Parse(Base64UrlEncoder.Decode(jwt.EncodedPayload));
+        using var payload = JsonDocument.Parse(Base64Url.DecodeFromChars(encodedPayload));
 
         return RolesAt(payload.RootElement, path);
     }
 
-    internal static IReadOnlyList<string> RolesAt(JsonElement root, string path)
+    public static IReadOnlyList<string> RolesAt(JsonElement root, string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 

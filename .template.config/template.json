@@ -844,7 +844,12 @@
             "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
             "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
-            "docs/decisions/0017-external-subjects-map-to-internal-owners.md"
+            "docs/decisions/0017-external-subjects-map-to-internal-owners.md",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/TokenRoleMapping.cs",
+            "Tests/Presentation/AppTemplate.Presentation.Core.UnitTests/Common/Security/AuthenticationExternalOptionsValidatorTests.cs",
+            "Tests/Presentation/AppTemplate.Presentation.Core.UnitTests/Common/Security/TokenRoleMappingTests.cs"
           ]
         },
         {

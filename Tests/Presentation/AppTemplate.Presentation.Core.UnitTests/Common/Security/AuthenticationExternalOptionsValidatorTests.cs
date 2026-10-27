@@ -1,9 +1,9 @@
-﻿using AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
+﻿using AppTemplate.Presentation.Core.Common.Security;
 using Shouldly;
 using Xunit;
-using RoleSource = AppTemplate.Api.Features.ExternalIdentity.Configuration.Options.AuthenticationExternalOptions.RoleSource;
+using RoleSource = AppTemplate.Presentation.Core.Common.Security.AuthenticationExternalOptions.RoleSource;
 
-namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.Presentation.Core.UnitTests.Common.Security;
 
 public sealed class AuthenticationExternalOptionsValidatorTests
 {

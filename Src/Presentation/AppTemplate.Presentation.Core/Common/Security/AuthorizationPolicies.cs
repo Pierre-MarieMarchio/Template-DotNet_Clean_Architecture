@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.Api.Common.Security;
+﻿namespace AppTemplate.Presentation.Core.Common.Security;
 
 public static class AuthorizationPolicies
 {

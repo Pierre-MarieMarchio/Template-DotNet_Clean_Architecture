@@ -8,7 +8,6 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Presentation.Core;
 using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Common.Security;
 using AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
 //#if (reminders)
 using AppTemplate.PresentationApp.Features.Reminders.Composition;

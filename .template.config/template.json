@@ -997,7 +997,7 @@
             "Src/Application/AppTemplate.Application.Core/Common/Events/UserAccountDeleted.cs",
             "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
             "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
-            "Src/Presentation/AppTemplate.Api/Common/Security/AuthorizationPolicies.cs",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthorizationPolicies.cs",
             "Src/Presentation/AppTemplate.Api/Features/Maintenance/Controllers/**",
             "Src/Presentation/AppTemplate.Api/Features/Maintenance/Contracts/**",
             "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Maintenance/Contracts/Mapping/**"

@@ -14,6 +14,7 @@ using AppTemplate.Application.Features.Notes.Services;
 //#endif
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;

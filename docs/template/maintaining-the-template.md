@@ -14,6 +14,7 @@ still holds.
 | `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
+| `api-client --check` | `Src/Clients/AppTemplate.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
 
 Each gate runs its `--self-test` first, against fixtures that must make it fire and fixtures that
 must leave it silent, and fails when it examined nothing. A rule added to a gate comes with the fixture
@@ -298,6 +299,19 @@ The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excl
 into `.template.config/variants/web-<App>/Src/Web/`; a framework app gets none, since `web-scaffold`
 writes it where the app is created. Run the task after any change to the union lockfile, Dependabot's
 included; `--check` fails until you do.
+
+## The .NET client
+
+`Src/Clients/AppTemplate.Client` and its tests are built and tested in this checkout, and reach a
+generated project only when `dotnetClient` is true: a computed symbol no option sets yet, which
+also brings the `api-client` task, the Kiota entry of the tool manifest, its Dependabot group,
+the CI step that runs `api-client --check` and the `Generated` exclusion of `coverage.runsettings`,
+whose `<!--#if-->` lines `template.json` processes. The tool manifest therefore comes in four shapes:
+`.config/dotnet-tools.json` with every tool, and `no-sonar`, `no-client` and `no-sonar-no-client`
+under `.template.config/variants/`, each the full manifest minus its tools, which
+`EachVariantToolManifest_IsTheToolManifestMinusItsTools` holds. A Kiota bump changes the full
+manifest and the `no-sonar` one, and its pull request runs `dotnet run Tools/Tasks.cs api-client`
+and commits what it writes.
 
 ## The package
 

@@ -17,14 +17,39 @@ RUN corepack enable && pnpm fetch
 COPY . .
 RUN pnpm install --offline --frozen-lockfile --filter framework-site... \
     && pnpm --filter framework-site build
+#if (webReactRouter)
+
+# React Router's page starts the app from inline scripts: the policy allows each by its SHA-256, and no other.
+RUN node --input-type=module <<'HASHES'
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const page = readFileSync('apps/FrameworkSite/dist/client/index.html', 'utf8');
+const hashes = [...page.matchAll(/<script\b(?![^>]*\ssrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi)]
+    .map(([, script]) => `'sha256-${createHash('sha256').update(script, 'utf8').digest('base64')}'`);
+const server = readFileSync('apps/FrameworkSite/nginx.conf', 'utf8');
+
+if (!server.includes("script-src 'self';")) {
+    throw new Error("apps/FrameworkSite/nginx.conf has no script-src 'self'; for the hashes to join.");
+}
+
+writeFileSync('default.conf.template', server.replace("script-src 'self';", `script-src ${["'self'", ...hashes].join(' ')};`));
+HASHES
+#endif
 
 FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS runtime
 
 ENV API_UPSTREAM=http://api:8080 \
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
+#if (webReactRouter)
+COPY --from=build /workspace/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build /workspace/apps/FrameworkSite/dist/client/ /usr/share/nginx/html/
+#endif
+#if (!webReactRouter)
 COPY apps/FrameworkSite/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /workspace/apps/FrameworkSite/dist/ /usr/share/nginx/html/
+#endif
 
 EXPOSE 8080
 

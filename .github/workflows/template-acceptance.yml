@@ -93,19 +93,19 @@ jobs:
             auth_context: "false"
             generator: "true"
           - name: web placeholder, smallest project
-            options: --web placeholder --auth none --examples none --files false
+            options: --web placeholder --auth none --examples none --files false --presentation blazor-server
             auth_context: "false"
             web: "true"
           - name: web react, local auth
-            options: --web react
+            options: --web react --presentation blazor-server
             auth_context: "true"
             web: "true"
           # No provider runs in Compose: the API needs one named to start, and fetches nothing from it until a token arrives.
           - name: web angular, external auth, notes
-            options: --web angular --auth external --examples notes
+            options: --web angular --auth external --examples notes --presentation blazor-server
             auth_context: "false"
             web: "true"
-            stack_env: "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
+            stack_env: "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance"
           - name: web react back office, smallest local project
             options: --web react --web-audience admin --examples none --files false
             auth_context: "true"
@@ -257,6 +257,11 @@ jobs:
             fi
           done < <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.json' -print0)
           exit "$status"
+
+      # bootstrap's first step: a presentation project is created by its framework's dotnet new template, then joins the solution.
+      - name: Create the presentation project
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs presentation-scaffold
 
       # Using order depends on the generated name, so one bootstrap run must be enough: docs/getting-started/first-run.md.
       - name: Bootstrap formatting, then verify it is stable
@@ -676,6 +681,14 @@ jobs:
             grep -qi '^content-type: application/problem+json' relay.headers || fail "$base/api/ was not answered by the API."
             grep -q "\"code\":\"$code\"" relay.json || fail "$base/api/ answered $status without the API's $code problem code."
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
+          done
+          mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | cut -d= -f2)
+          for port in "${presentations[@]}"; do
+            base="http://127.0.0.1:${port}"
+            curl -fsS -o page.html "$base/" || fail "The presentation project on $port does not answer /."
+            grep -qi '<html' page.html || fail "The presentation project on $port served no page."
+            curl -fsS "$base/health" > /dev/null || fail "The presentation project on $port does not answer /health."
+            echo "Presentation project on $port: page and /health verified."
           done
 
       - name: Stack logs on failure

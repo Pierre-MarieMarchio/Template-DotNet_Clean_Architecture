@@ -48,7 +48,7 @@ services:
       context: .
       dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
     restart: unless-stopped
-    environment:
+    environment: &api-environment
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_HTTP_PORTS: "8080"
 
@@ -170,6 +170,44 @@ services:
       start_period: 60s
     networks: [backend]
 
+  #if (presentationBlazorServer)
+  presentation-presentation-app:
+    # The presentation project reads the api's settings with its own composition, and runs neither jobs nor migrations.
+    extends:
+      file: docker-compose.database.yml
+      service: database-client
+    image: app-template-presentation-app:dev
+    build:
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.PresentationApp/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      #if (!localAuth)
+      DataProtection__KeysDirectory: /data-protection-keys
+      #endif
+      #if (externalAuth)
+      Authentication__External__Interactive__ClientId: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID:-}
+      Authentication__External__Interactive__ClientSecret: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET:-}
+      #endif
+    #if (!localAuth)
+    volumes:
+      - presentation-app-keys:/data-protection-keys
+    #endif
+    ports:
+      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8082}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks: [backend]
+
+  #endif
   #if (files)
   objectstore:
     # SeaweedFS stands in for S3 locally; in production point Files__Storage__S3__Endpoint at your provider.
@@ -243,6 +281,9 @@ services:
   #endif
 volumes:
   db-data:
+  #if (presentationBlazorServer && !localAuth)
+  presentation-app-keys:
+  #endif
   #if (files)
   objectstore-data:
   #endif

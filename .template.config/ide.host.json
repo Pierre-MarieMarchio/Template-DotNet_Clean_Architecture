@@ -74,6 +74,20 @@
         "text": "Web app audience"
       },
       "isVisible": true
+    },
+    {
+      "id": "presentation",
+      "name": {
+        "text": "Presentation project"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "presentationName",
+      "name": {
+        "text": "Presentation project name"
+      },
+      "isVisible": true
     }
   ]
 }

@@ -28,7 +28,8 @@
         { "choice": "vue", "description": "A Vue app, created by Vue's official CLI (create-vue, with TypeScript, Vue Router, Vitest and ESLint) when web-scaffold runs." },
         { "choice": "vite-react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
         { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
-        { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." }
+        { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." },
+        { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) in single-page mode when web-scaffold runs." }
       ],
       "description": "The app's framework."
     },
@@ -135,7 +136,8 @@
     "webViteReact": { "type": "computed", "value": "(framework == \"vite-react\" || framework == \"react\")" },
     "webViteVue": { "type": "computed", "value": "(framework == \"vite-vue\")" },
     "webViteSvelte": { "type": "computed", "value": "(framework == \"vite-svelte\")" },
-    "webVite": { "type": "computed", "value": "(webVue || webViteReact || webViteVue || webViteSvelte)" },
+    "webReactRouter": { "type": "computed", "value": "(framework == \"react-router\")" },
+    "webVite": { "type": "computed", "value": "(webVue || webViteReact || webViteVue || webViteSvelte || webReactRouter)" },
     "webFramework": { "type": "computed", "value": "(webAngular || webVite)" },
     "adminAudience": { "type": "computed", "value": "(audience == \"admin\")" },
     "appName": {
@@ -268,6 +270,11 @@
       "source": "../starters/vite-svelte/",
       "target": "./Src/Web/apps/",
       "condition": "(webViteSvelte)"
+    },
+    {
+      "source": "../starters/react-router/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webReactRouter)"
     },
     {
       "source": "../../Src/Web/",

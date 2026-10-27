@@ -63,7 +63,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--ci` | `true`, `false` | `true` |
 | `--sonar` | `true`, `false` | `true` |
 | `--agent-files` | `true`, `false` | `true` |
-| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `angular`, `react` | `none` |
+| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react` | `none` |
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
 

@@ -17,6 +17,7 @@ public sealed class GuidedConversation : Conversation
         ["vue"] = "green",
         ["vite-vue"] = "green",
         ["vite-svelte"] = "orangered1",
+        ["react-router"] = "indianred1",
         ["placeholder"] = "grey",
     };
 

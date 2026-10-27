@@ -24,6 +24,9 @@ The reviewed contract is that document, committed under
 writes it from a build, and `OpenApiDocumentTests` fails while the document the API serves differs
 from it, naming each difference. A change to a route, a contract or a summary therefore lands with
 its new reference, and the review reads what a client will read.
+The document declares every problem answer as `application/problem+json`, and its `ProblemDetails` and
+`ValidationProblemDetails` schemas require the `type`, `code` and `traceId` the API always writes, so a
+generated client types them; `OpenApiDocumentTests` holds both.
 <!--#if (anyWeb)-->
 The web apps' API client is generated from the same document, written at build time
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)).

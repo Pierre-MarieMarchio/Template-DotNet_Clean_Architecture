@@ -83,6 +83,8 @@ public static class HttpPipelineModule
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        options.AddSchemaTransformer<OpenApiProblemSchemaTransformer>();
+        options.AddOperationTransformer<OpenApiProblemMediaTypeTransformer>();
         //#if (!publicApi)
         options.AddDocumentTransformer<OpenApiSecurityTransformer>();
         options.AddSchemaTransformer<OpenApiDiscriminatorTransformer>();

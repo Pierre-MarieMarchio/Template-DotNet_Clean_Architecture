@@ -1,10 +1,11 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
 using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Model.Policies;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 namespace AppTemplate.Api.Features.ExternalIdentity.Composition;
@@ -45,7 +46,7 @@ internal sealed class ExternalPrincipalMapper(
 
         var roles = settings.Roles.Source == AuthenticationExternalOptions.RoleSource.Local
             ? await identities.ListAssignedRolesAsync(userId, cancellationToken)
-            : TokenRoleMapping.Read(token, settings.Roles.ClaimPath!);
+            : TokenRoleMapping.Read((token as JsonWebToken)?.EncodedPayload, settings.Roles.ClaimPath!);
 
         var identity = new ClaimsIdentity(
             tokenPrincipal.Claims

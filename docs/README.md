@@ -53,6 +53,9 @@ Which page answers your question, and where a new page goes.
 <!--#if (anyWeb)-->
 | [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
 <!--#endif-->
+<!--#if (anyPresentation)-->
+| [Presentation project](features/presentation.md) | the server-rendered project beside the API, and signing people in to it |
+<!--#endif-->
 
 ## Guides
 

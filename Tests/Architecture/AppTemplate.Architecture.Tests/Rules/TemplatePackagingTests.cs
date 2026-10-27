@@ -16,6 +16,8 @@ public sealed class TemplatePackagingTests
         "2150E333-8FDC-42A3-9474-1A3956D46DE8",
     ];
 
+    private static readonly string[] _projectRoots = ["Src", "Tests"];
+
     private static readonly Regex _guid = new(
         "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
         RegexOptions.None,
@@ -311,8 +313,8 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config/webapp/.template.config", "framework", "../starters/")]
     public void EveryFrameworkChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource)
     {
-        string starters = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "starters");
-        string[] folders = [.. Directory.GetDirectories(starters).Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal)];
+        string starters = StartersFolder;
+        string[] folders = WebStarters();
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
         var symbols = manifest.RootElement.GetProperty("symbols");
         string[] frameworks = [.. symbols.GetProperty(option).GetProperty("choices").EnumerateArray()
@@ -346,6 +348,88 @@ public sealed class TemplatePackagingTests
             Reaches(computed, "webFramework", symbol).ShouldBeTrue($"webFramework in {folder}/template.json must reach {symbol}, so the shared wiring comes with the {framework} starter.");
         }
     }
+
+    [Fact]
+    public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt()
+    {
+        string[] folders = PresentationStarters();
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        string[] presentations = [.. symbols.GetProperty("presentation").GetProperty("choices").EnumerateArray()
+            .Select(choice => choice.GetProperty("choice").GetString()!)
+            .Where(choice => choice is not "none")
+            .Order(StringComparer.Ordinal)];
+        var computed = symbols.EnumerateObject()
+            .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
+            .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
+        var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
+
+        folders.ShouldBe(presentations, "Each --presentation value but none is a folder under .template.config/starters holding the project's scaffold.json, and each such folder is a value.");
+
+        foreach (string presentation in presentations)
+        {
+            string[] chosenBy = [.. computed.Where(symbol => ChosenValues(symbol.Value, "presentation").Contains(presentation)).Select(symbol => symbol.Key)];
+            chosenBy.Length.ShouldBe(1, $"Exactly one computed symbol must hold (presentation == \"{presentation}\"), the one that copies its starter.");
+            sources.Count(source => Text(source, "source") == $"./.template.config/starters/{presentation}/"
+                    && Text(source, "target") == "./"
+                    && Text(source, "condition") == $"({chosenBy[0]})")
+                .ShouldBe(1, $"template.json must copy ./.template.config/starters/{presentation}/ into ./ under the condition ({chosenBy[0]}).");
+
+            using var descriptor = JsonDocument.Parse(File.ReadAllText(PresentationDescriptor(presentation)));
+            Text(descriptor.RootElement, "kind").ShouldBe("dotnet", $"The {presentation} starter runs a dotnet new template, which its scaffold.json must say.");
+        }
+    }
+
+    [Fact]
+    public void EveryStarterFolder_IsAWebOrAPresentationStarter()
+    {
+        string[] all = [.. Directory.GetDirectories(StartersFolder).Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal)];
+
+        all.ShouldBe(
+            [.. WebStarters().Concat(PresentationStarters()).Order(StringComparer.Ordinal)],
+            "A folder under .template.config/starters holds FrameworkSite/scaffold.json for --web or the presentation project's scaffold.json for --presentation; one holding neither is copied by no option.");
+    }
+
+    [Fact]
+    public void ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        string refusal = symbols.GetProperty("presentationNameIsTaken").GetProperty("isRequired").GetString()!;
+        string refused = symbols.GetProperty("refusedOptions").GetProperty("value").GetString()!;
+        const string prefix = "AppTemplate.";
+
+        string[] projects = [.. _projectRoots
+            .SelectMany(root => Directory.EnumerateFiles(Path.Combine(ProjectReferenceGraph.RepositoryRoot, root), "*.csproj", SearchOption.AllDirectories))
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Select(Path.GetFileNameWithoutExtension)
+            .OfType<string>()
+            .Where(name => name.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(name => name[prefix.Length..])
+            .Order(StringComparer.Ordinal)];
+
+        projects.Length.ShouldBeGreaterThanOrEqualTo(10, "Far fewer projects were found than this template writes, so the walk is not reading its tree.");
+        projects
+            .Where(project => !refusal.Contains($"presentationName == \"{project}\"", StringComparison.Ordinal))
+            .ShouldBeEmpty("--presentation-name must be refused when <Project>.<name> or its test project would be one of the template's projects, which generation would overwrite: add the name to presentationNameIsTaken.");
+        refused.ShouldContain(refusal, Case.Sensitive, "refusedOptions must hold the presentation name refusal, so the #error variant catches a hand-passed bypass.");
+    }
+
+    private static string StartersFolder => Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "starters");
+
+    private static string PresentationDescriptor(string presentation) =>
+        Path.Combine(StartersFolder, presentation, "Src", "Presentation", "AppTemplate.PresentationApp", "scaffold.json");
+
+    private static string[] WebStarters() =>
+        [.. Directory.GetDirectories(StartersFolder)
+            .Where(folder => File.Exists(Path.Combine(folder, "FrameworkSite", "scaffold.json")))
+            .Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal)];
+
+    private static string[] PresentationStarters() =>
+        [.. Directory.GetDirectories(StartersFolder)
+            .Select(Path.GetFileName).OfType<string>()
+            .Where(folder => File.Exists(PresentationDescriptor(folder)))
+            .Order(StringComparer.Ordinal)];
 
     private static List<string> ChosenValues(string expression, string option) =>
         [.. Regex.Matches(expression, $@"\b{option} == ""([^""]+)""", RegexOptions.None, TimeSpan.FromSeconds(5)).Select(match => match.Groups[1].Value)];

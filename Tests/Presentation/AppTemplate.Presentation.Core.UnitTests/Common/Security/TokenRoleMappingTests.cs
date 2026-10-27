@@ -1,9 +1,10 @@
-﻿using System.Text.Json;
-using AppTemplate.Api.Features.ExternalIdentity.Composition;
+﻿using System.Text;
+using System.Text.Json;
+using AppTemplate.Presentation.Core.Common.Security;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Api.UnitTests.Features.ExternalIdentity.Composition;
+namespace AppTemplate.Presentation.Core.UnitTests.Common.Security;
 
 public sealed class TokenRoleMappingTests
 {
@@ -46,8 +47,16 @@ public sealed class TokenRoleMappingTests
             .ShouldBe(["Admin", "Reader"]);
 
     [Fact]
-    public void ATokenThatIsNotAJsonWebToken_GivesNoRole() =>
-        TokenRoleMapping.Read(token: null, "roles").ShouldBeEmpty();
+    public void ATokenWithNoPayload_GivesNoRole() =>
+        TokenRoleMapping.Read(encodedPayload: null, "roles").ShouldBeEmpty();
+
+    [Fact]
+    public void AnEncodedPayload_IsReadAsTheTokenSentIt() =>
+        TokenRoleMapping.Read(
+                Convert.ToBase64String(Encoding.UTF8.GetBytes("""{"realm_access":{"roles":["Admin"]}}"""))
+                    .TrimEnd('=').Replace('+', '-').Replace('/', '_'),
+                "realm_access.roles")
+            .ShouldBe(["Admin"]);
 
     private static IReadOnlyList<string> RolesAt(string json, string path)
     {

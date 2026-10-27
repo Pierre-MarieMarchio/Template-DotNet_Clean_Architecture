@@ -17,7 +17,7 @@ to the application layer:
 | Option | Where it lives | Wired to |
 |---|---|---|
 | `--web` | `Src/Web/apps/<Name>`, served by nginx | the API, through the generated client and the `/api` relay |
-| `--presentation` | `Src/Presentation/<Name>` | the application layer in process for a server host, the API for a client |
+| `--presentation` | `Src/Presentation/<Project>.<Name>` | the application layer in process for a server host, the API for a client |
 
 A value names its generator and never changes meaning: `vite-react` is `create-vite` with its React
 template, and `blazor-server` is `dotnet new blazor` with server interactivity.
@@ -26,9 +26,9 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 1. **A presentation project on the application layer**
    ([#116](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/116)).
-   `--presentation blazor-server`, a Blazor Web App that calls the use cases in process, with the
-   host composition it shares with the API. A project adds one later with a `cleanarch-presentation`
-   item template and a `presentation` command of the launcher.
+   `--presentation blazor-server` is in: a Blazor Web App that calls the use cases in process and
+   composes itself, as the API does. Still to come: a `cleanarch-presentation` item template and a
+   `presentation` command of the launcher, so a project adds one later.
 2. **.NET clients of the API**
    ([#117](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/117)). A
    .NET client generated from the API's OpenAPI document, then `--web blazor-wasm`, a Blazor

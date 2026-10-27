@@ -5,6 +5,8 @@ using AppTemplate.Application;
 using AppTemplate.Application.Core.Common.Ports;
 //#endif
 using AppTemplate.Infrastructure.Persistence;
+using AppTemplate.Presentation.Core;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
@@ -27,10 +29,7 @@ internal static class ExternalAuthenticationComposition
         services.AddScoped<IUserAccountDirectory, ExternalIdentityUserAccountDirectory>();
         //#endif
 
-        services.AddOptions<AuthenticationExternalOptions>()
-            .Bind(configuration.GetSection(AuthenticationExternalOptions.SectionName))
-            .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<AuthenticationExternalOptions>, AuthenticationExternalOptionsValidator>();
+        services.AddAuthenticationExternalOptions();
 
         services.AddAuthentication(options =>
         {

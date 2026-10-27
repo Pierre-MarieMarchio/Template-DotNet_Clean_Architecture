@@ -400,6 +400,24 @@ public sealed class ModuleDependencyTests
     }
 
     [Fact]
+    public void NoHost_ReferencesAnotherHost()
+    {
+        var hosts = ProjectReferenceGraph.Hosts.ToList();
+        var names = hosts.Select(host => host.Name).ToHashSet(StringComparer.Ordinal);
+
+        hosts.ShouldNotBeEmpty("No host was found, so this rule would pass having checked nothing.");
+
+        hosts
+            .SelectMany(host => host.References
+                .Where(names.Contains)
+                .Select(reference => $"{host.RelativePath} -> {reference}"))
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "Each host composes itself. One that referenced another would reach its jobs and its development "
+                + "migrations, which run in the API alone, and every registration of its own.");
+    }
+
+    [Fact]
     public void EveryHost_ComposesTheApplicationLayer()
     {
         var hosts = ProjectReferenceGraph.Hosts.ToList();

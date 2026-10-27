@@ -541,6 +541,33 @@ internal static class NewFeature
                 ? separator + char.ToLowerInvariant(character).ToString()
                 : char.ToLowerInvariant(character).ToString()));
 
+    private static IEnumerable<string> PresentationHosts(string root, string prefix)
+    {
+        string presentation = System.IO.Path.Combine(root, "Src", "Presentation");
+
+        return Directory.Exists(presentation)
+            ? Directory.GetDirectories(presentation)
+                .Where(folder => File.Exists(System.IO.Path.Combine(folder, "Program.cs")))
+                .Select(System.IO.Path.GetFileName)
+                .OfType<string>()
+                .Where(host => host != $"{prefix}.Api")
+                .Order(StringComparer.Ordinal)
+            : [];
+    }
+
+    private static string HostComposition(string root, string host, string adapter)
+    {
+        string folder = System.IO.Path.Combine(root, "Src", "Presentation", host);
+        string module = adapter == "Auth" ? "AddAuthModule(" : "AddExternalIdentityPersistence(";
+
+        string? found = Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{System.IO.Path.DirectorySeparatorChar}obj{System.IO.Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .FirstOrDefault(file => File.ReadAllText(file).Contains(module, StringComparison.Ordinal));
+
+        return System.IO.Path.GetRelativePath(root, found ?? System.IO.Path.Combine(folder, "Program.cs")).Replace('\\', '/');
+    }
+
     private static string ProjectOf(Spec spec, string layer, string project) =>
         $"{layer}/{spec.Prefix}.{project}";
 
@@ -601,13 +628,18 @@ internal static class NewFeature
             Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs", Templates.DeletedAccountSweepJobs);
             Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs", Templates.DeletedAccountSweepOptions);
 
-            if (adapter == "Auth")
+            foreach (string host in PresentationHosts(root, spec.Prefix).Prepend($"{spec.Prefix}.Api"))
             {
-                Add(api, "Features/Auth/Composition/AccountUserAccountDirectory.cs", Templates.LocalUserAccountDirectory);
-            }
-            else
-            {
-                Add(api, "Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs", Templates.ExternalUserAccountDirectory);
+                var named = new Dictionary<string, string>(StringComparer.Ordinal) { ["H"] = host };
+
+                if (adapter == "Auth")
+                {
+                    Add($"Src/Presentation/{host}", "Features/Auth/Composition/AccountUserAccountDirectory.cs", Templates.LocalUserAccountDirectory, extra: named);
+                }
+                else
+                {
+                    Add($"Src/Presentation/{host}", "Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs", Templates.ExternalUserAccountDirectory, extra: named);
+                }
             }
         }
 
@@ -1212,6 +1244,11 @@ internal static class NewFeature
         output.WriteLine();
         output.WriteLine($"  4. Src/Presentation/{p}.Api/Program.cs: builder.Services.Add{f}(); beside the other features,");
         output.WriteLine($"     with using {p}.Application; if the file has none yet");
+
+        foreach (string host in PresentationHosts(root, p))
+        {
+            output.WriteLine($"     and Src/Presentation/{host}/Program.cs the same, since that host composes the features itself");
+        }
         output.WriteLine();
         output.WriteLine($"  5. Tests/Architecture/{p}.Architecture.Tests/Composition/HostComposition.cs: services.Add{f}(); in each");
         output.WriteLine("     composition that offers the feature, so the container tests resolve what it registers,");
@@ -1251,6 +1288,11 @@ internal static class NewFeature
             output.WriteLine();
             output.WriteLine($" 10. {composition}: services.AddScoped<IUserAccountDirectory, {directory}>();");
             output.WriteLine("     with the using of Application.Core's ports; the directory shares the composition's namespace");
+
+            foreach (string host in PresentationHosts(root, p))
+            {
+                output.WriteLine($"     and in {HostComposition(root, host, adapter)}, beside the directory written for that host");
+            }
             output.WriteLine();
             output.WriteLine($" 11. Tests/Architecture/{p}.Architecture.Tests/Composition/HostComposition.cs: services.AddDeletedAccountSweep();");
             output.WriteLine("     after services.AddPurgeExpiredIdempotencyKeys(); in each composition, and in AddHostSuppliedAdapters");
@@ -1987,6 +2029,30 @@ internal static class NewFeature
             "The external-identity account directory was not written.");
         expect(mapped.Output.Contains("ExternalAuthenticationComposition", StringComparison.Ordinal), "The external composition was not named for the registration.");
 
+        string presented = NewTree(scratch, reaction: false);
+        string portal = System.IO.Path.Combine(presented, "Src/Presentation/Acme.Portal");
+
+        Directory.CreateDirectory(System.IO.Path.Combine(portal, "Features/Auth/Composition"));
+        File.WriteAllText(System.IO.Path.Combine(portal, "Program.cs"), "builder.Services.AddCookieSessions(builder.Configuration);\n");
+        File.WriteAllText(System.IO.Path.Combine(portal, "Features/Auth/Composition/CookieSessionComposition.cs"), "services.AddAuthModule(configuration);\n");
+
+        var presentedTree = Snapshot(presented);
+        var hosted = Invoke(presented, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+        string portalDirectory = System.IO.Path.Combine(portal, "Features/Auth/Composition/AccountUserAccountDirectory.cs");
+
+        expect(hosted.Code == 0, $"An owner feature into a tree with a presentation host was refused: {hosted.Error.Split('\n')[0]}");
+        expect(
+            File.Exists(portalDirectory)
+                && File.ReadAllText(portalDirectory).Contains("namespace Acme.Portal.Features.Auth.Composition;", StringComparison.Ordinal),
+            "The presentation host did not get an account directory in its own namespace.");
+        expect(
+            hosted.Output.Contains("Src/Presentation/Acme.Portal/Program.cs the same", StringComparison.Ordinal),
+            "The feature's registration was not printed for the presentation host, which composes the features itself.");
+        expect(
+            hosted.Output.Contains("Src/Presentation/Acme.Portal/Features/Auth/Composition/CookieSessionComposition.cs", StringComparison.Ordinal),
+            "The directory's registration was not printed for the presentation host's composition.");
+        ExpectRemovable(presented, presentedTree, "Widgets", 8, expect);
+
         string publicApi = NewTree(scratch, reaction: false);
 
         Directory.Delete(System.IO.Path.Combine(publicApi, "Src/Presentation/Acme.Api/Features/Auth"), recursive: true);
@@ -2118,8 +2184,8 @@ internal static class NewFeature
         new(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+\.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
-        new(@"^Src/Presentation/[^/]+\.Api/Features/Auth/Composition/AccountUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
-        new(@"^Src/Presentation/[^/]+\.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Presentation/[^/]+/Features/Auth/Composition/AccountUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Presentation/[^/]+/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
     ];
 
     private static void ExpectRemovable(string root, Dictionary<string, string> before, string features, int count, Action<bool, string> expect)
@@ -4583,7 +4649,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Ports;
         using %P%.Domain.Core.Common.Primitives;
 
-        namespace %P%.Api.Features.Auth.Composition;
+        namespace %H%.Features.Auth.Composition;
 
         internal sealed class AccountUserAccountDirectory(IAccountsService accounts) : IUserAccountDirectory
         {
@@ -4601,7 +4667,7 @@ internal static class Templates
         using %P%.Application.Features.ExternalIdentity.Services;
         using %P%.Domain.Core.Common.Primitives;
 
-        namespace %P%.Api.Features.ExternalIdentity.Composition;
+        namespace %H%.Features.ExternalIdentity.Composition;
 
         internal sealed class ExternalIdentityUserAccountDirectory(
             IExternalIdentityService externalIdentities) : IUserAccountDirectory

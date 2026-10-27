@@ -24,17 +24,12 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 ## Coming, in order
 
-1. **React from React Router**
-   ([#115](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/115)).
-   `--web react-router`, a single-page app from `create-react-router`. Its page carries inline
-   scripts, which the content security policy will allow by their hash, computed when the image is
-   built.
-2. **A presentation project on the application layer**
+1. **A presentation project on the application layer**
    ([#116](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/116)).
    `--presentation blazor-server`, a Blazor Web App that calls the use cases in process, with the
    host composition it shares with the API. A project adds one later with a `cleanarch-presentation`
    item template and a `presentation` command of the launcher.
-3. **.NET clients of the API**
+2. **.NET clients of the API**
    ([#117](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/117)). A
    .NET client generated from the API's OpenAPI document, then `--web blazor-wasm`, a Blazor
    WebAssembly app served beside the other web apps, and `--presentation avalonia`, a desktop app
@@ -42,15 +37,16 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 ## Later
 
-Each group comes once the three items above have shipped, in no fixed order:
+Each group comes once the two items above have shipped, in no fixed order:
 
 - **The other templates of `create-vite`**
   ([#118](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/118)):
   Solid, Preact, Lit, Qwik and plain TypeScript.
 - **Web frameworks with their own generator**
   ([#119](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/119)):
-  Ember; then SvelteKit, Nuxt, Analog and Astro in their static form, under the same hashed-script
-  policy as React Router; Next last, whose static export goes against the framework's grain.
+  Ember; then SvelteKit, Nuxt, Analog and Astro in their static form, each needing only its
+  starter and a marker giving it the hash step React Router's image build already has; Next last,
+  whose static export goes against the framework's grain.
 - **Desktop and mobile clients of the API**
   ([#120](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/120)):
   WPF and Windows Forms, built on a Windows runner; .NET MAUI; Uno Platform; WinUI, which has no

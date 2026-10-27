@@ -93,6 +93,9 @@ internal static class Tasks
         "database-update",
         "migration-bundle",
         "openapi",
+        //#if (dotnetClient)
+        "api-client",
+        //#endif
         "run",
         "compose-up",
         "compose-down",
@@ -139,6 +142,32 @@ internal static class Tasks
                                            version installed, then pnpm install and pnpm api;
                                            bootstrap runs it, and an app already created is left alone
         """;
+    //#if (dotnetClient)
+
+    private const string ClientUsage =
+        """
+
+        .NET client:
+          api-client                       regenerate Src/Clients/AppTemplate.Client/Generated with the
+                                           Kiota the tool manifest pins, from the OpenAPI reference
+                                           openapi writes: a BOM on each C# file, and kiota-lock.json
+                                           naming the reference by a relative path; bootstrap runs it
+          api-client --check               fail when Generated differs from what the command writes;
+                                           verify runs it
+        """;
+    //#endif
+    //#if (templateMaintenance || dotnetClient)
+
+    private static readonly string[] CheckedTasks =
+    [
+        //#if (dotnetClient)
+        "api-client",
+        //#endif
+        //#if (templateMaintenance)
+        "web-lockfiles",
+        //#endif
+    ];
+    //#endif
     //#if (templateMaintenance)
 
     private const string MaintenanceUsage =
@@ -179,6 +208,9 @@ internal static class Tasks
         {
             Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
             Console.WriteLine(WebUsage);
+            //#if (dotnetClient)
+            Console.WriteLine(ClientUsage);
+            //#endif
             //#if (templateMaintenance)
             Console.WriteLine(MaintenanceUsage);
             //#endif
@@ -194,7 +226,7 @@ internal static class Tasks
         bool noIntegration = false;
         bool apply = false;
         bool keepStack = false;
-        //#if (templateMaintenance)
+        //#if (templateMaintenance || dotnetClient)
         bool check = false;
         //#endif
         string configuration = "Debug";
@@ -208,7 +240,7 @@ internal static class Tasks
             {
                 noIntegration = true;
             }
-            //#if (templateMaintenance)
+            //#if (templateMaintenance || dotnetClient)
             else if (argument is "--check")
             {
                 check = true;
@@ -331,11 +363,12 @@ internal static class Tasks
         {
             throw new InvalidOperationException($"'--keep-stack' is an option of the end-to-end task, not of '{task ?? "(no task)"}'.");
         }
-        //#if (templateMaintenance)
+        //#if (templateMaintenance || dotnetClient)
 
-        if (check && task != "web-lockfiles")
+        if (check && (task is null || !CheckedTasks.Contains(task, StringComparer.Ordinal)))
         {
-            throw new InvalidOperationException($"'--check' is an option of the web-lockfiles task, not of '{task ?? "(no task)"}'.");
+            throw new InvalidOperationException(
+                $"'--check' is an option of these tasks only, {string.Join(", ", CheckedTasks)}; not of '{task ?? "(no task)"}'.");
         }
         //#endif
 
@@ -520,6 +553,12 @@ internal static class Tasks
                 OpenApiReference(repoRoot, api);
                 break;
 
+            //#if (dotnetClient)
+            case "api-client":
+                ApiClient(repoRoot, api, check);
+                break;
+
+            //#endif
             case "run":
                 Step("dotnet", "run", "--project", api);
                 break;
@@ -561,6 +600,9 @@ internal static class Tasks
                 }
 
                 InitialMigrations(contexts);
+                //#if (dotnetClient)
+                ApiClient(repoRoot, api, check: false);
+                //#endif
 
                 if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
                 {
@@ -580,6 +622,9 @@ internal static class Tasks
             case "verify":
                 RequireInitialMigrations(task, contexts);
                 Gates(repoRoot);
+                //#if (dotnetClient)
+                ApiClient(repoRoot, api, check: true);
+                //#endif
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
                 //#endif
@@ -654,6 +699,93 @@ internal static class Tasks
             "-p:OpenApiGenerateDocumentsOptions=--file-name v1");
     }
 
+    //#if (dotnetClient)
+    private static void ApiClient(string repoRoot, string api, bool check)
+    {
+        string reference = Path.Combine(repoRoot, "Tests", "Integration", Path.GetFileName(api) + ".IntegrationTests", "OpenApi", "v1.json");
+        string generated = Path.Combine(repoRoot, "Src", "Clients", "AppTemplate.Client", "Generated");
+        string shown = Path.GetRelativePath(repoRoot, generated).Replace('\\', '/');
+        string output = check ? Path.Combine(Path.GetTempPath(), "api-client-" + Guid.NewGuid().ToString("N")) : generated;
+
+        if (!File.Exists(reference))
+        {
+            throw new InvalidOperationException(
+                $"{Path.GetRelativePath(repoRoot, reference)} is missing: run `dotnet run Tools/Tasks.cs openapi` first.");
+        }
+
+        try
+        {
+            Step(
+                "dotnet", "tool", "run", "kiota", "generate",
+                "--language", "CSharp",
+                "--openapi", reference,
+                "--output", output,
+                "--class-name", "ApiClient",
+                "--namespace-name", "AppTemplate.Client.Generated",
+                "--exclude-backward-compatible",
+                "--clean-output",
+                "--log-level", "Warning");
+
+            foreach (string file in Directory.EnumerateFiles(output, "*.cs", SearchOption.AllDirectories))
+            {
+                string text = File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal).TrimStart('\uFEFF');
+                File.WriteAllText(file, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            }
+
+            string lockFile = Path.Combine(output, "kiota-lock.json");
+            var settings = JsonNode.Parse(File.ReadAllText(lockFile))!;
+            settings["descriptionLocation"] = Path.GetRelativePath(generated, reference).Replace('\\', '/');
+            File.WriteAllText(
+                lockFile,
+                settings.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, NewLine = "\n" }) + "\n");
+
+            if (!check)
+            {
+                Write($"Wrote {shown} from the OpenAPI reference.", ConsoleColor.Green);
+                return;
+            }
+
+            string[] drifted = [.. TreeDifferences(generated, output)];
+
+            if (drifted.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    $"{shown} differs from what Kiota writes from the OpenAPI reference:" + Environment.NewLine
+                    + string.Join(Environment.NewLine, drifted.Select(path => "  " + path)) + Environment.NewLine
+                    + "Run `dotnet run Tools/Tasks.cs api-client` and commit what it writes.");
+            }
+
+            Write($"{shown} is what Kiota writes from the OpenAPI reference.", ConsoleColor.Green);
+        }
+        finally
+        {
+            if (check && Directory.Exists(output))
+            {
+                Directory.Delete(output, recursive: true);
+            }
+        }
+    }
+
+    private static IEnumerable<string> TreeDifferences(string committed, string written)
+    {
+        string[] Files(string root) => Directory.Exists(root)
+            ? [.. Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                .Select(file => Path.GetRelativePath(root, file).Replace('\\', '/'))]
+            : [];
+
+        return Files(committed)
+            .Union(Files(written), StringComparer.Ordinal)
+            .Where(path =>
+            {
+                string left = Path.Combine(committed, path);
+                string right = Path.Combine(written, path);
+
+                return !File.Exists(left) || !File.Exists(right) || !File.ReadAllBytes(left).AsSpan().SequenceEqual(File.ReadAllBytes(right));
+            })
+            .Order(StringComparer.Ordinal);
+    }
+
+    //#endif
     private static void EndToEnd(string repoRoot, string configuration, bool keepStack)
     {
         string[] compose = ["compose", "--project-name", "app-template-end-to-end", "--env-file", ".env.example"];

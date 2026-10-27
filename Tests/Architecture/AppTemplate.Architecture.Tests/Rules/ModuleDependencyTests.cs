@@ -429,4 +429,27 @@ public sealed class ModuleDependencyTests
             .Select(host => host.RelativePath)
             .ShouldBeEmpty("A host that does not compose the application layer runs none of its use cases.");
     }
+    //#if (dotnetClient)
+
+    [Fact]
+    public void TheClients_ReachTheCoreThroughTheApiAlone()
+    {
+        var clients = ProjectReferenceGraph.ProjectsInLayer("Clients").ToList();
+
+        clients.ShouldNotBeEmpty("No project was found under Src/Clients, so this rule would pass having checked nothing.");
+
+        var withinTheClients = clients
+            .Select(project => project.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        clients
+            .SelectMany(project => project.References
+                .Where(reference => !withinTheClients.Contains(reference))
+                .Select(reference => $"{project.RelativePath} -> {reference}"))
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "A client runs on another machine than the API and speaks to it over HTTP alone: a reference to a "
+                + "domain, application, infrastructure or presentation project would ship the server's code to it.");
+    }
+    //#endif
 }

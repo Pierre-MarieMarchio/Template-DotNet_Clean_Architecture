@@ -245,7 +245,7 @@ jobs:
           printf 'WEB_SITE_HOST_PORT=5173\n' >> .env.example
           grep -A3 '^include:' docker-compose.yml
 
-      # A project generated without a presentation project takes one from the item template; the lines outside its folders are the edits its README lists, made by machine, so one missing fails a later step.
+      # A project generated without a presentation project takes one from the item template; the lines outside its folders are the edits its README lists, made by the project's presentation-join task, so one missing fails a later step.
       - name: Add the presentation project with cleanarch-presentation
         if: matrix.first_presentation
         working-directory: ${{ runner.temp }}/generated
@@ -260,7 +260,7 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
-          dotnet run "${{ github.workspace }}/.template.config/acceptance/ApplyPresentationEdits.cs" Src/Presentation/Sample.Generated.Project.Portal/README.md .
+          dotnet run Tools/Tasks.cs presentation-join Sample.Generated.Project.Portal
 
       # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON

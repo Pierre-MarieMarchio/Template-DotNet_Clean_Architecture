@@ -49,9 +49,28 @@ public sealed class LauncherTests : IDisposable
             .ShouldNotBeNullOrWhiteSpace();
     }
 
+    [Fact]
+    public void ThePresentationReadmeSections_TheLauncherPrints_AreInTheStarter()
+    {
+        string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AppTemplate.PresentationApp", "README.md");
+
+        Launcher.MarkdownSection(readme, Launcher.PresentationJoiningSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationJoinTask);
+        Launcher.MarkdownSection(readme, Launcher.PresentationCreateSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationScaffoldTask);
+    }
+
+    [Fact]
+    public void ThePresentationTasks_TheLauncherRuns_AreTasksOfTheProject()
+    {
+        string tasks = File.ReadAllText(Path.Combine(Repository.Root, "Tools", "Tasks.cs"));
+
+        tasks.ShouldContain($"case \"{Launcher.PresentationJoinTask}\":");
+        tasks.ShouldContain($"case \"{Launcher.PresentationScaffoldTask}\":");
+    }
+
     [Theory]
     [InlineData("web-app")]
     [InlineData("web-package")]
+    [InlineData("presentation")]
     public void AnItemCommand_OutsideAProject_IsRefused(string command)
     {
         var console = new TestConsole();

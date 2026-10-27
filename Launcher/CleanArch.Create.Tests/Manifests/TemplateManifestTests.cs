@@ -8,7 +8,10 @@ namespace CleanArch.Create.Tests.Manifests;
 
 public sealed class TemplateManifestTests
 {
-    public static TheoryData<string> Kinds => [TemplateKind.Project.ShortName, TemplateKind.WebApp.ShortName, TemplateKind.WebPackage.ShortName];
+    private const string _itemName = "name";
+
+    public static TheoryData<string> Kinds =>
+        [TemplateKind.Project.ShortName, TemplateKind.WebApp.ShortName, TemplateKind.WebPackage.ShortName, TemplateKind.Presentation.ShortName];
 
     [Theory]
     [MemberData(nameof(Kinds))]
@@ -98,7 +101,7 @@ public sealed class TemplateManifestTests
         {
             combinations.ShouldContain(answers => manifest.Holds(refusal.When, answers), $"No combination of options fires {refusal.Symbol}.");
             refusal.Explanation.ShouldNotStartWith("Never set");
-            manifest.ParametersBehind(refusal.When).ShouldBeSubsetOf(manifest.Options.Select(option => option.Symbol));
+            manifest.ParametersBehind(refusal.When).ShouldBeSubsetOf(manifest.Options.Select(option => option.Symbol).Append(_itemName));
         }
     }
 
@@ -152,7 +155,7 @@ public sealed class TemplateManifestTests
         Repository.Source.Manifest(TemplateKind.Project).Version.ShouldNotBeNullOrWhiteSpace();
 
     private static TemplateKind Kind(string shortName) =>
-        new[] { TemplateKind.Project, TemplateKind.WebApp, TemplateKind.WebPackage }.Single(kind => kind.ShortName == shortName);
+        new[] { TemplateKind.Project, TemplateKind.WebApp, TemplateKind.WebPackage, TemplateKind.Presentation }.Single(kind => kind.ShortName == shortName);
 
     private static JsonDocument Json(TemplateKind kind, string file) =>
         JsonDocument.Parse(File.ReadAllText(Path.Combine(Repository.Root, kind.Folder, file)));
@@ -166,9 +169,9 @@ public sealed class TemplateManifestTests
             .Concat(manifest.Refusals.Select(refusal => $"{refusal.Symbol} {refusal.When} {refusal.Explanation}"))
             .Append(manifest.Version ?? string.Empty));
 
-    private static IEnumerable<string> NamedByARefusal(TemplateManifest manifest, TemplateOption option) =>
+    private static IEnumerable<string> NamedByARefusal(TemplateManifest manifest, string symbol) =>
         manifest.Refusals
-            .Select(refusal => Regex.Match(refusal.When.Text, $@"\b{option.Symbol} == ""([^""]+)""", RegexOptions.None, TimeSpan.FromSeconds(1)))
+            .Select(refusal => Regex.Match(refusal.When.Text, $@"\b{symbol} == ""([^""]+)""", RegexOptions.None, TimeSpan.FromSeconds(1)))
             .Where(match => match.Success)
             .Select(match => match.Groups[1].Value)
             .Take(1);
@@ -177,13 +180,19 @@ public sealed class TemplateManifestTests
     {
         IEnumerable<Dictionary<string, string>> combinations = [new Dictionary<string, string>(StringComparer.Ordinal)];
 
+        if (manifest.Refusals.Any(refusal => refusal.When.Symbols.Contains(_itemName)))
+        {
+            string[] names = [.. new[] { manifest.DefaultName }.Concat(NamedByARefusal(manifest, _itemName)).OfType<string>()];
+            combinations = combinations.SelectMany(answers => names.Select(name => new Dictionary<string, string>(answers) { [_itemName] = name }));
+        }
+
         foreach (TemplateOption option in manifest.Options)
         {
             string[] values = option.Kind switch
             {
                 OptionKind.Choice => [.. option.Choices.Select(choice => choice.Value)],
                 OptionKind.Bool => [Condition.True, Condition.False],
-                OptionKind.Text => [.. new[] { option.DefaultValue }.Concat(NamedByARefusal(manifest, option)).OfType<string>().Distinct(StringComparer.Ordinal)],
+                OptionKind.Text => [.. new[] { option.DefaultValue }.Concat(NamedByARefusal(manifest, option.Symbol)).OfType<string>().Distinct(StringComparer.Ordinal)],
                 _ => [],
             };
 

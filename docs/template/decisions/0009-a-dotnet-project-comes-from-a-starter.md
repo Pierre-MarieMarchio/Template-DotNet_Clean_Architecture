@@ -42,8 +42,8 @@ pins and refuses an install of another version beside it.
   starter by `--framework` and takes the project's options as parameters of the same names, values
   and defaults, since an item template cannot read the project it runs in. What `--presentation`
   writes outside the project's folders, an item template cannot edit either: the starter's
-  `README.md` lists each line with the lines it goes beside, and the acceptance matrix applies them
-  by machine and builds the result. `TemplatePackagingTests` holds both lists against `template.json`.
+  `README.md` lists each line with the lines it goes beside, the project's `presentation-join` task
+  makes them all or none, and the acceptance matrix runs it and builds the result. `TemplatePackagingTests` holds both lists against `template.json`.
 - **A value names its generator and never changes meaning**, as for `--web`: `blazor-server` is
   `dotnet new blazor` with server interactivity and no authentication of its own.
 

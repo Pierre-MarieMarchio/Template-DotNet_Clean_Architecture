@@ -63,6 +63,18 @@ public sealed class QuestionnaireTests
         error.Message.ShouldNotContain("--files false.");
     }
 
+    [Fact]
+    public void WithoutATerminal_AChoiceOfOneValue_IsTakenWithoutAFlag()
+    {
+        TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
+        var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: false);
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["database"] = "postgresql", ["agent-files"] = "true" };
+
+        Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
+
+        presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop"]);
+    }
+
     [Theory]
     [InlineData("--auth", "oidc")]
     [InlineData("--files", "maybe")]

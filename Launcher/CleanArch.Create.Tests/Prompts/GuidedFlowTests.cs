@@ -31,6 +31,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     private bool _identity = true;
     private bool _initialised;
     private ProcessResult _bootstrap = new(0, string.Empty);
+    private string? _failingTask;
 
     public GuidedFlowTests()
     {
@@ -217,6 +218,78 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
+    public void APresentationProject_ReadsTheProject_AsksItsName_ThenJoinsAndCreatesIt()
+    {
+        AGeneratedProject();
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+        PushEnters(console, 3);
+
+        Run(console, "presentation");
+
+        string output = Plain(console);
+        output.ShouldContain("┌  Add a presentation project to Acme.Shop");
+        output.ShouldContain("●  Read from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false");
+        output.ShouldContain("◇  Framework\n│  blazor-server\n");
+        Order(output, "◇  Presentation name\n│  Portal", "Summary", "◇  Added Portal", "◇  Join done", "◇  Scaffold done", "The same, without questions", "└  Done.");
+        Closing(output).ShouldContain("Commit Src/Presentation/Acme.Shop.Portal and its tests");
+        _processes.CommandLines.Where(line => !line.StartsWith("dotnet new uninstall", StringComparison.Ordinal) && !line.StartsWith("dotnet new install", StringComparison.Ordinal)).ShouldBe(
+        [
+            "dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --auth none --examples none --files false --agent-files false",
+            "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal",
+            "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal",
+        ]);
+    }
+
+    [Fact]
+    public void APresentationProject_WhoseJoinFails_IsNotCreated_AndItsEditsAreLeftByHand()
+    {
+        AGeneratedProject();
+        _failingTask = "presentation-join";
+        TestConsole console = Terminal();
+        PushEnters(console, 3);
+
+        Run(console, "presentation");
+
+        string output = Plain(console);
+        Order(output, "▲  Join failed", "occur 2 times", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "▲  Scaffold skipped", "└  Done. By hand, in Src/Presentation/Acme.Shop.Portal/README.md:");
+        Closing(output).ShouldContain("- in `.dockerignore`, after the line:");
+        _processes.CommandLines.ShouldNotContain(line => line.Contains("presentation-scaffold", StringComparison.Ordinal) && line.StartsWith("dotnet run", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void APresentationProject_WhosePagesFail_SaysWhatToRunAgain()
+    {
+        AGeneratedProject();
+        _failingTask = "presentation-scaffold";
+        TestConsole console = Terminal();
+        PushEnters(console, 3);
+
+        Run(console, "presentation");
+
+        string output = Plain(console);
+        Order(output, "◇  Join done", "▲  Scaffold failed", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal", "└  Done. By hand, in Src/Presentation/Acme.Shop.Portal/README.md:");
+        Closing(output).ShouldContain("Commit the project");
+    }
+
+    [Theory]
+    [InlineData("Api", "names a project the template already writes")]
+    [InlineData("portal", "a presentation name is PascalCase")]
+    [InlineData("Portal", "exists: choose another name")]
+    public void APresentationName_TheProjectCannotTake_IsRefusedBeforeAnythingIsInstalled(string name, string refusal)
+    {
+        AGeneratedProject();
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Portal"));
+        var console = new TestConsole();
+        console.Profile.Width = 240;
+
+        new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "-n", name, "--yes", "--template-source", Repository.Root]).ShouldBe(1);
+
+        console.Output.ShouldContain(refusal);
+        _processes.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void WithoutColours_ATerminal_IsAskedPlainly()
     {
         TestConsole console = Terminal().Colors(ColorSystem.NoColors);
@@ -311,6 +384,32 @@ public sealed partial class GuidedFlowTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
     }
 
+    private static void APresentationReadme(ProcessCall call)
+    {
+        string folder = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Presentation", $"Acme.Shop.{call.Arguments[3]}")).FullName;
+        File.WriteAllText(
+            Path.Combine(folder, "README.md"),
+            """
+            # Portal
+
+            ## Create the project
+
+            ```bash
+            dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal
+            ```
+
+            Commit the project.
+
+            ## Joining a project generated without one
+
+            - in `.dockerignore`, after the line:
+
+              ```text
+              !Src/Presentation/Acme.Shop.Api/appsettings.json
+              ```
+            """);
+    }
+
     private ProcessResult Answer(ProcessCall call)
     {
         if (call.FileName == "git")
@@ -327,7 +426,14 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         if (call.Arguments[0] == "run")
         {
-            return _bootstrap;
+            return _failingTask is not null && call.Arguments.Contains(_failingTask)
+                ? new ProcessResult(1, ".dockerignore: the lines to place the edit by occur 2 times, not once, so no file was changed:")
+                : _bootstrap;
+        }
+
+        if (call.Arguments[1] == "cleanarch-presentation")
+        {
+            APresentationReadme(call);
         }
 
         int output = call.Arguments.ToList().IndexOf("-o");

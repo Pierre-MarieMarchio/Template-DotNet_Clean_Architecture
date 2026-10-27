@@ -247,6 +247,11 @@ public sealed class Questionnaire
 
     private string? Filled(TemplateManifest manifest, TemplateOption option, IReadOnlyDictionary<string, string> answers)
     {
+        if (option.Kind == OptionKind.Choice && option.Choices.Count == 1)
+        {
+            return option.Choices[0].Value;
+        }
+
         bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
         if (_yes && option.DefaultValue is not null)
         {

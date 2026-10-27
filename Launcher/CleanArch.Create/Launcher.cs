@@ -19,15 +19,17 @@ public sealed partial class Launcher
 
     private const string _help =
         """
-        Usage: dnx CleanArch.Create [new|web-app|web-package] [options] [--<template option> <value>]...
+        Usage: dnx CleanArch.Create [new|web-app|web-package|presentation] [options] [--<template option> <value>]...
 
         Commands
-          new           create a project from cleanarch-webapi (the default outside a project)
-          web-app       add a web app to the project around the current folder (cleanarch-webapp)
-          web-package   add a package to its web workspace (cleanarch-webpackage)
+          new            create a project from cleanarch-webapi (the default outside a project)
+          web-app        add a web app to the project around the current folder (cleanarch-webapp)
+          web-package    add a package to its web workspace (cleanarch-webpackage)
+          presentation   add a presentation project beside its API (cleanarch-presentation),
+                         make the edits its README lists, then create its pages
 
         Options
-          -n, --name <name>            the project, app or package name
+          -n, --name <name>            the project, app, package or presentation name
           -o, --output <folder>        where new writes the project (default: ./<name>)
           -y, --yes                    take the default of every option not given
           --setup                      after new: commit, bootstrap, commit again and copy .env without asking
@@ -47,6 +49,12 @@ public sealed partial class Launcher
     private const string _setupKey = "--setup";
     private const string _reviewKey = "--review";
     private const char _setupSeparator = '|';
+    private const string _itemNameSymbol = "name";
+
+    internal const string PresentationJoinTask = "presentation-join";
+    internal const string PresentationScaffoldTask = "presentation-scaffold";
+    internal const string PresentationJoiningSection = "## Joining a project generated without one";
+    internal const string PresentationCreateSection = "## Create the project";
 
     private readonly IAnsiConsole _console;
     private readonly string _workingDirectory;
@@ -104,6 +112,9 @@ public sealed partial class Launcher
                     break;
                 case Arguments.WebPackageCommand:
                     WebPackage(session, Required(project, Arguments.WebPackageCommand));
+                    break;
+                case Arguments.PresentationCommand:
+                    Presentation(session, Required(project, Arguments.PresentationCommand));
                     break;
                 default:
                     New(session);
@@ -202,7 +213,7 @@ public sealed partial class Launcher
             session.Parsed.TemplateOptions,
             detected,
             _alwaysAsked,
-            [new(_nameKey, (_, remembered) => session.Questionnaire.Text("--name", label, session.Parsed.Name, remembered, problem))],
+            [new(_nameKey, (_, remembered) => session.Questionnaire.Text("--name", label, session.Parsed.Name, remembered ?? manifest.DefaultName, problem))],
             [Reviewed(session, given => [KeyValuePair.Create(label, given.GetValueOrDefault(_nameKey) ?? string.Empty), .. Questionnaire.Recap(manifest, given)], _ => subject)]);
 
         return new Asked(answers.GetValueOrDefault(_nameKey), null, answers, []);
@@ -258,7 +269,7 @@ public sealed partial class Launcher
             ? null
             : string.Join('\n', section.Split('\n').Where(line => !commands.Any(command => line.TrimStart().StartsWith(command, StringComparison.Ordinal))));
 
-    private static void Equivalents(Session session, string command, IReadOnlyList<string> dotnetNew, bool setup = false)
+    private static void Equivalents(Session session, string command, IReadOnlyList<string> dotnetNew, bool setup = false, IReadOnlyList<string>? then = null)
     {
         List<string> launcher = [command, .. dotnetNew.Skip(1), "--yes"];
         if (setup)
@@ -271,7 +282,7 @@ public sealed partial class Launcher
             launcher.AddRange(["--template-source", source]);
         }
 
-        session.Conversation.Equivalents([TemplateEngine.CommandLine(Invocation, launcher), TemplateEngine.CommandLine("dotnet new", dotnetNew)]);
+        session.Conversation.Equivalents([TemplateEngine.CommandLine(Invocation, launcher), TemplateEngine.CommandLine("dotnet new", dotnetNew), .. then ?? []]);
     }
 
     private static string Choose(GeneratedProject? project, Session session)
@@ -285,6 +296,7 @@ public sealed partial class Launcher
         [
             new(Arguments.WebAppCommand, $"add a web app to {project.Name}"),
             new(Arguments.WebPackageCommand, $"add a package to {project.Name}'s web workspace"),
+            new(Arguments.PresentationCommand, $"add a presentation project beside {project.Name}'s API"),
             new(Arguments.NewCommand, "create another project"),
         ];
 
@@ -430,6 +442,84 @@ public sealed partial class Launcher
 
         Equivalents(session, Arguments.WebPackageCommand, [manifest.ShortName, "-n", name, .. options]);
         session.Conversation.Close(null);
+    }
+
+    private void Presentation(Session session, GeneratedProject project)
+    {
+        TemplateManifest manifest = session.Source.Manifest(TemplateKind.Presentation);
+        session.Conversation.Begin($"Add a presentation project to {project.Name}", session.Version);
+        var detected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["projectName"] = project.Name,
+            ["auth"] = project.Auth,
+            ["examples"] = project.Examples,
+            ["files"] = project.Files ? Condition.True : Condition.False,
+            ["database"] = project.Database,
+            ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
+        };
+        Detected(session.Conversation, project, manifest, detected);
+
+        Asked asked = AskItem(session, manifest, "Presentation name", name => PresentationNameProblem(manifest, project, name), detected, $"Add it to {project.Name}");
+        string name = asked.Name!;
+        string folder = $"{project.Name}.{name}";
+
+        IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
+        Install(session, project.Root);
+        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
+
+        string[] join = ["run", "Tools/Tasks.cs", PresentationJoinTask, folder];
+        string[] scaffold = ["run", "Tools/Tasks.cs", PresentationScaffoldTask, folder];
+        string joinLine = TemplateEngine.CommandLine("dotnet", join);
+        string scaffoldLine = TemplateEngine.CommandLine("dotnet", scaffold);
+        bool joined = RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folders", join);
+        bool created = joined && RunTask(session, project.Root, "Scaffold", "Creating its pages with dotnet new blazor, which needs the network", scaffold);
+        if (!joined)
+        {
+            session.Conversation.Reported("Scaffold skipped", false, "Join did not succeed.", [scaffoldLine]);
+        }
+
+        Equivalents(session, Arguments.PresentationCommand, [manifest.ShortName, "-n", name, .. options], then: [joinLine, scaffoldLine]);
+        string readme = Path.Combine(project.PresentationFolder, folder, "README.md");
+        string shown = $"Src/Presentation/{folder}/README.md";
+        if (created)
+        {
+            session.Conversation.Close(new Closing(
+                null,
+                [],
+                $"Commit Src/Presentation/{folder} and its tests: from now on the pages are this project's own. {shown} says how the project was created."));
+            return;
+        }
+
+        string heading = joined ? PresentationCreateSection : PresentationJoiningSection;
+        session.Conversation.Close(new Closing(shown, [], MarkdownSection(readme, heading) ?? $"Read {shown}."));
+    }
+
+    private bool RunTask(Session session, string root, string title, string running, IReadOnlyList<string> arguments)
+    {
+        string command = TemplateEngine.CommandLine("dotnet", arguments);
+        ProcessResult result = session.Conversation.Spin(
+            running,
+            () => _processes.Run(new ProcessCall("dotnet", root, arguments, _nothing), session.Conversation.EchoesTheTemplateEngine ? _console.Verbatim : null));
+        bool done = result.ExitCode == 0;
+        session.Conversation.Reported(title + (done ? " done" : " failed"), done, done ? null : ProjectSetup.Why(command, result), done ? [] : [command]);
+        return done;
+    }
+
+    private static string? PresentationNameProblem(TemplateManifest manifest, GeneratedProject project, string name)
+    {
+        if (!AppName().IsMatch(name))
+        {
+            return "a presentation name is PascalCase, as Portal: <project>.<name> names its project, its folder and its service.";
+        }
+
+        var named = new Dictionary<string, string>(StringComparer.Ordinal) { [_itemNameSymbol] = name };
+        if (manifest.Refusals.FirstOrDefault(refusal => refusal.When.Symbols.Contains(_itemNameSymbol) && manifest.Holds(refusal.When, named)) is { } refused)
+        {
+            return refused.Explanation;
+        }
+
+        string folder = Path.Combine(project.PresentationFolder, $"{project.Name}.{name}");
+        return Directory.Exists(folder) ? $"'{folder}' exists: choose another name." : null;
     }
 
     private sealed record Session(Arguments Parsed, TemplateSource Source, Questionnaire Questionnaire, TemplateEngine Dotnet, string? Version)

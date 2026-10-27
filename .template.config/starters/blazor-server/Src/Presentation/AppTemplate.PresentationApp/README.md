@@ -30,9 +30,17 @@ dotnet new cleanarch-presentation -n PresentationApp --framework blazor-server -
 Pass the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` too when they
 are not the defaults: the project's files are written for them.
 
-It writes this folder, its tests and `docs/features/presentation.md`. What lives in files the item
-template cannot edit is yours to add, exactly as `--presentation` would have written it; then create
-the project as above and commit it.
+It writes this folder, its tests and `docs/features/presentation.md`. The lines `--presentation`
+writes in files the item template cannot edit are listed below, each placed by the lines it goes
+beside. One task makes them all, or none when one of those lines is not found exactly once:
+
+```bash
+dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationApp
+```
+
+Then create the project as above and commit it. `dnx CleanArch.Create presentation` runs the three
+commands in turn, reading the options from the project's files. The edits, to make by hand where the
+task stops:
 
 - in `.dockerignore`, after the line:
 
@@ -364,8 +372,9 @@ the project as above and commit it.
   ```markdown
   - `dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name AppTemplate`
     adds a presentation project beside the API. Pass this project's `--auth`, `--examples`, `--files`,
-    `--database` and `--agent-files` when they are not the defaults; the README it writes in the new
-    project's folder lists the lines to add by hand.
+    `--database` and `--agent-files` when they are not the defaults; then
+    `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Portal` makes the lines the README it
+    writes in the new project's folder lists outside it.
   ```
 
 - in `docs/guides/adding-a-feature.md`, after the line:

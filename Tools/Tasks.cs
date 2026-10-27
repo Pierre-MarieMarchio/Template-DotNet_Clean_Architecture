@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -101,6 +102,7 @@ internal static class Tasks
         //#endif
         "bootstrap",
         "presentation-scaffold",
+        "presentation-join",
         "web-scaffold",
         "hygiene",
         "verify",
@@ -121,6 +123,12 @@ internal static class Tasks
                                            file that declares what the project's own lacks, add the
                                            project and its tests to the solution and format them;
                                            bootstrap runs it first, and a project created already is
+                                           left alone
+          presentation-join <Name>         make the edits the README of Src/Presentation/<Name> lists
+                                           under 'Joining a project generated without one', in the
+                                           files outside its folders that cleanarch-presentation
+                                           cannot edit: each block placed by lines found exactly
+                                           once, every edit or none; edits all in place already are
                                            left alone
 
         Web apps:
@@ -599,6 +607,10 @@ internal static class Tasks
 
             case "presentation-scaffold":
                 PresentationScaffold(repoRoot, solution, name);
+                break;
+
+            case "presentation-join":
+                PresentationJoin(repoRoot, RequiredPresentation(task, name));
                 break;
 
             case "web-scaffold":
@@ -1108,6 +1120,199 @@ internal static class Tasks
         Write($"Created Src/Presentation/{project} from {package}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
     }
 
+    private const string JoiningSection = "## Joining a project generated without one";
+
+    private static readonly Regex JoiningEdit = new(
+        @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
+
+    private static void PresentationJoin(string repoRoot, string project)
+    {
+        string relative = $"Src/Presentation/{project}/README.md";
+        string readme = Path.Combine(repoRoot, "Src", "Presentation", project, "README.md");
+
+        if (!File.Exists(readme))
+        {
+            throw new InvalidOperationException($"{relative} does not exist: name the folder cleanarch-presentation wrote under Src/Presentation.");
+        }
+
+        List<ReadmeEdit> edits = ReadmeEdits(File.ReadAllLines(readme), relative);
+        var files = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        foreach (string path in edits.Select(edit => edit.Path).Distinct(StringComparer.Ordinal))
+        {
+            string full = Path.Combine(repoRoot, path);
+
+            if (!File.Exists(full))
+            {
+                throw new InvalidOperationException($"{relative} edits {path}, which does not exist, so no file was changed.");
+            }
+
+            files[path] = [.. File.ReadAllText(full).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')];
+        }
+
+        ReadmeEdit[] inPlace = [.. edits.Where(edit => InPlace(edit, files[edit.Path]))];
+
+        if (inPlace.Length == edits.Count)
+        {
+            Write($"Every edit {relative} lists is in place already, so no file was changed.", ConsoleColor.Green);
+            return;
+        }
+
+        if (inPlace.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Some edits {relative} lists are in place already and the others are not, so no file was changed: "
+                + string.Join("; ", inPlace.Select(edit => edit.ToString()))
+                + ". Make the others by hand, or restore those files and run the task again.");
+        }
+
+        foreach (ReadmeEdit edit in edits)
+        {
+            Apply(edit, files[edit.Path]);
+        }
+
+        foreach ((string path, List<string> lines) in files)
+        {
+            string full = Path.Combine(repoRoot, path);
+            bool bom = File.ReadAllBytes(full) is [0xEF, 0xBB, 0xBF, ..];
+            File.WriteAllText(full, string.Join('\n', lines), new UTF8Encoding(bom));
+        }
+
+        foreach (ReadmeEdit edit in edits)
+        {
+            Console.WriteLine($"Applied: {edit}");
+        }
+
+        Write(
+            $"Joined Src/Presentation/{project} to the project. Run `dotnet run Tools/Tasks.cs presentation-scaffold {project}` "
+            + "next: it creates the pages and adds the project to the solution.",
+            ConsoleColor.Green);
+    }
+
+    private static List<ReadmeEdit> ReadmeEdits(string[] readme, string relative)
+    {
+        int start = Array.IndexOf(readme, JoiningSection);
+
+        if (start < 0)
+        {
+            throw new InvalidOperationException($"{relative} has no '{JoiningSection}' section, so there is nothing to join.");
+        }
+
+        var edits = new List<ReadmeEdit>();
+        int index = start + 1;
+
+        while (index < readme.Length && !readme[index].StartsWith("## ", StringComparison.Ordinal))
+        {
+            if (!readme[index].StartsWith("- in ", StringComparison.Ordinal))
+            {
+                index++;
+                continue;
+            }
+
+            string header = readme[index].Trim();
+            while (!header.EndsWith(':') && ++index < readme.Length)
+            {
+                header += " " + readme[index].Trim();
+            }
+
+            Match bullet = JoiningEdit.Match(header);
+            if (!bullet.Success)
+            {
+                throw new InvalidOperationException($"{relative}: '{header}' names no file and no 'after', 'before', 'replace' or 'remove'.");
+            }
+
+            string mode = bullet.Groups["mode"].Value;
+            List<string> anchor = Fence(readme, ref index, relative);
+            List<string> lines = mode == "remove" ? [] : Fence(readme, ref index, relative);
+            edits.Add(new ReadmeEdit(bullet.Groups["path"].Value, mode, anchor, lines));
+        }
+
+        if (edits.Count == 0)
+        {
+            throw new InvalidOperationException($"{relative}: '{JoiningSection}' lists no edit in the form this task reads.");
+        }
+
+        return edits;
+    }
+
+    private static List<string> Fence(string[] readme, ref int index, string relative)
+    {
+        while (++index < readme.Length && !readme[index].TrimStart().StartsWith("```", StringComparison.Ordinal))
+        {
+            if (readme[index].StartsWith("- ", StringComparison.Ordinal) || readme[index].StartsWith("## ", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"{relative}: an edit ends at '{readme[index]}' before its lines.");
+            }
+        }
+
+        if (index >= readme.Length)
+        {
+            throw new InvalidOperationException($"{relative} ends inside an edit.");
+        }
+
+        int indent = readme[index].Length - readme[index].TrimStart().Length;
+        var lines = new List<string>();
+
+        while (++index < readme.Length && readme[index].Trim() != "```")
+        {
+            string line = readme[index];
+            lines.Add(line.Length >= indent && line[..indent].Trim().Length == 0 ? line[indent..] : line.TrimStart());
+        }
+
+        return lines;
+    }
+
+    private static int[] Occurrences(List<string> lines, List<string> block) =>
+        [.. Enumerable.Range(0, Math.Max(0, lines.Count - block.Count + 1)).Where(at => Holds(lines, block, at))];
+
+    private static bool Holds(List<string> lines, List<string> block, int at) =>
+        at >= 0 && at + block.Count <= lines.Count && block.Select((line, offset) => lines[at + offset].TrimEnd() == line.TrimEnd()).All(same => same);
+
+    private static bool InPlace(ReadmeEdit edit, List<string> lines)
+    {
+        int[] anchors = Occurrences(lines, edit.Anchor);
+
+        return edit.Mode switch
+        {
+            "after" => anchors.Any(at => Holds(lines, edit.Lines, at + edit.Anchor.Count)),
+            "before" => anchors.Any(at => Holds(lines, edit.Lines, at - edit.Lines.Count)),
+            "replace" => anchors.Length == 0 && Occurrences(lines, edit.Lines).Length > 0,
+            _ => anchors.Length == 0,
+        };
+    }
+
+    private static void Apply(ReadmeEdit edit, List<string> lines)
+    {
+        int[] found = Occurrences(lines, edit.Anchor);
+
+        if (found.Length != 1)
+        {
+            throw new InvalidOperationException(
+                $"{edit.Path}: the lines to place the edit by occur {found.Length} times, not once, so no file was changed:\n{string.Join('\n', edit.Anchor)}");
+        }
+
+        int at = found[0];
+
+        switch (edit.Mode)
+        {
+            case "after":
+                lines.InsertRange(at + edit.Anchor.Count, edit.Lines);
+                break;
+            case "before":
+                lines.InsertRange(at, edit.Lines);
+                break;
+            default:
+                lines.RemoveRange(at, edit.Anchor.Count);
+                lines.InsertRange(at, edit.Lines);
+                break;
+        }
+    }
+
+    private sealed record ReadmeEdit(string Path, string Mode, List<string> Anchor, List<string> Lines)
+    {
+        public override string ToString() => $"{Mode} {Anchor.Count} line(s) of {Path}";
+    }
+
     private static string[] DeclinedScriptsWhereOffered(string directory, string template, string[] hive)
     {
         ProcessStartInfo startInfo = new()
@@ -1409,6 +1614,17 @@ internal static class Tasks
         }
 
         return second;
+    }
+
+    private static string RequiredPresentation(string task, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException(
+                $"The '{task}' task needs the presentation project's folder name, e.g. dotnet run Tools/Tasks.cs {task} AppTemplate.Portal");
+        }
+
+        return name;
     }
 
     private static string RequiredName(string task, string? name)

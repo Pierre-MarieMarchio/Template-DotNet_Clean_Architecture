@@ -1,9 +1,9 @@
-# FrameworkSite
+﻿# FrameworkSite
 
-<!--#if (webViteReact && adminAudience)-->
+<!--#if ((webViteReact || webReactRouter) && adminAudience)-->
 A React back office over the API, for administrators.
 <!--#endif-->
-<!--#if (webViteReact && !adminAudience)-->
+<!--#if ((webViteReact || webReactRouter) && !adminAudience)-->
 A React front end over the API.
 <!--#endif-->
 <!--#if ((webVue || webViteVue) && adminAudience)-->
@@ -39,6 +39,10 @@ folder adds the wiring around it.
 <!--#if (webVue)-->
 The app itself is what Vue's official CLI, `create-vue`, writes with TypeScript, Vue Router, Vitest
 and ESLint; this folder adds the wiring around it.
+<!--#endif-->
+<!--#if (webReactRouter)-->
+The app itself is what React Router's official CLI, `create-react-router`, writes from its default
+template, made a single-page app; this folder adds the wiring around it.
 <!--#endif-->
 <!--#if (webAngular)-->
 The app itself is what the Angular CLI's `ng new` writes (standalone components, routing, CSS,
@@ -103,6 +107,38 @@ What the template adds to the CLI's starter, and nothing else:
   `Src/Web/packages/api-client`, a `test` script that runs Vitest once instead of watching, and the
   CLI's two lint scripts without `--fix`, so `pnpm lint`, `pnpm test` and `pnpm build` in `Src/Web`
   check the app without rewriting it; Vitest is pinned to the version the workspace's packages use.
+<!--#endif-->
+<!--#if (webReactRouter)-->
+What the template adds to the CLI's starter, and nothing else:
+
+- the CLI's default template, taken at a fixed commit of React Router's templates repository, since
+  the CLI otherwise fetches that repository's latest files and its pinned version alone would not
+  hold the starter still; Tailwind stays, as the template writes it;
+- `react-router.config.ts`, replaced whole: `ssr: false`, a single-page app with no server, built
+  into the dist folder; React Router writes the page and its assets in its client folder, which is
+  what the image serves;
+- `vite.config.ts`, replaced whole, since a Vite dev server is configured there and nowhere else:
+  the CLI's Tailwind and React Router plugins and its path aliases, kept as it writes them, plus
+  port 5173 and `/api/` and `/health` relayed to the API (`API_UPSTREAM`, default
+  <http://localhost:5187>), so the browser talks to a single origin and the API keeps CORS closed;
+- in `tsconfig.json`: `allowImportingTsExtensions`, since the workspace packages export their
+  TypeScript sources and import each other by `.ts` path, and the CLI's `typecheck` script
+  type-checks them through the app;
+- in `package.json`: the name `framework-site`, which `pnpm --filter` takes, the dependency
+  `@app-template/api-client` (`workspace:*`), the client generated from the API in
+  `Src/Web/packages/api-client`, and a `test` script running Vitest beside the CLI's `dev`, `build`
+  and `typecheck`, so `pnpm build` and `pnpm test` in `Src/Web` include the app; the CLI's `start`
+  script and its `@react-router/serve` dependency are removed, since nginx serves the app. The CLI
+  writes no linter, and the workspace's `pnpm lint` skips an app without a `lint` script;
+- the CLI's own Dockerfile and .dockerignore are removed: the image is this folder's.
+
+The page React Router builds starts the app from inline scripts, which the Content-Security-Policy
+allows by their hash and no other way: when the image is built, the `Dockerfile` computes the
+SHA-256 of each inline script in the built page and writes the server's configuration with those
+hashes added to `script-src`. A change to the app that changes those scripts changes the hashes at
+the next image build, with nothing to edit by hand. The starter's page links Google Fonts, which
+the policy refuses like any other origin: serve the font from the app, or add its origins to
+`style-src` and `font-src`.
 <!--#endif-->
 <!--#if (webAngular)-->
 What the template adds to the CLI's starter, and nothing else; no file the CLI writes is replaced:
@@ -206,8 +242,11 @@ Under Compose, from the project root with the stack's `.env` in place, `docker c
 
 | File | What it is |
 |---|---|
-<!--#if (!webAngular)-->
+<!--#if (!webAngular && !webReactRouter)-->
 | `nginx.conf` | the server: the page security headers, a strict Content-Security-Policy among them, caching, the `index.html` fallback, the `/api/` and `/health` relay |
+<!--#endif-->
+<!--#if (webReactRouter)-->
+| `nginx.conf` | the server: the page security headers, a strict Content-Security-Policy among them, caching, the `index.html` fallback, the `/api/` and `/health` relay; the image build adds the hashes of the page's inline scripts to its `script-src` |
 <!--#endif-->
 <!--#if (webAngular)-->
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, and styles from it or inline, since Angular inserts each component's styles as a `<style>` element when the page runs |

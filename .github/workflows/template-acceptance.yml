@@ -125,7 +125,7 @@ jobs:
             options: --web vue --examples none --files false
             auth_context: "true"
             web: "true"
-            more_apps: ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular
+            more_apps: ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router
           - name: sqlite, defaults
             options: --database sqlite
             database: sqlite
@@ -565,33 +565,20 @@ jobs:
           pnpm test
           pnpm build
 
-      # The page's Content-Security-Policy says script-src 'self': an inline script or an event-handler attribute in a built page would be refused. Inline styles are counted, since only Angular's policy allows them.
-      - name: Assert no built page holds an inline script
+      # React Router's builder keeps its page in a client folder of dist; every other starter writes it at the root.
+      - name: Assert every app with a build script builds its page
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, pathlib, re, sys
-          status = 0
-          for manifest in sorted(pathlib.Path("Src/Web/apps").glob("*/package.json")):
-              if "build" not in json.loads(manifest.read_text(encoding="utf-8")).get("scripts", {}):
-                  continue
-              page = manifest.parent / "dist" / "index.html"
-              if not page.is_file():
-                  print(f"::error title=No built page::{manifest.parent} has a build script and no dist/index.html.")
-                  status = 1
-                  continue
-              html = page.read_text(encoding="utf-8")
-              scripts = sum(1 for body in re.findall(r"<script\b[^>]*>(.*?)</script\s*>", html, re.I | re.S) if body.strip())
-              handlers = len(re.findall(r"<[^>]*\son[a-z]+\s*=", html, re.I))
-              styles = sum(1 for body in re.findall(r"<style\b[^>]*>(.*?)</style\s*>", html, re.I | re.S) if body.strip())
-              attributes = len(re.findall(r"<[^>]*\sstyle\s*=", html, re.I))
-              print(f"{page}: {scripts} inline script(s), {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
-              if scripts or handlers:
-                  print(f"::error file={page},title=Inline script::{page} holds an inline script, which script-src 'self' refuses.")
-                  status = 1
-          sys.exit(status)
+          import json, pathlib, sys
+          missing = [manifest.parent for manifest in sorted(pathlib.Path("Src/Web/apps").glob("*/package.json"))
+                     if "build" in json.loads(manifest.read_text(encoding="utf-8")).get("scripts", {})
+                     and not any((manifest.parent / "dist" / folder / "index.html").is_file() for folder in ("", "client"))]
+          for app in missing:
+              print(f"::error title=No built page::{app} has a build script and no index.html in dist or dist/client.")
+          sys.exit(1 if missing else 0)
           PY
 
       # The workspace's globs pick the package up: no file but its own is edited, and the lockfile gains its importer.
@@ -647,7 +634,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash in the served script-src, which only React Router's image adds; an event-handler attribute never does.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -658,8 +645,22 @@ jobs:
           [ "${#ports[@]}" -gt 0 ] || fail "No WEB_*_HOST_PORT in .env.example."
           for port in "${ports[@]}"; do
             base="http://127.0.0.1:${port}"
-            headers=$(curl -fsS -D - -o page.html "$base/")
+            curl -fsS -D headers.txt -o page.html "$base/"
+            headers=$(cat headers.txt)
             echo "$headers"
+            python3 - "$base" headers.txt page.html <<'PY' || fail "$base/ runs an inline script its Content-Security-Policy does not allow by hash."
+          import base64, hashlib, re, sys
+          base, headers, page = sys.argv[1], open(sys.argv[2], encoding="utf-8").read(), open(sys.argv[3], encoding="utf-8").read()
+          policy = next((line.split(":", 1)[1] for line in headers.splitlines() if line.lower().startswith("content-security-policy:")), "")
+          allowed = next((directive.split()[1:] for directive in policy.split(";") if directive.split()[:1] == ["script-src"]), [])
+          inline = [body for attributes, body in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", page, re.I | re.S) if not re.search(r"\ssrc\s*=", attributes, re.I) and body.strip()]
+          refused = [body for body in inline if f"'sha256-{base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()}'" not in allowed]
+          handlers = len(re.findall(r"<[^>]*\son[a-z]+\s*=", page, re.I))
+          styles = sum(1 for body in re.findall(r"<style\b[^>]*>(.*?)</style\s*>", page, re.I | re.S) if body.strip())
+          attributes = len(re.findall(r"<[^>]*\sstyle\s*=", page, re.I))
+          print(f"{base}/: {len(inline)} inline script(s), {len(refused)} without its hash in script-src, {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
+          sys.exit(1 if refused or handlers else 0)
+          PY
             grep -qi '^content-security-policy:.*frame-ancestors' <<< "$headers" || fail "$base/ has no CSP with frame-ancestors."
             grep -qi '^x-content-type-options: nosniff' <<< "$headers" || fail "$base/ has no X-Content-Type-Options."
             grep -qi '^referrer-policy:' <<< "$headers" || fail "$base/ has no Referrer-Policy."

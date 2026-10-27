@@ -22,6 +22,10 @@ the project and its tests to the solution and formats them. The step needs the n
 Commit the project after bootstrap: from then on its pages are this project's own, and
 `presentation-scaffold` leaves it alone.
 
+A project generated without one takes it later from `dotnet new cleanarch-presentation`, which
+writes the project, its tests and this page; the `README.md` in the project's folder lists the lines
+to add by hand outside them, and `presentation-scaffold` then creates it the same way.
+
 ## Calling a use case
 
 A Blazor Server circuit lives for as long as its browser tab, and so does the dependency-injection

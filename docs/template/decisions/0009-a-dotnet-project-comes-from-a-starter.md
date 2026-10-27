@@ -38,6 +38,12 @@ pins and refuses an install of another version beside it.
   folder under `.template.config/starters` is one or the other, and that each `--presentation`
   value but `none` is a starter of kind `dotnet`.
 - **`bootstrap` creates the presentation project first**, before the formatting it then checks.
+- **An item template adds one later from the same starter.** `cleanarch-presentation` copies the
+  starter by `--framework` and takes the project's options as parameters of the same names, values
+  and defaults, since an item template cannot read the project it runs in. What `--presentation`
+  writes outside the project's folders, an item template cannot edit either: the starter's
+  `README.md` lists each line with the lines it goes beside, and the acceptance matrix applies them
+  by machine and builds the result. `TemplatePackagingTests` holds both lists against `template.json`.
 - **A value names its generator and never changes meaning**, as for `--web`: `blazor-server` is
   `dotnet new blazor` with server interactivity and no authentication of its own.
 
@@ -50,6 +56,8 @@ pins and refuses an install of another version beside it.
   cannot build.
 - **Starters in a folder per option.** A second root to copy from, for what the content of the
   folder already says.
+- **An item template that detects the project's options.** The engine reads no file of the project
+  it runs in; the launcher can, and fills the parameters for it.
 
 ## Consequences
 

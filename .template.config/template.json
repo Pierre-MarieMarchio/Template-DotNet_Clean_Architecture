@@ -617,7 +617,7 @@
           "description": "A Blazor Web App with server interactivity in Src/Presentation, created by dotnet new blazor and calling the use cases in process."
         }
       ],
-      "description": "A presentation project that runs on the server and reaches the application layer in process, created at bootstrap by its framework's own generator."
+      "description": "A presentation project that runs on the server and reaches the application layer in process, created at bootstrap by its framework's own generator. A project generated without one adds it later with dotnet new cleanarch-presentation."
     },
     "anyPresentation": {
       "type": "computed",

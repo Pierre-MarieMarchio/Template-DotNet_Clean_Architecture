@@ -71,6 +71,36 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
             "what a client will see.");
     }
 
+    [Fact]
+    public async Task AVersionWithNoActions_HasNoDocument()
+    {
+        var client = CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/openapi/v2.json", UriKind.Relative), TestToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+    //#if (!publicApi)
+
+    [Fact]
+    public async Task TheDocument_DeclaresTheBearerSchemeWithoutARequirementOnEveryOperation()
+    {
+        using var document = await GetDocumentAsync(_documentPath);
+
+        var scheme = document.RootElement
+            .GetProperty("components")
+            .GetProperty("securitySchemes")
+            .GetProperty("Bearer");
+
+        scheme.GetProperty("type").GetString().ShouldBe("http");
+        scheme.GetProperty("scheme").GetString().ShouldBe("bearer");
+        scheme.GetProperty("bearerFormat").GetString().ShouldBe("JWT");
+
+        document.RootElement.TryGetProperty("security", out _).ShouldBeFalse(
+            "A global security requirement would put a padlock on every operation, including the "
+            + "anonymous ones, describing the document rather than the runtime.");
+    }
+
     [Theory]
     [InlineData("ProblemDetails")]
     [InlineData("ValidationProblemDetails")]
@@ -126,36 +156,6 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
         problemContents.ShouldAllBe(content =>
             content.EnumerateObject().All(media => media.Name == "application/problem+json"));
     }
-
-    [Fact]
-    public async Task AVersionWithNoActions_HasNoDocument()
-    {
-        var client = CreateClient();
-
-        using var response = await client.GetAsync(new Uri("/openapi/v2.json", UriKind.Relative), TestToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-    }
-    //#if (!publicApi)
-
-    [Fact]
-    public async Task TheDocument_DeclaresTheBearerSchemeWithoutARequirementOnEveryOperation()
-    {
-        using var document = await GetDocumentAsync(_documentPath);
-
-        var scheme = document.RootElement
-            .GetProperty("components")
-            .GetProperty("securitySchemes")
-            .GetProperty("Bearer");
-
-        scheme.GetProperty("type").GetString().ShouldBe("http");
-        scheme.GetProperty("scheme").GetString().ShouldBe("bearer");
-        scheme.GetProperty("bearerFormat").GetString().ShouldBe("JWT");
-
-        document.RootElement.TryGetProperty("security", out _).ShouldBeFalse(
-            "A global security requirement would put a padlock on every operation, including the "
-            + "anonymous ones, describing the document rather than the runtime.");
-    }
     //#endif
     //#if (localAuth)
 
@@ -197,10 +197,12 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
     }
     //#endif
 
+    //#if (!publicApi)
     private static bool IsProblemSchema(JsonElement media) =>
         media.TryGetProperty("schema", out var schema)
         && schema.TryGetProperty("$ref", out var reference)
         && reference.GetString() is "#/components/schemas/ProblemDetails" or "#/components/schemas/ValidationProblemDetails";
+    //#endif
 
     private async Task<JsonDocument> GetDocumentAsync(string path) =>
         JsonDocument.Parse(await GetDocumentTextAsync(path));

@@ -4,9 +4,7 @@ using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.Common.Idempotency;
 using AppTemplate.Api.Common.Localization;
 using AppTemplate.Api.Common.Observability;
-//#if (!publicApi)
 using AppTemplate.Api.Common.OpenApi;
-//#endif
 using AppTemplate.Api.Common.Security;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
@@ -83,6 +81,8 @@ public static class HttpPipelineModule
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        options.AddSchemaTransformer<OpenApiProblemSchemaTransformer>();
+        options.AddOperationTransformer<OpenApiProblemMediaTypeTransformer>();
         //#if (!publicApi)
         options.AddDocumentTransformer<OpenApiSecurityTransformer>();
         options.AddSchemaTransformer<OpenApiDiscriminatorTransformer>();

@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\")"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
     },
     "database": {
       "type": "parameter",
@@ -601,6 +601,104 @@
         "separator": ""
       },
       "replaces": "WEB_PLACEHOLDER_SITE_HOST_PORT=8081"
+    },
+    "presentation": {
+      "type": "parameter",
+      "displayName": "Presentation project",
+      "datatype": "choice",
+      "defaultValue": "none",
+      "choices": [
+        {
+          "choice": "none",
+          "description": "No presentation project beside the API."
+        },
+        {
+          "choice": "blazor-server",
+          "description": "A Blazor Web App with server interactivity in Src/Presentation, created by dotnet new blazor and calling the use cases in process."
+        }
+      ],
+      "description": "A presentation project that runs on the server and reaches the application layer in process, created at bootstrap by its framework's own generator."
+    },
+    "anyPresentation": {
+      "type": "computed",
+      "value": "(presentation != \"none\")"
+    },
+    "presentationBlazorServer": {
+      "type": "computed",
+      "value": "(presentation == \"blazor-server\")"
+    },
+    "presentationName": {
+      "type": "parameter",
+      "displayName": "Presentation project name",
+      "datatype": "text",
+      "defaultValue": "Portal",
+      "description": "The presentation project's name, in PascalCase: its project <Project>.<name> in Src/Presentation, its service presentation-<name>, its port PRESENTATION_<NAME>_HOST_PORT.",
+      "replaces": "PresentationApp",
+      "fileRename": "PresentationApp"
+    },
+    "presentationNameIsTaken": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\"))",
+      "description": "Never set. --presentation-name names a project the template already writes, which generation would overwrite: choose another name, such as Portal."
+    },
+    "presentationNameWords": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "presentationName",
+        "steps": [
+          {
+            "regex": "([A-Z]+)([A-Z][a-z])",
+            "replacement": "$1-$2"
+          },
+          {
+            "regex": "([a-z0-9])([A-Z])",
+            "replacement": "$1-$2"
+          },
+          {
+            "regex": "[.\\s_-]+",
+            "replacement": "-"
+          }
+        ]
+      }
+    },
+    "presentationNameKebab": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "presentationNameWords",
+        "toLower": true
+      },
+      "replaces": "presentation-app"
+    },
+    "presentationNameUpper": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "presentationNameWords",
+        "toLower": false
+      }
+    },
+    "presentationNameEnvironment": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "presentationNameUpper",
+        "steps": [
+          {
+            "regex": "-",
+            "replacement": "_"
+          }
+        ]
+      },
+      "replaces": "PRESENTATION_APP"
     }
   },
   "guids": [
@@ -774,6 +872,12 @@
           ]
         },
         {
+          "condition": "(!anyPresentation)",
+          "exclude": [
+            "docs/features/presentation.md"
+          ]
+        },
+        {
           "condition": "(!webPlaceholder)",
           "exclude": [
             "Src/Web/apps/PlaceholderSite/**"
@@ -844,7 +948,12 @@
             "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
             "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
             "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
-            "docs/decisions/0017-external-subjects-map-to-internal-owners.md"
+            "docs/decisions/0017-external-subjects-map-to-internal-owners.md",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
+            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/TokenRoleMapping.cs",
+            "Tests/Presentation/AppTemplate.Presentation.Core.UnitTests/Common/Security/AuthenticationExternalOptionsValidatorTests.cs",
+            "Tests/Presentation/AppTemplate.Presentation.Core.UnitTests/Common/Security/TokenRoleMappingTests.cs"
           ]
         },
         {
@@ -1045,6 +1154,46 @@
       "source": "./.template.config/starters/react-router/",
       "target": "./Src/Web/apps/",
       "condition": "(webReactRouter)"
+    },
+    {
+      "source": "./.template.config/starters/blazor-server/",
+      "target": "./",
+      "condition": "(presentationBlazorServer)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "**/Features/Auth/**",
+            "**/AccountReminderRecipientDirectory*.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "**/Features/ExternalIdentity/**",
+            "**/ExternalIdentityReminderRecipientDirectory*.cs"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "**/Features/Reminders/**"
+          ]
+        },
+        {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "**/AccountUserAccountDirectory*.cs",
+            "**/ExternalIdentityUserAccountDirectory*.cs"
+          ]
+        },
+        {
+          "condition": "(localAuth)",
+          "exclude": [
+            "**/DataProtection*.cs"
+          ]
+        }
+      ]
     },
     {
       "source": "./.template.config/variants/database-sqlite/",

@@ -81,6 +81,7 @@ public sealed class QuestionnaireTests
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -103,6 +104,7 @@ public sealed class QuestionnaireTests
         console.Input.PushTextWithEnter("n");
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -117,6 +119,32 @@ public sealed class QuestionnaireTests
         answers["sonar"].ShouldBe("false");
         answers["agentFiles"].ShouldBe("true");
         answers["web"].ShouldBe("none");
+        answers["presentation"].ShouldBe("none");
+        answers.ShouldNotContainKey("presentationName");
+    }
+
+    [Fact]
+    public void InATerminal_APresentationNameTheTemplateUses_IsExplained_ThenAskedAgain()
+    {
+        var console = new TestConsole().Interactive();
+        console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("Api");
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushTextWithEnter("Portal");
+        var questionnaire = new Questionnaire(console, interactive: true, yes: false);
+
+        Dictionary<string, string> answers = questionnaire.Answer(
+            _project,
+            new Dictionary<string, string> { ["auth"] = "local", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
+            _nothing,
+            Launcher.ProjectAskedWhen);
+
+        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "presentationNameIsTaken").Explanation);
+        answers["presentation"].ShouldBe("blazor-server");
+        answers["presentationName"].ShouldBe("Portal");
+        _project.RefusalsFor(answers).ShouldBeEmpty();
     }
 
     [Fact]
@@ -124,6 +152,7 @@ public sealed class QuestionnaireTests
     {
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
@@ -151,6 +180,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);

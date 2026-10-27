@@ -66,9 +66,12 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react` | `none` |
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
+| `--presentation` | `none`, `blazor-server` | `none` |
+| `--presentation-name` | PascalCase text | `Portal` |
 
 `--auth none` refuses the examples and Files, which belong to a caller, and `--web-audience admin`
-refuses `--auth none`. [Using the template](docs/template/using-the-template.md) says what each value
+refuses `--auth none`; `--presentation-name` refuses the name of one of the template's own projects.
+[Using the template](docs/template/using-the-template.md) says what each value
 generates, the combinations refused, what the name substitutes into, and the item templates
 `cleanarch-webapp` and `cleanarch-webpackage`.
 

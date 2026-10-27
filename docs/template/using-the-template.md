@@ -136,6 +136,8 @@ error under warnings as errors. Pick a name with no such segment.
 | `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react` | `none` | the first web app in the pnpm workspace `Src/Web`; a framework app is created by its official CLI at bootstrap, as the table below says |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
+| `--presentation` | `none`, `blazor-server` | `none` | a presentation project in `Src/Presentation` that calls the use cases in process; `blazor-server` is a Blazor Web App with server interactivity, its pages written by `dotnet new blazor` at bootstrap |
+| `--presentation-name` | PascalCase text | `Portal` | the presentation project's name after the solution's, its Compose service and port variable |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
 writes the app and never changes meaning:
@@ -161,6 +163,7 @@ it, and the generated solution builds and passes its tests.
 | `--auth none` with `--files true` | `--auth-none-needs-files-false` | add `--files false` |
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
 | `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
+| a `--presentation-name` that names one of the template's projects, such as `Api` | `--presentation-name-is-taken` | choose another name, such as `Portal` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing anything. Passing the parameter by hand gets past the engine and generates

@@ -21,6 +21,21 @@ public static class PresentationCoreModule
         return services;
     }
 
+    //#if (externalAuth)
+    public static IServiceCollection AddAuthenticationExternalOptions(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddOptions<AuthenticationExternalOptions>()
+            .BindConfiguration(AuthenticationExternalOptions.SectionName)
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<AuthenticationExternalOptions>, AuthenticationExternalOptionsValidator>();
+
+        return services;
+    }
+
+    //#endif
     public static IServiceCollection AddNoCallerIdentity(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

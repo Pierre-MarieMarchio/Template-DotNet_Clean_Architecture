@@ -88,6 +88,9 @@ what changing it costs.
 <!--#if (anyWeb)-->
 | One pnpm workspace under `Src/Web`, Node and pnpm pinned | Apps and packages share one lockfile; nothing in the .NET build needs Node | [Web front end](../features/web-frontend.md) | — |
 <!--#endif-->
+<!--#if (presentationBlazorServer)-->
+| A Blazor Web App with server interactivity beside the API, its pages from `dotnet new blazor` at bootstrap, composing the use cases in process | A server-rendered site needs no client of the API and no token per user | [Presentation project](../features/presentation.md) | — |
+<!--#endif-->
 
 ## Consequences
 

@@ -33,7 +33,12 @@ Run `corepack enable` once per machine so the pinned pnpm is the one that runs.
 dotnet run Tools/Tasks.cs bootstrap
 ```
 
-Commit what it changes before anything else. It formats the solution, writes the OpenAPI reference
+Commit what it changes before anything else.
+<!--#if (anyPresentation)-->
+It first creates the presentation project's pages with `dotnet new blazor` and adds the project to
+the solution ([Presentation project](../features/presentation.md#creating-the-project)).
+<!--#endif-->
+It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
 restores the local tools (`dotnet-ef` among them), then creates each database context's initial
 migration under its project's `Migrations` folder. The project ships no migration: the first one is

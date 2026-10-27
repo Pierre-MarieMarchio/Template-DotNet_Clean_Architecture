@@ -36,6 +36,15 @@
     "webAudience": {
       "longName": "web-audience",
       "shortName": ""
+    },
+    "presentationName": {
+      "longName": "presentation-name",
+      "shortName": ""
+    },
+    "presentationNameIsTaken": {
+      "longName": "presentation-name-is-taken",
+      "shortName": "",
+      "isHidden": true
     }
   }
 }

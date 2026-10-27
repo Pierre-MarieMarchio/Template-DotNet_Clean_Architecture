@@ -65,6 +65,15 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Email"] = [],
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] = [],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] = null,
+        /*#if (presentationBlazorServer && localAuth)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition"],
+        #endif*/
+        /*#if (presentationBlazorServer && externalAuth)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Configuration/Options"],
+        #endif*/
+        /*#if (presentationBlazorServer && publicApi)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        #endif*/
     };
 
     private static readonly string[] _featuresStillToCome =
@@ -141,6 +150,9 @@ public sealed class LayoutConventionTests
             ],
         ["Src/Presentation/AppTemplate.Presentation.Core"] =
             ["Jobs", "Localization", "Observability", "Outbound", "Security"],
+        /*#if (presentationBlazorServer)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security"],
+        #endif*/
     };
 
     [Fact]
@@ -296,6 +308,13 @@ public sealed class LayoutConventionTests
     private static readonly string[] _projectRootFolders =
         ["Common", "Features", "Migrations", "Properties"];
 
+    private static readonly Dictionary<string, string[]> _generatorRootFolders = new(StringComparer.Ordinal)
+    {
+        /*#if (presentationBlazorServer)
+        ["AppTemplate.PresentationApp"] = ["Components", "wwwroot"],
+        #endif*/
+    };
+
     [Fact]
     public void NoProjectRoot_HoldsAnythingButItsModule()
     {
@@ -332,6 +351,7 @@ public sealed class LayoutConventionTests
                 .Select(Path.GetFileName)
                 .Where(folder => folder is not "bin" and not "obj")
                 .Where(folder => !_projectRootFolders.Contains(folder, StringComparer.Ordinal))
+                .Where(folder => !_generatorRootFolders.GetValueOrDefault(project.Name, []).Contains(folder, StringComparer.Ordinal))
                 .Select(folder => $"{project.Name}: '{folder}/' sits at its root, which is not one " +
                     $"of [{string.Join(", ", _projectRootFolders)}]"));
         }

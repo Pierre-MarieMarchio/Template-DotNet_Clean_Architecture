@@ -147,6 +147,31 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 | `Roles:ClaimPath` | string | — | **Required when `Source` is `Claim`.** A dot path: `roles`, `realm_access.roles`, or a namespaced claim matched whole. |
 | `Roles:AdministratorRole` | string | `Admin` | The role the `Administrator` policy requires. |
 
+<!--#if (presentationBlazorServer)-->
+The presentation project reads this section too, as the provider it signs people in with.
+
+### `Authentication:External:Interactive`
+
+The presentation project's client at the provider, for the OpenID Connect code flow; the API never reads it.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `ClientId` | string | `""` | **Required.** The client the provider registered for the presentation project. |
+| `ClientSecret` | string | — | Its secret, for a confidential client; a public client sends none and relies on PKCE. |
+
+<!--#endif-->
+<!--#endif-->
+<!--#if (presentationBlazorServer && !localAuth)-->
+## Presentation project
+
+### `DataProtection`
+
+Read by the presentation project alone, for the keys that protect its session cookie and its forms.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `KeysDirectory` | string | — | **Required outside Development.** An absolute folder every instance shares and that outlives a restart; Compose mounts a volume at `/data-protection-keys`. |
+
 <!--#endif-->
 <!--#if (files)-->
 ## Files

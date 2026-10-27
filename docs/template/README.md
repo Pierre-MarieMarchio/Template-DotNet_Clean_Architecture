@@ -29,3 +29,4 @@ propose one.
 - [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)
 - [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)
 - [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
+- [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)

@@ -8,6 +8,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 return Tasks.Run(args);
 
@@ -99,6 +100,7 @@ internal static class Tasks
         "sonar",
         //#endif
         "bootstrap",
+        "presentation-scaffold",
         "web-scaffold",
         "hygiene",
         "verify",
@@ -109,6 +111,17 @@ internal static class Tasks
 
     private const string WebUsage =
         """
+
+        Presentation projects:
+          presentation-scaffold [<Name>]   create each project under Src/Presentation that holds a
+                                           scaffold.json, or only the one named <Name>: run its dotnet new
+                                           template from the package and version scaffold.json pins,
+                                           in a template hive of its own, keep the folders it names
+                                           beside the project's own files, refuse a generated project
+                                           file that declares what the project's own lacks, add the
+                                           project and its tests to the solution and format them;
+                                           bootstrap runs it first, and a project created already is
+                                           left alone
 
         Web apps:
           web-scaffold [<App>]             create each app under Src/Web/apps that holds a scaffold.json
@@ -522,6 +535,7 @@ internal static class Tasks
 
             //#endif
             case "bootstrap":
+                PresentationScaffold(repoRoot, solution, only: null);
                 Step("dotnet", "format", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
                 OpenApiReference(repoRoot, api);
@@ -581,6 +595,10 @@ internal static class Tasks
                 //#if (templateMaintenance)
                 LauncherGate(repoRoot, configuration);
                 //#endif
+                break;
+
+            case "presentation-scaffold":
+                PresentationScaffold(repoRoot, solution, name);
                 break;
 
             case "web-scaffold":
@@ -974,6 +992,179 @@ internal static class Tasks
 
         File.Delete(Path.Combine(folder, ScaffoldDescriptor));
         Write($"Created Src/Web/apps/{app} from {cli} and its overlay.", ConsoleColor.Green);
+    }
+
+    private static readonly string[] GeneratedPropertiesTheBuildSets = ["TargetFramework", "Nullable", "ImplicitUsings"];
+
+    private static void PresentationScaffold(string repoRoot, string solution, string? only)
+    {
+        string presentation = Path.Combine(repoRoot, "Src", "Presentation");
+        string[] pending = [.. Directory.GetDirectories(presentation)
+            .Where(folder => File.Exists(Path.Combine(folder, ScaffoldDescriptor)))
+            .Order(StringComparer.Ordinal)];
+
+        if (only is not null)
+        {
+            string folder = Path.Combine(presentation, only);
+
+            if (pending.Contains(folder, StringComparer.Ordinal))
+            {
+                pending = [folder];
+            }
+            else if (File.Exists(Path.Combine(folder, only + ".csproj")))
+            {
+                Write($"Src/Presentation/{only} holds no {ScaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
+                pending = [];
+            }
+            else
+            {
+                throw new InvalidOperationException($"Src/Presentation/{only} holds no {ScaffoldDescriptor}, so there is nothing to create.");
+            }
+        }
+
+        foreach (string folder in pending)
+        {
+            ScaffoldProject(repoRoot, solution, folder);
+        }
+    }
+
+    private static void ScaffoldProject(string repoRoot, string solution, string folder)
+    {
+        string project = Path.GetFileName(folder);
+        JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
+        string kind = descriptor["kind"]?.GetValue<string>() ?? "pnpm";
+
+        if (kind != "dotnet")
+        {
+            throw new InvalidOperationException(
+                $"Src/Presentation/{project}/{ScaffoldDescriptor} is of kind '{kind}', and a presentation project is created by dotnet new.");
+        }
+
+        string name = Text(descriptor, "name", project);
+        string package = Text(descriptor, "package", project) + "@" + Text(descriptor, "version", project);
+        string scratch = Path.Combine(Path.GetTempPath(), "presentation-scaffold-" + Guid.NewGuid().ToString("N")[..12]);
+        string generated = Path.Combine(scratch, name);
+        string template = Text(descriptor, "template", project);
+        string[] hive = ["--debug:custom-hive", Path.Combine(scratch, "hive"), "--debug:disable-sdk-templates"];
+
+        try
+        {
+            Directory.CreateDirectory(scratch);
+
+            try
+            {
+                Launch(scratch, new Dictionary<string, string>(StringComparer.Ordinal), "dotnet", ["new", "install", package, .. hive], closeInput: true);
+
+                string[] arguments =
+                [
+                    "new", template,
+                    .. (descriptor["arguments"]?.AsArray() ?? []).Select(argument => (argument?.GetValue<string>() ?? string.Empty)
+                        .Replace("{name}", name, StringComparison.Ordinal)
+                        .Replace("{directory}", name, StringComparison.Ordinal)),
+                    .. DeclinedScriptsWhereOffered(scratch, template, hive),
+                    .. hive,
+                ];
+
+                Launch(scratch, new Dictionary<string, string>(StringComparer.Ordinal), "dotnet", arguments, closeInput: true);
+            }
+            catch (InvalidOperationException error)
+            {
+                throw new InvalidOperationException(
+                    $"{error.Message} Creating Src/Presentation/{project} installs {package}, the framework's own templates, "
+                    + "from NuGet, so this step needs the network; the output above says what failed. The project's folder is "
+                    + $"unchanged: run `dotnet run Tools/Tasks.cs presentation-scaffold {project}` again once the cause is fixed.");
+            }
+
+            RefuseWhatTheProjectLacks(Path.Combine(generated, name + ".csproj"), Path.Combine(folder, name + ".csproj"));
+
+            foreach (string kept in (descriptor["keep"]?.AsArray() ?? []).Select(path => path?.GetValue<string>() ?? string.Empty))
+            {
+                CopyFiles(Path.Combine(generated, kept), Path.Combine(folder, kept), overwrite: false);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(scratch))
+            {
+                Directory.Delete(scratch, recursive: true);
+            }
+        }
+
+        File.Delete(Path.Combine(folder, ScaffoldDescriptor));
+
+        string[] projects =
+        [
+            Path.Combine(folder, name + ".csproj"),
+            .. new[] { Path.Combine(repoRoot, "Tests", "Presentation", name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
+        ];
+
+        Step("dotnet", ["sln", solution, "add", .. projects]);
+
+        foreach (string added in projects)
+        {
+            Step("dotnet", "format", added);
+        }
+
+        Write($"Created Src/Presentation/{project} from {package}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
+    }
+
+    private static string[] DeclinedScriptsWhereOffered(string directory, string template, string[] hive)
+    {
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = "dotnet",
+            UseShellExecute = false,
+            WorkingDirectory = directory,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+        };
+
+        foreach (string argument in (string[])["new", template, "--help", .. hive])
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("'dotnet' started no process.");
+
+        process.StandardInput.Close();
+        string help = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+
+        return help.Contains("--allow-scripts", StringComparison.Ordinal) ? ["--allow-scripts", "no"] : [];
+    }
+
+    private static void RefuseWhatTheProjectLacks(string generated, string own)
+    {
+        if (!File.Exists(generated))
+        {
+            throw new InvalidOperationException($"dotnet new wrote no {Path.GetFileName(generated)}, so {Path.GetDirectoryName(own)} is left unchanged.");
+        }
+
+        XDocument template = XDocument.Load(generated);
+        XDocument project = XDocument.Load(own);
+
+        string[] lacking =
+        [
+            .. template.Descendants("PackageReference")
+                .Select(reference => (string?)reference.Attribute("Include"))
+                .OfType<string>()
+                .Where(package => !project.Descendants("PackageReference").Any(reference => (string?)reference.Attribute("Include") == package))
+                .Select(package => $"the package {package}"),
+            .. template.Descendants("PropertyGroup").Elements()
+                .Select(property => property.Name.LocalName)
+                .Where(property => !GeneratedPropertiesTheBuildSets.Contains(property, StringComparer.Ordinal))
+                .Where(property => !project.Descendants(property).Any())
+                .Select(property => $"the property {property}"),
+        ];
+
+        if (lacking.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"The project file dotnet new wrote declares {string.Join(", ", lacking)}, which {Path.GetFileName(own)} does not, "
+                + "so the files it generated may need it: add each to the project file, a package's version to Directory.Packages.props, "
+                + "or change the template's arguments in scaffold.json, then run the task again.");
+        }
     }
 
     private static bool PinInstalledVersions(string folder)

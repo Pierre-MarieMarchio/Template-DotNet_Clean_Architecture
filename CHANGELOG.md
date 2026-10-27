@@ -16,6 +16,37 @@ starting a new project is a `refactor`, `test`, `build` or `ci` commit, and stay
 A major version signals that adopting the change in an existing project derived from this template
 requires manual work — a renamed configuration section, a moved namespace, a new mandatory setting.
 
+## [1.1.0](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/compare/v1.0.0...v1.1.0) (2026-10-27)
+
+
+### Features
+
+* **launcher:** a guided, styled prompt flow in the terminal ([c1836d6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/c1836d6296dc86244eb2306c0f13fb44babc034f))
+* **launcher:** finish setting up the generated project ([16af0e6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/16af0e6f30406b9200d7dea0563283033a7ae404))
+* **launcher:** go back to the previous question ([6ed4e95](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/6ed4e9507f662fee77231e32fdcc2969add18f71))
+* **launcher:** presentation adds a presentation project with the options read from the project ([#135](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/135)) ([a2bb3d0](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/a2bb3d04531a73686ec472143b5cc0297f6497d4))
+* **template:** --presentation blazor-server, a Blazor Server project beside the API ([#131](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/131)) ([ba0a751](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/ba0a7516f45530f52de9d9beec1468914801a228))
+* **template:** cleanarch-presentation adds a presentation project to a project generated without one ([#134](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/134)) ([5ea628f](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/5ea628f906759c4b638a241890eab61b0c5be601))
+* **web:** --web react-router, its inline scripts allowed by hash ([#127](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/127)) ([9603fd7](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/9603fd741bec72fd8836195c3cddc5a6b3070b66))
+* **web:** vue, vite-react, vite-vue and vite-svelte starters ([#126](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/126)) ([fac4d61](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/fac4d61dbb7bbc440805d7177e59965f705f7f49))
+
+
+### Bug fixes
+
+* **api:** the OpenAPI document types a problem's code and field errors ([#136](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/136)) ([d5436af](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/d5436af514afa059b5bf0a14023df7055249238d))
+* **coverage:** measure async method bodies ([8a995d6](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/8a995d675a8ff5ad4018d77d76690cf45d0204bc))
+* **launcher:** draw each question's choices before the first key, with a hint of the keys ([94e88ac](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/94e88ac92dabb9b001f9de8c3d52b478771af3d0))
+* **launcher:** offer only the choices the template can generate ([c8e34ec](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/c8e34ecde1716b8c2beee741cbf676d6218576ff))
+* **persistence:** name the design-time database without credentials ([3a81b08](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/3a81b080d2a6e519cd2c46bf3611dd5b074fac0e))
+* **template:** a folder install copies no editor or assistant folder into the project ([#130](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/130)) ([a5fd3a7](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/a5fd3a7e018e656bc4c4e9fbb093e0be8e0fa5fe))
+* **web:** web-scaffold fails instead of waiting when a CLI asks a question ([#124](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/124)) ([eb1ae01](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/eb1ae01098cc544b72e9302d15dea17052dae620))
+
+
+### Documentation
+
+* **template:** a roadmap of the web apps and presentation projects to come ([0831acb](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/0831acb814d9d2fa25240336f7e977db95eb47ad))
+* **template:** the roadmap plans server rendering after the presentation projects ([#129](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/129)) ([cec7339](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/commit/cec7339a3e21783efa3525b3176704f5eddd844b))
+
 ## 1.0.0 (2026-10-22)
 
 

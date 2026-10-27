@@ -187,7 +187,7 @@
       "type": "generated",
       "generator": "constant",
       "parameters": {
-        "value": "1.0.0"
+        "value": "1.1.0"
       },
       "replaces": "0.0.0-checkout",
       "description": "The template package's version, which release-please raises, read by .template.config/TemplatePackage.csproj and recorded in a generated project's overview; its release is tagged v<version>."

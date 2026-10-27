@@ -34,10 +34,17 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
    .NET client generated from the API's OpenAPI document, then `--web blazor-wasm`, a Blazor
    WebAssembly app served beside the other web apps, and `--presentation avalonia`, a desktop app
    from Avalonia's templates.
+3. **Server rendering where the generator offers it**
+   ([#128](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/128)).
+   `--web-rendering spa|ssr`, `spa` by default and refused for the starters whose generator only
+   makes single-page apps; the launcher then offers it only where it applies. A server-rendered app
+   runs on a Node server instead of nginx; it keeps its session on the server, since the browser
+   alone holds the access token today, and sends a content security policy with a nonce per
+   request. Angular first (`ng new --ssr`), then React Router.
 
 ## Later
 
-Each group comes once the two items above have shipped, in no fixed order:
+Each group comes once the items above have shipped, in no fixed order:
 
 - **The other templates of `create-vite`**
   ([#118](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/118)):
@@ -45,8 +52,9 @@ Each group comes once the two items above have shipped, in no fixed order:
 - **Web frameworks with their own generator**
   ([#119](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/119)):
   Ember; then SvelteKit, Nuxt, Analog and Astro in their static form, each needing only its
-  starter and a marker giving it the hash step React Router's image build already has; Next last,
-  whose static export goes against the framework's grain.
+  starter and a marker giving it the hash step React Router's image build already has, their server
+  form following the server-rendering item; Next last, whose static export goes against the
+  framework's grain.
 - **Desktop and mobile clients of the API**
   ([#120](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/120)):
   WPF and Windows Forms, built on a Windows runner; .NET MAUI; Uno Platform; WinUI, which has no
@@ -61,9 +69,6 @@ Each group comes once the two items above have shipped, in no fixed order:
 
 ## Not planned
 
-- **Server-side rendering of the web apps.** It replaces nginx with a Node server, changes the relay
-  to the API and needs a nonce-based content security policy: a decision of its own, not an item of
-  this list.
 - **A generator command of the user's choosing.** Its output could be neither tested nor held to the
   content security policy.
 - **A desktop app wired straight to the application layer.** It would carry the database's

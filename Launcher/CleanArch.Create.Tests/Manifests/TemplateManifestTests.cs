@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using CleanArch.Create.Manifests;
 using Shouldly;
 using Xunit;
@@ -107,11 +108,11 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
         manifest.Refusals.Select(refusal => refusal.CliName).Order(StringComparer.Ordinal).ShouldBe(
-            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "my-sql-not-yet-generated"]);
+            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "my-sql-not-yet-generated", "presentation-name-is-taken"]);
     }
 
     [Fact]
-    public void TheQuestionsAskedOnlyWithAWebApp_NameOptionsOfTheTemplate()
+    public void TheQuestionsAskedOnlyWithAnotherAnswer_NameOptionsOfTheTemplate_AndHangOnItsNone()
     {
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
         string[] symbols = [.. manifest.Options.Select(option => option.Symbol)];
@@ -119,9 +120,14 @@ public sealed class TemplateManifestTests
         foreach ((string symbol, Condition when) in Launcher.ProjectAskedWhen)
         {
             symbols.ShouldContain(symbol);
-            manifest.ParametersBehind(when).ShouldBeSubsetOf(symbols);
-            manifest.Holds(when, new Dictionary<string, string> { ["web"] = "none" }).ShouldBeFalse(symbol);
-            manifest.Holds(when, new Dictionary<string, string> { ["web"] = "react" }).ShouldBeTrue(symbol);
+            string asking = manifest.ParametersBehind(when).ShouldHaveSingleItem(symbol);
+            TemplateOption option = manifest.Options.Single(candidate => candidate.Symbol == asking);
+
+            foreach (OptionChoice choice in option.Choices)
+            {
+                manifest.Holds(when, new Dictionary<string, string> { [asking] = choice.Value })
+                    .ShouldBe(choice.Value != "none", $"{symbol} with {asking} {choice.Value}");
+            }
         }
     }
 
@@ -160,6 +166,13 @@ public sealed class TemplateManifestTests
             .Concat(manifest.Refusals.Select(refusal => $"{refusal.Symbol} {refusal.When} {refusal.Explanation}"))
             .Append(manifest.Version ?? string.Empty));
 
+    private static IEnumerable<string> NamedByARefusal(TemplateManifest manifest, TemplateOption option) =>
+        manifest.Refusals
+            .Select(refusal => Regex.Match(refusal.When.Text, $@"\b{option.Symbol} == ""([^""]+)""", RegexOptions.None, TimeSpan.FromSeconds(1)))
+            .Where(match => match.Success)
+            .Select(match => match.Groups[1].Value)
+            .Take(1);
+
     private static IEnumerable<Dictionary<string, string>> Combinations(TemplateManifest manifest)
     {
         IEnumerable<Dictionary<string, string>> combinations = [new Dictionary<string, string>(StringComparer.Ordinal)];
@@ -170,6 +183,7 @@ public sealed class TemplateManifestTests
             {
                 OptionKind.Choice => [.. option.Choices.Select(choice => choice.Value)],
                 OptionKind.Bool => [Condition.True, Condition.False],
+                OptionKind.Text => [.. new[] { option.DefaultValue }.Concat(NamedByARefusal(manifest, option)).OfType<string>().Distinct(StringComparer.Ordinal)],
                 _ => [],
             };
 

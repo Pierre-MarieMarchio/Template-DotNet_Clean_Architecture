@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Api.Common.Hosting;
-using AppTemplate.Api.Common.Security;
 using AppTemplate.Api.Features.Auth.Jobs;
 using AppTemplate.Application.Auth;
 //#if (anyFeature)
@@ -9,6 +8,7 @@ using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Api.Features.Auth.Composition;

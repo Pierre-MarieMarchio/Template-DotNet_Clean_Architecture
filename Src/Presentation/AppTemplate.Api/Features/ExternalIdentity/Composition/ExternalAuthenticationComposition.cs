@@ -1,5 +1,4 @@
-﻿using AppTemplate.Api.Common.Security;
-using AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
+﻿using AppTemplate.Api.Features.ExternalIdentity.Configuration.Options;
 using AppTemplate.Application;
 //#if (anyFeature)
 using AppTemplate.Application.Core.Common.Ports;

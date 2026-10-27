@@ -10,8 +10,8 @@ using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
+using AppTemplate.Presentation.Core.Common.Security;
 using AppTemplate.PresentationApp.Common.Hosting;
-using AppTemplate.PresentationApp.Common.Security;
 //#if (reminders)
 using AppTemplate.PresentationApp.Features.Reminders.Composition;
 //#endif

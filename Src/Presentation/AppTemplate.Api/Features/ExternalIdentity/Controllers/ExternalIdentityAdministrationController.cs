@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Api.Common.Controllers;
-using AppTemplate.Api.Common.Security;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Presentation.Core.Common.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

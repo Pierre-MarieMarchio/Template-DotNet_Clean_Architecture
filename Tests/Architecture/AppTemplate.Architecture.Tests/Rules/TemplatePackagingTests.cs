@@ -176,6 +176,19 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void AFolderInstall_LeavesOutEveryLocalToolFolderThePackageLeavesOut()
+    {
+        var localToolFolders = PackageExcludes()
+            .Where(pattern => Regex.IsMatch(pattern, @"^\.[A-Za-z]\w*/\*\*$", RegexOptions.None, TimeSpan.FromSeconds(5)))
+            .ToList();
+
+        localToolFolders.ShouldContain(".claude/**", "No dot folder was read from the TemplateExclude items, so this rule is reading the wrong file.");
+
+        localToolFolders.Except(UnconditionalExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            ".template.config/TemplatePackage.csproj leaves these folders out of the package, but installing from a checkout copies them into every project: add each to the unconditional excludes of the main source of template.json.");
+    }
+
+    [Fact]
     public void TheLauncher_ReachesNeitherAProjectNorTheTemplatePackage()
     {
         const string launcher = "Launcher/**";

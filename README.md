@@ -73,7 +73,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 refuses `--auth none`; `--presentation-name` refuses the name of one of the template's own projects.
 [Using the template](docs/template/using-the-template.md) says what each value
 generates, the combinations refused, what the name substitutes into, and the item templates
-`cleanarch-webapp` and `cleanarch-webpackage`.
+`cleanarch-webapp`, `cleanarch-webpackage` and `cleanarch-presentation`.
 
 ## Documentation
 

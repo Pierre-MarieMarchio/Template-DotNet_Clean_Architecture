@@ -83,8 +83,8 @@ dotnet new update
 A package packed locally, as [the package](maintaining-the-template.md#the-package) shows, installs
 like a release asset, from its path.
 
-One install brings three templates: `cleanarch-webapi`, the project, and the item templates
-`cleanarch-webapp` and `cleanarch-webpackage`. A checkout installs too, with
+One install brings four templates: `cleanarch-webapi`, the project, and the item templates
+`cleanarch-webapp`, `cleanarch-webpackage` and `cleanarch-presentation`. A checkout installs too, with
 `dotnet new install <path-to-this-repository>`, for a maintainer trying a change: the engine then
 reads every `.template.config` under the path, a worktree's or a scratch copy's included, which the
 package never carries. Both leave out the editor and assistant folders of the checkout, which
@@ -92,7 +92,7 @@ are `.claude`, `.idea`, `.vs` and `.vscode`.
 
 ## In an IDE
 
-Once installed, the three templates are listed by Visual Studio's new-project dialog, by Rider's, and
+Once installed, the four templates are listed by Visual Studio's new-project dialog, by Rider's, and
 by the C# Dev Kit's "New Project" command in VS Code, with the options under their labels and the
 refusals hidden. None of them needs a separate extension: each reads the templates `dotnet new`
 installed. Visual Studio takes its labels from `.template.config/ide.host.json`; the others from the
@@ -171,6 +171,9 @@ naming it, before writing anything. Passing the parameter by hand gets past the 
 [Template decision 0001](decisions/0001-options-remove-parts-and-refuse-combinations.md) gives the
 reasons.
 
+`cleanarch-presentation` refuses the same combinations of the project's options it repeats, and as
+`-n` each name `--presentation-name` refuses.
+
 ## What a project receives and what stays here
 
 A project receives the code, the tests, the tools it judges itself with (`Tasks.cs`, the generator and
@@ -187,18 +190,25 @@ and the three tree-auditing gates `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflow
 
 ## Item templates
 
-Run both at the root of a generated project, with its workspace scope:
+Run each at the root of a generated project, the web ones with its workspace scope:
 
 ```bash
 dotnet new cleanarch-webapp -n BackOffice --framework vite-react --scope <scope> --audience admin
 dotnet new cleanarch-webpackage -n tokens --scope <scope>
+dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name <Project>
 ```
 
 | Template | Options |
 |---|---|
 | `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
+| `cleanarch-presentation` | `--framework blazor-server` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals. `-n` is the presentation project's name, `Portal` by default, refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
 
 An item template can add files but not edit them, so each prints the lines to add to
 `docker-compose.yml`, `.env.example` and, with `--workspace`, `.dockerignore` and
-`.github/dependabot.yml`; the generated `Src/Web/README.md` lists them.
+`.github/dependabot.yml`; the generated `Src/Web/README.md` lists them. `cleanarch-presentation`
+writes the project, its tests and its page, and the `README.md` in the project's folder lists every
+line `--presentation` writes elsewhere, each placed by the lines around it: `.dockerignore`,
+`.env.example`, `Directory.Packages.props` under external authentication, `docker-compose.yml`,
+`AGENTS.md`, two architecture tests and the pages under `docs/`. Then
+`dotnet run Tools/Tasks.cs presentation-scaffold <Project>.<name>` creates it, as bootstrap does.

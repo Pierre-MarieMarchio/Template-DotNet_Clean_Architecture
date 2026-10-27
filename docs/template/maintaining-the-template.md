@@ -64,7 +64,9 @@ styles. The every-starter leg adds each framework starter its first app is not, 
 proves them all together. Every leg runs `presentation-scaffold` before the formatting, a step that
 does nothing without a presentation project; the three web legs that pass `--presentation
 blazor-server`, one per authentication mode, create it, build and test it, and ask it in the stack
-for its page and `/health`.
+for its page and `/health`. The leg that adds a first app adds the presentation project too, with
+`cleanarch-presentation`, makes the edits its `README.md` lists with
+`.template.config/acceptance/ApplyPresentationEdits.cs`, and from there runs as those three do.
 
 | Leg | Options |
 |---|---|
@@ -83,7 +85,7 @@ for its page and `/health`.
 | web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server` |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
-| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` |
+| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` and `cleanarch-presentation --framework blazor-server` |
 | web, every starter | `--web vue --examples none --files false`, then `cleanarch-webapp` once per other framework starter, each on its own `--port` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
@@ -254,8 +256,23 @@ A `--presentation` value is a starter too, of kind `dotnet`
 `Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
 project template copies the folder into the project's root under `presentationBlazorServer`. `PresentationApp` is the token
 `--presentation-name` replaces, with `presentation-app` and `PRESENTATION_APP` beside it. The
-starter's C# is compiled only in a generated project, so a change to it is proved by generating one
-and by the three acceptance legs that pass `--presentation`.
+starter's C# is compiled only in a generated project, so a change to it is proved by generating one,
+by the three acceptance legs that pass `--presentation` and by the leg that adds one with
+`cleanarch-presentation`.
+
+`cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
+folder by `--framework`, with `docs/features/presentation.md`. It cannot read the project it runs
+in, so it declares what the starter's markers read as parameters and computed symbols of the same
+names, values, defaults and refusals as `template.json`; `-n` replaces `PresentationApp` and
+`--project-name` replaces `AppTemplate` in the two spellings the source name gives it, the name and
+its lower-case namespace. `ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem`
+fails when a symbol the starters read is missing or differs, or when the two templates leave out
+different files. What `--presentation` writes outside the project's folders, an item template
+cannot edit: the starter's `README.md` lists each of those lines under "Joining a project generated
+without one", as an edit placed after or before the lines around it, or in their place, and
+`ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails until a line a
+`presentationBlazorServer` or `anyPresentation` branch writes is there. A shared file that gains such
+a branch gains its edit in the README, with an anchor that is unique in every shape.
 
 `presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
@@ -267,8 +284,9 @@ declares a package or a property the starter's lacks. The package is pinned by h
 `--presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
 
 `presentationNameIsTaken` refuses each name that would make `<Project>.<Name>` or its test project one
-of the template's own projects; `ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites` lists
-the projects under `Src` and `Tests` and fails until a new one is refused too.
+of the template's own projects, as `--presentation-name` in `template.json` and as `-n` in
+`cleanarch-presentation`; `ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites` lists
+the projects under `Src` and `Tests` and fails until a new one is refused by both.
 
 ## Web lockfiles
 
@@ -280,7 +298,7 @@ included; `--check` fails until you do.
 
 ## The package
 
-`.template.config/TemplatePackage.csproj` packs the three templates into one NuGet package,
+`.template.config/TemplatePackage.csproj` packs the four templates into one NuGet package,
 `CleanArch.WebApi.Templates`; its `PackageId` is the one place that names it.
 
 ```bash

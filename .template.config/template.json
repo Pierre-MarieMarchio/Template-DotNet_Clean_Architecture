@@ -314,6 +314,10 @@
         {
           "choice": "vite-svelte",
           "description": "One Svelte web app in the pnpm workspace Src/Web, created by Vite's official CLI (create-vite, svelte-ts)."
+        },
+        {
+          "choice": "react-router",
+          "description": "One React web app in the pnpm workspace Src/Web, created by React Router's official CLI (create-react-router) in single-page mode."
         }
       ],
       "description": "The first web front end, in the pnpm workspace Src/Web. More apps are added later with dotnet new cleanarch-webapp."
@@ -346,9 +350,13 @@
       "type": "computed",
       "value": "(web == \"vite-svelte\")"
     },
+    "webReactRouter": {
+      "type": "computed",
+      "value": "(web == \"react-router\")"
+    },
     "webVite": {
       "type": "computed",
-      "value": "(webVue || webViteReact || webViteVue || webViteSvelte)"
+      "value": "(webVue || webViteReact || webViteVue || webViteSvelte || webReactRouter)"
     },
     "webFramework": {
       "type": "computed",
@@ -1029,6 +1037,11 @@
       "source": "./.template.config/starters/vite-svelte/",
       "target": "./Src/Web/apps/",
       "condition": "(webViteSvelte)"
+    },
+    {
+      "source": "./.template.config/starters/react-router/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webReactRouter)"
     },
     {
       "source": "./.template.config/variants/database-sqlite/",

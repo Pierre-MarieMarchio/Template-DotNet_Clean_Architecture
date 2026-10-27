@@ -132,6 +132,9 @@ setting, table or test names it.
 <!--#if (webViteSvelte)-->
 | `--web` | `vite-svelte` | a Svelte app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
 <!--#endif-->
+<!--#if (webReactRouter)-->
+| `--web` | `react-router` | a React single-page app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
+<!--#endif-->
 <!--#if (webPlaceholder)-->
 | `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
 <!--#endif-->
@@ -155,8 +158,8 @@ To change a value, remove the part by hand or add it:
 <!--#endif-->
 <!--#if (!anyWeb)-->
 - `dotnet new cleanarch-webapp -n PlaceholderSite --framework vite-react --scope app-template --workspace`
-  adds a first web app and its workspace (`vue`, `vite-vue`, `vite-svelte`, `angular` or
-  `placeholder` work too). Pass this project's `--auth`, `--examples` and `--ci` when they are not
+  adds a first web app and its workspace (`vue`, `vite-vue`, `vite-svelte`, `react-router`,
+  `angular` or `placeholder` work too). Pass this project's `--auth`, `--examples` and `--ci` when they are not
   the defaults; the README it writes in the new workspace lists the lines to add by hand.
 <!--#endif-->
 <!--#if (anyWeb)-->

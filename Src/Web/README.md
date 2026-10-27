@@ -38,7 +38,7 @@ The app's `README.md` gives the two lines that join it to the stack.
 A project generated with `--web none` has no workspace. Its first app comes with the workspace:
 
 ```bash
-dotnet new cleanarch-webapp -n PlaceholderSite --framework <vue|vite-react|vite-vue|vite-svelte|angular|placeholder> --scope app-template --workspace
+dotnet new cleanarch-webapp -n PlaceholderSite --framework <vue|vite-react|vite-vue|vite-svelte|react-router|angular|placeholder> --scope app-template --workspace
 ```
 
 Pass the project's `--auth` and `--ci` too when they are not the defaults.

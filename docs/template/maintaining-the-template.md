@@ -56,10 +56,11 @@ same way, `hygiene` passes, and they are removed last in first out. In a project
 owner feature, the first one prints edits as prose, its account-deletion wiring among them, so there
 only the domain and application layers are built and tested. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
-install, lint, test and build, fails when a built `index.html` holds an inline script or an
-event-handler attribute (and reports its inline styles), checks a second `web-scaffold` changes
-nothing, starts the whole stack and asks each app for its page, its headers and an answer only the
-API gives. The every-starter leg adds each framework starter its first app is not, so one workspace
+install, lint, test and build, fails when an app with a build script has no built page, checks a
+second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
+headers and an answer only the API gives; it fails when a served page holds an event-handler
+attribute or an inline script whose hash the served `script-src` lacks, and reports its inline
+styles. The every-starter leg adds each framework starter its first app is not, so one workspace
 proves them all together.
 
 | Leg | Options |
@@ -192,14 +193,15 @@ Two folders under `Src/Web/apps` are the source of both `--web` and `cleanarch-w
 choice needs and renames it from `--web-name`, the item template renames it from `-n`. Each name is a
 token in three spellings (`PlaceholderSite`, `placeholder-site`, `PLACEHOLDER_SITE`, and the same for
 `FrameworkSite`). Where one framework differs, the wiring says so by a marker on its own symbol:
-Angular's inline styles in `nginx.conf`, its `NG_CLI_ANALYTICS` in the `Dockerfile`, and the
-sentences of the `README.md` that name the CLI.
+Angular's inline styles in `nginx.conf`, its `NG_CLI_ANALYTICS` in the `Dockerfile`, React Router's
+hash step and client folder in the `Dockerfile`, and the sentences of the `README.md` that name the
+CLI.
 
 The app itself comes from a starter, one folder per `--web` value under `.template.config/starters`
 ([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `angular`, `vue`,
-`vite-react`, `vite-vue` and `vite-svelte`, each holding `FrameworkSite/scaffold.json` and
-`FrameworkSite/overlay/`, which both templates copy into the app's folder by the framework chosen
-and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. `react`
+`vite-react`, `vite-vue`, `vite-svelte` and `react-router`, each holding
+`FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy into the app's
+folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. `react`
 has no folder: it is an alias of `vite-react`, chosen by the same computed symbol, `webViteReact`,
 so it copies the same starter.
 
@@ -215,7 +217,11 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
    is pinned to the version `Src/Web/packages/api-client/package.json` uses. Import the client from
    a scratch file of the created app once and run its type-check: the workspace packages export
    their sources and import each other by `.ts` path, so a compiler setting the CLI leaves off, such
-   as `allowImportingTsExtensions`, is a merge too.
+   as `allowImportingTsExtensions`, is a merge too. A file the starter does not need, such as the
+   CLI's own `Dockerfile`, is named in `remove`. List the inline scripts of the built page: a page
+   with none keeps the shared policy; a page with some needs the hash step of the `Dockerfile`, which
+   React Router has, extended to the new symbol (and to its page's folder if the builder does not
+   write it at the root of `dist/`). Never `'unsafe-inline'` for scripts, never a nonce.
 2. Add `<value>` to the choices of `web` in `.template.config/template.json` and of `framework` in
    `.template.config/webapp/.template.config/template.json`, each description naming the generator
    and its template, with its computed symbol, a source copying the starter folder into
@@ -232,8 +238,9 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
 4. Give it an accent colour in `Launcher/CleanArch.Create/Prompts/GuidedConversation.cs`; its
    question comes from the manifests.
 5. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
-   scaffolds, builds and serves it beside the others and refuses an inline script in its built
-   page; a starter that differs in the wiring gets a leg of its own as well.
+   scaffolds, builds and serves it beside the others and refuses an inline script its served policy
+   does not allow by hash; a starter that differs in the wiring gets a leg of its own as well, unless
+   the every-starter leg already proves what differs, as it does for React Router's hash step.
 
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
 `dotnet run Tools/Tasks.cs web-lockfiles` writes the lockfile of each shape holding a `package.json`

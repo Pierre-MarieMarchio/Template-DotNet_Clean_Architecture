@@ -281,6 +281,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         AGeneratedProject();
         Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Portal"));
         var console = new TestConsole();
+        console.Profile.Width = 240;
 
         new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "-n", name, "--yes", "--template-source", Repository.Root]).ShouldBe(1);
 

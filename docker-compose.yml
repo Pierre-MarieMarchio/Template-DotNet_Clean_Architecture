@@ -195,7 +195,7 @@ services:
       - presentation-app-keys:/data-protection-keys
     #endif
     ports:
-      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8082}:8080"
+      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
     depends_on:
       api:
         condition: service_healthy

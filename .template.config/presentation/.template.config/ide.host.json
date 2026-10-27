@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json.schemastore.org/ide.host",
+  "order": 1,
+  "icon": "icon.png",
+  "learnMoreLink": "https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/blob/main/docs/template/using-the-template.md",
+  "defaultSymbolVisibility": false,
+  "symbolInfo": [
+    {
+      "id": "framework",
+      "name": {
+        "text": "Framework"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "projectName",
+      "name": {
+        "text": "Project name"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "auth",
+      "name": {
+        "text": "Project authentication"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "examples",
+      "name": {
+        "text": "Project example features"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "files",
+      "name": {
+        "text": "Project Files module"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "database",
+      "name": {
+        "text": "Project database"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "agentFiles",
+      "name": {
+        "text": "Project generated with --agent-files"
+      },
+      "isVisible": true
+    }
+  ]
+}

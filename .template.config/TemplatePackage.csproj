@@ -17,7 +17,7 @@
     <PackageVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</PackageVersion>
     <Title>.NET Clean Architecture API templates</Title>
     <Authors>Pierre-MarieMarchio</Authors>
-    <Description>dotnet new templates for a .NET 10 HTTP API on Clean Architecture, meant to be kept: cleanarch-webapi generates the solution (EF Core on PostgreSQL, SQL Server or SQLite, local, external or no authentication, Files, jobs, mail, architecture tests, CI and documentation, each part chosen by an option); cleanarch-webapp and cleanarch-webpackage add a web app or a package to its pnpm workspace.</Description>
+    <Description>dotnet new templates for a .NET 10 HTTP API on Clean Architecture, meant to be kept: cleanarch-webapi generates the solution (EF Core on PostgreSQL, SQL Server or SQLite, local, external or no authentication, Files, jobs, mail, architecture tests, CI and documentation, each part chosen by an option); cleanarch-webapp and cleanarch-webpackage add a web app or a package to its pnpm workspace, and cleanarch-presentation adds a presentation project to a solution generated without one.</Description>
     <PackageTags>dotnet-new;templates;clean-architecture;webapi;ddd;aspnetcore;efcore;postgresql;sqlserver;sqlite</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

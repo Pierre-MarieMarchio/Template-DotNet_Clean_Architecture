@@ -246,6 +246,7 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config")]
     [InlineData(".template.config/webapp/.template.config")]
     [InlineData(".template.config/webpackage/.template.config")]
+    [InlineData(".template.config/presentation/.template.config")]
     public void TheIdeHost_ShowsEveryOptionButTheRefusals(string folder)
     {
         string directory = Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder);
@@ -349,13 +350,15 @@ public sealed class TemplatePackagingTests
         }
     }
 
-    [Fact]
-    public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt()
+    [Theory]
+    [InlineData(".template.config", "presentation", "./.template.config/starters/")]
+    [InlineData(".template.config/presentation/.template.config", "framework", "../starters/")]
+    public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource)
     {
         string[] folders = PresentationStarters();
-        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
         var symbols = manifest.RootElement.GetProperty("symbols");
-        string[] presentations = [.. symbols.GetProperty("presentation").GetProperty("choices").EnumerateArray()
+        string[] presentations = [.. symbols.GetProperty(option).GetProperty("choices").EnumerateArray()
             .Select(choice => choice.GetProperty("choice").GetString()!)
             .Where(choice => choice is not "none")
             .Order(StringComparer.Ordinal)];
@@ -364,16 +367,16 @@ public sealed class TemplatePackagingTests
             .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
         var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
 
-        folders.ShouldBe(presentations, "Each --presentation value but none is a folder under .template.config/starters holding the project's scaffold.json, and each such folder is a value.");
+        folders.ShouldBe(presentations, $"Each --{option} value of {folder}/template.json but none is a folder under .template.config/starters holding the project's scaffold.json, and each such folder is a value.");
 
         foreach (string presentation in presentations)
         {
-            string[] chosenBy = [.. computed.Where(symbol => ChosenValues(symbol.Value, "presentation").Contains(presentation)).Select(symbol => symbol.Key)];
-            chosenBy.Length.ShouldBe(1, $"Exactly one computed symbol must hold (presentation == \"{presentation}\"), the one that copies its starter.");
-            sources.Count(source => Text(source, "source") == $"./.template.config/starters/{presentation}/"
+            string[] chosenBy = [.. computed.Where(symbol => ChosenValues(symbol.Value, option).Contains(presentation)).Select(symbol => symbol.Key)];
+            chosenBy.Length.ShouldBe(1, $"Exactly one computed symbol of {folder}/template.json must hold ({option} == \"{presentation}\"), the one that copies its starter.");
+            sources.Count(source => Text(source, "source") == $"{startersSource}{presentation}/"
                     && Text(source, "target") == "./"
                     && Text(source, "condition") == $"({chosenBy[0]})")
-                .ShouldBe(1, $"template.json must copy ./.template.config/starters/{presentation}/ into ./ under the condition ({chosenBy[0]}).");
+                .ShouldBe(1, $"{folder}/template.json must copy {startersSource}{presentation}/ into ./ under the condition ({chosenBy[0]}).");
 
             using var descriptor = JsonDocument.Parse(File.ReadAllText(PresentationDescriptor(presentation)));
             Text(descriptor.RootElement, "kind").ShouldBe("dotnet", $"The {presentation} starter runs a dotnet new template, which its scaffold.json must say.");
@@ -413,9 +416,158 @@ public sealed class TemplatePackagingTests
             .Where(project => !refusal.Contains($"presentationName == \"{project}\"", StringComparison.Ordinal))
             .ShouldBeEmpty("--presentation-name must be refused when <Project>.<name> or its test project would be one of the template's projects, which generation would overwrite: add the name to presentationNameIsTaken.");
         refused.ShouldContain(refusal, Case.Sensitive, "refusedOptions must hold the presentation name refusal, so the #error variant catches a hand-passed bypass.");
+
+        using var item = JsonDocument.Parse(File.ReadAllText(PresentationItemManifestPath()));
+        string itemRefusal = item.RootElement.GetProperty("symbols").GetProperty("presentationNameIsTaken").GetProperty("isRequired").GetString()!;
+        projects
+            .Where(project => !itemRefusal.Contains($"name == \"{project}\"", StringComparison.Ordinal))
+            .ShouldBeEmpty("cleanarch-presentation must refuse each -n the project template refuses as --presentation-name: add the name to presentationNameIsTaken of .template.config/presentation/.template.config/template.json.");
     }
 
+    [Fact]
+    public void ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem()
+    {
+        using var project = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        using var item = JsonDocument.Parse(File.ReadAllText(PresentationItemManifestPath()));
+        var projectSymbols = project.RootElement.GetProperty("symbols");
+        var itemSymbols = item.RootElement.GetProperty("symbols");
+
+        string[] read = [.. PresentationStarters()
+            .SelectMany(starter => Directory.EnumerateFiles(Path.Combine(StartersFolder, starter), "*", SearchOption.AllDirectories))
+            .Append(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "features", "presentation.md"))
+            .SelectMany(File.ReadLines)
+            .Select(line => _condition.Match(line))
+            .Where(marker => marker.Success)
+            .SelectMany(marker => _identifier.Matches(_quoted.Replace(marker.Groups[1].Value, string.Empty)).Select(name => name.Value))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
+
+        read.Length.ShouldBeGreaterThanOrEqualTo(8, "Far fewer symbols were read from the presentation starters' markers than they use, so this rule is not reading them.");
+        read.Where(symbol => !itemSymbols.TryGetProperty(symbol, out _)).ShouldBeEmpty(
+            "The presentation starters or docs/features/presentation.md read these symbols, which cleanarch-presentation does not declare: declare each as the project template does.");
+
+        foreach (var symbol in itemSymbols.EnumerateObject().Where(symbol => symbol.Name != "presentationNameIsTaken"))
+        {
+            string type = Text(symbol.Value, "type")!;
+            if (!projectSymbols.TryGetProperty(symbol.Name, out var declared) || (type == "computed" && !read.Contains(symbol.Name)))
+            {
+                continue;
+            }
+
+            Text(declared, "type").ShouldBe(type, $"{symbol.Name} is a {type} symbol of cleanarch-presentation and of another type in the project template.");
+
+            foreach (string facet in (string[])["datatype", "defaultValue", "isRequired", "value", "replaces"])
+            {
+                Facet(symbol.Value, facet).ShouldBe(Facet(declared, facet), $"cleanarch-presentation declares the {facet} of {symbol.Name} otherwise than the project template, so the starter it copies would not be the project's.");
+            }
+
+            ChoiceValues(symbol.Value).ShouldBe(ChoiceValues(declared), $"cleanarch-presentation offers other values of {symbol.Name} than the project template.");
+        }
+
+        JsonNode.DeepEquals(StarterModifiers(project.RootElement, "./.template.config/starters/"), StarterModifiers(item.RootElement, "../starters/")).ShouldBeTrue(
+            "cleanarch-presentation must leave out of the starter exactly what the project template leaves out, under the same conditions.");
+    }
+
+    [Fact]
+    public void ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var listed = File.ReadLines(Path.Combine(StartersFolder, "blazor-server", "Src", "Presentation", "AppTemplate.PresentationApp", "README.md"))
+            .Select(line => line.Trim())
+            .ToHashSet(StringComparer.Ordinal);
+        var written = new List<(string File, string Line)>();
+
+        foreach (string path in ProjectFiles(root))
+        {
+            string text = File.ReadAllText(path);
+            if (!text.Contains('\0', StringComparison.Ordinal))
+            {
+                written.AddRange(PresentationLines(text.Split('\n')).Select(line => (Path.GetRelativePath(root, path).Replace('\\', '/'), line)));
+            }
+        }
+
+        written.Select(entry => entry.File).Distinct(StringComparer.Ordinal).Count().ShouldBeGreaterThanOrEqualTo(
+            10, "Far fewer files hold lines written for a presentation project than the template conditions, so this rule is not reading them.");
+        written.Where(entry => !listed.Contains(entry.Line)).Select(entry => $"{entry.File}: {entry.Line}").ShouldBeEmpty(
+            "--presentation writes these lines outside the presentation project's folders, and its README does not give them to a project " +
+            "that adds one with cleanarch-presentation: add each to the edits under 'Joining a project generated without one'.");
+    }
+
+    private static readonly Regex _condition = new(@"#(?:if|elseif)\s*(\(.*\))", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _marker = new(@"#(?:if|elseif|else|endif)\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _quoted = new("\"[^\"]*\"", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _identifier = new(@"\b[A-Za-z_]\w*\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _presentationSymbol = new(@"(!?)\b(?:anyPresentation|presentationBlazorServer)\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly string[] _outsideTheProject =
+        [".git", ".template.config", "Launcher", "artifacts", "bin", "obj", "node_modules", "TestResults", ".vs", ".claude", ".idea", "template"];
+
     private static string StartersFolder => Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "starters");
+
+    private static string PresentationItemManifestPath() =>
+        Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "presentation", ".template.config", "template.json");
+
+    private static IEnumerable<string> ProjectFiles(string directory) =>
+        Directory.EnumerateFiles(directory).Concat(Directory.EnumerateDirectories(directory)
+            .Where(folder => !_outsideTheProject.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
+            .SelectMany(ProjectFiles));
+
+    private static List<string> PresentationLines(string[] lines)
+    {
+        var branches = new Stack<(string Condition, bool Otherwise)>();
+        var written = new List<string>();
+
+        foreach (string line in lines)
+        {
+            Match marker = _marker.Match(line);
+
+            if (!marker.Success)
+            {
+                if (line.Trim().Length > 0 && branches.Any(branch => IsPresentationBranch(branch.Condition, branch.Otherwise)))
+                {
+                    written.Add(line.Trim());
+                }
+            }
+            else if (marker.Value == "#if")
+            {
+                branches.Push((_condition.Match(line).Groups[1].Value, false));
+            }
+            else if (marker.Value == "#elseif" && branches.TryPop(out _))
+            {
+                branches.Push((_condition.Match(line).Groups[1].Value, false));
+            }
+            else if (marker.Value == "#else" && branches.TryPop(out var branch))
+            {
+                branches.Push((branch.Condition, true));
+            }
+            else
+            {
+                branches.TryPop(out _);
+            }
+        }
+
+        return written;
+    }
+
+    private static bool IsPresentationBranch(string condition, bool otherwise) =>
+        _presentationSymbol.Match(condition) is { Success: true } match && (match.Groups[1].Value == "!") == otherwise;
+
+    private static string? Facet(JsonElement symbol, string facet) =>
+        symbol.TryGetProperty(facet, out var value) ? value.ToString() : null;
+
+    private static string[] ChoiceValues(JsonElement symbol) =>
+        symbol.TryGetProperty("choices", out var choices)
+            ? [.. choices.EnumerateArray().Select(choice => choice.GetProperty("choice").GetString()!)]
+            : [];
+
+    private static JsonNode? StarterModifiers(JsonElement manifest, string startersSource) =>
+        JsonNode.Parse(manifest.GetProperty("sources").EnumerateArray()
+            .Single(source => Text(source, "source") == $"{startersSource}blazor-server/")
+            .GetProperty("modifiers").GetRawText());
 
     private static string PresentationDescriptor(string presentation) =>
         Path.Combine(StartersFolder, presentation, "Src", "Presentation", "AppTemplate.PresentationApp", "scaffold.json");

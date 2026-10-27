@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json.schemastore.org/dotnetcli.host",
+  "symbolInfo": {
+    "projectName": {
+      "longName": "project-name",
+      "shortName": ""
+    },
+    "agentFiles": {
+      "longName": "agent-files",
+      "shortName": ""
+    },
+    "database": {
+      "longName": "database",
+      "shortName": ""
+    },
+    "presentationNameIsTaken": {
+      "longName": "presentation-name-is-taken",
+      "shortName": "",
+      "isHidden": true
+    },
+    "authNoneNeedsExamplesNone": {
+      "longName": "auth-none-needs-examples-none",
+      "shortName": "",
+      "isHidden": true
+    },
+    "authNoneNeedsFilesFalse": {
+      "longName": "auth-none-needs-files-false",
+      "shortName": "",
+      "isHidden": true
+    },
+    "mySqlNotYetGenerated": {
+      "longName": "my-sql-not-yet-generated",
+      "shortName": "",
+      "isHidden": true
+    }
+  }
+}

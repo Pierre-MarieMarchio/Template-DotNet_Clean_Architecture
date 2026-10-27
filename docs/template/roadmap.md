@@ -27,8 +27,9 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 1. **A presentation project on the application layer**
    ([#116](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/116)).
    `--presentation blazor-server` is in: a Blazor Web App that calls the use cases in process and
-   composes itself, as the API does. Still to come: a `cleanarch-presentation` item template and a
-   `presentation` command of the launcher, so a project adds one later.
+   composes itself, as the API does, and `cleanarch-presentation` adds one to a project generated
+   without it. Still to come: a `presentation` command of the launcher, which reads the project's
+   options from the project instead of asking for them.
 2. **.NET clients of the API**
    ([#117](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/117)). A
    .NET client generated from the API's OpenAPI document, then `--web blazor-wasm`, a Blazor

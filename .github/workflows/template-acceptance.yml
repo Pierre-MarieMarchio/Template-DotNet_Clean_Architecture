@@ -120,6 +120,7 @@ jobs:
             auth_context: "true"
             web: "true"
             first_app: --framework react --scope sample-generated-project --workspace
+            first_presentation: --framework blazor-server
           # Every framework starter in one workspace: the project's own app, then each other starter beside it, on a port of its own.
           - name: web, every starter
             options: --web vue --examples none --files false
@@ -243,6 +244,23 @@ jobs:
           sed -i 's#^services:$#include:\n  - path: Src/Web/apps/Site/compose.yml\n\nservices:#' docker-compose.yml
           printf 'WEB_SITE_HOST_PORT=5173\n' >> .env.example
           grep -A3 '^include:' docker-compose.yml
+
+      # A project generated without a presentation project takes one from the item template; the lines outside its folders are the edits its README lists, made by machine, so one missing fails a later step.
+      - name: Add the presentation project with cleanarch-presentation
+        if: matrix.first_presentation
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          FIRST_PRESENTATION: ${{ matrix.first_presentation }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-presentation -n Portal --project-name Sample.Generated.Project $FIRST_PRESENTATION
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation docs || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Item template token leaked::$leaked"
+            exit 1
+          fi
+          dotnet run "${{ github.workspace }}/.template.config/acceptance/ApplyPresentationEdits.cs" Src/Presentation/Sample.Generated.Project.Portal/README.md .
 
       # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON
@@ -749,3 +767,14 @@ jobs:
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
+          # The item template refuses as -n each name --presentation-name refuses.
+          out="${{ runner.temp }}/refused-presentation"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-presentation -n Api --framework blazor-server --project-name Sample.Refused); then
+            echo "::error title=Accepted::'dotnet new cleanarch-presentation -n Api' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-presentation -n Api' was refused but left files behind."
+            exit 1
+          fi

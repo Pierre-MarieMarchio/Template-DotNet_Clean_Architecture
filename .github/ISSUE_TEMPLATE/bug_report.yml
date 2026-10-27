@@ -24,7 +24,7 @@ body:
     id: command
     attributes:
       label: Generation command
-      description: The whole `dotnet new` command, every option included, and any cleanarch-webapp or cleanarch-webpackage run after it.
+      description: The whole `dotnet new` command, every option included, and any cleanarch-webapp, cleanarch-webpackage or cleanarch-presentation run after it.
       render: shell
       placeholder: dotnet new cleanarch-webapi -n Acme.Shop --auth none --examples none --files false
     validations:

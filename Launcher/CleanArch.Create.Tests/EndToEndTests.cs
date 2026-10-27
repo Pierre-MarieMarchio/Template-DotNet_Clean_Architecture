@@ -13,7 +13,7 @@ public sealed partial class EndToEndTests : IDisposable
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     [Fact]
-    public void TheLauncher_WritesWhatDotnetNewWrites_ForAProjectItsFirstWebAppAndAPackage()
+    public void TheLauncher_WritesWhatDotnetNewWrites_ForAProjectItsFirstWebAppAPackageAndAPresentationProject()
     {
         string package = PackTheTemplates();
         string hive = Path.Combine(_root, "hive");
@@ -24,8 +24,9 @@ public sealed partial class EndToEndTests : IDisposable
         Launch(_root, ["new", "-n", "Acme.Shop", "-o", "launched", .. options, "--yes", "--template-source", package, "--hive", hive]);
         Launch(launched, ["web-app", "-n", "BackOffice", "--framework", "react", "--audience", "admin", "--yes", "--template-source", package, "--hive", hive]);
         Launch(launched, ["web-package", "-n", "tokens", "--yes", "--template-source", package, "--hive", hive]);
+        Launch(launched, ["presentation", "--yes", "--template-source", package, "--hive", hive]);
 
-        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--debug:custom-hive", hive]);
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--presentation", "blazor-server", "--debug:custom-hive", hive]);
         DotNet(direct, ["new", "cleanarch-webapp", "-n", "BackOffice", "--framework", "react", "--audience", "admin", "--auth", "external", "--scope", "acme-shop", "--workspace", "--debug:custom-hive", hive]);
         DotNet(direct, ["new", "cleanarch-webpackage", "-n", "tokens", "--scope", "acme-shop", "--debug:custom-hive", hive]);
 
@@ -35,6 +36,7 @@ public sealed partial class EndToEndTests : IDisposable
         written.Where(file => file.Value != expected[file.Key]).Select(file => file.Key).ShouldBeEmpty("These files differ from what dotnet new wrote.");
         Directory.Exists(Path.Combine(launched, "Src", "Web", "apps", "BackOffice")).ShouldBeTrue();
         Directory.Exists(Path.Combine(launched, "Src", "Web", "packages", "tokens")).ShouldBeTrue();
+        File.Exists(Path.Combine(launched, "Src", "Presentation", "Acme.Shop.Portal", "Acme.Shop.Portal.csproj")).ShouldBeTrue();
     }
 
     private static void Launch(string workingDirectory, string[] arguments)
@@ -42,7 +44,7 @@ public sealed partial class EndToEndTests : IDisposable
         var console = new TestConsole();
         console.Profile.Width = 300;
 
-        int exitCode = new Launcher(console, workingDirectory, interactive: false).Run(arguments);
+        int exitCode = new Launcher(console, workingDirectory, interactive: false, new WithoutThePages()).Run(arguments);
 
         exitCode.ShouldBe(0, console.Output);
     }
@@ -86,6 +88,16 @@ public sealed partial class EndToEndTests : IDisposable
         process.WaitForExit();
 
         process.ExitCode.ShouldBe(0, $"dotnet {string.Join(' ', arguments)}{Environment.NewLine}{output.Result}{error.Result}");
+    }
+
+    private sealed class WithoutThePages : IProcessRunner
+    {
+        private readonly ProcessRunner _processes = new();
+
+        public ProcessResult Run(ProcessCall command, Action<string>? line) =>
+            command.Arguments.Contains(Launcher.PresentationScaffoldTask)
+                ? new ProcessResult(0, string.Empty)
+                : _processes.Run(command, line);
     }
 
     [GeneratedRegex("[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")]

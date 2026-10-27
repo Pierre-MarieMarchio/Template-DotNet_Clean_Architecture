@@ -33,9 +33,17 @@ At the root of a generated project, or in any folder under it, it adds a web app
 workspace: the project's authentication, workflows and scope are read from its files, and the first
 app also creates the workspace. It then prints the lines its `README.md` asks to add by hand.
 
+It adds a presentation project to a project generated without one the same way: the project's name,
+authentication, example features, Files module, database and agent files are read from its files, so
+it asks only the presentation name, and the framework once there is more than one. After
+`dotnet new cleanarch-presentation` it runs the project's `presentation-join` task, which makes the
+lines the new `README.md` lists outside the project's folders, then `presentation-scaffold`, which
+needs the network; a step that fails says why and what to run again.
+
 ```bash
 dnx CleanArch.Create web-app
 dnx CleanArch.Create web-package
+dnx CleanArch.Create presentation
 ```
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
@@ -44,6 +52,7 @@ given. Without a terminal, every answer is a flag or `--yes` is passed:
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
 dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
+dnx CleanArch.Create presentation -n Portal --yes
 ```
 
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the
@@ -210,5 +219,7 @@ An item template can add files but not edit them, so each prints the lines to ad
 writes the project, its tests and its page, and the `README.md` in the project's folder lists every
 line `--presentation` writes elsewhere, each placed by the lines around it: `.dockerignore`,
 `.env.example`, `Directory.Packages.props` under external authentication, `docker-compose.yml`,
-`AGENTS.md`, two architecture tests and the pages under `docs/`. Then
+`AGENTS.md`, two architecture tests and the pages under `docs/`.
+`dotnet run Tools/Tasks.cs presentation-join <Project>.<name>` makes them all, or none when a line
+to place one by is not found exactly once, and leaves them alone once they are in place. Then
 `dotnet run Tools/Tasks.cs presentation-scaffold <Project>.<name>` creates it, as bootstrap does.

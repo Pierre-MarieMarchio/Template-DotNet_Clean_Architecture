@@ -388,7 +388,7 @@
       "description": "Join the presentation project to the project.",
       "manualInstructions": [
         {
-          "text": "Src/Presentation/<project>.<name>/README.md, under 'Joining a project generated without one', gives the lines --presentation writes outside the project's own folders: in .dockerignore, .env.example, Directory.Packages.props (with --auth external), docker-compose.yml, AGENTS.md, two architecture tests and the pages under docs, each with the lines it goes beside. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name> at the project root, which creates its pages with dotnet new blazor and adds it to the solution, and commit the project."
+          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<project>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates its pages with dotnet new blazor and adds it to the solution, and commit the project."
         }
       ],
       "continueOnError": true

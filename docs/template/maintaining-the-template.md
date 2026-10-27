@@ -65,8 +65,8 @@ proves them all together. Every leg runs `presentation-scaffold` before the form
 does nothing without a presentation project; the three web legs that pass `--presentation
 blazor-server`, one per authentication mode, create it, build and test it, and ask it in the stack
 for its page and `/health`. The leg that adds a first app adds the presentation project too, with
-`cleanarch-presentation`, makes the edits its `README.md` lists with
-`.template.config/acceptance/ApplyPresentationEdits.cs`, and from there runs as those three do.
+`cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
+`presentation-join` task, and from there runs as those three do.
 
 | Leg | Options |
 |---|---|
@@ -272,7 +272,10 @@ cannot edit: the starter's `README.md` lists each of those lines under "Joining 
 without one", as an edit placed after or before the lines around it, or in their place, and
 `ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails until a line a
 `presentationBlazorServer` or `anyPresentation` branch writes is there. A shared file that gains such
-a branch gains its edit in the README, with an anchor that is unique in every shape.
+a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
+`presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
+the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
+lines, then the added ones.
 
 `presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
@@ -362,12 +365,30 @@ and the template package leave the folder out, and `TemplatePackagingTests` hold
 | Gate | `verify` restores, formats, builds and tests the launcher's solution after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
+Inside a generated project its item commands read the options the project was generated with from
+its files rather than asking them; `GeneratedProjectTests` holds each reading on a tree of its own:
+
+| Option | Read from |
+|---|---|
+| `-n` | the one solution file beside `Tools/Tasks.cs` |
+| `--auth` | `local` with the `Application.Auth` project, `external` with the JWT bearer package in `Directory.Packages.props`, `none` otherwise |
+| `--examples` | `all` with `Features/TodoLists` in the application project, `notes` with `Features/Notes` alone, `none` otherwise |
+| `--files` | the `Infrastructure.Storage` project |
+| `--database` | the provider package `Infrastructure.Core` references: SQL Server, SQLite, PostgreSQL otherwise |
+| `--ci`, `--agent-files` | `.github/workflows/ci.yml`, `AGENTS.md` |
+| `--scope`, `--workspace` | the name in `Src/Web/package.json`, the project's name in kebab case without one; `Src/Web` |
+
+`presentation` runs `cleanarch-presentation`, then the project's `presentation-join` and
+`presentation-scaffold` tasks, and stops before the second when the first fails.
+
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
 some combination, the launcher refuses exactly where `refusedOptions` does, and answering only what
 it offers never ends in a refusal. The terminal thread is tested on Spectre's `TestConsole`, by its
 markers and their order rather than its colours, with the processes it starts replaced. One test packs the
-templates, runs the launcher without a terminal for a project, its first web app and a package, and
-compares the tree with what `dotnet new` writes from the same answers.
+templates, runs the launcher without a terminal for a project, its first web app, a package and a
+presentation project, and compares the tree with what `dotnet new` writes from the same answers with
+`--presentation blazor-server`; it stops before `presentation-scaffold`, which fetches Microsoft's
+template package from NuGet.
 
 ```bash
 dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive

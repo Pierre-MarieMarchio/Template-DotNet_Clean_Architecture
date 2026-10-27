@@ -88,12 +88,14 @@ public sealed class ProjectSetup
         }
     }
 
-    private static SetupOutcome Failed(SetupStep step, string command, ProcessResult result, IReadOnlyList<string> rerun)
+    internal static string Why(string command, ProcessResult result)
     {
         string[] tail = [.. result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).TakeLast(_tail)];
-        string why = string.Join(Environment.NewLine, tail.Prepend($"{command} exited with code {result.ExitCode}."));
-        return new SetupOutcome(step, SetupStatus.Failed, why, rerun);
+        return string.Join(Environment.NewLine, tail.Prepend($"{command} exited with code {result.ExitCode}."));
     }
+
+    private static SetupOutcome Failed(SetupStep step, string command, ProcessResult result, IReadOnlyList<string> rerun) =>
+        new(step, SetupStatus.Failed, Why(command, result), rerun);
 
     private SetupOutcome Commit(SetupStep step, string message, bool initialise, IReadOnlyList<SetupOutcome> before)
     {

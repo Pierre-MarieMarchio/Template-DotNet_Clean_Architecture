@@ -9,6 +9,7 @@ public sealed record TemplateKind(string ShortName, string Folder)
     public static readonly TemplateKind Project = new("cleanarch-webapi", ".template.config/");
     public static readonly TemplateKind WebApp = new("cleanarch-webapp", ".template.config/webapp/.template.config/");
     public static readonly TemplateKind WebPackage = new("cleanarch-webpackage", ".template.config/webpackage/.template.config/");
+    public static readonly TemplateKind Presentation = new("cleanarch-presentation", ".template.config/presentation/.template.config/");
 }
 
 public sealed class TemplateSource

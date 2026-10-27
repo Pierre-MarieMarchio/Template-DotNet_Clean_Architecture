@@ -233,7 +233,7 @@ public sealed class GuidedConversation : Conversation
     private void Recall(string label, string value, string? reason)
     {
         Line(Rail.Answered, "green", Markup.Escape(label));
-        Railed(new Markup(reason is null
+        Railed(new Markup(string.IsNullOrEmpty(reason)
             ? $"[grey]{Markup.Escape(value)}[/]"
             : $"[grey]{Markup.Escape(value)}[/] [grey italic]· {Markup.Escape(reason)}[/]"));
         Gap();

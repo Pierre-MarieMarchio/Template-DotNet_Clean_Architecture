@@ -13,7 +13,7 @@
     <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(TemplateConfig)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</Version>
     <Title>.NET Clean Architecture API launcher</Title>
     <Authors>Pierre-MarieMarchio</Authors>
-    <Description>Creates a .NET 10 HTTP API on Clean Architecture from the CleanArch.WebApi.Templates package by asking for each option, or adds a web app or a web package to a project it generated: dnx CleanArch.Create.</Description>
+    <Description>Creates a .NET 10 HTTP API on Clean Architecture from the CleanArch.WebApi.Templates package by asking for each option, or adds a web app, a web package or a presentation project to a project it generated: dnx CleanArch.Create.</Description>
     <PackageTags>dotnet-new;dotnet-tool;clean-architecture;webapi;scaffolding</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -40,6 +40,9 @@
     <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/ide.host.json" LogicalName=".template.config/webapp/.template.config/ide.host.json" />
     <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/template.json" LogicalName=".template.config/webpackage/.template.config/template.json" />
     <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/ide.host.json" LogicalName=".template.config/webpackage/.template.config/ide.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)presentation/.template.config/template.json" LogicalName=".template.config/presentation/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)presentation/.template.config/dotnetcli.host.json" LogicalName=".template.config/presentation/.template.config/dotnetcli.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)presentation/.template.config/ide.host.json" LogicalName=".template.config/presentation/.template.config/ide.host.json" />
   </ItemGroup>
 
   <ItemGroup>

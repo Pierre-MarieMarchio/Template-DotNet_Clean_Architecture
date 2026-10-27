@@ -1,11 +1,24 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace CleanArch.Create.Projects;
 
-public sealed partial record GeneratedProject(string Root, string Name, bool HasWorkspace, string Scope, string Auth, bool Ci, bool AgentFiles)
+public sealed partial record GeneratedProject(
+    string Root,
+    string Name,
+    bool HasWorkspace,
+    string Scope,
+    string Auth,
+    string Examples,
+    bool Files,
+    string Database,
+    bool Ci,
+    bool AgentFiles)
 {
     public string WebFolder => Path.Combine(Root, "Src", "Web");
+
+    public string PresentationFolder => Path.Combine(Root, "Src", "Presentation");
 
     public static GeneratedProject? Find(string directory)
     {
@@ -32,6 +45,9 @@ public sealed partial record GeneratedProject(string Root, string Name, bool Has
             hasWorkspace,
             (hasWorkspace ? WorkspaceScope(Path.Combine(web, "package.json")) : null) ?? KebabName(name),
             Authentication(root, name),
+            ExampleFeatures(root, name),
+            Directory.Exists(Path.Combine(root, "Src", "Infrastructure", name + ".Infrastructure.Storage")),
+            DatabaseProvider(root, name),
             File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")),
             File.Exists(Path.Combine(root, "AGENTS.md")));
     }
@@ -64,6 +80,32 @@ public sealed partial record GeneratedProject(string Root, string Name, bool Has
         return File.Exists(packages) && File.ReadAllText(packages).Contains("Microsoft.AspNetCore.Authentication.JwtBearer", StringComparison.Ordinal)
             ? "external"
             : "none";
+    }
+
+    private static string ExampleFeatures(string root, string name)
+    {
+        string features = Path.Combine(root, "Src", "Application", name + ".Application", "Features");
+        if (Directory.Exists(Path.Combine(features, "TodoLists")))
+        {
+            return "all";
+        }
+
+        return Directory.Exists(Path.Combine(features, "Notes")) ? "notes" : "none";
+    }
+
+    private static string DatabaseProvider(string root, string name)
+    {
+        string project = Path.Combine(root, "Src", "Infrastructure", name + ".Infrastructure.Core", name + ".Infrastructure.Core.csproj");
+        string[] packages = File.Exists(project)
+            ? [.. XDocument.Load(project).Descendants("PackageReference").Select(reference => (string?)reference.Attribute("Include") ?? string.Empty)]
+            : [];
+
+        if (packages.Contains("Microsoft.EntityFrameworkCore.SqlServer"))
+        {
+            return "sqlserver";
+        }
+
+        return packages.Contains("Microsoft.EntityFrameworkCore.Sqlite") ? "sqlite" : "postgresql";
     }
 
     [GeneratedRegex(@"[.\s_]+")]

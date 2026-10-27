@@ -178,8 +178,9 @@ To change a value, remove the part by hand or add it:
 <!--#if (!anyPresentation)-->
 - `dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name AppTemplate`
   adds a presentation project beside the API. Pass this project's `--auth`, `--examples`, `--files`,
-  `--database` and `--agent-files` when they are not the defaults; the README it writes in the new
-  project's folder lists the lines to add by hand.
+  `--database` and `--agent-files` when they are not the defaults; then
+  `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Portal` makes the lines the README it
+  writes in the new project's folder lists outside it.
 <!--#endif-->
 
 ## Why it starts like this

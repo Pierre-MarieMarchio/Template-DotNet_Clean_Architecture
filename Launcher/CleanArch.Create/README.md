@@ -2,7 +2,7 @@
 
 Creates a .NET 10 HTTP API on Clean Architecture by asking for each option of the
 `cleanarch-webapi` template, then runs `dotnet new` with the answers. Run inside a project it
-generated, it adds a web app or a web package the same way.
+generated, it adds a web app, a web package or a presentation project the same way.
 
 ## Create a project
 
@@ -60,18 +60,29 @@ run, and a commit is skipped when a step before it did not succeed. The commands
 the ones still to run: the stack's, and those of each step that did not succeed. Without questions,
 `--setup` runs every step; without it nothing is set up.
 
-## Add a web app or a package
+## Add a web app, a package or a presentation project
 
 At the root of a generated project, or in any folder under it:
 
 ```bash
 dnx CleanArch.Create web-app
 dnx CleanArch.Create web-package
+dnx CleanArch.Create presentation
 ```
 
 The project's authentication, workflows and package scope are read from its files. The first web app
 also creates the pnpm workspace, and the launcher prints the lines its README asks to add by hand.
-Both ask on the same thread, with the same summary, as a new project.
+
+`presentation` adds a presentation project beside the API of a project generated without one. The
+project's name, authentication, example features, Files module, database and agent files are read
+from its files, so it asks the presentation name, `Portal` by default, and the framework only when
+there is more than one. A name the project already uses is refused. After `cleanarch-presentation`
+it runs the project's `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`, which makes
+the edits the new `README.md` lists outside the project's folders, all or none, then
+`presentation-scaffold`, which creates the pages with `dotnet new blazor` and needs the network. A
+step that fails says why and leaves the README's section for what remains.
+
+Each asks on the same thread, with the same summary, as a new project.
 
 ## Without questions
 
@@ -81,11 +92,12 @@ given. Without a terminal, every answer is a flag or `--yes` is passed.
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
 dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
+dnx CleanArch.Create presentation -n Portal --yes
 ```
 
 | Option | Meaning |
 |---|---|
-| `-n`, `--name` | the project, app or package name |
+| `-n`, `--name` | the project, app, package or presentation name |
 | `-o`, `--output` | where `new` writes the project, `./<name>` by default |
 | `-y`, `--yes` | the default of every option not given |
 | `--setup` | after `new`, every step of [Set the project up](#set-the-project-up), without asking |

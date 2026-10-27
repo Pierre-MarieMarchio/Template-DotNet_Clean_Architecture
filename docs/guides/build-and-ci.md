@@ -34,6 +34,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (!anyWeb)-->
 | `web-scaffold` | create the framework app a first `cleanarch-webapp --workspace` adds |
 <!--#endif-->
+| `presentation-scaffold` | create each presentation project still holding its scaffold.json |
+| `presentation-join` | the lines a presentation project added by `cleanarch-presentation` lists in its `README.md`, outside its folders |
 | `hygiene` | the self-tests of the gates this tree carries |
 | `verify` | the whole gate, in CI's order |
 

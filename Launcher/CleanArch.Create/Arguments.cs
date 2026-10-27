@@ -5,8 +5,9 @@ public sealed class Arguments
     public const string NewCommand = "new";
     public const string WebAppCommand = "web-app";
     public const string WebPackageCommand = "web-package";
+    public const string PresentationCommand = "presentation";
 
-    public static readonly IReadOnlyList<string> Commands = [NewCommand, WebAppCommand, WebPackageCommand];
+    public static readonly IReadOnlyList<string> Commands = [NewCommand, WebAppCommand, WebPackageCommand, PresentationCommand];
 
     private readonly Dictionary<string, string> _templateOptions = new(StringComparer.OrdinalIgnoreCase);
 

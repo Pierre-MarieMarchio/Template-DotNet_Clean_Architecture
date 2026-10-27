@@ -48,12 +48,77 @@ public sealed class GeneratedProjectTests : IDisposable
         GeneratedProject.Find(_root).ShouldNotBeNull().Auth.ShouldBe("none");
     }
 
+    [Theory]
+    [InlineData("all", "TodoLists", "Reminders", "Notes", "Maintenance")]
+    [InlineData("notes", "Notes", "Maintenance")]
+    [InlineData("none", "Maintenance")]
+    public void Find_ReadsTheExampleFeatures_FromTheApplicationFeatures(string examples, params string[] features)
+    {
+        AProject();
+        foreach (string feature in features)
+        {
+            Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application", "Features", feature));
+        }
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().Examples.ShouldBe(examples);
+    }
+
+    [Fact]
+    public void Find_ReadsTheFilesModule_FromItsStorageProject()
+    {
+        AProject();
+        GeneratedProject.Find(_root).ShouldNotBeNull().Files.ShouldBeFalse();
+
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Infrastructure", "Acme.Shop.Infrastructure.Storage"));
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().Files.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("Npgsql.EntityFrameworkCore.PostgreSQL", "postgresql")]
+    [InlineData("Microsoft.EntityFrameworkCore.SqlServer", "sqlserver")]
+    [InlineData("Microsoft.EntityFrameworkCore.Sqlite", "sqlite")]
+    public void Find_ReadsTheDatabase_FromTheProviderTheCoreProjectReferences(string package, string database)
+    {
+        AProject();
+        Write(
+            "Src/Infrastructure/Acme.Shop.Infrastructure.Core/Acme.Shop.Infrastructure.Core.csproj",
+            $"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <ItemGroup>
+                <PackageReference Include="Microsoft.EntityFrameworkCore" />
+                <!-- <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" /> -->
+                <PackageReference Include="{package}" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().Database.ShouldBe(database);
+    }
+
+    [Fact]
+    public void Find_ReadsTheAgentFiles_FromAgentsMd()
+    {
+        AProject();
+        GeneratedProject.Find(_root).ShouldNotBeNull().AgentFiles.ShouldBeFalse();
+
+        Write("AGENTS.md", string.Empty);
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().AgentFiles.ShouldBeTrue();
+    }
+
     [Fact]
     public void Find_SeesNoProject_WithoutTheTasksBesideTheSolution()
     {
         Write("Acme.Shop.sln", string.Empty);
 
         GeneratedProject.Find(_root).ShouldBeNull();
+    }
+
+    private void AProject()
+    {
+        Write("Acme.Shop.sln", string.Empty);
+        Write("Tools/Tasks.cs", string.Empty);
     }
 
     private void Write(string relative, string content)

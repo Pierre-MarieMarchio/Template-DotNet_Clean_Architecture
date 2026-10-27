@@ -726,6 +726,8 @@ internal static class Tasks
                 "--clean-output",
                 "--log-level", "Warning");
 
+            File.Delete(Path.Combine(output, ".kiota.log"));
+
             foreach (string file in Directory.EnumerateFiles(output, "*.cs", SearchOption.AllDirectories))
             {
                 string text = File.ReadAllText(file).Replace("\r\n", "\n", StringComparison.Ordinal).TrimStart('\uFEFF');

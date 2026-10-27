@@ -95,6 +95,8 @@ try {
 
 `unwrap` returns the body or throws an `ApiError` carrying the problem document's `code` and field
 `errors`; an answer that is no problem document becomes `response.unreadable`.
+The generated schema types a problem's `code` as a required string; `unwrap` still checks the body at run
+time, because an answer from a proxy or a crash is not a problem document.
 
 After any change to the API's contract, run `pnpm api` in `Src/Web`: it builds the API, writes its
 OpenAPI document and regenerates `Src/Web/packages/api-client/src/generated/schema.ts`, which is

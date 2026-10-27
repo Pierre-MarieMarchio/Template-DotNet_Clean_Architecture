@@ -100,6 +100,62 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
             "A global security requirement would put a padlock on every operation, including the "
             + "anonymous ones, describing the document rather than the runtime.");
     }
+
+    [Theory]
+    [InlineData("ProblemDetails")]
+    [InlineData("ValidationProblemDetails")]
+    public async Task AProblemSchema_RequiresTheCodeAndTheTraceIdTheApiAlwaysWrites(string schemaName)
+    {
+        using var document = await GetDocumentAsync(_documentPath);
+
+        var schema = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas")
+            .GetProperty(schemaName);
+
+        schema.GetProperty("properties").GetProperty("code").GetProperty("type").GetString().ShouldBe("string");
+
+        string?[] required = [.. schema.GetProperty("required").EnumerateArray().Select(name => name.GetString())];
+
+        required.ShouldBe(["type", "code", "traceId"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task TheFieldErrorsOfAValidationProblem_AreListsOfMessagesByField()
+    {
+        using var document = await GetDocumentAsync(_documentPath);
+
+        var errors = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas")
+            .GetProperty("ValidationProblemDetails")
+            .GetProperty("properties")
+            .GetProperty("errors");
+
+        errors.GetProperty("additionalProperties").GetProperty("type").GetString().ShouldBe("array");
+    }
+
+    [Fact]
+    public async Task AProblemResponse_IsDeclaredUnderTheProblemMediaTypeAlone()
+    {
+        using var document = await GetDocumentAsync(_documentPath);
+
+        var problemContents = document.RootElement
+            .GetProperty("paths")
+            .EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject())
+            .SelectMany(operation => operation.Value.GetProperty("responses").EnumerateObject())
+            .Select(response => response.Value)
+            .Where(response => response.TryGetProperty("content", out _))
+            .Select(response => response.GetProperty("content"))
+            .Where(content => content.EnumerateObject().Any(media => IsProblemSchema(media.Value)))
+            .ToArray();
+
+        problemContents.ShouldNotBeEmpty();
+
+        problemContents.ShouldAllBe(content =>
+            content.EnumerateObject().All(media => media.Name == "application/problem+json"));
+    }
     //#endif
     //#if (localAuth)
 
@@ -139,6 +195,13 @@ public sealed class OpenApiDocumentTests(ApiFixture fixture) : IntegrationTestBa
 
         required.ShouldContain("status", "a client narrows the answer on status, which it cannot do while status is optional.");
     }
+    //#endif
+
+    //#if (!publicApi)
+    private static bool IsProblemSchema(JsonElement media) =>
+        media.TryGetProperty("schema", out var schema)
+        && schema.TryGetProperty("$ref", out var reference)
+        && reference.GetString() is "#/components/schemas/ProblemDetails" or "#/components/schemas/ValidationProblemDetails";
     //#endif
 
     private async Task<JsonDocument> GetDocumentAsync(string path) =>

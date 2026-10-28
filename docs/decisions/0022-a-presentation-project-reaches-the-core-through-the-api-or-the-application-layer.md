@@ -23,7 +23,7 @@ should run.
   a host on another's behalf, and no host references another;
   `NoHost_ReferencesAnotherHost` holds it, and `OnlyAHost_ReferencesInfrastructureModules` treats
   every project with a `Program.cs` alike, but a client: a project that references the .NET client
-  of `Src/Clients` is no host, and references that client alone
+  is no host, and references that client alone
   (`EveryClient_ReachesTheCoreThroughTheApiAlone`).
 - **Jobs and migrations stay in the API.** A second host runs no background job, as
   [ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md) has it, and migrates nothing: the

@@ -13,6 +13,10 @@ rest, and a root that holds only the `.csproj`, one composition file (`Program.c
 The presentation project's root also holds `Components/` and `wwwroot/`, which its framework's
 template writes and which are its own from then on.
 <!--#endif-->
+<!--#if (dotnetClient)-->
+The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
+writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
+<!--#endif-->
 
 A brace lists every word a project allows at that level; a feature holds only the words it has
 content for.
@@ -108,6 +112,12 @@ Src/Presentation/
   <Project>.<Name>                      Common/{Hosting,Security}
                                         no Features/
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
+<!--#endif-->
+<!--#if (dotnetClient)-->
+Src/Clients/
+  AppTemplate.Client                    Common/{Composition,Errors,Sessions}
+                                        no Features/
+                                        Generated/: Kiota's, from the OpenAPI reference
 <!--#endif-->
 <!--#if (anyWeb)-->
 Src/Web/                                the pnpm workspace: apps/ and packages/

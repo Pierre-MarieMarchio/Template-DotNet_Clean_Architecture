@@ -80,6 +80,10 @@ public sealed class TemplatePackagingTests
     public void EveryAuthProjectLine_InTheSolution_IsConditionedOnLocalAuth() =>
         AssertEveryProjectLineIsConditioned(".Auth", "#" + "if (localAuth)", expectedProjects: 5);
 
+    [Fact]
+    public void EveryClientProjectLine_InTheSolution_IsConditionedOnDotnetClient() =>
+        AssertEveryProjectLineIsConditioned(".Client", "#" + "if (dotnetClient)", expectedProjects: 2);
+
     private static void AssertEveryProjectLineIsConditioned(string marker, string opening, int expectedProjects)
     {
         string closing = "#" + "endif";
@@ -113,18 +117,24 @@ public sealed class TemplatePackagingTests
         unconditioned.ShouldBeEmpty($"These solution lines name a '{marker}' project outside a block opened by '{opening}'.");
     }
 
-    [Fact]
-    public void TheToolManifestWithoutSonar_IsTheToolManifestMinusTheScanner()
+    [Theory]
+    [InlineData("no-sonar", new[] { "dotnet-sonarscanner" })]
+    [InlineData("no-client", new[] { "microsoft.openapi.kiota" })]
+    [InlineData("no-sonar-no-client", new[] { "dotnet-sonarscanner", "microsoft.openapi.kiota" })]
+    public void EachVariantToolManifest_IsTheToolManifestMinusItsTools(string variant, string[] removed)
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
         var full = JsonNode.Parse(File.ReadAllText(Path.Combine(root, ".config", "dotnet-tools.json")))!;
-        var withoutSonar = JsonNode.Parse(File.ReadAllText(
-            Path.Combine(root, ".template.config", "variants", "no-sonar", ".config", "dotnet-tools.json")))!;
+        var withoutTools = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(root, ".template.config", "variants", variant, ".config", "dotnet-tools.json")))!;
 
-        full["tools"]!.AsObject().Remove("dotnet-sonarscanner").ShouldBeTrue("The tool manifest no longer declares the scanner.");
+        foreach (string tool in removed)
+        {
+            full["tools"]!.AsObject().Remove(tool).ShouldBeTrue($"The tool manifest no longer declares {tool}.");
+        }
 
-        JsonNode.DeepEquals(full, withoutSonar).ShouldBeTrue(
-            ".template.config/variants/no-sonar/.config/dotnet-tools.json has drifted from .config/dotnet-tools.json.");
+        JsonNode.DeepEquals(full, withoutTools).ShouldBeTrue(
+            $".template.config/variants/{variant}/.config/dotnet-tools.json has drifted from .config/dotnet-tools.json.");
     }
 
     [Fact]

@@ -74,7 +74,7 @@ The project's authentication, workflows and package scope are read from its file
 also creates the pnpm workspace, and the launcher prints the lines its README asks to add by hand.
 
 `presentation` adds a presentation project beside the API of a project generated without one. The
-project's name, authentication, example features, Files module, database and agent files are read
+project's name, authentication, example features, Files module, database, agent files and whether it holds the .NET client are read
 from its files, so it asks the presentation name, `Portal` by default, and the framework only when
 there is more than one. A name the project already uses is refused. After `cleanarch-presentation`
 it runs the project's `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`, which makes
@@ -82,11 +82,12 @@ the edits the new `README.md` lists outside the project's folders, all or none, 
 `presentation-scaffold`, which creates the pages with `dotnet new blazor` and needs the network. A
 step that fails says why and leaves the README's section for what remains.
 
-`web-app` reads the project's scope, name, authentication, example features, Files module, CI and
-agent files the same way. A Blazor WebAssembly app brings the .NET client, so after
+`web-app` reads the project's scope, name, authentication, example features, Files module, CI,
+agent files and whether it holds the .NET client the same way. A Blazor WebAssembly app brings the .NET client, so after
 `cleanarch-webapp` it runs `dotnet run Tools/Tasks.cs web-join <Name>`, which makes the edits the
 app's `README.md` lists outside its folder, all or none; with `--workspace` it leaves that for after
-the workspace's own lines.
+the workspace's own lines. A project holds one Blazor WebAssembly app in this version, so a second
+is refused before anything is written.
 
 Each asks on the same thread, with the same summary, as a new project.
 

@@ -74,6 +74,30 @@ public sealed class GeneratedProjectTests : IDisposable
         GeneratedProject.Find(_root).ShouldNotBeNull().Files.ShouldBeTrue();
     }
 
+    [Fact]
+    public void Find_ReadsTheClient_FromItsProject()
+    {
+        AProject();
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Clients", "Acme.Shop.Client"));
+        GeneratedProject.Find(_root).ShouldNotBeNull().HasClient.ShouldBeFalse();
+
+        Write("Src/Clients/Acme.Shop.Client/Acme.Shop.Client.csproj", string.Empty);
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().HasClient.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Find_ReadsTheBlazorWebAssemblyApp_FromAProjectInAnAppFolder()
+    {
+        AProject();
+        Write("Src/Web/apps/Admin/package.json", string.Empty);
+        GeneratedProject.Find(_root).ShouldNotBeNull().BlazorWebAssemblyApp.ShouldBeNull();
+
+        Write("Src/Web/apps/Wasm/Acme.Shop.Wasm.csproj", string.Empty);
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().BlazorWebAssemblyApp.ShouldBe("Wasm");
+    }
+
     [Theory]
     [InlineData("Npgsql.EntityFrameworkCore.PostgreSQL", "postgresql")]
     [InlineData("Microsoft.EntityFrameworkCore.SqlServer", "sqlserver")]

@@ -76,6 +76,13 @@
       "isVisible": true
     },
     {
+      "id": "hasClient",
+      "name": {
+        "text": "Project holds the .NET client"
+      },
+      "isVisible": true
+    },
+    {
       "id": "auth",
       "name": {
         "text": "Project authentication"

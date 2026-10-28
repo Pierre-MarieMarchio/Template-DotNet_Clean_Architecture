@@ -72,15 +72,21 @@ A project generated with another `--web` value, or with a workspace from `cleana
 --workspace`, takes a WebAssembly app later, at the project root:
 
 ```bash
+<!--#if (hasClient)-->
+dotnet new cleanarch-webapp -n FrameworkSite --framework blazor-wasm --project-name AppTemplate --scope app-template --has-client true
+<!--#else-->
 dotnet new cleanarch-webapp -n FrameworkSite --framework blazor-wasm --project-name AppTemplate --scope app-template
+<!--#endif-->
 ```
 
 Pass the project's `--auth`, `--examples`, `--files` and `--agent-files` too when they are not the
-defaults: the client's files are written for them. A project generated with `--auth none` publishes
-no route for it to call, and the item template refuses it; `dotnet new` refuses a project that holds
-the client already, which it would overwrite.
+defaults: the client's files are written for them. Pass `--has-client true` when the project holds the
+.NET client already, generated with `--presentation avalonia` or added with an Avalonia presentation
+project. A project generated with `--auth none` publishes no route for it to call, and the item
+template refuses it.
 
-It writes this folder, the .NET client in `Src/Clients` with its tests, and the client's decision.
+It writes this folder, the .NET client in `Src/Clients` with its tests, and the client's decision;
+`--has-client true` leaves the client, its tests and its decision out, and its edits below with them.
 The lines `--web blazor-wasm` writes in files the item template cannot edit are listed below, each
 placed by the lines it goes beside. One task makes them all, or none when one of those lines is not
 found exactly once:
@@ -92,6 +98,7 @@ dotnet run Tools/Tasks.cs web-join FrameworkSite
 Then create the app and join the stack as above, and commit it. The edits, to make by hand where the
 task stops:
 
+<!--#if (!hasClient)-->
 - in `.config/dotnet-tools.json`, replace the lines:
 
   ```json
@@ -117,10 +124,12 @@ task stops:
   }
   ```
 
-- in `Directory.Packages.props`, before the line:
+- in `Directory.Packages.props`, after the lines:
 
   ```xml
-    <!-- One 1.18.x band. -->
+      <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    </ItemGroup>
+
   ```
 
   add:
@@ -131,6 +140,18 @@ task stops:
       <PackageVersion Include="Microsoft.Kiota.Bundle" Version="2.1.2" />
     </ItemGroup>
 
+  ```
+
+<!--#endif-->
+- in `Directory.Packages.props`, before the line:
+
+  ```xml
+    <!-- One 1.18.x band. -->
+  ```
+
+  add:
+
+  ```xml
     <ItemGroup Label="Web app on WebAssembly">
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" />
@@ -153,7 +174,7 @@ task stops:
   Src/Web/apps/FrameworkSite/obj/
   ```
 
-<!--#if (agentFiles)-->
+<!--#if (agentFiles && !hasClient)-->
 - in `AGENTS.md`, after the line:
 
   ```markdown
@@ -178,6 +199,8 @@ task stops:
   | After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
   ```
 
+<!--#endif-->
+<!--#if (agentFiles)-->
 - in `Src/Web/AGENTS.md`, before the line:
 
   ```markdown
@@ -217,7 +240,9 @@ task stops:
 
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
+<!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = null,
+<!--#endif-->
   ```
 
 - in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -231,9 +256,9 @@ task stops:
 
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
-<!--#if (localAuth)-->
+<!--#if (!hasClient && localAuth)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
-<!--#else-->
+<!--#elseif (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors"],
 <!--#endif-->
   ```
@@ -250,9 +275,12 @@ task stops:
 
   ```csharp
           ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
+<!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
+<!--#endif-->
   ```
 
+<!--#if (!hasClient)-->
 - in `docs/architecture/http-api.md`, before the lines:
 
   ```markdown
@@ -314,6 +342,7 @@ task stops:
                                           Generated/: Kiota's, from the OpenAPI reference
   ```
 
+<!--#endif-->
 - in `docs/reference/project-layout.md`, after the line:
 
   ```text

@@ -374,6 +374,7 @@ public sealed class TemplatePackagingTests
             .Order(StringComparer.Ordinal)];
         var computed = symbols.EnumerateObject()
             .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
+            .Where(symbol => symbol.Name != "refusedOptions")
             .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
         var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
 
@@ -468,31 +469,46 @@ public sealed class TemplatePackagingTests
 
             foreach (string facet in (string[])["datatype", "defaultValue", "isRequired", "value", "replaces"])
             {
+                if (facet is "value" or "isRequired" && ChoosesTheStarter(symbol.Value, facet))
+                {
+                    continue;
+                }
+
                 Facet(symbol.Value, facet).ShouldBe(Facet(declared, facet), $"cleanarch-presentation declares the {facet} of {symbol.Name} otherwise than the project template, so the starter it copies would not be the project's.");
             }
 
             ChoiceValues(symbol.Value).ShouldBe(ChoiceValues(declared), $"cleanarch-presentation offers other values of {symbol.Name} than the project template.");
         }
 
-        JsonNode.DeepEquals(StarterModifiers(project.RootElement, "./.template.config/starters/"), StarterModifiers(item.RootElement, "../starters/")).ShouldBeTrue(
-            "cleanarch-presentation must leave out of the starter exactly what the project template leaves out, under the same conditions.");
+        foreach (string starter in PresentationStarters())
+        {
+            JsonNode.DeepEquals(StarterModifiers(project.RootElement, "./.template.config/starters/", starter), StarterModifiers(item.RootElement, "../starters/", starter)).ShouldBeTrue(
+                $"cleanarch-presentation must leave out of the {starter} starter exactly what the project template leaves out, under the same conditions.");
+        }
     }
 
-    [Fact]
-    public void ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders()
+    [Theory]
+    [InlineData("blazor-server", "anyPresentation|presentationBlazorServer", new[] { "docs/features/presentation.md" })]
+    [InlineData(
+        "avalonia",
+        "anyPresentation|presentationAvalonia|dotnetClient",
+        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
+    public void ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders(string starter, string symbols, string[] broughtWhole)
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
-        var listed = File.ReadLines(Path.Combine(StartersFolder, "blazor-server", "Src", "Presentation", "AppTemplate.PresentationApp", "README.md"))
+        var listed = File.ReadLines(Path.Combine(StartersFolder, starter, "Src", "Presentation", "AppTemplate.PresentationApp", "README.md"))
             .Select(line => line.Trim())
             .ToHashSet(StringComparer.Ordinal);
+        var presentationSymbol = new Regex($@"(!?)\b(?:{symbols})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
         var written = new List<(string File, string Line)>();
 
         foreach (string path in ProjectFiles(root))
         {
+            string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
             string text = File.ReadAllText(path);
-            if (!text.Contains('\0', StringComparison.Ordinal))
+            if (!text.Contains('\0', StringComparison.Ordinal) && !broughtWhole.Any(whole => relative.StartsWith(whole, StringComparison.Ordinal)))
             {
-                written.AddRange(PresentationLines(text.Split('\n')).Select(line => (Path.GetRelativePath(root, path).Replace('\\', '/'), line)));
+                written.AddRange(PresentationLines(text.Split('\n'), presentationSymbol).Select(line => (relative, line)));
             }
         }
 
@@ -511,8 +527,6 @@ public sealed class TemplatePackagingTests
 
     private static readonly Regex _identifier = new(@"\b[A-Za-z_]\w*\b", RegexOptions.None, TimeSpan.FromSeconds(5));
 
-    private static readonly Regex _presentationSymbol = new(@"(!?)\b(?:anyPresentation|presentationBlazorServer)\b", RegexOptions.None, TimeSpan.FromSeconds(5));
-
     private static readonly string[] _outsideTheProject =
         [".git", ".template.config", "Launcher", "artifacts", "bin", "obj", "node_modules", "TestResults", ".vs", ".claude", ".idea", "template"];
 
@@ -526,7 +540,7 @@ public sealed class TemplatePackagingTests
             .Where(folder => !_outsideTheProject.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
             .SelectMany(ProjectFiles));
 
-    private static List<string> PresentationLines(string[] lines)
+    private static List<string> PresentationLines(string[] lines, Regex presentationSymbol)
     {
         var branches = new Stack<(string Condition, bool Otherwise)>();
         var written = new List<string>();
@@ -537,7 +551,7 @@ public sealed class TemplatePackagingTests
 
             if (!marker.Success)
             {
-                if (line.Trim().Length > 0 && branches.Any(branch => IsPresentationBranch(branch.Condition, branch.Otherwise)))
+                if (line.Trim().Length > 0 && branches.Any(branch => IsPresentationBranch(presentationSymbol, branch.Condition, branch.Otherwise)))
                 {
                     written.Add(line.Trim());
                 }
@@ -563,8 +577,8 @@ public sealed class TemplatePackagingTests
         return written;
     }
 
-    private static bool IsPresentationBranch(string condition, bool otherwise) =>
-        _presentationSymbol.Match(condition) is { Success: true } match && (match.Groups[1].Value == "!") == otherwise;
+    private static bool IsPresentationBranch(Regex presentationSymbol, string condition, bool otherwise) =>
+        presentationSymbol.Match(condition) is { Success: true } match && (match.Groups[1].Value == "!") == otherwise;
 
     private static string? Facet(JsonElement symbol, string facet) =>
         symbol.TryGetProperty(facet, out var value) ? value.ToString() : null;
@@ -574,10 +588,13 @@ public sealed class TemplatePackagingTests
             ? [.. choices.EnumerateArray().Select(choice => choice.GetProperty("choice").GetString()!)]
             : [];
 
-    private static JsonNode? StarterModifiers(JsonElement manifest, string startersSource) =>
+    private static JsonNode? StarterModifiers(JsonElement manifest, string startersSource, string starter) =>
         JsonNode.Parse(manifest.GetProperty("sources").EnumerateArray()
-            .Single(source => Text(source, "source") == $"{startersSource}blazor-server/")
+            .Single(source => Text(source, "source") == $"{startersSource}{starter}/")
             .GetProperty("modifiers").GetRawText());
+
+    private static bool ChoosesTheStarter(JsonElement symbol, string facet) =>
+        Facet(symbol, facet)?.Contains("framework == ", StringComparison.Ordinal) == true;
 
     private static string PresentationDescriptor(string presentation) =>
         Path.Combine(StartersFolder, presentation, "Src", "Presentation", "AppTemplate.PresentationApp", "scaffold.json");

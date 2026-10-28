@@ -61,14 +61,13 @@ jobs:
           dotnet run Tools/Tasks.cs migration-initial
 
       #endif
-      #if (dotnetClient)
       # Generated is committed, so Kiota at the version the tool manifest pins writes it again from the OpenAPI reference and any difference fails.
       - name: The .NET client is what Kiota writes from the OpenAPI reference
+        if: hashFiles('Src/Clients/**/*.csproj') != ''
         run: |
           dotnet tool restore
           dotnet run Tools/Tasks.cs api-client --check
 
-      #endif
       # Whitespace, using order and the BOM, which the build's code-style analysis does not check; before the build, to fail fast.
       - name: Verify formatting (.editorconfig)
         run: dotnet format "$SOLUTION" --verify-no-changes --no-restore --verbosity normal

@@ -26,9 +26,9 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 1. **.NET clients of the API**
    ([#117](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/117)). A
-   .NET client generated from the API's OpenAPI document, then `--web blazor-wasm`, a Blazor
-   WebAssembly app served beside the other web apps, and `--presentation avalonia`, a desktop app
-   from Avalonia's templates.
+   .NET client generated from the API's OpenAPI document and `--presentation avalonia`, its first
+   consumer, are in; then `--web blazor-wasm`, a Blazor WebAssembly app served beside the other web
+   apps, and signing in through an external provider from both clients.
 2. **Server rendering where the generator offers it**
    ([#128](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/128)).
    `--web-rendering spa|ssr`, `spa` by default and refused for the starters whose generator only

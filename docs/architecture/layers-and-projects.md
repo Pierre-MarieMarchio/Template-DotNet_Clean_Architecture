@@ -103,10 +103,10 @@ database instrumentation to add.
 
 ## The API host
 
-<!--#if (!anyPresentation)-->
+<!--#if (!presentationBlazorServer)-->
 `AppTemplate.Api` is the one project on the Web SDK. It holds the controllers, the background jobs,
 <!--#endif-->
-<!--#if (anyPresentation)-->
+<!--#if (presentationBlazorServer)-->
 `AppTemplate.Api` is the host of the HTTP contract. It holds the controllers, the background jobs,
 <!--#endif-->
 the composition root in `Program.cs`, and under `Common/` the HTTP mechanisms every feature shares.
@@ -123,6 +123,15 @@ its own process. It references the application projects and the modules it compo
 and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
 its own caller, its sign-in and the adapters a host supplies. [Presentation project](../features/presentation.md)
 describes it.
+
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+## The presentation project
+
+`Src/Presentation/<Project>.<Name>` is a desktop client: an Avalonia app that calls the API over
+HTTP through the .NET client of `Src/Clients/<Project>.Client`. It references that client alone
+(`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use
+case and no module. [Presentation project](../features/presentation.md) describes it.
 
 <!--#endif-->
 ## Composition

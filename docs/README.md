@@ -53,8 +53,11 @@ Which page answers your question, and where a new page goes.
 <!--#if (anyWeb)-->
 | [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
 <!--#endif-->
-<!--#if (anyPresentation)-->
+<!--#if (presentationBlazorServer)-->
 | [Presentation project](features/presentation.md) | the server-rendered project beside the API, and signing people in to it |
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+| [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
 <!--#endif-->
 
 ## Guides

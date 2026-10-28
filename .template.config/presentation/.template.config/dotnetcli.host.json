@@ -28,6 +28,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "clientPresentationNeedsAccounts": {
+      "longName": "client-presentation-needs-accounts",
+      "shortName": "",
+      "isHidden": true
+    },
     "mySqlNotYetGenerated": {
       "longName": "my-sql-not-yet-generated",
       "shortName": "",

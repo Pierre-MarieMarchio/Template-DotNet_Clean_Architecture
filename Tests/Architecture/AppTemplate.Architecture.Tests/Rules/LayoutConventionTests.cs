@@ -74,6 +74,9 @@ public sealed class LayoutConventionTests
         /*#if (presentationBlazorServer && publicApi)
         ["Src/Presentation/AppTemplate.PresentationApp"] = null,
         #endif*/
+        /*#if (presentationAvalonia)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        #endif*/
         //#if (dotnetClient)
         ["Src/Clients/AppTemplate.Client"] = null,
         //#endif
@@ -153,9 +156,15 @@ public sealed class LayoutConventionTests
         /*#if (presentationBlazorServer)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security"],
         #endif*/
-        //#if (dotnetClient)
+        /*#if (presentationAvalonia)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting"],
+        #endif*/
+        //#if (dotnetClient && localAuth)
         ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
         //#endif
+        /*#if (dotnetClient && !localAuth)
+        ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors"],
+        #endif*/
     };
 
     [Fact]
@@ -316,9 +325,19 @@ public sealed class LayoutConventionTests
         /*#if (presentationBlazorServer)
         ["AppTemplate.PresentationApp"] = ["Components", "wwwroot"],
         #endif*/
+        /*#if (presentationAvalonia)
+        ["AppTemplate.PresentationApp"] = ["Assets", "ViewModels", "Views"],
+        #endif*/
         //#if (dotnetClient)
         ["AppTemplate.Client"] = ["Generated"],
         //#endif
+    };
+
+    private static readonly Dictionary<string, string[]> _generatorRootFiles = new(StringComparer.Ordinal)
+    {
+        /*#if (presentationAvalonia)
+        ["AppTemplate.PresentationApp"] = ["App.axaml.cs", "ViewLocator.cs"],
+        #endif*/
     };
 
     [Fact]
@@ -335,6 +354,7 @@ public sealed class LayoutConventionTests
             var loose = Directory
                 .EnumerateFiles(root, "*.cs")
                 .Select(Path.GetFileName)
+                .Where(file => !_generatorRootFiles.GetValueOrDefault(project.Name, []).Contains(file, StringComparer.Ordinal))
                 .Order(StringComparer.Ordinal)
                 .ToList();
 
@@ -485,7 +505,7 @@ public sealed class LayoutConventionTests
             }
 
             string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file);
-            string expected = Path.GetFileNameWithoutExtension(file);
+            string expected = TypeNameOf(file);
 
             if (declared.Count > 1)
             {
@@ -601,12 +621,14 @@ public sealed class LayoutConventionTests
         || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
         || path.Contains($"{Path.DirectorySeparatorChar}node_modules", StringComparison.Ordinal);
 
-    /*#if (dotnetClient)*/
+    private static string TypeNameOf(string file) =>
+        Path.GetFileName(file) is var name && name.EndsWith(_markupCodeBehind, StringComparison.Ordinal)
+            ? name[..^_markupCodeBehind.Length]
+            : Path.GetFileNameWithoutExtension(file);
+
+    private const string _markupCodeBehind = ".axaml.cs";
+
     private static bool IsGenerated(string path) =>
         path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
         || path.Contains($"{Path.DirectorySeparatorChar}Generated{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
-    /*#else
-    private static bool IsGenerated(string path) =>
-        path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
-    #endif*/
 }

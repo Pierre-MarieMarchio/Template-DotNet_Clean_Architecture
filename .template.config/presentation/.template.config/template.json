@@ -27,6 +27,10 @@
         {
           "choice": "blazor-server",
           "description": "A Blazor Web App with server interactivity, created by dotnet new blazor when presentation-scaffold runs, calling the use cases in process."
+        },
+        {
+          "choice": "avalonia",
+          "description": "An Avalonia desktop app, created by dotnet new avalonia.mvvm when presentation-scaffold runs, calling the API through the .NET client of Src/Clients, which comes with it."
         }
       ],
       "description": "The presentation project's framework."
@@ -156,6 +160,18 @@
       "isRequired": "(auth == \"none\" && files)",
       "description": "Never set. A project generated with --auth none has no Files module: add --files false."
     },
+    "clientPresentationNeedsAccounts": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(framework == \"avalonia\" && auth == \"none\")",
+      "description": "Never set. --framework avalonia calls the API's versioned routes, and a project generated with --auth none publishes none."
+    },
     "mySqlNotYetGenerated": {
       "type": "parameter",
       "datatype": "choice",
@@ -215,6 +231,10 @@
     "presentationBlazorServer": {
       "type": "computed",
       "value": "(framework == \"blazor-server\")"
+    },
+    "presentationAvalonia": {
+      "type": "computed",
+      "value": "(framework == \"avalonia\")"
     },
     "agentFiles": {
       "type": "parameter",
@@ -333,6 +353,54 @@
       "fileRename": "PresentationApp"
     }
   },
+  "SpecialCustomOperations": {
+    "**/Generated/**.cs": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "//#kiota-never-if"
+            ],
+            "else": [
+              "//#kiota-never-else"
+            ],
+            "elseif": [
+              "//#kiota-never-elseif"
+            ],
+            "endif": [
+              "//#kiota-never-endif"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
+    "**/*.axaml": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "<!--#if"
+            ],
+            "else": [
+              "<!--#else-->"
+            ],
+            "elseif": [
+              "<!--#elseif"
+            ],
+            "endif": [
+              "<!--#endif-->"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    }
+  },
   "sources": [
     {
       "source": "../starters/blazor-server/",
@@ -375,10 +443,65 @@
       ]
     },
     {
+      "source": "../starters/avalonia/",
+      "target": "./",
+      "condition": "(presentationAvalonia)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "**/ViewModels/MainViewModelTests.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../../Src/Clients/",
+      "target": "./Src/Clients/",
+      "condition": "(presentationAvalonia)",
+      "exclude": [
+        "**/bin/**",
+        "**/obj/**"
+      ],
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "AppTemplate.Client/Common/Sessions/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../../Tests/Clients/",
+      "target": "./Tests/Clients/",
+      "condition": "(presentationAvalonia)",
+      "exclude": [
+        "**/bin/**",
+        "**/obj/**"
+      ],
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "AppTemplate.Client.UnitTests/Common/Sessions/**"
+          ]
+        }
+      ]
+    },
+    {
       "source": "../../docs/",
       "target": "./docs/",
       "include": [
         "features/presentation.md"
+      ]
+    },
+    {
+      "source": "../../docs/",
+      "target": "./docs/",
+      "condition": "(presentationAvalonia)",
+      "include": [
+        "decisions/0023-a-dotnet-client-generated-by-kiota.md"
       ]
     }
   ],

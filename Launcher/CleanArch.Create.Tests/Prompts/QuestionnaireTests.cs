@@ -68,11 +68,11 @@ public sealed class QuestionnaireTests
     {
         TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: false);
-        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["database"] = "postgresql", ["agent-files"] = "true" };
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true" };
 
         Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
 
-        presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop"]);
+        presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop", "--auth", "none", "--examples", "none", "--files", "false"]);
     }
 
     [Theory]

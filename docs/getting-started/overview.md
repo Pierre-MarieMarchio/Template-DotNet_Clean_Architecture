@@ -23,6 +23,9 @@ A pnpm workspace beside it holds its web apps.
 <!--#if (presentationBlazorServer)-->
 A Blazor Web App beside it calls the same use cases in its own process.
 <!--#endif-->
+<!--#if (presentationAvalonia)-->
+An Avalonia desktop app beside it calls the API through a .NET client generated from its document.
+<!--#endif-->
 
 It is a starting point. The modules and mechanisms it carries are meant to stay; the product's own
 features grow beside them, and the documentation grows with them.
@@ -153,6 +156,9 @@ setting, table or test names it.
 <!--#endif-->
 <!--#if (presentationBlazorServer)-->
 | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation project](../features/presentation.md)) |
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+| `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |
 <!--#endif-->
 <!--#if (!anyPresentation)-->
 | `--presentation` | `none` | no presentation project beside the API |

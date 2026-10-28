@@ -86,7 +86,7 @@ for its page and `/health`. The leg that adds a first app adds the presentation 
 | web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server` |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
-| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` and `cleanarch-presentation --framework blazor-server` |
+| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` and `cleanarch-presentation --framework avalonia` |
 | web, every starter | `--web vue --examples none --files false`, then `cleanarch-webapp` once per other framework starter, each on its own `--port` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
@@ -255,14 +255,19 @@ A `--presentation` value is a starter too, of kind `dotnet`
 `.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
 `.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationApp` (its `scaffold.json`, project file,
 `Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
-project template copies the folder into the project's root under `presentationBlazorServer`. `PresentationApp` is the token
-`--presentation-name` replaces, with `presentation-app` and `PRESENTATION_APP` beside it. The
-starter's C# is compiled only in a generated project, so a change to it is proved by generating one,
-by the three acceptance legs that pass `--presentation` and by the leg that adds one with
-`cleanarch-presentation`.
+project template copies the folder into the project's root under `presentationBlazorServer`.
+`.template.config/starters/avalonia` holds a desktop client's the same way, copied under
+`presentationAvalonia`, which sets `dotnetClient`: it keeps the files `dotnet new avalonia.mvvm`
+writes at its root and in `Assets`, `ViewModels` and `Views`, owns the project file, `Program.cs`,
+`App.axaml.cs`, the main view model and window, and references the .NET client alone.
+`PresentationApp` is the token `--presentation-name` replaces, with `presentation-app` and
+`PRESENTATION_APP` beside it. A starter's C# is compiled only in a generated project, so a change to
+it is proved by generating one: Blazor's by the three acceptance legs that pass `--presentation`,
+Avalonia's by the leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
-folder by `--framework`, with `docs/features/presentation.md`. It cannot read the project it runs
+folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` it also brings
+`Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. It cannot read the project it runs
 in, so it declares what the starter's markers read as parameters and computed symbols of the same
 names, values, defaults and refusals as `template.json`; `-n` replaces `PresentationApp` and
 `--project-name` replaces `AppTemplate` in the two spellings the source name gives it, the name and
@@ -271,8 +276,11 @@ fails when a symbol the starters read is missing or differs, or when the two tem
 different files. What `--presentation` writes outside the project's folders, an item template
 cannot edit: the starter's `README.md` lists each of those lines under "Joining a project generated
 without one", as an edit placed after or before the lines around it, or in their place, and
-`ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails until a line a
-`presentationBlazorServer` or `anyPresentation` branch writes is there. A shared file that gains such
+`ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails, for each
+starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
+`anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
+Avalonia, outside the files the item template brings whole and the solution, which
+`presentation-scaffold` completes. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
@@ -282,8 +290,10 @@ lines, then the added ones.
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
 post-action scripts declined: `dotnet new` asks again for ever on a closed input, and accepts the
 option only from a template that has such a script, so one that would ask fails instead of waiting
-for an answer. It keeps the folders the descriptor names and refuses a generated project file that
-declares a package or a property the starter's lacks. The package is pinned by hand: bump its
+for an answer. It keeps the folders and files the descriptor names, a file the starter holds
+winning, and refuses a generated project file that declares a package or a property the starter's
+lacks. A project that references the .NET client brings the client and its tests into the solution
+with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
 
@@ -303,10 +313,14 @@ included; `--check` fails until you do.
 ## The .NET client
 
 `Src/Clients/AppTemplate.Client` and its tests are built and tested in this checkout, and reach a
-generated project only when `dotnetClient` is true: a computed symbol no option sets yet, which
-also brings the `api-client` task, the Kiota entry of the tool manifest, its Dependabot group,
-the CI step that runs `api-client --check` and the `Generated` exclusion of `coverage.runsettings`,
-whose `<!--#if-->` lines `template.json` processes. The tool manifest therefore comes in four shapes:
+generated project only when `dotnetClient` is true, which `--presentation avalonia` sets, or through
+`cleanarch-presentation --framework avalonia`. Its session is written under `localAuth`, its
+validation problem under `localAuth || anyFeature`, the two shapes whose document holds them.
+`dotnetClient` also brings the Kiota entry of the tool manifest; the `api-client` task, the CI step
+that runs `api-client --check`, the Dependabot group and the `Generated` exclusions are in every
+project and act once `Src/Clients` holds the client. `Generated/` is copied as Kiota wrote it:
+`template.json` gives `**/Generated/**.cs` a conditional syntax no line uses, so Kiota's own `#if`
+lines survive and only the names are replaced. The tool manifest therefore comes in four shapes:
 `.config/dotnet-tools.json` with every tool, and `no-sonar`, `no-client` and `no-sonar-no-client`
 under `.template.config/variants/`, each the full manifest minus its tools, which
 `EachVariantToolManifest_IsTheToolManifestMinusItsTools` holds. A Kiota bump changes the full

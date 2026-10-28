@@ -93,9 +93,7 @@ internal static class Tasks
         "database-update",
         "migration-bundle",
         "openapi",
-        //#if (dotnetClient)
         "api-client",
-        //#endif
         "run",
         "compose-up",
         "compose-down",
@@ -142,32 +140,26 @@ internal static class Tasks
                                            version installed, then pnpm install and pnpm api;
                                            bootstrap runs it, and an app already created is left alone
         """;
-    //#if (dotnetClient)
 
     private const string ClientUsage =
         """
 
-        .NET client:
-          api-client                       regenerate Src/Clients/AppTemplate.Client/Generated with the
-                                           Kiota the tool manifest pins, from the OpenAPI reference
-                                           openapi writes: a BOM on each C# file, and kiota-lock.json
-                                           naming the reference by a relative path; bootstrap runs it
+        .NET client, once the project holds Src/Clients/AppTemplate.Client:
+          api-client                       regenerate its Generated folder with the Kiota the tool
+                                           manifest pins, from the OpenAPI reference openapi writes: a
+                                           BOM on each C# file, and kiota-lock.json naming the
+                                           reference by a relative path; bootstrap runs it
           api-client --check               fail when Generated differs from what the command writes;
                                            verify runs it
         """;
-    //#endif
-    //#if (templateMaintenance || dotnetClient)
 
     private static readonly string[] CheckedTasks =
     [
-        //#if (dotnetClient)
         "api-client",
-        //#endif
         //#if (templateMaintenance)
         "web-lockfiles",
         //#endif
     ];
-    //#endif
     //#if (templateMaintenance)
 
     private const string MaintenanceUsage =
@@ -208,9 +200,7 @@ internal static class Tasks
         {
             Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
             Console.WriteLine(WebUsage);
-            //#if (dotnetClient)
             Console.WriteLine(ClientUsage);
-            //#endif
             //#if (templateMaintenance)
             Console.WriteLine(MaintenanceUsage);
             //#endif
@@ -226,9 +216,7 @@ internal static class Tasks
         bool noIntegration = false;
         bool apply = false;
         bool keepStack = false;
-        //#if (templateMaintenance || dotnetClient)
         bool check = false;
-        //#endif
         string configuration = "Debug";
         string? maxCpuCount = null;
 
@@ -240,12 +228,10 @@ internal static class Tasks
             {
                 noIntegration = true;
             }
-            //#if (templateMaintenance || dotnetClient)
             else if (argument is "--check")
             {
                 check = true;
             }
-            //#endif
             else if (argument is "--apply")
             {
                 apply = true;
@@ -363,14 +349,12 @@ internal static class Tasks
         {
             throw new InvalidOperationException($"'--keep-stack' is an option of the end-to-end task, not of '{task ?? "(no task)"}'.");
         }
-        //#if (templateMaintenance || dotnetClient)
 
         if (check && (task is null || !CheckedTasks.Contains(task, StringComparer.Ordinal)))
         {
             throw new InvalidOperationException(
                 $"'--check' is an option of these tasks only, {string.Join(", ", CheckedTasks)}; not of '{task ?? "(no task)"}'.");
         }
-        //#endif
 
         if (task is null)
         {
@@ -553,12 +537,10 @@ internal static class Tasks
                 OpenApiReference(repoRoot, api);
                 break;
 
-            //#if (dotnetClient)
             case "api-client":
                 ApiClient(repoRoot, api, check);
                 break;
 
-            //#endif
             case "run":
                 Step("dotnet", "run", "--project", api);
                 break;
@@ -600,9 +582,11 @@ internal static class Tasks
                 }
 
                 InitialMigrations(contexts);
-                //#if (dotnetClient)
-                ApiClient(repoRoot, api, check: false);
-                //#endif
+
+                if (HoldsTheClient(repoRoot))
+                {
+                    ApiClient(repoRoot, api, check: false);
+                }
 
                 if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
                 {
@@ -622,9 +606,12 @@ internal static class Tasks
             case "verify":
                 RequireInitialMigrations(task, contexts);
                 Gates(repoRoot);
-                //#if (dotnetClient)
-                ApiClient(repoRoot, api, check: true);
-                //#endif
+
+                if (HoldsTheClient(repoRoot))
+                {
+                    ApiClient(repoRoot, api, check: true);
+                }
+
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
                 //#endif
@@ -651,7 +638,12 @@ internal static class Tasks
                 break;
 
             case "presentation-scaffold":
-                PresentationScaffold(repoRoot, solution, name);
+                if (PresentationScaffold(repoRoot, solution, name) && File.Exists(OpenApiReferencePath(repoRoot, api)))
+                {
+                    Step("dotnet", "tool", "restore");
+                    ApiClient(repoRoot, api, check: false);
+                }
+
                 break;
 
             case "presentation-join":
@@ -699,13 +691,25 @@ internal static class Tasks
             "-p:OpenApiGenerateDocumentsOptions=--file-name v1");
     }
 
-    //#if (dotnetClient)
+    private static string OpenApiReferencePath(string repoRoot, string api) =>
+        Path.Combine(repoRoot, "Tests", "Integration", Path.GetFileName(api) + ".IntegrationTests", "OpenApi", "v1.json");
+
+    private static string ClientFolder(string repoRoot) => Path.Combine(repoRoot, "Src", "Clients", "AppTemplate.Client");
+
+    private static bool HoldsTheClient(string repoRoot) => Directory.Exists(ClientFolder(repoRoot));
+
     private static void ApiClient(string repoRoot, string api, bool check)
     {
-        string reference = Path.Combine(repoRoot, "Tests", "Integration", Path.GetFileName(api) + ".IntegrationTests", "OpenApi", "v1.json");
-        string generated = Path.Combine(repoRoot, "Src", "Clients", "AppTemplate.Client", "Generated");
+        string reference = OpenApiReferencePath(repoRoot, api);
+        string generated = Path.Combine(ClientFolder(repoRoot), "Generated");
         string shown = Path.GetRelativePath(repoRoot, generated).Replace('\\', '/');
         string output = check ? Path.Combine(Path.GetTempPath(), "api-client-" + Guid.NewGuid().ToString("N")) : generated;
+
+        if (!HoldsTheClient(repoRoot))
+        {
+            throw new InvalidOperationException(
+                "Src/Clients/AppTemplate.Client does not exist, so there is no client to write: a presentation that calls the API through it brings it.");
+        }
 
         if (!File.Exists(reference))
         {
@@ -787,7 +791,6 @@ internal static class Tasks
             .Order(StringComparer.Ordinal);
     }
 
-    //#endif
     private static void EndToEnd(string repoRoot, string configuration, bool keepStack)
     {
         string[] compose = ["compose", "--project-name", "app-template-end-to-end", "--env-file", ".env.example"];
@@ -1142,7 +1145,7 @@ internal static class Tasks
 
     private static readonly string[] GeneratedPropertiesTheBuildSets = ["TargetFramework", "Nullable", "ImplicitUsings"];
 
-    private static void PresentationScaffold(string repoRoot, string solution, string? only)
+    private static bool PresentationScaffold(string repoRoot, string solution, string? only)
     {
         string presentation = Path.Combine(repoRoot, "Src", "Presentation");
         string[] pending = [.. Directory.GetDirectories(presentation)
@@ -1168,13 +1171,17 @@ internal static class Tasks
             }
         }
 
+        bool client = false;
+
         foreach (string folder in pending)
         {
-            ScaffoldProject(repoRoot, solution, folder);
+            client |= ScaffoldProject(repoRoot, solution, folder);
         }
+
+        return client;
     }
 
-    private static void ScaffoldProject(string repoRoot, string solution, string folder)
+    private static bool ScaffoldProject(string repoRoot, string solution, string folder)
     {
         string project = Path.GetFileName(folder);
         JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
@@ -1225,7 +1232,20 @@ internal static class Tasks
 
             foreach (string kept in (descriptor["keep"]?.AsArray() ?? []).Select(path => path?.GetValue<string>() ?? string.Empty))
             {
-                CopyFiles(Path.Combine(generated, kept), Path.Combine(folder, kept), overwrite: false);
+                string source = Path.Combine(generated, kept);
+                string target = Path.Combine(folder, kept);
+
+                if (File.Exists(source))
+                {
+                    if (!File.Exists(target))
+                    {
+                        File.Copy(source, target);
+                    }
+                }
+                else
+                {
+                    CopyFiles(source, target, overwrite: false);
+                }
             }
         }
         finally
@@ -1238,10 +1258,13 @@ internal static class Tasks
 
         File.Delete(Path.Combine(folder, ScaffoldDescriptor));
 
+        string own = Path.Combine(folder, name + ".csproj");
+        bool client = HoldsTheClient(repoRoot) && File.ReadAllText(own).Contains(@"..\..\Clients\", StringComparison.Ordinal);
         string[] projects =
         [
-            Path.Combine(folder, name + ".csproj"),
+            own,
             .. new[] { Path.Combine(repoRoot, "Tests", "Presentation", name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
+            .. (client ? ClientProjects(repoRoot) : []),
         ];
 
         Step("dotnet", ["sln", solution, "add", .. projects]);
@@ -1252,7 +1275,16 @@ internal static class Tasks
         }
 
         Write($"Created Src/Presentation/{project} from {package}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
+
+        return client;
     }
+
+    private static string[] ClientProjects(string repoRoot) =>
+        [.. new[]
+        {
+            Path.Combine(ClientFolder(repoRoot), "AppTemplate.Client.csproj"),
+            Path.Combine(repoRoot, "Tests", "Clients", "AppTemplate.Client.UnitTests", "AppTemplate.Client.UnitTests.csproj"),
+        }.Where(File.Exists)];
 
     private const string JoiningSection = "## Joining a project generated without one";
 

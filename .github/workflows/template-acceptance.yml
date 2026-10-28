@@ -120,7 +120,7 @@ jobs:
             auth_context: "true"
             web: "true"
             first_app: --framework react --scope sample-generated-project --workspace
-            first_presentation: --framework blazor-server
+            first_presentation: --framework avalonia
           # Every framework starter in one workspace: the project's own app, then each other starter beside it, on a port of its own.
           - name: web, every starter
             options: --web vue --examples none --files false
@@ -255,7 +255,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-presentation -n Portal --project-name Sample.Generated.Project $FIRST_PRESENTATION
-          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation docs || true)
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation $(ls -d Src/Clients Tests/Clients 2>/dev/null) docs || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -328,6 +328,20 @@ jobs:
         if: matrix.integration == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs openapi
+
+      # The client the item template carries was written from the template's own reference; bootstrap and presentation-scaffold write it from the project's, and the build proves that one compiles.
+      - name: Write the .NET client from the project's reference (client legs)
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          if [ ! -d Src/Clients ]; then
+            exit 0
+          fi
+          if [ ! -f Tests/Integration/Sample.Generated.Project.Api.IntegrationTests/OpenApi/v1.json ]; then
+            dotnet run Tools/Tasks.cs openapi
+          fi
+          dotnet run Tools/Tasks.cs api-client
+          dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
       # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
@@ -765,6 +779,7 @@ jobs:
           refuse alone --auth none
           refuse notes --auth none --examples notes
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
+          refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name --presentation-name refuses.

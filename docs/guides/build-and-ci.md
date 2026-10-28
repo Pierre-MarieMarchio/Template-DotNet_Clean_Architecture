@@ -25,9 +25,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
-<!--#if (dotnetClient)-->
-| `api-client` | rewrite the .NET client's `Generated/` folder from the OpenAPI reference, as `bootstrap` does after `migration-initial`; `--check` fails on a difference |
-<!--#endif-->
+| `api-client` | once the project holds the .NET client, rewrite its `Generated/` folder from the OpenAPI reference, as `bootstrap` does after `migration-initial`; `--check` fails on a difference |
 <!--#if (sonar)-->
 | `sonar` | the local Sonar analysis |
 <!--#endif-->
@@ -57,10 +55,8 @@ It refuses to start while a context has no migration, then runs `hygiene`, resto
 `dotnet format --verify-no-changes`, the build, the tests, the migration drift check for every
 context, and the vulnerability listing. The coverage floor is a
 separate task, `coverage`.
-<!--#if (dotnetClient)-->
-After `hygiene` it runs `api-client --check`, so a contract change without its regenerated client
-fails.
-<!--#endif-->
+When the project holds the .NET client, it runs `api-client --check` after `hygiene`, so a contract
+change without its regenerated client fails.
 
 On a machine short of memory, `-m:<N>` caps `restore`, `build`, `test`, `coverage` and `verify` at
 N MSBuild nodes and N test projects running at once, as in `dotnet run Tools/Tasks.cs verify -m:4`.

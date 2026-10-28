@@ -76,7 +76,7 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
 | `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |
-<!--#if (anyPresentation)-->
+<!--#if (presentationBlazorServer)-->
 | the presentation project's `Program.cs` | the same line |
 <!--#endif-->
 | `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs` | the same calls |

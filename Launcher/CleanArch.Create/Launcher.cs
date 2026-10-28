@@ -401,6 +401,7 @@ public sealed partial class Launcher
             ["auth"] = project.Auth,
             ["examples"] = project.Examples,
             ["files"] = project.Files ? Condition.True : Condition.False,
+            ["hasClient"] = project.HasClient ? Condition.True : Condition.False,
             ["ci"] = project.Ci ? Condition.True : Condition.False,
             ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
         };
@@ -413,6 +414,11 @@ public sealed partial class Launcher
         if (Directory.Exists(folder))
         {
             throw new LauncherException($"'{folder}' exists: choose another --name.");
+        }
+
+        if (manifest.Resolve("framework", asked.Options) == "blazor-wasm" && project.BlazorWebAssemblyApp is { } existing)
+        {
+            throw new LauncherException($"{project.Name} holds a Blazor WebAssembly app already, Src/Web/apps/{existing}: this version adds one per project.");
         }
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
@@ -464,6 +470,7 @@ public sealed partial class Launcher
             ["auth"] = project.Auth,
             ["examples"] = project.Examples,
             ["files"] = project.Files ? Condition.True : Condition.False,
+            ["hasClient"] = project.HasClient ? Condition.True : Condition.False,
             ["database"] = project.Database,
             ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
         };

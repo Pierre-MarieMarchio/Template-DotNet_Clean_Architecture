@@ -68,7 +68,7 @@ public sealed class QuestionnaireTests
     {
         TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: false);
-        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true" };
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false" };
 
         Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
 
@@ -229,6 +229,7 @@ public sealed class QuestionnaireTests
                 ["auth"] = "none",
                 ["examples"] = "none",
                 ["files"] = "false",
+                ["hasClient"] = "false",
                 ["ci"] = "true",
                 ["agentFiles"] = "true",
                 ["scope"] = "acme-shop",

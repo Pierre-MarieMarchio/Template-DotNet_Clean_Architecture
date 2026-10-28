@@ -141,6 +141,12 @@ template cannot edit is yours to add, exactly as `--web` would have written it f
   ```markdown
   | One pnpm workspace under `Src/Web`, Node and pnpm pinned | Apps and packages share one lockfile; nothing in the .NET build needs Node | [Web front end](../features/web-frontend.md) | — |
   ```
+
+- in `docs/reference/project-layout.md`, in the tree, above the `Tests/` line:
+
+  ```text
+  Src/Web/                                the pnpm workspace: apps/ and packages/
+  ```
 <!--#if (localAuth)-->
 
 - in `docs/decisions/0016-browser-refresh-token-in-a-cookie.md`, before `## Consequences`, and

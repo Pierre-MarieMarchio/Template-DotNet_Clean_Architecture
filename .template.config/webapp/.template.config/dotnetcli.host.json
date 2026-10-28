@@ -9,6 +9,10 @@
       "longName": "agent-files",
       "shortName": ""
     },
+    "hasClient": {
+      "longName": "has-client",
+      "shortName": ""
+    },
     "wasmWebNeedsAccounts": {
       "longName": "wasm-web-needs-accounts",
       "shortName": "",

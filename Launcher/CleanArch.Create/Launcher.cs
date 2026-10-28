@@ -472,7 +472,7 @@ public sealed partial class Launcher
         string joinLine = TemplateEngine.CommandLine("dotnet", join);
         string scaffoldLine = TemplateEngine.CommandLine("dotnet", scaffold);
         bool joined = RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folders", join);
-        bool created = joined && RunTask(session, project.Root, "Scaffold", "Creating its pages with dotnet new blazor, which needs the network", scaffold);
+        bool created = joined && RunTask(session, project.Root, "Scaffold", "Creating it with its framework's dotnet new template, which needs the network", scaffold);
         if (!joined)
         {
             session.Conversation.Reported("Scaffold skipped", false, "Join did not succeed.", [scaffoldLine]);

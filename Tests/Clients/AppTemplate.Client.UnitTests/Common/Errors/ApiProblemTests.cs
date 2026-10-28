@@ -30,6 +30,7 @@ public sealed class ApiProblemTests
         problem.FieldErrors.ShouldBeEmpty();
     }
 
+    //#if (localAuth)
     [Fact]
     public async Task AValidationAnswer_GivesItsFieldErrors()
     {
@@ -46,6 +47,7 @@ public sealed class ApiProblemTests
         problem.ErrorsFor("password").ShouldBe(["Password is required."]);
         problem.ErrorsFor("name").ShouldBeEmpty();
     }
+    //#endif
 
     [Fact]
     public async Task AnAnswerThatIsNoProblem_IsUnreadable()

@@ -13,6 +13,11 @@ rest, and a root that holds only the `.csproj`, one composition file (`Program.c
 The presentation project's root also holds `Components/` and `wwwroot/`, which its framework's
 template writes and which are its own from then on.
 <!--#endif-->
+<!--#if (presentationAvalonia)-->
+The presentation project's root also holds `Assets/`, `ViewModels/`, `Views/`, `App.axaml.cs` and
+the view locator, which its framework's template writes and which are its own from then on; a file
+named `<Type>.axaml.cs` declares `<Type>`.
+<!--#endif-->
 <!--#if (dotnetClient)-->
 The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
 writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
@@ -113,9 +118,20 @@ Src/Presentation/
                                         no Features/
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
-<!--#if (dotnetClient)-->
+<!--#if (presentationAvalonia)-->
+  <Project>.<Name>                      Common/{Hosting}
+                                        no Features/
+                                        Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
+<!--#endif-->
+<!--#if (dotnetClient && localAuth)-->
 Src/Clients/
   AppTemplate.Client                    Common/{Composition,Errors,Sessions}
+                                        no Features/
+                                        Generated/: Kiota's, from the OpenAPI reference
+<!--#endif-->
+<!--#if (dotnetClient && !localAuth)-->
+Src/Clients/
+  AppTemplate.Client                    Common/{Composition,Errors}
                                         no Features/
                                         Generated/: Kiota's, from the OpenAPI reference
 <!--#endif-->

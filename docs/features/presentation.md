@@ -4,20 +4,44 @@ How the presentation project beside the API is created, composed, and how it sig
 
 ## What you get
 
+<!--#if (presentationBlazorServer)-->
 `Src/Presentation/<Project>.<Name>` is a Blazor Web App with server interactivity. It runs on the
 server and calls the use cases in its own process, with its own composition in its `Program.cs`:
 the same features and modules as the API, its own caller, its own sign-in, and neither jobs nor
 migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+`Src/Presentation/<Project>.<Name>` is an Avalonia desktop app on the MVVM pattern, with
+CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
+client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI document
+([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It references that client
+alone, never the domain, the application layer or a module, so it composes no use case of its own
+([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
+<!--#endif-->
 
 ## Creating the project
 
+<!--#if (presentationBlazorServer)-->
 The project's own files come with the project: its project file, `Program.cs`, its settings, its
 image, and the wiring under `Common/` and `Features/`. The pages come from Microsoft's own
 template: `bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`, which runs
 `dotnet new blazor` from the template package and version the project's descriptor pins, in a
 template hive of its own, and keeps what it writes under `Components` and `wwwroot`. It then adds
 the project and its tests to the solution and formats them. The step needs the network once.
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+The project's own files come with the project: its project file, `Program.cs`, `App.axaml.cs`,
+its settings, the main window and its view model, and the wiring under `Common/`. The rest comes
+from Avalonia's own template: `bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`,
+which runs `dotnet new avalonia.mvvm` from the template package and version the project's
+descriptor pins, in a template hive of its own, and keeps what it writes under `Assets`,
+`ViewModels` and `Views`, with `App.axaml`, its view locator and `app.manifest`; a file the project
+already holds is kept. It then adds the project and its tests to the solution and formats them. The
+step needs the network once. `bootstrap` later writes the client from the API's document with
+`dotnet run Tools/Tasks.cs api-client`.
+<!--#endif-->
 
 Commit the project after bootstrap: from then on its pages are this project's own, and
 `presentation-scaffold` leaves it alone.
@@ -27,6 +51,7 @@ writes the project, its tests and this page. `dotnet run Tools/Tasks.cs presenta
 then makes the lines the `README.md` in the project's folder lists outside them, every one or none,
 and `presentation-scaffold` creates the project the same way.
 
+<!--#if (presentationBlazorServer)-->
 ## Calling a use case
 
 A Blazor Server circuit lives for as long as its browser tab, and so does the dependency-injection
@@ -158,6 +183,58 @@ revalidation.
 `DataProtectionOptionsValidatorTests` holds the key ring's setting.
 <!--#endif-->
 `NoHost_ReferencesAnotherHost` keeps it from reaching the API's jobs and migrations.
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+## Calling the API
+
+The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts: it binds and
+validates the `Api` settings, registers the client with `AddApiClient`, and the view models. A view
+model asks for `ApiClient` and calls a route as the API's document names it:
+
+```csharp
+var me = await api.Api.V1.Auth.Me.GetAsync(cancellationToken: cancellationToken);
+```
+
+A problem answer arrives as an `ApiException`; `ApiProblem.From` gives its code and its field
+errors, the code the [API reference](../reference/api.md) lists. The client retries a transient
+failure with the standard resilience handler.
+
+## Signing in
+
+<!--#if (localAuth)-->
+The main window signs in with the API's own routes. `MainViewModel` posts the email and the password
+to `POST /api/v1/auth/login`, hands the tokens to `ApiSession`, then reads `GET /api/v1/auth/me`.
+`ApiSession` keeps the access token in memory and puts it on every call; on a `401` it refreshes
+once, shared by every call waiting on it, and replays the call. The refresh token travels in the
+request body, as a client outside a browser does, and is held in memory, so a restart signs out.
+Signing out posts it to `POST /api/v1/auth/logout`. An account with a second factor is not signed
+in: the window does not ask for it.
+<!--#endif-->
+<!--#if (externalAuth)-->
+Nobody signs in: the app holds no token from your provider, so the API answers `401` to every
+route it calls. `ApiClientFactory.Create` takes an `IAccessTokenProvider`, the place a token from
+the provider goes.
+<!--#endif-->
+
+## Configure
+
+The app reads one section, `Api`, from the `appsettings.json` beside it: `BaseAddress`, the API's
+address, which it validates before showing a window. The [configuration reference](../reference/configuration.md#api)
+has the row. Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
+app with `dotnet run --project Src/Presentation/<Project>.<Name>`.
+
+## Tests
+
+`AppHostTests` builds the app's host and proves it refuses to start without an absolute API
+address, and that the view model and the client compose against it; `ApiOptionsValidatorTests`
+holds the setting.
+<!--#if (localAuth)-->
+`MainViewModelTests` drives the view model against a stub of the API: the sign-in, a refused one
+with its problem code, an account with a second factor, and the sign-out.
+<!--#endif-->
+The views are not tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app
+to the client.
+<!--#endif-->
 
 ## Decisions
 

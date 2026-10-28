@@ -16,6 +16,8 @@ internal static class ProjectReferenceGraph
 {
     private const string _infrastructurePrefix = "AppTemplate.Infrastructure.";
 
+    private const string _clientProject = "AppTemplate.Client";
+
     internal static string RepositoryRoot { get; } = LocateRepositoryRoot();
 
     internal static IReadOnlyDictionary<string, ProjectNode> SourceProjects { get; } = ReadSourceProjects();
@@ -27,7 +29,11 @@ internal static class ProjectReferenceGraph
     internal static IEnumerable<ProjectNode> InfrastructureModules =>
         SourceProjects.Values.Where(project => IsInfrastructureModule(project.Name));
 
-    internal static bool IsHost(ProjectNode project) => project is { HasProgram: true };
+    internal static bool IsClient(ProjectNode project) => project.References.Contains(_clientProject);
+
+    internal static IEnumerable<ProjectNode> Clients => SourceProjects.Values.Where(IsClient);
+
+    internal static bool IsHost(ProjectNode project) => project is { HasProgram: true } && !IsClient(project);
 
     internal static IEnumerable<ProjectNode> Hosts => SourceProjects.Values.Where(IsHost);
 

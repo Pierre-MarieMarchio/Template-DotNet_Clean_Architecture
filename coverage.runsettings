@@ -20,9 +20,7 @@
               <Exclude>
                 <Source>.*[\\/]Migrations[\\/].*</Source>
                 <Source>.*[\\/]obj[\\/].*</Source>
-                <!--#if (dotnetClient)-->
                 <Source>.*[\\/]Generated[\\/].*</Source>
-                <!--#endif-->
               </Exclude>
             </Sources>
 

@@ -13,11 +13,7 @@ public sealed class ErrorCodeTableTests
 
     private static readonly Regex _citedCode = new($"`({_codeShape})`", RegexOptions.None, TimeSpan.FromSeconds(5));
 
-    /*#if (dotnetClient)*/
     private static readonly string[] _foldersThatAnswerNoRequest = ["Clients", "Jobs", "Locks"];
-    /*#else
-    private static readonly string[] _foldersThatAnswerNoRequest = ["Jobs", "Locks"];
-    #endif*/
 
     [Fact]
     public void EveryCodeTheSourceDeclares_HasARowInTheApiReference()

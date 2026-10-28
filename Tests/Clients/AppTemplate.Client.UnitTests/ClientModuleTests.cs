@@ -1,5 +1,7 @@
 ﻿using System.Net;
+//#if (localAuth)
 using AppTemplate.Client.Common.Sessions;
+//#endif
 using AppTemplate.Client.UnitTests.TestSupport;
 using Shouldly;
 using Xunit;
@@ -25,6 +27,7 @@ public sealed class ClientModuleTests
         purged.ShouldNotBeNull().Deleted.ShouldBe(3);
         api.Sent.Count.ShouldBe(2);
     }
+    //#if (localAuth)
 
     [Fact]
     public void TheRefreshToken_IsHeldInMemory_InTheBodyMode_Unless_TheHostChoosesAStore()
@@ -37,4 +40,5 @@ public sealed class ClientModuleTests
         byDefault.RefreshTokens.ShouldBeOfType<InMemoryRefreshTokenStore>().Mode.ShouldBe(RefreshTokenMode.Body);
         chosen.Session.Mode.ShouldBe(RefreshTokenMode.Cookie);
     }
+    //#endif
 }

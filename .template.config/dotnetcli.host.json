@@ -41,6 +41,11 @@
       "longName": "presentation-name",
       "shortName": ""
     },
+    "clientPresentationNeedsAccounts": {
+      "longName": "client-presentation-needs-accounts",
+      "shortName": "",
+      "isHidden": true
+    },
     "presentationNameIsTaken": {
       "longName": "presentation-name-is-taken",
       "shortName": "",

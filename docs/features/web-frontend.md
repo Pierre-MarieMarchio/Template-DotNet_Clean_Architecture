@@ -221,6 +221,14 @@ two lines to add, also in the app's `README.md`: an `include:` entry in `docker-
 `WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
+<!--#if (accounts)-->
+
+`--framework blazor-wasm` adds a Blazor WebAssembly app. It also takes `--project-name <Project>`,
+this project's `-n`, and its `--examples`, `--files` and `--agent-files` when they are not the defaults, and
+brings the .NET client of the API, which a project holding it already cannot take twice. Its
+`README.md` lists the lines it adds outside its folders, which
+`dotnet run Tools/Tasks.cs web-join BackOffice` makes before `web-scaffold` creates the app.
+<!--#endif-->
 
 Add a framework-agnostic package, one exported function and its test, the same way:
 

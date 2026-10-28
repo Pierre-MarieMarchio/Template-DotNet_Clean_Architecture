@@ -54,17 +54,26 @@ public sealed class LauncherTests : IDisposable
     {
         string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AppTemplate.PresentationApp", "README.md");
 
-        Launcher.MarkdownSection(readme, Launcher.PresentationJoiningSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationJoinTask);
+        Launcher.MarkdownSection(readme, Launcher.JoiningSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationJoinTask);
         Launcher.MarkdownSection(readme, Launcher.PresentationCreateSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationScaffoldTask);
     }
 
     [Fact]
-    public void ThePresentationTasks_TheLauncherRuns_AreTasksOfTheProject()
+    public void TheWebAssemblyAppReadmeSection_TheLauncherJoinsBy_IsInTheStarter()
+    {
+        string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-wasm", "FrameworkSite", "README.md");
+
+        Launcher.MarkdownSection(readme, Launcher.JoiningSection).ShouldNotBeNull().ShouldContain(Launcher.WebJoinTask);
+    }
+
+    [Fact]
+    public void TheTasks_TheLauncherRuns_AreTasksOfTheProject()
     {
         string tasks = File.ReadAllText(Path.Combine(Repository.Root, "Tools", "Tasks.cs"));
 
         tasks.ShouldContain($"case \"{Launcher.PresentationJoinTask}\":");
         tasks.ShouldContain($"case \"{Launcher.PresentationScaffoldTask}\":");
+        tasks.ShouldContain($"case \"{Launcher.WebJoinTask}\":");
     }
 
     [Theory]

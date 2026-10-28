@@ -41,6 +41,27 @@
       "isVisible": true
     },
     {
+      "id": "projectName",
+      "name": {
+        "text": "Project name"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "examples",
+      "name": {
+        "text": "Project example features"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "files",
+      "name": {
+        "text": "Project Files module"
+      },
+      "isVisible": true
+    },
+    {
       "id": "ci",
       "name": {
         "text": "Project generated with --ci"

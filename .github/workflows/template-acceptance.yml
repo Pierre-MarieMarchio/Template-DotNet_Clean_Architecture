@@ -100,6 +100,7 @@ jobs:
             options: --web react --presentation blazor-server
             auth_context: "true"
             web: "true"
+            wasm_app: --scope sample-generated-project
           # No provider runs in Compose: the API needs one named to start, and fetches nothing from it until a token arrives.
           - name: web angular, external auth, notes
             options: --web angular --auth external --examples notes --presentation blazor-server
@@ -261,6 +262,45 @@ jobs:
             exit 1
           fi
           dotnet run Tools/Tasks.cs presentation-join Sample.Generated.Project.Portal
+
+      # The generated project's packageManager and .node-version are this checkout's, word for word.
+      - name: Set up pnpm (web legs)
+        if: matrix.web == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: Src/Web/package.json
+          cache: true
+          cache_dependency_path: Src/Web/pnpm-lock.yaml
+
+      - name: Set up Node.js (web legs)
+        if: matrix.web == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: Src/Web/.node-version
+
+      # A WebAssembly app brings the .NET client: its README lists the lines outside its folders, which web-join makes, and it is created before the build so every .NET step reads it.
+      - name: Add a Blazor WebAssembly app with cleanarch-webapp
+        if: matrix.wasm_app
+        working-directory: ${{ runner.temp }}/generated
+        env:
+          WASM_APP: ${{ matrix.wasm_app }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          dotnet new cleanarch-webapp -n WasmSite --framework blazor-wasm --port 8089 --project-name Sample.Generated.Project $WASM_APP
+          leaked=$( (grep -rIl -e AppTemplate -e apptemplate Src/Web/apps/WasmSite Src/Clients Tests/Clients docs; grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE Src/Web/apps/WasmSite) || true)
+          if [ -n "$leaked" ]; then
+            echo "::error title=Item template token leaked::$leaked"
+            exit 1
+          fi
+          sed -i 's#^include:$#include:\n  - path: Src/Web/apps/WasmSite/compose.yml#' docker-compose.yml
+          printf 'WEB_WASM_SITE_HOST_PORT=8089\n' >> .env.example
+          dotnet run Tools/Tasks.cs web-join WasmSite
+          if ! dotnet run Tools/Tasks.cs web-join WasmSite | grep -q 'in place already'; then
+            echo "::error title=Not idempotent::A second web-join did not find its edits in place."
+            exit 1
+          fi
+          dotnet run Tools/Tasks.cs web-scaffold WasmSite
 
       # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON
@@ -517,21 +557,6 @@ jobs:
           dotnet run Tools/Tasks.cs hygiene
           remove "${written[@]}"
           echo "::endgroup::"
-
-      # The generated project's packageManager and .node-version are this checkout's, word for word.
-      - name: Set up pnpm (web legs)
-        if: matrix.web == 'true'
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: Src/Web/package.json
-          cache: true
-          cache_dependency_path: Src/Web/pnpm-lock.yaml
-
-      - name: Set up Node.js (web legs)
-        if: matrix.web == 'true'
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: Src/Web/.node-version
 
       # A generated project holds one app, so it receives that shape's lockfile, not this checkout's union one.
       - name: Assert each generated web shape's lockfile is current
@@ -792,5 +817,16 @@ jobs:
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
             echo "::error title=Wrote files::'dotnet new cleanarch-presentation -n Api' was refused but left files behind."
+            exit 1
+          fi
+          # A WebAssembly app calls the versioned routes a project without accounts does not publish.
+          out="${{ runner.temp }}/refused-wasm-app"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-webapp -n WasmSite --framework blazor-wasm --project-name Sample.Refused --scope sample-refused --auth none); then
+            echo "::error title=Accepted::'dotnet new cleanarch-webapp --framework blazor-wasm --auth none' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework blazor-wasm --auth none' was refused but left files behind."
             exit 1
           fi

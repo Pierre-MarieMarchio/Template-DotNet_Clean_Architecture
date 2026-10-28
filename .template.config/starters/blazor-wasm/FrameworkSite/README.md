@@ -65,3 +65,264 @@ and `.env.example` names its port:
 ```bash
 WEB_FRAMEWORK_SITE_HOST_PORT=8081
 ```
+
+## Joining a project generated without one
+
+A project generated with another `--web` value, or with a workspace from `cleanarch-webapp
+--workspace`, takes a WebAssembly app later, at the project root:
+
+```bash
+dotnet new cleanarch-webapp -n FrameworkSite --framework blazor-wasm --project-name AppTemplate --scope app-template
+```
+
+Pass the project's `--auth`, `--examples`, `--files` and `--agent-files` too when they are not the
+defaults: the client's files are written for them. A project generated with `--auth none` publishes
+no route for it to call, and the item template refuses it; `dotnet new` refuses a project that holds
+the client already, which it would overwrite.
+
+It writes this folder, the .NET client in `Src/Clients` with its tests, and the client's decision.
+The lines `--web blazor-wasm` writes in files the item template cannot edit are listed below, each
+placed by the lines it goes beside. One task makes them all, or none when one of those lines is not
+found exactly once:
+
+```bash
+dotnet run Tools/Tasks.cs web-join FrameworkSite
+```
+
+Then create the app and join the stack as above, and commit it. The edits, to make by hand where the
+task stops:
+
+- in `.config/dotnet-tools.json`, replace the lines:
+
+  ```json
+        "rollForward": false
+      }
+    }
+  }
+  ```
+
+  with:
+
+  ```json
+        "rollForward": false
+      },
+      "microsoft.openapi.kiota": {
+        "version": "1.36.1",
+        "commands": [
+          "kiota"
+        ],
+        "rollForward": false
+      }
+    }
+  }
+  ```
+
+- in `Directory.Packages.props`, before the line:
+
+  ```xml
+    <!-- One 1.18.x band. -->
+  ```
+
+  add:
+
+  ```xml
+    <!-- The version the pinned Kiota tool generates for; the two move together. -->
+    <ItemGroup Label="API client">
+      <PackageVersion Include="Microsoft.Kiota.Bundle" Version="2.1.2" />
+    </ItemGroup>
+
+    <ItemGroup Label="Web app on WebAssembly">
+      <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
+      <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" />
+    </ItemGroup>
+
+  ```
+
+- in `.dockerignore`, after the line:
+
+  ```text
+  Src/Web/
+  ```
+
+  add:
+
+  ```text
+  # The WebAssembly app builds from here, beside the solution's props and the .NET client.
+  !Src/Web/apps/FrameworkSite/
+  Src/Web/apps/FrameworkSite/bin/
+  Src/Web/apps/FrameworkSite/obj/
+  ```
+
+<!--#if (agentFiles)-->
+- in `AGENTS.md`, after the line:
+
+  ```markdown
+  the local tools and creates each context's initial migration, and the other tasks assume all four.
+  ```
+
+  add:
+
+  ```markdown
+  It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.
+  ```
+
+- in `AGENTS.md`, after the line:
+
+  ```markdown
+  | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
+  ```
+
+  add:
+
+  ```markdown
+  | After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
+  ```
+
+- in `Src/Web/AGENTS.md`, before the line:
+
+  ```markdown
+  | After a change to the API's routes or bodies | `pnpm api` |
+  ```
+
+  add:
+
+  ```markdown
+  | While you work on the WebAssembly app | `dotnet watch --project apps/<Name>`, its pages without the `/api` relay |
+  ```
+
+- in `Src/Web/AGENTS.md`, after the lines:
+
+  ```markdown
+  ## Rules
+
+  ```
+
+  add:
+
+  ```markdown
+  - The WebAssembly app starts from `dotnet new blazorwasm`, which `dotnet run Tools/Tasks.cs web-scaffold`
+    runs once; it is a .NET project of the solution, built and formatted with it, and calls the API
+    through the .NET client of `Src/Clients`, never through `@app-template/api-client`.
+  ```
+
+<!--#endif-->
+- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+  line:
+
+  ```csharp
+          ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] = null,
+  ```
+
+  add:
+
+  ```csharp
+          ["Src/Web/apps/FrameworkSite"] = null,
+          ["Src/Clients/AppTemplate.Client"] = null,
+  ```
+
+- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+  line:
+
+  ```csharp
+              ["Jobs", "Localization", "Observability", "Outbound", "Security"],
+  ```
+
+  add:
+
+  ```csharp
+          ["Src/Web/apps/FrameworkSite"] = null,
+<!--#if (localAuth)-->
+          ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
+<!--#else-->
+          ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors"],
+<!--#endif-->
+  ```
+
+- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+  lines:
+
+  ```csharp
+      private static readonly Dictionary<string, string[]> _generatorRootFolders = new(StringComparer.Ordinal)
+      {
+  ```
+
+  add:
+
+  ```csharp
+          ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
+          ["AppTemplate.Client"] = ["Generated"],
+  ```
+
+- in `docs/architecture/http-api.md`, before the lines:
+
+  ```markdown
+
+  ## Errors and codes
+  ```
+
+  add:
+
+  ```markdown
+  The .NET client of `Src/Clients/AppTemplate.Client` is generated from the reference itself:
+  `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
+  manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
+  the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
+  ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
+  ```
+
+- in `docs/decisions/README.md`, after the line:
+
+  ```markdown
+  | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) | A presentation project reaches the core through the API or the application layer | Architecture |
+  ```
+
+  add:
+
+  ```markdown
+  | [0023](0023-a-dotnet-client-generated-by-kiota.md) | A .NET client generated by Kiota | Clients |
+  ```
+
+- in `docs/reference/project-layout.md`, after the line:
+
+  ```markdown
+  `…Module.cs`) and the folders `Common/`, `Features/`, `Migrations/` and `Properties/`.
+  ```
+
+  add:
+
+  ```markdown
+  The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
+  writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
+  ```
+
+- in `docs/reference/project-layout.md`, before the line:
+
+  ```text
+  Src/Web/                                the pnpm workspace: apps/ and packages/
+  ```
+
+  add:
+
+  ```text
+  Src/Clients/
+<!--#if (localAuth)-->
+    AppTemplate.Client                    Common/{Composition,Errors,Sessions}
+<!--#else-->
+    AppTemplate.Client                    Common/{Composition,Errors}
+<!--#endif-->
+                                          no Features/
+                                          Generated/: Kiota's, from the OpenAPI reference
+  ```
+
+- in `docs/reference/project-layout.md`, after the line:
+
+  ```text
+  Src/Web/                                the pnpm workspace: apps/ and packages/
+  ```
+
+  add:
+
+  ```text
+    apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
+                                          Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
+  ```

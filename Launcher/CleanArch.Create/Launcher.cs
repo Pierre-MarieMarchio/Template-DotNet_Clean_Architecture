@@ -23,7 +23,8 @@ public sealed partial class Launcher
 
         Commands
           new            create a project from cleanarch-webapi (the default outside a project)
-          web-app        add a web app to the project around the current folder (cleanarch-webapp)
+          web-app        add a web app to the project around the current folder (cleanarch-webapp);
+                         a Blazor WebAssembly app also makes the edits its README lists
           web-package    add a package to its web workspace (cleanarch-webpackage)
           presentation   add a presentation project beside its API (cleanarch-presentation),
                          make the edits its README lists, then create its pages
@@ -52,8 +53,9 @@ public sealed partial class Launcher
     private const string _itemNameSymbol = "name";
 
     internal const string PresentationJoinTask = "presentation-join";
+    internal const string WebJoinTask = "web-join";
     internal const string PresentationScaffoldTask = "presentation-scaffold";
-    internal const string PresentationJoiningSection = "## Joining a project generated without one";
+    internal const string JoiningSection = "## Joining a project generated without one";
     internal const string PresentationCreateSection = "## Create the project";
 
     private readonly IAnsiConsole _console;
@@ -387,7 +389,7 @@ public sealed partial class Launcher
         return outcomes;
     }
 
-    private static void WebApp(Session session, GeneratedProject project)
+    private void WebApp(Session session, GeneratedProject project)
     {
         TemplateManifest manifest = session.Source.Manifest(TemplateKind.WebApp);
         session.Conversation.Begin($"Add a web app to {project.Name}", session.Version);
@@ -395,7 +397,10 @@ public sealed partial class Launcher
         {
             ["workspace"] = project.HasWorkspace ? Condition.False : Condition.True,
             ["scope"] = project.Scope,
+            ["projectName"] = project.Name,
             ["auth"] = project.Auth,
+            ["examples"] = project.Examples,
+            ["files"] = project.Files ? Condition.True : Condition.False,
             ["ci"] = project.Ci ? Condition.True : Condition.False,
             ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
         };
@@ -414,10 +419,15 @@ public sealed partial class Launcher
         Install(session, project.Root);
         session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
 
-        Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options]);
         bool workspace = Condition.IsTruthy(manifest.Resolve("workspace", asked.Options));
-        string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : Path.Combine(folder, "README.md");
-        string heading = workspace ? "## The first app of a project generated without one" : "## Join the stack";
+        string appReadme = Path.Combine(folder, "README.md");
+        string[] join = ["run", "Tools/Tasks.cs", WebJoinTask, name];
+        string[] joinLines = MarkdownSection(appReadme, JoiningSection) is null ? [] : [TemplateEngine.CommandLine("dotnet", join)];
+        bool joined = joinLines.Length == 0 || (!workspace && RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folder", join));
+
+        Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options], then: joinLines);
+        string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : appReadme;
+        string heading = workspace ? "## The first app of a project generated without one" : joined ? "## Join the stack" : JoiningSection;
         session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme), [], MarkdownSection(readme, heading) ?? $"Read {readme}."));
     }
 
@@ -490,7 +500,7 @@ public sealed partial class Launcher
             return;
         }
 
-        string heading = joined ? PresentationCreateSection : PresentationJoiningSection;
+        string heading = joined ? PresentationCreateSection : JoiningSection;
         session.Conversation.Close(new Closing(shown, [], MarkdownSection(readme, heading) ?? $"Read {shown}."));
     }
 

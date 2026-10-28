@@ -105,6 +105,7 @@ internal static class Tasks
         "presentation-scaffold",
         "presentation-join",
         "web-scaffold",
+        "web-join",
         "hygiene",
         "verify",
         //#if (templateMaintenance)
@@ -139,6 +140,10 @@ internal static class Tasks
                                            app's overlay/ over the starter, pin every dependency to the
                                            version installed, then pnpm install and pnpm api;
                                            bootstrap runs it, and an app already created is left alone
+          web-join <App>                   make the edits the README of Src/Web/apps/<App> lists under
+                                           'Joining a project generated without one', as
+                                           presentation-join does: a Blazor WebAssembly app lists the
+                                           lines of the .NET client it brings
         """;
 
     private const string ClientUsage =
@@ -647,7 +652,7 @@ internal static class Tasks
                 break;
 
             case "presentation-join":
-                PresentationJoin(repoRoot, RequiredPresentation(task, name));
+                Join(repoRoot, "Src/Presentation/" + RequiredPresentation(task, name), "cleanarch-presentation", "presentation-scaffold");
                 break;
 
             case "web-scaffold":
@@ -657,6 +662,10 @@ internal static class Tasks
                     ApiClient(repoRoot, api, check: false);
                 }
 
+                break;
+
+            case "web-join":
+                Join(repoRoot, "Src/Web/apps/" + RequiredApp(task, name), "cleanarch-webapp", "web-scaffold");
                 break;
 
             //#if (templateMaintenance)
@@ -1309,14 +1318,14 @@ internal static class Tasks
     private static readonly Regex JoiningEdit = new(
         @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
 
-    private static void PresentationJoin(string repoRoot, string project)
+    private static void Join(string repoRoot, string folder, string itemTemplate, string scaffoldTask)
     {
-        string relative = $"Src/Presentation/{project}/README.md";
-        string readme = Path.Combine(repoRoot, "Src", "Presentation", project, "README.md");
+        string relative = $"{folder}/README.md";
+        string readme = Path.Combine(repoRoot, relative);
 
         if (!File.Exists(readme))
         {
-            throw new InvalidOperationException($"{relative} does not exist: name the folder cleanarch-presentation wrote under Src/Presentation.");
+            throw new InvalidOperationException($"{relative} does not exist: name the folder {itemTemplate} wrote under {Path.GetDirectoryName(folder)!.Replace('\\', '/')}.");
         }
 
         List<ReadmeEdit> edits = ReadmeEdits(File.ReadAllLines(readme), relative);
@@ -1368,7 +1377,7 @@ internal static class Tasks
         }
 
         Write(
-            $"Joined Src/Presentation/{project} to the project. Run `dotnet run Tools/Tasks.cs presentation-scaffold {project}` "
+            $"Joined {folder} to the project. Run `dotnet run Tools/Tasks.cs {scaffoldTask} {Path.GetFileName(folder)}` "
             + "next: it creates the pages and adds the project to the solution.",
             ConsoleColor.Green);
     }
@@ -1460,7 +1469,8 @@ internal static class Tasks
         {
             "after" => anchors.Any(at => Holds(lines, edit.Lines, at + edit.Anchor.Count)),
             "before" => anchors.Any(at => Holds(lines, edit.Lines, at - edit.Lines.Count)),
-            "replace" => anchors.Length == 0 && Occurrences(lines, edit.Lines).Length > 0,
+            "replace" => Occurrences(lines, edit.Lines) is { Length: > 0 } placed
+                && anchors.All(at => placed.Any(start => at >= start && at + edit.Anchor.Count <= start + edit.Lines.Count)),
             _ => anchors.Length == 0,
         };
     }
@@ -1806,6 +1816,17 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 $"The '{task}' task needs the presentation project's folder name, e.g. dotnet run Tools/Tasks.cs {task} AppTemplate.Portal");
+        }
+
+        return name;
+    }
+
+    private static string RequiredApp(string task, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidOperationException(
+                $"The '{task}' task needs the app's folder name under Src/Web/apps, e.g. dotnet run Tools/Tasks.cs {task} BackOffice");
         }
 
         return name;

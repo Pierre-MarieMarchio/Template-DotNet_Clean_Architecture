@@ -30,7 +30,7 @@
         { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
         { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." },
         { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) in single-page mode when web-scaffold runs." },
-        { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app calling the API through the .NET client; generate the project with --web blazor-wasm, which this item template does not add yet." }
+        { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app, created by dotnet new blazorwasm when web-scaffold runs, calling the API through the .NET client of Src/Clients, which comes with it." }
       ],
       "description": "The app's framework."
     },
@@ -90,6 +90,41 @@
       },
       "replaces": "8081"
     },
+    "projectName": {
+      "type": "parameter",
+      "displayName": "Project name",
+      "datatype": "text",
+      "defaultValue": "",
+      "isRequired": "(framework == \"blazor-wasm\")",
+      "description": "The project's name, as -n gave it to cleanarch-webapi and as its solution file is named (for example Acme.Shop): a Blazor WebAssembly app is the .NET project <project>.<name>, beside the client <project>.Client.",
+      "replaces": "AppTemplate",
+      "fileRename": "AppTemplate",
+      "forms": {
+        "global": [
+          "identity",
+          "lower_safe_namespace"
+        ]
+      }
+    },
+    "examples": {
+      "type": "parameter",
+      "displayName": "Project example features",
+      "datatype": "choice",
+      "defaultValue": "all",
+      "choices": [
+        { "choice": "all", "description": "The project was generated with --examples all." },
+        { "choice": "notes", "description": "The project was generated with --examples notes." },
+        { "choice": "none", "description": "The project was generated with --examples none." }
+      ],
+      "description": "The project's --examples value: the .NET client a Blazor WebAssembly app brings reads the errors its routes answer."
+    },
+    "files": {
+      "type": "parameter",
+      "displayName": "Project Files module",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "The project's --files value: the .NET client a Blazor WebAssembly app brings reads the errors its routes answer."
+    },
     "ci": {
       "type": "parameter",
       "displayName": "Project generated with --ci",
@@ -125,14 +160,14 @@
       "isRequired": "(audience == \"admin\" && auth == \"none\")",
       "description": "Never set. --audience admin signs administrators in, which --auth none cannot."
     },
-    "wasmWebAppNotYetGenerated": {
+    "wasmWebNeedsAccounts": {
       "type": "parameter",
       "datatype": "choice",
       "choices": [
         { "choice": "refused", "description": "Not an option to set: it names the refusal." }
       ],
-      "isRequired": "(framework == \"blazor-wasm\")",
-      "description": "Never set. This version of cleanarch-webapp does not add a Blazor WebAssembly app, which brings the .NET client: generate the project with --web blazor-wasm."
+      "isRequired": "(framework == \"blazor-wasm\" && auth == \"none\")",
+      "description": "Never set. --framework blazor-wasm calls the API's versioned routes, and a project generated with --auth none publishes none."
     },
     "localAuth": { "type": "computed", "value": "(auth == \"local\")" },
     "externalAuth": { "type": "computed", "value": "(auth == \"external\")" },
@@ -152,6 +187,10 @@
     "webNodeFramework": { "type": "computed", "value": "(webAngular || webVite)" },
     "webFramework": { "type": "computed", "value": "(webNodeFramework || webBlazorWasm)" },
     "adminAudience": { "type": "computed", "value": "(audience == \"admin\")" },
+    "todoLists": { "type": "computed", "value": "(examples == \"all\")" },
+    "reminders": { "type": "computed", "value": "(examples == \"all\")" },
+    "notes": { "type": "computed", "value": "(examples == \"all\" || examples == \"notes\")" },
+    "anyFeature": { "type": "computed", "value": "(todoLists || reminders || notes || files)" },
     "appName": {
       "type": "derived",
       "valueSource": "name",
@@ -232,6 +271,23 @@
       "replaces": "4200"
     }
   },
+  "SpecialCustomOperations": {
+    "**/Generated/**.cs": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [ "//#kiota-never-if" ],
+            "else": [ "//#kiota-never-else" ],
+            "elseif": [ "//#kiota-never-elseif" ],
+            "endif": [ "//#kiota-never-endif" ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    }
+  },
   "sources": [
     {
       "source": "../../Src/Web/apps/",
@@ -294,6 +350,48 @@
       "condition": "(webBlazorWasm)"
     },
     {
+      "source": "../../Src/Clients/",
+      "target": "./Src/Clients/",
+      "condition": "(webBlazorWasm)",
+      "exclude": [
+        "**/bin/**",
+        "**/obj/**"
+      ],
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "AppTemplate.Client/Common/Sessions/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../../Tests/Clients/",
+      "target": "./Tests/Clients/",
+      "condition": "(webBlazorWasm)",
+      "exclude": [
+        "**/bin/**",
+        "**/obj/**"
+      ],
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "AppTemplate.Client.UnitTests/Common/Sessions/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../../docs/",
+      "target": "./docs/",
+      "condition": "(webBlazorWasm)",
+      "include": [
+        "decisions/0023-a-dotnet-client-generated-by-kiota.md"
+      ]
+    },
+    {
       "source": "../../Src/Web/",
       "target": "./Src/Web/",
       "condition": "(workspace)",
@@ -340,6 +438,17 @@
     }
   ],
   "postActions": [
+    {
+      "condition": "(webBlazorWasm)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Join the .NET client to the project.",
+      "manualInstructions": [
+        {
+          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name>, which makes the lines --web blazor-wasm writes outside the app's folder and the client's, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one'."
+        }
+      ],
+      "continueOnError": true
+    },
     {
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
       "description": "Start the app with the rest of the stack.",

@@ -82,7 +82,7 @@ for its page and `/health`. The leg that adds a first app adds the presentation 
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |
-| web react, local auth | `--web react --presentation blazor-server` |
+| web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
 | web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server` |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
@@ -280,7 +280,9 @@ without one", as an edit placed after or before the lines around it, or in their
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
 Avalonia, outside the files the item template brings whole and the solution, which
-`presentation-scaffold` completes. A shared file that gains such
+`presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
+rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task; the overview and
+the web front end page stay as they are, since they describe the app the project was generated with. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced

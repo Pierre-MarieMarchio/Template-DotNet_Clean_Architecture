@@ -224,7 +224,16 @@ public sealed class QuestionnaireTests
         Dictionary<string, string> answers = questionnaire.Answer(
             webApp,
             _nothing,
-            new Dictionary<string, string> { ["auth"] = "none", ["ci"] = "true", ["agentFiles"] = "true", ["scope"] = "acme-shop" },
+            new Dictionary<string, string>
+            {
+                ["auth"] = "none",
+                ["examples"] = "none",
+                ["files"] = "false",
+                ["ci"] = "true",
+                ["agentFiles"] = "true",
+                ["scope"] = "acme-shop",
+                ["projectName"] = "Acme.Shop",
+            },
             new Dictionary<string, Condition>());
 
         answers["audience"].ShouldBe("public");

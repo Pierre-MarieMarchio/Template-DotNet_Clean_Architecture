@@ -489,35 +489,49 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
-    [InlineData("blazor-server", "anyPresentation|presentationBlazorServer", new[] { "docs/features/presentation.md" })]
     [InlineData(
-        "avalonia",
+        "blazor-server/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "anyPresentation|presentationBlazorServer",
+        10,
+        new[] { "docs/features/presentation.md" })]
+    [InlineData(
+        "avalonia/Src/Presentation/AppTemplate.PresentationApp/README.md",
         "anyPresentation|presentationAvalonia|dotnetClient",
+        10,
         new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
-    public void ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders(string starter, string symbols, string[] broughtWhole)
+    [InlineData(
+        "blazor-wasm/FrameworkSite/README.md",
+        "webBlazorWasm|dotnetClient",
+        7,
+        new[]
+        {
+            "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln",
+            "docs/getting-started/overview.md", "docs/features/web-frontend.md",
+        })]
+    public void TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders(string readme, string symbols, int files, string[] notListed)
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
-        var listed = File.ReadLines(Path.Combine(StartersFolder, starter, "Src", "Presentation", "AppTemplate.PresentationApp", "README.md"))
+        var listed = File.ReadLines(Path.Combine(StartersFolder, readme))
             .Select(line => line.Trim())
             .ToHashSet(StringComparer.Ordinal);
-        var presentationSymbol = new Regex($@"(!?)\b(?:{symbols})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+        var starterSymbol = new Regex($@"(!?)\b(?:{symbols})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
         var written = new List<(string File, string Line)>();
 
         foreach (string path in ProjectFiles(root))
         {
             string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
             string text = File.ReadAllText(path);
-            if (!text.Contains('\0', StringComparison.Ordinal) && !broughtWhole.Any(whole => relative.StartsWith(whole, StringComparison.Ordinal)))
+            if (!text.Contains('\0', StringComparison.Ordinal) && !notListed.Any(whole => relative.StartsWith(whole, StringComparison.Ordinal)))
             {
-                written.AddRange(PresentationLines(text.Split('\n'), presentationSymbol).Select(line => (relative, line)));
+                written.AddRange(StarterLines(text.Split('\n'), starterSymbol).Select(line => (relative, line)));
             }
         }
 
         written.Select(entry => entry.File).Distinct(StringComparer.Ordinal).Count().ShouldBeGreaterThanOrEqualTo(
-            10, "Far fewer files hold lines written for a presentation project than the template conditions, so this rule is not reading them.");
+            files, "Far fewer files hold lines written for this starter than the template conditions, so this rule is not reading them.");
         written.Where(entry => !listed.Contains(entry.Line)).Select(entry => $"{entry.File}: {entry.Line}").ShouldBeEmpty(
-            "--presentation writes these lines outside the presentation project's folders, and its README does not give them to a project " +
-            "that adds one with cleanarch-presentation: add each to the edits under 'Joining a project generated without one'.");
+            $"The project template writes these lines outside the starter's folders, and {readme} does not give them to a project " +
+            "that adds it with an item template: add each to the edits under 'Joining a project generated without one'.");
     }
 
     private static readonly Regex _condition = new(@"#(?:if|elseif)\s*(\(.*\))", RegexOptions.None, TimeSpan.FromSeconds(5));
@@ -541,7 +555,7 @@ public sealed class TemplatePackagingTests
             .Where(folder => !_outsideTheProject.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
             .SelectMany(ProjectFiles));
 
-    private static List<string> PresentationLines(string[] lines, Regex presentationSymbol)
+    private static List<string> StarterLines(string[] lines, Regex starterSymbol)
     {
         var branches = new Stack<(string Condition, bool Otherwise)>();
         var written = new List<string>();
@@ -552,7 +566,7 @@ public sealed class TemplatePackagingTests
 
             if (!marker.Success)
             {
-                if (line.Trim().Length > 0 && branches.Any(branch => IsPresentationBranch(presentationSymbol, branch.Condition, branch.Otherwise)))
+                if (line.Trim().Length > 0 && branches.Any(branch => IsStarterBranch(starterSymbol, branch.Condition, branch.Otherwise)))
                 {
                     written.Add(line.Trim());
                 }
@@ -578,8 +592,8 @@ public sealed class TemplatePackagingTests
         return written;
     }
 
-    private static bool IsPresentationBranch(Regex presentationSymbol, string condition, bool otherwise) =>
-        presentationSymbol.Match(condition) is { Success: true } match && (match.Groups[1].Value == "!") == otherwise;
+    private static bool IsStarterBranch(Regex starterSymbol, string condition, bool otherwise) =>
+        starterSymbol.Match(condition) is { Success: true } match && (match.Groups[1].Value == "!") == otherwise;
 
     private static string? Facet(JsonElement symbol, string facet) =>
         symbol.TryGetProperty(facet, out var value) ? value.ToString() : null;

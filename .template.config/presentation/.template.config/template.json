@@ -243,6 +243,13 @@
       "defaultValue": "true",
       "description": "The project's --agent-files value: the lines to add name AGENTS.md only where the project has it."
     },
+    "hasClient": {
+      "type": "parameter",
+      "displayName": "Project holds the .NET client",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "The project holds Src/Clients/<project>.Client already, generated with --web blazor-wasm or --presentation avalonia, or added by cleanarch-webapp --framework blazor-wasm: an Avalonia app uses it, and the item template writes neither the client nor its tests nor its decision."
+    },
     "developmentConnectionString": {
       "type": "generated",
       "generator": "switch",
@@ -458,7 +465,7 @@
     {
       "source": "../../Src/Clients/",
       "target": "./Src/Clients/",
-      "condition": "(presentationAvalonia)",
+      "condition": "(presentationAvalonia && !hasClient)",
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -475,7 +482,7 @@
     {
       "source": "../../Tests/Clients/",
       "target": "./Tests/Clients/",
-      "condition": "(presentationAvalonia)",
+      "condition": "(presentationAvalonia && !hasClient)",
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -499,7 +506,7 @@
     {
       "source": "../../docs/",
       "target": "./docs/",
-      "condition": "(presentationAvalonia)",
+      "condition": "(presentationAvalonia && !hasClient)",
       "include": [
         "decisions/0023-a-dotnet-client-generated-by-kiota.md"
       ]

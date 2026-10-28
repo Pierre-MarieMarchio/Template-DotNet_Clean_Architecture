@@ -225,7 +225,7 @@ placeholder, and commit the app with the lockfile. CI and Dependabot find apps b
 
 `--framework blazor-wasm` adds a Blazor WebAssembly app. It also takes `--project-name <Project>`,
 this project's `-n`, and its `--examples`, `--files` and `--agent-files` when they are not the defaults, and
-brings the .NET client of the API, which a project holding it already cannot take twice. Its
+brings the .NET client of the API, or with `--has-client true` uses the one this project holds. Its
 `README.md` lists the lines it adds outside its folders, which
 `dotnet run Tools/Tasks.cs web-join BackOffice` makes before `web-scaffold` creates the app.
 <!--#endif-->

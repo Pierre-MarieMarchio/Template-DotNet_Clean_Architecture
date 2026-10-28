@@ -122,11 +122,13 @@ jobs:
             web: "true"
             first_app: --framework react --scope sample-generated-project --workspace
             first_presentation: --framework avalonia
-          # Every framework starter in one workspace: the project's own app, the WebAssembly one with its .NET client, then each other starter beside it, on a port of its own.
+            wasm_app: --scope sample-generated-project --has-client true
+          # Every framework starter in one workspace: the project's own app, the WebAssembly one with its .NET client, an Avalonia app on that client, then each other starter beside it, on a port of its own.
           - name: web, every starter
             options: --web blazor-wasm --examples none --files false
             auth_context: "true"
             web: "true"
+            first_presentation: --framework avalonia --examples none --files false --has-client true
             more_apps: VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router
           - name: sqlite, defaults
             options: --database sqlite

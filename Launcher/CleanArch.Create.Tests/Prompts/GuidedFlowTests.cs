@@ -218,6 +218,22 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
+    public void ASecondBlazorWebAssemblyApp_IsRefusedBeforeAnythingIsInstalled()
+    {
+        AGeneratedProject();
+        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps", "Wasm"));
+        File.WriteAllText(Path.Combine(_root, "Src", "Web", "apps", "Wasm", "Acme.Shop.Wasm.csproj"), string.Empty);
+        var console = new TestConsole();
+        console.Profile.Width = 240;
+
+        new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "Second", "--framework", "blazor-wasm", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
+
+        console.Output.ShouldContain("holds a Blazor WebAssembly app already, Src/Web/apps/Wasm");
+        _processes.CommandLines.ShouldNotContain(line => line.StartsWith("dotnet new cleanarch-webapp", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void APresentationProject_ReadsTheProject_AsksItsName_ThenJoinsAndCreatesIt()
     {
         AGeneratedProject();

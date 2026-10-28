@@ -12,6 +12,7 @@ public sealed partial record GeneratedProject(
     string Auth,
     string Examples,
     bool Files,
+    bool HasClient,
     string Database,
     bool Ci,
     bool AgentFiles)
@@ -19,6 +20,14 @@ public sealed partial record GeneratedProject(
     public string WebFolder => Path.Combine(Root, "Src", "Web");
 
     public string PresentationFolder => Path.Combine(Root, "Src", "Presentation");
+
+    public string? BlazorWebAssemblyApp => Directory.Exists(Path.Combine(WebFolder, "apps"))
+        ? Directory.EnumerateDirectories(Path.Combine(WebFolder, "apps"))
+            .Where(app => Directory.EnumerateFiles(app, "*.csproj").Any())
+            .Select(Path.GetFileName)
+            .Order(StringComparer.Ordinal)
+            .FirstOrDefault()
+        : null;
 
     public static GeneratedProject? Find(string directory)
     {
@@ -47,6 +56,7 @@ public sealed partial record GeneratedProject(
             Authentication(root, name),
             ExampleFeatures(root, name),
             Directory.Exists(Path.Combine(root, "Src", "Infrastructure", name + ".Infrastructure.Storage")),
+            File.Exists(Path.Combine(root, "Src", "Clients", name + ".Client", name + ".Client.csproj")),
             DatabaseProvider(root, name),
             File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")),
             File.Exists(Path.Combine(root, "AGENTS.md")));

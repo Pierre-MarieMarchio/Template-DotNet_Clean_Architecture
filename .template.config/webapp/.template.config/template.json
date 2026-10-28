@@ -139,6 +139,13 @@
       "defaultValue": "true",
       "description": "The project's --agent-files value: with --workspace, Src/Web/AGENTS.md joins the root AGENTS.md."
     },
+    "hasClient": {
+      "type": "parameter",
+      "displayName": "Project holds the .NET client",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "The project holds Src/Clients/<project>.Client already, generated with --presentation avalonia or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
+    },
     "auth": {
       "type": "parameter",
       "displayName": "Project authentication",
@@ -352,7 +359,7 @@
     {
       "source": "../../Src/Clients/",
       "target": "./Src/Clients/",
-      "condition": "(webBlazorWasm)",
+      "condition": "(webBlazorWasm && !hasClient)",
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -369,7 +376,7 @@
     {
       "source": "../../Tests/Clients/",
       "target": "./Tests/Clients/",
-      "condition": "(webBlazorWasm)",
+      "condition": "(webBlazorWasm && !hasClient)",
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -386,7 +393,7 @@
     {
       "source": "../../docs/",
       "target": "./docs/",
-      "condition": "(webBlazorWasm)",
+      "condition": "(webBlazorWasm && !hasClient)",
       "include": [
         "decisions/0023-a-dotnet-client-generated-by-kiota.md"
       ]
@@ -441,7 +448,7 @@
     {
       "condition": "(webBlazorWasm)",
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
-      "description": "Join the .NET client to the project.",
+      "description": "Join the Blazor WebAssembly app to the project.",
       "manualInstructions": [
         {
           "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name>, which makes the lines --web blazor-wasm writes outside the app's folder and the client's, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one'."

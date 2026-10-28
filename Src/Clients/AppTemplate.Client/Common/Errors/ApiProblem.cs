@@ -1,6 +1,8 @@
 ﻿using AppTemplate.Client.Generated.Models;
 using Microsoft.Kiota.Abstractions;
+//#if (localAuth || anyFeature)
 using Microsoft.Kiota.Abstractions.Serialization;
+//#endif
 
 namespace AppTemplate.Client.Common.Errors;
 
@@ -22,12 +24,14 @@ public sealed record ApiProblem(
 
         return error switch
         {
+            //#if (localAuth || anyFeature)
             ValidationProblemDetails { Code: { Length: > 0 } code } validation => new ApiProblem(
                 error.ResponseStatusCode,
                 code,
                 validation.Detail ?? validation.Title,
                 validation.TraceId,
                 FieldErrorsOf(validation.Errors)),
+            //#endif
             ProblemDetails { Code: { Length: > 0 } code } problem => new ApiProblem(
                 error.ResponseStatusCode,
                 code,
@@ -40,6 +44,7 @@ public sealed record ApiProblem(
 
     public IReadOnlyList<string> ErrorsFor(string field) =>
         FieldErrors.TryGetValue(field, out var messages) ? messages : [];
+    //#if (localAuth || anyFeature)
 
     private static Dictionary<string, IReadOnlyList<string>> FieldErrorsOf(ValidationProblemDetails_errors? errors) =>
         (errors?.AdditionalData ?? new Dictionary<string, object>())
@@ -52,4 +57,5 @@ public sealed record ApiProblem(
         value is UntypedArray array
             ? [.. array.GetValue().OfType<UntypedString>().Select(message => message.GetValue()).OfType<string>()]
             : [];
+    //#endif
 }

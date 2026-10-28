@@ -43,23 +43,19 @@ public sealed class OutboundHttpTests
     [Fact]
     public void EveryHost_InstallsTheOutboundPolicy()
     {
-        var entryPoints = Directory
-            .EnumerateFiles(
-                Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation"),
-                "Program.cs",
-                SearchOption.AllDirectories)
-            .Where(IsProductionSource)
+        var entryPoints = ProjectReferenceGraph.Hosts
+            .Select(host => Path.Combine(ProjectReferenceGraph.RootOf(host), "Program.cs"))
             .Order(StringComparer.Ordinal)
             .ToList();
 
         entryPoints.Count.ShouldBe(
-            /*#if (!anyPresentation)*/
+            /*#if (!presentationBlazorServer)*/
             1,
             /*#else
             2,
             #endif*/
             "Each host arrives through this number, so that the line below is read about it too: " +
-            "AppTemplate.Api, which runs the background jobs, and the presentation project when there is one.");
+            "AppTemplate.Api, which runs the background jobs, and the presentation project when it is a server host.");
 
         var missing = entryPoints
             .Where(entryPoint => !_policyInstalled.IsMatch(File.ReadAllText(entryPoint)))

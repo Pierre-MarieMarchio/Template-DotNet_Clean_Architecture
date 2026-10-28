@@ -59,23 +59,20 @@ public sealed class ApiSessionTests
         var api = new StubApi(request => Task.FromResult(request switch
         {
             { Path: _refresh } => StubApi.Json(HttpStatusCode.OK, StubApi.Tokens("a2", "r2")),
-            { Authorization: "Bearer a2" } => StubApi.Json(
-                HttpStatusCode.Created,
-                """{"id":"00000000-0000-0000-0000-000000000001","name":"Groceries"}"""),
+            { Authorization: "Bearer a2" } => new HttpResponseMessage(HttpStatusCode.NoContent),
             _ => StubApi.Problem(HttpStatusCode.Unauthorized, _unauthorized),
         }));
         using var harness = new ClientHarness(api);
         await harness.Session.SignedInAsync(new TokenResponse { AccessToken = "a1", RefreshToken = "r1" }, Cancellation);
 
-        var created = await harness.Client.Api.V1.TodoLists.PostAsync(
-            new CreateTodoListRequest { Name = "Groceries" },
+        await harness.Client.Api.V1.Auth.ChangePassword.PostAsync(
+            new ChangePasswordRequest { CurrentPassword = "Before-1", NewPassword = "After-2" },
             cancellationToken: Cancellation);
 
-        created.ShouldNotBeNull().Name.ShouldBe("Groceries");
-        var sent = api.SentTo("/api/v1/todo-lists").ToList();
+        var sent = api.SentTo("/api/v1/auth/change-password").ToList();
         sent.Count.ShouldBe(2);
         sent[1].Body.ShouldBe(sent[0].Body);
-        sent[1].Body.ShouldContain("Groceries");
+        sent[1].Body.ShouldContain("After-2");
     }
 
     [Fact]

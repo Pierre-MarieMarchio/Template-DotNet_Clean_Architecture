@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AppTemplate.PresentationApp.ViewModels"
+        x:Class="AppTemplate.PresentationApp.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="AppTemplate.PresentationApp"
+        Width="480" Height="360">
+
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="{Binding ApiAddress, StringFormat='API: {0}'}" />
+<!--#if (localAuth)-->
+    <StackPanel Spacing="8" IsVisible="{Binding SignedInAs, Converter={x:Static ObjectConverters.IsNull}}">
+      <TextBox Watermark="Email" Text="{Binding Email}" />
+      <TextBox Watermark="Password" PasswordChar="•" Text="{Binding Password}" />
+      <Button Content="Sign in" Command="{Binding SignInCommand}" />
+    </StackPanel>
+    <StackPanel Spacing="8" IsVisible="{Binding SignedInAs, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <TextBlock Text="{Binding SignedInAs, StringFormat='Signed in as {0}'}" />
+      <Button Content="Sign out" Command="{Binding SignOutCommand}" />
+    </StackPanel>
+    <TextBlock Text="{Binding Problem}" Foreground="Firebrick" />
+<!--#else-->
+    <TextBlock Text="Signed out: this app does not sign in through the identity provider." TextWrapping="Wrap" />
+<!--#endif-->
+  </StackPanel>
+
+</Window>

@@ -29,11 +29,8 @@ updates:
         exclude-patterns:
           - Microsoft.IdentityModel.*
           - Microsoft.Testing.*
-          #if (dotnetClient)
           - Microsoft.Kiota.*
           - Microsoft.OpenApi.Kiota
-          #endif
-      #if (dotnetClient)
 
       # The Kiota tool and the runtime its output is written for, in one pull request, which api-client regenerates against.
       kiota:
@@ -41,7 +38,6 @@ updates:
         patterns:
           - Microsoft.Kiota.*
           - Microsoft.OpenApi.Kiota
-      #endif
 
       identity-model:
         applies-to: version-updates

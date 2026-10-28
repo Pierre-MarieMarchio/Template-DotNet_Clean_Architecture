@@ -182,11 +182,9 @@ dotnet_diagnostic.S1075.severity = none
 [**/Migrations/*.cs]
 generated_code = true
 dotnet_diagnostic.IDE0005.severity = none
-#if (dotnetClient)
 
 [**/Generated/**.cs]
 generated_code = true
-#endif
 
 [Tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none   # underscores in test method names are intentional

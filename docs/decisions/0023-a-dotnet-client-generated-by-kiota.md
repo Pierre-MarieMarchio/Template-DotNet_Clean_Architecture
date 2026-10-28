@@ -45,7 +45,7 @@ wrapper, the same for every app.
   problem document, or one without a `code`, becomes `response.unreadable`, so a caller branches on
   codes alone.
 - **A client reaches the core through the API alone.** A project under `Src/Clients` references
-  nothing outside `Src/Clients`; `TheClients_ReachTheCoreThroughTheApiAlone` holds it.
+  nothing outside `Src/Clients`; `EveryClient_ReachesTheCoreThroughTheApiAlone` holds it.
 
 ## Alternatives considered
 

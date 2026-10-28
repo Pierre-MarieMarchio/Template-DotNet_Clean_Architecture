@@ -548,12 +548,17 @@ internal static class NewFeature
         return Directory.Exists(presentation)
             ? Directory.GetDirectories(presentation)
                 .Where(folder => File.Exists(System.IO.Path.Combine(folder, "Program.cs")))
+                .Where(folder => !IsClientPresentation(folder))
                 .Select(System.IO.Path.GetFileName)
                 .OfType<string>()
                 .Where(host => host != $"{prefix}.Api")
                 .Order(StringComparer.Ordinal)
             : [];
     }
+
+    private static bool IsClientPresentation(string folder) =>
+        Directory.EnumerateFiles(folder, "*.csproj")
+            .Any(project => File.ReadAllText(project).Contains(@"..\..\Clients\", StringComparison.Ordinal));
 
     private static string HostComposition(string root, string host, string adapter)
     {
@@ -2052,6 +2057,22 @@ internal static class NewFeature
             hosted.Output.Contains("Src/Presentation/Acme.Portal/Features/Auth/Composition/CookieSessionComposition.cs", StringComparison.Ordinal),
             "The directory's registration was not printed for the presentation host's composition.");
         ExpectRemovable(presented, presentedTree, "Widgets", 8, expect);
+
+        string desktop = System.IO.Path.Combine(presented, "Src/Presentation/Acme.Desk");
+
+        Directory.CreateDirectory(desktop);
+        File.WriteAllText(System.IO.Path.Combine(desktop, "Program.cs"), "return 0;\n");
+        File.WriteAllText(
+            System.IO.Path.Combine(desktop, "Acme.Desk.csproj"),
+            "<Project><ItemGroup><ProjectReference Include=\"..\\..\\Clients\\Acme.Client\\Acme.Client.csproj\" /></ItemGroup></Project>\n");
+
+        var withClient = Invoke(presented, "Gadgets", "Gadget", "--access", "owner", "--deletion", "delete");
+
+        expect(withClient.Code == 0, $"An owner feature into a tree with a client presentation was refused: {withClient.Error.Split('\n')[0]}");
+        expect(
+            !withClient.Output.Contains("Acme.Desk", StringComparison.Ordinal)
+                && !Directory.Exists(System.IO.Path.Combine(desktop, "Features")),
+            "A presentation that calls the API through the .NET client was given the feature's registration or an adapter, as if it composed features.");
 
         string publicApi = NewTree(scratch, reaction: false);
 

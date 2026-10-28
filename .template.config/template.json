@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
     },
     "database": {
       "type": "parameter",
@@ -182,11 +182,6 @@
       "type": "computed",
       "value": "false",
       "description": "Never true in a generated project. Names the pieces that maintain the template itself - the acceptance matrix, the test-count floor, the tree-auditing gates, the changelog - so they stay in the template repository only."
-    },
-    "dotnetClient": {
-      "type": "computed",
-      "value": "false",
-      "description": "True when the project holds a presentation that calls the API through the .NET client of Src/Clients; no option chooses one yet. Brings the client, its tests, the api-client task and the Kiota tool."
     },
     "templateVersion": {
       "type": "generated",
@@ -620,9 +615,25 @@
         {
           "choice": "blazor-server",
           "description": "A Blazor Web App with server interactivity in Src/Presentation, created by dotnet new blazor and calling the use cases in process."
+        },
+        {
+          "choice": "avalonia",
+          "description": "An Avalonia desktop app in Src/Presentation, created by dotnet new avalonia.mvvm and calling the API through the .NET client of Src/Clients."
         }
       ],
-      "description": "A presentation project that runs on the server and reaches the application layer in process, created at bootstrap by its framework's own generator. A project generated without one adds it later with dotnet new cleanarch-presentation."
+      "description": "A presentation project beside the API, created at bootstrap by its framework's own generator: a server host reaches the application layer in process, a client reaches the API through the .NET client. A project generated without one adds it later with dotnet new cleanarch-presentation."
+    },
+    "clientPresentationNeedsAccounts": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(presentation == \"avalonia\" && auth == \"none\")",
+      "description": "Never set. --presentation avalonia calls the API's versioned routes, and --auth none publishes none: choose --auth local or external."
     },
     "anyPresentation": {
       "type": "computed",
@@ -631,6 +642,15 @@
     "presentationBlazorServer": {
       "type": "computed",
       "value": "(presentation == \"blazor-server\")"
+    },
+    "presentationAvalonia": {
+      "type": "computed",
+      "value": "(presentation == \"avalonia\")"
+    },
+    "dotnetClient": {
+      "type": "computed",
+      "value": "(presentationAvalonia)",
+      "description": "True when the project holds a presentation that calls the API through the .NET client of Src/Clients. Brings the client, its tests, the api-client task and the Kiota tool."
     },
     "presentationName": {
       "type": "parameter",
@@ -1125,6 +1145,13 @@
           ]
         },
         {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "Src/Clients/AppTemplate.Client/Common/Sessions/**",
+            "Tests/Clients/AppTemplate.Client.UnitTests/Common/Sessions/**"
+          ]
+        },
+        {
           "condition": "(!sonar || !dotnetClient)",
           "exclude": [
             ".config/dotnet-tools.json"
@@ -1227,6 +1254,19 @@
       ]
     },
     {
+      "source": "./.template.config/starters/avalonia/",
+      "target": "./",
+      "condition": "(presentationAvalonia)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "**/ViewModels/MainViewModelTests.cs"
+          ]
+        }
+      ]
+    },
+    {
       "source": "./.template.config/variants/database-sqlite/",
       "target": "./",
       "condition": "(sqlite)",
@@ -1290,6 +1330,29 @@
     }
   ],
   "SpecialCustomOperations": {
+    "**/*.axaml": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "<!--#if"
+            ],
+            "else": [
+              "<!--#else-->"
+            ],
+            "elseif": [
+              "<!--#elseif"
+            ],
+            "endif": [
+              "<!--#endif-->"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
     "**/.env.example": {
       "operations": [
         {

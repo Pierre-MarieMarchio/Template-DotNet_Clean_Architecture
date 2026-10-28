@@ -22,7 +22,9 @@ should run.
   feature registrations, the modules, its caller's identity, its authentication. Nothing composes
   a host on another's behalf, and no host references another;
   `NoHost_ReferencesAnotherHost` holds it, and `OnlyAHost_ReferencesInfrastructureModules` treats
-  every project with a `Program.cs` alike.
+  every project with a `Program.cs` alike, but a client: a project that references the .NET client
+  of `Src/Clients` is no host, and references that client alone
+  (`EveryClient_ReachesTheCoreThroughTheApiAlone`).
 - **Jobs and migrations stay in the API.** A second host runs no background job, as
   [ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md) has it, and migrates nothing: the
   methods that do both live in the API, which no other host may reference.
@@ -33,6 +35,11 @@ should run.
 - **The presentation project of this repository** composes the use cases in process. Its caller is
   the circuit's or the request's principal, given to each operation's own scope, so a use case
   never shares a database context across a circuit's lifetime.
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+- **The presentation project of this repository** is a desktop client. It calls the API through
+  the .NET client and composes only that client, its settings and its view models; its caller is
+  whoever the API's token names.
 <!--#endif-->
 
 ## Alternatives considered

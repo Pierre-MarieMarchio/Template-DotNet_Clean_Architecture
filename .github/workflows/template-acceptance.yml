@@ -765,6 +765,7 @@ jobs:
           refuse alone --auth none
           refuse notes --auth none --examples notes
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
+          refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name --presentation-name refuses.

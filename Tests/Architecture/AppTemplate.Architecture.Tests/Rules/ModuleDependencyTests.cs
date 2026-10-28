@@ -429,27 +429,23 @@ public sealed class ModuleDependencyTests
             .Select(host => host.RelativePath)
             .ShouldBeEmpty("A host that does not compose the application layer runs none of its use cases.");
     }
-    //#if (dotnetClient)
 
     [Fact]
-    public void TheClients_ReachTheCoreThroughTheApiAlone()
+    public void EveryClient_ReachesTheCoreThroughTheApiAlone()
     {
-        var clients = ProjectReferenceGraph.ProjectsInLayer("Clients").ToList();
-
-        clients.ShouldNotBeEmpty("No project was found under Src/Clients, so this rule would pass having checked nothing.");
-
-        var withinTheClients = clients
+        var withinTheClients = ProjectReferenceGraph.ProjectsInLayer("Clients")
             .Select(project => project.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        clients
-            .SelectMany(project => project.References
+        ProjectReferenceGraph.ProjectsInLayer("Clients")
+            .Concat(ProjectReferenceGraph.Clients.Where(client => !withinTheClients.Contains(client.Name)))
+            .SelectMany(client => client.References
                 .Where(reference => !withinTheClients.Contains(reference))
-                .Select(reference => $"{project.RelativePath} -> {reference}"))
+                .Select(reference => $"{client.RelativePath} -> {reference}"))
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "A client runs on another machine than the API and speaks to it over HTTP alone: a reference to a "
-                + "domain, application, infrastructure or presentation project would ship the server's code to it.");
+                "A client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
+                + "that calls the API through it: a reference to a domain, application, infrastructure or other presentation "
+                + "project would ship the server's code to it (ADR 0022, ADR 0023).");
     }
-    //#endif
 }

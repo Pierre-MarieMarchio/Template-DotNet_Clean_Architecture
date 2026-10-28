@@ -34,9 +34,14 @@ dotnet run Tools/Tasks.cs bootstrap
 ```
 
 Commit what it changes before anything else.
-<!--#if (anyPresentation)-->
+<!--#if (presentationBlazorServer)-->
 It first creates the presentation project's pages with `dotnet new blazor` and adds the project to
 the solution ([Presentation project](../features/presentation.md#creating-the-project)).
+<!--#endif-->
+<!--#if (presentationAvalonia)-->
+It first creates the presentation project's views with `dotnet new avalonia.mvvm` and adds the
+project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
+and last writes the .NET client from the OpenAPI reference.
 <!--#endif-->
 It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),

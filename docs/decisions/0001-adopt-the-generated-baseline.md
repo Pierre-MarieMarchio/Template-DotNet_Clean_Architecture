@@ -91,6 +91,9 @@ what changing it costs.
 <!--#if (presentationBlazorServer)-->
 | A Blazor Web App with server interactivity beside the API, its pages from `dotnet new blazor` at bootstrap, composing the use cases in process | A server-rendered site needs no client of the API and no token per user | [Presentation project](../features/presentation.md) | — |
 <!--#endif-->
+<!--#if (presentationAvalonia)-->
+| An Avalonia desktop app beside the API, its views from `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases | [Presentation project](../features/presentation.md) | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) |
+<!--#endif-->
 
 ## Consequences
 

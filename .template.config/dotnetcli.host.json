@@ -46,6 +46,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "wasmWebNeedsAccounts": {
+      "longName": "wasm-web-needs-accounts",
+      "shortName": "",
+      "isHidden": true
+    },
     "presentationNameIsTaken": {
       "longName": "presentation-name-is-taken",
       "shortName": "",

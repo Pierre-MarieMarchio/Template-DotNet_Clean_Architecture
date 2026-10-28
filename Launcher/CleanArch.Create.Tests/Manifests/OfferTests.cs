@@ -62,7 +62,7 @@ public sealed class OfferTests
         Offer offer = Offer.For(_webApp, Option(_webApp, "audience"), known, _alwaysAsked);
 
         offer.Values.ShouldBe(["public"]);
-        offer.Reasons.ShouldBe(_webApp.Refusals);
+        offer.Reasons.ShouldBe([_webApp.Refusals.Single(refusal => refusal.Symbol == "adminNeedsAccounts")]);
         Offer.For(_webApp, Option(_webApp, "audience"), new Dictionary<string, string> { ["auth"] = "local" }, _alwaysAsked)
             .Values.ShouldBe(["public", "admin"]);
     }

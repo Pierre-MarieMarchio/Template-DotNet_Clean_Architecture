@@ -18,7 +18,7 @@ Each app is its own deployable. Its development server, and in Compose its nginx
 `/api/` and `/health` to the API, so the browser talks to one origin per app and the API keeps
 CORS closed.
 
-<!--#if (webFramework)-->
+<!--#if (webNodeFramework)-->
 ## Creating the app
 
 The app is written by its framework's official CLI, at a version pinned in the app's folder:
@@ -36,6 +36,29 @@ for an answer: the descriptor in the app's folder gives the CLI every answer in 
 
 Commit the app with the lockfile. From then on the app is this project's own: `web-scaffold` leaves
 it alone, and the pages are yours to write.
+<!--#endif-->
+<!--#if (webBlazorWasm)-->
+## Creating the app
+
+The app is a Blazor WebAssembly project written by `dotnet new blazorwasm`, from the template package
+and version its folder's descriptor pins, in a template hive of its own. `bootstrap` runs that step
+once, through `dotnet run Tools/Tasks.cs web-scaffold`, and needs the network to fetch the package. It
+keeps the template's pages, layout and `wwwroot`, beside the project file and the `Program.cs` this
+project owns, and adds the project to the solution: it builds, formats and is tested with the rest,
+under the same analyzers and central package versions.
+
+It calls the API through the .NET client of `Src/Clients`, generated from the same document
+([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)), at the page's own address, so
+the `/api` relay of its server keeps the API on the same origin.
+<!--#if (localAuth)-->
+The client asks for the refresh token in the API's `HttpOnly` cookie
+([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)) and keeps the access token in
+memory.
+<!--#endif-->
+
+Commit the app. From then on it is this project's own: `web-scaffold` leaves it alone, and the pages
+are yours to write. `dotnet watch` serves the pages without the relay; a page that calls the API runs
+through the stack.
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 ## Creating the app
@@ -235,6 +258,13 @@ unknown path falls back to `index.html` for the app's router.
 <!--#if (webAngular)-->
 The Angular app's policy allows inline styles, which Angular inserts at run time, and never inline
 scripts.
+<!--#endif-->
+<!--#if (webBlazorWasm)-->
+The WebAssembly app is built by the .NET SDK from the project root, which holds the solution's
+props and the .NET client, and its compose file names that root as the build context. Its policy
+adds `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published
+page carries inline, which the image build computes from the page it has just published. Every file
+under `_framework/` carries its fingerprint in its name and is cached for a year.
 <!--#endif-->
 <!--#if (webReactRouter)-->
 The React Router app's page starts the app from inline scripts. Its policy allows each by its

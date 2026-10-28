@@ -49,6 +49,17 @@ every new value would cost a copy of the wiring.
   that needs a Node server is not a starter of this catalogue.
 - **The wiring differs by framework only through markers.** A difference is a marker on that
   framework's symbol in the shared file, never a second copy of the file.
+- **A .NET starter keeps the same place and the same server.** `blazor-wasm` is a starter of kind
+  `dotnet`, as [0009](0009-a-dotnet-project-comes-from-a-starter.md) describes: `web-scaffold` runs
+  `dotnet new blazorwasm` for it and adds the project to the solution, and its folder holds the
+  project file and `Program.cs` the project owns beside `scaffold.json`. Its output contract is the
+  published `wwwroot`, built by the .NET SDK from the repository root, which holds the solution's
+  props and the .NET client: the shared `Dockerfile` and `nginx.conf` take it by a marker on its
+  symbol, with the hash step of the inline scripts for its import map, `'wasm-unsafe-eval'`, which
+  WebAssembly needs, and a year of cache for `_framework/`, whose file names carry their
+  fingerprints. Its `compose.yml` and `README.md` are its own, since its build context is the
+  repository root and the shared ones describe a pnpm app, and the project template leaves the
+  shared two out under the same symbol.
 - `TemplatePackagingTests` holds that each folder under `.template.config/starters` is a choice of
   `--web` and of `--framework`, that each framework choice is chosen by one computed symbol under
   which both templates copy one starter, that an alias's symbol also chooses the starter it copies,

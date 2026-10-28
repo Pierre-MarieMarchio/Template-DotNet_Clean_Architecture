@@ -57,6 +57,13 @@
   </ItemGroup>
 
   <!--#endif-->
+  <!--#if (webBlazorWasm)-->
+  <ItemGroup Label="Web app on WebAssembly">
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" />
+  </ItemGroup>
+
+  <!--#endif-->
   <!--#if (presentationAvalonia)-->
   <!-- One Avalonia 12.1.x band, the version Avalonia.Templates writes. -->
   <ItemGroup Label="Desktop presentation">

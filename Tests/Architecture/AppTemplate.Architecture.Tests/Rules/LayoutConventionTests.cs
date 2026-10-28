@@ -77,6 +77,9 @@ public sealed class LayoutConventionTests
         /*#if (presentationAvalonia)
         ["Src/Presentation/AppTemplate.PresentationApp"] = null,
         #endif*/
+        /*#if (webBlazorWasm)
+        ["Src/Web/apps/FrameworkSite"] = null,
+        #endif*/
         //#if (dotnetClient)
         ["Src/Clients/AppTemplate.Client"] = null,
         //#endif
@@ -158,6 +161,9 @@ public sealed class LayoutConventionTests
         #endif*/
         /*#if (presentationAvalonia)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting"],
+        #endif*/
+        /*#if (webBlazorWasm)
+        ["Src/Web/apps/FrameworkSite"] = null,
         #endif*/
         //#if (dotnetClient && localAuth)
         ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
@@ -327,6 +333,9 @@ public sealed class LayoutConventionTests
         #endif*/
         /*#if (presentationAvalonia)
         ["AppTemplate.PresentationApp"] = ["Assets", "ViewModels", "Views"],
+        #endif*/
+        /*#if (webBlazorWasm)
+        ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
         #endif*/
         //#if (dotnetClient)
         ["AppTemplate.Client"] = ["Generated"],

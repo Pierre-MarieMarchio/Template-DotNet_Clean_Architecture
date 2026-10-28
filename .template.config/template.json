@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
     },
     "database": {
       "type": "parameter",
@@ -318,6 +318,10 @@
         {
           "choice": "react-router",
           "description": "One React web app in the pnpm workspace Src/Web, created by React Router's official CLI (create-react-router) in single-page mode."
+        },
+        {
+          "choice": "blazor-wasm",
+          "description": "One Blazor WebAssembly app in Src/Web, created by dotnet new blazorwasm and calling the API through the .NET client of Src/Clients."
         }
       ],
       "description": "The first web front end, in the pnpm workspace Src/Web. More apps are added later with dotnet new cleanarch-webapp."
@@ -358,9 +362,29 @@
       "type": "computed",
       "value": "(webVue || webViteReact || webViteVue || webViteSvelte || webReactRouter)"
     },
-    "webFramework": {
+    "webBlazorWasm": {
+      "type": "computed",
+      "value": "(web == \"blazor-wasm\")"
+    },
+    "wasmWebNeedsAccounts": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(web == \"blazor-wasm\" && auth == \"none\")",
+      "description": "Never set. --web blazor-wasm calls the API's versioned routes, and --auth none publishes none: choose --auth local or external."
+    },
+    "webNodeFramework": {
       "type": "computed",
       "value": "(webAngular || webVite)"
+    },
+    "webFramework": {
+      "type": "computed",
+      "value": "(webNodeFramework || webBlazorWasm)"
     },
     "browserSessions": {
       "type": "computed",
@@ -649,8 +673,8 @@
     },
     "dotnetClient": {
       "type": "computed",
-      "value": "(presentationAvalonia)",
-      "description": "True when the project holds a presentation that calls the API through the .NET client of Src/Clients. Brings the client, its tests, the api-client task and the Kiota tool."
+      "value": "(presentationAvalonia || webBlazorWasm)",
+      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client of Src/Clients. Brings the client, its tests, the api-client task and the Kiota tool."
     },
     "presentationName": {
       "type": "parameter",
@@ -915,6 +939,13 @@
           "condition": "(!webFramework)",
           "exclude": [
             "Src/Web/apps/FrameworkSite/**"
+          ]
+        },
+        {
+          "condition": "(webBlazorWasm)",
+          "exclude": [
+            "Src/Web/apps/FrameworkSite/compose.yml",
+            "Src/Web/apps/FrameworkSite/README.md"
           ]
         },
         {
@@ -1212,6 +1243,11 @@
       "source": "./.template.config/starters/react-router/",
       "target": "./Src/Web/apps/",
       "condition": "(webReactRouter)"
+    },
+    {
+      "source": "./.template.config/starters/blazor-wasm/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webBlazorWasm)"
     },
     {
       "source": "./.template.config/starters/blazor-server/",

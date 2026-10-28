@@ -160,7 +160,7 @@ writes the app and never changes meaning:
 | `react-router` | `create-react-router`, React Router's official CLI | its default template at a fixed commit, single-page mode (`ssr: false`) | 5173 |
 | `angular` | `ng new`, the Angular CLI | standalone, routing, CSS, no server-side rendering, Vitest | 4200 |
 | `react` | the same app as `vite-react`, under the name it had first; kept until the next major version | | 5173 |
-| `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, the project's own `Program.cs` composing the .NET client; `--web` only, not yet `cleanarch-webapp` | 8081, through the stack |
+| `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, the project's own `Program.cs` composing the .NET client, which `cleanarch-webapp` brings with the app | 8081, through the stack |
 
 What an option leaves out is absent, not disabled: no project, file, setting, table, test or page names
 it, and the generated solution builds and passes its tests.
@@ -210,7 +210,7 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 
 | Template | Options |
 |---|---|
-| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
+| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), and the project's `--examples`, `--files` and `--agent-files`; it is refused with `--auth none`, and by `dotnet new` where the project holds the .NET client already. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
 | `cleanarch-presentation` | `--framework blazor-server\|avalonia` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals. `-n` is the presentation project's name, `Portal` by default, refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
 
@@ -224,3 +224,6 @@ line `--presentation` writes elsewhere, each placed by the lines around it: `.do
 `dotnet run Tools/Tasks.cs presentation-join <Project>.<name>` makes them all, or none when a line
 to place one by is not found exactly once, and leaves them alone once they are in place. Then
 `dotnet run Tools/Tasks.cs presentation-scaffold <Project>.<name>` creates it, as bootstrap does.
+`cleanarch-webapp --framework blazor-wasm` writes the app, the .NET client and its tests, and the
+app's `README.md` lists the lines `--web blazor-wasm` writes elsewhere the same way;
+`dotnet run Tools/Tasks.cs web-join <name>` makes them, before `web-scaffold` creates the app.

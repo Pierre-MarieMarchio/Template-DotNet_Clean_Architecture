@@ -229,7 +229,7 @@ jobs:
             exit 1
           fi
 
-      # A project generated without a web app takes its first one, and the workspace around it, from the item template; the include block and the port are the lines Src/Web/README.md gives.
+      # A project generated without a web app takes its first one, and the workspace around it, from the item template; the include block, the port and the .dockerignore lines are lines Src/Web/README.md gives.
       - name: Add the first app with cleanarch-webapp --workspace
         if: matrix.first_app
         working-directory: ${{ runner.temp }}/generated
@@ -246,6 +246,7 @@ jobs:
           fi
           sed -i 's#^services:$#include:\n  - path: Src/Web/apps/Site/compose.yml\n\nservices:#' docker-compose.yml
           printf 'WEB_SITE_HOST_PORT=5173\n' >> .env.example
+          printf '# ---------------------------------------------------------------------------\n# The web workspace: each web app builds from Src/Web with its own image.\n# ---------------------------------------------------------------------------\nSrc/Web/\n' >> .dockerignore
           grep -A3 '^include:' docker-compose.yml
 
       # A project generated without a presentation project takes one from the item template; the lines outside its folders are the edits its README lists, made by the project's presentation-join task, so one missing fails a later step.

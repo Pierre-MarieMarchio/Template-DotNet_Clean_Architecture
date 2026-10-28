@@ -1,4 +1,8 @@
 ﻿using AppTemplate.Client;
+//#if (externalAuth)
+using AppTemplate.Client.Common.Sessions;
+using AppTemplate.PresentationApp.Common.Sessions;
+//#endif
 using AppTemplate.PresentationApp.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +25,18 @@ internal static class AppHost
             .Bind(builder.Configuration.GetSection(ApiOptions.SectionName))
             .ValidateOnStart();
 
+        //#if (externalAuth)
+        builder.Services.AddSingleton<IValidateOptions<SignInOptions>, SignInOptionsValidator>();
+        builder.Services.AddOptions<SignInOptions>()
+            .Bind(builder.Configuration.GetSection(SignInOptions.SectionName))
+            .ValidateOnStart();
+
+        builder.Services.AddHttpClient(DesktopSession.HttpClientName);
+        builder.Services.AddSingleton<ISystemBrowser, SystemBrowser>();
+        builder.Services.AddSingleton<DesktopSession>();
+        builder.Services.AddSingleton<IAccessTokenSource>(provider => provider.GetRequiredService<DesktopSession>());
+
+        //#endif
         builder.Services.AddApiClient(provider => provider.GetRequiredService<IOptions<ApiOptions>>().Value.BaseAddress!);
         builder.Services.AddTransient<MainViewModel>();
 

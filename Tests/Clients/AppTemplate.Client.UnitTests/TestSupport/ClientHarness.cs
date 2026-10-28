@@ -1,6 +1,4 @@
-﻿//#if (localAuth)
-using AppTemplate.Client.Common.Sessions;
-//#endif
+﻿using AppTemplate.Client.Common.Sessions;
 using AppTemplate.Client.Generated;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +27,10 @@ internal sealed class ClientHarness : IDisposable
         }
 
         //#endif
+        //#if (externalAuth)
+        services.AddSingleton<IAccessTokenSource>(AccessTokens);
+
+        //#endif
         services.ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => api));
         services.AddApiClient(BaseAddress);
 
@@ -43,6 +45,10 @@ internal sealed class ClientHarness : IDisposable
     public ApiSession Session => _provider.GetRequiredService<ApiSession>();
 
     public IRefreshTokenStore RefreshTokens => _provider.GetRequiredService<IRefreshTokenStore>();
+
+    //#endif
+    //#if (externalAuth)
+    public StubAccessTokenSource AccessTokens { get; } = new();
 
     //#endif
     public HttpClient Http => _provider.GetRequiredService<IHttpClientFactory>().CreateClient(ClientModule.HttpClientName);

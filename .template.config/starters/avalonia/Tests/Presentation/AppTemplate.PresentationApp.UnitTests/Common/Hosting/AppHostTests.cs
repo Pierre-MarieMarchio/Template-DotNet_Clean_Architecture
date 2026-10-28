@@ -1,5 +1,8 @@
 ﻿using System.Net;
 using AppTemplate.Client.Generated;
+//#if (externalAuth)
+using AppTemplate.PresentationApp.Common.Sessions;
+//#endif
 using AppTemplate.PresentationApp.UnitTests.TestSupport;
 using AppTemplate.PresentationApp.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,4 +35,45 @@ public sealed class AppHostTests
 
         await host.StopAsync(Cancellation);
     }
+    //#if (externalAuth)
+
+    [Fact]
+    public async Task TheHost_RefusesToStart_UntilTheSignInIsConfigured()
+    {
+        using var host = PresentationHost.Build(new StubApi(_ => new HttpResponseMessage(HttpStatusCode.OK)), authority: string.Empty);
+
+        var refused = await Should.ThrowAsync<OptionsValidationException>(() => host.StartAsync(Cancellation));
+
+        refused.Message.ShouldContain("'SignIn:Authority'");
+    }
+
+    [Fact]
+    public async Task TheClient_CallsTheApi_WithTheSessionsAccessToken()
+    {
+        var provider = new StubProvider(StubProvider.Tokens("a1", "r1"));
+        var presented = new List<string?>();
+        var api = new StubApi(request =>
+        {
+            if (provider.Answer(request) is { } answer)
+            {
+                return answer;
+            }
+
+            presented.Add(request.Headers.Authorization?.ToString());
+
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        using var host = PresentationHost.Build(api);
+        await host.StartAsync(Cancellation);
+        var client = host.Services.GetRequiredService<ApiClient>();
+
+        await client.Api.V1.ExternalIdentities[Guid.NewGuid()].DeleteAsync(cancellationToken: Cancellation);
+        await host.Services.GetRequiredService<DesktopSession>().SignInAsync(Cancellation);
+        await client.Api.V1.ExternalIdentities[Guid.NewGuid()].DeleteAsync(cancellationToken: Cancellation);
+
+        presented.ShouldBe([null, "Bearer a1"]);
+
+        await host.StopAsync(Cancellation);
+    }
+    //#endif
 }

@@ -20,6 +20,42 @@ then adds the project, its tests and the .NET client to the solution. Run outsid
 the OpenAPI reference exists, it then restores the tools and writes the client with
 `dotnet run Tools/Tasks.cs api-client`. Commit the project: from then on its files are this
 project's own, and the step leaves it alone.
+<!--#if (externalAuth)-->
+
+## Sign in
+
+**Sign in** opens the system browser at the provider for the authorization code flow with PKCE,
+which `Duende.IdentityModel.OidcClient` runs. The answer comes back to `http://127.0.0.1` on a port
+the app opens for that one sign-in and closes after it: RFC 8252, section 7.3, the redirect a native
+app uses, on the IP literal rather than `localhost` so that no name resolution or other interface
+is involved. The app then redeems the code at the provider.
+
+`DesktopSession` holds the tokens in memory only, so a restart signs out. It hands the access token
+to the client, which sends it on every call, and refreshes it a minute before it expires when the
+provider issued a refresh token; without one, the session ends with the access token. **Sign out**
+forgets the tokens and redirects nowhere: the session at the provider stays open, so the next sign-in
+may not ask for a password.
+
+The name shown is read from the identity token (`name`, then `preferred_username`, `email`, `sub`);
+the app calls no userinfo endpoint, so a provider without one signs in too. That token is not
+verified: it comes straight from the provider's token endpoint over TLS, and it grants nothing; the
+API verifies the access token.
+
+Register the app at the provider before its first run:
+
+- a public client, without a secret, since a desktop app cannot keep one, allowed the authorization
+  code flow with PKCE;
+- the redirect URI `http://127.0.0.1/` with any port, as RFC 8252 allows; a provider that cannot
+  ignore the port does not suit this app as it is;
+- the scopes of `SignIn:Scope`, with refresh tokens allowed for `offline_access`;
+- the API's audience, `Authentication:External:Audience`, in the access token it issues. How depends
+  on the provider: an API scope the client requests, added to `SignIn:Scope`; an audience mapper on
+  the client; or a resource parameter.
+
+Then set `SignIn:Authority`, the issuer the API trusts, and `SignIn:ClientId` in the `appsettings.json`
+beside the app, its environment (`SignIn__ClientId`) or its command line: the app refuses to start
+until both are set.
+<!--#endif-->
 
 ## Joining a project generated without one
 
@@ -116,6 +152,9 @@ task stops:
       <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
       <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
       <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+<!--#if (externalAuth)-->
+      <PackageVersion Include="Duende.IdentityModel.OidcClient" Version="7.1.0" />
+<!--#endif-->
     </ItemGroup>
 
   ```
@@ -177,11 +216,13 @@ task stops:
   add:
 
   ```csharp
+<!--#if (externalAuth)-->
+          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Sessions"],
+<!--#else-->
           ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting"],
-<!--#if (!hasClient && localAuth)-->
+<!--#endif-->
+<!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
-<!--#elseif (!hasClient)-->
-          ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors"],
 <!--#endif-->
   ```
 
@@ -387,6 +428,20 @@ task stops:
   |---|---|---|---|
   | `BaseAddress` | absolute URI | `http://localhost:8080/` | **Required.** The API's `http` or `https` address, the API Compose publishes by default; the app refuses to start without it. |
 
+<!--#if (externalAuth)-->
+  ### `SignIn`
+
+  Read by the desktop app alone, as the public client it signs its user in with at the provider, from
+  the same places as `Api` (`SignIn__ClientId`, `--SignIn:ClientId=<id>`); the API never reads it.
+
+  | Key | Type | Default | Notes |
+  |---|---|---|---|
+  | `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
+  | `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `http://127.0.0.1/` on any port. |
+  | `Scope` | string | `openid profile email offline_access` | Must include `openid`. `offline_access` asks for the refresh token that keeps the session past the first access token; the API's own scope goes here when the provider issues its audience that way. |
+  | `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only. |
+
+<!--#endif-->
   ```
 
 - in `docs/reference/project-layout.md`, after the line:
@@ -416,16 +471,16 @@ task stops:
   add:
 
   ```text
+<!--#if (externalAuth)-->
+    <Project>.<Name>                      Common/{Hosting,Sessions}
+<!--#else-->
     <Project>.<Name>                      Common/{Hosting}
+<!--#endif-->
                                           no Features/
                                           Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#if (!hasClient)-->
   Src/Clients/
-<!--#if (localAuth)-->
     AppTemplate.Client                    Common/{Composition,Errors,Sessions}
-<!--#else-->
-    AppTemplate.Client                    Common/{Composition,Errors}
-<!--#endif-->
                                           no Features/
                                           Generated/: Kiota's, from the OpenAPI reference
 <!--#endif-->

@@ -187,6 +187,7 @@ revalidation.
 <!--#if (presentationAvalonia)-->
 ## Calling the API
 
+<!--#if (localAuth)-->
 The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts: it binds and
 validates the `Api` settings, registers the client with `AddApiClient`, and the view models. A view
 model asks for `ApiClient` and calls a route as the API's document names it:
@@ -194,6 +195,16 @@ model asks for `ApiClient` and calls a route as the API's document names it:
 ```csharp
 var me = await api.Api.V1.Auth.Me.GetAsync(cancellationToken: cancellationToken);
 ```
+<!--#else-->
+The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts: it binds and
+validates the `Api` and `SignIn` settings, registers the session, the client with `AddApiClient`,
+and the view models. A view model asks for `ApiClient` and calls a route as the API's document
+names it:
+
+```csharp
+await api.Api.V1.ExternalIdentities[userId].DeleteAsync(cancellationToken: cancellationToken);
+```
+<!--#endif-->
 
 A problem answer arrives as an `ApiException`; `ApiProblem.From` gives its code and its field
 errors, the code the [API reference](../reference/api.md) lists. The client retries a transient
@@ -211,16 +222,31 @@ Signing out posts it to `POST /api/v1/auth/logout`. An account with a second fac
 in: the window does not ask for it.
 <!--#endif-->
 <!--#if (externalAuth)-->
-Nobody signs in: the app holds no token from your provider, so the API answers `401` to every
-route it calls. `ApiClientFactory.Create` takes an `IAccessTokenProvider`, the place a token from
-the provider goes.
+The main window signs its user in at your OpenID Connect provider, the one the API trusts.
+`DesktopSession`, in `Common/Sessions`, runs the authorization code flow with PKCE through
+`Duende.IdentityModel.OidcClient`: it opens the system browser at the provider and receives the
+answer on a loopback port it opens for that one sign-in, the redirect RFC 8252 gives a native app.
+It holds the tokens in memory, so a restart signs out, and as the client's `IAccessTokenSource` it
+puts the access token on every call, refreshed a minute before it expires when the provider issued
+a refresh token. The window shows the name the identity token carries; the API, which has no
+`/me` route under an external provider, is not asked. Signing out forgets the tokens and leaves the
+session at the provider open. The README beside the app says how to register it at the provider: a
+public client, the redirect URI `http://127.0.0.1/` on any port, and the API's audience in the
+access token.
 <!--#endif-->
 
 ## Configure
 
+<!--#if (localAuth)-->
 The app reads one section, `Api`, from the `appsettings.json` beside it: `BaseAddress`, the API's
 address, which it validates before showing a window. The [configuration reference](../reference/configuration.md#api)
-has the row. Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
+has the row.
+<!--#else-->
+The app reads two sections from the `appsettings.json` beside it, and validates both before showing
+a window: `Api`, the API's address, and `SignIn`, its client at the provider. The generated file
+leaves `SignIn:Authority` and `SignIn:ClientId` empty, so the app refuses to start until they are
+set. The [configuration reference](../reference/configuration.md#api) has the rows.
+<!--#endif--> Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
 app with `dotnet run --project Src/Presentation/<Project>.<Name>`.
 
 ## Tests
@@ -231,6 +257,13 @@ holds the setting.
 <!--#if (localAuth)-->
 `MainViewModelTests` drives the view model against a stub of the API: the sign-in, a refused one
 with its problem code, an account with a second factor, and the sign-out.
+<!--#else-->
+`DesktopSessionTests` runs the code flow against a stub of the provider, through the real loopback
+listener: PKCE, the redeemed code, a refused sign-in, an unreachable provider, the refresh ahead of
+expiry shared by the calls waiting on it, and the sign-out. `LoopbackBrowserTests` sends the
+browser's request to the listener; `AppHostTests` proves the client sends the session's token;
+`MainViewModelTests` drives the window's sign-in and sign-out; `SignInOptionsValidatorTests` holds
+the setting. No test reaches a real provider.
 <!--#endif-->
 The views are not tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app
 to the client.

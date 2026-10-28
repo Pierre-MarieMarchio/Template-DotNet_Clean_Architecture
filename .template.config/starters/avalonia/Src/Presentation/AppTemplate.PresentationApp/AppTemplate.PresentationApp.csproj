@@ -20,6 +20,9 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!--#if (externalAuth)-->
+    <PackageReference Include="Duende.IdentityModel.OidcClient" />
+    <!--#endif-->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 

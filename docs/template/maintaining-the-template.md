@@ -73,10 +73,10 @@ for its page and `/health`. The leg that adds a first app adds the presentation 
 |---|---|
 | defaults | none |
 | auth none, smallest project | `--auth none --examples none --files false` |
-| external auth, notes | `--auth external --examples notes` |
+| external auth, notes | `--auth external --examples notes --presentation avalonia` |
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` |
 | external auth, all examples | `--auth external --examples all --files true` |
-| external auth, no examples, no files | `--auth external --examples none --files false` |
+| external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |

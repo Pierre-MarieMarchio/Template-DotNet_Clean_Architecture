@@ -368,7 +368,19 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AppTemplate.Client/Common/Sessions/**"
+            "AppTemplate.Client/Common/Sessions/ApiSession.cs",
+            "AppTemplate.Client/Common/Sessions/ApiSessionHandler.cs",
+            "AppTemplate.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "AppTemplate.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "AppTemplate.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "AppTemplate.Client/Common/Sessions/RefreshTokenMode.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "AppTemplate.Client/Common/Sessions/AccessTokenHandler.cs",
+            "AppTemplate.Client/Common/Sessions/IAccessTokenSource.cs"
           ]
         }
       ]
@@ -385,7 +397,14 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AppTemplate.Client.UnitTests/Common/Sessions/**"
+            "AppTemplate.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "AppTemplate.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "AppTemplate.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         }
       ]

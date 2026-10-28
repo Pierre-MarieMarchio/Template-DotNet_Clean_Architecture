@@ -118,20 +118,19 @@ Src/Presentation/
                                         no Features/
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
-<!--#if (presentationAvalonia)-->
+<!--#if (presentationAvalonia && localAuth)-->
   <Project>.<Name>                      Common/{Hosting}
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
-<!--#if (dotnetClient && localAuth)-->
+<!--#if (presentationAvalonia && externalAuth)-->
+  <Project>.<Name>                      Common/{Hosting,Sessions}
+                                        no Features/
+                                        Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
+<!--#endif-->
+<!--#if (dotnetClient)-->
 Src/Clients/
   AppTemplate.Client                    Common/{Composition,Errors,Sessions}
-                                        no Features/
-                                        Generated/: Kiota's, from the OpenAPI reference
-<!--#endif-->
-<!--#if (dotnetClient && !localAuth)-->
-Src/Clients/
-  AppTemplate.Client                    Common/{Composition,Errors}
                                         no Features/
                                         Generated/: Kiota's, from the OpenAPI reference
 <!--#endif-->

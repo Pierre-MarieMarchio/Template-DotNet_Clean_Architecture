@@ -118,4 +118,10 @@ CHANGELOG.md
 # The web workspace: each web app builds from Src/Web with its own image.
 # ---------------------------------------------------------------------------
 Src/Web/
+#if (webBlazorWasm)
+# The WebAssembly app builds from here, beside the solution's props and the .NET client.
+!Src/Web/apps/FrameworkSite/
+Src/Web/apps/FrameworkSite/bin/
+Src/Web/apps/FrameworkSite/obj/
+#endif
 #endif

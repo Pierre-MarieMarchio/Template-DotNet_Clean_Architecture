@@ -4,6 +4,11 @@
     "agentFiles": {
       "longName": "agent-files",
       "shortName": ""
+    },
+    "wasmWebAppNotYetGenerated": {
+      "longName": "wasm-web-app-not-yet-generated",
+      "shortName": "",
+      "isHidden": true
     }
   }
 }

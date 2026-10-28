@@ -142,6 +142,9 @@ setting, table or test names it.
 <!--#if (webReactRouter)-->
 | `--web` | `react-router` | a React single-page app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
 <!--#endif-->
+<!--#if (webBlazorWasm)-->
+| `--web` | `blazor-wasm` | a Blazor WebAssembly app in `Src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `Src/Clients` |
+<!--#endif-->
 <!--#if (webPlaceholder)-->
 | `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
 <!--#endif-->

@@ -137,6 +137,10 @@ Src/Clients/
 <!--#endif-->
 <!--#if (anyWeb)-->
 Src/Web/                                the pnpm workspace: apps/ and packages/
+<!--#if (webBlazorWasm)-->
+  apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
+                                        Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
+<!--#endif-->
 <!--#endif-->
 Tests/                                  one test project per source project, mirroring its folders,
                                         plus Architecture/, EndToEnd/, Integration/ and Load/

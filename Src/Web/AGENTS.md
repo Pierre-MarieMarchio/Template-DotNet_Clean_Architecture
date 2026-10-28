@@ -10,8 +10,11 @@ From `Src/Web`, after `corepack enable` once per machine:
 | When | Command |
 |---|---|
 | After a clone or a pull | `pnpm install --frozen-lockfile` |
-<!--#if (webFramework)-->
+<!--#if (webNodeFramework)-->
 | While you work on one app | `pnpm --filter <app> dev`, `<app>` being the folder's kebab name |
+<!--#endif-->
+<!--#if (webBlazorWasm)-->
+| While you work on the WebAssembly app | `dotnet watch --project apps/<Name>`, its pages without the `/api` relay |
 <!--#endif-->
 | After a change to the API's routes or bodies | `pnpm api` |
 | Before calling a change done | `pnpm lint`, `pnpm test`, `pnpm build` |
@@ -27,9 +30,14 @@ From `Src/Web`, after `corepack enable` once per machine:
 
 ## Rules
 
-<!--#if (webFramework)-->
+<!--#if (webNodeFramework)-->
 - A framework app starts from its framework's official CLI, which `dotnet run Tools/Tasks.cs web-scaffold`
   runs once; from then on the app is this project's own, and `web-scaffold` leaves it alone.
+<!--#endif-->
+<!--#if (webBlazorWasm)-->
+- The WebAssembly app starts from `dotnet new blazorwasm`, which `dotnet run Tools/Tasks.cs web-scaffold`
+  runs once; it is a .NET project of the solution, built and formatted with it, and calls the API
+  through the .NET client of `Src/Clients`, never through `@app-template/api-client`.
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 - The placeholder app is a static page under `public/`, served by nginx; replace those files with the

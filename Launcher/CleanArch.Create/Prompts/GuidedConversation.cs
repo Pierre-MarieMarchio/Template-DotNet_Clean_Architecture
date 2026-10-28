@@ -19,6 +19,7 @@ public sealed class GuidedConversation : Conversation
         ["vite-svelte"] = "orangered1",
         ["react-router"] = "indianred1",
         ["placeholder"] = "grey",
+        ["blazor-wasm"] = "mediumorchid",
         ["blazor-server"] = "mediumpurple",
         ["avalonia"] = "slateblue1",
     };

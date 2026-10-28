@@ -87,7 +87,7 @@ for its page and `/health`. The leg that adds a first app adds the presentation 
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace` and `cleanarch-presentation --framework avalonia` |
-| web, every starter | `--web vue --examples none --files false`, then `cleanarch-webapp` once per other framework starter, each on its own `--port` |
+| web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-webapp` once per pnpm framework starter, each on its own `--port` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and

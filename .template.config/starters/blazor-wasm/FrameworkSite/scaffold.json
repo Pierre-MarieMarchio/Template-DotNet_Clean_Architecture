@@ -1,0 +1,13 @@
+{
+  "kind": "dotnet",
+  "framework": "blazor-wasm",
+  "name": "AppTemplate.FrameworkSite",
+  "package": "Microsoft.DotNet.Web.ProjectTemplates.10.0",
+  "version": "10.0.14",
+  "template": "blazorwasm",
+  "arguments": [
+    "--name", "{name}", "--output", "{directory}",
+    "--auth", "None", "--no-https", "--no-restore"
+  ],
+  "keep": ["Layout", "Pages", "Properties", "wwwroot", "App.razor", "_Imports.razor"]
+}

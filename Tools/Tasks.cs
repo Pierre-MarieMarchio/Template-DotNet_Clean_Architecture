@@ -590,7 +590,7 @@ internal static class Tasks
 
                 if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
                 {
-                    WebScaffold(repoRoot, only: null);
+                    WebScaffold(repoRoot, solution, only: null);
                 }
 
                 Write(
@@ -651,7 +651,12 @@ internal static class Tasks
                 break;
 
             case "web-scaffold":
-                WebScaffold(repoRoot, name);
+                if (WebScaffold(repoRoot, solution, name) && File.Exists(OpenApiReferencePath(repoRoot, api)))
+                {
+                    Step("dotnet", "tool", "restore");
+                    ApiClient(repoRoot, api, check: false);
+                }
+
                 break;
 
             //#if (templateMaintenance)
@@ -995,7 +1000,7 @@ internal static class Tasks
         }
     }
 
-    private static void WebScaffold(string repoRoot, string? only)
+    private static bool WebScaffold(string repoRoot, string solution, string? only)
     {
         string web = Path.Combine(repoRoot, "Src", "Web");
 
@@ -1017,14 +1022,14 @@ internal static class Tasks
         {
             string folder = Path.Combine(apps, only);
 
-            if (File.Exists(Path.Combine(folder, "package.json")))
-            {
-                Write($"Src/Web/apps/{only} holds a package.json: it is created already, and left alone.", ConsoleColor.Green);
-                pending = [];
-            }
-            else if (pending.Contains(folder, StringComparer.Ordinal))
+            if (pending.Contains(folder, StringComparer.Ordinal))
             {
                 pending = [folder];
+            }
+            else if (File.Exists(Path.Combine(folder, "package.json")) || Directory.EnumerateFiles(folder, "*.csproj").Any())
+            {
+                Write($"Src/Web/apps/{only} holds no {ScaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
+                pending = [];
             }
             else
             {
@@ -1034,9 +1039,18 @@ internal static class Tasks
             }
         }
 
+        bool client = false;
+
         foreach (string folder in pending)
         {
-            ScaffoldApp(web, folder);
+            if (ReadJson(Path.Combine(folder, ScaffoldDescriptor))["kind"]?.GetValue<string>() is "dotnet")
+            {
+                client |= ScaffoldProject(repoRoot, solution, folder);
+            }
+            else
+            {
+                ScaffoldApp(web, folder);
+            }
         }
 
         WebWorkspace(repoRoot, pending.Length > 0 ? ["install", "--no-frozen-lockfile"] : ["install"]);
@@ -1060,6 +1074,8 @@ internal static class Tasks
                 + "pnpm install --frozen-lockfile, CI and the image build read the versions it records.",
                 ConsoleColor.Green);
         }
+
+        return client;
     }
 
     private static void ScaffoldApp(string web, string folder)
@@ -1184,18 +1200,20 @@ internal static class Tasks
     private static bool ScaffoldProject(string repoRoot, string solution, string folder)
     {
         string project = Path.GetFileName(folder);
+        string shown = Path.GetRelativePath(repoRoot, folder).Replace('\\', '/');
+        string task = shown.StartsWith("Src/Web/", StringComparison.Ordinal) ? "web-scaffold" : "presentation-scaffold";
         JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
         string kind = descriptor["kind"]?.GetValue<string>() ?? "pnpm";
 
         if (kind != "dotnet")
         {
             throw new InvalidOperationException(
-                $"Src/Presentation/{project}/{ScaffoldDescriptor} is of kind '{kind}', and a presentation project is created by dotnet new.");
+                $"{shown}/{ScaffoldDescriptor} is of kind '{kind}', and a .NET project is created by dotnet new.");
         }
 
         string name = Text(descriptor, "name", project);
         string package = Text(descriptor, "package", project) + "@" + Text(descriptor, "version", project);
-        string scratch = Path.Combine(Path.GetTempPath(), "presentation-scaffold-" + Guid.NewGuid().ToString("N")[..12]);
+        string scratch = Path.Combine(Path.GetTempPath(), task + "-" + Guid.NewGuid().ToString("N")[..12]);
         string generated = Path.Combine(scratch, name);
         string template = Text(descriptor, "template", project);
         string[] hive = ["--debug:custom-hive", Path.Combine(scratch, "hive"), "--debug:disable-sdk-templates"];
@@ -1223,9 +1241,9 @@ internal static class Tasks
             catch (InvalidOperationException error)
             {
                 throw new InvalidOperationException(
-                    $"{error.Message} Creating Src/Presentation/{project} installs {package}, the framework's own templates, "
+                    $"{error.Message} Creating {shown} installs {package}, the framework's own templates, "
                     + "from NuGet, so this step needs the network; the output above says what failed. The project's folder is "
-                    + $"unchanged: run `dotnet run Tools/Tasks.cs presentation-scaffold {project}` again once the cause is fixed.");
+                    + $"unchanged: run `dotnet run Tools/Tasks.cs {task} {project}` again once the cause is fixed.");
             }
 
             RefuseWhatTheProjectLacks(Path.Combine(generated, name + ".csproj"), Path.Combine(folder, name + ".csproj"));
@@ -1274,7 +1292,7 @@ internal static class Tasks
             Step("dotnet", "format", added);
         }
 
-        Write($"Created Src/Presentation/{project} from {package}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
+        Write($"Created {shown} from {package}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
 
         return client;
     }

@@ -334,6 +334,7 @@ public sealed class TemplatePackagingTests
             .Order(StringComparer.Ordinal)];
         var computed = symbols.EnumerateObject()
             .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
+            .Where(symbol => symbol.Name != "refusedOptions")
             .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
         var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
 

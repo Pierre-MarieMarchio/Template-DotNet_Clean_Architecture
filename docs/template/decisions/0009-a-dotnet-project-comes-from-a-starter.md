@@ -19,13 +19,15 @@ pins and refuses an install of another version beside it.
   starter reads as before, and `dotnet` for a template package. A `dotnet` descriptor names the
   package, its exact version, the template's short name, its arguments, and the generated folders
   the project keeps.
-- **The template runs in a hive of its own.** `presentation-scaffold` installs the pinned package
+- **The template runs in a hive of its own.** `presentation-scaffold`, or `web-scaffold` for a web
+  starter of kind `dotnet`, installs the pinned package
   into a scratch template hive with the SDK's own templates disabled, so the version the descriptor
   names is the one that runs, whatever SDK is installed. The hive sits in the system's temporary
   folder, since the template engine names a lock after its path.
 - **The project's own files are the template's.** The starter carries the project file, the
   composition root, the settings, the image and the host's wiring; the generator contributes only
-  the folders the descriptor keeps, `Components` and `wwwroot` for Blazor. A project file the
+  the folders the descriptor keeps, `Components` and `wwwroot` for Blazor, and the files it names beside
+  them, Avalonia's `App.axaml` among them, where the starter holds none of its own. A project file the
   generator writes is compared with the starter's, and a package or a property the starter's lacks
   stops the scaffold with its name, so a template version that needs more is noticed rather than
   dropped.
@@ -36,7 +38,10 @@ pins and refuses an install of another version beside it.
   and is copied into `Src/Web/apps/`; a presentation starter holds its project and its tests at
   their paths and is copied into the project's root. `TemplatePackagingTests` holds that each
   folder under `.template.config/starters` is one or the other, and that each `--presentation`
-  value but `none` is a starter of kind `dotnet`.
+  value but `none` is a starter of kind `dotnet`. A web starter of kind `dotnet`, `blazor-wasm`,
+  holds its project under `FrameworkSite/` as the others do, and `web-scaffold` dispatches on the
+  kind: the same scaffold as a presentation project, joining the solution, for it, `pnpm dlx` for
+  the others.
 - **`bootstrap` creates the presentation project first**, before the formatting it then checks.
 - **An item template adds one later from the same starter.** `cleanarch-presentation` copies the
   starter by `--framework` and takes the project's options as parameters of the same names, values

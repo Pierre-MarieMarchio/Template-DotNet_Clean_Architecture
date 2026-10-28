@@ -1330,6 +1330,29 @@
     }
   ],
   "SpecialCustomOperations": {
+    "**/Generated/**.cs": {
+      "operations": [
+        {
+          "type": "conditional",
+          "configuration": {
+            "if": [
+              "//#kiota-never-if"
+            ],
+            "else": [
+              "//#kiota-never-else"
+            ],
+            "elseif": [
+              "//#kiota-never-elseif"
+            ],
+            "endif": [
+              "//#kiota-never-endif"
+            ],
+            "trim": true,
+            "wholeLine": true
+          }
+        }
+      ]
+    },
     "**/*.axaml": {
       "operations": [
         {

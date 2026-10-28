@@ -242,14 +242,20 @@ public sealed class Questionnaire
 
             return Asks
                 ? Ask(manifest, option, answers, askedWhen, remembered ?? option.DefaultValue)
-                : Reply.Passed(Filled(manifest, option, answers));
+                : Reply.Passed(Filled(manifest, option, answers, askedWhen));
         });
 
-    private string? Filled(TemplateManifest manifest, TemplateOption option, IReadOnlyDictionary<string, string> answers)
+    private string? Filled(
+        TemplateManifest manifest,
+        TemplateOption option,
+        IReadOnlyDictionary<string, string> answers,
+        IReadOnlyDictionary<string, Condition> askedWhen)
     {
-        if (option.Kind == OptionKind.Choice && option.Choices.Count == 1)
+        if (option.Kind == OptionKind.Choice
+            && (option.Choices.Count == 1 || option.DefaultValue is null)
+            && Offer.For(manifest, option, answers, askedWhen).Values is [string only])
         {
-            return option.Choices[0].Value;
+            return only;
         }
 
         bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);

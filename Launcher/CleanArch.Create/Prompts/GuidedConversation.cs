@@ -20,6 +20,7 @@ public sealed class GuidedConversation : Conversation
         ["react-router"] = "indianred1",
         ["placeholder"] = "grey",
         ["blazor-server"] = "mediumpurple",
+        ["avalonia"] = "slateblue1",
     };
 
     private static readonly IReadOnlyList<OptionChoice> _yesNo = [new(Yes, string.Empty), new(No, string.Empty)];

@@ -1,0 +1,18 @@
+services:
+  web-framework-site:
+    build:
+      context: ../../../..
+      dockerfile: Src/Web/apps/FrameworkSite/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_FRAMEWORK_SITE_HOST_PORT:-5173}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/ || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks: [backend]

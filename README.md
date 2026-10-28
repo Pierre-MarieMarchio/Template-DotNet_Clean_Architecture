@@ -63,10 +63,10 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--ci` | `true`, `false` | `true` |
 | `--sonar` | `true`, `false` | `true` |
 | `--agent-files` | `true`, `false` | `true` |
-| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react` | `none` |
+| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react`, `blazor-wasm` | `none` |
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
-| `--presentation` | `none`, `blazor-server` | `none` |
+| `--presentation` | `none`, `blazor-server`, `avalonia` | `none` |
 | `--presentation-name` | PascalCase text | `Portal` |
 
 `--auth none` refuses the examples and Files, which belong to a caller, and `--web-audience admin`

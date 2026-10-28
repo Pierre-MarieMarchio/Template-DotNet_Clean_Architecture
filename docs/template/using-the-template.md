@@ -142,10 +142,10 @@ error under warnings as errors. Pick a name with no such segment.
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
 | `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
-| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react` | `none` | the first web app in the pnpm workspace `Src/Web`; a framework app is created by its official CLI at bootstrap, as the table below says |
+| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
-| `--presentation` | `none`, `blazor-server` | `none` | a presentation project in `Src/Presentation` that calls the use cases in process; `blazor-server` is a Blazor Web App with server interactivity, its pages written by `dotnet new blazor` at bootstrap |
+| `--presentation` | `none`, `blazor-server`, `avalonia` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none` |
 | `--presentation-name` | PascalCase text | `Portal` | the presentation project's name after the solution's, its Compose service and port variable |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
@@ -160,6 +160,7 @@ writes the app and never changes meaning:
 | `react-router` | `create-react-router`, React Router's official CLI | its default template at a fixed commit, single-page mode (`ssr: false`) | 5173 |
 | `angular` | `ng new`, the Angular CLI | standalone, routing, CSS, no server-side rendering, Vitest | 4200 |
 | `react` | the same app as `vite-react`, under the name it had first; kept until the next major version | | 5173 |
+| `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, the project's own `Program.cs` composing the .NET client; `--web` only, not yet `cleanarch-webapp` | 8081, through the stack |
 
 What an option leaves out is absent, not disabled: no project, file, setting, table, test or page names
 it, and the generated solution builds and passes its tests.
@@ -211,7 +212,7 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 |---|---|
 | `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react` (required), `--audience public\|admin`, `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
-| `cleanarch-presentation` | `--framework blazor-server` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals. `-n` is the presentation project's name, `Portal` by default, refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
+| `cleanarch-presentation` | `--framework blazor-server\|avalonia` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals. `-n` is the presentation project's name, `Portal` by default, refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
 
 An item template can add files but not edit them, so each prints the lines to add to
 `docker-compose.yml`, `.env.example` and, with `--workspace`, `.dockerignore` and

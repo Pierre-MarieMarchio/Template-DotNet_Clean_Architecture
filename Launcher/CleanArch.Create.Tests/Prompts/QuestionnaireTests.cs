@@ -229,6 +229,6 @@ public sealed class QuestionnaireTests
 
         answers["audience"].ShouldBe("public");
         console.Output.ShouldNotContain("A back office");
-        console.Output.ShouldContain(webApp.Refusals.Single().Explanation);
+        console.Output.ShouldContain(webApp.Refusals.Single(refusal => refusal.Symbol == "adminNeedsAccounts").Explanation);
     }
 }

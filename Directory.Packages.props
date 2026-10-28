@@ -50,6 +50,13 @@
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
   </ItemGroup>
 
+  <!--#if (dotnetClient)-->
+  <!-- The version the pinned Kiota tool generates for; the two move together. -->
+  <ItemGroup Label="API client">
+    <PackageVersion Include="Microsoft.Kiota.Bundle" Version="2.1.2" />
+  </ItemGroup>
+
+  <!--#endif-->
   <!-- One 1.18.x band. -->
   <ItemGroup Label="OpenTelemetry">
     <!--#if (postgreSql)-->

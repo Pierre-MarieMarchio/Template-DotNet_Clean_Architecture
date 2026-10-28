@@ -27,6 +27,9 @@ the local tools and creates each context's initial migration, and the other task
 <!--#if (anyPresentation)-->
 It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
 <!--#endif-->
+<!--#if (dotnetClient)-->
+It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.
+<!--#endif-->
 
 | When | Command | Needs |
 |---|---|---|
@@ -35,6 +38,9 @@ It first creates the presentation project's pages with `dotnet run Tools/Tasks.c
 | The structural rules alone | `dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` | nothing |
 | After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` (commit apart what it rewrites in files you did not touch) | nothing |
 | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
+<!--#if (dotnetClient)-->
+| After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
+<!--#endif-->
 | Every task and option | `dotnet run Tools/Tasks.cs help`; `-m:<N>` caps build and test parallelism | nothing |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |

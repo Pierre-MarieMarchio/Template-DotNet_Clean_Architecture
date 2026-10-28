@@ -74,6 +74,9 @@ public sealed class LayoutConventionTests
         /*#if (presentationBlazorServer && publicApi)
         ["Src/Presentation/AppTemplate.PresentationApp"] = null,
         #endif*/
+        //#if (dotnetClient)
+        ["Src/Clients/AppTemplate.Client"] = null,
+        //#endif
     };
 
     private static readonly string[] _featuresStillToCome =
@@ -150,6 +153,9 @@ public sealed class LayoutConventionTests
         /*#if (presentationBlazorServer)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security"],
         #endif*/
+        //#if (dotnetClient)
+        ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
+        //#endif
     };
 
     [Fact]
@@ -310,6 +316,9 @@ public sealed class LayoutConventionTests
         /*#if (presentationBlazorServer)
         ["AppTemplate.PresentationApp"] = ["Components", "wwwroot"],
         #endif*/
+        //#if (dotnetClient)
+        ["AppTemplate.Client"] = ["Generated"],
+        //#endif
     };
 
     [Fact]
@@ -592,6 +601,12 @@ public sealed class LayoutConventionTests
         || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
         || path.Contains($"{Path.DirectorySeparatorChar}node_modules", StringComparison.Ordinal);
 
+    /*#if (dotnetClient)*/
+    private static bool IsGenerated(string path) =>
+        path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+        || path.Contains($"{Path.DirectorySeparatorChar}Generated{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    /*#else
     private static bool IsGenerated(string path) =>
         path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    #endif*/
 }

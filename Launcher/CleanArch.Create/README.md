@@ -82,6 +82,12 @@ the edits the new `README.md` lists outside the project's folders, all or none, 
 `presentation-scaffold`, which creates the pages with `dotnet new blazor` and needs the network. A
 step that fails says why and leaves the README's section for what remains.
 
+`web-app` reads the project's scope, name, authentication, example features, Files module, CI and
+agent files the same way. A Blazor WebAssembly app brings the .NET client, so after
+`cleanarch-webapp` it runs `dotnet run Tools/Tasks.cs web-join <Name>`, which makes the edits the
+app's `README.md` lists outside its folder, all or none; with `--workspace` it leaves that for after
+the workspace's own lines.
+
 Each asks on the same thread, with the same summary, as a new project.
 
 ## Without questions

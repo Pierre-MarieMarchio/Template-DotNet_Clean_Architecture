@@ -71,7 +71,7 @@ jobs:
             auth_context: "false"
             integration: "true"
           - name: external auth, notes
-            options: --auth external --examples notes
+            options: --auth external --examples notes --presentation avalonia
             auth_context: "false"
           - name: local auth, no files, no ci, no sonar
             options: --auth local --examples none --files false --ci false --sonar false
@@ -92,6 +92,7 @@ jobs:
             options: --auth external --examples none --files false
             auth_context: "false"
             generator: "true"
+            first_presentation: --framework avalonia --auth external --examples none --files false
           - name: web placeholder, smallest project
             options: --web placeholder --auth none --examples none --files false --presentation blazor-server
             auth_context: "false"

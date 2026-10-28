@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Client;
-//#if (localAuth)
+//#if (localAuth || externalAuth)
 using AppTemplate.Client.Common.Sessions;
 //#endif
 using AppTemplate.FrameworkSite;
@@ -13,6 +13,17 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 //#if (localAuth)
 builder.Services.AddSingleton<IRefreshTokenStore, CookieRefreshTokenStore>();
 //#endif
+//#if (externalAuth)
+builder.Services.AddSingleton<IAccessTokenSource, NoAccessTokenYet>();
+//#endif
 builder.Services.AddApiClient(new Uri(builder.HostEnvironment.BaseAddress));
 
 await builder.Build().RunAsync();
+
+//#if (externalAuth)
+internal sealed class NoAccessTokenYet : IAccessTokenSource
+{
+    public ValueTask<string?> AccessTokenAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult<string?>(null);
+}
+//#endif

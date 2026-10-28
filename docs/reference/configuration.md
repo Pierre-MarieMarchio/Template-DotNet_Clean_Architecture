@@ -185,6 +185,20 @@ Read by the desktop app alone, from the `appsettings.json` beside it, its enviro
 |---|---|---|---|
 | `BaseAddress` | absolute URI | `http://localhost:8080/` | **Required.** The API's `http` or `https` address, the API Compose publishes by default; the app refuses to start without it. |
 
+<!--#if (externalAuth)-->
+### `SignIn`
+
+Read by the desktop app alone, as the public client it signs its user in with at the provider, from
+the same places as `Api` (`SignIn__ClientId`, `--SignIn:ClientId=<id>`); the API never reads it.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
+| `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `http://127.0.0.1/` on any port. |
+| `Scope` | string | `openid profile email offline_access` | Must include `openid`. `offline_access` asks for the refresh token that keeps the session past the first access token; the API's own scope goes here when the provider issues its audience that way. |
+| `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only. |
+
+<!--#endif-->
 <!--#endif-->
 <!--#if (files)-->
 ## Files

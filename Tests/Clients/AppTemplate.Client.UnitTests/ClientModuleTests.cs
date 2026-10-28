@@ -1,8 +1,12 @@
 ﻿using System.Net;
-//#if (localAuth)
 using AppTemplate.Client.Common.Sessions;
+//#if (externalAuth)
+using AppTemplate.Client.Generated;
 //#endif
 using AppTemplate.Client.UnitTests.TestSupport;
+//#if (externalAuth)
+using Microsoft.Extensions.DependencyInjection;
+//#endif
 using Shouldly;
 using Xunit;
 
@@ -39,6 +43,20 @@ public sealed class ClientModuleTests
 
         byDefault.RefreshTokens.ShouldBeOfType<InMemoryRefreshTokenStore>().Mode.ShouldBe(RefreshTokenMode.Body);
         chosen.Session.Mode.ShouldBe(RefreshTokenMode.Cookie);
+    }
+    //#endif
+    //#if (externalAuth)
+
+    [Fact]
+    public void AHostThatRegistersNoAccessTokenSource_IsToldSoAtFirstUse()
+    {
+        var services = new ServiceCollection();
+        services.AddApiClient(ClientHarness.BaseAddress);
+        using var provider = services.BuildServiceProvider();
+
+        var refusal = Should.Throw<InvalidOperationException>(() => provider.GetRequiredService<ApiClient>());
+
+        refusal.Message.ShouldContain(nameof(IAccessTokenSource));
     }
     //#endif
 }

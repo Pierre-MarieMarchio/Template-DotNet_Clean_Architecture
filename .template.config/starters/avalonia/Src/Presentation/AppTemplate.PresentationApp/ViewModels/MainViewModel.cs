@@ -5,10 +5,11 @@ using AppTemplate.Client.Generated;
 using AppTemplate.Client.Generated.Models;
 //#endif
 using AppTemplate.PresentationApp.Common.Hosting;
-//#if (localAuth)
+//#if (externalAuth)
+using AppTemplate.PresentationApp.Common.Sessions;
+//#endif
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-//#endif
 using Microsoft.Extensions.Options;
 //#if (localAuth)
 using Microsoft.Kiota.Abstractions;
@@ -78,8 +79,47 @@ public partial class MainViewModel(ApiClient api, ApiSession session, IOptions<A
     }
 }
 //#else
-public class MainViewModel(IOptions<ApiOptions> options) : ViewModelBase
+public partial class MainViewModel(DesktopSession session, IOptions<ApiOptions> options) : ViewModelBase
 {
+    public const string FinishInTheBrowser = "Finish signing in in your browser.";
+
     public string ApiAddress => options.Value.BaseAddress?.ToString() ?? string.Empty;
+
+    [ObservableProperty]
+    public partial string? SignedInAs { get; set; }
+
+    [ObservableProperty]
+    public partial string? Status { get; set; }
+
+    [ObservableProperty]
+    public partial string? Problem { get; set; }
+
+    [RelayCommand]
+    private async Task SignInAsync(CancellationToken cancellationToken)
+    {
+        Problem = null;
+        Status = FinishInTheBrowser;
+
+        try
+        {
+            await session.SignInAsync(cancellationToken);
+            SignedInAs = session.SignedInAs;
+        }
+        catch (SignInFailedException error)
+        {
+            Problem = error.Message;
+        }
+        finally
+        {
+            Status = null;
+        }
+    }
+
+    [RelayCommand]
+    private void SignOut()
+    {
+        session.SignOut();
+        SignedInAs = null;
+    }
 }
 //#endif

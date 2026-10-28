@@ -1178,8 +1178,22 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "Src/Clients/AppTemplate.Client/Common/Sessions/**",
-            "Tests/Clients/AppTemplate.Client.UnitTests/Common/Sessions/**"
+            "Src/Clients/AppTemplate.Client/Common/Sessions/ApiSession.cs",
+            "Src/Clients/AppTemplate.Client/Common/Sessions/ApiSessionHandler.cs",
+            "Src/Clients/AppTemplate.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "Src/Clients/AppTemplate.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "Src/Clients/AppTemplate.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "Src/Clients/AppTemplate.Client/Common/Sessions/RefreshTokenMode.cs",
+            "Tests/Clients/AppTemplate.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "Src/Clients/AppTemplate.Client/Common/Sessions/AccessTokenHandler.cs",
+            "Src/Clients/AppTemplate.Client/Common/Sessions/IAccessTokenSource.cs",
+            "Tests/Clients/AppTemplate.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "Tests/Clients/AppTemplate.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         },
         {
@@ -1295,9 +1309,12 @@
       "condition": "(presentationAvalonia)",
       "modifiers": [
         {
-          "condition": "(!localAuth)",
+          "condition": "(!externalAuth)",
           "exclude": [
-            "**/ViewModels/MainViewModelTests.cs"
+            "**/Common/Hosting/SignInOptions*.cs",
+            "**/Common/Sessions/**",
+            "**/TestSupport/ScriptedBrowser.cs",
+            "**/TestSupport/StubProvider.cs"
           ]
         }
       ]

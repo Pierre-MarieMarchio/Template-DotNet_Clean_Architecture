@@ -1,5 +1,9 @@
 ﻿using System.Net;
+//#if (localAuth)
 using AppTemplate.Client.Common.Sessions;
+//#else
+using AppTemplate.PresentationApp.Common.Sessions;
+//#endif
 using AppTemplate.PresentationApp.UnitTests.TestSupport;
 using AppTemplate.PresentationApp.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +14,7 @@ namespace AppTemplate.PresentationApp.UnitTests.ViewModels;
 
 public sealed class MainViewModelTests
 {
+    //#if (localAuth)
     private const string _login = "/api/v1/auth/login";
     private const string _me = "/api/v1/auth/me";
     private const string _logout = "/api/v1/auth/logout";
@@ -88,4 +93,63 @@ public sealed class MainViewModelTests
         host.Services.GetRequiredService<ApiSession>().IsSignedIn.ShouldBeFalse();
         api.Sent.ShouldContain(_logout);
     }
+    //#else
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task SigningIn_WaitsOnTheBrowser_ThenShowsWhoIsSignedIn()
+    {
+        var provider = new StubProvider(StubProvider.Tokens("a1", "r1"));
+        MainViewModel? main = null;
+        string? statusWhileRedeeming = null;
+        var api = new StubApi(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == StubProvider.TokenPath)
+            {
+                statusWhileRedeeming = main!.Status;
+            }
+
+            return provider.Answer(request) ?? new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var host = PresentationHost.Build(api);
+        main = host.Services.GetRequiredService<MainViewModel>();
+
+        await main.SignInCommand.ExecuteAsync(Cancellation);
+
+        statusWhileRedeeming.ShouldBe(MainViewModel.FinishInTheBrowser);
+        main.SignedInAs.ShouldBe("Ada Lovelace");
+        main.Status.ShouldBeNull();
+        main.Problem.ShouldBeNull();
+        host.Services.GetRequiredService<DesktopSession>().IsSignedIn.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ASignInTheProviderRefuses_ShowsItsError()
+    {
+        var provider = new StubProvider();
+        var browser = new ScriptedBrowser(state => $"error=access_denied&error_description=Denied&state={state}");
+        using var host = PresentationHost.Build(new StubApi(request => provider.Answer(request) ?? new HttpResponseMessage(HttpStatusCode.NotFound)), browser: browser);
+        var main = host.Services.GetRequiredService<MainViewModel>();
+
+        await main.SignInCommand.ExecuteAsync(Cancellation);
+
+        main.Problem.ShouldBe("access_denied: Denied");
+        main.SignedInAs.ShouldBeNull();
+        main.Status.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task SigningOut_ForgetsTheSession()
+    {
+        var provider = new StubProvider(StubProvider.Tokens("a1", "r1"));
+        using var host = PresentationHost.Build(new StubApi(request => provider.Answer(request) ?? new HttpResponseMessage(HttpStatusCode.NotFound)));
+        var main = host.Services.GetRequiredService<MainViewModel>();
+        await main.SignInCommand.ExecuteAsync(Cancellation);
+
+        main.SignOutCommand.Execute(null);
+
+        main.SignedInAs.ShouldBeNull();
+        host.Services.GetRequiredService<DesktopSession>().IsSignedIn.ShouldBeFalse();
+    }
+    //#endif
 }

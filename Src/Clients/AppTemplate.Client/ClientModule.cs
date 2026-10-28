@@ -1,8 +1,6 @@
 ﻿using AppTemplate.Client.Common.Composition;
 using AppTemplate.Client.Common.Errors;
-//#if (localAuth)
 using AppTemplate.Client.Common.Sessions;
-//#endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -36,6 +34,9 @@ public static class ClientModule
         //#if (localAuth)
         services.TryAddTransient<ApiSessionHandler>();
         //#endif
+        //#if (externalAuth)
+        services.TryAddTransient<AccessTokenHandler>();
+        //#endif
         services.TryAddTransient(provider =>
             ApiClientFactory.Create(provider.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName)));
 
@@ -49,6 +50,10 @@ public static class ClientModule
         //#if (localAuth)
 
         client.AddHttpMessageHandler<ApiSessionHandler>();
+        //#endif
+        //#if (externalAuth)
+
+        client.AddHttpMessageHandler<AccessTokenHandler>();
         //#endif
 
         client.AddStandardResilienceHandler();

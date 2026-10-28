@@ -21,7 +21,15 @@
     </StackPanel>
     <TextBlock Text="{Binding Problem}" Foreground="Firebrick" />
 <!--#else-->
-    <TextBlock Text="Signed out: this app does not sign in through the identity provider." TextWrapping="Wrap" />
+    <StackPanel Spacing="8" IsVisible="{Binding SignedInAs, Converter={x:Static ObjectConverters.IsNull}}">
+      <Button Content="Sign in" Command="{Binding SignInCommand}" />
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel Spacing="8" IsVisible="{Binding SignedInAs, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <TextBlock Text="{Binding SignedInAs, StringFormat='Signed in as {0}'}" />
+      <Button Content="Sign out" Command="{Binding SignOutCommand}" />
+    </StackPanel>
+    <TextBlock Text="{Binding Problem}" Foreground="Firebrick" TextWrapping="Wrap" />
 <!--#endif-->
   </StackPanel>
 

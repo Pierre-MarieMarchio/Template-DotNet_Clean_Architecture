@@ -34,8 +34,8 @@ for the cookie mode on the session routes, holds the access token in memory, and
 on a `401`.
 <!--#endif-->
 <!--#if (externalAuth)-->
-Nobody signs in: the app holds no token from your provider, so the API answers `401` to every route
-it calls.
+Nobody signs in: the app registers an access token source that holds no token until sign-in is added,
+so the API answers `401` to every route it calls.
 <!--#endif-->
 
 ## Work on it
@@ -256,10 +256,8 @@ task stops:
 
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
-<!--#if (!hasClient && localAuth)-->
+<!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
-<!--#elseif (!hasClient)-->
-          ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors"],
 <!--#endif-->
   ```
 
@@ -333,11 +331,7 @@ task stops:
 
   ```text
   Src/Clients/
-<!--#if (localAuth)-->
     AppTemplate.Client                    Common/{Composition,Errors,Sessions}
-<!--#else-->
-    AppTemplate.Client                    Common/{Composition,Errors}
-<!--#endif-->
                                           no Features/
                                           Generated/: Kiota's, from the OpenAPI reference
   ```

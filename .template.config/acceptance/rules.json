@@ -3,6 +3,7 @@
     {
       "paths": [
         ".template.config/acceptance/SelectLegs.cs",
+        ".template.config/acceptance/CheckProjectFile.cs",
         ".template.config/acceptance/rules.json",
         ".template.config/acceptance/matrix.json",
         ".github/workflows/template-acceptance.yml"

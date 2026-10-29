@@ -24,8 +24,8 @@ work twice.
 Every pass calls an application use case, exactly as a controller would; a job adds a trigger, not
 logic.
 <!--#if ((presentationBlazorServer || presentationMcp) && !jobsWorker)-->
-The jobs run in the API alone: the presentation project composes the same use cases and runs none
-of them on a timer.
+The jobs run in the API alone: the other hosts compose the same use cases and run none of them on
+a timer.
 <!--#endif-->
 <!--#if (jobsWorker && api)-->
 The jobs run in the worker alone: the API and every other host compose the same use cases and run

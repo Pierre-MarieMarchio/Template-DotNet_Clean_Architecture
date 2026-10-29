@@ -285,12 +285,12 @@ task stops:
   add:
 
   ```markdown
-  ## The presentation project
+  ## The desktop app
 
-  `Src/Presentation/<Project>.<Name>` is a desktop client: an Avalonia app that calls the API over
+  `Src/Presentation/<Project>.Desktop` is a desktop client: an Avalonia app that calls the API over
   HTTP through the .NET client of `Src/Clients/<Project>.Client`. It references that client alone
   (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use
-  case and no module. [Presentation project](../features/presentation.md) describes it.
+  case and no module. [Presentation projects](../features/presentation.md) describes it.
 
   ```
 
@@ -345,9 +345,9 @@ task stops:
   add:
 
   ```markdown
-  It first creates the presentation project's views with `dotnet new avalonia.mvvm` and adds the
-  project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
-  and last writes the .NET client from the OpenAPI reference.
+  It creates the desktop app's views with `dotnet new avalonia.mvvm` and adds the project to the
+  solution ([Presentation projects](../features/presentation.md#creating-the-project)), and last
+  writes the .NET client from the OpenAPI reference.
   ```
 
 - in `docs/getting-started/overview.md`, before the lines:
@@ -373,7 +373,7 @@ task stops:
   add:
 
   ```markdown
-  | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |
+  | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
   ```
 
 - in `docs/README.md`, before the lines:
@@ -386,7 +386,7 @@ task stops:
   add:
 
   ```markdown
-  | [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
+  | [The desktop app](features/presentation.md#desktop-app) | the desktop app, how it is created, and signing in to the API from it |
   ```
 
 <!--#if (files)-->
@@ -407,7 +407,7 @@ task stops:
   add:
 
   ```markdown
-  ## Presentation project
+  ## Desktop app
 
   ### `Api`
 
@@ -443,7 +443,7 @@ task stops:
   add:
 
   ```markdown
-  The presentation project's root also holds `Assets/`, `ViewModels/`, `Views/`, `App.axaml.cs` and
+  The desktop app's root also holds `Assets/`, `ViewModels/`, `Views/`, `App.axaml.cs` and
   the view locator, which its framework's template writes and which are its own from then on; a file
   named `<Type>.axaml.cs` declares `<Type>`.
 <!--#if (!hasClient)-->
@@ -462,9 +462,9 @@ task stops:
 
   ```text
 <!--#if (externalAuth)-->
-    <Project>.<Name>                      Common/{Hosting,Sessions}
+    <Project>.Desktop                     Common/{Hosting,Sessions}
 <!--#else-->
-    <Project>.<Name>                      Common/{Hosting}
+    <Project>.Desktop                     Common/{Hosting}
 <!--#endif-->
                                           no Features/
                                           Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap

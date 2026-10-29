@@ -58,13 +58,13 @@ Which page answers your question, and where a new page goes.
 | [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
 <!--#endif-->
 <!--#if (presentationBlazorServer)-->
-| [Presentation project](features/presentation.md) | the server-rendered project beside the API, and signing people in to it |
+| [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
 <!--#endif-->
 <!--#if (presentationAvalonia || presentationWpf)-->
-| [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
+| [The desktop app](features/presentation.md#desktop-app) | the desktop app, how it is created, and signing in to the API from it |
 <!--#endif-->
 <!--#if (presentationMcp)-->
-| [Presentation project](features/presentation.md) | the MCP server beside the API, its tools, and who may call them |
+| [The MCP server](features/presentation.md#mcp-server) | the MCP server, how it is created, its tools, and who may call them |
 <!--#endif-->
 
 ## Guides

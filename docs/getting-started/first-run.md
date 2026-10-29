@@ -41,21 +41,21 @@ dotnet run Tools/Tasks.cs bootstrap
 
 Commit what it changes before anything else.
 <!--#if (presentationBlazorServer)-->
-It first creates the presentation project's pages with `dotnet new blazor` and adds the project to
-the solution ([Presentation project](../features/presentation.md#creating-the-project)).
+It creates the portal's pages with `dotnet new blazor` and adds the project to the solution
+([Presentation projects](../features/presentation.md#creating-the-project)).
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-It first creates the presentation project's views with `dotnet new avalonia.mvvm` and adds the
-project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
-and last writes the .NET client from the OpenAPI reference.
+It creates the desktop app's views with `dotnet new avalonia.mvvm` and adds the project to the
+solution ([Presentation projects](../features/presentation.md#creating-the-project)), and last
+writes the .NET client from the OpenAPI reference.
 <!--#endif-->
 <!--#if (presentationMcp)-->
-It first adds the MCP server, which comes written whole, and its tests to the solution
-([Presentation project](../features/presentation.md#creating-the-project)).
+It adds the MCP server, which comes written whole, and its tests to the solution
+([Presentation projects](../features/presentation.md#creating-the-project)).
 <!--#endif-->
 <!--#if (presentationWpf)-->
-It first adds the presentation project, its `.Core` project and their tests to the solution
-([Presentation project](../features/presentation.md#creating-the-project)), and last writes the
+It adds the desktop app, its `.Core` project and their tests to the solution
+([Presentation projects](../features/presentation.md#creating-the-project)), and last writes the
 .NET client from the OpenAPI reference.
 <!--#endif-->
 <!--#if (jobsWorker)-->
@@ -120,7 +120,7 @@ healthy. The API runs in Development, so it applies its migrations at start.
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI (Development only) | <http://localhost:8080/scalar/v1> |
 <!--#if (presentationBlazorServer)-->
-| The Blazor presentation project | <http://localhost:8090> |
+| The portal | <http://localhost:8090> |
 <!--#endif-->
 <!--#if (presentationMcp)-->
 | The MCP server | <http://localhost:8091/mcp> |
@@ -286,7 +286,7 @@ dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructur
 | Service | Address |
 |---|---|
 <!--#if (presentationBlazorServer)-->
-| The Blazor presentation project | <http://localhost:8090> |
+| The portal | <http://localhost:8090> |
 <!--#endif-->
 <!--#if (presentationMcp)-->
 | The MCP server | <http://localhost:8091/mcp> |
@@ -302,7 +302,7 @@ dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructur
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
 <!--#endif-->
 
-Every port binds to `127.0.0.1`; [presentation project](../features/presentation.md) describes each
+Every port binds to `127.0.0.1`; [presentation projects](../features/presentation.md) describes each
 host.
 
 ```bash

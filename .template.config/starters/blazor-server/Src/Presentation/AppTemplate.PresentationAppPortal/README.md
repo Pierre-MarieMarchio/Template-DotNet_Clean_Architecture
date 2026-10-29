@@ -76,7 +76,7 @@ task stops:
   add:
 
   ```markdown
-  | The Blazor presentation project | <http://localhost:8090> |
+  | The portal | <http://localhost:8090> |
   ```
 
 <!--#if (externalAuth)-->
@@ -283,12 +283,12 @@ task stops:
   add:
 
   ```markdown
-  ## The presentation project
+  ## The portal
 
-  `Src/Presentation/<Project>.<Name>` is a second host: a Blazor Web App that calls the use cases in
-  its own process. It references the application projects and the modules it composes, like the API,
-  and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
-  its own caller, its sign-in and the adapters a host supplies. [Presentation project](../features/presentation.md)
+  `Src/Presentation/<Project>.Portal` is a host: a Blazor Web App that calls the use cases in
+  its own process. It references the application projects and the modules it composes, and never another
+  host (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
+  its own caller, its sign-in and the adapters a host supplies. [Presentation projects](../features/presentation.md)
   describes it.
 
   ```
@@ -331,10 +331,10 @@ task stops:
   add:
 
   ```markdown
-  ## The presentation project
+  ## The portal
 
-  The presentation project signs people in to itself, with a cookie, over the same accounts: the
-  [presentation project](presentation.md#signing-in) describes its sign-in and its session.
+  The portal signs people in to itself, with a cookie, over the same accounts: the
+  [presentation projects](presentation.md#portal-sign-in) page describes its sign-in and its session.
 
   ```
 
@@ -349,8 +349,8 @@ task stops:
   add:
 
   ```markdown
-  The jobs run in the API alone: the presentation project composes the same use cases and runs none
-  of them on a timer.
+  The jobs run in the API alone: the other hosts compose the same use cases and run none of them on
+  a timer.
   ```
 
 - in `docs/getting-started/first-run.md`, after the line:
@@ -362,8 +362,8 @@ task stops:
   add:
 
   ```markdown
-  It first creates the presentation project's pages with `dotnet new blazor` and adds the project to
-  the solution ([Presentation project](../features/presentation.md#creating-the-project)).
+  It creates the portal's pages with `dotnet new blazor` and adds the project to the solution
+  ([Presentation projects](../features/presentation.md#creating-the-project)).
   ```
 
 - in `docs/getting-started/overview.md`, before the lines:
@@ -389,7 +389,7 @@ task stops:
   add:
 
   ```markdown
-  | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation project](../features/presentation.md)) |
+  | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation projects](../features/presentation.md)) |
   ```
 
 - in `docs/guides/adding-a-feature.md`, after the line:
@@ -401,8 +401,8 @@ task stops:
   add:
 
   ```markdown
-  Each host composes itself, so the call goes in the presentation project's `Program.cs` too, and a first
-  owner feature writes and registers that host's account directory beside the API's; the printed edits
+  Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
+  owner feature writes and registers each host's account directory beside the API's; the printed edits
   name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
   ```
 
@@ -416,7 +416,7 @@ task stops:
   add:
 
   ```markdown
-  | the presentation project's `Program.cs` | the `Add<Features>()` line |
+  | the portal's `Program.cs` | the `Add<Features>()` line |
   ```
 
 <!--#endif-->
@@ -430,7 +430,7 @@ task stops:
   add:
 
   ```markdown
-  | [Presentation project](features/presentation.md) | the server-rendered project beside the API, and signing people in to it |
+  | [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
   ```
 
 <!--#if (externalAuth)-->
@@ -444,15 +444,15 @@ task stops:
   add:
 
   ```markdown
-  The presentation project reads this section too, as the provider it signs people in with.
+  The portal reads this section too, as the provider it signs people in with.
 
   ### `Authentication:External:Interactive`
 
-  The presentation project's client at the provider, for the OpenID Connect code flow; the API never reads it.
+  The portal's client at the provider, for the OpenID Connect code flow; the API never reads it.
 
   | Key | Type | Default | Notes |
   |---|---|---|---|
-  | `ClientId` | string | `""` | **Required.** The client the provider registered for the presentation project. |
+  | `ClientId` | string | `""` | **Required.** The client the provider registered for the portal. |
   | `ClientSecret` | string | — | Its secret, for a confidential client; a public client sends none and relies on PKCE. |
 
   ```
@@ -478,11 +478,11 @@ task stops:
   add:
 
   ```markdown
-  ## Presentation project
+  ## Portal
 
   ### `DataProtection`
 
-  Read by the presentation project alone, for the keys that protect its session cookie and its forms.
+  Read by the portal alone, for the keys that protect its session cookie and its forms.
 
   | Key | Type | Default | Notes |
   |---|---|---|---|
@@ -500,7 +500,7 @@ task stops:
   add:
 
   ```markdown
-  The presentation project's root also holds `Components/` and `wwwroot/`, which its framework's
+  The portal's root also holds `Components/` and `wwwroot/`, which its framework's
   template writes and which are its own from then on.
   ```
 
@@ -514,17 +514,17 @@ task stops:
 
   ```text
 <!--#if (localAuth)-->
-    <Project>.<Name>                      Common/{Hosting,Security}
+    <Project>.Portal                      Common/{Hosting,Security}
                                           Features/<F>/Composition
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (externalAuth)-->
-    <Project>.<Name>                      Common/{Hosting,Security}
+    <Project>.Portal                      Common/{Hosting,Security}
                                           Features/<F>/{Composition,Configuration/Options}
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (publicApi)-->
-    <Project>.<Name>                      Common/{Hosting,Security}
+    <Project>.Portal                      Common/{Hosting,Security}
                                           no Features/
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->

@@ -284,14 +284,14 @@ task stops:
   add:
 
   ```markdown
-  ## The presentation project
+  ## The desktop app
 
-  `Src/Presentation/<Project>.<Name>` is a desktop client for Windows: a WPF app that calls the API
+  `Src/Presentation/<Project>.Desktop` is a desktop client for Windows: a WPF app that calls the API
   over HTTP through the .NET client of `Src/Clients/<Project>.Client`. Its view models and its host
-  are in `Src/Presentation/<Project>.<Name>.Core`, which builds and runs its tests on every system.
+  are in `Src/Presentation/<Project>.Desktop.Core`, which builds and runs its tests on every system.
   The app references that project alone, and it references the client alone
   (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so neither is a host: they compose no use case
-  and no module. [Presentation project](../features/presentation.md) describes them.
+  and no module. [Presentation projects](../features/presentation.md) describes them.
 
   ```
 
@@ -346,8 +346,8 @@ task stops:
   add:
 
   ```markdown
-  It first adds the presentation project, its `.Core` project and their tests to the solution
-  ([Presentation project](../features/presentation.md#creating-the-project)), and last writes the
+  It adds the desktop app, its `.Core` project and their tests to the solution
+  ([Presentation projects](../features/presentation.md#creating-the-project)), and last writes the
   .NET client from the OpenAPI reference.
   ```
 
@@ -374,7 +374,7 @@ task stops:
   add:
 
   ```markdown
-  | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, its view models and host in `<Project>.<Name>.Core`, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |
+  | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, its view models and host in `<Project>.Desktop.Core`, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
   ```
 
 - in `docs/README.md`, before the lines:
@@ -387,7 +387,7 @@ task stops:
   add:
 
   ```markdown
-  | [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
+  | [The desktop app](features/presentation.md#desktop-app) | the desktop app, how it is created, and signing in to the API from it |
   ```
 
 <!--#if (files)-->
@@ -408,7 +408,7 @@ task stops:
   add:
 
   ```markdown
-  ## Presentation project
+  ## Desktop app
 
   ### `Api`
 
@@ -444,7 +444,7 @@ task stops:
   add:
 
   ```markdown
-  The presentation project's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
+  The desktop app's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
   markup, in the shape `dotnet new wpf` gives them, and its `.Core` project's root holds `ViewModels/`;
   a file named `<Type>.xaml.cs` declares `<Type>`.
 <!--#if (!hasClient)-->
@@ -462,12 +462,12 @@ task stops:
   add:
 
   ```text
-    <Project>.<Name>                      no Common/, no Features/
+    <Project>.Desktop                     no Common/, no Features/
                                           App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#if (externalAuth)-->
-    <Project>.<Name>.Core                 Common/{Hosting,Sessions}
+    <Project>.Desktop.Core                Common/{Hosting,Sessions}
 <!--#else-->
-    <Project>.<Name>.Core                 Common/{Hosting}
+    <Project>.Desktop.Core                Common/{Hosting}
 <!--#endif-->
                                           no Features/
                                           ViewModels/

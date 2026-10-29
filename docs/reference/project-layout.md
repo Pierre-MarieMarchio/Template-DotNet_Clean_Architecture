@@ -10,11 +10,11 @@ Every project has the same shape: `Common/` for what knows no feature, `Features
 rest, and a root that holds only the `.csproj`, one composition file (`Program.cs` or the project's
 `…Module.cs`) and the folders `Common/`, `Features/`, `Migrations/` and `Properties/`.
 <!--#if (presentationBlazorServer)-->
-The presentation project's root also holds `Components/` and `wwwroot/`, which its framework's
+The portal's root also holds `Components/` and `wwwroot/`, which its framework's
 template writes and which are its own from then on.
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-The presentation project's root also holds `Assets/`, `ViewModels/`, `Views/`, `App.axaml.cs` and
+The desktop app's root also holds `Assets/`, `ViewModels/`, `Views/`, `App.axaml.cs` and
 the view locator, which its framework's template writes and which are its own from then on; a file
 named `<Type>.axaml.cs` declares `<Type>`.
 <!--#endif-->
@@ -23,7 +23,7 @@ The MCP server keeps each feature's tools under `Features/<F>/Tools`, one class 
 `<F>Tools`, and what every tool shares under `Common/Tools`.
 <!--#endif-->
 <!--#if (presentationWpf)-->
-The presentation project's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
+The desktop app's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
 markup, in the shape `dotnet new wpf` gives them, and its `.Core` project's root holds `ViewModels/`;
 a file named `<Type>.xaml.cs` declares `<Type>`.
 <!--#endif-->
@@ -103,7 +103,7 @@ Src/Infrastructure/
 Src/Presentation/
   AppTemplate.Presentation.Core         Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
-<!--#if (!jobsWorker)-->
+<!--#if (api && !jobsWorker)-->
   AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Jobs,Localization,Observability,OpenApi,
                                                 Security}
@@ -114,7 +114,7 @@ Src/Presentation/
                                                       Contracts/{Mapping,Requests,Responses},
                                                       Controllers,Jobs}
 <!--#endif-->
-<!--#if (jobsWorker)-->
+<!--#if (api && jobsWorker)-->
   AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Localization,Observability,OpenApi,
                                                 Security}
@@ -126,49 +126,49 @@ Src/Presentation/
                                                       Controllers}
 <!--#endif-->
 <!--#if (presentationBlazorServer && localAuth)-->
-  <Project>.<Name>                      Common/{Hosting,Security}
+  <Project>.Portal                      Common/{Hosting,Security}
                                         Features/<F>/Composition
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (presentationBlazorServer && externalAuth)-->
-  <Project>.<Name>                      Common/{Hosting,Security}
+  <Project>.Portal                      Common/{Hosting,Security}
                                         Features/<F>/{Composition,Configuration/Options}
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (presentationBlazorServer && publicApi)-->
-  <Project>.<Name>                      Common/{Hosting,Security}
+  <Project>.Portal                      Common/{Hosting,Security}
                                         no Features/
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (presentationAvalonia && localAuth)-->
-  <Project>.<Name>                      Common/{Hosting}
+  <Project>.Desktop                     Common/{Hosting}
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
 <!--#if (presentationAvalonia && externalAuth)-->
-  <Project>.<Name>                      Common/{Hosting,Sessions}
+  <Project>.Desktop                     Common/{Hosting,Sessions}
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
 <!--#if (presentationMcp && localAuth)-->
-  <Project>.<Name>                      Common/{Hosting,Security,Tools}
+  <Project>.Mcp                         Common/{Hosting,Security,Tools}
                                         Features/<F>/{Composition,Tools}
 <!--#endif-->
 <!--#if (presentationMcp && externalAuth)-->
-  <Project>.<Name>                      Common/{Hosting,Security,Tools}
+  <Project>.Mcp                         Common/{Hosting,Security,Tools}
                                         Features/<F>/{Composition,Configuration/Options,Tools}
 <!--#endif-->
 <!--#if (presentationWpf)-->
-  <Project>.<Name>                      no Common/, no Features/
+  <Project>.Desktop                     no Common/, no Features/
                                         App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#endif-->
 <!--#if (presentationWpf && localAuth)-->
-  <Project>.<Name>.Core                 Common/{Hosting}
+  <Project>.Desktop.Core                Common/{Hosting}
                                         no Features/
                                         ViewModels/
 <!--#endif-->
 <!--#if (presentationWpf && externalAuth)-->
-  <Project>.<Name>.Core                 Common/{Hosting,Sessions}
+  <Project>.Desktop.Core                Common/{Hosting,Sessions}
                                         no Features/
                                         ViewModels/
 <!--#endif-->

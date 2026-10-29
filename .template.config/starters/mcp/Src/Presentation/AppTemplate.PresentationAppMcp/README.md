@@ -538,13 +538,13 @@ task stops:
   add:
 
   ```markdown
-  ## The presentation project
+  ## The MCP server
 
-  `Src/Presentation/<Project>.<Name>` is a second host: an MCP server whose tools call the use cases
+  `Src/Presentation/<Project>.Mcp` is a host: an MCP server whose tools call the use cases
   in its own process, one use case each. It references the application projects and the modules it
-  composes, like the API, and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/`
+  composes, and never another host (`NoHost_ReferencesAnotherHost`); under `Common/`
   and `Features/` it keeps its own caller, its authentication, its tools and the adapters a host
-  supplies. [Presentation project](../features/presentation.md) describes it.
+  supplies. [Presentation projects](../features/presentation.md) describes it.
 
   ```
 
@@ -603,8 +603,8 @@ task stops:
   ```markdown
   ## The MCP server
 
-  The MCP server beside the API authenticates its callers itself and acts for the owner its
-  credential names: [presentation project](presentation.md#calling-it) describes the credential a
+  The MCP server authenticates its callers itself and acts for the owner its
+  credential names: [presentation projects](presentation.md#calling-it) describes the credential a
   client sends and which tools it reaches
   ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 
@@ -620,8 +620,8 @@ task stops:
   add:
 
   ```markdown
-  The jobs run in the API alone: the presentation project composes the same use cases and runs none
-  of them on a timer.
+  The jobs run in the API alone: the other hosts compose the same use cases and run none of them on
+  a timer.
   ```
 
 - in `docs/getting-started/first-run.md`, after the line:
@@ -633,8 +633,8 @@ task stops:
   add:
 
   ```markdown
-  It first adds the MCP server, which comes written whole, and its tests to the solution
-  ([Presentation project](../features/presentation.md#creating-the-project)).
+  It adds the MCP server, which comes written whole, and its tests to the solution
+  ([Presentation projects](../features/presentation.md#creating-the-project)).
   ```
 
 - in `docs/getting-started/overview.md`, before the lines:
@@ -660,7 +660,7 @@ task stops:
   add:
 
   ```markdown
-  | `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation project](../features/presentation.md)) |
+  | `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation projects](../features/presentation.md)) |
   ```
 
 - in `docs/guides/adding-a-feature.md`, after the line:
@@ -672,11 +672,11 @@ task stops:
   add:
 
   ```markdown
-  Each host composes itself, so the call goes in the presentation project's `Program.cs` too, and a first
-  owner feature writes and registers that host's account directory beside the API's; the printed edits
+  Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
+  owner feature writes and registers each host's account directory beside the API's; the printed edits
   name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
   The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
-  as the [presentation project](../features/presentation.md#declaring-a-tool) shows.
+  as the [presentation projects](../features/presentation.md#declaring-a-tool) shows.
   ```
 
 <!--#if (todoLists || notes)-->
@@ -689,8 +689,8 @@ task stops:
   add:
 
   ```markdown
-  | the presentation project's `Program.cs` | the `Add<Features>()` line |
-  | the presentation project's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
+  | the MCP server's `Program.cs` | the `Add<Features>()` line |
+  | the MCP server's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
   ```
 
 <!--#endif-->
@@ -704,7 +704,7 @@ task stops:
   add:
 
   ```markdown
-  | [Presentation project](features/presentation.md) | the MCP server beside the API, its tools, and who may call them |
+  | [The MCP server](features/presentation.md#mcp-server) | the MCP server, how it is created, its tools, and who may call them |
   ```
 
 <!--#if (externalAuth)-->
@@ -755,11 +755,11 @@ task stops:
 
   ```text
 <!--#if (localAuth)-->
-    <Project>.<Name>                      Common/{Hosting,Security,Tools}
+    <Project>.Mcp                         Common/{Hosting,Security,Tools}
                                           Features/<F>/{Composition,Tools}
 <!--#endif-->
 <!--#if (externalAuth)-->
-    <Project>.<Name>                      Common/{Hosting,Security,Tools}
+    <Project>.Mcp                         Common/{Hosting,Security,Tools}
                                           Features/<F>/{Composition,Configuration/Options,Tools}
 <!--#endif-->
   ```

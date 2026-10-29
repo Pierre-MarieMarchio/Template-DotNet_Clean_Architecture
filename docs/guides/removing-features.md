@@ -78,11 +78,12 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | `Src/Application/AppTemplate.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
-<!--#if (presentationBlazorServer || presentationMcp)-->
-| the presentation project's `Program.cs` | the `Add<Features>()` line |
+<!--#if (presentationBlazorServer)-->
+| the portal's `Program.cs` | the `Add<Features>()` line |
 <!--#endif-->
 <!--#if (presentationMcp)-->
-| the presentation project's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
+| the MCP server's `Program.cs` | the `Add<Features>()` line |
+| the MCP server's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
 <!--#endif-->
 <!--#if (api)-->
 | `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |

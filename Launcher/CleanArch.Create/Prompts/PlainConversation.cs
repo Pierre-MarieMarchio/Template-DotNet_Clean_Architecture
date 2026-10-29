@@ -71,7 +71,7 @@ public sealed class PlainConversation : Conversation
     }
 
     public override void Answered(string label, string value, string reason) =>
-        _console.MarkupLine($"[bold]{Markup.Escape(label)}[/]: [green]{Markup.Escape(value)}[/] [grey]({Markup.Escape(reason)})[/]");
+        _console.MarkupLine($"[bold]{Markup.Escape(label)}[/]: [green]{Markup.Escape(value)}[/]" + (string.IsNullOrEmpty(reason) ? string.Empty : $" [grey]({Markup.Escape(reason)})[/]"));
 
     public override void Warn(string text) => _console.MarkupLine("[yellow]" + Markup.Escape(text) + "[/]");
 

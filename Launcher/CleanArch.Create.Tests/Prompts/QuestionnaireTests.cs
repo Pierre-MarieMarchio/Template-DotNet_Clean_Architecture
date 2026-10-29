@@ -83,15 +83,18 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
-    public void WithoutATerminal_AChoiceOfOneValue_IsTakenWithoutAFlag()
+    public void WithoutATerminal_AChoiceOfOneValue_IsTakenWithoutAFlag_AndSaysWhy()
     {
         TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
-        var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: false);
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var questionnaire = new Questionnaire(console, interactive: false, yes: false);
         var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false" };
 
         Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
 
         presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop", "--auth", "none", "--examples", "none", "--files", "false"]);
+        console.Output.ShouldContain("Framework: blazor-server (the only option when Project authentication is none)");
     }
 
     [Theory]

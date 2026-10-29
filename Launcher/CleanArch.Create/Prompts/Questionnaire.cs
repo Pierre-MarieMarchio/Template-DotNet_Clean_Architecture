@@ -275,19 +275,14 @@ public sealed class Questionnaire
         IReadOnlyDictionary<string, string> answers,
         IReadOnlyDictionary<string, Condition> askedWhen)
     {
-        if (option.Kind == OptionKind.Choice
-            && (option.Choices.Count == 1 || option.DefaultValue is null)
-            && Offer.For(manifest, option, answers, askedWhen).Values is [string only])
+        bool takesTheOnlyValue = _yes || (option.Kind == OptionKind.Choice && (option.Choices.Count == 1 || option.DefaultValue is null));
+        if (takesTheOnlyValue && Offer.For(manifest, option, answers, askedWhen) is { Values: [string only] } offer)
         {
+            Conversation.Answered(option.Label, Shown(option, only), OnlyChoice(manifest, option, offer, answers));
             return only;
         }
 
         bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);
-        if (_yes && Offer.For(manifest, option, answers, askedWhen) is { Values.Count: 1 } offer)
-        {
-            Conversation.Answered(option.Label, Shown(option, offer.Values[0]), OnlyChoice(manifest, option, offer, answers));
-            return offer.Values[0];
-        }
 
         if (_yes && option.DefaultValue is not null)
         {

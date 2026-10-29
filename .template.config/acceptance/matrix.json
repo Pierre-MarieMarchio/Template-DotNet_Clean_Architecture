@@ -23,8 +23,8 @@
   },
   {
     "name": "local auth, no files, no ci, no sonar",
-    "tags": ["generator", "jobs-worker"],
-    "options": "--auth local --examples none --files false --ci false --sonar false --jobs worker",
+    "tags": ["generator", "presentation-worker"],
+    "options": "--auth local --examples none --files false --ci false --sonar false --presentation api --presentation worker",
     "auth_context": "true",
     "generator": "true"
   },
@@ -48,8 +48,8 @@
   },
   {
     "name": "worker, external auth, all examples",
-    "tags": ["jobs-worker"],
-    "options": "--jobs worker --auth external --examples all --files true",
+    "tags": ["presentation-worker"],
+    "options": "--presentation api --presentation worker --auth external --examples all --files true",
     "auth_context": "false",
     "integration": "true",
     "worker": "true",
@@ -58,7 +58,7 @@
   {
     "name": "mcp, external auth, all examples",
     "tags": ["presentation-mcp"],
-    "options": "--presentation mcp --auth external --examples all --files true",
+    "options": "--presentation api --presentation mcp --auth external --examples all --files true",
     "auth_context": "false",
     "mcp": "true",
     "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
@@ -70,6 +70,21 @@
     "auth_context": "true",
     "mcp": "true",
     "stack_env": "SEED_ENABLED=true\nSEED_ADMIN_PASSWORD=Acceptance-Passw0rd!"
+  },
+  {
+    "name": "several hosts, local auth, notes",
+    "tags": ["presentation-blazor-server", "presentation-mcp", "presentation-worker"],
+    "options": "--presentation api --presentation blazor-server --presentation mcp --presentation worker --examples notes --files false",
+    "auth_context": "true",
+    "mcp": "true",
+    "worker": "true",
+    "stack_env": "SEED_ENABLED=true\nSEED_ADMIN_PASSWORD=Acceptance-Passw0rd!"
+  },
+  {
+    "name": "no api, blazor server, mcp and worker, external auth",
+    "tags": ["presentation-blazor-server", "presentation-mcp", "presentation-worker"],
+    "options": "--presentation blazor-server --presentation mcp --presentation worker --auth external --examples notes --files false",
+    "auth_context": "false"
   },
   {
     "name": "external auth, no examples, no files",

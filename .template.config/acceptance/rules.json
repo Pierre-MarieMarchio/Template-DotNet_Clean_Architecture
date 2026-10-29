@@ -58,7 +58,7 @@
     },
     {
       "paths": [".template.config/starters/worker/**"],
-      "tags": ["jobs-worker"]
+      "tags": ["presentation-worker"]
     },
     {
       "paths": [".template.config/presentation/**"],

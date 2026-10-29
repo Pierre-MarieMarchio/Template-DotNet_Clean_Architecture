@@ -76,3 +76,5 @@ Ask for a framework, a host or a change of order through
 [the repository's issue forms](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/new/choose);
 each item above has its issue, labelled `roadmap`, where its discussion happens.
 [Contributing](../../CONTRIBUTING.md#working-on-the-template) says how a change reaches the template.
+
+

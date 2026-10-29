@@ -667,7 +667,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A server-rendered app that keeps sessions refuses a POST without X-CSRF itself. A page that signs in at the provider may reach its origin.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A server-rendered app that keeps sessions refuses a POST without X-CSRF itself, and with an external provider refuses a sign-in callback it did not start and sends a sign-in to the provider, or answers 502 while the provider cannot be reached. A page that signs in at the provider may reach its origin.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -730,6 +730,17 @@ jobs:
               [ "$status" = 403 ] && grep -q '"code":"session.csrfHeaderRequired"' csrf.json || fail "$base/ keeps a session, yet its relay answered $status, not its own 403, to a POST without X-CSRF."
               status=$(curl -sS -o csrf.json -w '%{http_code}' -X POST -H 'X-CSRF: 1' "$base/api/v1/relay-check")
               [ "$status" = 401 ] || fail "$base/ refused a POST that carries X-CSRF: its relay answered $status instead of the API's 401."
+              if grep -qE '^EXTERNAL_AUTH_AUTHORITY=https://' .env; then
+                status=$(curl -sS -o callback.json -w '%{http_code}' "$base/session/callback?code=forged&state=forged")
+                [ "$status" = 400 ] && grep -q '"code":"session.signInStateInvalid"' callback.json || fail "$base/ answered $status, not its own 400, to a sign-in callback it did not start."
+                status=$(curl -sS -o sign-in.json -D sign-in.headers -w '%{http_code}' "$base/session/sign-in")
+                provider=$(grep -oE '^EXTERNAL_AUTH_AUTHORITY=https://[^/]+' .env | cut -d= -f2)
+                case "$status" in
+                  302) grep -qi "^location: ${provider}/" sign-in.headers || fail "$base/session/sign-in redirected elsewhere than ${provider}." ;;
+                  502) grep -q '"code":"session.providerUnreachable"' sign-in.json || fail "$base/session/sign-in answered 502 without its own code." ;;
+                  *) fail "$base/session/sign-in answered $status instead of a redirect to ${provider}, or 502 while it cannot be reached." ;;
+                esac
+              fi
             fi
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
           done
@@ -911,9 +922,8 @@ jobs:
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
           refuse worker-sqlite --database sqlite --jobs worker
-          # Server rendering needs a starter holding an ssr folder, and keeps no session for an external provider yet.
+          # Server rendering needs a starter holding an ssr folder.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
-          refuse ssr-external --auth external --web angular --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name --presentation-name refuses.

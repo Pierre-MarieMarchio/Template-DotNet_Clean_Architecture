@@ -67,23 +67,24 @@ public sealed class OfferTests
             .Values.ShouldBe(["public", "admin"]);
     }
 
-    [Theory]
-    [InlineData("vite-react", "none", "serverRenderingNeedsAServerStarter")]
-    [InlineData("angular", "external", "serverRenderingWithExternalAuthNotYetGenerated")]
-    public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt(string web, string auth, string refusal)
+    [Fact]
+    public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt()
     {
-        var known = new Dictionary<string, string> { ["web"] = web, ["auth"] = auth };
+        var known = new Dictionary<string, string> { ["web"] = "vite-react", ["auth"] = "none" };
 
         Offer offer = Offer.For(_project, Option(_project, "webRendering"), known, Launcher.ProjectAskedWhen);
 
         offer.Values.ShouldBe(["spa"]);
-        offer.Reasons.Select(reason => reason.Symbol).ShouldBe([refusal]);
+        offer.Reasons.Select(reason => reason.Symbol).ShouldBe(["serverRenderingNeedsAServerStarter"]);
     }
 
-    [Fact]
-    public void ServerRendering_IsOffered_ForAnAngularAppWithLocalAccountsOrNone()
+    [Theory]
+    [InlineData("local")]
+    [InlineData("external")]
+    [InlineData("none")]
+    public void ServerRendering_IsOffered_ForAnAngularApp_WhateverTheProjectAuthenticates(string auth)
     {
-        var known = new Dictionary<string, string> { ["auth"] = "local" };
+        var known = new Dictionary<string, string> { ["auth"] = auth };
 
         Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = "angular" }, Launcher.ProjectAskedWhen)
             .Values.ShouldBe(["spa", "ssr"]);

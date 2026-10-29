@@ -65,6 +65,9 @@ HASHES
 FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS runtime
 
 ENV API_UPSTREAM=http://api:8080 \
+#if (webBlazorWasm && externalAuth)
+    SIGN_IN_AUTHORITY="" \
+#endif
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 #if (webReactRouter || webBlazorWasm)

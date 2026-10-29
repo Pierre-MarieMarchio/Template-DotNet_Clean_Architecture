@@ -173,6 +173,13 @@ export const api = createApiClient({ accessToken: () => currentAccessToken() });
 
 Add the provider's origin to `connect-src` in the app's `nginx.conf`. The session module of
 `api-client` is unused in this mode.
+<!--#if (webBlazorWasm)-->
+
+The WebAssembly app does this already, through Microsoft's authentication library for Blazor and the
+.NET client: its `README.md` gives the client to register at the provider and the `SignIn` section of
+its `wwwroot/appsettings.json`, which [the configuration reference](../reference/configuration.md)
+lists too.
+<!--#endif-->
 <!--#endif-->
 <!--#if (publicApi)-->
 ### No accounts
@@ -273,6 +280,11 @@ props and the .NET client, and its compose file names that root as the build con
 adds `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published
 page carries inline, which the image build computes from the page it has just published. Every file
 under `_framework/` carries its fingerprint in its name and is cached for a year.
+<!--#if (externalAuth)-->
+The origin of `EXTERNAL_AUTH_AUTHORITY`, which its compose file passes as `SIGN_IN_AUTHORITY`, joins
+its `connect-src` and `frame-src` when the container starts, so the page reaches the provider, and
+`frame-ancestors 'self'` lets the hidden frame that renews the token land back on the page.
+<!--#endif-->
 <!--#endif-->
 <!--#if (webReactRouter)-->
 The React Router app's page starts the app from inline scripts. Its policy allows each by its

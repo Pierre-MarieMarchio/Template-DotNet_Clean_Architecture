@@ -160,7 +160,7 @@ writes the app and never changes meaning:
 | `react-router` | `create-react-router`, React Router's official CLI | its default template at a fixed commit, single-page mode (`ssr: false`) | 5173 |
 | `angular` | `ng new`, the Angular CLI | standalone, routing, CSS, no server-side rendering, Vitest | 4200 |
 | `react` | the same app as `vite-react`, under the name it had first; kept until the next major version | | 5173 |
-| `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, the project's own `Program.cs` composing the .NET client, which `cleanarch-webapp` brings with the app | 8081, through the stack |
+| `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, or `--auth Individual --no-https` under `--auth external`, signing the user in at the provider; the project's own `Program.cs` composing the .NET client, which `cleanarch-webapp` brings with the app | 8081, through the stack |
 
 What an option leaves out is absent, not disabled: no project, file, setting, table, test or page names
 it, and the generated solution builds and passes its tests.

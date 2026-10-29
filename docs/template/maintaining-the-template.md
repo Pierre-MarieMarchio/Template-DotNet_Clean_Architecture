@@ -61,11 +61,14 @@ install, lint, test and build, fails when an app with a build script has no buil
 second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
 headers and an answer only the API gives; it fails when a served page holds an event-handler
 attribute or an inline script whose hash the served `script-src` lacks, and reports its inline
-styles. The every-starter leg adds each framework starter its first app is not, so one workspace
-proves them all together. Every leg runs `presentation-scaffold` before the formatting, a step that
-does nothing without a presentation project; the three web legs that pass `--presentation
-blazor-server`, one per authentication mode, create it, build and test it, and ask it in the stack
-for its page and `/health`. The leg that adds a first app adds the presentation project too, with
+styles; a page that loads the WebAssembly authentication script must carry the origin of
+`EXTERNAL_AUTH_AUTHORITY` in its served `connect-src` and `frame-src`. The every-starter leg adds
+each framework starter its first app is not, so one workspace proves them all together. Every leg
+runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
+project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
+compiles it and its tests run with the others. The three web legs that pass `--presentation
+blazor-server`, one per authentication mode, create the presentation project, build and test it, and
+ask it in the stack for its page and `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
 `presentation-join` task, and from there runs as those three do.
 
@@ -75,7 +78,7 @@ for its page and `/health`. The leg that adds a first app adds the presentation 
 | auth none, smallest project | `--auth none --examples none --files false` |
 | external auth, notes | `--auth external --examples notes --presentation avalonia` |
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` |
-| external auth, all examples | `--auth external --examples all --files true` |
+| external auth, all examples | `--auth external --examples all --files true --web blazor-wasm` |
 | external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
@@ -83,7 +86,7 @@ for its page and `/health`. The leg that adds a first app adds the presentation 
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |
 | web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
-| web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server` |
+| web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
@@ -99,8 +102,8 @@ project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job ass
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
 
 The legs are the entries of `.template.config/acceptance/matrix.json`: the fields the workflow's
-steps read, and the `tags` that name what the leg generates. The leg with Angular and external
-authentication adds to its stack's `.env` the provider variables the API needs to start; no
+steps read, and the `tags` that name what the leg generates. The two web legs with external
+authentication add to their stack's `.env` the provider variables the API needs to start; no
 provider runs in Compose, and the API fetches nothing from the one it names until a token arrives.
 
 ### Which legs a change runs
@@ -119,7 +122,7 @@ ruleset requires.
 | A change to | Runs |
 |---|---|
 | `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
-| `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the seven web legs |
+| `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vue, Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
@@ -338,7 +341,11 @@ starter, until a line a branch of its symbols writes is there: `presentationBlaz
 Avalonia, outside the files the item template brings whole and the solution, which
 `presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
 rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task; the overview and
-the web front end page stay as they are, since they describe the app the project was generated with. A shared file that gains such
+the web front end page stay as they are, since they describe the app the project was generated with.
+Under `externalAuth` the WebAssembly app has code of its own, and its unit tests come from
+`.template.config/variants/blazor-wasm-sign-in/`, which both templates copy to the project's root,
+since the starter's folder lands in `Src/Web/apps/`; `web-scaffold` adds them to the solution with
+the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced

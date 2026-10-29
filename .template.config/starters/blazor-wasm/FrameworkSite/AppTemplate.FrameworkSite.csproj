@@ -6,11 +6,22 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <!--#if (externalAuth)-->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
+    <!--#endif-->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Clients\AppTemplate.Client\AppTemplate.Client.csproj" />
   </ItemGroup>
+  <!--#if (externalAuth)-->
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.FrameworkSite.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <!--#endif-->
 
 </Project>

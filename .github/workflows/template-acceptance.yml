@@ -261,6 +261,16 @@ jobs:
           fi
           dotnet run Tools/Tasks.cs web-scaffold WasmSite
 
+      # The WebAssembly app --web blazor-wasm writes is a .NET project of the solution too: created before the build, so the build compiles it and the Docker-free step runs its tests.
+      - name: Create the WebAssembly app before the build
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          for descriptor in $(grep -l '"kind": "dotnet"' Src/Web/apps/*/scaffold.json || true); do
+            dotnet run Tools/Tasks.cs web-scaffold "$(basename "$(dirname "$descriptor")")"
+          done
+
       # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON
         working-directory: ${{ runner.temp }}/generated
@@ -655,7 +665,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash in the served script-src, which only React Router's image adds; an event-handler attribute never does.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash in the served script-src, which only React Router's image adds; an event-handler attribute never does. A page that signs in at the provider may reach its origin.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -683,6 +693,10 @@ jobs:
           sys.exit(1 if refused or handlers else 0)
           PY
             grep -qi '^content-security-policy:.*frame-ancestors' <<< "$headers" || fail "$base/ has no CSP with frame-ancestors."
+            if grep -q 'AuthenticationService.js' page.html; then
+              provider=$(grep -oE '^EXTERNAL_AUTH_AUTHORITY=https?://[^/]+' .env | cut -d= -f2)
+              grep -qiE "^content-security-policy:.*connect-src 'self' ${provider};.*frame-src 'self' ${provider}" <<< "$headers" || fail "$base/ signs in at ${provider}, which its Content-Security-Policy does not let the page reach."
+            fi
             grep -qi '^x-content-type-options: nosniff' <<< "$headers" || fail "$base/ has no X-Content-Type-Options."
             grep -qi '^referrer-policy:' <<< "$headers" || fail "$base/ has no Referrer-Policy."
             grep -qi '^cache-control: no-cache' <<< "$headers" || fail "$base/ is cached."

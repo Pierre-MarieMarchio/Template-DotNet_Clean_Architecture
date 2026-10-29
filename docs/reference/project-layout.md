@@ -136,8 +136,12 @@ Src/Clients/
 <!--#endif-->
 <!--#if (anyWeb)-->
 Src/Web/                                the pnpm workspace: apps/ and packages/
-<!--#if (webBlazorWasm)-->
+<!--#if (webBlazorWasm && !externalAuth)-->
   apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
+                                        Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
+<!--#endif-->
+<!--#if (webBlazorWasm && externalAuth)-->
+  apps/FrameworkSite                    the WebAssembly app, a .NET project: Common/{Hosting,Sessions}, no Features/
                                         Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
 <!--#endif-->
 <!--#endif-->

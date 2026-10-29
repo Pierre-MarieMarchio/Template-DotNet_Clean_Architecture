@@ -211,10 +211,11 @@ since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options th
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience` and `rendering` each was added with, and the `packages` added to it |
 | `presentation` | present with a presentation project: its `name` and its `framework` |
 
-The options are a fact about the day of generation; a part added later is recorded by the task that
-joins it, `web-join` for a web app or package and `presentation-join` for a presentation project.
-A key this table does not name is kept by every task that writes the file. `ProjectFileTests`
-fails when the file and the tree disagree.
+The options are a fact about the day of generation, and no task rewrites them: removing an example
+feature leaves `examples` as it was. A part added later is recorded by the task that joins it,
+`web-join` for a web app or package and `presentation-join` for a presentation project. A key this
+table does not name is kept by every task that writes the file. `ProjectFileTests` fails when the
+file and the tree disagree.
 
 <!--#if (localAuth)-->
 The API's `Features/Auth/` is one host feature over the six authentication features: one route

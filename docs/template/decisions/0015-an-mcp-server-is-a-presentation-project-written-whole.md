@@ -1,6 +1,6 @@
 ﻿# 0015. An MCP server is a presentation project, written whole
 
-Status: Accepted; amended by [0018](0018-a-project-is-the-presentation-projects-it-holds.md),
+Status: Accepted; amended by [0020](0020-a-project-is-the-presentation-projects-it-holds.md),
 which lets it stand beside other presentation projects under the fixed name `Mcp`
 
 ## Context
@@ -31,7 +31,7 @@ the other way to add a host, an option of its own beside `--presentation`. Micro
   a project without the server carries none. `cleanarch-presentation` writes the slice's own files
   and lists the lines it adds elsewhere for `presentation-join`.
 - **Its name is `Mcp`.** The starter carries its own token, `PresentationAppMcp`, which the project
-  template replaces with `Mcp` ([0018](0018-a-project-is-the-presentation-projects-it-holds.md)).
+  template replaces with `Mcp` ([0020](0020-a-project-is-the-presentation-projects-it-holds.md)).
   `cleanarch-presentation` keeps `Portal` as `-n`'s default, which the engine fixes before it reads
   `--framework`, and its README passes `-n Mcp`.
 
@@ -48,7 +48,7 @@ the other way to add a host, an option of its own beside `--presentation`. Micro
 ## Consequences
 
 - An MCP server and a Blazor Web App are generated together since
-  [0018](0018-a-project-is-the-presentation-projects-it-holds.md), each with its own service and
+  [0020](0020-a-project-is-the-presentation-projects-it-holds.md), each with its own service and
   port.
 - `TemplatePackagingTests` holds a presentation starter to the kind `dotnet` or `written`, and the
   two templates to the same modifiers for it; `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders`

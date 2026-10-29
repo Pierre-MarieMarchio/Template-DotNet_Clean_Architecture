@@ -31,7 +31,7 @@ first option added, and a user would be asked questions the engine no longer acc
   "not among them", as the engine does. A combination its refusals reject is explained and the
   selection asked again. When what was chosen calls the API, the launcher shows the API as answered
   for you, naming what calls it, and passes it among the values
-  ([0018](0018-a-project-is-the-presentation-projects-it-holds.md)).
+  ([0020](0020-a-project-is-the-presentation-projects-it-holds.md)).
 - **The launcher and the template package share one version**, the `templateVersion` of
   `.template.config/template.json`, and the launcher installs that version of the package.
 - **What the manifests cannot say stays in the launcher and is tested against them**: the web app's

@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\")) || (jobs == \"worker\" && database == \"sqlite\"))"
     },
     "database": {
       "type": "parameter",
@@ -733,7 +733,7 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\"))",
+      "isRequired": "(presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\"))",
       "description": "Never set. --presentation-name names a project the template already writes, which generation would overwrite: choose another name, such as Portal."
     },
     "presentationNameWords": {
@@ -787,6 +787,229 @@
         ]
       },
       "replaces": "PRESENTATION_APP"
+    },
+    "jobs": {
+      "type": "parameter",
+      "displayName": "Background jobs",
+      "datatype": "choice",
+      "defaultValue": "api",
+      "choices": [
+        {
+          "choice": "api",
+          "description": "The API runs the jobs on its timers, beside HTTP, each pass that must run once under a lease."
+        },
+        {
+          "choice": "worker",
+          "description": "A worker in Src/Presentation runs the jobs, written from the shape of dotnet new worker; the API serves HTTP alone. Needs a server database."
+        }
+      ],
+      "description": "The process that runs the background jobs: the API itself, or a worker of their own that the API leaves them to."
+    },
+    "workerNeedsServerDatabase": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(jobs == \"worker\" && database == \"sqlite\")",
+      "description": "Never set. --jobs worker runs the jobs in a second process, and a SQLite file serves one: choose --database postgresql or sqlserver, or --jobs api."
+    },
+    "jobsWorker": {
+      "type": "computed",
+      "value": "(jobs == \"worker\")"
+    },
+    "jobsNamespaceCommon": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.Common.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.Common.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.Common.Jobs"
+    },
+    "jobsNamespaceAuth": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.Features.Auth.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.Features.Auth.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.Features.Auth.Jobs"
+    },
+    "jobsNamespaceBackgroundJobs": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.Features.BackgroundJobs.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.Features.BackgroundJobs.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.Features.BackgroundJobs.Jobs"
+    },
+    "jobsNamespaceFiles": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.Features.Files.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.Features.Files.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.Features.Files.Jobs"
+    },
+    "jobsNamespaceMaintenance": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.Features.Maintenance.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.Features.Maintenance.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.Features.Maintenance.Jobs"
+    },
+    "jobsNamespaceReminders": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.Features.Reminders.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.Features.Reminders.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.Features.Reminders.Jobs"
+    },
+    "jobsNamespaceTestsBackgroundJobs": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.UnitTests.Features.BackgroundJobs.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.UnitTests.Features.BackgroundJobs.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.UnitTests.Features.BackgroundJobs.Jobs"
+    },
+    "jobsNamespaceTestsFiles": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.UnitTests.Features.Files.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.UnitTests.Features.Files.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.UnitTests.Features.Files.Jobs"
+    },
+    "jobsNamespaceTestsMaintenance": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.UnitTests.Features.Maintenance.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.UnitTests.Features.Maintenance.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.UnitTests.Features.Maintenance.Jobs"
+    },
+    "jobsNamespaceTestsReminders": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(jobsWorker)",
+            "value": "Worker.UnitTests.Features.Reminders.Jobs"
+          },
+          {
+            "condition": "(!jobsWorker)",
+            "value": "Api.UnitTests.Features.Reminders.Jobs"
+          }
+        ]
+      },
+      "replaces": "Api.UnitTests.Features.Reminders.Jobs"
     }
   },
   "guids": [
@@ -1248,6 +1471,21 @@
           "exclude": [
             ".config/dotnet-tools.json"
           ]
+        },
+        {
+          "condition": "(jobsWorker)",
+          "exclude": [
+            "Src/Presentation/AppTemplate.Api/Common/Jobs/**",
+            "Src/Presentation/AppTemplate.Api/Features/*/Jobs/**",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/*/Jobs/**",
+            "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md"
+          ]
+        },
+        {
+          "condition": "(!jobsWorker)",
+          "exclude": [
+            "docs/decisions/0025-jobs-run-in-a-worker-under-a-lease.md"
+          ]
         }
       ]
     },
@@ -1395,6 +1633,112 @@
             "**/Common/Sessions/**",
             "**/TestSupport/ScriptedBrowser.cs",
             "**/TestSupport/StubProvider.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./.template.config/starters/worker/",
+      "target": "./",
+      "condition": "(jobsWorker)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "**/Features/Auth/**",
+            "**/AccountReminderRecipientDirectory.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "**/Features/ExternalIdentity/**",
+            "**/ExternalIdentityReminderRecipientDirectory.cs"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "**/Features/Reminders/**"
+          ]
+        },
+        {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "**/AccountUserAccountDirectory.cs",
+            "**/ExternalIdentityUserAccountDirectory.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./Src/Presentation/AppTemplate.Api/",
+      "target": "./Src/Presentation/AppTemplate.Worker/",
+      "include": [
+        "Common/Jobs/**",
+        "Features/*/Jobs/**"
+      ],
+      "exclude": [
+        "**/bin/**",
+        "**/obj/**"
+      ],
+      "condition": "(jobsWorker)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "Features/Auth/**"
+          ]
+        },
+        {
+          "condition": "(!files)",
+          "exclude": [
+            "Features/Files/**"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "Features/Reminders/**"
+          ]
+        },
+        {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+            "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./Tests/Presentation/AppTemplate.Api.UnitTests/",
+      "target": "./Tests/Presentation/AppTemplate.Worker.UnitTests/",
+      "include": [
+        "Features/*/Jobs/**"
+      ],
+      "exclude": [
+        "**/bin/**",
+        "**/obj/**"
+      ],
+      "condition": "(jobsWorker)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "Features/Auth/**"
+          ]
+        },
+        {
+          "condition": "(!files)",
+          "exclude": [
+            "Features/Files/**"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "Features/Reminders/**"
           ]
         }
       ]

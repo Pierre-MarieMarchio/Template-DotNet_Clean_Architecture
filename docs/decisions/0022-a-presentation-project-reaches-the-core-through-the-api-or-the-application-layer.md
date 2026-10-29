@@ -25,10 +25,19 @@ should run.
   every project with a `Program.cs` alike, but a client: a project that references the .NET client
   is no host, and references that client alone
   (`EveryClient_ReachesTheCoreThroughTheApiAlone`).
+<!--#if (!jobsWorker)-->
 - **Jobs and migrations stay in the API.** A second host runs no background job, as
   [ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md) has it, and migrates nothing: the
   methods that do both live in the API, which no other host may reference. `TheJobs_RunInOneHost`
   holds that one host alone calls `AddBackgroundJobs`, the one that holds the jobs' module.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+- **The worker runs the jobs, the API migrates.** The worker is the one host that runs background
+  jobs, as [ADR 0025](0025-jobs-run-in-a-worker-under-a-lease.md) has it, and the API the one that
+  migrates: the methods that do each live in that host, which no other host may reference.
+  `TheJobs_RunInOneHost` holds that one host alone calls `AddBackgroundJobs`, the one that holds
+  the jobs' module.
+<!--#endif-->
 - **What two hosts genuinely share and is no composition** moves to the layer where it belongs,
   never to a project of its own: settings that describe a provider, or a mapping that knows no
   host, go to `Presentation.Core` while it stays free of ASP.NET Core; the rest each host keeps.

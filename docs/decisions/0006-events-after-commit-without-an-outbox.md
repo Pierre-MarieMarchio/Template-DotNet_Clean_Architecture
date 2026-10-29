@@ -20,9 +20,16 @@ What makes this safe is the shape every consumer must have:
 
 - **It re-derives its precondition** when it runs, so running twice is the same as running once, and
   never running leaves the system consistent but stale.
+<!--#if (!jobsWorker)-->
 - **A sweep is the guarantee** for a fact whose loss would matter: a periodic pass under a lease
   ([ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md)) that re-derives the same effect, so the
   event only makes it prompt.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+- **A sweep is the guarantee** for a fact whose loss would matter: a periodic pass under a lease
+  ([ADR 0025](0025-jobs-run-in-a-worker-under-a-lease.md)) that re-derives the same effect, so the
+  event only makes it prompt.
+<!--#endif-->
 - **Every event is consumed or listed** as unconsumed with its reason.
 
 ## Consequences

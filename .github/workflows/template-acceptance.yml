@@ -654,7 +654,7 @@ jobs:
         run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
 
       - name: Build the images and start the stack
-        if: matrix.web == 'true'
+        if: matrix.web == 'true' || matrix.worker == 'true'
         working-directory: ${{ runner.temp }}/generated
         env:
           STACK_ENV: ${{ matrix.stack_env }}
@@ -753,13 +753,33 @@ jobs:
             echo "Presentation project on $port: page and /health verified."
           done
 
+      # The worker runs its first maintenance pass as it starts; the API, which leaves the jobs to it, starts none.
+      - name: Assert the worker runs the jobs and the API none (worker legs)
+        if: matrix.worker == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            if docker compose logs worker | grep -q 'Purge of .* completed'; then
+              break
+            fi
+            sleep 2
+          done
+          docker compose logs worker | grep -q 'Purge of .* completed' || { echo "::error title=Worker::The worker logged no completed pass within two minutes."; exit 1; }
+          [ "$(docker compose ps --status running --quiet worker | wc -l)" -eq 1 ] || { echo "::error title=Worker::The worker is not running."; exit 1; }
+          if docker compose logs api | grep -q 'Maintenance job starting'; then
+            echo "::error title=Worker::The API started a job loop, which the worker runs."
+            exit 1
+          fi
+          echo "The worker completed a pass; the API runs no job."
+
       - name: Stack logs on failure
-        if: failure() && matrix.web == 'true'
+        if: failure() && (matrix.web == 'true' || matrix.worker == 'true')
         working-directory: ${{ runner.temp }}/generated
         run: docker compose logs --tail 200
 
       - name: Stop the stack
-        if: always() && matrix.web == 'true'
+        if: always() && (matrix.web == 'true' || matrix.worker == 'true')
         working-directory: ${{ runner.temp }}/generated
         run: |
           if [ -f .env ]; then
@@ -901,6 +921,7 @@ jobs:
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
+          refuse worker-sqlite --database sqlite --jobs worker
           # Server rendering needs a starter holding an ssr folder.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.

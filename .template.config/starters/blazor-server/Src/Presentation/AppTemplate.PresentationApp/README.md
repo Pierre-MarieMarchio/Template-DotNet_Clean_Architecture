@@ -222,19 +222,17 @@ task stops:
           ["AppTemplate.PresentationApp"] = ["Components", "wwwroot"],
   ```
 
-- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/OutboundHttpTests.cs`, replace the
-  lines:
+- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/OutboundHttpTests.cs`, after the
+  line:
 
   ```csharp
-          entryPoints.Count.ShouldBe(
-              1,
+          int hosts = 1;
   ```
 
-  with:
+  add:
 
   ```csharp
-          entryPoints.Count.ShouldBe(
-              2,
+          hosts++;
   ```
 
 - in `docs/architecture/layers-and-projects.md`, replace the line:

@@ -1,7 +1,9 @@
 ﻿//#if (localAuth)
 using System.Globalization;
 //#endif
+//#if (!jobsWorker)
 using AppTemplate.Api.Common.Jobs;
+//#endif
 using AppTemplate.Api.Common.Security;
 //#if (localAuth)
 using AppTemplate.Api.IntegrationTests.Auth;
@@ -190,8 +192,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             ["Authentication__External__Roles__AdministratorRole"] = ExternalProvider.AdministratorRole,
 
             //#endif
+            //#if (!jobsWorker)
             [$"{JobsOptions.SectionName}__Enabled"] = "false",
 
+            //#endif
             ["Files__Storage__S3__BucketName"] = "apptemplate-integration-tests",
 
             ["Logging__LogLevel__Default"] = "Information",

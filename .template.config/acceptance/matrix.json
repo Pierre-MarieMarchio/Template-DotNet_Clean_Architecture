@@ -23,8 +23,8 @@
   },
   {
     "name": "local auth, no files, no ci, no sonar",
-    "tags": ["generator"],
-    "options": "--auth local --examples none --files false --ci false --sonar false",
+    "tags": ["generator", "jobs-worker"],
+    "options": "--auth local --examples none --files false --ci false --sonar false --jobs worker",
     "auth_context": "true",
     "generator": "true"
   },
@@ -45,6 +45,15 @@
     "integration": "true",
     "end_to_end": "true",
     "timeout_minutes": 60
+  },
+  {
+    "name": "worker, external auth, all examples",
+    "tags": ["jobs-worker"],
+    "options": "--jobs worker --auth external --examples all --files true",
+    "auth_context": "false",
+    "integration": "true",
+    "worker": "true",
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
   },
   {
     "name": "external auth, no examples, no files",

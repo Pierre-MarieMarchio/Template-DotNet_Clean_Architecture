@@ -57,8 +57,8 @@ migration under its project's `Migrations` folder. The project ships no migratio
 written for this project's own model, and it is the project's from the commit on
 ([migrations](../guides/migrations.md#the-initial-migration)).
 <!--#if (webFramework)-->
-It then writes the .NET client where the web app calls the API through it, and creates the app as its
-`scaffold.json` describes, with the generator that file names.
+It then writes the .NET client where the web app calls the API through it, and creates the app as the
+scaffold file in its folder describes, with the generator that file names.
 <!--#endif-->
 <!--#if (anyWeb)-->
 It last installs the web workspace and generates its TypeScript API client, which needs Node.js and

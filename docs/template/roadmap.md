@@ -49,9 +49,11 @@ Each group comes in no fixed order:
 - **A project's tasks from a pinned .NET tool**
   ([#163](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/163)):
   `Tools/Tasks.cs` and its generators leave the generated tree for `dotnet cleanarch`, pinned
-  beside `dotnet-ef`, which a team changes through its configuration, its code templates, its
-  local commands or the ejection of one command, as
-  [ADR 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) proposes.
+  beside `dotnet-ef`, which also takes over the launcher's additions, so that `dnx CleanArch.Create`
+  only creates; a team changes the tool through its configuration, its code templates, its local
+  commands or the ejection of one command, as
+  [ADR 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
+  [ADR 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) propose.
 
 ## Not planned
 

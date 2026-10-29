@@ -33,8 +33,8 @@ project's material and the template's still has to hold, with one more thing cro
     project runs: its tasks, its generators and their code templates. Its help and its messages
     speak of "this project", as the pages do, and it never carries a template-maintenance gate.
 - **A project keeps one documentation check.** `DocumentationCitationTests`, in `Tests/Architecture`,
-  holds that every task and option a page cites is a command of the pinned tool or a local command
-  in `Tools/`. It also holds that every path and link in the root pages and the `AGENTS.md` files of
+  holds that every command and option a page cites is one that `dotnet cleanarch help --json`
+  lists for the project, built-in or local. It also holds that every path and link in the root pages and the `AGENTS.md` files of
   a project resolves.
 
 ## Alternatives considered

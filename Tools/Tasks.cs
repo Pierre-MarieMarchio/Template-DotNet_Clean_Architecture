@@ -2292,7 +2292,7 @@ internal sealed class ProjectFile
             apps[apps.IndexOf(recorded)] = app;
         }
 
-        Save($"the web app {name}, of framework {framework}, for a {audience} audience, rendered {(rendering == "ssr" ? "on the server" : "in the browser")}");
+        Save($"the web app {name}, of framework {framework}, for the {audience} audience, rendered {(rendering == "ssr" ? "on the server" : "in the browser")}");
     }
 
     internal void RecordWebPackage(string name, string scope)

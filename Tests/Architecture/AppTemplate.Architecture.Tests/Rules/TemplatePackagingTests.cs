@@ -264,6 +264,7 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config/webapp/.template.config", "(webPlaceholder)", "pnpm install")]
     [InlineData(".template.config/presentation/.template.config", null, "presentation-join <project>.<name>")]
     [InlineData(".template.config/presentation/.template.config", null, "presentation-scaffold <project>.<name>")]
+    [InlineData(".template.config/presentation/.template.config", "(accessKeys)", "dotnet ef migrations add AddAccessKeys")]
     public void Generation_EndsWithWhatToRunNext_ForTheShapeGenerated(string folder, string? condition, string named)
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));

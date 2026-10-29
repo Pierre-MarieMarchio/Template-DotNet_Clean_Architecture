@@ -663,16 +663,18 @@
       "description": "Join the presentation project to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<project>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates it as its scaffold.json describes, adds it with its tests to the solution and writes the .NET client where the project calls the API through it; it needs the network. Commit the project.",
-          "condition": "(!presentationMcp)"
-        },
+          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<project>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates it as its scaffold.json describes, adds it with its tests to the solution and writes the .NET client where the project calls the API through it; creating it from its framework's template needs the network, and a project written whole, the MCP server, needs none. Commit the project."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(accessKeys)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Add the access keys' migration where the project has migrations.",
+      "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<project>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which adds the MCP server, written whole, with its tests to the solution, without the network. Commit the project.",
-          "condition": "(presentationMcp)"
-        },
-        {
-          "text": "The access keys the MCP server's callers present come with it and change the authentication context's model: in a project whose migrations exist already, run dotnet ef migrations add AddAccessKeys --project Src/Infrastructure/<project>.Infrastructure.Auth --startup-project Src/Infrastructure/<project>.Infrastructure.Auth --output-dir Migrations, and commit it.",
-          "condition": "(accessKeys)"
+          "text": "The access keys the MCP server's callers present come with it and change the authentication context's model: in a project whose migrations exist already, run dotnet ef migrations add AddAccessKeys --project Src/Infrastructure/<project>.Infrastructure.Auth --startup-project Src/Infrastructure/<project>.Infrastructure.Auth --output-dir Migrations, and commit it."
         }
       ],
       "continueOnError": true

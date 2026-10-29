@@ -11,6 +11,10 @@ namespace CleanArch.Create.Tests.Prompts;
 public sealed partial class GuidedFlowTests : IDisposable
 {
     private const string _created = "The template was created successfully.";
+    private const string _bootstrapInstruction = "Manual instructions: run dotnet run Tools/Tasks.cs bootstrap.";
+    private const string _presentationInstruction = "Manual instructions: run presentation-join, then presentation-scaffold.";
+    private const string _joinInstruction = "Manual instructions: run web-join.";
+    private const string _scaffoldInstruction = "Manual instructions: run web-scaffold.";
     private const string _runIt =
         """
         ## Run it
@@ -333,7 +337,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(Banner.Tagline);
         output.ShouldNotContain(Rail.Bar);
         output.ShouldNotContain(Rail.Answered);
-        Order(output, _created, "Done. The same, without questions:", "Next", "cd Demo", "```bash", ProjectSetup.BootstrapCommand);
+        Order(output, _created, _bootstrapInstruction, "Done. The same, without questions:", "Next", "cd Demo", "```bash", ProjectSetup.BootstrapCommand);
         _processes.Calls.ShouldNotContain(call => call.FileName == "git");
         _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
     }
@@ -349,7 +353,40 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(Rail.Answered);
         Order(output, "First commit done.", "Bootstrap done.", "Bootstrap commit done.", "Copy .env done.", "--yes --setup", "Next", "cd Demo", "docker compose up -d --build --wait");
         output.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        output.ShouldContain(_created);
+        output.ShouldNotContain(_bootstrapInstruction, customMessage: "The template engine's instruction to run bootstrap is relayed while the launcher runs it.");
         _processes.CommandLines.ShouldContain("git commit -q -m chore: bootstrap -- .");
+    }
+
+    [Fact]
+    public void WithYes_APresentationProject_LeavesOutTheInstructionsToRunTheTasksItRuns()
+    {
+        AGeneratedProject();
+        TestConsole console = Terminal();
+
+        Run(console, "presentation", "--yes");
+
+        string output = Plain(console);
+        Order(output, _created, "Join done.", "Scaffold done.");
+        output.ShouldNotContain(_presentationInstruction, customMessage: "The template engine's instruction to run presentation-join and presentation-scaffold is relayed while the launcher runs them.");
+    }
+
+    [Fact]
+    public void WithYes_AWebAppItJoins_LeavesOutOnlyTheInstructionToJoinIt()
+    {
+        AGeneratedProject();
+        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps"));
+        File.WriteAllText(Path.Combine(_root, "Src", "Web", "package.json"), "{}");
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm", "--yes");
+
+        string output = Plain(console);
+        Order(output, _created, TemplateEngine.PostActionsHeading, _scaffoldInstruction, "Join done.");
+        output.ShouldNotContain(_joinInstruction, customMessage: "The template engine's instruction to run web-join is relayed while the launcher runs it.");
+        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm");
     }
 
     private static TestConsole Terminal()
@@ -452,6 +489,12 @@ public sealed partial class GuidedFlowTests : IDisposable
             APresentationReadme(call);
         }
 
+        if (call.Arguments[1] == "cleanarch-webapp")
+        {
+            string app = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Web", "apps", call.Arguments[3])).FullName;
+            File.WriteAllText(Path.Combine(app, "README.md"), "# App\n\n## Join the stack\n\nInclude it.\n\n" + Launcher.JoiningSection + "\n\n- an edit\n");
+        }
+
         int output = call.Arguments.ToList().IndexOf("-o");
         if (output > 0)
         {
@@ -460,6 +503,13 @@ public sealed partial class GuidedFlowTests : IDisposable
             File.WriteAllText(Path.Combine(call.Arguments[output + 1], ".env.example"), "API_HOST_PORT=8080");
         }
 
-        return new ProcessResult(0, _created);
+        string[] instructions = call.Arguments[1] switch
+        {
+            "cleanarch-webapi" => ["Description: Bootstrap the project.", _bootstrapInstruction],
+            "cleanarch-presentation" => ["Description: Join the project.", _presentationInstruction],
+            "cleanarch-webapp" => ["Description: Join the app.", _joinInstruction, string.Empty, "Description: Create the app.", _scaffoldInstruction],
+            _ => [],
+        };
+        return new ProcessResult(0, string.Join('\n', [_created, string.Empty, .. instructions.Length > 0 ? [TemplateEngine.PostActionsHeading, .. instructions] : Array.Empty<string>()]));
     }
 }

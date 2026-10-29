@@ -559,7 +559,29 @@
       "description": "Start the app with the rest of the stack.",
       "manualInstructions": [
         {
-          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. A framework app is created by its official CLI: run dotnet run Tools/Tasks.cs web-scaffold <name> at the project root (or bootstrap), then commit the app with Src/Web/pnpm-lock.yaml. A placeholder needs only pnpm install in Src/Web."
+          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(webFramework)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Create the app.",
+      "manualInstructions": [
+        {
+          "text": "At the project root, run dotnet run Tools/Tasks.cs web-scaffold <name>, which creates the app as Src/Web/apps/<name>/scaffold.json describes and installs the web workspace; it needs Node.js, pnpm (corepack enable once per machine) and the network. Commit the app with Src/Web/pnpm-lock.yaml."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(webPlaceholder)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Install the web workspace.",
+      "manualInstructions": [
+        {
+          "text": "In Src/Web, run pnpm install, which needs Node.js and pnpm (corepack enable once per machine), and commit Src/Web/pnpm-lock.yaml."
         }
       ],
       "continueOnError": true

@@ -1,4 +1,5 @@
-﻿using CleanArch.Create.Projects;
+﻿using CleanArch.Create.Manifests;
+using CleanArch.Create.Projects;
 using Shouldly;
 using Xunit;
 
@@ -20,6 +21,32 @@ public sealed class ProjectSetupTests : IDisposable
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    [Theory]
+    [InlineData("none", "none", "api", "")]
+    [InlineData("angular", "none", "api", ", creates each project or app a scaffold.json describes, installs the web workspace, which needs Node.js and pnpm")]
+    [InlineData("none", "avalonia", "api", ", creates each project or app a scaffold.json describes, writes the .NET client")]
+    [InlineData("none", "none", "worker", ", creates each project or app a scaffold.json describes")]
+    [InlineData("placeholder", "none", "api", ", installs the web workspace, which needs Node.js and pnpm")]
+    public void TheBootstrapStep_SaysWhatBootstrapWritesForTheShapeChosen(string web, string presentation, string jobs, string writes)
+    {
+        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
+        var answers = new Dictionary<string, string>(StringComparer.Ordinal) { ["web"] = web, ["presentation"] = presentation, ["jobs"] = jobs };
+
+        ProjectSetup.BootstrapDescription(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers))).ShouldBe(
+            ProjectSetup.BootstrapCommand + ": formats, writes the OpenAPI document, restores the tools, creates the initial migrations"
+            + writes + "; needs the network.");
+    }
+
+    [Fact]
+    public void EverySymbolTheBootstrapStepReads_IsComputedByTheProjectTemplate()
+    {
+        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
+
+        ProjectSetup.BootstrapWritesWhen.Select(fact => fact.Symbol).ShouldAllBe(
+            symbol => manifest.Computed.ContainsKey(symbol),
+            "The bootstrap step reads a symbol the project template no longer computes, so it would never say what bootstrap writes.");
+    }
 
     [Fact]
     public void EveryStep_RunsInOrder_AndCommitsTwiceWithTheUsersIdentity()

@@ -829,6 +829,11 @@
       "type": "computed",
       "value": "(jobs == \"worker\")"
     },
+    "scaffoldedAtBootstrap": {
+      "type": "computed",
+      "value": "(anyPresentation || jobsWorker || webFramework)",
+      "description": "True when a folder under Src/Presentation or Src/Web/apps holds a scaffold.json, a project or an app bootstrap creates."
+    },
     "jobsNamespaceCommon": {
       "type": "generated",
       "generator": "switch",
@@ -1846,6 +1851,52 @@
   "primaryOutputs": [
     {
       "path": "AppTemplate.sln"
+    }
+  ],
+  "postActions": [
+    {
+      "condition": "(!refusedOptions)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Bootstrap the project before anything else.",
+      "manualInstructions": [
+        {
+          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, writes the OpenAPI reference, restores the local tools and creates each context's initial migration. It needs the network, not Docker."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(!refusedOptions && scaffoldedAtBootstrap)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Bootstrap also creates what each scaffold.json describes.",
+      "manualInstructions": [
+        {
+          "text": "A folder under Src/Presentation or Src/Web/apps that holds a scaffold.json is a project or an app still to be created: bootstrap creates it as that file describes, and adds a .NET one with its tests to the solution."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(!refusedOptions && dotnetClient)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Bootstrap also writes the .NET client.",
+      "manualInstructions": [
+        {
+          "text": "It writes the client in Src/Clients from the OpenAPI reference with Kiota, one of the local tools."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(!refusedOptions && anyWeb)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Bootstrap also installs the web workspace.",
+      "manualInstructions": [
+        {
+          "text": "It installs Src/Web and writes its TypeScript API client, which needs Node.js and pnpm: run corepack enable once per machine."
+        }
+      ],
+      "continueOnError": true
     }
   ],
   "SpecialCustomOperations": {

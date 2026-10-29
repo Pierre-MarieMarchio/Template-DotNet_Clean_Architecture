@@ -73,7 +73,7 @@ public sealed class WebAppTests
             $"{site.BaseAddress} sent one nonce in two responses, so a nonce no longer proves a script came with its page.");
     }
 
-    //#if (localAuth)
+    //#if (accounts)
     [Theory]
     [MemberData(nameof(WebAppPorts))]
     public async Task AServerRenderedApp_RefusesACallThatChangesStateWithoutXCsrf_WhereASinglePageAppRelaysIt(string portSetting)
@@ -90,6 +90,29 @@ public sealed class WebAppTests
         var refusal = await Wire.ExpectJsonAsync(unmarked, serverRendered ? HttpStatusCode.Forbidden : Refusal.Status, cancellationToken);
         Wire.Text(refusal, "code").ShouldBe(serverRendered ? "session.csrfHeaderRequired" : Refusal.Code);
         Wire.Text(await Wire.ExpectJsonAsync(relayed, Refusal.Status, cancellationToken), "code").ShouldBe(Refusal.Code);
+    }
+
+    //#endif
+    //#if (externalAuth && webServerRendering)
+    [Theory]
+    [MemberData(nameof(WebAppPorts))]
+    public async Task AServerRenderedApp_RefusesASignInCallbackThisBrowserDidNotStart_WhereASinglePageAppServesItsPage(string portSetting)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var site = Stack.Client(Stack.WebApp(portSetting));
+        bool serverRendered = Nonces((await PageAsync(site, cancellationToken)).Allowed).Any();
+
+        using var callback = await Wire.SendAsync(site, HttpMethod.Get, "session/callback?code=forged&state=forged", cancellationToken);
+
+        if (serverRendered)
+        {
+            var refusal = await Wire.ExpectJsonAsync(callback, HttpStatusCode.BadRequest, cancellationToken);
+            Wire.Text(refusal, "code").ShouldBe("session.signInStateInvalid");
+        }
+        else
+        {
+            (await Wire.ExpectAsync(callback, HttpStatusCode.OK, cancellationToken)).ShouldContain("<html", Case.Insensitive);
+        }
     }
 
     //#endif

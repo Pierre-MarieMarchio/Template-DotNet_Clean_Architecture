@@ -127,6 +127,12 @@ subject, is `401` `auth.required`.
 
 The client signs in with the provider, through a maintained OpenID Connect library running the
 Authorization Code flow with PKCE, and sends its access token as `Authorization: Bearer`.
+<!--#if (anyWeb)-->
+A server-rendered web app runs that flow on its server, keeps the tokens there, and gives the
+browser a session cookie of its own
+([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)). How an app
+signs in is in [Web front end](web-frontend.md#signing-in).
+<!--#endif-->
 
 <!--#endif-->
 <!--#if (publicApi)-->

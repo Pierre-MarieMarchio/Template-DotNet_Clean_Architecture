@@ -50,8 +50,7 @@
             },
             "serve": {
               "options": {
-                "port": 4200,
-                "proxyConfig": "proxy.conf.json"
+                "port": 4200
               }
             }
           }

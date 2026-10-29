@@ -1,6 +1,7 @@
 ﻿# 0012. Where the jobs run is an option
 
-Status: Accepted
+Status: Accepted; its option is the `worker` value of `--presentation` since
+[0018](0018-a-project-is-the-presentation-projects-it-holds.md)
 
 ## Context
 
@@ -12,8 +13,8 @@ places there, so generating it means generating the API without them.
 
 ## Decision
 
-- **Where the jobs run is an option.** `--jobs api|worker`, `api` by default. `worker` writes
-  `<Project>.Worker` from `.template.config/starters/worker`, moves the API's `Common/Jobs` and
+- **Where the jobs run is an option.** `--presentation worker` (formerly `--jobs worker`); without
+  it the jobs run in the API. `worker` writes `<Project>.Worker` from `.template.config/starters/worker`, moves the API's `Common/Jobs` and
   `Features/*/Jobs` folders and their unit tests into it and its test project, and conditions the
   API's composition, settings and Compose environment; the API keeps the maintenance routes.
 - **The move is two sources of `template.json`.** The API's source excludes the folders under
@@ -21,11 +22,11 @@ places there, so generating it means generating the API without them.
   files declare is renamed by a generated switch symbol whose value is the host's
   (`jobsNamespace<Folder>`), since a replacement given as a custom operation is not applied to the
   files a glob selects.
-- **A server database only.** `--jobs worker` is refused with `--database sqlite`
+- **A server database only.** `--presentation worker` is refused with `--database sqlite`
   (`workerNeedsServerDatabase`): an in-process lease cannot exclude the API's maintenance routes from
   the worker's pass, and a SQLite file serves one process.
-- **The worker has a fixed name**, `<Project>.Worker`, which `presentationNameIsTaken` refuses as a
-  presentation's name.
+- **The worker has a fixed name**, `<Project>.Worker`, which `presentationNameIsTaken` refuses as
+  the name `cleanarch-presentation` gives a presentation project.
 - **No item template moves the jobs.** The engine adds files and never moves or edits the project's
   own; the background jobs page says how to move them by hand.
 - **Tests hold the move.** `TemplatePackagingTests` fails when a namespace declared under a moved
@@ -48,10 +49,10 @@ places there, so generating it means generating the API without them.
 ## Consequences
 
 - The jobs are the API's in this checkout. The worker's shape is compiled only in a generated
-  project, so the acceptance legs that pass `--jobs worker` prove it, the generator round trip
-  among them.
+  project, so the acceptance legs that pass `--presentation worker` prove it, the generator round
+  trip among them.
 - A job folder under a new feature needs its switch symbol before a project generated with
-  `--jobs worker` builds, and `TemplatePackagingTests` says so.
+  `--presentation worker` builds, and `TemplatePackagingTests` says so.
 - Adding an option costs what [Maintaining the template](../maintaining-the-template.md#adding-an-option)
   lists.
 

@@ -23,6 +23,10 @@ constraint between parameters.
   option to change.
 - **A refusal that slips through cannot build.** The same combinations select the `refused`
   variant, which adds a source file holding an `#error` naming the fix.
+- **An option that names parts may take several values.** `--presentation` names each host the
+  project holds, repeated once per value; a condition reads `presentation == "<value>"` as "among
+  the values", and a refusal may read a combination of them
+  ([0018](0018-a-project-is-the-presentation-projects-it-holds.md)).
 
 ## Consequences
 

@@ -25,6 +25,13 @@ first option added, and a user would be asked questions the engine no longer acc
   option when Authentication is none", or with the refusal's description when no answer does.
   Without questions it is taken the same way: with `--yes` for any option, rather than its default,
   and without `--yes` for a choice that has no default.
+- **A multi-valued option is one multi-select.** An option declared with `allowMultipleValues`,
+  `--presentation`, is asked as a multi-select that keeps at least one value, passed to `dotnet new`
+  as the option repeated once per value; its conditions read `==` as "among the values" and `!=` as
+  "not among them", as the engine does. A combination its refusals reject is explained and the
+  selection asked again. When what was chosen calls the API, the launcher shows the API as answered
+  for you, naming what calls it, and passes it among the values
+  ([0018](0018-a-project-is-the-presentation-projects-it-holds.md)).
 - **The launcher and the template package share one version**, the `templateVersion` of
   `.template.config/template.json`, and the launcher installs that version of the package.
 - **What the manifests cannot say stays in the launcher and is tested against them**: the web app's

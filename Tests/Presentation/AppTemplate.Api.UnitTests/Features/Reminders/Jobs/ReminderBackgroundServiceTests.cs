@@ -1,7 +1,7 @@
-﻿using AppTemplate.Api.Common.Jobs;
-using AppTemplate.Api.Features.Reminders.Jobs;
-using AppTemplate.Api.UnitTests.TestSupport;
+﻿using AppTemplate.Api.Features.Reminders.Jobs;
+using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
+using AppTemplate.Presentation.Core.Common.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

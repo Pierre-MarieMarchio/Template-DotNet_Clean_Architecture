@@ -1,9 +1,9 @@
-﻿using AppTemplate.Api.Common.Jobs;
-using AppTemplate.Api.Features.Files.Jobs;
-using AppTemplate.Api.UnitTests.TestSupport;
+﻿using AppTemplate.Api.Features.Files.Jobs;
+using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
+using AppTemplate.Presentation.Core.Common.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;

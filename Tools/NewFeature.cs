@@ -556,6 +556,20 @@ internal static class NewFeature
             : [];
     }
 
+    private static string JobsHost(string root, string prefix)
+    {
+        string presentation = System.IO.Path.Combine(root, "Src", "Presentation");
+
+        return (Directory.Exists(presentation)
+            ? Directory.GetDirectories(presentation)
+                .Where(folder => File.Exists(System.IO.Path.Combine(folder, "Features", "BackgroundJobs", "Jobs", "BackgroundJobsModule.cs")))
+                .Select(System.IO.Path.GetFileName)
+                .OfType<string>()
+                .Order(StringComparer.Ordinal)
+                .FirstOrDefault()
+            : null) ?? $"{prefix}.Api";
+    }
+
     private static bool IsClientPresentation(string folder) =>
         Directory.EnumerateFiles(folder, "*.csproj")
             .Any(project => File.ReadAllText(project).Contains(@"..\..\Clients\", StringComparison.Ordinal));
@@ -630,8 +644,11 @@ internal static class NewFeature
             Add(applicationCore, "Common/Ports/IUserAccountDirectory.cs", Templates.UserAccountDirectory);
             Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs", Templates.SweepUseCasePort);
             Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs", Templates.SweepUseCase);
-            Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs", Templates.DeletedAccountSweepJobs);
-            Add(api, "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs", Templates.DeletedAccountSweepOptions);
+            string jobsHost = JobsHost(root, spec.Prefix);
+            var jobs = new Dictionary<string, string>(StringComparer.Ordinal) { ["J"] = jobsHost };
+
+            Add($"Src/Presentation/{jobsHost}", "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs", Templates.DeletedAccountSweepJobs, extra: jobs);
+            Add($"Src/Presentation/{jobsHost}", "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs", Templates.DeletedAccountSweepOptions, extra: jobs);
 
             foreach (string host in PresentationHosts(root, spec.Prefix).Prepend($"{spec.Prefix}.Api"))
             {
@@ -1276,6 +1293,7 @@ internal static class NewFeature
         if (owner && spec.Reaction is { } adapter)
         {
             string directory = adapter == "Auth" ? "AccountUserAccountDirectory" : "ExternalIdentityUserAccountDirectory";
+            string jobsHost = JobsHost(root, p);
             string composition = adapter == "Auth"
                 ? $"Src/Presentation/{p}.Api/Features/Auth/Composition/AuthComposition.cs"
                 : $"Src/Presentation/{p}.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs";
@@ -1285,10 +1303,10 @@ internal static class NewFeature
             output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, with using");
             output.WriteLine($"     {p}.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;");
             output.WriteLine();
-            output.WriteLine($"  8. Src/Presentation/{p}.Api/Program.cs: builder.Services.AddDeletedAccountSweep(); beside");
+            output.WriteLine($"  8. Src/Presentation/{jobsHost}/Program.cs: builder.Services.AddDeletedAccountSweep(); beside");
             output.WriteLine("     builder.Services.AddPurgeExpiredIdempotencyKeys();");
             output.WriteLine();
-            output.WriteLine($"  9. Src/Presentation/{p}.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs:");
+            output.WriteLine($"  9. Src/Presentation/{jobsHost}/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs:");
             output.WriteLine("     services.AddDeletedAccountSweepJobs(configuration); after services.AddMaintenanceJobs(configuration);");
             output.WriteLine();
             output.WriteLine($" 10. {composition}: services.AddScoped<IUserAccountDirectory, {directory}>();");
@@ -2074,6 +2092,38 @@ internal static class NewFeature
                 && !Directory.Exists(System.IO.Path.Combine(desktop, "Features")),
             "A presentation that calls the API through the .NET client was given the feature's registration or an adapter, as if it composed features.");
 
+        string working = NewTree(scratch, reaction: false);
+        string worker = System.IO.Path.Combine(working, "Src/Presentation/Acme.Worker");
+
+        Directory.CreateDirectory(System.IO.Path.Combine(worker, "Features/BackgroundJobs/Jobs"));
+        Directory.CreateDirectory(System.IO.Path.Combine(worker, "Features/Auth/Composition"));
+        File.WriteAllText(System.IO.Path.Combine(worker, "Program.cs"), "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
+        File.WriteAllText(System.IO.Path.Combine(worker, "Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs"), "services.AddMaintenanceJobs(configuration);\n");
+        File.WriteAllText(System.IO.Path.Combine(worker, "Features/Auth/Composition/WorkerAuthComposition.cs"), "services.AddAuthModule(configuration);\n");
+
+        var workingTree = Snapshot(working);
+        var swept = Invoke(working, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+        string sweepJobs = System.IO.Path.Combine(worker, "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs");
+
+        expect(swept.Code == 0, $"An owner feature into a tree whose jobs run in a worker was refused: {swept.Error.Split('\n')[0]}");
+        expect(
+            File.Exists(sweepJobs)
+                && File.ReadAllText(sweepJobs).Contains("namespace Acme.Worker.Features.BackgroundJobs.Jobs;", StringComparison.Ordinal)
+                && File.ReadAllText(sweepJobs).Contains("using Acme.Worker.Features.Maintenance.Jobs;", StringComparison.Ordinal),
+            "The deleted-account sweep's jobs were not written into the host that runs the jobs, in its namespace.");
+        expect(
+            !Directory.Exists(System.IO.Path.Combine(working, "Src/Presentation/Acme.Api/Features/BackgroundJobs")),
+            "The deleted-account sweep's jobs were written into the API, which runs no job in this tree.");
+        expect(
+            swept.Output.Contains("  8. Src/Presentation/Acme.Worker/Program.cs: builder.Services.AddDeletedAccountSweep();", StringComparison.Ordinal)
+                && swept.Output.Contains("  9. Src/Presentation/Acme.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs:", StringComparison.Ordinal),
+            "The sweep's registrations were not printed for the host that runs the jobs.");
+        expect(
+            swept.Output.Contains("Src/Presentation/Acme.Worker/Program.cs the same", StringComparison.Ordinal)
+                && swept.Output.Contains("Src/Presentation/Acme.Worker/Features/Auth/Composition/WorkerAuthComposition.cs", StringComparison.Ordinal),
+            "The worker, which composes the features its passes call, was not given the feature's registration and the directory's.");
+        ExpectRemovable(working, workingTree, "Widgets", 8, expect);
+
         string publicApi = NewTree(scratch, reaction: false);
 
         Directory.Delete(System.IO.Path.Combine(publicApi, "Src/Presentation/Acme.Api/Features/Auth"), recursive: true);
@@ -2204,7 +2254,7 @@ internal static class NewFeature
     [
         new(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
-        new(@"^Src/Presentation/[^/]+\.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Presentation/[^/]+/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+/Features/Auth/Composition/AccountUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
     ];
@@ -4626,11 +4676,11 @@ internal static class Templates
         """;
 
     internal const string DeletedAccountSweepJobs = """
-        using %P%.Api.Features.Maintenance.Jobs;
+        using %J%.Features.Maintenance.Jobs;
         using %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
         using Microsoft.Extensions.Options;
 
-        namespace %P%.Api.Features.BackgroundJobs.Jobs;
+        namespace %J%.Features.BackgroundJobs.Jobs;
 
         internal static class DeletedAccountSweepJobsExtensions
         {
@@ -4657,7 +4707,7 @@ internal static class Templates
         """;
 
     internal const string DeletedAccountSweepOptions = """
-        namespace %P%.Api.Features.BackgroundJobs.Jobs;
+        namespace %J%.Features.BackgroundJobs.Jobs;
 
         internal sealed class DeletedAccountSweepOptions
         {

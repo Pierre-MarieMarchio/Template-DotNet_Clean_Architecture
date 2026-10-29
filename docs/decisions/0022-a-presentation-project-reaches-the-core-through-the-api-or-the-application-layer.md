@@ -27,7 +27,8 @@ should run.
   (`EveryClient_ReachesTheCoreThroughTheApiAlone`).
 - **Jobs and migrations stay in the API.** A second host runs no background job, as
   [ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md) has it, and migrates nothing: the
-  methods that do both live in the API, which no other host may reference.
+  methods that do both live in the API, which no other host may reference. `TheJobs_RunInOneHost`
+  holds that one host alone calls `AddBackgroundJobs`, the one that holds the jobs' module.
 - **What two hosts genuinely share and is no composition** moves to the layer where it belongs,
   never to a project of its own: settings that describe a provider, or a mapping that knows no
   host, go to `Presentation.Core` while it stays free of ASP.NET Core; the rest each host keeps.

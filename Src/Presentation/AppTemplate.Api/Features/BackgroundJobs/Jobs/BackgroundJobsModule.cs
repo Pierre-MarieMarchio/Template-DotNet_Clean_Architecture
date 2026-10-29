@@ -6,6 +6,7 @@ using AppTemplate.Api.Features.Maintenance.Jobs;
 //#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
 //#endif
+using AppTemplate.Presentation.Core.Common.Jobs;
 
 namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;
 

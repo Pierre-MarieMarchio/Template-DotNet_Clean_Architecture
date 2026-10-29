@@ -536,12 +536,11 @@
   ],
   "postActions": [
     {
-      "condition": "(webBlazorWasm)",
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
-      "description": "Join the Blazor WebAssembly app to the project.",
+      "description": "Join the app to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name>, which makes the lines --web blazor-wasm writes outside the app's folder and the client's, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one'."
+          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name> --web <framework>, with --web-audience and --web-rendering when --audience and --rendering were not public and spa. It records the app in cleanarch.json and, for a Blazor WebAssembly app, first makes the lines --web blazor-wasm writes outside the app's folder and the client's, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one'."
         }
       ],
       "continueOnError": true

@@ -13,7 +13,7 @@ public sealed partial class EndToEndTests : IDisposable
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     [Fact]
-    public void TheLauncher_WritesWhatDotnetNewWrites_ForAProjectItsFirstWebAppAPackageAndAPresentationProject()
+    public void TheLauncher_WritesWhatDotnetNewAndTheJoinsWrite_ForAProjectItsFirstWebAppAPackageAndAPresentationProject()
     {
         string package = PackTheTemplates();
         string hive = Path.Combine(_root, "hive");
@@ -29,6 +29,8 @@ public sealed partial class EndToEndTests : IDisposable
         DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--presentation", "blazor-server", "--debug:custom-hive", hive]);
         DotNet(direct, ["new", "cleanarch-webapp", "-n", "BackOffice", "--framework", "vite-react", "--audience", "admin", "--auth", "external", "--scope", "acme-shop", "--workspace", "--debug:custom-hive", hive]);
         DotNet(direct, ["new", "cleanarch-webpackage", "-n", "tokens", "--scope", "acme-shop", "--debug:custom-hive", hive]);
+        DotNet(direct, ["run", "Tools/Tasks.cs", "web-join", "BackOffice", "--web", "vite-react", "--web-audience", "admin", "--web-rendering", "spa"]);
+        DotNet(direct, ["run", "Tools/Tasks.cs", "web-join", "tokens"]);
 
         Dictionary<string, string> written = Tree(launched);
         Dictionary<string, string> expected = Tree(direct);

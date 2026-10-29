@@ -58,6 +58,8 @@ public sealed partial class Launcher
     internal const string JoiningSection = "## Joining a project generated without one";
     internal const string PresentationCreateSection = "## Create the project";
 
+    private static readonly (string Name, string Symbol)[] _webJoinOptions = [("--web", "framework"), ("--web-audience", "audience"), ("--web-rendering", "rendering")];
+
     private readonly IAnsiConsole _console;
     private readonly string _workingDirectory;
     private readonly bool _interactive;
@@ -490,20 +492,23 @@ public sealed partial class Launcher
         session.Conversation.Perform(
             $"Adding {name}",
             $"Added {name}",
-            () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options], workspace ? null : [WebJoinTask]));
+            () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options], [WebJoinTask]));
 
         string appReadme = Path.Combine(folder, "README.md");
-        string[] join = ["run", "Tools/Tasks.cs", WebJoinTask, name];
-        string[] joinLines = MarkdownSection(appReadme, JoiningSection) is null ? [] : [TemplateEngine.CommandLine("dotnet", join)];
-        bool joined = joinLines.Length == 0 || (!workspace && RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folder", join));
+        string[] join =
+        [
+            "run", "Tools/Tasks.cs", WebJoinTask, name,
+            .. _webJoinOptions.SelectMany(option => manifest.Resolve(option.Symbol, asked.Options) is { } value ? [option.Name, value] : Array.Empty<string>()),
+        ];
+        bool joined = RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folder and recording it in cleanarch.json", join);
 
-        Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options], then: joinLines);
+        Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options], then: [TemplateEngine.CommandLine("dotnet", join)]);
         string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : appReadme;
         string heading = workspace ? "## The first app of a project generated without one" : joined ? "## Join the stack" : JoiningSection;
         session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme).Replace(Path.DirectorySeparatorChar, '/'), [], MarkdownSection(readme, heading) ?? $"Read {readme}.", StepsLeft: !workspace && !joined));
     }
 
-    private static void WebPackage(Session session, GeneratedProject project)
+    private void WebPackage(Session session, GeneratedProject project)
     {
         if (!project.HasWorkspace)
         {
@@ -520,10 +525,13 @@ public sealed partial class Launcher
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
         Install(session, project.Root);
-        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
+        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options], [WebJoinTask]));
 
-        Equivalents(session, Arguments.WebPackageCommand, [manifest.ShortName, "-n", name, .. options]);
-        session.Conversation.Close(null);
+        string[] join = ["run", "Tools/Tasks.cs", WebJoinTask, name];
+        bool joined = RunTask(session, project.Root, "Join", "Recording it in cleanarch.json", join);
+
+        Equivalents(session, Arguments.WebPackageCommand, [manifest.ShortName, "-n", name, .. options], then: [TemplateEngine.CommandLine("dotnet", join)]);
+        session.Conversation.Close(joined ? null : new Closing(null, [], $"Record it with {TemplateEngine.CommandLine("dotnet", join)}.", StepsLeft: true));
     }
 
     private void Presentation(Session session, GeneratedProject project)

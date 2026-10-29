@@ -145,7 +145,7 @@ error under warnings as errors. Pick a name with no such segment.
 | `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
-| `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` |
+| `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` and `react-router` |
 | `--presentation` | `none`, `blazor-server`, `avalonia` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none` |
 | `--presentation-name` | PascalCase text | `Portal` | the presentation project's name after the solution's, its Compose service and port variable |
 | `--jobs` | `api`, `worker` | `api` | where the background jobs run: in the API, or in `<Project>.Worker`, a worker in `Src/Presentation` written in the shape of `dotnet new worker`, which takes the API's jobs and their tests while the API serves HTTP alone; refused with `--database sqlite` |
@@ -159,7 +159,7 @@ writes the app and never changes meaning:
 | `vite-react` | `create-vite`, Vite's official CLI | `react-ts` | 5173 |
 | `vite-vue` | `create-vite` | `vue-ts` | 5173 |
 | `vite-svelte` | `create-vite` | `svelte-ts` | 5173 |
-| `react-router` | `create-react-router`, React Router's official CLI | its default template at a fixed commit, single-page mode (`ssr: false`) | 5173 |
+| `react-router` | `create-react-router`, React Router's official CLI | its default template at a fixed commit, single-page mode (`ssr: false`); with `ssr`, its `node-custom-server` template at the same commit, every route rendered per request on its Express server | 5173 |
 | `angular` | `ng new`, the Angular CLI | standalone, routing, CSS, no server-side rendering, Vitest; with `ssr`, `--ssr` and every route rendered per request | 4200 |
 | `react` | the same app as `vite-react`, under the name it had first; kept until the next major version | | 5173 |
 | `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, or `--auth Individual --no-https` under `--auth external`, signing the user in at the provider; the project's own `Program.cs` composing the .NET client, which `cleanarch-webapp` brings with the app | 8081, through the stack |
@@ -174,7 +174,7 @@ it, and the generated solution builds and passes its tests.
 | `--auth none` with an example | `--auth-none-needs-examples-none` | add `--examples none` |
 | `--auth none` with `--files true` | `--auth-none-needs-files-false` | add `--files false` |
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
-| `--web-rendering ssr` with a `--web` other than `angular` | `--server-rendering-needs-a-server-starter` | choose `--web angular`, or `--web-rendering spa` |
+| `--web-rendering ssr` with a `--web` other than `angular` or `react-router` | `--server-rendering-needs-a-server-starter` | choose `--web angular` or `react-router`, or `--web-rendering spa` |
 | `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
 | a `--presentation-name` that names one of the template's projects, such as `Api` | `--presentation-name-is-taken` | choose another name, such as `Portal` |
 | `--jobs worker` with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or `--jobs api` |
@@ -214,7 +214,7 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 
 | Template | Options |
 |---|---|
-| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
+| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
 | `cleanarch-presentation` | `--framework blazor-server\|avalonia` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` takes `--has-client true` where the project holds the .NET client already. `-n` is the presentation project's name, `Portal` by default, refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
 

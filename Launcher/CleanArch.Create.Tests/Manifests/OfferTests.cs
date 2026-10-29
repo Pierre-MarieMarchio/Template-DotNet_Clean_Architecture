@@ -79,16 +79,19 @@ public sealed class OfferTests
     }
 
     [Theory]
-    [InlineData("local")]
-    [InlineData("external")]
-    [InlineData("none")]
-    public void ServerRendering_IsOffered_ForAnAngularApp_WhateverTheProjectAuthenticates(string auth)
+    [InlineData("angular", "local")]
+    [InlineData("angular", "external")]
+    [InlineData("angular", "none")]
+    [InlineData("react-router", "local")]
+    [InlineData("react-router", "external")]
+    [InlineData("react-router", "none")]
+    public void ServerRendering_IsOffered_ForAStarterThatRendersOnTheServer_WhateverTheProjectAuthenticates(string framework, string auth)
     {
         var known = new Dictionary<string, string> { ["auth"] = auth };
 
-        Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = "angular" }, Launcher.ProjectAskedWhen)
+        Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = framework }, Launcher.ProjectAskedWhen)
             .Values.ShouldBe(["spa", "ssr"]);
-        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "angular" }, _alwaysAsked)
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = framework }, _alwaysAsked)
             .Values.ShouldBe(["spa", "ssr"]);
         Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "vue" }, _alwaysAsked)
             .Values.ShouldBe(["spa"]);

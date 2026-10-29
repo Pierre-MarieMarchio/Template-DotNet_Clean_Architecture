@@ -544,16 +544,27 @@ reasons.
 ## The launcher
 
 `Launcher/CleanArch.Create` is the .NET tool `dnx CleanArch.Create` runs, with its tests in
-`Launcher/CleanArch.Create.Tests` and its own solution, `Launcher/CleanArch.Create.slnx`. Generation
-and the template package leave the folder out, and `TemplatePackagingTests` holds both.
+`Launcher/CleanArch.Create.Tests`. The folder is its own solution, `Launcher/CleanArch.Create.slnx`,
+which holds four more projects. Generation and the template package leave the folder out, and
+`TemplatePackagingTests` holds both.
+
+| Project | What it is |
+|---|---|
+| `Launcher/CleanArch.Tooling` | the library both tools share, never packed on its own: running a process and its verbatim output, the terminal, the templates' manifests with the evaluation of their refusals, and the questions asked from them; its tests are in `Launcher/CleanArch.Tooling.Tests` |
+| `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root; its tests are in `Launcher/CleanArch.Cli.Tests` |
+
+[Template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
+[0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) say what each tool is for.
+The tests that read the manifests through the launcher's own settings stay in
+`Launcher/CleanArch.Create.Tests`.
 
 | Facet | Where |
 |---|---|
 | Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) gives the rules an option and a refusal keep |
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
 | Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
-| Packages | `Spectre.Console`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
-| Gate | `verify` restores, formats, builds and tests the launcher's solution after the project's gate; CI's `launcher` job does the same |
+| Packages | `Spectre.Console` and `System.CommandLine`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
+| Gate | `verify` restores, formats, builds and tests the launcher's solution, all five projects, after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
 Inside a generated project its item commands read the options the project was generated with from

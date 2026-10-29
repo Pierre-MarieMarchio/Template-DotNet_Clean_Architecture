@@ -190,7 +190,7 @@ jobs:
       - name: No comment outside the allowlist
         run: dotnet run Tools/CheckComments.cs .
 
-  # Template repository only: dnx CleanArch.Create, tested against this checkout's templates, generation included.
+  # Template repository only: dnx CleanArch.Create and the dotnet cleanarch tool, tested against this checkout's templates, generation included.
   launcher:
     name: Launcher
     runs-on: ubuntu-latest

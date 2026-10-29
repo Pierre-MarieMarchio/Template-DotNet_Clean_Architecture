@@ -457,7 +457,7 @@ lacks. It adds the project to the solution with its `<Name>.Core` sibling when i
 tests of each. A project that references the .NET client, itself or through that sibling, brings the
 client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
-`--presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
+`--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
 
 `presentationNameIsTaken` refuses each `-n` of `cleanarch-presentation` that would make
 `<Project>.<Name>` or its test project one of the template's own projects;
@@ -600,8 +600,19 @@ it offers never ends in a refusal. The terminal thread is tested on Spectre's `T
 markers and their order rather than its colours, with the processes it starts replaced. One test packs the
 templates, runs the launcher without a terminal for a project, its first web app, a package and a
 presentation project, and compares the tree with what `dotnet new` writes from the same answers with
-`--presentation blazor-server`; it stops before `presentation-scaffold`, which fetches Microsoft's
-template package from NuGet.
+`--presentation api --presentation blazor-server`: the lines `presentation-join` places by the
+anchors of the starter's `README.md` land where the project template writes them, so an anchor
+moved, or a block of the project template moved away from its anchor, fails it. It stops before
+`presentation-scaffold`, which fetches Microsoft's template package from NuGet.
+
+A multi-valued option, `--presentation`, is one multi-select that keeps at least one value and
+reaches `dotnet new` as the option repeated once per value; the launcher's conditions read `==` as
+"among the values" and `!=` as "not among them", splitting an answer on `|`, which no free-text
+answer a condition compares may hold. When a web app, a desktop client or the MCP server under
+local accounts calls the API, the launcher shows the API as answered for you, naming the caller,
+and passes it; `TheCallersTheLauncherNames_AreExactlyWhatMakesTheTemplateAddTheApi` holds the
+callers against `needsApi`. Inside a project, `presentation` asks the framework, then the name,
+proposing the framework's own (`Portal`, `Mcp`, `Desktop`).
 
 ```bash
 dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive

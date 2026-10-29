@@ -16,7 +16,8 @@ public sealed record SetupOutcome(SetupStep Step, SetupStatus Status, string? Wh
 
 public sealed class ProjectSetup
 {
-    public const string BootstrapCommand = "dotnet run Tools/Tasks.cs bootstrap";
+    public const string BootstrapTask = "bootstrap";
+    public const string BootstrapCommand = "dotnet run Tools/Tasks.cs " + BootstrapTask;
     public const string EnvironmentCommand = "cp .env.example .env";
     public const string BootstrapMessage = "chore: bootstrap";
 
@@ -45,6 +46,22 @@ public sealed class ProjectSetup
         EnvironmentCommand);
 
     public static readonly IReadOnlyList<SetupStep> Steps = [FirstCommit, Bootstrap, BootstrapCommit, EnvironmentFile];
+
+    public static readonly IReadOnlyList<(string Symbol, string Writes)> BootstrapWritesWhen =
+    [
+        ("scaffoldedAtBootstrap", "creates each project or app a scaffold.json describes"),
+        ("dotnetClient", "writes the .NET client"),
+        ("anyWeb", "installs the web workspace, which needs Node.js and pnpm"),
+    ];
+
+    public static string BootstrapDescription(Func<string, bool> holds) =>
+        string.Join(
+            ", ",
+            [
+                BootstrapCommand + ": formats, writes the OpenAPI document, restores the tools, creates the initial migrations",
+                .. BootstrapWritesWhen.Where(fact => holds(fact.Symbol)).Select(fact => fact.Writes),
+            ])
+        + "; needs the network.";
 
     private const int _tail = 6;
 

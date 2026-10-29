@@ -29,6 +29,9 @@ Run `corepack enable` once per machine so the pinned pnpm is the one that runs.
 <!--#endif-->
 ## Bootstrap once
 
+Run it right after generating, as `dotnet new` ends by saying. It needs the network, to restore the
+packages and the local tools, and not Docker.
+
 ```bash
 dotnet run Tools/Tasks.cs bootstrap
 ```
@@ -43,15 +46,23 @@ It first creates the presentation project's views with `dotnet new avalonia.mvvm
 project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
 and last writes the .NET client from the OpenAPI reference.
 <!--#endif-->
+<!--#if (jobsWorker)-->
+It also adds the worker's project in `Src/Presentation`, written in the shape of `dotnet new worker`,
+to the solution with its tests.
+<!--#endif-->
 It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
 restores the local tools (`dotnet-ef` among them), then creates each database context's initial
 migration under its project's `Migrations` folder. The project ships no migration: the first one is
 written for this project's own model, and it is the project's from the commit on
 ([migrations](../guides/migrations.md#the-initial-migration)).
+<!--#if (webFramework)-->
+It then writes the .NET client where the web app calls the API through it, and creates the app as the
+scaffold file in its folder describes, with the generator that file names.
+<!--#endif-->
 <!--#if (anyWeb)-->
-It then creates the web app with its framework's official CLI where one is still to be created, installs
-the workspace and generates the API client.
+It last installs the web workspace and generates its TypeScript API client, which needs Node.js and
+pnpm.
 <!--#endif-->
 
 Both steps are required. Using directives sort around the project's own name, so their order is only

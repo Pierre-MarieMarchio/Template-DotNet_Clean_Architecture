@@ -253,6 +253,102 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
+    [InlineData(".template.config", "(!refusedOptions)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData(".template.config", "(!refusedOptions)", "the network, not Docker")]
+    [InlineData(".template.config", "(!refusedOptions && scaffoldedAtBootstrap)", "scaffold.json")]
+    [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Clients")]
+    [InlineData(".template.config", "(!refusedOptions && anyWeb)", "Node.js and pnpm")]
+    [InlineData(".template.config/webapp/.template.config", "(webBlazorWasm)", "web-join <name>")]
+    [InlineData(".template.config/webapp/.template.config", "(webFramework)", "web-scaffold <name>")]
+    [InlineData(".template.config/webapp/.template.config", "(webFramework)", "Node.js, pnpm")]
+    [InlineData(".template.config/webapp/.template.config", "(webPlaceholder)", "pnpm install")]
+    [InlineData(".template.config/presentation/.template.config", null, "presentation-join <project>.<name>")]
+    [InlineData(".template.config/presentation/.template.config", null, "presentation-scaffold <project>.<name>")]
+    public void Generation_EndsWithWhatToRunNext_ForTheShapeGenerated(string folder, string? condition, string named)
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
+        string[] instructions = manifest.RootElement.TryGetProperty("postActions", out JsonElement actions)
+            ? [.. actions.EnumerateArray()
+                .Where(action => action.GetProperty("actionId").GetString() == _manualInstructions && Text(action, "condition") == condition)
+                .SelectMany(action => action.GetProperty("manualInstructions").EnumerateArray())
+                .Select(instruction => instruction.GetProperty("text").GetString()!)]
+            : [];
+
+        instructions.ShouldContain(
+            text => text.Contains(named, StringComparison.Ordinal),
+            $"{folder}/template.json prints no instruction naming '{named}' when {condition ?? "always"}, so dotnet new ends with "
+            + "\"created successfully\" and nothing says what must run next, nor what it needs.");
+    }
+
+    [Fact]
+    public void TheProjectsInstructions_AreLeftOutOfARefusedGeneration()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+
+        manifest.RootElement.GetProperty("postActions").EnumerateArray()
+            .Select(action => Text(action, "condition") ?? "(always)")
+            .ShouldAllBe(
+                condition => condition.StartsWith("(!refusedOptions", StringComparison.Ordinal),
+                "A refused generation writes only RefusedGenerationOptions.cs, so an instruction to bootstrap it would be false.");
+    }
+
+    [Fact]
+    public void EveryStarterHoldingAScaffold_IsOneTheBootstrapInstructionCovers()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        JsonElement symbols = manifest.RootElement.GetProperty("symbols");
+        HashSet<string> covered = Reached(symbols, ["scaffoldedAtBootstrap"]);
+        string[] everyValueOf = [.. covered
+            .Select(name => Text(symbols.GetProperty(name), "value") ?? string.Empty)
+            .Select(value => _everyValueBut.Match(value))
+            .Where(match => match.Success)
+            .Select(match => match.Groups[1].Value)];
+
+        string[] uncovered = [.. manifest.RootElement.GetProperty("sources").EnumerateArray()
+            .Where(source => (Text(source, "source") ?? string.Empty).StartsWith("./.template.config/starters/", StringComparison.Ordinal))
+            .Where(source => Directory.EnumerateFiles(
+                Path.Combine(ProjectReferenceGraph.RepositoryRoot, Text(source, "source")!), _scaffoldDescriptor, SearchOption.AllDirectories).Any())
+            .Select(source => Text(source, "condition")!)
+            .Where(condition => !_identifier.Matches(_quoted.Replace(condition, string.Empty)).Any(name =>
+                covered.Contains(name.Value)
+                || Reached(symbols, [name.Value]).Where(reached => Text(symbols.GetProperty(reached), "type") == "parameter").ToArray()
+                    is { Length: > 0 } parameters && parameters.All(everyValueOf.Contains)))];
+
+        uncovered.ShouldBeEmpty(
+            "These starters ship a scaffold.json bootstrap creates, under a condition scaffoldedAtBootstrap does not reach: "
+            + "add their symbol to it, so dotnet new says bootstrap creates them.");
+    }
+
+    private const string _manualInstructions = "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C";
+
+    private const string _scaffoldDescriptor = "scaffold.json";
+
+    private static readonly Regex _everyValueBut = new(@"^\((\w+) != ""none""\)$", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static HashSet<string> Reached(JsonElement symbols, IEnumerable<string> from)
+    {
+        var reached = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<string>(from);
+        while (pending.TryPop(out string? name))
+        {
+            if (!symbols.TryGetProperty(name, out JsonElement symbol) || !reached.Add(name))
+            {
+                continue;
+            }
+
+            if (Text(symbol, "type") == "computed")
+            {
+                foreach (Match used in _identifier.Matches(_quoted.Replace(Text(symbol, "value") ?? string.Empty, string.Empty)))
+                {
+                    pending.Push(used.Value);
+                }
+            }
+        }
+
+        return reached;
+    }
+
+    [Theory]
     [InlineData(".template.config")]
     [InlineData(".template.config/webapp/.template.config")]
     [InlineData(".template.config/webpackage/.template.config")]

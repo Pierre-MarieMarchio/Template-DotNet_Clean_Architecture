@@ -1,0 +1,22 @@
+{
+  "template": {
+    "package": "CleanArch.WebApi.Templates",
+    "version": "0.0.0-checkout"
+  },
+  "name": "AppTemplate",
+  "options": {
+    "auth": "local",
+    "database": "postgresql",
+    "examples": "all",
+    "files": true,
+    "jobs": "api",
+    "ci": true,
+    "sonar": true,
+    "agentFiles": true
+  },
+  "client": false,
+  "presentation": {
+    "name": "PresentationApp",
+    "framework": "blazor-server"
+  }
+}

@@ -1067,6 +1067,282 @@
         ]
       },
       "replaces": "Api.UnitTests.Features.Reminders.Jobs"
+    },
+    "projectFileAuth": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"auth\": \""
+          },
+          {
+            "type": "ref",
+            "value": "auth"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"auth\": \"local\"",
+      "description": "The --auth value cleanarch.json records."
+    },
+    "projectFileDatabase": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"database\": \""
+          },
+          {
+            "type": "ref",
+            "value": "database"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"database\": \"postgresql\"",
+      "description": "The --database value cleanarch.json records."
+    },
+    "projectFileExamples": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"examples\": \""
+          },
+          {
+            "type": "ref",
+            "value": "examples"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"examples\": \"all\"",
+      "description": "The --examples value cleanarch.json records."
+    },
+    "projectFileJobs": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"jobs\": \""
+          },
+          {
+            "type": "ref",
+            "value": "jobs"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"jobs\": \"api\"",
+      "description": "The --jobs value cleanarch.json records."
+    },
+    "projectFileFiles": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(files)",
+            "value": "\"files\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"files\": false"
+          }
+        ]
+      },
+      "replaces": "\"files\": true",
+      "description": "The --files value cleanarch.json records."
+    },
+    "projectFileCi": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(ci)",
+            "value": "\"ci\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"ci\": false"
+          }
+        ]
+      },
+      "replaces": "\"ci\": true",
+      "description": "The --ci value cleanarch.json records."
+    },
+    "projectFileSonar": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(sonar)",
+            "value": "\"sonar\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"sonar\": false"
+          }
+        ]
+      },
+      "replaces": "\"sonar\": true",
+      "description": "The --sonar value cleanarch.json records."
+    },
+    "projectFileAgentFiles": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(agentFiles)",
+            "value": "\"agentFiles\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"agentFiles\": false"
+          }
+        ]
+      },
+      "replaces": "\"agentFiles\": true",
+      "description": "The --agent-files value cleanarch.json records."
+    },
+    "projectFileClient": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(dotnetClient)",
+            "value": "\"client\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"client\": false"
+          }
+        ]
+      },
+      "replaces": "\"client\": false",
+      "description": "Whether cleanarch.json records the .NET client, which dotnetClient brings."
+    },
+    "projectFileWebFramework": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"framework\": \""
+          },
+          {
+            "type": "ref",
+            "value": "web"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"framework\": \"placeholder\"",
+      "description": "The --web value cleanarch.json records for the first web app."
+    },
+    "projectFileWebAudience": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"audience\": \""
+          },
+          {
+            "type": "ref",
+            "value": "webAudience"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"audience\": \"public\"",
+      "description": "The --web-audience value cleanarch.json records for the first web app."
+    },
+    "projectFileWebRendering": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"rendering\": \""
+          },
+          {
+            "type": "ref",
+            "value": "webRendering"
+          },
+          {
+            "type": "const",
+            "value": "\""
+          }
+        ]
+      },
+      "replaces": "\"rendering\": \"spa\"",
+      "description": "The --web-rendering value cleanarch.json records for the first web app."
+    },
+    "projectFilePresentation": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"framework\": \""
+          },
+          {
+            "type": "ref",
+            "value": "presentation"
+          },
+          {
+            "type": "const",
+            "value": "\"\n  }"
+          }
+        ]
+      },
+      "replaces": "\"framework\": \"blazor-server\"\n  }",
+      "description": "The --presentation value cleanarch.json records, matched with the brace that closes its object so no other framework key is replaced."
     }
   },
   "guids": [
@@ -1547,6 +1823,12 @@
           ]
         },
         {
+          "condition": "(anyWeb || anyPresentation)",
+          "exclude": [
+            "cleanarch.json"
+          ]
+        },
+        {
           "condition": "(!sonar || !dotnetClient)",
           "exclude": [
             ".config/dotnet-tools.json"
@@ -1587,6 +1869,21 @@
       "source": "./.template.config/variants/no-sonar-no-client/",
       "target": "./",
       "condition": "(!sonar && !dotnetClient)"
+    },
+    {
+      "source": "./.template.config/variants/project-file-web/",
+      "target": "./",
+      "condition": "(anyWeb && !anyPresentation)"
+    },
+    {
+      "source": "./.template.config/variants/project-file-presentation/",
+      "target": "./",
+      "condition": "(!anyWeb && anyPresentation)"
+    },
+    {
+      "source": "./.template.config/variants/project-file-web-presentation/",
+      "target": "./",
+      "condition": "(anyWeb && anyPresentation)"
     },
     {
       "source": "./.template.config/variants/web-PlaceholderSite/",

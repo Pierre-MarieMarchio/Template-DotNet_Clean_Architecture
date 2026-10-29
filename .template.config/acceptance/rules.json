@@ -33,6 +33,14 @@
       "tags": ["generator"]
     },
     {
+      "paths": [
+        ".template.config/variants/project-file-web/**",
+        ".template.config/variants/project-file-presentation/**",
+        ".template.config/variants/project-file-web-presentation/**"
+      ],
+      "tags": ["web", "presentation-avalonia", "presentation-blazor-server", "presentation-mcp", "presentation-wpf"]
+    },
+    {
       "paths": [".template.config/variants/database-sqlite/**"],
       "tags": ["database-sqlite"]
     },

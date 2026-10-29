@@ -38,7 +38,8 @@ CI, Sonar and release workflows run it before building, under `templateMaintenan
 ## The acceptance matrix
 
 `.github/workflows/template-acceptance.yml` packs the template package once, chooses the legs the
-change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, bootstraps
+change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, checks
+its `cleanarch.json` against the leg's options with `.template.config/acceptance/CheckProjectFile.cs`, bootstraps
 (the formatting, then `migration-initial` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
@@ -65,7 +66,10 @@ script's nonce, or when two responses share a nonce, or when a server-rendered a
 relays a `POST` without `X-CSRF` instead of refusing it itself, and reports its inline styles; a page that
 loads the WebAssembly authentication script must carry the origin of `EXTERNAL_AUTH_AUTHORITY` in
 its served `connect-src` and `frame-src`. The every-starter leg adds
-each framework starter its first app is not, so one workspace proves them all together. Every leg
+each framework starter its first app is not, so one workspace proves them all together. Every app,
+package and presentation project a leg adds with an item template is recorded by the project's
+`web-join` or `presentation-join` task, and a web leg runs `ProjectFileTests` once more after its
+last addition. Every leg
 runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
 compiles it and its tests run with the others. The three web legs that pass `--presentation
@@ -119,11 +123,11 @@ are the shapes the options produce, not their cross product, and run with `fail-
 
 A leg whose `runner` is `windows-latest` runs in the `template-windows` job instead, as a Windows
 user runs the project ([template decision 0014](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)):
-from PowerShell, one command a step, it installs the package, generates, asserts the source name
-leaked nowhere, then runs `bootstrap`, the `build` task with warnings as errors,
+from PowerShell, one command a step, it installs the package, generates, checks its `cleanarch.json`,
+asserts the source name leaked nowhere, then runs `bootstrap`, the `build` task with warnings as errors,
 `test --no-integration`, `hygiene` and the citation check. A Windows runner runs no Linux image, so
-the job starts no container and sets up no web workspace. It checks out the root files and `Tools`
-alone, since the package brings the template and a starter's deepest path exceeds the 260 characters
+the job starts no container and sets up no web workspace. It checks out the root files, `Tools` and
+`.template.config/acceptance` with the files beside it alone, since the package brings the template and a starter's deepest path exceeds the 260 characters
 git for Windows allows by default; their `.gitattributes` keeps them LF whatever the runner's
 `core.autocrlf`.
 
@@ -250,6 +254,8 @@ change one of them missed.
 4. Add the leg that generates the new shape, as [adding a leg](#adding-a-leg) says, and a refusal
    to the refusal job.
 5. Condition every page whose truth changes, and judge each in every form it can take.
+6. An option that is not a part joins `cleanarch.json`, as [the project file](#the-project-file)
+   says.
 
 ## Writing docs that condition
 
@@ -489,6 +495,28 @@ under `.template.config/variants/`, each the full manifest minus its tools, whic
 manifest and the `no-sonar` one, and its pull request runs `dotnet run Tools/Tasks.cs api-client`
 and commits what it writes.
 
+## The project file
+
+`cleanarch.json` records what a project was generated with: the template package and version, the
+project's name, every option that is not a part under its value, `client` when `Src/Clients`
+holds the .NET client, the web workspace with its apps and packages, and the presentation project
+([template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)).
+This checkout holds the file the defaults generate; `Tools/Tasks.cs` finds the root by it and reads
+the options there rather than through markers.
+
+| Facet | Where |
+|---|---|
+| Values | one generated symbol per recorded value, whose `replaces` names the key with the checkout's value, such as `"auth": "local"`, so that no other file holds the token; the name, the version, the scope and the part names follow the tokens the rest of the tree uses |
+| Parts | `.template.config/variants/project-file-web`, `.template.config/variants/project-file-presentation` and `.template.config/variants/project-file-web-presentation`, each the checkout's file plus its parts, copied in its place by `anyWeb` and `anyPresentation` |
+| Additions | `presentation-join` and `web-join` record the part they join, `client` with it, and `web-join` a package of the workspace; every writer keeps the key order and any key it does not know |
+| Tests | `ProjectFileTests` holds the file to the tree in every project; `TemplatePackagingTests` holds the checkout's file to the defaults, each variant to it, and every value to a symbol that replaces it; `CheckProjectFile.cs` holds each leg's file to its options |
+
+In this checkout `Src/Web`, `Src/Clients` and the API's external-identity mapping are the sources of
+shapes the defaults leave out, so `ProjectFileTests` reads them as absent, in a `templateMaintenance`
+block. A new option that is not a part gets its key in `cleanarch.json` and in the three variants,
+a generated symbol that replaces it, its place in the list of `.template.config/acceptance/CheckProjectFile.cs`, and a check in
+`ProjectFileTests` when the tree shows it.
+
 ## The package
 
 `.template.config/TemplatePackage.csproj` packs the four templates into one NuGet package,
@@ -501,7 +529,7 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 | Facet | Where |
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
-| Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview, as [template decision 0002](decisions/0002-nothing-about-the-template-reaches-a-project.md) allows |
+| Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview and its `cleanarch.json`, as [template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) allows |
 | Metadata | id, authors, description, tags, licence, the repository `README.md` and `.template.config/icon.png`, all in the package project |
 
 ## Branches and releases
@@ -570,7 +598,9 @@ its files rather than asking them; `GeneratedProjectTests` holds each reading on
 | `--scope`, `--workspace` | the name in `Src/Web/package.json`, the project's name in kebab case without one; `Src/Web` |
 
 `presentation` runs `cleanarch-presentation`, then the project's `presentation-join` and
-`presentation-scaffold` tasks, and stops before the second when the first fails.
+`presentation-scaffold` tasks, and stops before the second when the first fails. `web-app` and
+`web-package` run the project's `web-join` after the item template, with the framework, audience
+and rendering asked, so `cleanarch.json` records every part the launcher adds.
 
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
 some combination, the launcher refuses exactly where `refusedOptions` does, and answering only what
@@ -596,7 +626,7 @@ version means adopting the change in an existing project takes manual work.
 ## Decisions
 
 - [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)
-- [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md)
+- [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md), superseded by 0018
 - [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md), superseded by 0008
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
 - [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
@@ -611,3 +641,6 @@ version means adopting the change in an existing project takes manual work.
 - [0014. A Windows-only shape is proved on a Windows runner](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)
 - [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)
 - [0016. The launcher draws only glyphs every console font carries](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md)
+- [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)
+- [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
+- [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004

@@ -99,7 +99,7 @@ Commit the solution after bootstrap; `presentation-scaffold` leaves the project 
 A project generated without one takes it later from `dotnet new cleanarch-presentation`, which
 writes the project, its tests and this page. `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`
 then makes the lines the `README.md` in the project's folder lists outside them, every one or none,
-and `presentation-scaffold` creates the project the same way.
+and records the project in `cleanarch.json`; `presentation-scaffold` creates it the same way.
 
 <!--#if (presentationBlazorServer)-->
 ## Calling a use case

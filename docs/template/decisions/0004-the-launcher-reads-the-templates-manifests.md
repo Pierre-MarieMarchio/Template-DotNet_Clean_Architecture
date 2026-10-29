@@ -1,6 +1,6 @@
 ﻿# 0004. The launcher reads the templates' manifests
 
-Status: Accepted
+Status: Accepted; [0019](0019-the-launcher-creates-and-the-project-tool-adds.md) replaces its project-facts bullet
 
 ## Context
 

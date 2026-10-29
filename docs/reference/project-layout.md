@@ -197,6 +197,25 @@ Tests/                                  one test project per source project, mir
                                         plus Architecture/, EndToEnd/, Integration/ and Load/
 ```
 
+## The project file
+
+`cleanarch.json`, at the root, records what this project was generated with and what was added
+since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options there.
+
+| Key | Holds |
+|---|---|
+| `template` | the `package` and the `version` that generated the project |
+| `name` | the project's name, the prefix of every project under `Src` and `Tests` |
+| `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `jobs`, `ci`, `sonar`, `agentFiles` |
+| `client` | `true` when `Src/Clients` holds the .NET client |
+| `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience` and `rendering` each was added with, and the `packages` added to it |
+| `presentation` | present with a presentation project: its `name` and its `framework` |
+
+The options are a fact about the day of generation; a part added later is recorded by the task that
+joins it, `web-join` for a web app or package and `presentation-join` for a presentation project.
+A key this table does not name is kept by every task that writes the file. `ProjectFileTests`
+fails when the file and the tree disagree.
+
 <!--#if (localAuth)-->
 The API's `Features/Auth/` is one host feature over the six authentication features: one route
 tree, one composition entry, `AddAuthFeature`, and one folder to delete for a host without local
@@ -313,6 +332,7 @@ references.
 
 | Rule | Test |
 |---|---|
+| `cleanarch.json` records the name, the options and the parts the tree holds | `ProjectFileTests` |
 | A folder even for a single file; a project root holds only its composition file | `LayoutConventionTests.NoProjectRoot_HoldsAnythingButItsModule` |
 | No empty folder | `LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` |
 | Namespaces follow folders, without exception | `LayoutConventionTests.EverySourceFile_DeclaresTheNamespaceOfItsFolder` |

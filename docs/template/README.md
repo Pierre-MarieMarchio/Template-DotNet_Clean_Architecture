@@ -22,7 +22,7 @@ propose one.
 ## Its decisions
 
 - [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)
-- [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md)
+- [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md), superseded by 0018
 - [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md), superseded by 0008
 - [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
 - [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
@@ -37,6 +37,6 @@ propose one.
 - [0014. A Windows-only shape is proved on a Windows runner](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)
 - [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)
 - [0016. The launcher draws only glyphs every console font carries](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md)
-- [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md), proposed
-- [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), proposed; supersedes 0002 once accepted
-- [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), proposed; replaces a bullet of 0004 once accepted
+- [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)
+- [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
+- [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004

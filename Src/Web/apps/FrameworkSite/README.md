@@ -171,7 +171,8 @@ What the template adds to the CLI's starter, and nothing else:
   headers, caches a file whose name carries a content hash for a year and revalidates every other,
   and renders each page with a fresh nonce, which its Content-Security-Policy names in `script-src`
   and its `Cache-Control: no-store` keeps from being served twice; with local accounts its relay is
-  `serverSessions`, which keeps each browser's session as "Calling the API and signing in" below
+  `serverSessions`, and with an external provider `providerSessions`, which signs people in at the
+  provider, each keeping the browser's session as "Calling the API and signing in" below
   describes. The build writes Angular's
   event-dispatch contract inline into the page template, without a nonce, so the server adds to
   `script-src` the SHA-256 of each inline script of that template, computed when it starts;
@@ -179,11 +180,10 @@ What the template adds to the CLI's starter, and nothing else:
   Angular writes the response's nonce on each script it adds while rendering;
 - `src/app/app.routes.server.ts`: every route rendered for each request instead of prerendered at
   build, since a prerendered page cannot carry a response's nonce;
-- `proxy.conf.json`, which `ng serve` reads through angular.json: `/api` and `/health` relayed to
-  the API at <http://localhost:5187>;
 - in angular.json: the build output in the app's dist folder (`dist/browser` and `dist/server`),
-  that proxy, port 4200, and production styles without inlined critical CSS, whose loader script
-  carries no nonce;
+  port 4200, and production styles without inlined critical CSS, whose loader script carries no
+  nonce. `ng serve` runs `src/server.ts` too, so `pnpm dev` relays `/api` and `/health` through the
+  server's relay, the session included, with no proxy of its own;
 - in `tsconfig.json`: `allowImportingTsExtensions` with `noEmit`, since the workspace packages export
   their TypeScript sources and import each other by `.ts` path;
 - in `package.json`: the name `framework-site`, the dependency `@app-template/api-client`
@@ -264,6 +264,7 @@ The account administration endpoints, `/api/v1/auth/accounts` first, answer `403
 without the `Admin` role, which `me.roles` shows before the screens ask.
 <!--#endif-->
 <!--#elseif (externalAuth)-->
+<!--#if (!webServerRendering)-->
 
 The API accepts the identity provider's access tokens. Sign in with a maintained OpenID Connect
 library running the Authorization Code flow with PKCE, keep its tokens in memory, and hand the
@@ -276,6 +277,71 @@ export const api = createApiClient({ accessToken: () => currentAccessToken() });
 ```
 
 The provider's origin then joins `connect-src` in the Content-Security-Policy of `nginx.conf`.
+<!--#endif-->
+<!--#if (webServerRendering)-->
+
+This app's server signs people in at the provider and keeps the session: `providerSessions` of
+`@app-template/api-client/server` runs the authorization code flow with PKCE as the provider's
+client, holds the provider's tokens in the server's memory, and gives the browser only the
+`__Host-session` cookie it sets (`HttpOnly`, `Secure`, `SameSite=Lax`). The page signs in by
+navigating to `/session/sign-in`, calls the API with no token, the server adding it, and signs out
+by posting to `/session/sign-out`, which answers where to send the browser next.
+`serverSessionMiddleware` sends the `X-CSRF: 1` header the server requires on a call that changes
+state:
+
+```ts
+import { createApiClient, serverSessionMiddleware } from '@app-template/api-client';
+
+export const api = createApiClient({ middleware: [serverSessionMiddleware()] });
+
+location.assign(`/session/sign-in?returnTo=${encodeURIComponent(location.pathname)}`);
+
+const answer = await fetch('/session/sign-out', { method: 'POST', headers: { 'X-CSRF': '1' } });
+location.assign(((await answer.json()) as { location: string }).location);
+```
+
+`/session/sign-in` keeps a code verifier, a state and a nonce for ten minutes under the
+`__Host-sign-in` cookie and sends the browser to the provider; `/session/callback` accepts the state
+it sent, once, redeems the code, checks the identity token's nonce, opens the session and returns to
+`returnTo`, a path of this origin, or `/`. Sign in by a link or a navigation: the policy's
+`form-action 'self'` refuses a form whose answer redirects to the provider. `/session/sign-out`
+forgets the tokens and answers `{ "location": … }`: the provider's `end_session_endpoint`, with the
+identity token and `<origin>/` to come back to, when its discovery document names one, which ends
+the provider's session too; `/` otherwise, which leaves it open, so the next sign-in may not ask for
+a password. The server refreshes the access token 30 seconds before it expires when the provider
+issued a refresh token, once for all the requests of a session; without one, the session ends with
+the access token. A session lasts twelve hours from its sign-in at most, and a restart of the server
+ends them all.
+
+A page rendered on the server calls the API from there, with the token of the browser's session:
+`src/server.ts` hands Angular `apiUpstream` and `accessToken` in the request context, which
+`inject(REQUEST_CONTEXT)` reads.
+
+Register the app at the provider before its first sign-in:
+
+- a client allowed the authorization code flow with PKCE: confidential, with a secret, since the
+  server keeps it, or public, without one;
+- for each origin that serves the app, the redirect URI `<origin>/session/callback` and the
+  post-logout redirect URI `<origin>/`: `http://localhost` on the port of
+  `WEB_FRAMEWORK_SITE_HOST_PORT` through the stack, `http://localhost:4200` under `pnpm dev`, and
+  the public one in a deployment;
+- the scopes of `EXTERNAL_AUTH_INTERACTIVE_SCOPE`, `openid profile email offline_access` by
+  default, with refresh tokens allowed for `offline_access`;
+- the API's audience, `Authentication:External:Audience`, in the access token it issues. How depends
+  on the provider: an API scope the client requests, added to `EXTERNAL_AUTH_INTERACTIVE_SCOPE`; an
+  audience mapper on the client; or a parameter of the authorization request, such as Auth0's
+  `audience` or the `resource` of RFC 8707, which `src/server.ts` passes as
+  `providerSessions(apiUpstream, process.env, { authorizationParameters: { audience: '<api>' } })`.
+
+Then set, in `.env`, `EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID`, the secret of a confidential client in
+`EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET`, and `WEB_FRAMEWORK_SITE_ORIGIN`, the origin browsers reach
+the app at; `EXTERNAL_AUTH_AUTHORITY` is the issuer the API trusts. `compose.yml` passes them to the
+server, the origin as `PUBLIC_ORIGIN`, and `src/server.ts` refuses to start until each is set,
+naming those that are not, through `checkProviderSettings`. The build and `pnpm dev` load the server
+without them, and a sign-in then fails until they are set. The server reads the provider's discovery
+document at the first sign-in, over `https` only, and answers `502` `session.providerUnreachable`
+while the provider cannot be reached.
+<!--#endif-->
 <!--#else-->
 
 The API has no accounts, so every endpoint answers without a sign-in:
@@ -305,6 +371,11 @@ With the API running (`dotnet run Tools/Tasks.cs run` at the project root), from
 pnpm --filter framework-site dev
 ```
 
+<!--#if (webServerRendering && externalAuth)-->
+A sign-in under `pnpm dev` needs `EXTERNAL_AUTH_AUTHORITY`, `EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID` and
+`PUBLIC_ORIGIN=http://localhost:4200` in the shell that runs it, since no Compose file sets them there.
+
+<!--#endif-->
 <!--#if (!webServerRendering)-->
 Under Compose, from the project root with the stack's `.env` in place, `docker compose up --build
 --wait` serves the build through nginx on <http://localhost:5173>, or on the port
@@ -344,6 +415,27 @@ Under Compose, from the project root with the stack's `.env` in place, `docker c
   - path: Src/Web/apps/FrameworkSite/compose.yml
 ```
 
+<!--#if (webServerRendering && externalAuth)-->
+and `.env.example` names its port and its origin:
+
+```bash
+WEB_FRAMEWORK_SITE_HOST_PORT=5173
+# The origin browsers reach the server-rendered app at, its redirect URI's origin at the provider: change it with the port.
+WEB_FRAMEWORK_SITE_ORIGIN=http://localhost:5173
+```
+
+A project whose `.env.example` names no `EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID` yet takes these lines
+after `EXTERNAL_AUTH_ADMINISTRATOR_ROLE=Admin`:
+
+```bash
+# The server-rendered web app's client at the provider, which signs people in with the code flow; a public client leaves the secret empty.
+EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=
+EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET=
+```
+
+Removing the app is deleting this folder, its `include:` line and its lines of `.env.example`, then
+running `pnpm install` in `Src/Web`.
+<!--#else-->
 and `.env.example` names its port:
 
 ```bash
@@ -352,3 +444,4 @@ WEB_FRAMEWORK_SITE_HOST_PORT=5173
 
 Removing the app is deleting this folder and those two lines, then running `pnpm install` in
 `Src/Web`.
+<!--#endif-->

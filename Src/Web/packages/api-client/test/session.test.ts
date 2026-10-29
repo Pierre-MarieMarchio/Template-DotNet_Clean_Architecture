@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   cookieModePaths,
   createApiClient,
@@ -416,13 +416,13 @@ describe('the session middleware', () => {
 
 describe('the server session middleware', () => {
   it('sends X-CSRF on every call, which the server of a server-rendered app requires on a call that changes state', async () => {
-    const api = new FakeApi().answer('/api/v1/notes', ok(), ok());
-    const notes = createApiClient({ baseUrl: 'http://app.test', fetch: api.fetch, middleware: [serverSessionMiddleware()] });
+    const api = new FakeApi().answer('/api/v1/auth/me', ok()).answer('/api/v1/auth/logout-all', ok());
+    const server = createApiClient({ baseUrl: 'http://app.test', fetch: api.fetch, middleware: [serverSessionMiddleware()] });
 
-    await notes.GET('/api/v1/notes');
-    await notes.POST('/api/v1/notes', { body: { title: 't', body: 'b' } });
+    await server.GET('/api/v1/auth/me');
+    await server.POST('/api/v1/auth/logout-all');
 
-    expect(api.to('/api/v1/notes').map((request) => request.headers.get('X-CSRF'))).toEqual(['1', '1']);
-    expect(api.to('/api/v1/notes').map((request) => request.headers.get('Authorization'))).toEqual([null, null]);
+    expect(api.seen.map((request) => request.headers.get('X-CSRF'))).toEqual(['1', '1']);
+    expect(api.seen.map((request) => request.headers.get('Authorization'))).toEqual([null, null]);
   });
 });

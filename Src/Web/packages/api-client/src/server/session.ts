@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+﻿import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
 import { logoutPath, refreshPath } from '../session.ts';
 import { apiOrigin, forward, forwardedHeaders, isRelayedToApi, pathOf, type ApiRelay } from './relay.ts';
@@ -34,12 +34,12 @@ interface Found {
   readonly cookie: string | undefined;
 }
 
-const grantPaths = new Set([
+const grantPaths = [
   '/api/v1/auth/login',
   '/api/v1/auth/login/two-factor',
   '/api/v1/auth/login/external',
   '/api/v1/auth/passkeys/sign-in',
-]);
+];
 
 const safeMethods = new Set(['GET', 'HEAD']);
 
@@ -125,13 +125,13 @@ export function serverSessions(upstream: string, options: ServerSessionsOptions 
     return { session, cookie: session.grant === before ? undefined : cookieFor(id, session.grant) };
   }
 
-  async function signIn(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  async function signIn(grantPath: string, request: IncomingMessage, response: ServerResponse): Promise<void> {
     const headers = callHeaders(request);
     const body = await readBody(request);
     let answer: Response;
 
     try {
-      answer = await fetch(new URL(request.url ?? '/', target), { method: 'POST', headers, body });
+      answer = await fetch(new URL(grantPath, target), { method: 'POST', headers, body });
     } catch {
       response.writeHead(502, { 'cache-control': 'no-store' });
       response.end();
@@ -211,9 +211,10 @@ export function serverSessions(upstream: string, options: ServerSessionsOptions 
     }
 
     const path = pathOf(url);
+    const grantPath = grantPaths.find((candidate) => candidate === path);
     const handled =
-      method === 'POST' && grantPaths.has(path)
-        ? signIn(request, response)
+      method === 'POST' && grantPath !== undefined
+        ? signIn(grantPath, request, response)
         : method === 'POST' && path === logoutPath
           ? signOut(request, response)
           : relayCall(request, response);

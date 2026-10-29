@@ -1,4 +1,4 @@
-import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
+﻿import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { csrfRefusalCode, serverSessions, type ServerSessions } from '../src/server.ts';
@@ -131,6 +131,19 @@ describe('serverSessions', () => {
     expect(received[0]?.body).toBe('{"email":"ada@example.com","password":"secret"}');
     expect(received[0]?.headers['user-agent']).toBe('browser/1');
     expect(received[0]?.headers['x-refresh-token-mode']).toBeUndefined();
+  });
+
+  it('sends a sign-in to its route at the API alone, whatever the request line adds', async () => {
+    const base = await stack();
+
+    const answer = await fetch(`${base}/api/v1/auth/login?next=//elsewhere.test/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF': '1' },
+      body: JSON.stringify({ email: 'ada@example.com', password: 'secret' }),
+    });
+
+    expect(answer.status).toBe(200);
+    expect(received.map((request) => request.path)).toEqual(['/api/v1/auth/login']);
   });
 
   it('opens no session on a two-factor challenge, which it passes through', async () => {

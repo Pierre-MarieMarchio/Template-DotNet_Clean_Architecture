@@ -553,7 +553,7 @@ jobs:
           printf 'WEB_BACK_OFFICE_HOST_PORT=8082\n' >> .env.example
           grep -A3 '^include:' docker-compose.yml
 
-      # Each entry is Name:port:framework; the app joins the stack by the two lines its README gives.
+      # Each entry is Name:port:framework, then :ssr for an app rendered on the server; the app joins the stack by the two lines its README gives.
       - name: Add every other starter with cleanarch-webapp
         if: matrix.more_apps
         working-directory: ${{ runner.temp }}/generated
@@ -562,8 +562,8 @@ jobs:
         run: |
           set -euo pipefail
           for app in $MORE_APPS; do
-            IFS=: read -r name port framework <<< "$app"
-            dotnet new cleanarch-webapp -n "$name" --framework "$framework" --port "$port" --scope sample-generated-project
+            IFS=: read -r name port framework rendering <<< "$app"
+            dotnet new cleanarch-webapp -n "$name" --framework "$framework" --rendering "${rendering:-spa}" --port "$port" --scope sample-generated-project
             leaked=$(grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE "Src/Web/apps/$name" || true)
             if [ -n "$leaked" ]; then
               echo "::error title=Item template token leaked::$leaked"
@@ -573,7 +573,7 @@ jobs:
             sed -i "s#^include:\$#include:\n  - path: Src/Web/apps/$name/compose.yml#" docker-compose.yml
             printf 'WEB_%s_HOST_PORT=%s\n' "$variable" "$port" >> .env.example
           done
-          grep -A8 '^include:' docker-compose.yml
+          grep -A9 '^include:' docker-compose.yml
           grep '^WEB_' .env.example
 
       # bootstrap's web step: each framework app is created by its official CLI, then pnpm install and pnpm api.

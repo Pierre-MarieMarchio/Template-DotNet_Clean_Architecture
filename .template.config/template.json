@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\" || (presentation == \"wpf\" && (presentationName == \"Infrastructure\" || presentationName == \"Presentation\")))) || (jobs == \"worker\" && database == \"sqlite\"))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\" || (presentation == \"wpf\" && (presentationName == \"Infrastructure\" || presentationName == \"Presentation\")))) || (jobs == \"worker\" && database == \"sqlite\"))"
     },
     "database": {
       "type": "parameter",
@@ -317,7 +317,7 @@
         },
         {
           "choice": "react-router",
-          "description": "One React web app in the pnpm workspace Src/Web, created by React Router's official CLI (create-react-router) in single-page mode."
+          "description": "One React web app in the pnpm workspace Src/Web, created by React Router's official CLI (create-react-router): a single-page app, or rendered on the server with --web-rendering ssr."
         },
         {
           "choice": "blazor-wasm",
@@ -457,7 +457,7 @@
         },
         {
           "choice": "ssr",
-          "description": "Rendered on the server for each request, by the framework's own Node server, which keeps the session; angular only."
+          "description": "Rendered on the server for each request, by the framework's own Node server, which keeps the session; angular and react-router only."
         }
       ],
       "description": "How the first web app renders, where its generator offers both."
@@ -475,8 +475,8 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(webRendering == \"ssr\" && web != \"angular\")",
-      "description": "Never set. --web-rendering ssr needs a web app whose generator renders on the server: choose --web angular, or --web-rendering spa."
+      "isRequired": "(webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\")",
+      "description": "Never set. --web-rendering ssr needs a web app whose generator renders on the server: choose --web angular or react-router, or --web-rendering spa."
     },
     "webName": {
       "type": "parameter",
@@ -1567,7 +1567,25 @@
     {
       "source": "./.template.config/starters/react-router/",
       "target": "./Src/Web/apps/",
-      "condition": "(webReactRouter)"
+      "condition": "(webReactRouter)",
+      "modifiers": [
+        {
+          "exclude": [
+            "ssr/**"
+          ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./.template.config/starters/react-router/ssr/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webReactRouter && webServerRendering)"
     },
     {
       "source": "./.template.config/starters/blazor-wasm/",

@@ -120,7 +120,7 @@
     "auth_context": "true",
     "web": "true",
     "first_presentation": "--framework avalonia --examples none --files false --has-client true",
-    "more_apps": "VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router"
+    "more_apps": "VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router ReactRouterSsrSite:8091:react-router:ssr"
   },
   {
     "name": "sqlite, defaults",

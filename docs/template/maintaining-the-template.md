@@ -108,8 +108,10 @@ user runs the project ([template decision 0014](decisions/0014-a-windows-only-sh
 from PowerShell, one command a step, it installs the package, generates, asserts the source name
 leaked nowhere, then runs `bootstrap`, the `build` task with warnings as errors,
 `test --no-integration`, `hygiene` and the citation check. A Windows runner runs no Linux image, so
-the job starts no container and sets up no web workspace; the checkout's `.gitattributes` keeps its
-line endings LF whatever the runner's `core.autocrlf`.
+the job starts no container and sets up no web workspace. It checks out the root files and `Tools`
+alone, since the package brings the template and a starter's deepest path exceeds the 260 characters
+git for Windows allows by default; their `.gitattributes` keeps them LF whatever the runner's
+`core.autocrlf`.
 
 The legs are the entries of `.template.config/acceptance/matrix.json`: the fields the workflow's
 steps read, and the `tags` that name what the leg generates. The two web legs with external

@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace CleanArch.Create;
+namespace CleanArch.Tooling;
 
 public sealed record ProcessCall(string FileName, string WorkingDirectory, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Environment);
 

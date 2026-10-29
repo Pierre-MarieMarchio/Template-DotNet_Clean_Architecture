@@ -1,8 +1,8 @@
 ﻿using System.Globalization;
-using CleanArch.Create.Manifests;
+using CleanArch.Tooling.Manifests;
 using Spectre.Console;
 
-namespace CleanArch.Create.Prompts;
+namespace CleanArch.Tooling.Prompts;
 
 public sealed class Questionnaire
 {

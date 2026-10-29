@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace CleanArch.Create.Manifests;
+namespace CleanArch.Tooling.Manifests;
 
 public enum OptionKind
 {

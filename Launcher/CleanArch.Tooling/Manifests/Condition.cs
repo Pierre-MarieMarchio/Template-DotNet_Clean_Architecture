@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Create.Manifests;
+﻿namespace CleanArch.Tooling.Manifests;
 
 public sealed class Condition
 {
@@ -31,7 +31,7 @@ public sealed class Condition
 
     public override string ToString() => Text;
 
-    internal static bool IsTruthy(string? value) => string.Equals(value, True, StringComparison.OrdinalIgnoreCase);
+    public static bool IsTruthy(string? value) => string.Equals(value, True, StringComparison.OrdinalIgnoreCase);
 
     private static string Of(bool value) => value ? True : False;
 

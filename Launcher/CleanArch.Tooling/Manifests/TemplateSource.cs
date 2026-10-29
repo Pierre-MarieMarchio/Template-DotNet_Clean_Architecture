@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Text;
 
-namespace CleanArch.Create.Manifests;
+namespace CleanArch.Tooling.Manifests;
 
 public sealed record TemplateKind(string ShortName, string Folder)
 {
@@ -28,10 +28,8 @@ public sealed class TemplateSource
 
     public string? LocalPath { get; }
 
-    public static TemplateSource Embedded()
+    public static TemplateSource Embedded(Assembly assembly)
     {
-        Assembly assembly = typeof(TemplateSource).Assembly;
-
         return new TemplateSource(null, path =>
         {
             using Stream? stream = assembly.GetManifestResourceStream(path);

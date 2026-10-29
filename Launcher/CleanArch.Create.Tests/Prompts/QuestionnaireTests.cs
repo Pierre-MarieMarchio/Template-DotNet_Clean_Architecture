@@ -1,5 +1,6 @@
-﻿using CleanArch.Create.Manifests;
-using CleanArch.Create.Prompts;
+﻿using CleanArch.Tooling;
+using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Prompts;
 using Shouldly;
 using Spectre.Console.Testing;
 using Xunit;

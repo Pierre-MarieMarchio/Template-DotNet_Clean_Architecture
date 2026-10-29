@@ -1,8 +1,8 @@
-﻿using CleanArch.Create.Manifests;
+﻿using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
 
-namespace CleanArch.Create.Tests.Manifests;
+namespace CleanArch.Tooling.Tests.Manifests;
 
 public sealed class ConditionTests
 {

@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Create.Prompts;
+﻿namespace CleanArch.Tooling.Prompts;
 
 public readonly record struct Reply(string? Value, bool Asked, bool Back)
 {

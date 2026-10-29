@@ -1,2 +1,5 @@
 [CleanArch.Create.Tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+[CleanArch.Tooling.Tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none

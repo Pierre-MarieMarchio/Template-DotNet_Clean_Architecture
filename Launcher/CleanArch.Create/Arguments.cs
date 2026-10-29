@@ -1,4 +1,6 @@
-﻿namespace CleanArch.Create;
+﻿using CleanArch.Tooling;
+
+namespace CleanArch.Create;
 
 public sealed class Arguments
 {

@@ -343,7 +343,7 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
    `docs/getting-started/overview.md` and `docs/template/using-the-template.md`, and its name where
    `docs/features/web-frontend.md`, `Src/Web/README.md` and the repository `README.md` list the
    values.
-4. Give it an accent colour in `Launcher/CleanArch.Create/Prompts/GuidedConversation.cs`; its
+4. Give it an accent colour in `Launcher/CleanArch.Tooling/Prompts/GuidedConversation.cs`; its
    question comes from the manifests.
 5. To offer its server form, write `ssr/FrameworkSite/scaffold.json` and its `overlay/`, whose server
    relays through `relayToApi` of `@app-template/api-client/server`, sends the page headers, and

@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using Spectre.Console;
 
-namespace CleanArch.Create.Prompts;
+namespace CleanArch.Tooling.Prompts;
 
 public static class Banner
 {

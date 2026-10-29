@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Create.Manifests;
+﻿namespace CleanArch.Tooling.Manifests;
 
 public sealed record Offer(IReadOnlyList<string> Values, IReadOnlyList<Refusal> Reasons)
 {

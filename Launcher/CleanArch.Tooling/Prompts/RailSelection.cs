@@ -1,8 +1,8 @@
-﻿using CleanArch.Create.Manifests;
+﻿using CleanArch.Tooling.Manifests;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
-namespace CleanArch.Create.Prompts;
+namespace CleanArch.Tooling.Prompts;
 
 public sealed class RailSelection
 {

@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Create;
+﻿namespace CleanArch.Tooling;
 
 public sealed class LauncherException : Exception
 {

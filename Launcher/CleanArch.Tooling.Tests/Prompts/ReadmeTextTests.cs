@@ -1,8 +1,8 @@
-﻿using CleanArch.Create.Prompts;
+﻿using CleanArch.Tooling.Prompts;
 using Shouldly;
 using Xunit;
 
-namespace CleanArch.Create.Tests.Prompts;
+namespace CleanArch.Tooling.Tests.Prompts;
 
 public sealed class ReadmeTextTests
 {

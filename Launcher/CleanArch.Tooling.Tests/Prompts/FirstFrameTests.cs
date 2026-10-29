@@ -1,11 +1,11 @@
 ﻿using System.Text.RegularExpressions;
-using CleanArch.Create.Manifests;
-using CleanArch.Create.Prompts;
+using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Prompts;
 using Shouldly;
 using Spectre.Console.Testing;
 using Xunit;
 
-namespace CleanArch.Create.Tests.Prompts;
+namespace CleanArch.Tooling.Tests.Prompts;
 
 public sealed partial class FirstFrameTests
 {

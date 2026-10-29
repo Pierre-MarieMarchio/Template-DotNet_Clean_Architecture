@@ -1,6 +1,6 @@
 ﻿using Spectre.Console;
 
-namespace CleanArch.Create.Prompts;
+namespace CleanArch.Tooling.Prompts;
 
 public sealed class RailSpinner : Spinner
 {

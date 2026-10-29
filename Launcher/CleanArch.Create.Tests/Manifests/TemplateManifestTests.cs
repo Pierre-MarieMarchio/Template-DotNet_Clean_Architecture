@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
-using CleanArch.Create.Manifests;
+using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
 
@@ -82,7 +82,7 @@ public sealed class TemplateManifestTests
     {
         TemplateKind kind = Kind(shortName);
 
-        Summary(TemplateSource.Embedded().Manifest(kind)).ShouldBe(Summary(Repository.Source.Manifest(kind)));
+        Summary(TemplateSource.Embedded(typeof(Launcher).Assembly).Manifest(kind)).ShouldBe(Summary(Repository.Source.Manifest(kind)));
     }
 
     [Fact]

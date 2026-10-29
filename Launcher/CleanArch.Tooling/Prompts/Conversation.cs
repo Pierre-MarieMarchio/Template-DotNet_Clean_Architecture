@@ -1,7 +1,7 @@
-﻿using CleanArch.Create.Manifests;
+﻿using CleanArch.Tooling.Manifests;
 using Spectre.Console;
 
-namespace CleanArch.Create.Prompts;
+namespace CleanArch.Tooling.Prompts;
 
 public sealed record Closing(string? Readme, IReadOnlyList<string> Commands, string? Section, bool StepsLeft = false);
 

@@ -149,10 +149,10 @@ public sealed class QuestionnaireTests
     {
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter("n");
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
@@ -220,18 +220,19 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
-    public void InATerminal_AuthNone_AnswersWhatItRefuses_AndOffersNoAdministrators()
+    public void InATerminal_AuthNone_AnswersWhatItRefuses()
     {
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.Enter);
-        console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
@@ -247,9 +248,34 @@ public sealed class QuestionnaireTests
         answers["webAudience"].ShouldBe("public");
         _project.RefusalsFor(answers).ShouldBeEmpty();
         console.Output.ShouldContain("none · the only option when Authentication is none");
-        console.Output.ShouldContain("public · the only option when Authentication is none");
         console.Output.ShouldNotContain("add --examples none");
         _project.CommandArguments(answers).ShouldBe(["--auth", "none", "--files", "false", "--examples", "none", "--web", "placeholder"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void InATerminal_ABackOfficeChosenFirst_LeavesNoPublicApiToChoose()
+    {
+        var console = new TestConsole().Interactive();
+        console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
+        for (int index = 0; index < 8; index++)
+        {
+            console.Input.PushKey(ConsoleKey.Enter);
+        }
+
+        var questionnaire = new Questionnaire(console, interactive: true, yes: false);
+
+        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, Launcher.ProjectAskedWhen);
+
+        answers["webAudience"].ShouldBe("admin");
+        answers["auth"].ShouldBe("local");
+        console.Output.ShouldNotContain(_project.Options.Single(option => option.Symbol == "auth").Choices.Single(choice => choice.Value == "none").Description);
+        _project.RefusalsFor(answers).ShouldBeEmpty();
     }
 
     [Fact]

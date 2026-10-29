@@ -66,10 +66,10 @@ public sealed partial class GuidedFlowTests : IDisposable
         Order(
             output,
             "┌  Create a project",
+            "◊  Presentation project",
+            "◊  First web app",
             "◊  Authentication",
             "◊  Database",
-            "◊  First web app",
-            "◊  Presentation project",
             "♦  Set up the project now?",
             "Summary",
             "◊  Generated Demo",
@@ -146,9 +146,9 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        console.Input.PushKey(ConsoleKey.Enter);
+        PushEnters(console, 4);
         console.Input.PushKey(ConsoleKey.End);
-        PushEnters(console, 10);
+        PushEnters(console, 7);
 
         Run(console, "new");
 
@@ -163,9 +163,9 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        console.Input.PushKey(ConsoleKey.Enter);
+        PushEnters(console, 4);
         console.Input.PushKey(ConsoleKey.DownArrow);
-        PushEnters(console, 10);
+        PushEnters(console, 7);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Enter);
@@ -190,17 +190,18 @@ public sealed partial class GuidedFlowTests : IDisposable
         TestConsole console = Terminal();
         console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushTextWithEnter("Demo");
-        console.Input.PushKey(ConsoleKey.Enter);
+        PushEnters(console, 4);
         console.Input.PushKey(ConsoleKey.End);
-        console.Input.PushKey(ConsoleKey.Enter);
+        PushEnters(console, 2);
+        console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushKey(ConsoleKey.Home);
-        PushEnters(console, 12);
+        PushEnters(console, 9);
 
         Run(console, "new");
 
         string output = Plain(console);
-        Order(output, "◊  Authentication\n│  none", "◊  Example features\n│  none ·", "♦  Database", "◊  Authentication\n│  local", "○ notes", "◊  Example features\n│  all");
+        Order(output, "◊  Authentication\n│  none", "◊  Example features\n│  none ·", "♦  GitHub Actions workflows", "♦  Database", "◊  Authentication\n│  local", "○ notes", "◊  Example features\n│  all");
         output.ShouldMatch(@"│ Authentication\s+│ local\s+│");
         output.ShouldMatch(@"│ Example features\s+│ all\s+│");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && !line.Contains("--auth", StringComparison.Ordinal));

@@ -6,51 +6,16 @@
   "defaultSymbolVisibility": false,
   "symbolInfo": [
     {
-      "id": "auth",
+      "id": "presentation",
       "name": {
-        "text": "Authentication"
+        "text": "Presentation project"
       },
       "isVisible": true
     },
     {
-      "id": "examples",
+      "id": "presentationName",
       "name": {
-        "text": "Example features"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "database",
-      "name": {
-        "text": "Database"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "files",
-      "name": {
-        "text": "Files module"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "ci",
-      "name": {
-        "text": "GitHub Actions workflows"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "sonar",
-      "name": {
-        "text": "Sonar analysis"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "agentFiles",
-      "name": {
-        "text": "Agent instructions"
+        "text": "Presentation project name"
       },
       "isVisible": true
     },
@@ -83,23 +48,58 @@
       "isVisible": true
     },
     {
-      "id": "presentation",
-      "name": {
-        "text": "Presentation project"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "presentationName",
-      "name": {
-        "text": "Presentation project name"
-      },
-      "isVisible": true
-    },
-    {
       "id": "jobs",
       "name": {
         "text": "Background jobs"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "auth",
+      "name": {
+        "text": "Authentication"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "database",
+      "name": {
+        "text": "Database"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "examples",
+      "name": {
+        "text": "Example features"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "files",
+      "name": {
+        "text": "Files module"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "ci",
+      "name": {
+        "text": "GitHub Actions workflows"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "sonar",
+      "name": {
+        "text": "Sonar analysis"
+      },
+      "isVisible": true
+    },
+    {
+      "id": "agentFiles",
+      "name": {
+        "text": "Agent instructions"
       },
       "isVisible": true
     }

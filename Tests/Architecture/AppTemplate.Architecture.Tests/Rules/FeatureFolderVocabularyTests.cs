@@ -46,6 +46,9 @@ public sealed class FeatureFolderVocabularyTests
         ["Stores"] = ["Store"],
         ["Tables"] = ["Table", "Grant"],
         ["Templates"] = [],
+        /*#if (presentationMcp)
+        ["Tools"] = ["Tools"],
+        #endif*/
         ["Tracking"] = ["Tracker"],
         ["Transfers"] = ["Transfer"],
         ["UseCases"] = [],

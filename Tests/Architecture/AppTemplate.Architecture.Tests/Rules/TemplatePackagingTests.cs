@@ -264,6 +264,7 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config/webapp/.template.config", "(webPlaceholder)", "pnpm install")]
     [InlineData(".template.config/presentation/.template.config", null, "presentation-join <project>.<name>")]
     [InlineData(".template.config/presentation/.template.config", null, "presentation-scaffold <project>.<name>")]
+    [InlineData(".template.config/presentation/.template.config", "(accessKeys)", "dotnet ef migrations add AddAccessKeys")]
     public void Generation_EndsWithWhatToRunNext_ForTheShapeGenerated(string folder, string? condition, string named)
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
@@ -745,6 +746,11 @@ public sealed class TemplatePackagingTests
         "anyPresentation|presentationAvalonia|dotnetClient",
         10,
         new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
+    [InlineData(
+        "mcp/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "anyPresentation|presentationMcp|accessKeys",
+        10,
+        new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
     [InlineData(
         "wpf/Src/Presentation/AppTemplate.PresentationApp/README.md",
         "anyPresentation|presentationWpf|dotnetClient",

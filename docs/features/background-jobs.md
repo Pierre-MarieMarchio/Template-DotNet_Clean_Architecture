@@ -23,7 +23,7 @@ work twice.
 
 Every pass calls an application use case, exactly as a controller would; a job adds a trigger, not
 logic.
-<!--#if (presentationBlazorServer && !jobsWorker)-->
+<!--#if ((presentationBlazorServer || presentationMcp) && !jobsWorker)-->
 The jobs run in the API alone: the presentation project composes the same use cases and runs none
 of them on a timer.
 <!--#endif-->

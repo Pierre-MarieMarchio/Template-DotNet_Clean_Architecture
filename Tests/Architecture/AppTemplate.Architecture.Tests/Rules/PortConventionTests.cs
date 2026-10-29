@@ -166,6 +166,9 @@ public sealed class PortConventionTests
 
     private static readonly string[] _authUseCasesPerFeature =
     [
+        //#if (accessKeys)
+        "AccessKeys: 4",
+        //#endif
         "Accounts: 15",
         "ExternalLogins: 1",
         "Passkeys: 6",
@@ -191,9 +194,8 @@ public sealed class PortConventionTests
             .ShouldBe(
                 _authUseCasesPerFeature,
                 ignoreOrder: false,
-                "The authentication module's thirty-eight use cases are filed under six features — " +
-                "account lifecycle and administration, sessions, two-factor, passkeys, external " +
-                "sign-in and the security trail. Another distribution means an operation moved, " +
+                "The authentication module's use cases are filed under these features, from account " +
+                "lifecycle and administration to the security trail. Another distribution means an operation moved, " +
                 "appeared or vanished, and this rule is no longer describing the module.");
 
         var orchestrating = authUseCases

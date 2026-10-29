@@ -29,6 +29,8 @@ public sealed class AcceptanceSelectionTests
         "no web, then a react app and its workspace",
         "sql server, external auth, all examples",
         "worker, external auth, all examples",
+        "mcp, external auth, all examples",
+        "mcp, local auth, notes",
         "sqlite, defaults",
         "sqlite, smallest project",
         "sqlite, external auth, all examples",

@@ -55,6 +55,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "mcpNeedsAccounts": {
+      "longName": "mcp-needs-accounts",
+      "shortName": "",
+      "isHidden": true
+    },
     "wasmWebNeedsAccounts": {
       "longName": "wasm-web-needs-accounts",
       "shortName": "",

@@ -54,6 +54,11 @@ Under `/api/v1/auth`; † marks the routes under `RateLimiting:AuthenticationPer
 | POST | `/passkeys/register` † | 200 | The credential, the state, an optional name; re-authenticates. |
 | GET | `/passkeys` | 200 | The caller's passkeys, newest first. |
 | DELETE | `/passkeys/{credentialId}` | 204 | Removes one; ends every other session. |
+<!--#if (accessKeys)-->
+| POST | `/access-keys` † | 201 | A name, `read` and/or `write` scopes, an optional `expiresAt` and the current password; the only response that carries the key. |
+| GET | `/access-keys` | 200 | The caller's live access keys, newest first, without their secrets. |
+| DELETE | `/access-keys/{accessKeyId}` | 204 | Revokes one of the caller's access keys. |
+<!--#endif-->
 
 The sign-in routes, `refresh` and `logout` accept `X-Refresh-Token-Mode: cookie`
 ([cookie mode](../features/authentication.md#browsers-the-refresh-token-cookie)).
@@ -192,11 +197,21 @@ carries once one does.
 | `auth.externalSignIn.refused` | 401 | An unknown provider or a token that did not verify |
 | `auth.passkeySignIn.invalid` | 401 | Any passkey sign-in refusal |
 | `auth.confirmEmail.invalid`, `auth.resetPassword.invalid`, `auth.changeEmail.invalid` | 400 | The token is unknown, spent or expired |
+<!--#if (accessKeys)-->
+| `auth.account.reAuthenticationRequired` | 403 | Deleting the account, registering a passkey or creating an access key needs a proof, or an access token under five minutes old |
+<!--#endif-->
+<!--#if (!accessKeys)-->
 | `auth.account.reAuthenticationRequired` | 403 | Deleting the account or registering a passkey needs a proof, or an access token under five minutes old |
+<!--#endif-->
 | `auth.account.notFound` | 404 | An administration action naming no account |
 | `auth.session.notFound` | 404 | A session that is not the caller's |
 | `auth.passkey.notFound` | 404 | A passkey that is not the caller's |
 | `auth.passkey.registrationRejected` | 400 | The ceremony verified, but the store refused the credential |
+<!--#if (accessKeys)-->
+| `auth.accessKey.notFound` | 404 | An access key that is not the caller's, or is already revoked or expired |
+| `auth.accessKey.limitReached` | 409 | Creating an access key while the account holds 25 live ones |
+| `auth.accessKey.invalid` | 401 | Answered by a host that accepts access keys, never by this API: a malformed, unknown, revoked or expired key, or one whose account may not sign in |
+<!--#endif-->
 | `auth.twoFactor.alreadyEnabled` | 409 | Setting up or confirming a factor already armed |
 | `auth.account.cannotDeleteSelf`, `auth.lockout.cannotTargetSelf`, `auth.roles.cannotTargetSelf`, `auth.twoFactor.cannotTargetSelf` | 403 | An administrator aiming at their own account |
 | `auth.account.deletionRejected`, `auth.lockout.rejected`, `auth.twoFactor.setupRejected`, `auth.twoFactor.enableRejected`, `auth.twoFactor.disableRejected`, `auth.twoFactor.administrativeDisableRejected` | 400 | The store refused the change; nothing changed |

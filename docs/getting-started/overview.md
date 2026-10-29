@@ -26,6 +26,9 @@ A Blazor Web App beside it calls the same use cases in its own process.
 <!--#if (presentationAvalonia)-->
 An Avalonia desktop app beside it calls the API through a .NET client generated from its document.
 <!--#endif-->
+<!--#if (presentationMcp)-->
+An MCP server beside it offers the same use cases to an agent's client, as tools.
+<!--#endif-->
 <!--#if (presentationWpf)-->
 A WPF desktop app for Windows beside it calls the API through a .NET client generated from its document.
 <!--#endif-->
@@ -179,6 +182,9 @@ setting, table or test names it.
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
 | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |
+<!--#endif-->
+<!--#if (presentationMcp)-->
+| `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation project](../features/presentation.md)) |
 <!--#endif-->
 <!--#if (presentationWpf)-->
 | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, its view models and host in `<Project>.<Name>.Core`, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |

@@ -160,6 +160,19 @@ The presentation project's client at the provider, for the OpenID Connect code f
 | `ClientSecret` | string | — | Its secret, for a confidential client; a public client sends none and relies on PKCE. |
 
 <!--#endif-->
+<!--#if (presentationMcp)-->
+The MCP server reads this section too, for the provider whose tokens it accepts; it validates them
+for its own audience, `Mcp:Resource`, never `Audience`.
+
+### `Mcp`
+
+Read by the MCP server alone; the API never reads it.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Resource` | string | `""` | **Required.** The absolute address MCP clients connect to, ending in `/mcp`: the audience of the tokens the provider issues for the server, and the resource its metadata names. |
+
+<!--#endif-->
 <!--#endif-->
 <!--#if (presentationBlazorServer && !localAuth)-->
 ## Presentation project

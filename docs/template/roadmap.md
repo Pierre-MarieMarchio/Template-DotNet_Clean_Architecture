@@ -41,7 +41,7 @@ Each group comes in no fixed order:
   `dotnet new` template and so is written by the template.
 - **Server hosts on the application layer**
   ([#121](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/121)):
-  MVC, Razor Pages, gRPC, an MCP server and a console.
+  MVC, Razor Pages, gRPC and a console.
 - **Around the apps**
   ([#122](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122)): an
   Aspire app host beside Docker Compose, Playwright end-to-end tests for the web apps, Storybook,

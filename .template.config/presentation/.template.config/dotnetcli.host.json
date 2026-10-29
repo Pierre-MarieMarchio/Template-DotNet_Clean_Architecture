@@ -37,6 +37,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "mcpNeedsAccounts": {
+      "longName": "mcp-needs-accounts",
+      "shortName": "",
+      "isHidden": true
+    },
     "mySqlNotYetGenerated": {
       "longName": "my-sql-not-yet-generated",
       "shortName": "",

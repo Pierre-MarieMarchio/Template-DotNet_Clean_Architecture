@@ -59,6 +59,9 @@ Which page answers your question, and where a new page goes.
 <!--#if (presentationAvalonia || presentationWpf)-->
 | [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
 <!--#endif-->
+<!--#if (presentationMcp)-->
+| [Presentation project](features/presentation.md) | the MCP server beside the API, its tools, and who may call them |
+<!--#endif-->
 
 ## Guides
 

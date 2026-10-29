@@ -1,4 +1,8 @@
-﻿using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Configurations;
+﻿//#if (accessKeys)
+using AppTemplate.Infrastructure.Auth.Features.AccessKeys.Rows.Configurations;
+using AppTemplate.Infrastructure.Auth.Features.AccessKeys.Rows.Models;
+//#endif
+using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Configurations;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Rows.Configurations;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Rows.Models;
@@ -35,6 +39,10 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
     internal DbSet<SpentPasskeyCeremonyRecord> SpentPasskeyCeremonies => Set<SpentPasskeyCeremonyRecord>();
 
+    //#if (accessKeys)
+    internal DbSet<AccessKeyRecord> AccessKeys => Set<AccessKeyRecord>();
+
+    //#endif
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -57,6 +65,9 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
         builder.ApplyConfiguration(new SecurityEventConfiguration());
         builder.ApplyConfiguration(new UserPasskeyConfiguration());
         builder.ApplyConfiguration(new SpentPasskeyCeremonyConfiguration());
+        //#if (accessKeys)
+        builder.ApplyConfiguration(new AccessKeyConfiguration());
+        //#endif
         builder.ApplyConfiguration(new UserRoleConfiguration());
         builder.ApplyConfiguration(new UserClaimConfiguration());
         builder.ApplyConfiguration(new UserLoginConfiguration());

@@ -1,4 +1,7 @@
-﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
+﻿//#if (accessKeys)
+using AppTemplate.Application.Auth.Features.AccessKeys.Ports.AccessKeys;
+//#endif
+using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountEmails;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountQueries;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
@@ -14,6 +17,10 @@ using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Common.Options;
+//#if (accessKeys)
+using AppTemplate.Infrastructure.Auth.Features.AccessKeys.Access.Tables;
+using AppTemplate.Infrastructure.Auth.Features.AccessKeys.Adapters.Services;
+//#endif
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Access.Queries;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Providers;
@@ -76,6 +83,9 @@ public static class AuthModule
         services.TryAddScoped<IRefreshTokenTable, RefreshTokenTable>();
         services.TryAddScoped<IRefreshTokenFamilyTable, RefreshTokenFamilyTable>();
         services.TryAddScoped<ISpentPasskeyCeremonyTable, SpentPasskeyCeremonyTable>();
+        //#if (accessKeys)
+        services.TryAddScoped<IAccessKeyTable, AccessKeyTable>();
+        //#endif
 
         services.TryAddScoped<IIdentitySeeder, IdentitySeeder>();
 
@@ -85,6 +95,9 @@ public static class AuthModule
         services.AddScoped<ISessionsService, SessionsService>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<IPasskeyService, PasskeyService>();
+        //#if (accessKeys)
+        services.AddScoped<IAccessKeysService, AccessKeysService>();
+        //#endif
         services.AddScoped<PasskeyCeremonyStateIssuer>();
         services.AddScoped<IAccountAdministrationService, AccountAdministrationService>();
         services.AddScoped<IReAuthenticationService, ReAuthenticationService>();

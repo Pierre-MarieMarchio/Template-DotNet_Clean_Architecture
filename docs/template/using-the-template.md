@@ -155,8 +155,8 @@ error under warnings as errors. Pick a name with no such segment.
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
 | `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` and `react-router` |
-| `--presentation` | `none`, `blazor-server`, `avalonia`, `wpf` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none`; `wpf` is a desktop app for Windows that calls the API the same way, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.<name>.Core` so that its tests run on every system, refused with `--auth none` |
-| `--presentation-name` | PascalCase text | `Portal` | the presentation project's name after the solution's, its Compose service and port variable |
+| `--presentation` | `none`, `blazor-server`, `avalonia`, `wpf`, `mcp` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none`; `wpf` is a desktop app for Windows that calls the API the same way, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.<name>.Core` so that its tests run on every system, refused with `--auth none`; `mcp` is an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names; under `--auth local` it brings the access keys, which no other shape carries; refused with `--auth none` |
+| `--presentation-name` | PascalCase text | `Portal`, `Mcp` for `--presentation mcp` | the presentation project's name after the solution's, its Compose service and port variable |
 | `--jobs` | `api`, `worker` | `api` | where the background jobs run: in the API, or in `<Project>.Worker`, a worker in `Src/Presentation` written in the shape of `dotnet new worker`, which takes the API's jobs and their tests while the API serves HTTP alone; refused with `--database sqlite` |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
@@ -186,6 +186,7 @@ it, and the generated solution builds and passes its tests.
 | `--web-rendering ssr` with a `--web` other than `angular` or `react-router` | `--server-rendering-needs-a-server-starter` | choose `--web angular` or `react-router`, or `--web-rendering spa` |
 | `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
 | a `--presentation-name` that names one of the template's projects, such as `Api` | `--presentation-name-is-taken` | choose another name, such as `Portal` |
+| `--presentation mcp` with `--auth none` | `--mcp-needs-accounts` | choose `--auth local` or `external` |
 | `--jobs worker` with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or `--jobs api` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
@@ -225,14 +226,14 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 |---|---|
 | `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
-| `cleanarch-presentation` | `--framework blazor-server\|avalonia\|wpf` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` and `wpf` take `--has-client true` where the project holds the .NET client already. `-n` is the presentation project's name, `Portal` by default, refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
+| `cleanarch-presentation` | `--framework blazor-server\|avalonia\|wpf\|mcp` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` and `wpf` take `--has-client true` where the project holds the .NET client already; `mcp` is refused with `--auth none`. `-n` is the presentation project's name, `Portal` by default (pass `-n Mcp` for an MCP server), refused as `--presentation-name` refuses it: the presentation project of a project generated with `--presentation none` |
 
 An item template can add files but not edit them, so each prints the lines to add to
 `docker-compose.yml`, `.env.example` and, with `--workspace`, `.dockerignore` and
 `.github/dependabot.yml`; the generated `Src/Web/README.md` lists them. `cleanarch-presentation`
 writes the project, its tests and its page, and the `README.md` in the project's folder lists every
 line `--presentation` writes elsewhere, each placed by the lines around it: `.dockerignore`,
-`.env.example`, `Directory.Packages.props` under external authentication, `docker-compose.yml`,
+`.env.example`, `Directory.Packages.props` for the packages it brings, `docker-compose.yml`,
 `AGENTS.md`, two architecture tests and the pages under `docs/`.
 `dotnet run Tools/Tasks.cs presentation-join <Project>.<name>` makes them all, or none when a line
 to place one by is not found exactly once, and leaves them alone once they are in place. Then

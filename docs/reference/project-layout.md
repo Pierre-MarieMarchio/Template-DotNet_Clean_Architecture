@@ -18,6 +18,10 @@ The presentation project's root also holds `Assets/`, `ViewModels/`, `Views/`, `
 the view locator, which its framework's template writes and which are its own from then on; a file
 named `<Type>.axaml.cs` declares `<Type>`.
 <!--#endif-->
+<!--#if (presentationMcp)-->
+The MCP server keeps each feature's tools under `Features/<F>/Tools`, one class named
+`<F>Tools`, and what every tool shares under `Common/Tools`.
+<!--#endif-->
 <!--#if (presentationWpf)-->
 The presentation project's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
 markup, in the shape `dotnet new wpf` gives them, and its `.Core` project's root holds `ViewModels/`;
@@ -146,6 +150,14 @@ Src/Presentation/
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
+<!--#if (presentationMcp && localAuth)-->
+  <Project>.<Name>                      Common/{Hosting,Security,Tools}
+                                        Features/<F>/{Composition,Tools}
+<!--#endif-->
+<!--#if (presentationMcp && externalAuth)-->
+  <Project>.<Name>                      Common/{Hosting,Security,Tools}
+                                        Features/<F>/{Composition,Configuration/Options,Tools}
+<!--#endif-->
 <!--#if (presentationWpf)-->
   <Project>.<Name>                      no Common/, no Features/
                                         App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
@@ -271,6 +283,9 @@ A type's suffix names its nature, and the nature names its folder:
 | `…Controller` | `Controllers/` |
 | `…BackgroundService`, `…Task`, `…Telemetry` | `Jobs/` |
 | `…Composition`, a host-supplied `…Directory`, `…Provider` or `…Session` | `Composition/` |
+<!--#if (presentationMcp)-->
+| `…Tools`, the MCP server's tools of one feature | `Tools/` |
+<!--#endif-->
 
 A port carries the nature word and its adapter is the port without its `I`: `IIdempotencyStore` is
 implemented by `IdempotencyStore`. A prefix is right when several adapters implement one port

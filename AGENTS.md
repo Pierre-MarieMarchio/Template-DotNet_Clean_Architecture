@@ -24,8 +24,11 @@ once before a change that adds a type; [the documentation index](docs/README.md)
 From the repository root. Right after generating, before anything else, run `bootstrap` and commit
 what it writes: it formats the usings the rename reordered, writes the OpenAPI reference, restores
 the local tools and creates each context's initial migration, and the other tasks assume all four.
-<!--#if (anyPresentation)-->
+<!--#if (presentationBlazorServer || presentationAvalonia)-->
 It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
+<!--#endif-->
+<!--#if (presentationMcp)-->
+It first adds the MCP server to the solution with `dotnet run Tools/Tasks.cs presentation-scaffold`.
 <!--#endif-->
 <!--#if (dotnetClient)-->
 It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.

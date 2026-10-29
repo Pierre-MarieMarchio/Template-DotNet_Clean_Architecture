@@ -23,6 +23,7 @@ public sealed class GuidedConversation : Conversation
         ["blazor-server"] = "mediumpurple",
         ["avalonia"] = "slateblue1",
         ["wpf"] = "dodgerblue1",
+        ["mcp"] = "darkorange",
     };
 
     private static readonly IReadOnlyList<OptionChoice> _yesNo = [new(Yes, string.Empty), new(No, string.Empty)];

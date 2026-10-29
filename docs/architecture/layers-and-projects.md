@@ -104,10 +104,10 @@ database instrumentation to add.
 
 ## The API host
 
-<!--#if (!presentationBlazorServer)-->
+<!--#if (!presentationBlazorServer && !presentationMcp)-->
 `AppTemplate.Api` is the one project on the Web SDK. It holds the controllers, the background jobs,
 <!--#endif-->
-<!--#if (presentationBlazorServer)-->
+<!--#if (presentationBlazorServer || presentationMcp)-->
 `AppTemplate.Api` is the host of the HTTP contract. It holds the controllers, the background jobs,
 <!--#endif-->
 the composition root in `Program.cs`, and under `Common/` the HTTP mechanisms every feature shares.
@@ -133,6 +133,16 @@ describes it.
 HTTP through the .NET client of `Src/Clients/<Project>.Client`. It references that client alone
 (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use
 case and no module. [Presentation project](../features/presentation.md) describes it.
+
+<!--#endif-->
+<!--#if (presentationMcp)-->
+## The presentation project
+
+`Src/Presentation/<Project>.<Name>` is a second host: an MCP server whose tools call the use cases
+in its own process, one use case each. It references the application projects and the modules it
+composes, like the API, and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/`
+and `Features/` it keeps its own caller, its authentication, its tools and the adapters a host
+supplies. [Presentation project](../features/presentation.md) describes it.
 
 <!--#endif-->
 <!--#if (presentationWpf)-->

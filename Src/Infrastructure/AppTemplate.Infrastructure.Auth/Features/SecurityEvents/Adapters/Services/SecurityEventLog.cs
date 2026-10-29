@@ -183,6 +183,16 @@ internal sealed partial class SecurityEventLog(
                 LogPasskeySignInFailed(logger, securityEvent.UserId);
                 break;
 
+            //#if (accessKeys)
+            case SecurityEventKind.AccessKeyCreated:
+                LogAccessKeyCreated(logger, securityEvent.UserId);
+                break;
+
+            case SecurityEventKind.AccessKeyRevoked:
+                LogAccessKeyRevoked(logger, securityEvent.UserId);
+                break;
+
+            //#endif
             default:
                 throw new ArgumentOutOfRangeException(
                     nameof(securityEvent),
@@ -277,4 +287,12 @@ internal sealed partial class SecurityEventLog(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "A passkey sign-in was refused for user {UserId}.")]
     private static partial void LogPasskeySignInFailed(ILogger logger, Guid? userId);
+    //#if (accessKeys)
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An access key was created for user {UserId}.")]
+    private static partial void LogAccessKeyCreated(ILogger logger, Guid? userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "An access key of user {UserId} was revoked.")]
+    private static partial void LogAccessKeyRevoked(ILogger logger, Guid? userId);
+    //#endif
 }

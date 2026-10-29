@@ -216,11 +216,12 @@ services:
     networks: [backend]
 
   #endif
-  #if (presentationBlazorServer || presentationMcp)
+  #if (servedPresentation)
   presentation-presentation-app:
     #if (presentationMcp)
     # The MCP server reads the api's settings with its own composition, and runs neither jobs nor migrations.
-    #else
+    #endif
+    #if (presentationBlazorServer)
     # The presentation project reads the api's settings with its own composition, and runs neither jobs nor migrations.
     #endif
     extends:
@@ -237,7 +238,8 @@ services:
       #if (externalAuth)
       Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8090/mcp}
       #endif
-      #else
+      #endif
+      #if (presentationBlazorServer)
       #if (!localAuth)
       DataProtection__KeysDirectory: /data-protection-keys
       #endif

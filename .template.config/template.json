@@ -739,6 +739,11 @@
       "value": "(localAuth && presentationMcp)",
       "description": "True when local accounts have an MCP server to call: brings the access keys its callers present, their routes, table, tests and decision."
     },
+    "servedPresentation": {
+      "type": "computed",
+      "value": "(presentationBlazorServer || presentationMcp)",
+      "description": "True when the presentation project is a server the compose stack runs: its one compose service is shared, so the template's compose file parses."
+    },
     "presentationWpf": {
       "type": "computed",
       "value": "(presentation == \"wpf\")"

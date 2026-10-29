@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && (web != \"angular\" || auth != \"none\")) || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\")))"
     },
     "database": {
       "type": "parameter",
@@ -444,6 +444,51 @@
       ],
       "isRequired": "(web != \"none\" && webAudience == \"admin\" && auth == \"none\")",
       "description": "Never set. --web-audience admin signs administrators in, which --auth none cannot: choose --auth local or external."
+    },
+    "webRendering": {
+      "type": "parameter",
+      "displayName": "Web app rendering",
+      "datatype": "choice",
+      "defaultValue": "spa",
+      "choices": [
+        {
+          "choice": "spa",
+          "description": "A single-page app: a static site served by nginx."
+        },
+        {
+          "choice": "ssr",
+          "description": "Rendered on the server for each request, by the framework's own Node server; angular only, with --auth none."
+        }
+      ],
+      "description": "How the first web app renders, where its generator offers both."
+    },
+    "webServerRendering": {
+      "type": "computed",
+      "value": "(anyWeb && webRendering == \"ssr\")"
+    },
+    "serverRenderingNeedsAServerStarter": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(webRendering == \"ssr\" && web != \"angular\")",
+      "description": "Never set. --web-rendering ssr needs a web app whose generator renders on the server: choose --web angular, or --web-rendering spa."
+    },
+    "serverRenderingWithAccountsNotYetGenerated": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(webRendering == \"ssr\" && auth != \"none\")",
+      "description": "Never set. A server-rendered web app keeps no session yet: choose --auth none, or --web-rendering spa."
     },
     "webName": {
       "type": "parameter",
@@ -920,6 +965,7 @@
             ".github/workflows/web.yml",
             "docs/features/web-frontend.md",
             "docs/decisions/0019-one-generated-api-client.md",
+            "docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md",
             "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/WebAppTests.cs"
           ]
         },
@@ -946,6 +992,12 @@
           "exclude": [
             "Src/Web/apps/FrameworkSite/compose.yml",
             "Src/Web/apps/FrameworkSite/README.md"
+          ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "Src/Web/apps/FrameworkSite/nginx.conf"
           ]
         },
         {
@@ -1232,7 +1284,25 @@
     {
       "source": "./.template.config/starters/angular/",
       "target": "./Src/Web/apps/",
-      "condition": "(webAngular)"
+      "condition": "(webAngular)",
+      "modifiers": [
+        {
+          "exclude": [
+            "ssr/**"
+          ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./.template.config/starters/angular/ssr/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webAngular && webServerRendering)"
     },
     {
       "source": "./.template.config/starters/vue/",

@@ -598,7 +598,7 @@ jobs:
           pnpm test
           pnpm build
 
-      # React Router's builder keeps its page in a client folder of dist; every other starter writes it at the root.
+      # React Router's builder keeps its page in a client folder of dist, and a server-rendered app's build is its server; every other starter writes the page at the root.
       - name: Assert every app with a build script builds its page
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -608,9 +608,9 @@ jobs:
           import json, pathlib, sys
           missing = [manifest.parent for manifest in sorted(pathlib.Path("Src/Web/apps").glob("*/package.json"))
                      if "build" in json.loads(manifest.read_text(encoding="utf-8")).get("scripts", {})
-                     and not any((manifest.parent / "dist" / folder / "index.html").is_file() for folder in ("", "client"))]
+                     and not any((manifest.parent / "dist" / built).is_file() for built in ("index.html", "client/index.html", "server/server.mjs"))]
           for app in missing:
-              print(f"::error title=No built page::{app} has a build script and no index.html in dist or dist/client.")
+              print(f"::error title=No built page::{app} has a build script and no index.html in dist or dist/client, nor a server in dist/server.")
           sys.exit(1 if missing else 0)
           PY
 
@@ -667,7 +667,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash in the served script-src, which only React Router's image adds; an event-handler attribute never does. A page that signs in at the provider may reach its origin.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A page that signs in at the provider may reach its origin.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -679,20 +679,33 @@ jobs:
           for port in "${ports[@]}"; do
             base="http://127.0.0.1:${port}"
             curl -fsS -D headers.txt -o page.html "$base/"
+            curl -fsS -D headers.again.txt -o page.again.html "$base/"
             headers=$(cat headers.txt)
             echo "$headers"
-            python3 - "$base" headers.txt page.html <<'PY' || fail "$base/ runs an inline script its Content-Security-Policy does not allow by hash."
+            python3 - "$base" headers.txt page.html headers.again.txt page.again.html <<'PY' || fail "$base/ runs an inline script its Content-Security-Policy allows neither by hash nor by nonce, or repeats a nonce."
           import base64, hashlib, re, sys
-          base, headers, page = sys.argv[1], open(sys.argv[2], encoding="utf-8").read(), open(sys.argv[3], encoding="utf-8").read()
-          policy = next((line.split(":", 1)[1] for line in headers.splitlines() if line.lower().startswith("content-security-policy:")), "")
-          allowed = next((directive.split()[1:] for directive in policy.split(";") if directive.split()[:1] == ["script-src"]), [])
-          inline = [body for attributes, body in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", page, re.I | re.S) if not re.search(r"\ssrc\s*=", attributes, re.I) and body.strip()]
-          refused = [body for body in inline if f"'sha256-{base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()}'" not in allowed]
+          def read(headers, page):
+              headers, page = open(headers, encoding="utf-8").read(), open(page, encoding="utf-8").read()
+              policy = next((line.split(":", 1)[1] for line in headers.splitlines() if line.lower().startswith("content-security-policy:")), "")
+              allowed = next((directive.split()[1:] for directive in policy.split(";") if directive.split()[:1] == ["script-src"]), [])
+              return page, allowed
+          base = sys.argv[1]
+          page, allowed = read(sys.argv[2], sys.argv[3])
+          _, allowed_again = read(sys.argv[4], sys.argv[5])
+          inline = [(attributes, body) for attributes, body in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", page, re.I | re.S)
+                    if not re.search(r"\ssrc\s*=", attributes, re.I) and not re.search(r"\stype\s*=\s*[\"']?application/(ld\+)?json", attributes, re.I) and body.strip()]
+          def nonce(attributes):
+              found = re.search(r"\snonce\s*=\s*[\"']([^\"']+)[\"']", attributes, re.I)
+              return f"'nonce-{found.group(1)}'" if found else None
+          refused = [body for attributes, body in inline
+                     if f"'sha256-{base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()}'" not in allowed and nonce(attributes) not in allowed]
+          nonces = {source for source in allowed if source.startswith("'nonce-")}
+          repeated = nonces & {source for source in allowed_again if source.startswith("'nonce-")}
           handlers = len(re.findall(r"<[^>]*\son[a-z]+\s*=", page, re.I))
           styles = sum(1 for body in re.findall(r"<style\b[^>]*>(.*?)</style\s*>", page, re.I | re.S) if body.strip())
           attributes = len(re.findall(r"<[^>]*\sstyle\s*=", page, re.I))
-          print(f"{base}/: {len(inline)} inline script(s), {len(refused)} without its hash in script-src, {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
-          sys.exit(1 if refused or handlers else 0)
+          print(f"{base}/: {len(inline)} inline script(s), {len(refused)} allowed neither by hash nor by nonce, {len(nonces)} nonce(s), {len(repeated)} repeated, {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
+          sys.exit(1 if refused or repeated or handlers else 0)
           PY
             grep -qi '^content-security-policy:.*frame-ancestors' <<< "$headers" || fail "$base/ has no CSP with frame-ancestors."
             if grep -q 'AuthenticationService.js' page.html; then
@@ -701,7 +714,7 @@ jobs:
             fi
             grep -qi '^x-content-type-options: nosniff' <<< "$headers" || fail "$base/ has no X-Content-Type-Options."
             grep -qi '^referrer-policy:' <<< "$headers" || fail "$base/ has no Referrer-Policy."
-            grep -qi '^cache-control: no-cache' <<< "$headers" || fail "$base/ is cached."
+            grep -qiE '^cache-control: no-(cache|store)' <<< "$headers" || fail "$base/ is cached."
             grep -qi '<html' page.html || fail "$base/ served no page."
             curl -fsS "$base/health" > /dev/null || fail "$base/health is not relayed to the API."
             status=$(curl -sS -o relay.json -D relay.headers -w '%{http_code}' "$base/api/v1/relay-check")
@@ -868,6 +881,9 @@ jobs:
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
+          # Server rendering needs a starter holding an ssr folder, and keeps no session yet.
+          refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
+          refuse ssr-accounts --web angular --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name --presentation-name refuses.
@@ -890,5 +906,15 @@ jobs:
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
             echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework blazor-wasm --auth none' was refused but left files behind."
+            exit 1
+          fi
+          out="${{ runner.temp }}/refused-ssr-app"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-webapp -n SsrSite --framework vue --rendering ssr --scope sample-refused --auth none); then
+            echo "::error title=Accepted::'dotnet new cleanarch-webapp --framework vue --rendering ssr' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework vue --rendering ssr' was refused but left files behind."
             exit 1
           fi

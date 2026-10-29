@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "api": "node scripts/generate.mjs",
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@app-template/eslint-config": "workspace:*",
     "@app-template/tsconfig": "workspace:*",
+    "@types/node": "24.19.2",
     "eslint": "10.13.0",
     "openapi-typescript": "7.13.0",
     "typescript": "6.0.3",

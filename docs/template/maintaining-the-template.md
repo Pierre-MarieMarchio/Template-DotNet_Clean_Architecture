@@ -60,9 +60,10 @@ lockfile, adds a second app and a package with the item templates, scaffolds, ru
 install, lint, test and build, fails when an app with a build script has no built page, checks a
 second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
 headers and an answer only the API gives; it fails when a served page holds an event-handler
-attribute or an inline script whose hash the served `script-src` lacks, and reports its inline
-styles; a page that loads the WebAssembly authentication script must carry the origin of
-`EXTERNAL_AUTH_AUTHORITY` in its served `connect-src` and `frame-src`. The every-starter leg adds
+attribute or an inline script the served `script-src` allows neither by its hash nor by the
+script's nonce, or when two responses share a nonce, and reports its inline styles; a page that
+loads the WebAssembly authentication script must carry the origin of `EXTERNAL_AUTH_AUTHORITY` in
+its served `connect-src` and `frame-src`. The every-starter leg adds
 each framework starter its first app is not, so one workspace proves them all together. Every leg
 runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
@@ -80,7 +81,7 @@ ask it in the stack for its page and `/health`. The leg that adds a first app ad
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` |
 | external auth, all examples | `--auth external --examples all --files true --web blazor-wasm` |
 | external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
-| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server` |
+| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
@@ -283,6 +284,15 @@ folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither
 has no folder: it is an alias of `vite-react`, chosen by the same computed symbol, `webViteReact`,
 so it copies the same starter.
 
+A starter whose generator also renders on the server holds that form in `ssr/FrameworkSite/`, its
+own `scaffold.json` and `overlay/` ([template decision 0011](decisions/0011-a-starter-may-render-on-the-server.md)):
+`angular` does, with `ng new --ssr`. Both templates copy the starter's folder without `ssr/`, leave
+its `FrameworkSite/` out under `webServerRendering`, and copy `ssr/` under the starter's symbol and
+`webServerRendering`; the shared `Dockerfile` then ends on Node, and `nginx.conf` is left out.
+`--web-rendering ssr`, and `cleanarch-webapp --rendering ssr`, are refused for every other starter
+by `serverRenderingNeedsAServerStarter`, and with accounts by
+`serverRenderingWithAccountsNotYetGenerated`.
+
 Adding a starter, for a CLI that keeps the contract of decision 0008:
 
 1. Write `.template.config/starters/<value>/FrameworkSite/scaffold.json`: the CLI's package, its
@@ -315,7 +325,13 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
    values.
 4. Give it an accent colour in `Launcher/CleanArch.Create/Prompts/GuidedConversation.cs`; its
    question comes from the manifests.
-5. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
+5. To offer its server form, write `ssr/FrameworkSite/scaffold.json` and its `overlay/`, whose server
+   relays through `relayToApi` of `@app-template/api-client/server`, sends the page headers, and
+   renders with a nonce per response; add the folder's source and the two modifiers of its main
+   source to both `template.json` files, and its value to the condition of
+   `serverRenderingNeedsAServerStarter` and `refusedOptions`. `TemplatePackagingTests` fails until
+   they agree with the folder, and a web leg generates the server form.
+6. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
    scaffolds, builds and serves it beside the others and refuses an inline script its served policy
    does not allow by hash; a starter that differs in the wiring gets a leg of its own as well, unless
    the every-starter leg already proves what differs, as it does for React Router's hash step. Its

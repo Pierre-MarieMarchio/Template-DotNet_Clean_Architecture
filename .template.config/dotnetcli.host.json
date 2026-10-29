@@ -37,6 +37,20 @@
       "longName": "web-audience",
       "shortName": ""
     },
+    "webRendering": {
+      "longName": "web-rendering",
+      "shortName": ""
+    },
+    "serverRenderingNeedsAServerStarter": {
+      "longName": "server-rendering-needs-a-server-starter",
+      "shortName": "",
+      "isHidden": true
+    },
+    "serverRenderingWithAccountsNotYetGenerated": {
+      "longName": "server-rendering-with-accounts-not-yet-generated",
+      "shortName": "",
+      "isHidden": true
+    },
     "presentationName": {
       "longName": "presentation-name",
       "shortName": ""

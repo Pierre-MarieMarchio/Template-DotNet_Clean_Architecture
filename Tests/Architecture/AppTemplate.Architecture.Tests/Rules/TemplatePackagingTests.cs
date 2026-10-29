@@ -362,6 +362,44 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
+    [InlineData(".template.config", "web", "webRendering", "./.template.config/starters/")]
+    [InlineData(".template.config/webapp/.template.config", "framework", "rendering", "../starters/")]
+    public void ServerRendering_IsCopiedFromTheStartersHoldingIt_AndRefusedForEveryOther(string folder, string option, string rendering, string startersSource)
+    {
+        string[] serverStarters = [.. WebStarters().Where(starter => File.Exists(Path.Combine(StartersFolder, starter, "ssr", "FrameworkSite", "scaffold.json")))];
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        var computed = symbols.EnumerateObject()
+            .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
+            .Where(symbol => symbol.Name != "refusedOptions")
+            .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
+        var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
+        string refusal = $"({rendering} == \"ssr\" && {string.Join(" && ", serverStarters.Select(starter => $"{option} != \"{starter}\""))})";
+
+        serverStarters.ShouldNotBeEmpty("No starter under .template.config/starters holds ssr/FrameworkSite/scaffold.json, so this rule reads nothing.");
+        ChoiceValues(symbols.GetProperty(rendering)).ShouldBe(["spa", "ssr"], $"--{rendering} offers spa and ssr in {folder}/template.json.");
+        Facet(symbols.GetProperty(rendering), "defaultValue").ShouldBe("spa", $"--{rendering} keeps the single-page app as its default.");
+        computed["webServerRendering"].ShouldContain($"{rendering} == \"ssr\"", Case.Sensitive, $"webServerRendering in {folder}/template.json must hold when --{rendering} is ssr.");
+        Facet(symbols.GetProperty("serverRenderingNeedsAServerStarter"), "isRequired").ShouldBe(
+            refusal,
+            $"{folder}/template.json must refuse --{rendering} ssr for exactly the starters without an ssr folder, which the starters holding one are not.");
+
+        foreach (string starter in serverStarters)
+        {
+            string symbol = computed.Single(pair => ChosenValues(pair.Value, option).Contains(starter)).Key;
+            var spa = sources.Single(source => Text(source, "source") == $"{startersSource}{starter}/");
+            string[] excluded = [.. spa.GetProperty("modifiers").EnumerateArray()
+                .Select(modifier => $"{Text(modifier, "condition")}:{string.Join(",", modifier.GetProperty("exclude").EnumerateArray().Select(path => path.GetString()))}")];
+
+            excluded.ShouldBe([":ssr/**", "(webServerRendering):FrameworkSite/**"], $"{folder}/template.json must copy {startersSource}{starter}/ without its ssr folder, and without its FrameworkSite under webServerRendering, since the ssr folder holds the app's FrameworkSite then.");
+            sources.Count(source => Text(source, "source") == $"{startersSource}{starter}/ssr/"
+                    && Text(source, "target") == "./Src/Web/apps/"
+                    && Text(source, "condition") == $"({symbol} && webServerRendering)")
+                .ShouldBe(1, $"{folder}/template.json must copy {startersSource}{starter}/ssr/ into ./Src/Web/apps/ under ({symbol} && webServerRendering).");
+        }
+    }
+
+    [Theory]
     [InlineData(".template.config", "presentation", "./.template.config/starters/")]
     [InlineData(".template.config/presentation/.template.config", "framework", "../starters/")]
     public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource)

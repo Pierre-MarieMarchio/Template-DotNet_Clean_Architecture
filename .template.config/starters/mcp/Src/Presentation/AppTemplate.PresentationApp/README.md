@@ -41,9 +41,11 @@ dotnet new cleanarch-presentation -n Mcp --framework mcp --project-name AppTempl
 Pass the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` too when they
 are not the defaults: the project's files are written for them.
 
-It writes this folder, its tests, `docs/features/presentation.md` and its decision; with local
-accounts, also the access keys' own files and their decision. The lines
-`--presentation` writes in files the item template cannot edit are listed below, each placed by the
+It writes this folder, its tests, `docs/features/presentation.md` and its decision.
+<!--#if (localAuth)-->
+It also writes the access keys' own files, their tests and their decision.
+<!--#endif-->
+The lines `--presentation` writes in files the item template cannot edit are listed below, each placed by the
 lines it goes beside. One task makes them all, or none when one of those lines is not found exactly
 once:
 

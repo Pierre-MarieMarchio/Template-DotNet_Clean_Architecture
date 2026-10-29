@@ -9,7 +9,8 @@ server-rendered app, which its framework's server writes for each request. A ser
 changes the forces nginx answers for the others:
 
 - each response is written anew, and the framework adds inline scripts while it renders, such as
-  Angular's event replay; a hash computed when the image is built cannot know them;
+  Angular's event replay or the route data React Router hands the browser; a hash computed when the
+  image is built cannot know them;
 - after the first page the browser still calls the API, from the page's origin, and the API keeps
   CORS closed;
 <!--#if (localAuth)-->
@@ -34,7 +35,8 @@ changes the forces nginx answers for the others:
   address ([ADR 0019](0019-one-generated-api-client.md)), never through its own relay.
 - **Every page carries a fresh nonce.** Each response draws 128 random bits, sends them in
   `script-src 'self' 'nonce-<value>'`, and hands them to the framework, which writes them on each
-  script it emits: Angular takes them as `CSP_NONCE` from the request context. A script the
+  script it emits: Angular takes them as `CSP_NONCE` from the request context, and React Router
+  from the load context, as `<ServerRouter nonce>` and React's own streaming option. A script the
   framework's build writes into the page template, Angular's event-dispatch contract, carries no
   nonce and runs by the SHA-256 the server computes from that template when it starts. Every route
   renders per request, since a page prerendered at build cannot carry a response's nonce. Scripts

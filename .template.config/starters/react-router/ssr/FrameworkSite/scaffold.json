@@ -1,0 +1,36 @@
+{
+  "framework": "react",
+  "name": "framework-site",
+  "package": "create-react-router",
+  "version": "8.5.0",
+  "arguments": [
+    "{directory}",
+    "--template", "https://github.com/remix-run/react-router-templates/tree/067adb378a00a4c2ceb71934d5e8901d0e87c256/node-custom-server",
+    "--no-install", "--no-git-init", "--no-agent-skills", "--yes"
+  ],
+  "remove": ["Dockerfile", ".dockerignore"],
+  "merge": {
+    "package.json": {
+      "name": "framework-site",
+      "scripts": {
+        "start": "node dist/server/server.mjs",
+        "test": "vitest run --passWithNoTests"
+      },
+      "dependencies": {
+        "@app-template/api-client": "workspace:*",
+        "compression": null,
+        "morgan": null
+      },
+      "devDependencies": {
+        "@types/compression": null,
+        "@types/morgan": null,
+        "vitest": "5.0.5"
+      }
+    },
+    "tsconfig.json": {
+      "compilerOptions": {
+        "allowImportingTsExtensions": true
+      }
+    }
+  }
+}

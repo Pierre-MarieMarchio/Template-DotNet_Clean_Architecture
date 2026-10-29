@@ -175,6 +175,21 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void ThePullRequestTemplate_ReachesEveryGeneratedProject()
+    {
+        string[] templatePaths = [".github/pull_request_template.md", ".github/**"];
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+
+        var generationExcludes = manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray()
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!));
+
+        generationExcludes.Intersect(templatePaths).ShouldBeEmpty(
+            "template.json leaves the pull request template out of a generated project, which carries the authorship rule.");
+        PackageExcludes().Any(exclude => templatePaths.Any(path => exclude.EndsWith(path, StringComparison.Ordinal))).ShouldBeFalse(
+            ".template.config/TemplatePackage.csproj leaves the pull request template out of the package.");
+    }
+
+    [Fact]
     public void ThePackage_LeavesOutEveryScratchAndMaintenancePath()
     {
         string[] scratch =

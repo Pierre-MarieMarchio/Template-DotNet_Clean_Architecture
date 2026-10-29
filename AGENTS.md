@@ -142,6 +142,10 @@ shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 - The docs move with the code: a page that cites a moved file, the page of a new capability, the
   configuration row of a new setting, the ADR of a new choice.
 - One concern per change, as [pull requests](CONTRIBUTING.md#pull-requests) asks.
+- No `Co-Authored-By` and no "Generated with" line in a commit or a pull request you write (bots keep
+  their own messages); add an `Assisted-by: <tool>:<model>` trailer instead, and the author answers
+  for every line
+  ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
 
 ## Where truths live
 

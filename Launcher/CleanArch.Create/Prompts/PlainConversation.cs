@@ -34,11 +34,11 @@ public sealed class PlainConversation : Conversation
         return selected;
     }
 
-    public override IReadOnlyList<string>? ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
+    public override IReadOnlyList<string>? ChooseMany(string label, string description, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected, bool atLeastOne)
     {
         var prompt = new MultiSelectionPrompt<string>()
-            .Title($"[bold]{Markup.Escape(label)}[/]")
-            .NotRequired()
+            .Title(description.Length == 0 ? $"[bold]{Markup.Escape(label)}[/]" : Title(label, description))
+            .Required(atLeastOne)
             .AddChoices(choices.Select(choice => choice.Value))
             .UseConverter(value => $"{Markup.Escape(value)} [grey]{Markup.Escape(choices.First(choice => choice.Value == value).Description)}[/]");
         foreach (string value in selected)

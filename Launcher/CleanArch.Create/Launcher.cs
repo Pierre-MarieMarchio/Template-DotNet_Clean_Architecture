@@ -15,7 +15,21 @@ public sealed partial class Launcher
         ["webName"] = Condition.Parse("(web != \"none\")"),
         ["webAudience"] = Condition.Parse("(web != \"none\")"),
         ["webRendering"] = Condition.Parse("(web != \"none\")"),
-        ["presentationName"] = Condition.Parse("(presentation != \"none\")"),
+    };
+
+    public static readonly IReadOnlyList<ApiCaller> ApiCallers =
+    [
+        new("the web app", Condition.Parse("(anyWeb)")),
+        new("the desktop client", Condition.Parse("(presentationAvalonia || presentationWpf)")),
+        new("the MCP server under local accounts", Condition.Parse("(presentationMcp && localAuth)")),
+    ];
+
+    public static readonly IReadOnlyDictionary<string, string> PresentationNames = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["blazor-server"] = "Portal",
+        ["mcp"] = "Mcp",
+        ["avalonia"] = "Desktop",
+        ["wpf"] = "Desktop",
     };
 
     private const string _help =
@@ -27,7 +41,7 @@ public sealed partial class Launcher
           web-app        add a web app to the project you're in;
                          a Blazor WebAssembly app also makes the edits its README lists
           web-package    add a shared package to that project's web workspace
-          presentation   add a presentation project beside that project's API,
+          presentation   add a presentation project to that project,
                          make the edits its README lists, then create its pages
 
         Options
@@ -49,6 +63,10 @@ public sealed partial class Launcher
     private const string _outputKey = "--output";
     private const string _setupKey = "--setup";
     private const string _reviewKey = "--review";
+    private const string _apiKey = "--api";
+    private const string _presentationSymbol = "presentation";
+    private const string _apiChoice = "api";
+    private const string _frameworkSymbol = "framework";
     private const char _setupSeparator = '|';
     private const string _itemNameSymbol = "name";
 
@@ -153,7 +171,8 @@ public sealed partial class Launcher
             };
             string flag = $"  --{option.CliName} {values}";
             string fallback = option.DefaultValue is null ? string.Empty : $" (default: {option.DefaultValue})";
-            return $"{flag,-46} {option.Label}{fallback}";
+            string repeated = option.AllowsMany ? $", one --{option.CliName} per value" : string.Empty;
+            return $"{flag,-46} {option.Label}{repeated}{fallback}";
         });
 
         return string.Join(Environment.NewLine, lines.Prepend($"Project options, asked one by one when you don't pass them ({manifest.ShortName})"));
@@ -254,6 +273,63 @@ public sealed partial class Launcher
         return new Asked(answers.GetValueOrDefault(_nameKey), null, answers, []);
     }
 
+    private static Asked AskItemNamedLast(
+        Session session,
+        TemplateManifest manifest,
+        string label,
+        Func<IReadOnlyDictionary<string, string>, string, string?> problem,
+        Func<IReadOnlyDictionary<string, string>, string?, string?> proposed,
+        IReadOnlyDictionary<string, string> detected,
+        string subject)
+    {
+        Dictionary<string, string> answers = session.Questionnaire.Answer(
+            manifest,
+            session.Parsed.TemplateOptions,
+            detected,
+            _alwaysAsked,
+            [],
+            [
+                new(_nameKey, (given, remembered) => session.Questionnaire.Text("--name", label, session.Parsed.Name, proposed(given, remembered), name => problem(given, name))),
+                Reviewed(session, given => [.. Questionnaire.Recap(manifest, given), KeyValuePair.Create(label, given.GetValueOrDefault(_nameKey) ?? string.Empty)], _ => subject),
+            ]);
+
+        return new Asked(answers.GetValueOrDefault(_nameKey), null, answers, []);
+    }
+
+    public static IReadOnlyList<string> CallersOfTheApiAdded(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers) =>
+        answers.TryGetValue(_presentationSymbol, out string? chosen) && !TemplateOption.Values(chosen).Contains(_apiChoice)
+            ? [.. ApiCallers.Where(caller => manifest.Holds(caller.When, answers)).Select(caller => caller.Who)]
+            : [];
+
+    public static Dictionary<string, string> WithTheApi(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers)
+    {
+        var completed = new Dictionary<string, string>(answers, StringComparer.Ordinal);
+        if (CallersOfTheApiAdded(manifest, answers).Count > 0)
+        {
+            completed[_presentationSymbol] = PresentationOption(manifest).Joined([.. TemplateOption.Values(answers[_presentationSymbol]), _apiChoice]);
+        }
+
+        return completed;
+    }
+
+    private static TemplateOption PresentationOption(TemplateManifest manifest) =>
+        manifest.Options.Single(option => option.Symbol == _presentationSymbol);
+
+    private static Question ApiQuestion(Session session, TemplateManifest manifest) =>
+        new(_apiKey, (answers, _) =>
+        {
+            if (CallersOfTheApiAdded(manifest, answers) is { Count: > 0 } callers)
+            {
+                TemplateOption presentation = PresentationOption(manifest);
+                session.Conversation.Answered(
+                    presentation.Label,
+                    Questionnaire.Shown(presentation, WithTheApi(manifest, answers)[_presentationSymbol]),
+                    $"the API added for you: {string.Join(" and ", callers)} {(callers.Count == 1 ? "calls" : "call")} it");
+            }
+
+            return Reply.Passed(null);
+        });
+
     private static void Install(Session session, string workingDirectory)
     {
         string version = Version(session.Source);
@@ -290,8 +366,10 @@ public sealed partial class Launcher
 
             IReadOnlyList<string>? chosen = session.Conversation.ChooseMany(
                 "Set up the project now?",
+                string.Empty,
                 [.. ProjectSetup.Steps.Select(step => new OptionChoice(step.Title, step == ProjectSetup.Bootstrap ? BootstrapDescription(session, answers) : step.Description))],
-                remembered is null ? every : Steps(remembered));
+                remembered is null ? every : Steps(remembered),
+                atLeastOne: false);
             return chosen is null ? Reply.Backward : Reply.Answer(string.Join(_setupSeparator, chosen));
         });
 
@@ -347,7 +425,7 @@ public sealed partial class Launcher
         [
             new(Arguments.WebAppCommand, $"add a web app to {project.Name}"),
             new(Arguments.WebPackageCommand, $"add a package to {project.Name}'s web workspace"),
-            new(Arguments.PresentationCommand, $"add a presentation project beside {project.Name}'s API"),
+            new(Arguments.PresentationCommand, $"add a presentation project to {project.Name}"),
             new(Arguments.NewCommand, "start a new project somewhere else"),
         ];
 
@@ -382,6 +460,7 @@ public sealed partial class Launcher
         ];
         Question[] after =
         [
+            ApiQuestion(session, manifest),
             SetupQuestion(session),
             Reviewed(
                 session,
@@ -389,12 +468,12 @@ public sealed partial class Launcher
                 [
                     KeyValuePair.Create("Project name", given.GetValueOrDefault(_nameKey) ?? string.Empty),
                     KeyValuePair.Create("Output folder", given.GetValueOrDefault(_outputKey) ?? string.Empty),
-                    .. Questionnaire.Recap(manifest, given),
+                    .. Questionnaire.Recap(manifest, WithTheApi(manifest, given)),
                     KeyValuePair.Create("Setup steps", Recalled(Steps(given.GetValueOrDefault(_setupKey)))),
                 ],
                 given => $"Generate {given.GetValueOrDefault(_nameKey)}"),
         ];
-        Dictionary<string, string> answers = questionnaire.Answer(manifest, parsed.TemplateOptions, _nothing, ProjectAskedWhen, before, after);
+        Dictionary<string, string> answers = WithTheApi(manifest, questionnaire.Answer(manifest, parsed.TemplateOptions, _nothing, ProjectAskedWhen, before, after));
         var asked = new Asked(answers.GetValueOrDefault(_nameKey), answers.GetValueOrDefault(_outputKey), answers, Steps(answers.GetValueOrDefault(_setupKey)));
         string name = asked.Name!;
         string output = asked.Output!;
@@ -539,10 +618,18 @@ public sealed partial class Launcher
             ["hasClient"] = project.HasClient ? Condition.True : Condition.False,
             ["database"] = project.Database,
             ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
+            ["hasApi"] = project.HasApi ? Condition.True : Condition.False,
         };
         Detected(session.Conversation, project, manifest, detected);
 
-        Asked asked = AskItem(session, manifest, "Presentation name", name => PresentationNameProblem(manifest, project, name), detected, $"Add it to {project.Name}");
+        Asked asked = AskItemNamedLast(
+            session,
+            manifest,
+            "Presentation name",
+            (answers, name) => PresentationNameProblem(manifest, project, answers, name),
+            (answers, remembered) => ProposedPresentationName(manifest, answers, remembered),
+            detected,
+            $"Add it to {project.Name}");
         string name = asked.Name!;
         string folder = $"{project.Name}.{name}";
 
@@ -588,14 +675,26 @@ public sealed partial class Launcher
         return done;
     }
 
-    private static string? PresentationNameProblem(TemplateManifest manifest, GeneratedProject project, string name)
+    private static string? ProposedPresentationName(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers, string? remembered)
+    {
+        if (remembered is not null && !PresentationNames.Values.Contains(remembered))
+        {
+            return remembered;
+        }
+
+        return answers.GetValueOrDefault(_frameworkSymbol) is { } framework && PresentationNames.TryGetValue(framework, out string? name)
+            ? name
+            : manifest.DefaultName;
+    }
+
+    private static string? PresentationNameProblem(TemplateManifest manifest, GeneratedProject project, IReadOnlyDictionary<string, string> answers, string name)
     {
         if (!AppName().IsMatch(name))
         {
             return $"use PascalCase, like Portal. {project.Name}.<name> becomes the project's name, folder and service.";
         }
 
-        var named = new Dictionary<string, string>(StringComparer.Ordinal) { [_itemNameSymbol] = name };
+        var named = new Dictionary<string, string>(answers, StringComparer.Ordinal) { [_itemNameSymbol] = name };
         if (manifest.Refusals.FirstOrDefault(refusal => refusal.When.Symbols.Contains(_itemNameSymbol) && manifest.Holds(refusal.When, named)) is { } refused)
         {
             return refused.Explanation;
@@ -604,6 +703,8 @@ public sealed partial class Launcher
         string folder = Path.Combine(project.PresentationFolder, $"{project.Name}.{name}");
         return Directory.Exists(folder) ? "there's already a presentation project with that name." : null;
     }
+
+    public sealed record ApiCaller(string Who, Condition When);
 
     private sealed record Session(Arguments Parsed, TemplateSource Source, Questionnaire Questionnaire, TemplateEngine Dotnet, string? Version)
     {

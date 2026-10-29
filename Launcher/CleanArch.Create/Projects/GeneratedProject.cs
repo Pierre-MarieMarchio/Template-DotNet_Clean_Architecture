@@ -15,7 +15,8 @@ public sealed partial record GeneratedProject(
     bool HasClient,
     string Database,
     bool Ci,
-    bool AgentFiles)
+    bool AgentFiles,
+    bool HasApi)
 {
     public string WebFolder => Path.Combine(Root, "Src", "Web");
 
@@ -59,7 +60,8 @@ public sealed partial record GeneratedProject(
             File.Exists(Path.Combine(root, "Src", "Clients", name + ".Client", name + ".Client.csproj")),
             DatabaseProvider(root, name),
             File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")),
-            File.Exists(Path.Combine(root, "AGENTS.md")));
+            File.Exists(Path.Combine(root, "AGENTS.md")),
+            Directory.Exists(Path.Combine(root, "Src", "Presentation", name + ".Api")));
     }
 
     private static string? WorkspaceScope(string packageJson)

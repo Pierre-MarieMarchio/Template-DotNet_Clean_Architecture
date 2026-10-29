@@ -34,7 +34,7 @@ public sealed class TemplateManifestTests
     {
         string[][] groups =
         [
-            ["presentation", "presentationName", "web", "webName", "webAudience", "webRendering", "jobs"],
+            ["presentation", "web", "webName", "webAudience", "webRendering"],
             ["auth"],
             ["database", "examples", "files"],
             ["ci", "sonar", "agentFiles"],
@@ -125,7 +125,7 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
         manifest.Refusals.Select(refusal => refusal.CliName).Order(StringComparer.Ordinal).ShouldBe(
-            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "mcp-needs-accounts", "my-sql-not-yet-generated", "presentation-name-is-taken", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
+            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "jobs-need-the-api-or-the-worker", "mcp-needs-accounts", "my-sql-not-yet-generated", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
     }
 
     [Fact]
@@ -165,6 +165,56 @@ public sealed class TemplateManifestTests
     }
 
     [Fact]
+    public void ThePresentationProjects_AreOneChoiceTakingSeveralValues_WithTheApiByDefault()
+    {
+        TemplateOption presentation = Repository.Source.Manifest(TemplateKind.Project).Options.Single(option => option.Symbol == "presentation");
+
+        presentation.AllowsMany.ShouldBeTrue();
+        presentation.DefaultValue.ShouldBe("api");
+        Repository.Source.Manifest(TemplateKind.Project).Options.Where(option => option.Symbol != "presentation").ShouldAllBe(option => !option.AllowsMany);
+    }
+
+    [Fact]
+    public void TheCallersTheLauncherNames_AreExactlyWhatMakesTheTemplateAddTheApi()
+    {
+        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
+        TemplateOption presentation = manifest.Options.Single(option => option.Symbol == "presentation");
+        int added = 0;
+
+        foreach (string chosen in Selections(presentation))
+        {
+            foreach (string web in manifest.Options.Single(option => option.Symbol == "web").Choices.Select(choice => choice.Value))
+            {
+                foreach (string auth in manifest.Options.Single(option => option.Symbol == "auth").Choices.Select(choice => choice.Value))
+                {
+                    var answers = new Dictionary<string, string> { ["presentation"] = chosen, ["web"] = web, ["auth"] = auth };
+                    bool needsApi = Condition.IsTruthy(manifest.Resolve("needsApi", answers));
+
+                    Launcher.ApiCallers.Any(caller => manifest.Holds(caller.When, answers)).ShouldBe(needsApi, $"presentation={chosen}, web={web}, auth={auth}");
+                    Launcher.CallersOfTheApiAdded(manifest, answers).Count.ShouldBe(needsApi && !chosen.Split('|').Contains("api") ? Launcher.ApiCallers.Count(caller => manifest.Holds(caller.When, answers)) : 0);
+                    added += Launcher.CallersOfTheApiAdded(manifest, answers).Count > 0 ? 1 : 0;
+                }
+            }
+        }
+
+        added.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public void TheNameProposedForEachFramework_IsTheOneTheProjectTemplateGivesIt()
+    {
+        TemplateManifest item = Repository.Source.Manifest(TemplateKind.Presentation);
+        TemplateOption presentation = Repository.Source.Manifest(TemplateKind.Project).Options.Single(option => option.Symbol == "presentation");
+
+        foreach (OptionChoice framework in item.Options.Single(option => option.Symbol == "framework").Choices)
+        {
+            Launcher.PresentationNames.ShouldContainKey(framework.Value);
+            string name = Launcher.PresentationNames[framework.Value];
+            presentation.Choices.Single(choice => choice.Value == framework.Value).Description.ShouldContain($"<Project>.{name},");
+        }
+    }
+
+    [Fact]
     public void Version_IsTheTemplateVersionTheProjectTemplateDeclares() =>
         Repository.Source.Manifest(TemplateKind.Project).Version.ShouldNotBeNullOrWhiteSpace();
 
@@ -190,6 +240,13 @@ public sealed class TemplateManifestTests
             .Select(match => match.Groups[1].Value)
             .Take(1);
 
+    private static IEnumerable<string> Selections(TemplateOption option)
+    {
+        string[] values = [.. option.Choices.Select(choice => choice.Value)];
+        return Enumerable.Range(1, (1 << values.Length) - 1)
+            .Select(members => option.Joined(values.Where((_, index) => (members & (1 << index)) != 0)));
+    }
+
     private static IEnumerable<Dictionary<string, string>> Combinations(TemplateManifest manifest)
     {
         IEnumerable<Dictionary<string, string>> combinations = [new Dictionary<string, string>(StringComparer.Ordinal)];
@@ -200,10 +257,16 @@ public sealed class TemplateManifestTests
             combinations = combinations.SelectMany(answers => names.Select(name => new Dictionary<string, string>(answers) { [_itemName] = name }));
         }
 
-        foreach (TemplateOption option in manifest.Options)
+        var read = manifest.Refusals.Select(refusal => refusal.When)
+            .Concat(manifest.Computed.TryGetValue("refusedOptions", out Condition? refused) ? [refused] : [])
+            .SelectMany(manifest.ParametersBehind)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (TemplateOption option in manifest.Options.Where(option => read.Contains(option.Symbol)))
         {
             string[] values = option.Kind switch
             {
+                OptionKind.Choice when option.AllowsMany => [.. Selections(option)],
                 OptionKind.Choice => [.. option.Choices.Select(choice => choice.Value)],
                 OptionKind.Bool => [Condition.True, Condition.False],
                 OptionKind.Text => [.. new[] { option.DefaultValue }.Concat(NamedByARefusal(manifest, option.Symbol)).OfType<string>().Distinct(StringComparer.Ordinal)],

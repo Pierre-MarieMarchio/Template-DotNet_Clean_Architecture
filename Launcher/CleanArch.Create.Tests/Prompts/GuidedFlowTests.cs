@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using CleanArch.Create.Manifests;
 using CleanArch.Create.Projects;
 using CleanArch.Create.Prompts;
 using Shouldly;
@@ -52,7 +53,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 13);
+        PushEnters(console, 12);
 
         Run(console, "new");
 
@@ -100,7 +101,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 13);
+        PushEnters(console, 12);
 
         Run(console, "new");
 
@@ -113,7 +114,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 13);
+        PushEnters(console, 12);
 
         Run(console, "new", "--hive", "hive");
 
@@ -132,7 +133,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushTextWithEnter("Demo");
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter("./Other");
-        PushEnters(console, 12);
+        PushEnters(console, 11);
 
         Run(console, "new");
 
@@ -146,7 +147,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 4);
+        PushEnters(console, 3);
         console.Input.PushKey(ConsoleKey.End);
         PushEnters(console, 7);
 
@@ -163,7 +164,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 4);
+        PushEnters(console, 3);
         console.Input.PushKey(ConsoleKey.DownArrow);
         PushEnters(console, 7);
         console.Input.PushKey(ConsoleKey.DownArrow);
@@ -190,7 +191,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         TestConsole console = Terminal();
         console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 4);
+        PushEnters(console, 3);
         console.Input.PushKey(ConsoleKey.End);
         PushEnters(console, 2);
         console.Input.PushKey(ConsoleKey.Escape);
@@ -213,7 +214,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _bootstrap = new ProcessResult(1, "error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.");
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 13);
+        PushEnters(console, 12);
 
         Run(console, "new");
 
@@ -229,7 +230,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 13);
+        PushEnters(console, 12);
         var launcher = new Launcher(console, _root, interactive: true, _processes);
         _duringBootstrap = () => launcher.Interrupt().ShouldBeTrue();
 
@@ -251,7 +252,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _initialised = insideARepository;
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 11);
+        PushEnters(console, 10);
         console.Input.PushKey(ConsoleKey.Spacebar);
         PushEnters(console, 2);
         var launcher = new Launcher(console, _root, interactive: true, _processes);
@@ -276,7 +277,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _identity = false;
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 13);
+        PushEnters(console, 12);
 
         Run(console, "new");
 
@@ -360,7 +361,7 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         string output = Plain(console);
         output.ShouldContain("┌  Add a presentation project to Acme.Shop");
-        output.ShouldContain("●  Taken from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false");
+        output.ShouldContain("●  Taken from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false, --has-client false, --has-api true");
         output.ShouldContain("◊  Framework\n│  blazor-server · the only option when Project authentication is none");
         Order(output, "◊  Presentation name\n│  Portal", "Summary", "◊  Added Portal", "◊  Join done", "◊  Scaffold done", "Next time, skip the questions with", "└  All set.");
         output.ShouldNotContain("Now run:");
@@ -422,11 +423,88 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
+    public void APresentationProject_IsProposedItsFrameworksName()
+    {
+        AGeneratedProject();
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "presentation", "--framework", "mcp", "--yes");
+
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Mcp --framework mcp ", StringComparison.Ordinal));
+        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Mcp");
+    }
+
+    [Fact]
+    public void AProjectWithoutTheApi_IsOfferedOnlyThePresentationThatDoesNotCallIt()
+    {
+        AGeneratedProject();
+        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "presentation", "--yes");
+
+        Plain(console).ShouldContain("Framework: blazor-server (the only option when Project authentication is local and Project holds the API is No)");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Portal --framework blazor-server ", StringComparison.Ordinal) && line.EndsWith("--has-api false", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AClientOfTheApi_IsRefused_InAProjectWithoutIt_BeforeAnythingIsInstalled()
+    {
+        AGeneratedProject();
+        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        var console = new TestConsole();
+        console.Profile.Width = 240;
+
+        new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "--framework", "avalonia", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
+
+        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Presentation);
+        console.Output.ShouldContain(manifest.Refusals.Single(refusal => refusal.Symbol == "presentationNeedsTheApi").Explanation);
+        _processes.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void WithYes_TheApi_IsAddedForTheMcpServerUnderLocalAccounts_AndPassed()
+    {
+        TestConsole console = Terminal();
+
+        Run(console, "new", "-n", "Demo", "--presentation", "mcp", "--yes");
+
+        Plain(console).ShouldContain("Presentation projects: api, mcp (the API added for you: the MCP server under local accounts calls it)");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.EndsWith("--presentation api --presentation mcp", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void APortalWithAWebApp_IsAnsweredTheApi_WhichTheWebAppCalls()
+    {
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+        console.Input.PushTextWithEnter("Demo");
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Spacebar);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Spacebar);
+        PushEnters(console, 13);
+
+        Run(console, "new");
+
+        string output = Plain(console);
+        Order(output, "◊  Presentation projects\n│  blazor-server\n", "◊  First web app\n│  placeholder", "◊  Presentation projects\n│  api, blazor-server · the API added for you: the web app calls it", "Summary");
+        output.ShouldNotContain("◊  First web app\n│  none");
+        output.ShouldMatch(@"│ Presentation projects\s+│ api, blazor-server\s+│");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--presentation api --presentation blazor-server --web placeholder", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WithoutColours_ATerminal_IsAskedPlainly()
     {
         TestConsole console = Terminal().Colors(ColorSystem.NoColors);
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 11);
 
         Run(console, "new");
 
@@ -574,6 +652,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "Acme.Shop.sln"), string.Empty);
         Directory.CreateDirectory(Path.Combine(_root, "Tools"));
         File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
     }
 
     private static void APresentationReadme(ProcessCall call)

@@ -4,6 +4,7 @@ public sealed class Condition
 {
     public const string True = "true";
     public const string False = "false";
+    public const char ValueSeparator = '|';
 
     private readonly Node _root;
 
@@ -131,9 +132,14 @@ public sealed class Condition
         {
             "&&" => Of(IsTruthy(Left.Evaluate(resolve)) && IsTruthy(Right.Evaluate(resolve))),
             "||" => Of(IsTruthy(Left.Evaluate(resolve)) || IsTruthy(Right.Evaluate(resolve))),
-            "==" => Of(string.Equals(Left.Evaluate(resolve), Right.Evaluate(resolve), StringComparison.OrdinalIgnoreCase)),
-            _ => Of(!string.Equals(Left.Evaluate(resolve), Right.Evaluate(resolve), StringComparison.OrdinalIgnoreCase)),
+            "==" => Of(ShareAValue(Left.Evaluate(resolve), Right.Evaluate(resolve))),
+            _ => Of(!ShareAValue(Left.Evaluate(resolve), Right.Evaluate(resolve))),
         };
+
+        private static bool ShareAValue(string? left, string? right) =>
+            left is null || right is null
+                ? left == right
+                : left.Split(ValueSeparator).Intersect(right.Split(ValueSeparator), StringComparer.OrdinalIgnoreCase).Any();
     }
 
     private sealed class Parser

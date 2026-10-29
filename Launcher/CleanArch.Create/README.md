@@ -50,15 +50,16 @@ hand. Each runs under its own spinner, in this order:
 | Step | What it runs |
 |---|---|
 | First commit | `git init` unless the folder is in a git work tree already, then a commit of the generated files, `chore: generate from cleanarch-webapi <version>` |
-| Bootstrap | `dotnet run Tools/Tasks.cs bootstrap`, which needs the network |
+| Bootstrap | `dotnet run Tools/Tasks.cs bootstrap`, which needs the network; its line names what it creates for the options chosen |
 | Bootstrap commit | a commit of what bootstrap wrote, `chore: bootstrap` |
 | Copy .env | `.env.example` to the git-ignored `.env`, unless one is there |
 
 The commits carry your own git identity; without `user.name` or `user.email` they are skipped, with
 the `git config` lines to run. A step that fails says why and leaves the next independent ones to
 run, and a commit is skipped when a step before it did not succeed. The commands left at the end are
-the ones still to run: the stack's, and those of each step that did not succeed. Without questions,
-`--setup` runs every step; without it nothing is set up.
+the ones still to run: the stack's, and those of each step that did not succeed. When Bootstrap is
+chosen, the plain output leaves out the instructions `dotnet new` ends with, which ask for it. Without
+questions, `--setup` runs every step; without it nothing is set up.
 
 ## Add a web app, a package or a presentation project
 
@@ -79,15 +80,17 @@ from its files, so it asks the presentation name, `Portal` by default, and the f
 there is more than one. A name the project already uses is refused. After `cleanarch-presentation`
 it runs the project's `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`, which makes
 the edits the new `README.md` lists outside the project's folders, all or none, then
-`presentation-scaffold`, which creates the pages with `dotnet new blazor` and needs the network. A
-step that fails says why and leaves the README's section for what remains.
+`presentation-scaffold`, which creates it with its framework's `dotnet new` template and needs the
+network. A step that fails says why and leaves the README's section for what remains. The plain
+output leaves out the instructions `dotnet new` ends with, which ask for those two tasks.
 
 `web-app` reads the project's scope, name, authentication, example features, Files module, CI,
 agent files and whether it holds the .NET client the same way. A Blazor WebAssembly app brings the .NET client, so after
 `cleanarch-webapp` it runs `dotnet run Tools/Tasks.cs web-join <Name>`, which makes the edits the
 app's `README.md` lists outside its folder, all or none; with `--workspace` it leaves that for after
 the workspace's own lines. A project holds one Blazor WebAssembly app in this version, so a second
-is refused before anything is written.
+is refused before anything is written. When it runs `web-join`, the plain output leaves out the
+instruction `dotnet new` ends with that asks for it, and keeps the others.
 
 Each asks on the same thread, with the same summary, as a new project.
 

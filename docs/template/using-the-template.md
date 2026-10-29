@@ -26,19 +26,23 @@ Its last question offers to set the project up as [the first run](../getting-sta
 asks: a first commit, after `git init` unless the folder is in a work tree already, then
 `dotnet run Tools/Tasks.cs bootstrap`, a commit of what it wrote, and `.env` copied from
 `.env.example`. The commits carry your own git identity, a step that fails says why without stopping
-the independent ones, and the commands printed at the end are only those left to run. Without
+the independent ones, and the commands printed at the end are only those left to run. When it runs
+bootstrap, it leaves out the instructions `dotnet new` ends with, which ask for it. Without
 questions, `--setup` runs every step.
 
 At the root of a generated project, or in any folder under it, it adds a web app or a package to the
 workspace: the project's authentication, workflows and scope are read from its files, and the first
-app also creates the workspace. It then prints the lines its `README.md` asks to add by hand.
+app also creates the workspace. It then prints the lines its `README.md` asks to add by hand. For a
+Blazor WebAssembly app in an existing workspace, it runs `web-join` itself and leaves out the
+instruction that asks for it.
 
 It adds a presentation project to a project generated without one the same way: the project's name,
 authentication, example features, Files module, database and agent files are read from its files, so
 it asks only the presentation name, and the framework once there is more than one. After
 `dotnet new cleanarch-presentation` it runs the project's `presentation-join` task, which makes the
 lines the new `README.md` lists outside the project's folders, then `presentation-scaffold`, which
-needs the network; a step that fails says why and what to run again.
+needs the network; a step that fails says why and what to run again. It leaves out the instructions
+`dotnet new` ends with, which ask for those two tasks.
 
 ```bash
 dnx CleanArch.Create web-app
@@ -119,7 +123,12 @@ With a checkout installed, generate outside it: the engine reads the template fr
 output written inside it is copied into itself and nests a duplicate. Then follow the generated
 project's [first run](../getting-started/first-run.md); bootstrap is its first step and is not
 optional, since the order of sorted using directives depends on the name chosen and the project ships
-no migration until bootstrap creates its first one.
+no migration until bootstrap creates its first one. `dotnet new` ends by saying so, in one instruction
+per fact that holds for the options chosen: what bootstrap always does, and the network it needs; the
+projects and apps it creates from a `scaffold.json`, with a presentation, `--jobs worker` or a
+framework app; the .NET client it writes; and the web workspace it installs, which needs Node.js and
+pnpm. Docker is not needed until the stack starts. Each item template ends the same way, with the
+tasks that join and create what it wrote.
 
 ## What the name substitutes into
 

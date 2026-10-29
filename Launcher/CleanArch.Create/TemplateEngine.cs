@@ -10,6 +10,8 @@ public sealed class TemplateEngine
         ["DOTNET_CLI_UI_LANGUAGE"] = "en",
     };
 
+    public const string PostActionsHeading = "Processing post-creation actions...";
+
     private readonly IAnsiConsole _console;
     private readonly string? _hive;
     private readonly bool _echo;
@@ -65,9 +67,9 @@ public sealed class TemplateEngine
         }
     }
 
-    public void Run(string workingDirectory, IReadOnlyList<string> arguments)
+    public void Run(string workingDirectory, IReadOnlyList<string> arguments, IReadOnlyCollection<string>? performed = null)
     {
-        (int exitCode, string output) = Execute(workingDirectory, arguments, echo: true);
+        (int exitCode, string output) = Execute(workingDirectory, arguments, echo: true, performed ?? []);
         if (exitCode != 0)
         {
             string failure = $"{CommandLine("dotnet new", arguments)} failed with exit code {exitCode}.";
@@ -75,7 +77,7 @@ public sealed class TemplateEngine
         }
     }
 
-    private (int ExitCode, string Output) Execute(string workingDirectory, IReadOnlyList<string> arguments, bool echo)
+    private (int ExitCode, string Output) Execute(string workingDirectory, IReadOnlyList<string> arguments, bool echo, IReadOnlyCollection<string>? performed = null)
     {
         List<string> command = ["new", .. arguments];
         if (_hive is not null)
@@ -83,11 +85,61 @@ public sealed class TemplateEngine
             command.AddRange(["--debug:custom-hive", _hive]);
         }
 
+        Action<string>? relay = echo && _echo ? _console.Verbatim : null;
+        InstructionFilter? filter = relay is not null && performed is { Count: > 0 } ? new InstructionFilter(relay, performed) : null;
         ProcessResult result = _processes.Run(
             new ProcessCall("dotnet", workingDirectory, command, _environment),
-            echo && _echo ? _console.Verbatim : null);
+            filter is null ? relay : filter.Line);
+        filter?.Flush();
 
         return (result.ExitCode, result.Output);
+    }
+
+    private sealed class InstructionFilter(Action<string> relay, IReadOnlyCollection<string> performed)
+    {
+        private const string _descriptionPrefix = "Description:";
+
+        private readonly List<string> _instruction = [];
+        private bool _reached;
+        private bool _headingRelayed;
+
+        public void Line(string line)
+        {
+            if (!_reached)
+            {
+                _reached = line.Trim() == PostActionsHeading;
+                if (!_reached)
+                {
+                    relay(line);
+                }
+
+                return;
+            }
+
+            if (line.StartsWith(_descriptionPrefix, StringComparison.Ordinal))
+            {
+                Flush();
+            }
+
+            _instruction.Add(line);
+        }
+
+        public void Flush()
+        {
+            string text = string.Join('\n', _instruction);
+            if (_instruction.Count > 0 && !performed.Any(task => text.Contains(task, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!_headingRelayed)
+                {
+                    relay(PostActionsHeading);
+                    _headingRelayed = true;
+                }
+
+                _instruction.ForEach(relay);
+            }
+
+            _instruction.Clear();
+        }
     }
 
     private static string Quoted(string argument) =>

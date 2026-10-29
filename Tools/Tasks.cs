@@ -1121,8 +1121,9 @@ internal static class Tasks
             {
                 throw new InvalidOperationException(
                     $"{error.Message} Creating Src/Web/apps/{app} runs {cli}, the framework's official CLI, which pnpm fetches "
-                    + "from the npm registry, so this step needs the network; the output above says what failed. The app's folder "
-                    + $"is unchanged: run `dotnet run Tools/Tasks.cs web-scaffold {app}` again once the cause is fixed.");
+                    + "from the npm registry, so this step needs Node.js, pnpm (`corepack enable` once per machine) and the network; "
+                    + "the output above says which failed. The app's folder is unchanged: run "
+                    + $"`dotnet run Tools/Tasks.cs web-scaffold {app}` again once the cause is fixed.");
             }
 
             if (!File.Exists(Path.Combine(starter, "package.json")))
@@ -1288,8 +1289,9 @@ internal static class Tasks
             {
                 throw new InvalidOperationException(
                     $"{error.Message} Creating {shown} installs {package}, the framework's own templates, "
-                    + "from NuGet, so this step needs the network; the output above says what failed. The project's folder is "
-                    + $"unchanged: run `dotnet run Tools/Tasks.cs {task} {project}` again once the cause is fixed.");
+                    + "from NuGet, so this step needs the network and that package on a NuGet source; the output above says what "
+                    + $"failed. The project's folder is unchanged: run `dotnet run Tools/Tasks.cs {task} {project}` again once the "
+                    + "cause is fixed.");
             }
 
             RefuseWhatTheProjectLacks(Path.Combine(generated, name + ".csproj"), Path.Combine(folder, name + ".csproj"));

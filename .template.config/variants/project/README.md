@@ -44,7 +44,7 @@ The web workspace also needs Node.js and pnpm (`corepack enable`).
 <!--#endif-->
 
 ```bash
-dotnet run Tools/Tasks.cs bootstrap     # once, after a fresh clone; commit what it changes
+dotnet run Tools/Tasks.cs bootstrap     # once, right after generating, online; commit what it writes
 cp .env.example .env
 docker compose up -d --build --wait
 ```

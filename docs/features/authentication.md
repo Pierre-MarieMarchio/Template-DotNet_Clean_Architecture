@@ -102,9 +102,12 @@ The cookie is read only beside that header, which is the defence against cross-s
 or not, and a client that never sends it works as above ([ADR 0016](../decisions/0016-browser-refresh-token-in-a-cookie.md)).
 
 <!--#if (anyWeb)-->
-The web apps of this project use this mode through the `api-client` package: the access token
-stays in a variable, the cookie carries the refresh token, and one refresh runs at a time. How an
-app signs in is in [Web front end](web-frontend.md#signing-in).
+The single-page web apps of this project use this mode through the `api-client` package: the access
+token stays in a variable, the cookie carries the refresh token, and one refresh runs at a time. A
+server-rendered app uses neither: its server signs in in body mode, keeps both tokens, and gives the
+browser a session cookie of its own
+([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)). How an app
+signs in is in [Web front end](web-frontend.md#signing-in).
 
 <!--#endif-->
 <!--#endif-->

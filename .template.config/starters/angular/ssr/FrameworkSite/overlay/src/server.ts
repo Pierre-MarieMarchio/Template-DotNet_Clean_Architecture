@@ -4,7 +4,11 @@ import {
   isMainModule,
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
+//#if (localAuth)
+import { serverSessions } from '@app-template/api-client/server';
+//#else
 import { relayToApi } from '@app-template/api-client/server';
+//#endif
 import express from 'express';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -14,8 +18,12 @@ const browserDistFolder = join(import.meta.dirname, '../browser');
 const pageTemplate = join(import.meta.dirname, 'index.server.html');
 const fingerprinted = /-(?=[A-Za-z0-9_-]*[A-Z0-9])[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/;
 
+const apiUpstream = process.env['API_UPSTREAM'] ?? 'http://localhost:5187';
 const app = express();
 const angularApp = new AngularNodeAppEngine();
+//#if (localAuth)
+const sessions = serverSessions(apiUpstream);
+//#endif
 
 const templateScriptHashes = existsSync(pageTemplate)
   ? [...readFileSync(pageTemplate, 'utf8').matchAll(/<script\b(?![^>]*\ssrc\s*=)[^>]*>([\s\S]*?)<\/script\s*>/gi)].map(
@@ -38,7 +46,11 @@ const contentSecurityPolicy = (nonce: string) =>
 
 app.disable('x-powered-by');
 
-app.use(relayToApi(process.env['API_UPSTREAM'] ?? 'http://localhost:5187'));
+//#if (localAuth)
+app.use(sessions.relay);
+//#else
+app.use(relayToApi(apiUpstream));
+//#endif
 
 app.use((_request, response, next) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -65,7 +77,11 @@ app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
 
   angularApp
+//#if (localAuth)
+    .handle(request, { nonce, apiUpstream, accessToken: () => sessions.accessToken(request, response) })
+//#else
     .handle(request, { nonce })
+//#endif
     .then((answer) => (answer ? writeResponseToNodeResponse(answer, response) : next()))
     .catch(next);
 });

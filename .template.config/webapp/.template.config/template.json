@@ -52,7 +52,7 @@
       "defaultValue": "spa",
       "choices": [
         { "choice": "spa", "description": "A single-page app: a static site served by nginx." },
-        { "choice": "ssr", "description": "Rendered on the server for each request, by the framework's own Node server; angular only, in a project generated with --auth none." }
+        { "choice": "ssr", "description": "Rendered on the server for each request, by the framework's own Node server, which keeps the session; angular only, not yet in a project generated with --auth external." }
       ],
       "description": "How the app renders, where its generator offers both."
     },
@@ -187,14 +187,14 @@
       "isRequired": "(rendering == \"ssr\" && framework != \"angular\")",
       "description": "Never set. --rendering ssr needs a framework whose generator renders on the server: choose --framework angular, or --rendering spa."
     },
-    "serverRenderingWithAccountsNotYetGenerated": {
+    "serverRenderingWithExternalAuthNotYetGenerated": {
       "type": "parameter",
       "datatype": "choice",
       "choices": [
         { "choice": "refused", "description": "Not an option to set: it names the refusal." }
       ],
-      "isRequired": "(rendering == \"ssr\" && auth != \"none\")",
-      "description": "Never set. A server-rendered web app keeps no session yet: only a project generated with --auth none takes --rendering ssr."
+      "isRequired": "(rendering == \"ssr\" && auth == \"external\")",
+      "description": "Never set. A server-rendered web app keeps no session for an external provider yet: a project generated with --auth external does not take --rendering ssr."
     },
     "wasmWebNeedsAccounts": {
       "type": "parameter",

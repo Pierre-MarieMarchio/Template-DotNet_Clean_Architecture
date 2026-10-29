@@ -69,7 +69,7 @@ public sealed class OfferTests
 
     [Theory]
     [InlineData("vite-react", "none", "serverRenderingNeedsAServerStarter")]
-    [InlineData("angular", "local", "serverRenderingWithAccountsNotYetGenerated")]
+    [InlineData("angular", "external", "serverRenderingWithExternalAuthNotYetGenerated")]
     public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt(string web, string auth, string refusal)
     {
         var known = new Dictionary<string, string> { ["web"] = web, ["auth"] = auth };
@@ -81,9 +81,9 @@ public sealed class OfferTests
     }
 
     [Fact]
-    public void ServerRendering_IsOffered_ForAnAngularAppOfAnAccountlessApi()
+    public void ServerRendering_IsOffered_ForAnAngularAppWithLocalAccountsOrNone()
     {
-        var known = new Dictionary<string, string> { ["auth"] = "none" };
+        var known = new Dictionary<string, string> { ["auth"] = "local" };
 
         Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = "angular" }, Launcher.ProjectAskedWhen)
             .Values.ShouldBe(["spa", "ssr"]);

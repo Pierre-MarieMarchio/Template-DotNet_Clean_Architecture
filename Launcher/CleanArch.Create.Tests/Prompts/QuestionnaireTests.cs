@@ -94,6 +94,7 @@ public sealed class QuestionnaireTests
         console.Profile.Width = 200;
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -117,6 +118,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -133,6 +135,7 @@ public sealed class QuestionnaireTests
         answers["web"].ShouldBe("none");
         answers["presentation"].ShouldBe("none");
         answers.ShouldNotContainKey("presentationName");
+        answers["jobs"].ShouldBe("api");
     }
 
     [Fact]
@@ -143,6 +146,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter("Api");
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter("Portal");
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
@@ -164,6 +168,7 @@ public sealed class QuestionnaireTests
     {
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
@@ -192,6 +197,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);

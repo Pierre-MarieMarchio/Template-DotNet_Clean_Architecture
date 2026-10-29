@@ -105,6 +105,9 @@ updates:
     #endif
     directories:
       - /Src/Presentation/AppTemplate.Api
+      #if (jobsWorker)
+      - /Src/Presentation/AppTemplate.Worker
+      #endif
       #if (anyWeb)
       # Every web app's nginx image, by directory glob.
       - /Src/Web/apps/*

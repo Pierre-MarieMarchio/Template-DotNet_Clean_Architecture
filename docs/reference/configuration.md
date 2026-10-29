@@ -433,6 +433,12 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 
 ## Background jobs
 
+<!--#if (jobsWorker)-->
+The worker reads these sections, from `Src/Presentation/<Project>.Worker/appsettings.json` and its
+environment; the API reads none of them. The worker also reads the sections of the modules it
+composes, with the same keys as the API.
+
+<!--#endif-->
 ### `Jobs`
 
 | Key | Type | Default | Notes |

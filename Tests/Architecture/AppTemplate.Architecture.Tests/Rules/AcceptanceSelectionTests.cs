@@ -27,6 +27,7 @@ public sealed class AcceptanceSelectionTests
         "web react, then an angular back office",
         "no web, then a react app and its workspace",
         "sql server, external auth, all examples",
+        "worker, external auth, all examples",
         "sqlite, defaults",
         "sqlite, smallest project",
         "sqlite, external auth, all examples",
@@ -99,7 +100,7 @@ public sealed class AcceptanceSelectionTests
             .Where(folder => Directory.Exists(Path.Combine(folder, "FrameworkSite")))
             .Select(folder => Path.GetFileName(folder))];
         string[] presentationStarters = [.. Directory.GetDirectories(Path.Combine(TemplateConfig, "starters"))
-            .Where(folder => Directory.Exists(Path.Combine(folder, "Src", "Presentation")))
+            .Where(folder => Directory.Exists(Path.Combine(folder, "Src", "Presentation", "AppTemplate.PresentationApp")))
             .Select(folder => Path.GetFileName(folder))];
 
         webStarters.ShouldContain("angular", "No web starter was found under .template.config/starters.");
@@ -152,6 +153,11 @@ public sealed class AcceptanceSelectionTests
         if (Field("database") is { } database)
         {
             tags.Add($"database-{database}");
+        }
+
+        if (Chooses(options, "--jobs", "worker"))
+        {
+            tags.Add("jobs-worker");
         }
 
         if (firstPresentation.Length > 0)

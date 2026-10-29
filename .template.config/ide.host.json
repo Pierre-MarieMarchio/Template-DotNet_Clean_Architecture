@@ -88,6 +88,13 @@
         "text": "Presentation project name"
       },
       "isVisible": true
+    },
+    {
+      "id": "jobs",
+      "name": {
+        "text": "Background jobs"
+      },
+      "isVisible": true
     }
   ]
 }

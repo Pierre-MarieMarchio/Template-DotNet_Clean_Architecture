@@ -147,6 +147,7 @@ error under warnings as errors. Pick a name with no such segment.
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
 | `--presentation` | `none`, `blazor-server`, `avalonia` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none` |
 | `--presentation-name` | PascalCase text | `Portal` | the presentation project's name after the solution's, its Compose service and port variable |
+| `--jobs` | `api`, `worker` | `api` | where the background jobs run: in the API, or in `<Project>.Worker`, a worker in `Src/Presentation` written in the shape of `dotnet new worker`, which takes the API's jobs and their tests while the API serves HTTP alone; refused with `--database sqlite` |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
 writes the app and never changes meaning:
@@ -174,6 +175,7 @@ it, and the generated solution builds and passes its tests.
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
 | `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
 | a `--presentation-name` that names one of the template's projects, such as `Api` | `--presentation-name-is-taken` | choose another name, such as `Portal` |
+| `--jobs worker` with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or `--jobs api` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing anything. Passing the parameter by hand gets past the engine and generates

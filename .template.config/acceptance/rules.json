@@ -49,6 +49,10 @@
       "tags": ["presentation-avalonia"]
     },
     {
+      "paths": [".template.config/starters/worker/**"],
+      "tags": ["jobs-worker"]
+    },
+    {
       "paths": [".template.config/presentation/**"],
       "tags": ["presentation-item"]
     },

@@ -94,6 +94,7 @@ Src/Infrastructure/
 Src/Presentation/
   AppTemplate.Presentation.Core         Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
+<!--#if (!jobsWorker)-->
   AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Jobs,Localization,Observability,OpenApi,
                                                 Security}
@@ -103,6 +104,18 @@ Src/Presentation/
 <!--#endif-->
                                                       Contracts/{Mapping,Requests,Responses},
                                                       Controllers,Jobs}
+<!--#endif-->
+<!--#if (jobsWorker)-->
+  AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+                                                Idempotency,Localization,Observability,OpenApi,
+                                                Security}
+                                        Features/<F>/{Composition,
+<!--#if (externalAuth)-->
+                                                      Configuration/Options,
+<!--#endif-->
+                                                      Contracts/{Mapping,Requests,Responses},
+                                                      Controllers}
+<!--#endif-->
 <!--#if (presentationBlazorServer && localAuth)-->
   <Project>.<Name>                      Common/{Hosting,Security}
                                         Features/<F>/Composition
@@ -127,6 +140,10 @@ Src/Presentation/
   <Project>.<Name>                      Common/{Hosting,Sessions}
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
+<!--#endif-->
+<!--#if (jobsWorker)-->
+  <Project>.Worker                      Common/{Jobs,Security}
+                                        Features/<F>/{Composition,Jobs}
 <!--#endif-->
 <!--#if (dotnetClient)-->
 Src/Clients/

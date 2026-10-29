@@ -123,9 +123,10 @@ internal static class Tasks
                                            in a template hive of its own, keep the folders it names
                                            beside the project's own files, refuse a generated project
                                            file that declares what the project's own lacks, add the
-                                           project and its tests to the solution and format them;
-                                           bootstrap runs it first, and a project created already is
-                                           left alone
+                                           project and its tests to the solution and format them; a
+                                           scaffold.json of kind written runs no template, the project
+                                           being whole already; bootstrap runs it first, and a project
+                                           created already is left alone
           presentation-join <Name>         make the edits the README of Src/Presentation/<Name> lists
                                            under 'Joining a project generated without one', in the
                                            files outside its folders that cleanarch-presentation
@@ -1214,14 +1215,47 @@ internal static class Tasks
         JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
         string kind = descriptor["kind"]?.GetValue<string>() ?? "pnpm";
 
-        if (kind != "dotnet")
+        if (kind is not ("dotnet" or "written"))
         {
             throw new InvalidOperationException(
-                $"{shown}/{ScaffoldDescriptor} is of kind '{kind}', and a .NET project is created by dotnet new.");
+                $"{shown}/{ScaffoldDescriptor} is of kind '{kind}', and a .NET project is created by dotnet new or written by the template.");
         }
 
         string name = Text(descriptor, "name", project);
         string package = Text(descriptor, "package", project) + "@" + Text(descriptor, "version", project);
+
+        if (kind == "dotnet")
+        {
+            Generate(descriptor, folder, project, name, package, shown, task);
+        }
+
+        File.Delete(Path.Combine(folder, ScaffoldDescriptor));
+
+        string own = Path.Combine(folder, name + ".csproj");
+        bool client = HoldsTheClient(repoRoot) && File.ReadAllText(own).Contains(@"..\..\Clients\", StringComparison.Ordinal);
+        string tests = task == "web-scaffold" ? "Web" : "Presentation";
+        string[] projects =
+        [
+            own,
+            .. new[] { Path.Combine(repoRoot, "Tests", tests, name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
+            .. (client ? ClientProjects(repoRoot) : []),
+        ];
+
+        Step("dotnet", ["sln", solution, "add", .. projects]);
+
+        foreach (string added in projects)
+        {
+            Step("dotnet", "format", added);
+        }
+
+        string origin = kind == "dotnet" ? package : $"the template, in the shape {Text(descriptor, "generator", project)} gives it at {package}";
+        Write($"Created {shown} from {origin}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
+
+        return client;
+    }
+
+    private static void Generate(JsonObject descriptor, string folder, string project, string name, string package, string shown, string task)
+    {
         string scratch = Path.Combine(Path.GetTempPath(), task + "-" + Guid.NewGuid().ToString("N")[..12]);
         string generated = Path.Combine(scratch, name);
         string template = Text(descriptor, "template", project);
@@ -1282,29 +1316,6 @@ internal static class Tasks
                 Directory.Delete(scratch, recursive: true);
             }
         }
-
-        File.Delete(Path.Combine(folder, ScaffoldDescriptor));
-
-        string own = Path.Combine(folder, name + ".csproj");
-        bool client = HoldsTheClient(repoRoot) && File.ReadAllText(own).Contains(@"..\..\Clients\", StringComparison.Ordinal);
-        string tests = task == "web-scaffold" ? "Web" : "Presentation";
-        string[] projects =
-        [
-            own,
-            .. new[] { Path.Combine(repoRoot, "Tests", tests, name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
-            .. (client ? ClientProjects(repoRoot) : []),
-        ];
-
-        Step("dotnet", ["sln", solution, "add", .. projects]);
-
-        foreach (string added in projects)
-        {
-            Step("dotnet", "format", added);
-        }
-
-        Write($"Created {shown} from {package}. Commit it: the generated files are the project's own from now on.", ConsoleColor.Green);
-
-        return client;
     }
 
     private static string[] ClientProjects(string repoRoot) =>

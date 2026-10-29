@@ -48,14 +48,18 @@ public sealed class OutboundHttpTests
             .Order(StringComparer.Ordinal)
             .ToList();
 
+        int hosts = 1;
+        /*#if (presentationBlazorServer)
+        hosts++;
+        #endif*/
+        /*#if (jobsWorker)
+        hosts++;
+        #endif*/
+
         entryPoints.Count.ShouldBe(
-            /*#if (!presentationBlazorServer)*/
-            1,
-            /*#else
-            2,
-            #endif*/
+            hosts,
             "Each host arrives through this number, so that the line below is read about it too: " +
-            "AppTemplate.Api, which runs the background jobs, and the presentation project when it is a server host.");
+            "AppTemplate.Api, the presentation project when it is a server host, and the worker when the jobs run apart.");
 
         var missing = entryPoints
             .Where(entryPoint => !_policyInstalled.IsMatch(File.ReadAllText(entryPoint)))

@@ -170,13 +170,21 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    #if (jobsWorker)
+    # Two images from one commit: the API, and the worker that runs the periodic jobs.
+    #else
     # One image, the API, which also runs the periodic jobs.
+    #endif
     strategy:
       fail-fast: false
       matrix:
         include:
           - component: api
             dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
+          #if (jobsWorker)
+          - component: worker
+            dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
+          #endif
     permissions:
       contents: read
       packages: write        # push to GHCR

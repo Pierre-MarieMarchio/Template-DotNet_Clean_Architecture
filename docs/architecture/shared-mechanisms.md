@@ -105,4 +105,9 @@ that demands a recent sign-in.
 ## Decisions
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): foundations shipped before use, and `HybridCache` in process.
+<!--#if (!jobsWorker)-->
 - [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
+<!--#endif-->
+<!--#if (jobsWorker)-->
+- [0025. Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
+<!--#endif-->

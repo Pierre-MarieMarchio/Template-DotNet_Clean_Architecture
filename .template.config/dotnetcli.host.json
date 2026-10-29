@@ -69,6 +69,15 @@
       "longName": "presentation-name-is-taken",
       "shortName": "",
       "isHidden": true
+    },
+    "jobs": {
+      "longName": "jobs",
+      "shortName": ""
+    },
+    "workerNeedsServerDatabase": {
+      "longName": "worker-needs-server-database",
+      "shortName": "",
+      "isHidden": true
     }
   }
 }

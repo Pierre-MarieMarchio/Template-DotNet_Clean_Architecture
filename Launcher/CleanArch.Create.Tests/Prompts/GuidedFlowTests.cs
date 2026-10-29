@@ -45,7 +45,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -112,7 +112,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushTextWithEnter("Demo");
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
-        PushEnters(console, 9);
+        PushEnters(console, 10);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Enter);
@@ -142,7 +142,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushKey(ConsoleKey.Home);
-        PushEnters(console, 11);
+        PushEnters(console, 12);
 
         Run(console, "new");
 
@@ -159,7 +159,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _bootstrap = new ProcessResult(1, "error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.");
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -177,7 +177,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _identity = false;
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -310,7 +310,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal().Colors(ColorSystem.NoColors);
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 11);
+        PushEnters(console, 12);
 
         Run(console, "new");
 

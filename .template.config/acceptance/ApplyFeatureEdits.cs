@@ -214,11 +214,19 @@ internal static class FeatureEdits
     private static void ProgramFile(string root, Edit edit, Dictionary<string, List<string>> declarations)
     {
         string call = Inline(edit, @"builder\.Services\.Add\w+\(\);")!;
-        List<string> lines = Read(root, edit.Path);
+        string[] hosts = [.. Regex.Matches(edit.Header, @"Src/Presentation/[^\s,]+/Program\.cs", RegexOptions.None, Timeout)
+            .Select(match => match.Value)
+            .Prepend(edit.Path)
+            .Distinct(StringComparer.Ordinal)];
 
-        InsertBefore(lines, "builder.Services.AddPurgeExpiredIdempotencyKeys();", [call, string.Empty]);
+        foreach (string host in hosts)
+        {
+            List<string> lines = Read(root, host);
 
-        Write(root, edit.Path, WithUsings(lines, [call], declarations, ApplicationNamespace(lines, edit)));
+            InsertBefore(lines, "builder.Services.AddPurgeExpiredIdempotencyKeys();", [call, string.Empty]);
+
+            Write(root, host, WithUsings(lines, [call], declarations, ApplicationNamespace(lines, edit)));
+        }
     }
 
     private static void HostComposition(string root, Edit edit, Dictionary<string, List<string>> declarations)

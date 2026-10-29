@@ -125,7 +125,12 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 - [0009. Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
 <!--#endif-->
 - [0010. Idempotency-Key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
+<!--#if (!jobsWorker)-->
 - [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
+<!--#endif-->
 <!--#if (sqlite)-->
 - [0021. SQLite is a development database](../decisions/0021-sqlite-is-a-development-database.md)
+<!--#endif-->
+<!--#if (jobsWorker)-->
+- [0025. Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
 <!--#endif-->

@@ -72,18 +72,22 @@ compiles it and its tests run with the others. The three web legs that pass `--p
 blazor-server`, one per authentication mode, create the presentation project, build and test it, and
 ask it in the stack for its page and `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
-`presentation-join` task, and from there runs as those three do.
+`presentation-join` task, and from there runs as those three do. The two legs that pass `--jobs worker`
+build and test the worker with the rest; the generator leg among them writes the deleted-account sweep
+into the worker, and the other starts the stack and fails unless the worker logs a completed pass and
+the API starts no job loop.
 
 | Leg | Options |
 |---|---|
 | defaults | none |
 | auth none, smallest project | `--auth none --examples none --files false` |
 | external auth, notes | `--auth external --examples notes --presentation avalonia` |
-| local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` |
+| local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false --jobs worker` |
 | external auth, all examples | `--auth external --examples all --files true --web blazor-wasm` |
 | external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
+| worker, external auth, all examples | `--jobs worker --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |
@@ -138,6 +142,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vue, Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
+| `.template.config/starters/worker` | the legs that pass `--jobs worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
 | anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows one included |
@@ -401,6 +406,23 @@ of the template's own projects, as `--presentation-name` in `template.json` and 
 `cleanarch-presentation`; `ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites` lists
 the projects under `Src` and `Tests` and fails until a new one is refused by both.
 
+## The worker
+
+`--jobs worker` moves the jobs out of the API
+([template decision 0012](decisions/0012-where-the-jobs-run-is-an-option.md)). The worker's own files
+are a starter written whole, `.template.config/starters/worker`
+([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
+its project file, `Program.cs`, settings, `Dockerfile`, caller identity and the compositions of the
+directories its passes read, with its test project and `WorkerCompositionTests`. Its `scaffold.json`
+is of kind `written`, so `presentation-scaffold` only adds the two projects to the solution and
+formats them. The jobs themselves stay where they are in this checkout, the API's `Common/Jobs` and
+`Features/*/Jobs` with their unit tests: under `jobsWorker` the API's source leaves them out, and two
+sources of `template.json` copy them under the worker and its tests. Each namespace they declare has
+a generated switch symbol, `jobsNamespace<Folder>`, whose value is the API's or the worker's; a job
+folder a new feature brings needs one, and `TemplatePackagingTests` fails until it has it. The API's
+own files condition what composes the jobs (`AddBackgroundJobs`, `AddAuthMaintenanceJobs`, the
+sweep's registration and the `Jobs` settings) on `!jobsWorker`.
+
 ## Web lockfiles
 
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
@@ -541,3 +563,5 @@ version means adopting the change in an existing project takes manual work.
 - [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
 - [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)
 - [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)
+- [0012. Where the jobs run is an option](decisions/0012-where-the-jobs-run-is-an-option.md)
+- [0013. A starter the generator cannot add to is written whole](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)

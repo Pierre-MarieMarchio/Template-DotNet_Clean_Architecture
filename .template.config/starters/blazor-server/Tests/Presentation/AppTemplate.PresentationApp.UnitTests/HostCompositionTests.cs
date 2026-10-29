@@ -64,7 +64,7 @@ public sealed class HostCompositionTests
         host.Services.GetServices<IHostedService>()
             .Select(service => service.GetType())
             .Where(type => type.Assembly.GetName().Name!.StartsWith("AppTemplate.", StringComparison.Ordinal))
-            .ShouldBeEmpty("Jobs run in the API under a lease; a second host that ran them too would run every pass twice.");
+            .ShouldBeEmpty("Jobs run in one host under a lease; a second host that ran them too would run every pass twice.");
     }
 
     private static ClaimsPrincipal SignedIn(Guid userId) =>

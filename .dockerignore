@@ -28,6 +28,9 @@
 #if (presentationBlazorServer)
 !Src/Presentation/AppTemplate.PresentationApp/appsettings.json
 #endif
+#if (jobsWorker)
+!Src/Presentation/AppTemplate.Worker/appsettings.json
+#endif
 
 **/*.pfx
 **/*.p12

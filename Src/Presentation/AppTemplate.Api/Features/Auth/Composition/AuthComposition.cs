@@ -1,5 +1,7 @@
 ﻿using AppTemplate.Api.Common.Hosting;
+//#if (!jobsWorker)
 using AppTemplate.Api.Features.Auth.Jobs;
+//#endif
 using AppTemplate.Application.Auth;
 //#if (anyFeature)
 using AppTemplate.Application.Core.Common.Ports;
@@ -28,7 +30,9 @@ internal static class AuthComposition
 
         services.AddAuthModule(configuration);
         services.AddApiCurrentSession();
+        //#if (!jobsWorker)
         services.AddAuthMaintenanceJobs(configuration);
+        //#endif
         //#if (browserSessions)
 
         services.AddBrowserSessionDocumentation();

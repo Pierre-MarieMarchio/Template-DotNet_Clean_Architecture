@@ -37,6 +37,10 @@ public sealed class LayoutConventionTests
                 "Adapters/Observability",
                 "Rows/Configurations", "Rows/Mapping", "Rows/Models", "Rows/Tracking",
             ],
+        /*#if (jobsWorker && publicApi)
+        ["Src/Presentation/AppTemplate.Api"] = null,
+        #endif*/
+        //#if (!jobsWorker || !publicApi)
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Composition",
@@ -44,8 +48,12 @@ public sealed class LayoutConventionTests
                 "Configuration/Options",
                 //#endif
                 "Contracts/Mapping", "Contracts/Requests", "Contracts/Responses",
-                "Controllers", "Jobs",
+                "Controllers",
+                //#if (!jobsWorker)
+                "Jobs",
+                //#endif
             ],
+        //#endif
         //#if (localAuth)
         ["Src/Infrastructure/AppTemplate.Infrastructure.Auth"] =
             ["Access/Queries", "Access/Tables",
@@ -79,6 +87,12 @@ public sealed class LayoutConventionTests
         #endif*/
         /*#if (webBlazorWasm)
         ["Src/Web/apps/FrameworkSite"] = null,
+        #endif*/
+        /*#if (jobsWorker && !publicApi)
+        ["Src/Presentation/AppTemplate.Worker"] = ["Composition", "Jobs"],
+        #endif*/
+        /*#if (jobsWorker && publicApi)
+        ["Src/Presentation/AppTemplate.Worker"] = ["Jobs"],
         #endif*/
         //#if (dotnetClient)
         ["Src/Clients/AppTemplate.Client"] = null,
@@ -151,13 +165,20 @@ public sealed class LayoutConventionTests
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
-                "Idempotency", "Jobs", "Localization", "Observability", "OpenApi",
+                "Idempotency",
+                //#if (!jobsWorker)
+                "Jobs",
+                //#endif
+                "Localization", "Observability", "OpenApi",
                 "Security",
             ],
         ["Src/Presentation/AppTemplate.Presentation.Core"] =
             ["Jobs", "Localization", "Observability", "Outbound", "Security"],
         /*#if (presentationBlazorServer)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security"],
+        #endif*/
+        /*#if (jobsWorker)
+        ["Src/Presentation/AppTemplate.Worker"] = ["Jobs", "Security"],
         #endif*/
         /*#if (presentationAvalonia && localAuth)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting"],

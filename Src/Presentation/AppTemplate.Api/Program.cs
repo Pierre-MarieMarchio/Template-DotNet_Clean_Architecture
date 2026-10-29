@@ -4,7 +4,9 @@ using AppTemplate.Api.Common.Security;
 //#if (localAuth)
 using AppTemplate.Api.Features.Auth.Composition;
 //#endif
+//#if (!jobsWorker)
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
+//#endif
 /*#if (externalAuth)
 using AppTemplate.Api.Features.ExternalIdentity.Composition;
 #endif*/
@@ -71,7 +73,7 @@ builder.Services.AddScoped<IReminderRecipientDirectory, ExternalIdentityReminder
 //#endif
 
 builder.Services.AddPurgeExpiredIdempotencyKeys();
-//#if (anyFeature)
+//#if (anyFeature && !jobsWorker)
 
 builder.Services.AddDeletedAccountSweep();
 //#endif
@@ -87,8 +89,10 @@ builder.Services.AddControllers();
 
 builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
+//#if (!jobsWorker)
 
 builder.Services.AddBackgroundJobs(builder.Configuration);
+//#endif
 /*#if (localAuth)*/
 
 builder.Services.AddAuthFeature(builder.Configuration);

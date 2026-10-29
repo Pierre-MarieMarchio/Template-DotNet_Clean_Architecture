@@ -1,0 +1,8 @@
+{
+  "kind": "written",
+  "framework": "worker",
+  "name": "AppTemplate.Worker",
+  "generator": "dotnet new worker",
+  "package": "Microsoft.DotNet.Web.ProjectTemplates.10.0",
+  "version": "10.0.14"
+}

@@ -23,9 +23,13 @@ work twice.
 
 Every pass calls an application use case, exactly as a controller would; a job adds a trigger, not
 logic.
-<!--#if (presentationBlazorServer)-->
+<!--#if (presentationBlazorServer && !jobsWorker)-->
 The jobs run in the API alone: the presentation project composes the same use cases and runs none
 of them on a timer.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+The jobs run in the worker alone: the API and every other host compose the same use cases and run
+none of them on a timer.
 <!--#endif-->
 A pass that throws is logged and retried at the next tick, never stops the host, and never stops its
 sibling tasks in the same tick.
@@ -34,6 +38,7 @@ The maintenance purges are also routes under `/api/v1/maintenance`, for an outsi
 behind the `Administrator` policy.
 <!--#endif-->
 
+<!--#if (!jobsWorker)-->
 ## One process: HTTP and jobs
 
 `AppTemplate.Api` serves HTTP and runs the jobs, composed by the one call `AddBackgroundJobs` in
@@ -42,6 +47,26 @@ runs on `PeriodicJob.RunAsync`
 (`Src/Presentation/AppTemplate.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+## The worker
+
+`Src/Presentation/<Project>.Worker` is a generic host that runs the jobs and serves no HTTP
+([ADR 0025](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)). Its `Program.cs` composes the
+features and the modules the passes call, as the API's does, gives every scope no caller, and calls
+`AddBackgroundJobs` from `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs
+are under its own `Features/<Feature>/Jobs/`. The API composes no job and binds no `Jobs` section,
+and keeps the maintenance routes. Each loop runs on `PeriodicJob.RunAsync`
+(`Src/Presentation/AppTemplate.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
+then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
+shutdown.
+
+The worker migrates nothing. In Development the API migrates its database as it starts, and Compose
+starts the worker once the API answers; at release the migration bundles run before either host.
+Its tests are in `Tests/Presentation/<Project>.Worker.UnitTests`: `WorkerCompositionTests` builds the
+worker from its own `Program.cs` with every registration validated and resolves each use case it
+composes in a background scope.
+<!--#endif-->
 
 A pass opens its own scope with `CreateBackgroundScope()`. In that scope `ICurrentUser.UserId`
 throws, since no one is calling, and the audit actor records nobody, since no one made the write.
@@ -105,6 +130,7 @@ explains.
 
 ## Several instances
 
+<!--#if (!jobsWorker)-->
 `Jobs:Enabled` is an instance's role, not a job setting. Leave it `true` on exactly one instance
 and set `Jobs__Enabled=false` on the others: they serve every route, start no loop and bind no job
 section. The leases and idempotent passes cover what still overlaps, a rolling deployment or a
@@ -113,10 +139,30 @@ mistaken double enable, but they are not a substitute for that choice.
 `/health/ready` says nothing about the jobs. The `iterations` counter of each loop, tagged with its
 `outcome`, does ([Observability](observability.md#metrics)): a flat series is a loop that stopped.
 
+A process of its own for the jobs is a worker host beside the API: a `Program.cs` on
+`Host.CreateApplicationBuilder` that composes the same features and modules, gives every scope no
+caller with `AddNoCallerIdentity()`, and calls `AddBackgroundJobs`. The API's `Common/Jobs` and
+`Features/*/Jobs` folders move into it, their namespaces with them, with the `Jobs` settings, and the
+API stops calling `AddBackgroundJobs`.
+<!--#if (localAuth)-->
+The authentication purges move with `AddAuthMaintenanceJobs`, which the worker calls instead.
+<!--#endif-->
+A project generated with `--jobs worker` starts that way.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+Scale the API freely: it runs no pass. Run one worker. A second worker is stood by under each lease
+and repeats the idempotent passes, which the leases and the passes survive, but which is not a
+reason to run two. `Jobs__Enabled=false` leaves a worker idle, binding no job section.
+
+The worker answers no health probe. The `iterations` counter of each loop, tagged with its
+`outcome`, says it runs ([Observability](observability.md#metrics)): a flat series is a loop that
+stopped.
+<!--#endif-->
+
 ## Add a job
 
 **A purge or a sweep joins the maintenance timer**: a use case returning the count it removed,
-registered with `AddMaintenanceTask`, internal to `AppTemplate.Api`, from the feature's own
+registered with `AddMaintenanceTask`, internal to the host that runs the jobs, from the feature's own
 `Features/<Feature>/Jobs/` folder, with its own switch:
 
 ```csharp
@@ -126,19 +172,33 @@ services.AddMaintenanceTask<IPurgeExpiredExportsUseCase>(
     provider => provider.GetRequiredService<IOptions<JobsExportsOptions>>().Value.PurgeEnabled);
 ```
 
+<!--#if (!jobsWorker)-->
 `Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
 the idempotency purge this way.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+`Src/Presentation/<Project>.Worker/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
+the idempotency purge this way.
+<!--#endif-->
 
 **A pass with its own interval is a `BackgroundService`** running `PeriodicJob.RunAsync`, opening
 each pass with `CreateBackgroundScope()`, with options under `Jobs:<Feature>` bound and validated
 only when `Jobs:Enabled` is true, a meter counting `iterations`, and one call from
 `AddBackgroundJobs`.
-<!--#if (reminders)-->
+<!--#if (reminders && !jobsWorker)-->
 `Src/Presentation/AppTemplate.Api/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
 `ReminderBackgroundService` beside it are the model.
 <!--#endif-->
-<!--#if (!reminders)-->
+<!--#if (!reminders && !jobsWorker)-->
 `MaintenanceBackgroundService`, in `Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/`, is
+the model.
+<!--#endif-->
+<!--#if (reminders && jobsWorker)-->
+`Src/Presentation/<Project>.Worker/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
+`ReminderBackgroundService` beside it are the model.
+<!--#endif-->
+<!--#if (!reminders && jobsWorker)-->
+`MaintenanceBackgroundService`, in `Src/Presentation/<Project>.Worker/Features/Maintenance/Jobs/`, is
 the model.
 <!--#endif-->
 
@@ -164,5 +224,10 @@ A maintenance task switched off logs a warning on every tick saying what accumul
 
 ## Decisions
 
+<!--#if (!jobsWorker)-->
 - [0011 Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
+<!--#endif-->
+<!--#if (jobsWorker)-->
+- [0025 Jobs run in a worker, under a lease](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)
+<!--#endif-->
 - [0006 Events after commit, without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md): why a sweep backs every event.

@@ -817,6 +817,9 @@ internal static class Tasks
             ["EXTERNAL_AUTH_AUTHORITY"] = "https://identity-provider.invalid/",
             ["EXTERNAL_AUTH_AUDIENCE"] = "end-to-end",
             //#endif
+            //#if (externalAuth && webServerRendering)
+            ["EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID"] = "end-to-end",
+            //#endif
             //#if (files)
             ["JOBS_FILES_INSPECT_INTERVAL"] = "00:00:10",
             //#endif

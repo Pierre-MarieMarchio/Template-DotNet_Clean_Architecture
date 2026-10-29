@@ -46,11 +46,6 @@
       "shortName": "",
       "isHidden": true
     },
-    "serverRenderingWithExternalAuthNotYetGenerated": {
-      "longName": "server-rendering-with-external-auth-not-yet-generated",
-      "shortName": "",
-      "isHidden": true
-    },
     "presentationName": {
       "longName": "presentation-name",
       "shortName": ""

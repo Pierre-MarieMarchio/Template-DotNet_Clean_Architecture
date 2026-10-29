@@ -14,7 +14,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "openapi-fetch": "0.17.0"
+    "openapi-fetch": "0.17.0",
+    "openid-client": "6.8.8"
   },
   "devDependencies": {
     "@app-template/eslint-config": "workspace:*",

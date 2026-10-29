@@ -20,6 +20,19 @@ alone, never the domain, the application layer or a module, so it composes no us
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
 <!--#endif-->
+<!--#if (presentationWpf)-->
+`Src/Presentation/<Project>.<Name>` is a WPF desktop app for Windows on the MVVM pattern, with
+CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
+client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI document
+([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). The app targets
+`net10.0-windows` and holds its windows alone. Its view models, its settings, its host and its
+session are in `Src/Presentation/<Project>.<Name>.Core`, on `net10.0`, which references that client
+alone, never the domain, the application layer or a module, so it composes no use case of its own
+([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+The app builds on every system, with `EnableWindowsTargeting`, and runs on Windows. Its tests are in
+`Tests/Presentation/<Project>.<Name>.Core.UnitTests`, against the `.Core` project, and run on every
+system.
+<!--#endif-->
 
 ## Creating the project
 
@@ -41,6 +54,17 @@ descriptor pins, in a template hive of its own, and keeps what it writes under `
 already holds is kept. It then adds the project and its tests to the solution and formats them. The
 step needs the network once. `bootstrap` later writes the client from the API's document with
 `dotnet run Tools/Tasks.cs api-client`.
+<!--#endif-->
+<!--#if (presentationWpf)-->
+The app and its `.Core` project come whole with the project. `dotnet new wpf` ships with the .NET
+SDK alone, so no version of it can be pinned: the app is written in the shape it gives, a `WinExe`
+on `net10.0-windows` with `UseWPF`, `App.xaml`, `MainWindow.xaml` and their code-behind. `App.xaml`
+names no start-up window: `App.xaml.cs` builds the host and shows the main window with its view
+model. The generator's assembly information file is left out, its theme attribute serving custom
+control themes the app has none of. `bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`, which
+runs no template: it adds the app, its `.Core` project and their tests to the solution with the .NET
+client, and formats them, without the network. `bootstrap` later writes the client from the API's
+document with `dotnet run Tools/Tasks.cs api-client`.
 <!--#endif-->
 
 Commit the project after bootstrap: from then on its pages are this project's own, and
@@ -184,22 +208,26 @@ revalidation.
 <!--#endif-->
 `NoHost_ReferencesAnotherHost` keeps it from reaching the API's jobs and migrations.
 <!--#endif-->
-<!--#if (presentationAvalonia)-->
+<!--#if (presentationAvalonia || presentationWpf)-->
 ## Calling the API
 
+<!--#if (presentationAvalonia)-->
+The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts.
+<!--#else-->
+`App.xaml.cs` builds the generic host of the `.Core` project's `Common/Hosting/AppHost.cs` before it
+shows the main window, and disposes it when the app exits.
+<!--#endif-->
 <!--#if (localAuth)-->
-The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts: it binds and
-validates the `Api` settings, registers the client with `AddApiClient`, and the view models. A view
-model asks for `ApiClient` and calls a route as the API's document names it:
+The host binds and validates the `Api` settings, registers the client with `AddApiClient`, and the
+view models. A view model asks for `ApiClient` and calls a route as the API's document names it:
 
 ```csharp
 var me = await api.Api.V1.Auth.Me.GetAsync(cancellationToken: cancellationToken);
 ```
 <!--#else-->
-The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts: it binds and
-validates the `Api` and `SignIn` settings, registers the session, the client with `AddApiClient`,
-and the view models. A view model asks for `ApiClient` and calls a route as the API's document
-names it:
+The host binds and validates the `Api` and `SignIn` settings, registers the session, the client with
+`AddApiClient`, and the view models. A view model asks for `ApiClient` and calls a route as the
+API's document names it:
 
 ```csharp
 await api.Api.V1.ExternalIdentities[userId].DeleteAsync(cancellationToken: cancellationToken);
@@ -220,6 +248,10 @@ once, shared by every call waiting on it, and replays the call. The refresh toke
 request body, as a client outside a browser does, and is held in memory, so a restart signs out.
 Signing out posts it to `POST /api/v1/auth/logout`. An account with a second factor is not signed
 in: the window does not ask for it.
+<!--#if (presentationWpf)-->
+WPF binds no password box, so `MainWindow.xaml.cs` hands what is typed to the view model and clears
+the box once the view model empties the password.
+<!--#endif-->
 <!--#endif-->
 <!--#if (externalAuth)-->
 The main window signs its user in at your OpenID Connect provider, the one the API trusts.
@@ -248,6 +280,9 @@ leaves `SignIn:Authority` and `SignIn:ClientId` empty, so the app refuses to sta
 set. The [configuration reference](../reference/configuration.md#api) has the rows.
 <!--#endif--> Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
 app with `dotnet run --project Src/Presentation/<Project>.<Name>`.
+<!--#if (presentationWpf)-->
+The app runs on Windows alone; elsewhere the solution still builds it and runs the `.Core` tests.
+<!--#endif-->
 
 ## Tests
 
@@ -265,8 +300,14 @@ browser's request to the listener; `AppHostTests` proves the client sends the se
 `MainViewModelTests` drives the window's sign-in and sign-out; `SignInOptionsValidatorTests` holds
 the setting. No test reaches a real provider.
 <!--#endif-->
+<!--#if (presentationAvalonia)-->
 The views are not tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app
 to the client.
+<!--#else-->
+They test the `.Core` project, and run on every system; the windows and their code-behind are not
+tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app to its `.Core` project, and
+that project to the client.
+<!--#endif-->
 <!--#endif-->
 
 ## Decisions

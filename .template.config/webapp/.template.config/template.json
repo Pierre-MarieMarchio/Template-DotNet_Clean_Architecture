@@ -155,7 +155,7 @@
       "displayName": "Project holds the .NET client",
       "datatype": "bool",
       "defaultValue": "false",
-      "description": "The project holds Src/Clients/<project>.Client already, generated with --presentation avalonia or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
+      "description": "The project holds Src/Clients/<project>.Client already, generated with --presentation avalonia, --presentation wpf or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia or wpf: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
     },
     "auth": {
       "type": "parameter",

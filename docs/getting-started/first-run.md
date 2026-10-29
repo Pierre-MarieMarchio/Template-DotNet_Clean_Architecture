@@ -46,6 +46,11 @@ It first creates the presentation project's views with `dotnet new avalonia.mvvm
 project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
 and last writes the .NET client from the OpenAPI reference.
 <!--#endif-->
+<!--#if (presentationWpf)-->
+It first adds the presentation project, its `.Core` project and their tests to the solution
+([Presentation project](../features/presentation.md#creating-the-project)), and last writes the
+.NET client from the OpenAPI reference.
+<!--#endif-->
 <!--#if (jobsWorker)-->
 It also adds the worker's project in `Src/Presentation`, written in the shape of `dotnet new worker`,
 to the solution with its tests.

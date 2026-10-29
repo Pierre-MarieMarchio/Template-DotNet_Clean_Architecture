@@ -173,7 +173,7 @@ Read by the presentation project alone, for the keys that protect its session co
 | `KeysDirectory` | string | — | **Required outside Development.** An absolute folder every instance shares and that outlives a restart; Compose mounts a volume at `/data-protection-keys`. |
 
 <!--#endif-->
-<!--#if (presentationAvalonia)-->
+<!--#if (presentationAvalonia || presentationWpf)-->
 ## Presentation project
 
 ### `Api`

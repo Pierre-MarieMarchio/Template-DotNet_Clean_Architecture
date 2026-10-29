@@ -49,6 +49,10 @@
       "tags": ["presentation-avalonia"]
     },
     {
+      "paths": [".template.config/starters/wpf/**"],
+      "tags": ["presentation-wpf"]
+    },
+    {
       "paths": [".template.config/starters/worker/**"],
       "tags": ["jobs-worker"]
     },

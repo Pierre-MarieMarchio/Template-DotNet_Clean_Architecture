@@ -440,12 +440,12 @@ public sealed class ModuleDependencyTests
         ProjectReferenceGraph.ProjectsInLayer("Clients")
             .Concat(ProjectReferenceGraph.Clients.Where(client => !withinTheClients.Contains(client.Name)))
             .SelectMany(client => client.References
-                .Where(reference => !withinTheClients.Contains(reference))
+                .Where(reference => !withinTheClients.Contains(reference) && reference != $"{client.Name}.Core")
                 .Select(reference => $"{client.RelativePath} -> {reference}"))
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
                 "A client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
-                + "that calls the API through it: a reference to a domain, application, infrastructure or other presentation "
-                + "project would ship the server's code to it (ADR 0022, ADR 0023).");
+                + "that calls the API through it, with the <Name>.Core that holds its view models: a reference to a domain, "
+                + "application, infrastructure or other presentation project would ship the server's code to it (ADR 0022, ADR 0023).");
     }
 }

@@ -56,7 +56,7 @@ Which page answers your question, and where a new page goes.
 <!--#if (presentationBlazorServer)-->
 | [Presentation project](features/presentation.md) | the server-rendered project beside the API, and signing people in to it |
 <!--#endif-->
-<!--#if (presentationAvalonia)-->
+<!--#if (presentationAvalonia || presentationWpf)-->
 | [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
 <!--#endif-->
 

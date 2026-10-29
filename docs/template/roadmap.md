@@ -28,9 +28,9 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
    ([#128](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/128)).
    `--web-rendering spa|ssr` and `cleanarch-webapp --rendering`, refused for the starters whose
    generator only makes single-page apps, with Angular's server form (`ng new --ssr`) on its own
-   Node server and a nonce per response, are in for a project without accounts; then the session
-   its server keeps for local accounts, then for an external provider, then React Router's server
-   form from its `node-custom-server` template.
+   Node server and a nonce per response, and the session that server keeps for local accounts, are
+   in; then the session for an external provider, then React Router's server form from its
+   `node-custom-server` template.
 
 ## Later
 

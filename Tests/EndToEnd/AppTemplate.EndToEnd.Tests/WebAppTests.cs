@@ -73,6 +73,26 @@ public sealed class WebAppTests
             $"{site.BaseAddress} sent one nonce in two responses, so a nonce no longer proves a script came with its page.");
     }
 
+    //#if (localAuth)
+    [Theory]
+    [MemberData(nameof(WebAppPorts))]
+    public async Task AServerRenderedApp_RefusesACallThatChangesStateWithoutXCsrf_WhereASinglePageAppRelaysIt(string portSetting)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var site = Stack.Client(Stack.WebApp(portSetting));
+        bool serverRendered = Nonces((await PageAsync(site, cancellationToken)).Allowed).Any();
+
+        using var unmarked = await Wire.SendAsync(site, HttpMethod.Post, Refusal.Path, cancellationToken);
+        using var marked = new HttpRequestMessage(HttpMethod.Post, new Uri(Refusal.Path, UriKind.Relative));
+        marked.Headers.Add("X-CSRF", "1");
+        using var relayed = await site.SendAsync(marked, cancellationToken);
+
+        var refusal = await Wire.ExpectJsonAsync(unmarked, serverRendered ? HttpStatusCode.Forbidden : Refusal.Status, cancellationToken);
+        Wire.Text(refusal, "code").ShouldBe(serverRendered ? "session.csrfHeaderRequired" : Refusal.Code);
+        Wire.Text(await Wire.ExpectJsonAsync(relayed, Refusal.Status, cancellationToken), "code").ShouldBe(Refusal.Code);
+    }
+
+    //#endif
     private static async Task<(string Html, string[] Allowed)> PageAsync(HttpClient site, CancellationToken cancellationToken)
     {
         using var page = await Wire.SendAsync(site, HttpMethod.Get, string.Empty, cancellationToken);

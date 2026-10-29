@@ -37,6 +37,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     private bool _identity = true;
     private bool _initialised;
     private ProcessResult _bootstrap = new(0, string.Empty);
+    private Action? _duringBootstrap;
     private string? _failingTask;
 
     public GuidedFlowTests()
@@ -221,6 +222,52 @@ public sealed partial class GuidedFlowTests : IDisposable
         left.ShouldContain(ProjectSetup.BootstrapCommand);
         left.ShouldContain("git commit -m \"chore: bootstrap\"");
         left.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+    }
+
+    [Fact]
+    public void AnInterruptDuringTheSetUp_SkipsTheStepsLeft_AndClosesOnWhatIsLeftToRun()
+    {
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 13);
+        var launcher = new Launcher(console, _root, interactive: true, _processes);
+        _duringBootstrap = () => launcher.Interrupt().ShouldBeTrue();
+
+        launcher.Run(["new", "--template-source", Repository.Root]).ShouldBe(Launcher.StoppedExitCode);
+
+        string output = Plain(console);
+        Order(output, "◊  First commit done", "◊  Bootstrap done", "▲  Bootstrap commit skipped", "Skipped because the setup was stopped.", "▲  Copy .env skipped", "└  Almost there. Now run:");
+        string left = Closing(output);
+        Order(left, "cd ./Demo", "git add -A", "git commit -m \"chore: bootstrap\"", ProjectSetup.EnvironmentCommand);
+        left.ShouldNotContain("git init");
+        _processes.CommandLines.ShouldNotContain(line => line.StartsWith("git commit -q -m chore: bootstrap", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnInterruptedSetUpWithoutTheFirstCommit_LeavesGitInitToRun_OnlyOutsideARepository(bool insideARepository)
+    {
+        _initialised = insideARepository;
+        TestConsole console = Terminal();
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 11);
+        console.Input.PushKey(ConsoleKey.Spacebar);
+        PushEnters(console, 2);
+        var launcher = new Launcher(console, _root, interactive: true, _processes);
+        _duringBootstrap = () => launcher.Interrupt();
+
+        launcher.Run(["new", "--template-source", Repository.Root]).ShouldBe(Launcher.StoppedExitCode);
+
+        string left = Closing(Plain(console));
+        Order(left, "git commit -m \"chore: bootstrap\"", ProjectSetup.EnvironmentCommand);
+        left.Contains("git init", StringComparison.Ordinal).ShouldBe(!insideARepository);
+    }
+
+    [Fact]
+    public void AnInterruptOutsideTheSetUp_IsLeftToEndTheProcess()
+    {
+        new Launcher(new TestConsole(), _root, interactive: false, _processes).Interrupt().ShouldBeFalse();
     }
 
     [Fact]
@@ -513,6 +560,12 @@ public sealed partial class GuidedFlowTests : IDisposable
     [GeneratedRegex(@"\x1b\[[0-9;?]*[ -/]*[@-~]")]
     private static partial Regex Ansi();
 
+    private ProcessResult Bootstrapped()
+    {
+        _duringBootstrap?.Invoke();
+        return _bootstrap;
+    }
+
     private void Run(TestConsole console, params string[] arguments) =>
         new Launcher(console, _root, interactive: true, _processes).Run([.. arguments, "--template-source", Repository.Root]).ShouldBe(0, Plain(console));
 
@@ -567,7 +620,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         {
             return _failingTask is not null && call.Arguments.Contains(_failingTask)
                 ? new ProcessResult(1, ".dockerignore: the lines to place the edit by occur 2 times, not once, so no file was changed:")
-                : _bootstrap;
+                : Bootstrapped();
         }
 
         if (call.Arguments[1] == "cleanarch-presentation")

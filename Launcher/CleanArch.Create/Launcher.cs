@@ -62,6 +62,8 @@ public sealed partial class Launcher
     private readonly string _workingDirectory;
     private readonly bool _interactive;
     private readonly IProcessRunner _processes;
+    private volatile bool _settingUp;
+    private volatile bool _stopped;
 
     public Launcher(IAnsiConsole console, string workingDirectory, bool interactive)
         : this(console, workingDirectory, interactive, new ProcessRunner())
@@ -74,6 +76,14 @@ public sealed partial class Launcher
         _workingDirectory = workingDirectory;
         _interactive = interactive;
         _processes = processes;
+    }
+
+    public const int StoppedExitCode = 130;
+
+    public bool Interrupt()
+    {
+        _stopped = _settingUp;
+        return _stopped;
     }
 
     public int Run(IReadOnlyList<string> arguments)
@@ -122,7 +132,7 @@ public sealed partial class Launcher
                     break;
             }
 
-            return 0;
+            return _stopped ? StoppedExitCode : 0;
         }
         catch (LauncherException error)
         {
@@ -419,11 +429,19 @@ public sealed partial class Launcher
     {
         var setup = new ProjectSetup(_processes, target, Version(session.Source), session.Conversation.EchoesTheTemplateEngine ? _console.Verbatim : null);
         var outcomes = new List<SetupOutcome>();
-        foreach (SetupStep step in ProjectSetup.Steps.Where(step => chosen.Contains(step.Title)))
+        _settingUp = true;
+        try
         {
-            SetupOutcome outcome = session.Conversation.Spin(step.Running, () => setup.Run(step, outcomes));
-            session.Conversation.Reported(outcome.Text, outcome.Status == SetupStatus.Done, outcome.Why, outcome.Rerun);
-            outcomes.Add(outcome);
+            foreach (SetupStep step in ProjectSetup.Steps.Where(step => chosen.Contains(step.Title)))
+            {
+                SetupOutcome outcome = _stopped ? setup.Stopped(step) : session.Conversation.Spin(step.Running, () => setup.Run(step, outcomes));
+                session.Conversation.Reported(outcome.Text, outcome.Status == SetupStatus.Done, outcome.Why, outcome.Rerun);
+                outcomes.Add(outcome);
+            }
+        }
+        finally
+        {
+            _settingUp = false;
         }
 
         return outcomes;

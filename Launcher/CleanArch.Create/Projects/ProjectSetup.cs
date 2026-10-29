@@ -97,6 +97,13 @@ public sealed class ProjectSetup
         }
     }
 
+    public SetupOutcome Stopped(SetupStep step)
+    {
+        List<string> rerun = Rerun(step);
+        bool commit = step == FirstCommit || step == BootstrapCommit;
+        return new SetupOutcome(step, SetupStatus.Skipped, "Skipped because the setup was stopped.", commit && !InsideAWorkTree() ? [_init, .. rerun] : rerun);
+    }
+
     public SetupOutcome Run(SetupStep step, IReadOnlyList<SetupOutcome> before)
     {
         try

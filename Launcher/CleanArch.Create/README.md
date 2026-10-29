@@ -43,8 +43,9 @@ Going back reopens the previous question with its answer selected, erases the an
 asks the following questions again, so a changed answer changes what they offer; a question answered
 for you, as `--examples none` after `--auth none`, is passed over. A summary of every option comes
 before anything is written; answering No to it goes back to the last question, and when every answer
-came as a flag it stops without writing anything. `ctrl+c` stops at any point. A spinner runs while
-the package installs and `dotnet new` generates, whose output shows only when it fails. With
+came as a flag it stops without writing anything. `ctrl+c` stops at any point: before the summary
+nothing is written, and during the setup the launcher prints the commands that finish it. A spinner
+runs while the package installs and `dotnet new` generates, whose output shows only when it fails. With
 `--yes`, without a terminal, or with `NO_COLOR` set, the output stays plain: no banner, no thread, no
 spinner, the template engine's own lines.
 

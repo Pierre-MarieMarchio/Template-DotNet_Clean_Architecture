@@ -3,6 +3,11 @@ using Spectre.Console;
 
 IAnsiConsole console = Terminal.Open();
 bool interactive = !Console.IsInputRedirected && console.Profile.Capabilities.Interactive;
-Console.CancelKeyPress += (_, _) => console.Cursor.Show();
+var launcher = new Launcher(console, Environment.CurrentDirectory, interactive);
+Console.CancelKeyPress += (_, stop) =>
+{
+    stop.Cancel = launcher.Interrupt();
+    console.Cursor.Show();
+};
 
-return new Launcher(console, Environment.CurrentDirectory, interactive).Run(args);
+return launcher.Run(args);

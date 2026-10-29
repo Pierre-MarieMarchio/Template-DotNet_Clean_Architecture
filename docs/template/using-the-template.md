@@ -151,7 +151,7 @@ error under warnings as errors. Pick a name with no such segment.
 |---|---|---|---|
 | `--presentation` | `none`, `blazor-server`, `avalonia`, `wpf`, `mcp` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none`; `wpf` is a desktop app for Windows that calls the API the same way, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.<name>.Core` so that its tests run on every system, refused with `--auth none`; `mcp` is an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names; under `--auth local` it brings the access keys, which no other shape carries; refused with `--auth none` |
 | `--presentation-name` | PascalCase text | `Portal`, `Mcp` for `--presentation mcp` | the presentation project's name after the solution's, its Compose service and port variable |
-| `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
+| `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
 | `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` and `react-router` |
@@ -169,13 +169,11 @@ writes the app and never changes meaning:
 
 | Value | Generator | Template or flags | Dev port |
 |---|---|---|---|
-| `vue` | `create-vue`, Vue's official CLI | TypeScript, Vue Router, Vitest, ESLint | 5173 |
 | `vite-react` | `create-vite`, Vite's official CLI | `react-ts` | 5173 |
 | `vite-vue` | `create-vite` | `vue-ts` | 5173 |
 | `vite-svelte` | `create-vite` | `svelte-ts` | 5173 |
 | `react-router` | `create-react-router`, React Router's official CLI | its default template at a fixed commit, single-page mode (`ssr: false`); with `ssr`, its `node-custom-server` template at the same commit, every route rendered per request on its Express server | 5173 |
 | `angular` | `ng new`, the Angular CLI | standalone, routing, CSS, no server-side rendering, Vitest; with `ssr`, `--ssr` and every route rendered per request | 4200 |
-| `react` | the same app as `vite-react`, under the name it had first; kept until the next major version | | 5173 |
 | `blazor-wasm` | `dotnet new blazorwasm`, Microsoft's template | `--auth None --no-https`, or `--auth Individual --no-https` under `--auth external`, signing the user in at the provider; the project's own `Program.cs` composing the .NET client, which `cleanarch-webapp` brings with the app | 8081, through the stack |
 
 What an option leaves out is absent, not disabled: no project, file, setting, table, test or page names

@@ -10,10 +10,8 @@ public sealed class GuidedConversation : Conversation
 
     private static readonly IReadOnlyDictionary<string, string> _accents = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["react"] = "cyan",
         ["vite-react"] = "cyan",
         ["angular"] = "red",
-        ["vue"] = "green",
         ["vite-vue"] = "green",
         ["vite-svelte"] = "orangered1",
         ["react-router"] = "indianred1",

@@ -28,7 +28,7 @@ public sealed class OfferTests
     [InlineData("webAudience", "public", "adminWebNeedsAccounts")]
     public void AuthNone_LeavesOneValue_AndTheRefusalThatSaysWhy(string symbol, string value, string refusal)
     {
-        var known = new Dictionary<string, string> { ["auth"] = "none", ["web"] = "react" };
+        var known = new Dictionary<string, string> { ["auth"] = "none", ["web"] = "vite-react" };
 
         Offer offer = Offer.For(_project, Option(_project, symbol), known, Launcher.ProjectAskedWhen);
 
@@ -50,7 +50,7 @@ public sealed class OfferTests
         var known = new Dictionary<string, string> { ["examples"] = "none", ["files"] = Condition.False, ["webAudience"] = "admin" };
 
         Offer.For(_project, Option(_project, "auth"), known, Launcher.ProjectAskedWhen).Values.ShouldBe(["local", "external", "none"]);
-        Offer.For(_project, Option(_project, "auth"), new Dictionary<string, string>(known) { ["web"] = "react" }, Launcher.ProjectAskedWhen)
+        Offer.For(_project, Option(_project, "auth"), new Dictionary<string, string>(known) { ["web"] = "vite-react" }, Launcher.ProjectAskedWhen)
             .Values.ShouldBe(["local", "external"]);
     }
 
@@ -93,7 +93,7 @@ public sealed class OfferTests
             .Values.ShouldBe(["spa", "ssr"]);
         Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = framework }, _alwaysAsked)
             .Values.ShouldBe(["spa", "ssr"]);
-        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "vue" }, _alwaysAsked)
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "vite-vue" }, _alwaysAsked)
             .Values.ShouldBe(["spa"]);
     }
 

@@ -13,16 +13,18 @@ first option added, and a user would be asked questions the engine no longer acc
 
 - **The questions come from the templates' files.** Each visible option of `ide.host.json`, in its
   order and under its label, with the choices, defaults and descriptions of `template.json` and the
-  long names of `dotnetcli.host.json`. The launcher embeds the three manifests of the commit it is
-  packed from; `--template-source` reads them from a checkout or a `.nupkg` instead.
+  long names of `dotnetcli.host.json`. The launcher embeds the manifests of the commit it is packed
+  from; `--template-source` reads them from a checkout or a `.nupkg` instead.
 - **A refusal is evaluated, not restated.** The launcher evaluates each refusal's `isRequired`
   condition, and the computed symbols it names, on the answers; it shows the refusal's description
   and asks again the options its condition reads.
 - **A question offers only what some answer to the rest can generate.** Before each question the
   launcher evaluates the refusals over every value of the options not answered yet, and leaves out a
   choice no such value saves: `--database mysql` always, `--examples all` after `--auth none`. A
-  question left with one choice is answered with it, under the description of the refusal that
-  leaves it.
+  question left with one choice is answered with it and the answer that leaves it, as "the only
+  option when Authentication is none", or with the refusal's description when no answer does.
+  Without questions it is taken the same way: with `--yes` for any option, rather than its default,
+  and without `--yes` for a choice that has no default.
 - **The launcher and the template package share one version**, the `templateVersion` of
   `.template.config/template.json`, and the launcher installs that version of the package.
 - **What the manifests cannot say stays in the launcher and is tested against them**: the web app's

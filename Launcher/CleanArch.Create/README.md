@@ -20,8 +20,10 @@ the answer that leaves it. A combination of flags the template refuses is explai
 is written, and its options are asked again. An output folder that already holds files, or an app
 name already taken, is refused at its own question. It installs the `CleanArch.WebApi.Templates`
 package at its own version when another one or none is installed, generates the project, then prints
-the equivalent commands, with `--template-source` and `--hive` when they were given, and the first
-steps of the project's `README.md`, as plain text.
+the commands that do the same, with `--template-source` and `--hive` when they were given, and the
+first steps of the project's `README.md`, as plain text. After questions, those commands are the
+launcher's own, with `--yes`, and `dotnet new`'s; without questions, only `dotnet new`'s. The last
+line says `All set.`, or `Almost there.` when a step did not succeed.
 
 In a terminal it opens on a banner and asks each question on a thread, each choice with its
 description beside it and the default selected, and every answer stays on the thread. The thread
@@ -101,7 +103,10 @@ Each asks on the same thread, with the same summary, as a new project.
 ## Without questions
 
 Every question is a flag named like the template's option; `--yes` takes the default of each one not
-given. Without a terminal, every answer is a flag or `--yes` is passed. `--help` lists the options
+given, or the only value the template leaves it, as `--examples none` and `--files false` after
+`--auth none`. Without `--yes`, a choice with no default takes its only value the same way. Each value
+taken this way is printed with the answer that leaves it. Without a terminal, every answer is a flag
+or `--yes` is passed. `--help` lists the options
 with the values the template generates and their defaults.
 
 ```bash
@@ -114,7 +119,7 @@ dnx CleanArch.Create presentation -n Portal --yes
 |---|---|
 | `-n`, `--name` | the project, app, package or presentation name |
 | `-o`, `--output` | where `new` writes the project, `./<name>` by default |
-| `-y`, `--yes` | the default of every option not given |
+| `-y`, `--yes` | the default of every option not given, or the only value the template leaves it |
 | `--setup` | after `new`, every step of [Set the project up](#set-the-project-up), without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |
 | `--hive <folder>` | the template engine's settings folder, passed as `--debug:custom-hive` |

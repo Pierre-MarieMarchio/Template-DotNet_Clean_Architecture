@@ -705,9 +705,34 @@ internal static class NewUseCase
 
         output.WriteLine("  - its dependencies, in the primary constructor beside the validator");
         output.WriteLine("  - one unit test per decision the body adds, each refusal with its control");
+        bool hasApi = Directory.Exists(Path.Combine(root, "Src", "Presentation", $"{p}.Api"));
+
         //#if (api)
-        output.WriteLine("  - an error code of its own: its row in docs/reference/api.md, which the error-code tests read");
+        if (hasApi)
+        {
+            output.WriteLine("  - an error code of its own: its row in docs/reference/api.md, which the error-code tests read");
+        }
+
         //#endif
+        string page = $"docs/features/{Kebab(f)}.md";
+
+        if (!hasApi)
+        {
+            output.WriteLine();
+            output.WriteLine($"To offer it, inject I{u}UseCase {field} by hand where a host serves {f}, under:");
+
+            foreach (string host in Hosts(root))
+            {
+                output.WriteLine($"  Src/Presentation/{host}/");
+            }
+
+            if (File.Exists(Path.Combine(root, page)))
+            {
+                output.WriteLine($"and add the operation to {page}.");
+            }
+
+            return;
+        }
 
         string controller = $"Src/Presentation/{p}.Api/Features/{f}/Controllers/{f}Controller.cs";
         string where = File.Exists(Path.Combine(root, controller))
@@ -746,12 +771,23 @@ internal static class NewUseCase
         output.WriteLine();
         output.WriteLine("Then rewrite the OpenAPI reference the contract test compares:  dotnet run Tools/Tasks.cs openapi");
 
-        string page = $"docs/features/{Kebab(f)}.md";
-
         if (File.Exists(Path.Combine(root, page)))
         {
             output.WriteLine($"and add the route to {page}.");
         }
+    }
+
+    private static IEnumerable<string> Hosts(string root)
+    {
+        string presentation = Path.Combine(root, "Src", "Presentation");
+
+        return Directory.Exists(presentation)
+            ? Directory.GetDirectories(presentation)
+                .Where(folder => File.Exists(Path.Combine(folder, "Program.cs")))
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .Order(StringComparer.Ordinal)
+            : [];
     }
 
     private static List<string> Action(Spec spec)
@@ -864,6 +900,7 @@ internal static class NewUseCase
             DtoCases(scratch, Expect);
             ManifestCases(scratch, Expect);
             RollbackCases(scratch, Expect);
+            WithoutTheApiCases(scratch, Expect);
         }
         finally
         {
@@ -1178,6 +1215,30 @@ internal static class NewUseCase
         File.WriteAllText(brokenManifest, "{ \"feature\": \"Orders\", \"files\": [] }");
 
         ExpectRefusal(broken, ["Invoices", "ApproveInvoice", "--kind", "command"], "does not read as the manifest of Invoices", expect);
+    }
+
+    private static void WithoutTheApiCases(string scratch, Action<bool, string> expect)
+    {
+        foreach (string[] args in new[] { new[] { "ApproveInvoice", "--kind", "command" }, ["GetInvoiceTotals", "--kind", "query"] })
+        {
+            string root = NewTree(scratch);
+            string label = string.Join(' ', args);
+
+            Directory.Delete(Path.Combine(root, "Src/Presentation/Acme.Api"), recursive: true);
+            Directory.CreateDirectory(Path.Combine(root, "Src/Presentation/Acme.Portal"));
+            File.WriteAllText(Path.Combine(root, "Src/Presentation/Acme.Portal/Program.cs"), "builder.Services.AddInvoices();\n");
+
+            var result = Invoke(root, ["Invoices", .. args]);
+
+            expect(result.Code == 0, $"[{label}] without the API was refused: {result.Error}");
+            expect(
+                !Regex.IsMatch(result.Output, @"\bApi\b|api\.md|OpenAPI|openapi|HTTP|Controller", RegexOptions.None, TimeSpan.FromSeconds(2)),
+                $"[{label}] without the API printed an instruction about it: {result.Output}");
+            expect(
+                result.Output.Contains("Src/Presentation/Acme.Portal/", StringComparison.Ordinal),
+                $"[{label}] without the API did not name the host that serves the feature.");
+            expect(!Directory.Exists(Path.Combine(root, "Src/Presentation/Acme.Api")), $"[{label}] without the API wrote into it.");
+        }
     }
 
     private static void RollbackCases(string scratch, Action<bool, string> expect)

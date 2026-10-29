@@ -42,6 +42,23 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
+    public void Yes_TakesTheOnlyValueTheTemplateLeaves_AsTheQuestionsDo()
+    {
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var questionnaire = new Questionnaire(console, interactive: false, yes: true);
+
+        Dictionary<string, string> answers = questionnaire.Answer(
+            _project, new Dictionary<string, string> { ["auth"] = "none" }, _nothing, Launcher.ProjectAskedWhen);
+
+        answers["examples"].ShouldBe("none");
+        answers["files"].ShouldBe("false");
+        answers["database"].ShouldBe("postgresql");
+        _project.RefusalsFor(answers).ShouldBeEmpty();
+        console.Output.ShouldContain("Example features: none (the only option when Authentication is none)");
+    }
+
+    [Fact]
     public void Yes_AsksForTheWebAppsName_OnceThereIsOne()
     {
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
@@ -53,27 +70,43 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
+    public void Yes_AnOptionWithoutADefault_IsNamed_AsOneYesCannotChoose()
+    {
+        TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
+        var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false" };
+
+        LauncherException error = Should.Throw<LauncherException>(() => questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>()));
+
+        error.Message.ShouldBe("--yes can't choose these, which have no default: --framework. Pass them as options.");
+    }
+
+    [Fact]
     public void WithoutATerminal_ARefusedCombination_IsExplainedAndNotGenerated()
     {
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
         LauncherException error = Should.Throw<LauncherException>(() =>
-            questionnaire.Answer(_project, new Dictionary<string, string> { ["auth"] = "none", ["files"] = "false" }, _nothing, Launcher.ProjectAskedWhen));
+            questionnaire.Answer(
+                _project, new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false" }, _nothing, Launcher.ProjectAskedWhen));
 
         error.Message.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "authNoneNeedsExamplesNone").Explanation);
         error.Message.ShouldNotContain("--files false.");
     }
 
     [Fact]
-    public void WithoutATerminal_AChoiceOfOneValue_IsTakenWithoutAFlag()
+    public void WithoutATerminal_AChoiceOfOneValue_IsTakenWithoutAFlag_AndSaysWhy()
     {
         TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
-        var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: false);
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var questionnaire = new Questionnaire(console, interactive: false, yes: false);
         var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false" };
 
         Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
 
         presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop", "--auth", "none", "--examples", "none", "--files", "false"]);
+        console.Output.ShouldContain("Framework: blazor-server (the only option when Project authentication is none)");
     }
 
     [Theory]
@@ -105,6 +138,7 @@ public sealed class QuestionnaireTests
             Launcher.ProjectAskedWhen);
 
         console.Output.ShouldContain("--auth none refuses the example features");
+        console.Output.ShouldContain("Asking again: Authentication, Example features.");
         answers["auth"].ShouldBe("none");
         answers["examples"].ShouldBe("none");
         _project.RefusalsFor(answers).ShouldBeEmpty();
@@ -212,8 +246,9 @@ public sealed class QuestionnaireTests
         answers["web"].ShouldBe("placeholder");
         answers["webAudience"].ShouldBe("public");
         _project.RefusalsFor(answers).ShouldBeEmpty();
-        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "authNoneNeedsExamplesNone").Explanation);
-        console.Output.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "adminWebNeedsAccounts").Explanation);
+        console.Output.ShouldContain("none · the only option when Authentication is none");
+        console.Output.ShouldContain("public · the only option when Authentication is none");
+        console.Output.ShouldNotContain("add --examples none");
         _project.CommandArguments(answers).ShouldBe(["--auth", "none", "--files", "false", "--examples", "none", "--web", "placeholder"], ignoreOrder: true);
     }
 
@@ -246,6 +281,6 @@ public sealed class QuestionnaireTests
 
         answers["audience"].ShouldBe("public");
         console.Output.ShouldNotContain("A back office");
-        console.Output.ShouldContain(webApp.Refusals.Single(refusal => refusal.Symbol == "adminNeedsAccounts").Explanation);
+        console.Output.ShouldContain("public · the only option when Project authentication is none");
     }
 }

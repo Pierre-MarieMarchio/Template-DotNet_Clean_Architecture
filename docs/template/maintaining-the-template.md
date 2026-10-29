@@ -549,6 +549,7 @@ and the template package leave the folder out, and `TemplatePackagingTests` hold
 |---|---|
 | Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) gives the rules an option and a refusal keep |
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
+| Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
 | Packages | `Spectre.Console`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
 | Gate | `verify` restores, formats, builds and tests the launcher's solution after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
@@ -602,6 +603,9 @@ version means adopting the change in an existing project takes manual work.
 - [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
 - [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)
 - [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)
+- [0011. A starter may render on the server](decisions/0011-a-starter-may-render-on-the-server.md)
 - [0012. Where the jobs run is an option](decisions/0012-where-the-jobs-run-is-an-option.md)
 - [0013. A starter the generator cannot add to is written whole](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)
+- [0014. A Windows-only shape is proved on a Windows runner](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)
 - [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)
+- [0016. The launcher draws only glyphs every console font carries](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md)

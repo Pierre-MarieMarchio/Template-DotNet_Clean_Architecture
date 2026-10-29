@@ -12,10 +12,12 @@ dnx CleanArch.Create
 `CleanArch.Create` is a .NET tool, run without being installed. Its questions are the options this
 page lists, read from the templates' own manifests with their choices, defaults and descriptions. It
 offers only the choices the template generates with the answers given so far, answers a question
-left with one choice and says which refusal leaves it, explains a refused combination of flags
-before writing anything and asks its options again, installs
-`CleanArch.WebApi.Templates` at its own version when another one or none is installed, runs
-`dotnet new cleanarch-webapi`, and prints the equivalent commands and the first steps. In a
+left with one choice and says which answer leaves it, explains a refused combination of flags
+before writing anything and asks its options again, refuses an output folder that holds files at its
+own question, installs `CleanArch.WebApi.Templates` at its own version when another one or none is
+installed, runs `dotnet new cleanarch-webapi`, and prints the commands that do the same and the
+first steps: after questions its own command and `dotnet new`'s, without questions `dotnet new`'s
+alone. `--help` lists the options with the values the template generates. In a
 terminal the questions follow one another on a thread under a banner, each with a line naming its
 keys; `esc` goes back to the previous question, whose answer it keeps selected, and the questions
 after it are asked again. A summary of every option comes before anything is written, and answering
@@ -51,12 +53,13 @@ dnx CleanArch.Create presentation
 ```
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
-given. Without a terminal, every answer is a flag or `--yes` is passed:
+given, or the only value the template leaves it: `--auth none --yes` generates with
+`--examples none --files false`. Without a terminal, every answer is a flag or `--yes` is passed:
 
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
 dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create presentation -n Portal --yes
+dnx CleanArch.Create presentation -n Portal --framework blazor-server --yes
 ```
 
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the

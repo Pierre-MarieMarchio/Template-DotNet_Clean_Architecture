@@ -16,14 +16,20 @@ The launcher asks for the name, the folder and each option, with the template's 
 defaults and descriptions. It offers only what the template generates with the answers given so far:
 a choice the template refuses whatever follows, as `--database mysql`, is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
-the refusal that says why. A combination of flags the template refuses is explained before anything
-is written, and its options are asked again. It installs the `CleanArch.WebApi.Templates` package at
-its own version when another one or none is installed, generates the project, then prints the
-equivalent command and the first steps.
+the answer that leaves it. A combination of flags the template refuses is explained before anything
+is written, and its options are asked again. An output folder that already holds files, or an app
+name already taken, is refused at its own question. It installs the `CleanArch.WebApi.Templates`
+package at its own version when another one or none is installed, generates the project, then prints
+the commands that do the same, with `--template-source` and `--hive` when they were given, and the
+first steps of the project's `README.md`, as plain text. After questions, those commands are the
+launcher's own, with `--yes`, and `dotnet new`'s; without questions, only `dotnet new`'s. The last
+line says `All set.`, or `Almost there.` when a step did not succeed.
 
 In a terminal it opens on a banner and asks each question on a thread, each choice with its
-description beside it and the default selected, and every answer stays on the thread. A dim line
-under each question names its keys:
+description beside it and the default selected, and every answer stays on the thread. The thread
+uses only glyphs every console font carries, so no marker is drawn off the rail by a fallback font,
+and the output is UTF-8 whatever the console's code page. A dim line under each question names its
+keys:
 
 | Question | Keys |
 |---|---|
@@ -37,8 +43,9 @@ Going back reopens the previous question with its answer selected, erases the an
 asks the following questions again, so a changed answer changes what they offer; a question answered
 for you, as `--examples none` after `--auth none`, is passed over. A summary of every option comes
 before anything is written; answering No to it goes back to the last question, and when every answer
-came as a flag it stops without writing anything. `ctrl+c` stops at any point. A spinner runs while
-the package installs and `dotnet new` generates, whose output shows only when it fails. With
+came as a flag it stops without writing anything. `ctrl+c` stops at any point: before the summary
+nothing is written, and during the setup the launcher prints the commands that finish it. A spinner
+runs while the package installs and `dotnet new` generates, whose output shows only when it fails. With
 `--yes`, without a terminal, or with `NO_COLOR` set, the output stays plain: no banner, no thread, no
 spinner, the template engine's own lines.
 
@@ -97,19 +104,24 @@ Each asks on the same thread, with the same summary, as a new project.
 ## Without questions
 
 Every question is a flag named like the template's option; `--yes` takes the default of each one not
-given. Without a terminal, every answer is a flag or `--yes` is passed.
+given, or the only value the template leaves it, as `--examples none` and `--files false` after
+`--auth none`. Without `--yes`, a choice with no default takes its only value the same way. Each value
+taken this way is printed with the answer that leaves it. An option with no default, as
+`presentation`'s `--framework` while more than one framework is left, is passed as a flag: `--yes`
+cannot choose it. Without a terminal, every answer is a flag or `--yes` is passed. `--help` lists the options
+with the values the template generates and their defaults.
 
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
 dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create presentation -n Portal --yes
+dnx CleanArch.Create presentation -n Portal --framework blazor-server --yes
 ```
 
 | Option | Meaning |
 |---|---|
 | `-n`, `--name` | the project, app, package or presentation name |
 | `-o`, `--output` | where `new` writes the project, `./<name>` by default |
-| `-y`, `--yes` | the default of every option not given |
+| `-y`, `--yes` | the default of every option not given, or the only value the template leaves it |
 | `--setup` | after `new`, every step of [Set the project up](#set-the-project-up), without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |
 | `--hive <folder>` | the template engine's settings folder, passed as `--debug:custom-hive` |

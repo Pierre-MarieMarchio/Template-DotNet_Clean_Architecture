@@ -8,8 +8,8 @@ public sealed class Rail : IRenderable
     public const string Bar = "│";
     public const string Start = "┌";
     public const string End = "└";
-    public const string Asking = "◆";
-    public const string Answered = "◇";
+    public const string Asking = "♦";
+    public const string Answered = "◊";
     public const string Warning = "▲";
     public const string Note = "●";
     public const string Gutter = "  ";

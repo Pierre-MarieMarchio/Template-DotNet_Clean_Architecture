@@ -3,9 +3,10 @@ name: Template acceptance
 # Template repository only: each leg installs the template package packed from this checkout, generates under another name and gates what an adopter would get.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 # One run per ref: a new push cancels the previous one, except on main.
@@ -49,104 +50,57 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # The legs are the shapes the options produce, not their cross product; auth_context says whether the Auth DbContext exists.
+  # The legs a pull request's change can affect, from .template.config/acceptance; any other event runs them all.
+  changes:
+    name: Select the acceptance legs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+      run_count: ${{ steps.select.outputs.run_count }}
+      skip: ${{ steps.select.outputs.skip }}
+      skip_count: ${{ steps.select.outputs.skip_count }}
+
+    steps:
+      # A pull request checks out its merge commit; its first parent is the base branch.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: The selector can fail
+        run: dotnet run .template.config/acceptance/SelectLegs.cs -- --self-test
+
+      # --no-renames lists a moved file's old path as well as its new one; a diff that fails leaves no file, which runs every leg.
+      - name: Select the legs the change can affect
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          changed="${{ runner.temp }}/changed-paths.txt"
+          if [ "$EVENT" = pull_request ] && ! git diff --name-only --no-renames HEAD^1 HEAD > "$changed"; then
+            rm -f "$changed"
+          fi
+          dotnet run .template.config/acceptance/SelectLegs.cs -- --event "$EVENT" --labels "$LABELS" --changed "$changed" --output "$GITHUB_OUTPUT"
+
+  # The legs are the shapes the options produce, not their cross product, listed in .template.config/acceptance/matrix.json; auth_context says whether the Auth DbContext exists.
   template:
     name: Template acceptance (${{ matrix.name }})
-    needs: pack
+    needs: [changes, pack]
+    if: needs.changes.outputs.run_count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout_minutes || 45 }}
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: defaults
-            options: ""
-            auth_context: "true"
-            integration: "true"
-            generator: "true"
-            end_to_end: "true"
-          - name: auth none, smallest project
-            options: --auth none --examples none --files false --agent-files false
-            auth_context: "false"
-            integration: "true"
-          - name: external auth, notes
-            options: --auth external --examples notes --presentation avalonia
-            auth_context: "false"
-          - name: local auth, no files, no ci, no sonar
-            options: --auth local --examples none --files false --ci false --sonar false
-            auth_context: "true"
-            generator: "true"
-          - name: external auth, all examples
-            options: --auth external --examples all --files true
-            auth_context: "false"
-          # The SQL Server image is linux/amd64 only and about 1.6 GB: one leg, with a longer timeout.
-          - name: sql server, external auth, all examples
-            options: --database sqlserver --auth external --examples all --files true
-            database: sqlserver
-            auth_context: "false"
-            integration: "true"
-            end_to_end: "true"
-            timeout_minutes: 60
-          - name: external auth, no examples, no files
-            options: --auth external --examples none --files false
-            auth_context: "false"
-            generator: "true"
-            first_presentation: --framework avalonia --auth external --examples none --files false
-          - name: web placeholder, smallest project
-            options: --web placeholder --auth none --examples none --files false --presentation blazor-server
-            auth_context: "false"
-            web: "true"
-          - name: web react, local auth
-            options: --web react --presentation blazor-server
-            auth_context: "true"
-            web: "true"
-            wasm_app: --scope sample-generated-project
-          # No provider runs in Compose: the API needs one named to start, and fetches nothing from it until a token arrives.
-          - name: web angular, external auth, notes
-            options: --web angular --auth external --examples notes --presentation blazor-server
-            auth_context: "false"
-            web: "true"
-            stack_env: "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance"
-          - name: web react back office, smallest local project
-            options: --web react --web-audience admin --examples none --files false
-            auth_context: "true"
-            web: "true"
-          - name: web react, then an angular back office
-            options: --web react
-            auth_context: "true"
-            web: "true"
-            second_app: --framework angular --audience admin --scope sample-generated-project
-          - name: no web, then a react app and its workspace
-            options: ""
-            auth_context: "true"
-            web: "true"
-            first_app: --framework react --scope sample-generated-project --workspace
-            first_presentation: --framework avalonia
-            wasm_app: --scope sample-generated-project --has-client true
-          # Every framework starter in one workspace: the project's own app, the WebAssembly one with its .NET client, an Avalonia app on that client, then each other starter beside it, on a port of its own.
-          - name: web, every starter
-            options: --web blazor-wasm --examples none --files false
-            auth_context: "true"
-            web: "true"
-            first_presentation: --framework avalonia --examples none --files false --has-client true
-            more_apps: VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router
-          - name: sqlite, defaults
-            options: --database sqlite
-            database: sqlite
-            auth_context: "true"
-            integration: "true"
-            end_to_end: "true"
-          - name: sqlite, smallest project
-            options: --database sqlite --auth none --examples none --files false
-            database: sqlite
-            auth_context: "false"
-            integration: "true"
-          - name: sqlite, external auth, all examples
-            options: --database sqlite --auth external --examples all --files true
-            database: sqlite
-            auth_context: "false"
-            integration: "true"
+      matrix: ${{ fromJSON(needs.changes.outputs.run) }}
 
     steps:
       - name: Checkout
@@ -765,6 +719,23 @@ jobs:
           if [ -f .env ]; then
             docker compose down --volumes
           fi
+
+  # Each leg the change cannot affect reports green under its own name, which the develop ruleset requires.
+  skipped:
+    name: Template acceptance (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.skip_count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    strategy:
+      matrix: ${{ fromJSON(needs.changes.outputs.skip) }}
+
+    steps:
+      - name: No changed path reaches this leg
+        env:
+          LEG: ${{ matrix.name }}
+        run: echo "No changed path reaches '$LEG'; the job 'Select the acceptance legs' names the rule each path matched."
 
   # A refused combination must exit non-zero and write nothing.
   template-refusals:

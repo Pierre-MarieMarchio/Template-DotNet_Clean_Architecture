@@ -1,0 +1,137 @@
+[
+  {
+    "name": "defaults",
+    "tags": ["generator"],
+    "options": "",
+    "auth_context": "true",
+    "integration": "true",
+    "generator": "true",
+    "end_to_end": "true"
+  },
+  {
+    "name": "auth none, smallest project",
+    "tags": [],
+    "options": "--auth none --examples none --files false --agent-files false",
+    "auth_context": "false",
+    "integration": "true"
+  },
+  {
+    "name": "external auth, notes",
+    "tags": ["presentation-avalonia"],
+    "options": "--auth external --examples notes --presentation avalonia",
+    "auth_context": "false"
+  },
+  {
+    "name": "local auth, no files, no ci, no sonar",
+    "tags": ["generator"],
+    "options": "--auth local --examples none --files false --ci false --sonar false",
+    "auth_context": "true",
+    "generator": "true"
+  },
+  {
+    "name": "external auth, all examples",
+    "tags": [],
+    "options": "--auth external --examples all --files true",
+    "auth_context": "false"
+  },
+  {
+    "name": "sql server, external auth, all examples",
+    "tags": ["database-sqlserver"],
+    "options": "--database sqlserver --auth external --examples all --files true",
+    "database": "sqlserver",
+    "auth_context": "false",
+    "integration": "true",
+    "end_to_end": "true",
+    "timeout_minutes": 60
+  },
+  {
+    "name": "external auth, no examples, no files",
+    "tags": ["generator", "presentation-avalonia", "presentation-item"],
+    "options": "--auth external --examples none --files false",
+    "auth_context": "false",
+    "generator": "true",
+    "first_presentation": "--framework avalonia --auth external --examples none --files false"
+  },
+  {
+    "name": "web placeholder, smallest project",
+    "tags": ["presentation-blazor-server", "web"],
+    "options": "--web placeholder --auth none --examples none --files false --presentation blazor-server",
+    "auth_context": "false",
+    "web": "true"
+  },
+  {
+    "name": "web react, local auth",
+    "tags": ["presentation-blazor-server", "starter-blazor-wasm", "web"],
+    "options": "--web react --presentation blazor-server",
+    "auth_context": "true",
+    "web": "true",
+    "wasm_app": "--scope sample-generated-project"
+  },
+  {
+    "name": "web angular, external auth, notes",
+    "tags": ["presentation-blazor-server", "starter-angular", "web"],
+    "options": "--web angular --auth external --examples notes --presentation blazor-server",
+    "auth_context": "false",
+    "web": "true",
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance"
+  },
+  {
+    "name": "web react back office, smallest local project",
+    "tags": ["web"],
+    "options": "--web react --web-audience admin --examples none --files false",
+    "auth_context": "true",
+    "web": "true"
+  },
+  {
+    "name": "web react, then an angular back office",
+    "tags": ["starter-angular", "web"],
+    "options": "--web react",
+    "auth_context": "true",
+    "web": "true",
+    "second_app": "--framework angular --audience admin --scope sample-generated-project"
+  },
+  {
+    "name": "no web, then a react app and its workspace",
+    "tags": ["presentation-avalonia", "presentation-item", "starter-blazor-wasm", "web"],
+    "options": "",
+    "auth_context": "true",
+    "web": "true",
+    "first_app": "--framework react --scope sample-generated-project --workspace",
+    "first_presentation": "--framework avalonia",
+    "wasm_app": "--scope sample-generated-project --has-client true"
+  },
+  {
+    "name": "web, every starter",
+    "tags": ["presentation-avalonia", "presentation-item", "starter-angular", "starter-blazor-wasm", "starter-react-router", "starter-vite-react", "starter-vite-svelte", "starter-vite-vue", "starter-vue", "web"],
+    "options": "--web blazor-wasm --examples none --files false",
+    "auth_context": "true",
+    "web": "true",
+    "first_presentation": "--framework avalonia --examples none --files false --has-client true",
+    "more_apps": "VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router"
+  },
+  {
+    "name": "sqlite, defaults",
+    "tags": ["database-sqlite"],
+    "options": "--database sqlite",
+    "database": "sqlite",
+    "auth_context": "true",
+    "integration": "true",
+    "end_to_end": "true"
+  },
+  {
+    "name": "sqlite, smallest project",
+    "tags": ["database-sqlite"],
+    "options": "--database sqlite --auth none --examples none --files false",
+    "database": "sqlite",
+    "auth_context": "false",
+    "integration": "true"
+  },
+  {
+    "name": "sqlite, external auth, all examples",
+    "tags": ["database-sqlite"],
+    "options": "--database sqlite --auth external --examples all --files true",
+    "database": "sqlite",
+    "auth_context": "false",
+    "integration": "true"
+  }
+]

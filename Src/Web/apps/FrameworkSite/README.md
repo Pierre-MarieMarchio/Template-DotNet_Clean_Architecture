@@ -6,10 +6,10 @@ A React back office over the API, for administrators.
 <!--#if ((webViteReact || webReactRouter) && !adminAudience)-->
 A React front end over the API.
 <!--#endif-->
-<!--#if ((webVue || webViteVue) && adminAudience)-->
+<!--#if (webViteVue && adminAudience)-->
 A Vue back office over the API, for administrators.
 <!--#endif-->
-<!--#if ((webVue || webViteVue) && !adminAudience)-->
+<!--#if (webViteVue && !adminAudience)-->
 A Vue front end over the API.
 <!--#endif-->
 <!--#if (webViteSvelte && adminAudience)-->
@@ -35,10 +35,6 @@ folder adds the wiring around it.
 <!--#if (webViteSvelte)-->
 The app itself is what Vite's official CLI, `create-vite`, writes for its `svelte-ts` template; this
 folder adds the wiring around it.
-<!--#endif-->
-<!--#if (webVue)-->
-The app itself is what Vue's official CLI, `create-vue`, writes with TypeScript, Vue Router, Vitest
-and ESLint; this folder adds the wiring around it.
 <!--#endif-->
 <!--#if (webReactRouter && !webServerRendering)-->
 The app itself is what React Router's official CLI, `create-react-router`, writes from its default
@@ -103,19 +99,6 @@ What the template adds to the CLI's starter, and nothing else:
 - in tsconfig.app.json: `allowImportingTsExtensions`, since the workspace packages export their
   TypeScript sources and import each other by `.ts` path, and the CLI's `check` script type-checks
   them through the app; the CLI's svelte.config.js stays as it writes it.
-<!--#endif-->
-<!--#if (webVue)-->
-What the template adds to the CLI's starter, and nothing else:
-
-- `vite.config.ts`, replaced whole, since a Vite dev server is configured there and nowhere else:
-  the CLI's Vue and Vue DevTools plugins and its `@` alias, kept as it writes them, plus port 5173
-  and `/api/` and `/health` relayed to the API (`API_UPSTREAM`, default <http://localhost:5187>), so
-  the browser talks to a single origin and the API keeps CORS closed;
-- in `package.json`: the name `framework-site`, which `pnpm --filter` takes, the dependency
-  `@app-template/api-client` (`workspace:*`), the client generated from the API in
-  `Src/Web/packages/api-client`, a `test` script that runs Vitest once instead of watching, and the
-  CLI's two lint scripts without `--fix`, so `pnpm lint`, `pnpm test` and `pnpm build` in `Src/Web`
-  check the app without rewriting it; Vitest is pinned to the version the workspace's packages use.
 <!--#endif-->
 <!--#if (webReactRouter && !webServerRendering)-->
 What the template adds to the CLI's starter, and nothing else:

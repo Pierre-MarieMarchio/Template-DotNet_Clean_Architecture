@@ -135,14 +135,8 @@ setting, table or test names it.
 <!--#if (!sonar)-->
 | `--sonar` | `false` | no Sonar analysis |
 <!--#endif-->
-<!--#if (web == "react")-->
-| `--web` | `react` | a React app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
-<!--#endif-->
 <!--#if (webAngular)-->
 | `--web` | `angular` | an Angular app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
-<!--#endif-->
-<!--#if (webVue)-->
-| `--web` | `vue` | a Vue app in `Src/Web/apps/FrameworkSite`, created by Vue's official CLI, `create-vue`, at bootstrap |
 <!--#endif-->
 <!--#if (web == "vite-react")-->
 | `--web` | `vite-react` | a React app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
@@ -209,7 +203,7 @@ To change a value, remove the part by hand or add it:
 <!--#endif-->
 <!--#if (!anyWeb)-->
 - `dotnet new cleanarch-webapp -n PlaceholderSite --framework vite-react --scope app-template --workspace`
-  adds a first web app and its workspace (`vue`, `vite-vue`, `vite-svelte`, `react-router`,
+  adds a first web app and its workspace (`vite-vue`, `vite-svelte`, `react-router`,
   `angular` or `placeholder` work too). Pass this project's `--auth`, `--examples` and `--ci` when they are not
   the defaults; the README it writes in the new workspace lists the lines to add by hand.
 <!--#endif-->

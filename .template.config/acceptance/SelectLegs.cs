@@ -339,7 +339,7 @@ internal static class LegSelector
         new("the repository README, not a web app's", "pull_request", [], ["README.md"], []),
         new("a web app's page", "pull_request", [], ["Src/Web/apps/FrameworkSite/README.md"], WebLegs),
         new("the web workflow and the webapp item", "pull_request", [], [".github/workflows/web.yml", ".template.config/webapp/.template.config/template.json"], WebLegs),
-        new("the Vue starter", "pull_request", [], [".template.config/starters/vue/FrameworkSite/scaffold.json"], ["web, every starter"]),
+        new("the Vite Vue starter", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json"], ["web, every starter"]),
         new("the Angular starter", "pull_request", [], [".template.config/starters/angular/FrameworkSite/scaffold.json"],
             ["web placeholder, smallest project", "web angular, external auth, notes", "web react, then an angular back office", "web, every starter"]),
         new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AppTemplate.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
@@ -360,9 +360,9 @@ internal static class LegSelector
             ["sql server, external auth, all examples"]),
         new("the feature-edit applier", "pull_request", [], [".template.config/acceptance/ApplyFeatureEdits.cs"],
             ["defaults", "local auth, no files, no ci, no sonar", "external auth, no examples, no files"]),
-        new("a template-only page and the Vue starter", "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vue/FrameworkSite/scaffold.json"],
+        new("a template-only page and the Vite Vue starter", "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vite-vue/FrameworkSite/scaffold.json"],
             ["web, every starter"]),
-        new("the Vue starter and the domain", "pull_request", [], [".template.config/starters/vue/FrameworkSite/scaffold.json", "Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
+        new("the Vite Vue starter and the domain", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json", "Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
         new("the domain", "pull_request", [], ["Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
         new("a shared page", "pull_request", [], ["docs/README.md"], null),
         new("a folder named like the launcher's", "pull_request", [], ["LauncherTools/Run.cs"], null),
@@ -402,7 +402,7 @@ internal static class LegSelector
             }
         }
 
-        var lines = OutputLines(Select(rules, legs, "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vue/FrameworkSite/scaffold.json"]));
+        var lines = OutputLines(Select(rules, legs, "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vite-vue/FrameworkSite/scaffold.json"]));
         JsonNode? runMatrix = JsonNode.Parse(lines.GetValueOrDefault("run", "null"));
         JsonNode? skipMatrix = JsonNode.Parse(lines.GetValueOrDefault("skip", "null"));
 

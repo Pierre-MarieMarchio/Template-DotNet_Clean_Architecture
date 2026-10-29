@@ -154,14 +154,14 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.WebApp);
         var answers = new Dictionary<string, string>
         {
-            ["framework"] = "react",
+            ["framework"] = "vite-react",
             ["audience"] = "public",
             ["workspace"] = "true",
             ["scope"] = "acme-shop",
             ["auth"] = "local",
         };
 
-        manifest.CommandArguments(answers).ShouldBe(["--framework", "react", "--workspace", "true", "--scope", "acme-shop"]);
+        manifest.CommandArguments(answers).ShouldBe(["--framework", "vite-react", "--workspace", "true", "--scope", "acme-shop"]);
     }
 
     [Fact]

@@ -22,8 +22,8 @@ browser talks to one origin per app and the API keeps CORS closed.
 ## Creating the app
 
 The app is written by its framework's official CLI, at a version pinned in the app's folder:
-`create-vue` for `vue`; `create-vite` with its `react-ts`, `vue-ts` or `svelte-ts` template for
-`vite-react` (or `react`, the same app), `vite-vue` and `vite-svelte`; `create-react-router` for
+`create-vite` with its `react-ts`, `vue-ts` or `svelte-ts` template for `vite-react`, `vite-vue`
+and `vite-svelte`; `create-react-router` for
 `react-router`; the Angular CLI's `ng new` for `angular`. `bootstrap` runs that
 step once, through `dotnet run Tools/Tasks.cs web-scaffold`, and needs the network to fetch the CLI.
 It writes the CLI's starter, lays the wiring over it (the `/api` relay, the package name, the
@@ -299,8 +299,8 @@ Add an app at the project root; it gets its own folder, image and Compose servic
 dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin --scope app-template --port 8082
 ```
 
-`--framework` is `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular` or
-`placeholder`, and `react` names the same app as `vite-react`; `--scope` is the package scope of
+`--framework` is `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular` or
+`placeholder`; `--scope` is the package scope of
 `Src/Web/package.json`; `--auth` repeats this project's value. The command prints
 two lines to add, also in the app's `README.md`: an `include:` entry in `docker-compose.yml` and
 `WEB_<NAME>_HOST_PORT` in `.env.example`. Then run

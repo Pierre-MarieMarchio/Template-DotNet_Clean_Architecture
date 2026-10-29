@@ -58,6 +58,8 @@ jobs:
     outputs:
       run: ${{ steps.select.outputs.run }}
       run_count: ${{ steps.select.outputs.run_count }}
+      run_windows: ${{ steps.select.outputs.run_windows }}
+      run_windows_count: ${{ steps.select.outputs.run_windows_count }}
       skip: ${{ steps.select.outputs.skip }}
       skip_count: ${{ steps.select.outputs.skip_count }}
 
@@ -746,6 +748,79 @@ jobs:
           if [ -f .env ]; then
             docker compose down --volumes
           fi
+
+  # A leg whose runner is windows-latest, run as a Windows user runs the project: from PowerShell, through the tasks, with no Docker, which runs no Linux image there.
+  template-windows:
+    name: Template acceptance (${{ matrix.name }})
+    needs: [changes, pack]
+    if: needs.changes.outputs.run_windows_count != '0'
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.run_windows) }}
+
+    # Each step runs one command, so the exit code pwsh returns is that command's.
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      # The root files and Tools alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: Tools
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Download the template package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: template-package
+          path: ${{ runner.temp }}/package
+
+      - name: Install the template package
+        run: dotnet new install (Get-ChildItem "${{ runner.temp }}/package/*.nupkg").FullName
+
+      - name: Generate a project under a different name
+        env:
+          OPTIONS: ${{ matrix.options }}
+        run: dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" @("$env:OPTIONS".Split(' ', [StringSplitOptions]::RemoveEmptyEntries))
+
+      - name: Assert the template's own name leaked nowhere
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          $content = Get-ChildItem -Recurse -File -Force | Select-String -Pattern 'AppTemplate', 'app-template' -SimpleMatch -List | ForEach-Object Path
+          $paths = Get-ChildItem -Recurse -Force | Where-Object Name -Match 'AppTemplate|app-template' | ForEach-Object FullName
+          if ($content -or $paths) {
+            Write-Output "::error title=Template name leaked::The generated project still names the template."
+            @($content) + @($paths) | Write-Output
+            exit 1
+          }
+
+      - name: Bootstrap the project
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs bootstrap
+
+      - name: Build with warnings as errors
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs -- build --configuration Release
+
+      - name: Run the Docker-free tests
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release
+
+      - name: Run the generated project's hygiene gates
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs hygiene
+
+      - name: Assert every path the generated pages cite exists
+        run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
 
   # Each leg the change cannot affect reports green under its own name, which the develop ruleset requires.
   skipped:

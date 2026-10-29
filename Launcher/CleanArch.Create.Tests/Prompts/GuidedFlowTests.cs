@@ -297,7 +297,7 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "Second", "--framework", "blazor-wasm", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
 
-        console.Output.ShouldContain("holds a Blazor WebAssembly app already, Src/Web/apps/Wasm");
+        console.Output.ShouldContain("Acme.Shop already has a Blazor WebAssembly app, Src/Web/apps/Wasm. This version adds only one per project.");
         _processes.CommandLines.ShouldNotContain(line => line.StartsWith("dotnet new cleanarch-webapp", StringComparison.Ordinal));
     }
 
@@ -316,6 +316,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldContain("●  Taken from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false");
         output.ShouldContain("◊  Framework\n│  blazor-server · the only option when Project authentication is none");
         Order(output, "◊  Presentation name\n│  Portal", "Summary", "◊  Added Portal", "◊  Join done", "◊  Scaffold done", "Next time, skip the questions with", "└  All set.");
+        output.ShouldNotContain("Now run:");
         Closing(output).ShouldContain("Commit Src/Presentation/Acme.Shop.Portal and its tests");
         _processes.CommandLines.Where(line => !line.StartsWith("dotnet new uninstall", StringComparison.Ordinal) && !line.StartsWith("dotnet new install", StringComparison.Ordinal)).ShouldBe(
         [
@@ -336,7 +337,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "presentation");
 
         string output = Plain(console);
-        Order(output, "▲  Join failed", "occur 2 times", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "▲  Scaffold skipped", "└  All set. A few things to do by hand, from Src/Presentation/Acme.Shop.Portal/README.md:");
+        Order(output, "▲  Join failed", "occur 2 times", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "▲  Scaffold skipped", "Skipped because the join step didn't go through.", "└  Almost there. A few things to do by hand, from Src/Presentation/Acme.Shop.Portal/README.md:");
         Closing(output).ShouldContain("- in .dockerignore, after the line:");
         _processes.CommandLines.ShouldNotContain(line => line.Contains("presentation-scaffold", StringComparison.Ordinal) && line.StartsWith("dotnet run", StringComparison.Ordinal));
     }
@@ -352,14 +353,14 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "presentation");
 
         string output = Plain(console);
-        Order(output, "◊  Join done", "▲  Scaffold failed", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal", "└  All set. A few things to do by hand, from Src/Presentation/Acme.Shop.Portal/README.md:");
+        Order(output, "◊  Join done", "▲  Scaffold failed", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal", "└  Almost there. A few things to do by hand, from Src/Presentation/Acme.Shop.Portal/README.md:");
         Closing(output).ShouldContain("Commit the project");
     }
 
     [Theory]
     [InlineData("Api", "names a project the template already writes")]
-    [InlineData("portal", "a presentation name is PascalCase")]
-    [InlineData("Portal", "exists: choose another name")]
+    [InlineData("portal", "use PascalCase, like Portal.")]
+    [InlineData("Portal", "there's already a presentation project with that name.")]
     public void APresentationName_TheProjectCannotTake_IsRefusedBeforeAnythingIsInstalled(string name, string refusal)
     {
         AGeneratedProject();
@@ -454,6 +455,24 @@ public sealed partial class GuidedFlowTests : IDisposable
         Order(output, _created, TemplateEngine.PostActionsHeading, _scaffoldInstruction, "Join done.");
         output.ShouldNotContain(_joinInstruction, customMessage: "The template engine's instruction to run web-join is relayed while the launcher runs it.");
         _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm");
+    }
+
+    [Fact]
+    public void AWebAppWhoseJoinFails_IsAlmostThere_WithTheJoiningSectionLeftByHand()
+    {
+        AGeneratedProject();
+        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps"));
+        File.WriteAllText(Path.Combine(_root, "Src", "Web", "package.json"), "{}");
+        _failingTask = "web-join";
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+        PushEnters(console, 6);
+
+        Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm");
+
+        string output = Plain(console);
+        Order(output, "▲  Join failed", "dotnet run Tools/Tasks.cs web-join Wasm", "└  Almost there. A few things to do by hand, from Src/Web/apps/Wasm/README.md:");
     }
 
     private static TestConsole Terminal()

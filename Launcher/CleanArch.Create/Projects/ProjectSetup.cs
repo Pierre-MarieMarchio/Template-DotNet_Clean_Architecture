@@ -21,6 +21,13 @@ public sealed class ProjectSetup
     public const string EnvironmentCommand = "cp .env.example .env";
     public const string BootstrapMessage = "chore: bootstrap";
 
+    public static readonly IReadOnlyList<(string Symbol, string Writes)> BootstrapWritesWhen =
+    [
+        ("scaffoldedAtBootstrap", "creates each project or app a scaffold.json describes"),
+        ("dotnetClient", "writes the .NET client"),
+        ("anyWeb", "installs the web workspace, which needs Node.js and pnpm"),
+    ];
+
     public static readonly SetupStep FirstCommit = new(
         "First commit",
         "Commits the generated files, after a git init if the folder isn't in a repository yet.",
@@ -29,7 +36,7 @@ public sealed class ProjectSetup
 
     public static readonly SetupStep Bootstrap = new(
         "Bootstrap",
-        "Runs " + BootstrapCommand + ": formatting, OpenAPI document, tools and first migrations. Needs internet.",
+        BootstrapDescription(_ => false),
         "Running bootstrap, this takes a few minutes",
         BootstrapCommand);
 
@@ -47,21 +54,15 @@ public sealed class ProjectSetup
 
     public static readonly IReadOnlyList<SetupStep> Steps = [FirstCommit, Bootstrap, BootstrapCommit, EnvironmentFile];
 
-    public static readonly IReadOnlyList<(string Symbol, string Writes)> BootstrapWritesWhen =
-    [
-        ("scaffoldedAtBootstrap", "creates each project or app a scaffold.json describes"),
-        ("dotnetClient", "writes the .NET client"),
-        ("anyWeb", "installs the web workspace, which needs Node.js and pnpm"),
-    ];
-
     public static string BootstrapDescription(Func<string, bool> holds) =>
-        string.Join(
+        "Runs " + BootstrapCommand + ": "
+        + string.Join(
             ", ",
             [
-                BootstrapCommand + ": formats, writes the OpenAPI document, restores the tools, creates the initial migrations",
+                "formatting, OpenAPI document, tools and first migrations",
                 .. BootstrapWritesWhen.Where(fact => holds(fact.Symbol)).Select(fact => fact.Writes),
             ])
-        + "; needs the network.";
+        + ". Needs internet.";
 
     private const int _tail = 6;
     private const string _init = "git init";

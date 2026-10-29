@@ -202,7 +202,9 @@ public sealed class GuidedConversation : Conversation
         {
             null => "Done.",
             { Readme: null, StepsLeft: true } => "Almost there. Now run:",
+            { Readme: null, Commands.Count: 0 } => "All set.",
             { Readme: null } => "All set. Now run:",
+            { Readme: { } readme, StepsLeft: true } => $"Almost there. A few things to do by hand, from {readme}:",
             { Readme: { } readme } => $"All set. A few things to do by hand, from {readme}:",
         };
         Line(Rail.End, "grey", $"[bold]{Markup.Escape(heading)}[/]");

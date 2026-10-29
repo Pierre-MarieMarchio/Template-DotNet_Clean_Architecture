@@ -35,8 +35,8 @@ public sealed class ProjectSetupTests : IDisposable
         var answers = new Dictionary<string, string>(StringComparer.Ordinal) { ["web"] = web, ["presentation"] = presentation, ["jobs"] = jobs };
 
         ProjectSetup.BootstrapDescription(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers))).ShouldBe(
-            ProjectSetup.BootstrapCommand + ": formats, writes the OpenAPI document, restores the tools, creates the initial migrations"
-            + writes + "; needs the network.");
+            "Runs " + ProjectSetup.BootstrapCommand + ": formatting, OpenAPI document, tools and first migrations"
+            + writes + ". Needs internet.");
     }
 
     [Fact]

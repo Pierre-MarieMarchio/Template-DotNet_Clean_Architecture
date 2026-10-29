@@ -463,7 +463,7 @@ public sealed partial class Launcher
 
         if (manifest.Resolve("framework", asked.Options) == "blazor-wasm" && project.BlazorWebAssemblyApp is { } existing)
         {
-            throw new LauncherException($"{project.Name} holds a Blazor WebAssembly app already, Src/Web/apps/{existing}: this version adds one per project.");
+            throw new LauncherException($"{project.Name} already has a Blazor WebAssembly app, Src/Web/apps/{existing}. This version adds only one per project.");
         }
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
@@ -482,7 +482,7 @@ public sealed partial class Launcher
         Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options], then: joinLines);
         string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : appReadme;
         string heading = workspace ? "## The first app of a project generated without one" : joined ? "## Join the stack" : JoiningSection;
-        session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme).Replace(Path.DirectorySeparatorChar, '/'), [], MarkdownSection(readme, heading) ?? $"Read {readme}."));
+        session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme).Replace(Path.DirectorySeparatorChar, '/'), [], MarkdownSection(readme, heading) ?? $"Read {readme}.", StepsLeft: !workspace && !joined));
     }
 
     private static void WebPackage(Session session, GeneratedProject project)
@@ -540,7 +540,7 @@ public sealed partial class Launcher
         bool created = joined && RunTask(session, project.Root, "Scaffold", "Creating it with its framework's dotnet new template, which needs the network", scaffold);
         if (!joined)
         {
-            session.Conversation.Reported("Scaffold skipped", false, "Join did not succeed.", [scaffoldLine]);
+            session.Conversation.Reported("Scaffold skipped", false, "Skipped because the join step didn't go through.", [scaffoldLine]);
         }
 
         Equivalents(session, Arguments.PresentationCommand, [manifest.ShortName, "-n", name, .. options], then: [joinLine, scaffoldLine]);
@@ -556,7 +556,7 @@ public sealed partial class Launcher
         }
 
         string heading = joined ? PresentationCreateSection : JoiningSection;
-        session.Conversation.Close(new Closing(shown, [], MarkdownSection(readme, heading) ?? $"Read {shown}."));
+        session.Conversation.Close(new Closing(shown, [], MarkdownSection(readme, heading) ?? $"Read {shown}.", StepsLeft: true));
     }
 
     private bool RunTask(Session session, string root, string title, string running, IReadOnlyList<string> arguments)
@@ -574,7 +574,7 @@ public sealed partial class Launcher
     {
         if (!AppName().IsMatch(name))
         {
-            return "a presentation name is PascalCase, as Portal: <project>.<name> names its project, its folder and its service.";
+            return $"use PascalCase, like Portal. {project.Name}.<name> becomes the project's name, folder and service.";
         }
 
         var named = new Dictionary<string, string>(StringComparer.Ordinal) { [_itemNameSymbol] = name };
@@ -584,7 +584,7 @@ public sealed partial class Launcher
         }
 
         string folder = Path.Combine(project.PresentationFolder, $"{project.Name}.{name}");
-        return Directory.Exists(folder) ? $"'{folder}' exists: choose another name." : null;
+        return Directory.Exists(folder) ? "there's already a presentation project with that name." : null;
     }
 
     private sealed record Session(Arguments Parsed, TemplateSource Source, Questionnaire Questionnaire, TemplateEngine Dotnet, string? Version)

@@ -20,6 +20,13 @@
       "isVisible": true
     },
     {
+      "id": "rendering",
+      "name": {
+        "text": "Rendering"
+      },
+      "isVisible": true
+    },
+    {
       "id": "workspace",
       "name": {
         "text": "Create the workspace"

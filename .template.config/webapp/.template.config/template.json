@@ -45,6 +45,17 @@
       ],
       "description": "Who the app is for; the framework apps shape their screens by it."
     },
+    "rendering": {
+      "type": "parameter",
+      "displayName": "Rendering",
+      "datatype": "choice",
+      "defaultValue": "spa",
+      "choices": [
+        { "choice": "spa", "description": "A single-page app: a static site served by nginx." },
+        { "choice": "ssr", "description": "Rendered on the server for each request, by the framework's own Node server; angular only, in a project generated with --auth none." }
+      ],
+      "description": "How the app renders, where its generator offers both."
+    },
     "workspace": {
       "type": "parameter",
       "displayName": "Create the workspace",
@@ -167,6 +178,24 @@
       "isRequired": "(audience == \"admin\" && auth == \"none\")",
       "description": "Never set. --audience admin signs administrators in, which --auth none cannot."
     },
+    "serverRenderingNeedsAServerStarter": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "refused", "description": "Not an option to set: it names the refusal." }
+      ],
+      "isRequired": "(rendering == \"ssr\" && framework != \"angular\")",
+      "description": "Never set. --rendering ssr needs a framework whose generator renders on the server: choose --framework angular, or --rendering spa."
+    },
+    "serverRenderingWithAccountsNotYetGenerated": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "refused", "description": "Not an option to set: it names the refusal." }
+      ],
+      "isRequired": "(rendering == \"ssr\" && auth != \"none\")",
+      "description": "Never set. A server-rendered web app keeps no session yet: only a project generated with --auth none takes --rendering ssr."
+    },
     "wasmWebNeedsAccounts": {
       "type": "parameter",
       "datatype": "choice",
@@ -193,6 +222,7 @@
     "webBlazorWasm": { "type": "computed", "value": "(framework == \"blazor-wasm\")" },
     "webNodeFramework": { "type": "computed", "value": "(webAngular || webVite)" },
     "webFramework": { "type": "computed", "value": "(webNodeFramework || webBlazorWasm)" },
+    "webServerRendering": { "type": "computed", "value": "(rendering == \"ssr\")" },
     "adminAudience": { "type": "computed", "value": "(audience == \"admin\")" },
     "todoLists": { "type": "computed", "value": "(examples == \"all\")" },
     "reminders": { "type": "computed", "value": "(examples == \"all\")" },
@@ -318,13 +348,37 @@
           "exclude": [
             "FrameworkSite/**"
           ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/nginx.conf"
+          ]
         }
       ]
     },
     {
       "source": "../starters/angular/",
       "target": "./Src/Web/apps/",
-      "condition": "(webAngular)"
+      "condition": "(webAngular)",
+      "modifiers": [
+        {
+          "exclude": [
+            "ssr/**"
+          ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../starters/angular/ssr/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webAngular && webServerRendering)"
     },
     {
       "source": "../starters/vue/",
@@ -474,7 +528,8 @@
       "condition": "(workspace)",
       "include": [
         "features/web-frontend.md",
-        "decisions/0019-one-generated-api-client.md"
+        "decisions/0019-one-generated-api-client.md",
+        "decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
       ]
     }
   ],

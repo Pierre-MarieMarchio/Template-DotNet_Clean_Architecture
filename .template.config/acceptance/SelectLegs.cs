@@ -24,11 +24,14 @@ internal static class LegSelector
         --changed names no file (the diff could not be read) or an empty one, and when one path
         runs them all.
 
-        --labels takes the pull request's label names as a JSON array. --output appends run, skip
-        (each a matrix: {"include": [...]}), run_count and skip_count, as $GITHUB_OUTPUT reads them.
+        A leg runs on ubuntu-latest unless its 'runner' says windows-latest. --labels takes the pull
+        request's label names as a JSON array. --output appends run and run_windows, the legs to run
+        on each runner, and skip, every leg skipped whichever its runner (each a matrix:
+        {"include": [...]}), with run_count, run_windows_count and skip_count, as $GITHUB_OUTPUT
+        reads them.
 
         Exit code 0 once the legs are chosen; 1 on an unreadable rules.json or matrix.json, a tag
-        no leg carries, or a malformed argument.
+        no leg carries, a runner no job serves, or a malformed argument.
         """;
 
     private const string FullAcceptanceLabel = "full-acceptance";
@@ -37,13 +40,17 @@ internal static class LegSelector
 
     private const string NoLeg = "none";
 
+    private const string Linux = "ubuntu-latest";
+
+    private const string Windows = "windows-latest";
+
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
 
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private sealed record Rule(Regex[] Paths, string[] Patterns, string[] Tags);
 
-    private sealed record Leg(string Name, string[] Tags, JsonObject Entry);
+    private sealed record Leg(string Name, string[] Tags, string Runner, JsonObject Entry);
 
     private sealed record Selection(List<Leg> Run, List<Leg> Skip, List<string> Reasons);
 
@@ -151,7 +158,7 @@ internal static class LegSelector
         Console.WriteLine($"Runs {selection.Run.Count} leg(s):");
         foreach (Leg leg in selection.Run)
         {
-            Console.WriteLine($"  + {leg.Name}");
+            Console.WriteLine($"  + {leg.Name}{(leg.Runner == Linux ? string.Empty : $" ({leg.Runner})")}");
         }
 
         Console.WriteLine($"Skips {selection.Skip.Count} leg(s):");
@@ -163,16 +170,22 @@ internal static class LegSelector
 
     private static string Outputs(Selection selection)
     {
-        var run = new JsonArray([.. selection.Run.Select(leg => (JsonNode)leg.Entry.DeepClone())]);
+        Leg[] linux = [.. selection.Run.Where(leg => leg.Runner == Linux)];
+        Leg[] windows = [.. selection.Run.Where(leg => leg.Runner == Windows)];
         var skip = new JsonArray([.. selection.Skip.Select(leg => (JsonNode)new JsonObject { ["name"] = leg.Name })]);
 
         return new StringBuilder()
-            .Append("run=").Append(new JsonObject { ["include"] = run }.ToJsonString()).Append('\n')
+            .Append("run=").Append(Matrix(linux)).Append('\n')
+            .Append("run_windows=").Append(Matrix(windows)).Append('\n')
             .Append("skip=").Append(new JsonObject { ["include"] = skip }.ToJsonString()).Append('\n')
-            .Append("run_count=").Append(selection.Run.Count).Append('\n')
+            .Append("run_count=").Append(linux.Length).Append('\n')
+            .Append("run_windows_count=").Append(windows.Length).Append('\n')
             .Append("skip_count=").Append(selection.Skip.Count).Append('\n')
             .ToString();
     }
+
+    private static string Matrix(Leg[] legs) =>
+        new JsonObject { ["include"] = new JsonArray([.. legs.Select(leg => (JsonNode)leg.Entry.DeepClone())]) }.ToJsonString();
 
     private static List<Rule> Rules(string json)
     {
@@ -205,8 +218,15 @@ internal static class LegSelector
             string name = entry["name"]?.GetValue<string>()
                 ?? throw new InvalidOperationException("A leg in matrix.json has no name.");
             string[] tags = Strings(entry["tags"], $"the tags of '{name}'");
+            string runner = entry["runner"]?.GetValue<string>() ?? Linux;
             entry.Remove("tags");
-            return new Leg(name, tags, entry);
+
+            if (runner is not (Linux or Windows))
+            {
+                throw new InvalidOperationException($"'{name}' in matrix.json runs on '{runner}', which no job serves: {Linux} or {Windows}.");
+            }
+
+            return new Leg(name, tags, runner, entry);
         }).ToList();
 
         string? twice = read.GroupBy(leg => leg.Name, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1)?.Key;
@@ -321,7 +341,7 @@ internal static class LegSelector
         new("the web workflow and the webapp item", "pull_request", [], [".github/workflows/web.yml", ".template.config/webapp/.template.config/template.json"], WebLegs),
         new("the Vue starter", "pull_request", [], [".template.config/starters/vue/FrameworkSite/scaffold.json"], ["web, every starter"]),
         new("the Angular starter", "pull_request", [], [".template.config/starters/angular/FrameworkSite/scaffold.json"],
-            ["web angular, external auth, notes", "web react, then an angular back office", "web, every starter"]),
+            ["web placeholder, smallest project", "web angular, external auth, notes", "web react, then an angular back office", "web, every starter"]),
         new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AppTemplate.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
             ["external auth, all examples", "web react, local auth", "web angular, external auth, notes", "no web, then a react app and its workspace", "web, every starter"]),
         new("the Avalonia starter", "pull_request", [], [".template.config/starters/avalonia/Src/Presentation/AppTemplate.PresentationApp/Program.cs"],
@@ -378,8 +398,7 @@ internal static class LegSelector
             }
         }
 
-        string outputs = Outputs(Select(rules, legs, "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vue/FrameworkSite/scaffold.json"]));
-        var lines = outputs.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToDictionary(line => line[..line.IndexOf('=')], line => line[(line.IndexOf('=') + 1)..]);
+        var lines = OutputLines(Select(rules, legs, "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vue/FrameworkSite/scaffold.json"]));
         JsonNode? runMatrix = JsonNode.Parse(lines.GetValueOrDefault("run", "null"));
         JsonNode? skipMatrix = JsonNode.Parse(lines.GetValueOrDefault("skip", "null"));
 
@@ -395,12 +414,37 @@ internal static class LegSelector
             failures.Add("the skip output or the counts do not match the legs chosen");
         }
 
+        string[] windowsLegs = [.. legs.Where(leg => leg.Runner == Windows).Select(leg => leg.Name)];
+
+        if (windowsLegs.Length == 0 || lines.GetValueOrDefault("run_windows") != "{\"include\":[]}" || lines.GetValueOrDefault("run_windows_count") != "0"
+            || !windowsLegs.All(name => skipMatrix?["include"]?.AsArray().Any(leg => leg?["name"]?.GetValue<string>() == name) == true))
+        {
+            failures.Add("a Windows leg the change cannot reach is run, or not reported with the legs skipped");
+        }
+
+        var everything = OutputLines(Select(rules, legs, "pull_request", [], ["Src/Domain/AppTemplate.Domain/Common/Entity.cs"]));
+        string[] linuxRun = Names(everything.GetValueOrDefault("run", "null"));
+        string[] windowsRun = Names(everything.GetValueOrDefault("run_windows", "null"));
+
+        if (!windowsRun.Order(StringComparer.Ordinal).SequenceEqual(windowsLegs.Order(StringComparer.Ordinal), StringComparer.Ordinal)
+            || linuxRun.Length + windowsRun.Length != legs.Count || linuxRun.Intersect(windowsRun, StringComparer.Ordinal).Any()
+            || everything.GetValueOrDefault("run_count") != linuxRun.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            || everything.GetValueOrDefault("run_windows_count") != windowsRun.Length.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        {
+            failures.Add("the legs run are not split by runner: each Windows leg in run_windows alone, every other leg in run");
+        }
+
+        if (!Refused(() => Legs("[{\"name\": \"a\", \"tags\": [], \"runner\": \"macos-latest\"}]")))
+        {
+            failures.Add("a leg on a runner no job serves is accepted");
+        }
+
         if (Labels("null").Length != 0 || Labels("[\"a\",\"full-acceptance\"]") is not ["a", FullAcceptanceLabel])
         {
             failures.Add("the labels of a push, or of a pull request, are misread");
         }
 
-        int total = Cases.Length * 2 + 3;
+        int total = Cases.Length * 2 + 6;
         Console.WriteLine($"Self-test: {Cases.Length} change(s) against rules.json and matrix.json, and the outputs they write.");
 
         if (failures.Count > 0)
@@ -417,4 +461,24 @@ internal static class LegSelector
         Console.WriteLine("Every change selects the legs it can affect, and every trigger to run them all runs them all.");
         return 0;
     }
+
+    private static bool Refused(Action read)
+    {
+        try
+        {
+            read();
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
+    }
+
+    private static Dictionary<string, string> OutputLines(Selection selection) =>
+        Outputs(selection).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .ToDictionary(line => line[..line.IndexOf('=')], line => line[(line.IndexOf('=') + 1)..], StringComparer.Ordinal);
+
+    private static string[] Names(string matrix) =>
+        [.. JsonNode.Parse(matrix)?["include"]?.AsArray().Select(leg => leg?["name"]?.GetValue<string>()).OfType<string>() ?? []];
 }

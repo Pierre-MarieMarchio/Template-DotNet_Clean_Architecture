@@ -60,9 +60,10 @@ lockfile, adds a second app and a package with the item templates, scaffolds, ru
 install, lint, test and build, fails when an app with a build script has no built page, checks a
 second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
 headers and an answer only the API gives; it fails when a served page holds an event-handler
-attribute or an inline script whose hash the served `script-src` lacks, and reports its inline
-styles; a page that loads the WebAssembly authentication script must carry the origin of
-`EXTERNAL_AUTH_AUTHORITY` in its served `connect-src` and `frame-src`. The every-starter leg adds
+attribute or an inline script the served `script-src` allows neither by its hash nor by the
+script's nonce, or when two responses share a nonce, and reports its inline styles; a page that
+loads the WebAssembly authentication script must carry the origin of `EXTERNAL_AUTH_AUTHORITY` in
+its served `connect-src` and `frame-src`. The every-starter leg adds
 each framework starter its first app is not, so one workspace proves them all together. Every leg
 runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
@@ -80,7 +81,7 @@ ask it in the stack for its page and `/health`. The leg that adds a first app ad
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false` |
 | external auth, all examples | `--auth external --examples all --files true --web blazor-wasm` |
 | external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
-| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server` |
+| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
@@ -91,6 +92,7 @@ ask it in the stack for its page and `/health`. The leg that adds a first app ad
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port` |
+| windows, defaults | none, on `windows-latest` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
@@ -100,6 +102,16 @@ the lines `Src/Web/README.md` lists, and is a web leg from there. `--workspace` 
 the engine refuses to overwrite one, so everything a web app needs from the API ships with every
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
+
+A leg whose `runner` is `windows-latest` runs in the `template-windows` job instead, as a Windows
+user runs the project ([template decision 0014](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)):
+from PowerShell, one command a step, it installs the package, generates, asserts the source name
+leaked nowhere, then runs `bootstrap`, the `build` task with warnings as errors,
+`test --no-integration`, `hygiene` and the citation check. A Windows runner runs no Linux image, so
+the job starts no container and sets up no web workspace. It checks out the root files and `Tools`
+alone, since the package brings the template and a starter's deepest path exceeds the 260 characters
+git for Windows allows by default; their `.gitattributes` keeps them LF whatever the runner's
+`core.autocrlf`.
 
 The legs are the entries of `.template.config/acceptance/matrix.json`: the fields the workflow's
 steps read, and the `tags` that name what the leg generates. The two web legs with external
@@ -115,9 +127,9 @@ after its `--self-test`, on the paths `git diff --name-only --no-renames HEAD^1 
 pull request's merge commit. Each rule of `.template.config/acceptance/rules.json` maps path globs to
 tags, to `none` (no leg reads the path) or to `all`; the first rule a path matches decides, a path no
 rule matches runs every leg, and a leg runs when it carries a tag a changed path names. The
-`template` job takes the legs to run as its matrix; the `skipped` job reports each other leg green,
-with one echo step, under the same name, `Template acceptance (<leg>)`, the check the `develop`
-ruleset requires.
+`template` job takes the Linux legs to run as its matrix and `template-windows` the Windows ones;
+the `skipped` job reports each other leg green, whichever its runner, with one echo step, under the
+same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requires.
 
 | A change to | Runs |
 |---|---|
@@ -127,7 +139,10 @@ ruleset requires.
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
-| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg |
+| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows one included |
+
+The Windows leg generates the default shape and carries no tag, so only a change that runs every
+leg reaches it.
 
 Every leg runs on a push to `develop` or `main`, on a manual run, under the `full-acceptance` label,
 on an empty or unreadable diff, and on a change to the selector, its rules, the matrix or the
@@ -137,7 +152,9 @@ workflow. Labelling a pull request starts a run, so `full-acceptance` applies wi
 checks the ruleset requires plus the every-starter leg, which it does not; every folder under
 `.template.config/starters` and `.template.config/variants`, and each item template's, has a rule of
 its own; every tag a rule names is a leg's, and every leg's tag a rule's; each leg's tags are the ones
-its options choose; and every `none` path is left out of the template package. `Tools/CheckWorkflows.cs`
+its options choose; each leg's runner is one a job serves, and a Windows leg sets only the fields
+`template-windows` reads and generates no web app; and every `none` path is left out of the template
+package. `Tools/CheckWorkflows.cs`
 refuses a `paths:` filter, which leaves a required check pending, and a job-level `if:` on a pull
 request's matrix job, which reports none of its legs when it skips them all, unless its matrix is read
 from an earlier job and another job of the same name reports the legs it leaves out.
@@ -145,7 +162,8 @@ from an earlier job and another job of the same name reports the legs it leaves 
 ### Adding a leg
 
 1. Add its entry to `.template.config/acceptance/matrix.json`, with the fields its steps read and
-   the tags its options choose; `AcceptanceSelectionTests` fails until they agree.
+   the tags its options choose, and `"runner": "windows-latest"` for a shape a Windows user must
+   see run; `AcceptanceSelectionTests` fails until they agree.
 2. Add the leg's name to the required list in `AcceptanceSelectionTests`, and once that pull request
    merges, `Template acceptance (<leg>)` to the required checks of the `develop` ruleset, which
    would otherwise hold every other pull request pending; a leg left optional, as the every-starter
@@ -268,6 +286,15 @@ folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither
 has no folder: it is an alias of `vite-react`, chosen by the same computed symbol, `webViteReact`,
 so it copies the same starter.
 
+A starter whose generator also renders on the server holds that form in `ssr/FrameworkSite/`, its
+own `scaffold.json` and `overlay/` ([template decision 0011](decisions/0011-a-starter-may-render-on-the-server.md)):
+`angular` does, with `ng new --ssr`. Both templates copy the starter's folder without `ssr/`, leave
+its `FrameworkSite/` out under `webServerRendering`, and copy `ssr/` under the starter's symbol and
+`webServerRendering`; the shared `Dockerfile` then ends on Node, and `nginx.conf` is left out.
+`--web-rendering ssr`, and `cleanarch-webapp --rendering ssr`, are refused for every other starter
+by `serverRenderingNeedsAServerStarter`, and with accounts by
+`serverRenderingWithAccountsNotYetGenerated`.
+
 Adding a starter, for a CLI that keeps the contract of decision 0008:
 
 1. Write `.template.config/starters/<value>/FrameworkSite/scaffold.json`: the CLI's package, its
@@ -300,7 +327,13 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
    values.
 4. Give it an accent colour in `Launcher/CleanArch.Create/Prompts/GuidedConversation.cs`; its
    question comes from the manifests.
-5. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
+5. To offer its server form, write `ssr/FrameworkSite/scaffold.json` and its `overlay/`, whose server
+   relays through `relayToApi` of `@app-template/api-client/server`, sends the page headers, and
+   renders with a nonce per response; add the folder's source and the two modifiers of its main
+   source to both `template.json` files, and its value to the condition of
+   `serverRenderingNeedsAServerStarter` and `refusedOptions`. `TemplatePackagingTests` fails until
+   they agree with the folder, and a web leg generates the server form.
+6. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
    scaffolds, builds and serves it beside the others and refuses an inline script its served policy
    does not allow by hash; a starter that differs in the wiring gets a leg of its own as well, unless
    the every-starter leg already proves what differs, as it does for React Router's hash step. Its

@@ -13,12 +13,17 @@ public sealed class BackgroundWorkTests
         TimeSpan.FromSeconds(5));
 
     private static readonly Regex _authenticationReference = new(
-        @"AppTemplate\.(?:Application|Infrastructure)\.Auth\b|AppTemplate\.Api\.Features\.Auth\b",
+        @"AppTemplate\.(?:Application|Infrastructure)\.Auth\b|AppTemplate\.\w+\.Features\.Auth\b",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
     private static readonly Regex _leaseDependency = new(
         @"\bILeaderLease\s+[a-z_][A-Za-z0-9_]*",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _backgroundJobsCall = new(
+        @"\.AddBackgroundJobs\(",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
@@ -50,6 +55,28 @@ public sealed class BackgroundWorkTests
             "Exclusivity between hosts is a property of the operation, not of the timer that starts " +
             "it. Move the lease into the use case, the way FireDueRemindersUseCase does, so that a " +
             "second caller of the same operation is covered too.");
+    }
+
+    [Fact]
+    public void TheJobs_RunInOneHost()
+    {
+        var hosts = ProjectReferenceGraph.Hosts
+            .Where(host => SourcesOf(host).Any(file => _backgroundJobsCall.IsMatch(CodeOf(file))))
+            .Select(host => host.Name)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        hosts.ShouldBe(
+            [JobsHost().Name],
+            "The jobs run in one host, the one that holds Features/BackgroundJobs/Jobs: a second host that "
+            + "calls AddBackgroundJobs runs every pass twice, and the lease is then the only thing between them.");
+    }
+
+    [Fact]
+    public void TheJobsRule_IsSensitive_AndSeesTheCallItCounts()
+    {
+        _backgroundJobsCall.IsMatch("builder.Services.AddBackgroundJobs(builder.Configuration);").ShouldBeTrue();
+        _backgroundJobsCall.IsMatch("public static IServiceCollection AddBackgroundJobs(").ShouldBeFalse();
     }
 
     [Fact]
@@ -124,7 +151,7 @@ public sealed class BackgroundWorkTests
         var files = BackgroundCompositionFiles();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
-            10,
+            9,
             "Far fewer files were found in the background composition than this template ships, so " +
             "this rule is reading the wrong tree and passing for the wrong reason.");
 
@@ -147,17 +174,38 @@ public sealed class BackgroundWorkTests
             .ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Infrastructure.Auth;").ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Api.Features.Auth.Jobs;").ShouldBeTrue();
+        _authenticationReference.IsMatch("using AppTemplate.Worker.Features.Auth.Jobs;").ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Api.Features.Maintenance.Jobs;").ShouldBeFalse();
     }
 
+    private static ProjectNode JobsHost()
+    {
+        var holders = ProjectReferenceGraph.Hosts
+            .Where(host => File.Exists(Path.Combine(
+                ProjectReferenceGraph.RootOf(host), "Features", "BackgroundJobs", "Jobs", "BackgroundJobsModule.cs")))
+            .ToList();
+
+        holders.Count.ShouldBe(
+            1,
+            "Exactly one host holds Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs; the background rules read "
+            + "the jobs of that host. Found: " + string.Join(", ", holders.Select(host => host.Name)));
+
+        return holders[0];
+    }
+
+    private static IEnumerable<string> SourcesOf(ProjectNode project) =>
+        Directory
+            .EnumerateFiles(ProjectReferenceGraph.RootOf(project), "*.cs", SearchOption.AllDirectories)
+            .Where(IsProductionSource);
+
     private static List<string> BackgroundCompositionFiles()
     {
-        string api = ProjectReferenceGraph.RootOf(ProjectReferenceGraph.Project("AppTemplate.Api"));
+        string host = ProjectReferenceGraph.RootOf(JobsHost());
 
-        var folders = new List<string> { Path.Combine(api, "Common", "Jobs") };
+        var folders = new List<string> { Path.Combine(host, "Common", "Jobs") };
 
         folders.AddRange(Directory
-            .EnumerateDirectories(Path.Combine(api, "Features"))
+            .EnumerateDirectories(Path.Combine(host, "Features"))
             .Where(feature => !string.Equals(Path.GetFileName(feature), "Auth", StringComparison.Ordinal))
             .Select(feature => Path.Combine(feature, "Jobs"))
             .Where(Directory.Exists));

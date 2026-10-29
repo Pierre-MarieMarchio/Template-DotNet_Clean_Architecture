@@ -1,8 +1,8 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
+using AppTemplate.Presentation.Core.Common.Jobs;
 using AppTemplate.Presentation.Core.Common.Security;
 
 namespace AppTemplate.Api.Common.Security;

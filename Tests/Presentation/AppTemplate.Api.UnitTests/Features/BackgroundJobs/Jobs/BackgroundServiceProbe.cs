@@ -1,7 +1,7 @@
 ﻿using Shouldly;
 using Xunit;
 
-namespace AppTemplate.Api.UnitTests.TestSupport;
+namespace AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 
 internal static class BackgroundServiceProbe
 {

@@ -1,5 +1,4 @@
-﻿using AppTemplate.Api.Common.Jobs;
-//#if (localAuth)
+﻿//#if (localAuth)
 using AppTemplate.Api.Features.Auth.Jobs;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
@@ -8,6 +7,7 @@ using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.Pur
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 //#endif
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using AppTemplate.Presentation.Core.Common.Jobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

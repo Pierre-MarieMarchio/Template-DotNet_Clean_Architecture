@@ -74,6 +74,7 @@ module (`OnlyAHost_ReferencesInfrastructureModules`). The modules themselves are
 | OTLP traces and metrics, named after the host's assembly | `AddObservability` |
 | The caller of a process that has no request | `NoCallerCurrentUser` |
 | The loop recurring work runs on | `PeriodicJob` |
+| The scope a pass runs in, whose ports answer that no one is calling | `CreateBackgroundScope()` |
 <!--#if (externalAuth)-->
 | The provider every host signs callers in with, and the roles read from its tokens | `AuthenticationExternalOptions`, `TokenRoleMapping` |
 <!--#endif-->

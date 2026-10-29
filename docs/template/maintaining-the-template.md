@@ -99,11 +99,11 @@ with the read-only key, revokes the key and is refused with it.
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
 | web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
-| web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
+| web angular, external auth, notes | `--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
-| web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port` |
+| web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port`, and once more for React Router with `--rendering ssr` |
 | windows, defaults | none, on `windows-latest` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
@@ -305,8 +305,7 @@ own `scaffold.json` and `overlay/` ([template decision 0011](decisions/0011-a-st
 its `FrameworkSite/` out under `webServerRendering`, and copy `ssr/` under the starter's symbol and
 `webServerRendering`; the shared `Dockerfile` then ends on Node, and `nginx.conf` is left out.
 `--web-rendering ssr`, and `cleanarch-webapp --rendering ssr`, are refused for every other starter
-by `serverRenderingNeedsAServerStarter`, and with an external provider by
-`serverRenderingWithExternalAuthNotYetGenerated`.
+by `serverRenderingNeedsAServerStarter`.
 
 Adding a starter, for a CLI that keeps the contract of decision 0008:
 

@@ -29,7 +29,7 @@
         { "choice": "vite-react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
         { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
         { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." },
-        { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) in single-page mode when web-scaffold runs." },
+        { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) when web-scaffold runs: a single-page app, or rendered on the server with --rendering ssr." },
         { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app, created by dotnet new blazorwasm when web-scaffold runs, calling the API through the .NET client of Src/Clients, which comes with it." }
       ],
       "description": "The app's framework."
@@ -52,7 +52,7 @@
       "defaultValue": "spa",
       "choices": [
         { "choice": "spa", "description": "A single-page app: a static site served by nginx." },
-        { "choice": "ssr", "description": "Rendered on the server for each request, by the framework's own Node server, which keeps the session; angular only, not yet in a project generated with --auth external." }
+        { "choice": "ssr", "description": "Rendered on the server for each request, by the framework's own Node server, which keeps the session; angular and react-router only." }
       ],
       "description": "How the app renders, where its generator offers both."
     },
@@ -184,17 +184,8 @@
       "choices": [
         { "choice": "refused", "description": "Not an option to set: it names the refusal." }
       ],
-      "isRequired": "(rendering == \"ssr\" && framework != \"angular\")",
-      "description": "Never set. --rendering ssr needs a framework whose generator renders on the server: choose --framework angular, or --rendering spa."
-    },
-    "serverRenderingWithExternalAuthNotYetGenerated": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        { "choice": "refused", "description": "Not an option to set: it names the refusal." }
-      ],
-      "isRequired": "(rendering == \"ssr\" && auth == \"external\")",
-      "description": "Never set. A server-rendered web app keeps no session for an external provider yet: a project generated with --auth external does not take --rendering ssr."
+      "isRequired": "(rendering == \"ssr\" && framework != \"angular\" && framework != \"react-router\")",
+      "description": "Never set. --rendering ssr needs a framework whose generator renders on the server: choose --framework angular or react-router, or --rendering spa."
     },
     "wasmWebNeedsAccounts": {
       "type": "parameter",
@@ -403,7 +394,25 @@
     {
       "source": "../starters/react-router/",
       "target": "./Src/Web/apps/",
-      "condition": "(webReactRouter)"
+      "condition": "(webReactRouter)",
+      "modifiers": [
+        {
+          "exclude": [
+            "ssr/**"
+          ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../starters/react-router/ssr/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webReactRouter && webServerRendering)"
     },
     {
       "source": "../starters/blazor-wasm/",
@@ -551,6 +560,17 @@
       "manualInstructions": [
         {
           "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. A framework app is created by its official CLI: run dotnet run Tools/Tasks.cs web-scaffold <name> at the project root (or bootstrap), then commit the app with Src/Web/pnpm-lock.yaml. A placeholder needs only pnpm install in Src/Web."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(webServerRendering && externalAuth)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Sign people in at the provider from the app's server.",
+      "manualInstructions": [
+        {
+          "text": "Add WEB_<NAME>_ORIGIN to .env.example, and EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID and EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET where it names neither; Src/Web/apps/<name>/README.md gives the lines, and the client to register at the provider, under 'Calling the API and signing in'."
         }
       ],
       "continueOnError": true

@@ -67,27 +67,31 @@ public sealed class OfferTests
             .Values.ShouldBe(["public", "admin"]);
     }
 
-    [Theory]
-    [InlineData("vite-react", "none", "serverRenderingNeedsAServerStarter")]
-    [InlineData("angular", "external", "serverRenderingWithExternalAuthNotYetGenerated")]
-    public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt(string web, string auth, string refusal)
+    [Fact]
+    public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt()
     {
-        var known = new Dictionary<string, string> { ["web"] = web, ["auth"] = auth };
+        var known = new Dictionary<string, string> { ["web"] = "vite-react", ["auth"] = "none" };
 
         Offer offer = Offer.For(_project, Option(_project, "webRendering"), known, Launcher.ProjectAskedWhen);
 
         offer.Values.ShouldBe(["spa"]);
-        offer.Reasons.Select(reason => reason.Symbol).ShouldBe([refusal]);
+        offer.Reasons.Select(reason => reason.Symbol).ShouldBe(["serverRenderingNeedsAServerStarter"]);
     }
 
-    [Fact]
-    public void ServerRendering_IsOffered_ForAnAngularAppWithLocalAccountsOrNone()
+    [Theory]
+    [InlineData("angular", "local")]
+    [InlineData("angular", "external")]
+    [InlineData("angular", "none")]
+    [InlineData("react-router", "local")]
+    [InlineData("react-router", "external")]
+    [InlineData("react-router", "none")]
+    public void ServerRendering_IsOffered_ForAStarterThatRendersOnTheServer_WhateverTheProjectAuthenticates(string framework, string auth)
     {
-        var known = new Dictionary<string, string> { ["auth"] = "local" };
+        var known = new Dictionary<string, string> { ["auth"] = auth };
 
-        Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = "angular" }, Launcher.ProjectAskedWhen)
+        Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = framework }, Launcher.ProjectAskedWhen)
             .Values.ShouldBe(["spa", "ssr"]);
-        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "angular" }, _alwaysAsked)
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = framework }, _alwaysAsked)
             .Values.ShouldBe(["spa", "ssr"]);
         Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "vue" }, _alwaysAsked)
             .Values.ShouldBe(["spa"]);

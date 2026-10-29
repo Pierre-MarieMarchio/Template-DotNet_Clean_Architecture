@@ -106,7 +106,7 @@
   <!--#if (files)-->
   <!-- AWSSDK.S3 only: the client is built from the module's own validated options. -->
   <ItemGroup Label="Object storage">
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.104.6" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.104.7" />
   </ItemGroup>
 
   <!--#endif-->
@@ -124,7 +124,7 @@
     <!--#if (postgreSql)-->
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!--#endif-->
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.18.3" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.18.5" />
   </ItemGroup>
 
   <ItemGroup Label="Test">

@@ -285,6 +285,26 @@ downloads: public values only, never a secret. The API never reads it.
 | `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only, as `wwwroot/appsettings.Development.json` sets it for `dotnet watch`. |
 
 <!--#endif-->
+<!--#if (anyWeb && externalAuth)-->
+## A server-rendered web app
+
+### Its environment
+
+Read by the Node server of a web app rendered on the server (`--web-rendering ssr`, or
+`cleanarch-webapp --rendering ssr`) alone, as the client it signs people in with at the provider,
+from its environment, which its `compose.yml` sets from `.env`; the API never reads it. The server
+refuses to start until each required one is set, and names those that are not; the framework's
+build, which loads the server, needs none of them.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `EXTERNAL_AUTH_AUTHORITY` | — | **Required.** The provider's `https` issuer URL, the one `Authentication:External:Authority` names. Its discovery document is read at the first sign-in, not at start. |
+| `EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID` | — | **Required.** The client the provider registered for the app, allowed the authorization code flow with PKCE. |
+| `EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET` | — | Its secret, for a confidential client; a public client sends none and relies on PKCE. |
+| `EXTERNAL_AUTH_INTERACTIVE_SCOPE` | `openid profile email offline_access` | Must include `openid`. `offline_access` asks for the refresh token that keeps the session past the first access token; the API's own scope goes here when the provider issues its audience that way. |
+| `PUBLIC_ORIGIN` | — | **Required.** The origin browsers reach the app at, such as `https://app.example.com`: `https`, or `http` on `localhost`, since the session cookie is `Secure`. The redirect URI is `<origin>/session/callback`. Compose sets it from `WEB_<NAME>_ORIGIN`, `http://localhost` on the app's port by default. |
+
+<!--#endif-->
 ## Mail
 
 ### `Email:Transport`

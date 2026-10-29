@@ -16,25 +16,15 @@ to the application layer:
 
 | Option | Where it lives | Wired to |
 |---|---|---|
-| `--web` | `Src/Web/apps/<Name>`, served by nginx | the API, through the generated client and the `/api` relay |
+| `--web` | `Src/Web/apps/<Name>`, served by nginx or, rendered on the server, by its own Node server | the API, through the generated client and the `/api` relay |
 | `--presentation` | `Src/Presentation/<Project>.<Name>` | the application layer in process for a server host, the API for a client |
 
 A value names its generator and never changes meaning: `vite-react` is `create-vite` with its React
 template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
-## Coming, in order
+## Coming
 
-1. **Server rendering where the generator offers it**
-   ([#128](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/128)).
-   `--web-rendering spa|ssr` and `cleanarch-webapp --rendering`, refused for the starters whose
-   generator only makes single-page apps, with Angular's server form (`ng new --ssr`) on its own
-   Node server and a nonce per response, and the session that server keeps for local accounts, are
-   in; then the session for an external provider, then React Router's server form from its
-   `node-custom-server` template.
-
-## Later
-
-Each group comes once the items above have shipped, in no fixed order:
+Each group comes in no fixed order:
 
 - **The other templates of `create-vite`**
   ([#118](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/118)):
@@ -43,7 +33,7 @@ Each group comes once the items above have shipped, in no fixed order:
   ([#119](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/119)):
   Ember; then SvelteKit, Nuxt, Analog and Astro in their static form, each needing only its
   starter and a marker giving it the hash step React Router's image build already has, their server
-  form following the server-rendering item; Next last, whose static export goes against the
+  form then an `ssr/` folder of that starter, as Angular's and React Router's are; Next last, whose static export goes against the
   framework's grain.
 - **Desktop and mobile clients of the API**
   ([#120](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/120)):

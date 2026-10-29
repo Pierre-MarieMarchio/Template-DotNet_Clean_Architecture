@@ -1262,7 +1262,22 @@
     {
       "source": "./.template.config/starters/blazor-wasm/",
       "target": "./Src/Web/apps/",
-      "condition": "(webBlazorWasm)"
+      "condition": "(webBlazorWasm)",
+      "modifiers": [
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "FrameworkSite/Common/**",
+            "FrameworkSite/Pages/**",
+            "FrameworkSite/wwwroot/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./.template.config/variants/blazor-wasm-sign-in/",
+      "target": "./",
+      "condition": "(webBlazorWasm && externalAuth)"
     },
     {
       "source": "./.template.config/starters/blazor-server/",

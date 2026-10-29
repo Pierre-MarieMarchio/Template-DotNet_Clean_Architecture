@@ -165,8 +165,11 @@ public sealed class LayoutConventionTests
         /*#if (presentationAvalonia && externalAuth)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Sessions"],
         #endif*/
-        /*#if (webBlazorWasm)
+        /*#if (webBlazorWasm && !externalAuth)
         ["Src/Web/apps/FrameworkSite"] = null,
+        #endif*/
+        /*#if (webBlazorWasm && externalAuth)
+        ["Src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
         #endif*/
         //#if (dotnetClient)
         ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],

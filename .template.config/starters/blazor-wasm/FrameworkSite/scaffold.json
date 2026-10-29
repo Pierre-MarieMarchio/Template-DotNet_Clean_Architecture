@@ -7,7 +7,11 @@
   "template": "blazorwasm",
   "arguments": [
     "--name", "{name}", "--output", "{directory}",
+    //#if (externalAuth)
+    "--auth", "Individual", "--no-https", "--no-restore"
+    //#else
     "--auth", "None", "--no-https", "--no-restore"
+    //#endif
   ],
   "keep": ["Layout", "Pages", "Properties", "wwwroot", "App.razor", "_Imports.razor"]
 }

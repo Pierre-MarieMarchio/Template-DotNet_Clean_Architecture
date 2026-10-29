@@ -354,7 +354,22 @@
     {
       "source": "../starters/blazor-wasm/",
       "target": "./Src/Web/apps/",
-      "condition": "(webBlazorWasm)"
+      "condition": "(webBlazorWasm)",
+      "modifiers": [
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "FrameworkSite/Common/**",
+            "FrameworkSite/Pages/**",
+            "FrameworkSite/wwwroot/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../variants/blazor-wasm-sign-in/",
+      "target": "./",
+      "condition": "(webBlazorWasm && externalAuth)"
     },
     {
       "source": "../../Src/Clients/",

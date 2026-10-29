@@ -1287,10 +1287,11 @@ internal static class Tasks
 
         string own = Path.Combine(folder, name + ".csproj");
         bool client = HoldsTheClient(repoRoot) && File.ReadAllText(own).Contains(@"..\..\Clients\", StringComparison.Ordinal);
+        string tests = task == "web-scaffold" ? "Web" : "Presentation";
         string[] projects =
         [
             own,
-            .. new[] { Path.Combine(repoRoot, "Tests", "Presentation", name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
+            .. new[] { Path.Combine(repoRoot, "Tests", tests, name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
             .. (client ? ClientProjects(repoRoot) : []),
         ];
 

@@ -30,9 +30,11 @@
   },
   {
     "name": "external auth, all examples",
-    "tags": [],
-    "options": "--auth external --examples all --files true",
-    "auth_context": "false"
+    "tags": ["starter-blazor-wasm", "web"],
+    "options": "--auth external --examples all --files true --web blazor-wasm",
+    "auth_context": "false",
+    "web": "true",
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
   },
   {
     "name": "sql server, external auth, all examples",
@@ -69,11 +71,12 @@
   },
   {
     "name": "web angular, external auth, notes",
-    "tags": ["presentation-blazor-server", "starter-angular", "web"],
+    "tags": ["presentation-blazor-server", "starter-angular", "starter-blazor-wasm", "web"],
     "options": "--web angular --auth external --examples notes --presentation blazor-server",
     "auth_context": "false",
     "web": "true",
-    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance"
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance",
+    "wasm_app": "--scope sample-generated-project --auth external --examples notes"
   },
   {
     "name": "web react back office, smallest local project",

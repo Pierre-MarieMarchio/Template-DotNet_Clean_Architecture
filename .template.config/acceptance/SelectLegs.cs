@@ -302,6 +302,7 @@ internal static class LegSelector
 
     private static readonly string[] WebLegs =
     [
+        "external auth, all examples",
         "web placeholder, smallest project",
         "web react, local auth",
         "web angular, external auth, notes",
@@ -321,6 +322,8 @@ internal static class LegSelector
         new("the Vue starter", "pull_request", [], [".template.config/starters/vue/FrameworkSite/scaffold.json"], ["web, every starter"]),
         new("the Angular starter", "pull_request", [], [".template.config/starters/angular/FrameworkSite/scaffold.json"],
             ["web angular, external auth, notes", "web react, then an angular back office", "web, every starter"]),
+        new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AppTemplate.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
+            ["external auth, all examples", "web react, local auth", "web angular, external auth, notes", "no web, then a react app and its workspace", "web, every starter"]),
         new("the Avalonia starter", "pull_request", [], [".template.config/starters/avalonia/Src/Presentation/AppTemplate.PresentationApp/Program.cs"],
             ["external auth, notes", "external auth, no examples, no files", "no web, then a react app and its workspace", "web, every starter"]),
         new("the Blazor Server starter", "pull_request", [], [".template.config/starters/blazor-server/Tests/Presentation/x.cs"],

@@ -61,6 +61,10 @@
       "tags": ["starter-blazor-wasm"]
     },
     {
+      "paths": [".template.config/variants/blazor-wasm-sign-in/**"],
+      "tags": ["starter-blazor-wasm"]
+    },
+    {
       "paths": [".template.config/starters/react-router/**"],
       "tags": ["starter-react-router"]
     },

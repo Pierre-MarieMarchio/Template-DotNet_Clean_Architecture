@@ -91,6 +91,7 @@ ask it in the stack for its page and `/health`. The leg that adds a first app ad
 | web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port` |
+| windows, defaults | none, on `windows-latest` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
@@ -100,6 +101,14 @@ the lines `Src/Web/README.md` lists, and is a web leg from there. `--workspace` 
 the engine refuses to overwrite one, so everything a web app needs from the API ships with every
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
+
+A leg whose `runner` is `windows-latest` runs in the `template-windows` job instead, as a Windows
+user runs the project ([template decision 0014](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)):
+from PowerShell, one command a step, it installs the package, generates, asserts the source name
+leaked nowhere, then runs `bootstrap`, the `build` task with warnings as errors,
+`test --no-integration`, `hygiene` and the citation check. A Windows runner runs no Linux image, so
+the job starts no container and sets up no web workspace; the checkout's `.gitattributes` keeps its
+line endings LF whatever the runner's `core.autocrlf`.
 
 The legs are the entries of `.template.config/acceptance/matrix.json`: the fields the workflow's
 steps read, and the `tags` that name what the leg generates. The two web legs with external
@@ -115,9 +124,9 @@ after its `--self-test`, on the paths `git diff --name-only --no-renames HEAD^1 
 pull request's merge commit. Each rule of `.template.config/acceptance/rules.json` maps path globs to
 tags, to `none` (no leg reads the path) or to `all`; the first rule a path matches decides, a path no
 rule matches runs every leg, and a leg runs when it carries a tag a changed path names. The
-`template` job takes the legs to run as its matrix; the `skipped` job reports each other leg green,
-with one echo step, under the same name, `Template acceptance (<leg>)`, the check the `develop`
-ruleset requires.
+`template` job takes the Linux legs to run as its matrix and `template-windows` the Windows ones;
+the `skipped` job reports each other leg green, whichever its runner, with one echo step, under the
+same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requires.
 
 | A change to | Runs |
 |---|---|
@@ -127,7 +136,10 @@ ruleset requires.
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
-| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg |
+| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows one included |
+
+The Windows leg generates the default shape and carries no tag, so only a change that runs every
+leg reaches it.
 
 Every leg runs on a push to `develop` or `main`, on a manual run, under the `full-acceptance` label,
 on an empty or unreadable diff, and on a change to the selector, its rules, the matrix or the
@@ -137,7 +149,9 @@ workflow. Labelling a pull request starts a run, so `full-acceptance` applies wi
 checks the ruleset requires plus the every-starter leg, which it does not; every folder under
 `.template.config/starters` and `.template.config/variants`, and each item template's, has a rule of
 its own; every tag a rule names is a leg's, and every leg's tag a rule's; each leg's tags are the ones
-its options choose; and every `none` path is left out of the template package. `Tools/CheckWorkflows.cs`
+its options choose; each leg's runner is one a job serves, and a Windows leg sets only the fields
+`template-windows` reads and generates no web app; and every `none` path is left out of the template
+package. `Tools/CheckWorkflows.cs`
 refuses a `paths:` filter, which leaves a required check pending, and a job-level `if:` on a pull
 request's matrix job, which reports none of its legs when it skips them all, unless its matrix is read
 from an earlier job and another job of the same name reports the legs it leaves out.
@@ -145,7 +159,8 @@ from an earlier job and another job of the same name reports the legs it leaves 
 ### Adding a leg
 
 1. Add its entry to `.template.config/acceptance/matrix.json`, with the fields its steps read and
-   the tags its options choose; `AcceptanceSelectionTests` fails until they agree.
+   the tags its options choose, and `"runner": "windows-latest"` for a shape a Windows user must
+   see run; `AcceptanceSelectionTests` fails until they agree.
 2. Add the leg's name to the required list in `AcceptanceSelectionTests`, and once that pull request
    merges, `Template acceptance (<leg>)` to the required checks of the `develop` ruleset, which
    would otherwise hold every other pull request pending; a leg left optional, as the every-starter

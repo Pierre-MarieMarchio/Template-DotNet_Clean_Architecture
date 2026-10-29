@@ -1,10 +1,10 @@
 ﻿using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Composition;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Configuration.Options;
 
 internal sealed class ConfigureExternalOpenIdConnectOptions(
     IOptions<AuthenticationExternalOptions> provider,

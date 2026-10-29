@@ -1,4 +1,4 @@
-﻿﻿# PresentationApp
+﻿﻿# PresentationAppMcp
 
 The presentation project beside the API: an MCP server whose tools call the use cases in its own
 process, for the caller its credential names. [Presentation project](../../../docs/features/presentation.md)
@@ -10,7 +10,7 @@ The folder holds the whole project, written in the shape `dotnet new mcpserver -
 gives an MCP server at the version scaffold.json names; no template runs. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppMcp
 ```
 
 `bootstrap` runs the same step. It needs no network: it removes scaffold.json, adds the project and
@@ -20,7 +20,7 @@ alone.
 ## Connect a client
 
 The server answers on `/mcp`, at `http://localhost:5190/mcp` under `dotnet run` and at the port
-`PRESENTATION_PRESENTATION_APP_HOST_PORT` sets in Compose.
+`PRESENTATION_PRESENTATION_APP_MCP_HOST_PORT` sets in Compose.
 <!--#if (localAuth)-->
 A client sends an access key a signed-in user created with `POST /api/v1/auth/access-keys`, as an
 `Authorization: Bearer` header.
@@ -32,14 +32,14 @@ audience is `Mcp:Resource`.
 
 ## Joining a project generated without one
 
-A project generated with `--presentation none` takes its MCP server later, at the project root:
+A project generated without an MCP server takes it later, at the project root:
 
 ```bash
 dotnet new cleanarch-presentation -n Mcp --framework mcp --project-name AppTemplate
 ```
 
-Pass the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` too when they
-are not the defaults: the project's files are written for them.
+Pass the project's `--auth`, `--examples`, `--files`, `--database`, `--agent-files` and `--has-api` too
+when they are not the defaults: the project's files are written for them.
 
 It writes this folder, its tests, `docs/features/presentation.md` and its decision.
 <!--#if (localAuth)-->
@@ -50,7 +50,7 @@ lines it goes beside. One task makes them all, or none when one of those lines i
 once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppMcp
 ```
 
 Then create the project as above and commit it.
@@ -323,13 +323,13 @@ task stops:
 - in `.dockerignore`, after the line:
 
   ```text
-  !Src/Presentation/AppTemplate.Api/appsettings.json
+  **/appsettings*.json
   ```
 
   add:
 
   ```text
-  !Src/Presentation/AppTemplate.PresentationApp/appsettings.json
+  !Src/Presentation/AppTemplate.PresentationAppMcp/appsettings.json
   ```
 
 - in `.env.example`, before the line:
@@ -341,9 +341,21 @@ task stops:
   add:
 
   ```bash
-  # The presentation project, loopback only.
-  PRESENTATION_PRESENTATION_APP_HOST_PORT=8090
+  # The MCP server, loopback only.
+  PRESENTATION_PRESENTATION_APP_MCP_HOST_PORT=8091
 
+  ```
+
+- in `docs/getting-started/first-run.md`, before the line:
+
+  ```markdown
+  | Mailpit, where mails land | <http://localhost:8025> |
+  ```
+
+  add:
+
+  ```markdown
+  | The MCP server | <http://localhost:8091/mcp> |
   ```
 
 <!--#if (externalAuth)-->
@@ -357,7 +369,7 @@ task stops:
 
   ```bash
   # Mcp section: the address MCP clients connect to, the audience of the tokens the provider issues for the MCP server.
-  MCP_RESOURCE=http://localhost:8090/mcp
+  MCP_RESOURCE=http://localhost:8091/mcp
   ```
 
 <!--#endif-->
@@ -376,11 +388,10 @@ task stops:
 
   ```
 
-- in `docker-compose.yml`, after the api service's last lines:
+- in `docker-compose.yml`, after the mailpit service's last lines:
 
   ```yaml
-        retries: 5
-        start_period: 60s
+        - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
       networks: [backend]
 
   ```
@@ -388,26 +399,40 @@ task stops:
   add:
 
   ```yaml
-    presentation-presentation-app:
-      # The MCP server reads the api's settings with its own composition, and runs neither jobs nor migrations.
+    presentation-presentation-app-mcp:
+      # The MCP server reads the hosts' settings with its own composition, and runs neither jobs nor migrations.
       extends:
         file: docker-compose.database.yml
         service: database-client
-      image: app-template-presentation-app:dev
+      image: app-template-presentation-app-mcp:dev
       build:
         context: .
-        dockerfile: Src/Presentation/AppTemplate.PresentationApp/Dockerfile
+        dockerfile: Src/Presentation/AppTemplate.PresentationAppMcp/Dockerfile
       restart: unless-stopped
       environment:
-        <<: *api-environment
+        <<: *host-environment
 <!--#if (externalAuth)-->
-        Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8090/mcp}
+        Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8091/mcp}
 <!--#endif-->
       ports:
-        - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
+        - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_MCP_HOST_PORT:-8091}:8080"
       depends_on:
+<!--#if (api)-->
         api:
           condition: service_healthy
+<!--#endif-->
+<!--#if (!api && serverDatabase)-->
+        db:
+          condition: service_healthy
+<!--#endif-->
+<!--#if (!api)-->
+        mailpit:
+          condition: service_started
+<!--#endif-->
+<!--#if (!api && files)-->
+        objectstore:
+          condition: service_healthy
+<!--#endif-->
       healthcheck:
         test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
         interval: 15s
@@ -443,10 +468,10 @@ task stops:
 
   ```csharp
 <!--#if (localAuth)-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Tools"],
+          ["Src/Presentation/AppTemplate.PresentationAppMcp"] = ["Composition", "Tools"],
 <!--#endif-->
 <!--#if (externalAuth)-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Configuration/Options", "Tools"],
+          ["Src/Presentation/AppTemplate.PresentationAppMcp"] = ["Composition", "Configuration/Options", "Tools"],
 <!--#endif-->
   ```
 
@@ -460,7 +485,7 @@ task stops:
   add:
 
   ```csharp
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security", "Tools"],
+          ["Src/Presentation/AppTemplate.PresentationAppMcp"] = ["Hosting", "Security", "Tools"],
   ```
 
 - in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/FeatureFolderVocabularyTests.cs`, after
@@ -477,18 +502,20 @@ task stops:
   ```
 
 - in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/OutboundHttpTests.cs`, after the
-  line:
+  lines:
 
   ```csharp
-          int hosts = 1;
+          string[] hosts =
+          [
   ```
 
   add:
 
   ```csharp
-          hosts++;
+              "AppTemplate.PresentationAppMcp",
   ```
 
+<!--#if (api)-->
 - in `docs/architecture/layers-and-projects.md`, replace the line:
 
   ```markdown
@@ -501,11 +528,11 @@ task stops:
   `AppTemplate.Api` is the host of the HTTP contract. It holds the controllers, the background jobs,
   ```
 
-- in `docs/architecture/layers-and-projects.md`, after the lines:
+<!--#endif-->
+- in `docs/architecture/layers-and-projects.md`, before the line:
 
   ```markdown
-  as it is, so a field added inside the application is never published by that edit alone.
-
+  ## Composition
   ```
 
   add:
@@ -623,26 +650,17 @@ task stops:
   An MCP server beside it offers the same use cases to an agent's client, as tools.
   ```
 
-- in `docs/getting-started/overview.md`, replace the line:
+- in `docs/getting-started/overview.md`, before the lines:
 
   ```markdown
-  | `--presentation` | `none` | no presentation project beside the API |
+
+  To change a value, remove the part by hand or add it:
   ```
 
-  with:
+  add:
 
   ```markdown
   | `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation project](../features/presentation.md)) |
-  ```
-
-- in `docs/getting-started/overview.md`, remove the lines:
-
-  ```markdown
-  - `dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name AppTemplate`
-    adds a presentation project beside the API. Pass this project's `--auth`, `--examples`, `--files`,
-    `--database` and `--agent-files` when they are not the defaults; then
-    `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Portal` makes the lines the README it
-    writes in the new project's folder lists outside it.
   ```
 
 - in `docs/guides/adding-a-feature.md`, after the line:
@@ -665,13 +683,13 @@ task stops:
 - in `docs/guides/removing-features.md`, after the line:
 
   ```markdown
-  | `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |
+  | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
   ```
 
   add:
 
   ```markdown
-  | the presentation project's `Program.cs` | the same line |
+  | the presentation project's `Program.cs` | the `Add<Features>()` line |
   | the presentation project's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
   ```
 

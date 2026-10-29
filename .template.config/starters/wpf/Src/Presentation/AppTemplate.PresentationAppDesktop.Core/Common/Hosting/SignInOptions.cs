@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.PresentationApp.Core.Common.Hosting;
+﻿namespace AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
 
 public sealed class SignInOptions
 {

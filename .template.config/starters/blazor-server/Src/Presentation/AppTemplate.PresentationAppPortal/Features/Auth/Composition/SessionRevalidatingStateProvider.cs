@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
 internal sealed class SessionRevalidatingStateProvider(ILoggerFactory loggerFactory, ActiveSessionProvider sessions)
     : RevalidatingServerAuthenticationStateProvider(loggerFactory)

@@ -1,4 +1,4 @@
-﻿# PresentationApp
+﻿# PresentationAppDesktop
 
 The presentation project beside the API: an Avalonia desktop app that calls the API through the
 .NET client of `Src/Clients`. [Presentation project](../../../docs/features/presentation.md)
@@ -10,7 +10,7 @@ The folder starts with the project's own files: scaffold.json names the template
 version and the arguments of `dotnet new avalonia.mvvm`. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppDesktop
 ```
 
 `bootstrap` runs the same step. It needs the network once, to fetch the template package. It keeps
@@ -59,14 +59,13 @@ until both are set.
 
 ## Joining a project generated without one
 
-A project generated with `--presentation none` takes its presentation project later, at the project
-root:
+A project generated without this presentation project takes it later, at the project root:
 
 ```bash
 <!--#if (hasClient)-->
-dotnet new cleanarch-presentation -n PresentationApp --framework avalonia --project-name AppTemplate --has-client true
+dotnet new cleanarch-presentation -n PresentationAppDesktop --framework avalonia --project-name AppTemplate --has-client true
 <!--#else-->
-dotnet new cleanarch-presentation -n PresentationApp --framework avalonia --project-name AppTemplate
+dotnet new cleanarch-presentation -n PresentationAppDesktop --framework avalonia --project-name AppTemplate
 <!--#endif-->
 ```
 
@@ -83,7 +82,7 @@ files the item template cannot edit are listed below, each placed by the lines i
 task makes them all, or none when one of those lines is not found exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppDesktop
 ```
 
 Then create the project as above and commit it. `dnx CleanArch.Create presentation` runs the three
@@ -200,7 +199,7 @@ task stops:
   add:
 
   ```csharp
-          ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = null,
 <!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = null,
 <!--#endif-->
@@ -217,9 +216,9 @@ task stops:
 
   ```csharp
 <!--#if (externalAuth)-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Sessions"],
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = ["Hosting", "Sessions"],
 <!--#else-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting"],
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = ["Hosting"],
 <!--#endif-->
 <!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
@@ -237,7 +236,7 @@ task stops:
   add:
 
   ```csharp
-          ["AppTemplate.PresentationApp"] = ["Assets", "ViewModels", "Views"],
+          ["AppTemplate.PresentationAppDesktop"] = ["Assets", "ViewModels", "Views"],
 <!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
 <!--#endif-->
@@ -254,7 +253,7 @@ task stops:
   add:
 
   ```csharp
-          ["AppTemplate.PresentationApp"] = ["App.axaml.cs", "ViewLocator.cs"],
+          ["AppTemplate.PresentationAppDesktop"] = ["App.axaml.cs", "ViewLocator.cs"],
   ```
 
 <!--#if (!hasClient)-->
@@ -364,26 +363,17 @@ task stops:
   An Avalonia desktop app beside it calls the API through a .NET client generated from its document.
   ```
 
-- in `docs/getting-started/overview.md`, replace the line:
+- in `docs/getting-started/overview.md`, before the lines:
 
   ```markdown
-  | `--presentation` | `none` | no presentation project beside the API |
+
+  To change a value, remove the part by hand or add it:
   ```
 
-  with:
+  add:
 
   ```markdown
   | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |
-  ```
-
-- in `docs/getting-started/overview.md`, remove the lines:
-
-  ```markdown
-  - `dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name AppTemplate`
-    adds a presentation project beside the API. Pass this project's `--auth`, `--examples`, `--files`,
-    `--database` and `--agent-files` when they are not the defaults; then
-    `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Portal` makes the lines the README it
-    writes in the new project's folder lists outside it.
   ```
 
 - in `docs/README.md`, before the lines:

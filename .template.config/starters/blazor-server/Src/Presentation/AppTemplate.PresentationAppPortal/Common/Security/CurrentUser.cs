@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppPortal.Common.Security;
 
 internal sealed class CurrentUser(CallerPrincipal caller) : ICurrentUser
 {

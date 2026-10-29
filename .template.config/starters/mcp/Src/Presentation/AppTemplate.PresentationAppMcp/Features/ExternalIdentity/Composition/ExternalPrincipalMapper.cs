@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+namespace AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Composition;
 
 internal sealed class ExternalPrincipalMapper(
     IExternalIdentityService identities,

@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
 
-namespace AppTemplate.PresentationApp.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
 
 internal static class TestKeys
 {

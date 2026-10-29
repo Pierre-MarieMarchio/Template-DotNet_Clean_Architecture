@@ -21,7 +21,9 @@
     <!--#if (localAuth)-->
     <ProjectReference Include="..\..\..\Src\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj" />
     <!--#endif-->
+    <!--#if (api)-->
     <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Api\AppTemplate.Api.csproj" />
+    <!--#endif-->
     <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
     <ProjectReference Include="..\..\..\Src\Domain\AppTemplate.Domain\AppTemplate.Domain.csproj" />
     <ProjectReference Include="..\..\..\Src\Domain\AppTemplate.Domain.Core\AppTemplate.Domain.Core.csproj" />

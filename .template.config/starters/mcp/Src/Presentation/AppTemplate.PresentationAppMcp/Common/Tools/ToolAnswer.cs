@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using AppTemplate.Application.Core.Common.Results;
 using ModelContextProtocol.Protocol;
 
-namespace AppTemplate.PresentationApp.Common.Tools;
+namespace AppTemplate.PresentationAppMcp.Common.Tools;
 
 internal static class ToolAnswer
 {

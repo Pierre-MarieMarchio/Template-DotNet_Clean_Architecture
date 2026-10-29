@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 
-namespace AppTemplate.PresentationApp.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
 
 internal sealed class McpHost(Action<IServiceCollection>? replace = null) : WebApplicationFactory<Program>
 {

@@ -27,9 +27,13 @@ logic.
 The jobs run in the API alone: the presentation project composes the same use cases and runs none
 of them on a timer.
 <!--#endif-->
-<!--#if (jobsWorker)-->
+<!--#if (jobsWorker && api)-->
 The jobs run in the worker alone: the API and every other host compose the same use cases and run
 none of them on a timer.
+<!--#endif-->
+<!--#if (jobsWorker && !api)-->
+The jobs run in the worker alone: every other host composes the same use cases and runs none of
+them on a timer.
 <!--#endif-->
 A pass that throws is logged and retried at the next tick, never stops the host, and never stops its
 sibling tasks in the same tick.
@@ -55,14 +59,24 @@ shutdown.
 ([ADR 0025](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)). Its `Program.cs` composes the
 features and the modules the passes call, as the API's does, gives every scope no caller, and calls
 `AddBackgroundJobs` from `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs
-are under its own `Features/<Feature>/Jobs/`. The API composes no job and binds no `Jobs` section,
-and keeps the maintenance routes. Each loop runs on `PeriodicJob.RunAsync`
+are under its own `Features/<Feature>/Jobs/`.
+<!--#if (api)-->
+The API composes no job and binds no `Jobs` section, and keeps the maintenance routes.
+<!--#endif-->
+Each loop runs on `PeriodicJob.RunAsync`
 (`Src/Presentation/AppTemplate.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
 
+<!--#if (api)-->
 The worker migrates nothing. In Development the API migrates its database as it starts, and Compose
 starts the worker once the API answers; at release the migration bundles run before either host.
+<!--#endif-->
+<!--#if (!api)-->
+The worker migrates nothing, and neither does any other host of this project: in Development the
+migrations are applied with `dotnet ef database update`, as [first run](../getting-started/first-run.md#run-with-compose)
+shows, and at release the migration bundles run before the hosts.
+<!--#endif-->
 Its tests are in `Tests/Presentation/<Project>.Worker.UnitTests`: `WorkerCompositionTests` builds the
 worker from its own `Program.cs` with every registration validated and resolves each use case it
 composes in a background scope.
@@ -147,10 +161,13 @@ API stops calling `AddBackgroundJobs`.
 <!--#if (localAuth)-->
 The authentication purges move with `AddAuthMaintenanceJobs`, which the worker calls instead.
 <!--#endif-->
-A project generated with `--jobs worker` starts that way.
+A project generated with `--presentation worker` starts that way.
+<!--#endif-->
+<!--#if (jobsWorker && api)-->
+Scale the API freely: it runs no pass.
 <!--#endif-->
 <!--#if (jobsWorker)-->
-Scale the API freely: it runs no pass. Run one worker. A second worker is stood by under each lease
+Run one worker. A second worker is stood by under each lease
 and repeats the idempotent passes, which the leases and the passes survive, but which is not a
 reason to run two. `Jobs__Enabled=false` leaves a worker idle, binding no job section.
 

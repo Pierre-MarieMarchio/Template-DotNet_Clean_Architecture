@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.PresentationApp\AppTemplate.PresentationApp.csproj" />
+    <ProjectReference Include="..\..\..\Src\Presentation\AppTemplate.PresentationAppMcp\AppTemplate.PresentationAppMcp.csproj" />
   </ItemGroup>
 
 </Project>

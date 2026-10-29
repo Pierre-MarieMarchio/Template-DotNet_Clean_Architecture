@@ -100,7 +100,7 @@ internal static class NewFeature
             return 0;
         }
 
-        /*#if (!publicApi)*/
+        /*#if (!publicApi && api)*/
         return Run(args, Console.Out, Console.Error);
         /*#else
         int rootOption = Array.IndexOf(args, "--root");
@@ -112,11 +112,18 @@ internal static class NewFeature
             Path.TrimEndingDirectorySeparator(Path.GetFullPath(thisProject)),
             StringComparison.Ordinal))
         {
+#if (publicApi)
             Console.Error.WriteLine(
                 "This project was generated with --auth none: it authenticates nobody, and every "
                 + "feature this tool writes (--access owner or shared) needs an authenticated caller. "
                 + "Add an authentication scheme and an ICurrentUser that reads it before scaffolding a "
                 + "feature, or write a public feature by hand.");
+#else
+            Console.Error.WriteLine(
+                "This project was generated without the API, and every feature this tool writes has its "
+                + "controller, contracts and tests in <Project>.Api. Write the feature by hand from the "
+                + "adding-a-feature guide, composing it in each host's Program.cs.");
+#endif
 
             return 1;
         }
@@ -1378,11 +1385,13 @@ internal static class NewFeature
         output.WriteLine("Then its row under ## Features in docs/README.md:");
         output.WriteLine($"  | [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |");
 
+        //#if (api)
         if (Flags(spec).Contains("notfound"))
         {
             output.WriteLine("And the row of its refusal under ### Resources in docs/reference/api.md, which the error-code tests read:");
             output.WriteLine($"  | `{Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |");
         }
+        //#endif
     }
 
     private static int SelfTest()

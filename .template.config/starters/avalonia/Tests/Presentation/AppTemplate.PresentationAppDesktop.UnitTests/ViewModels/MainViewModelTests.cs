@@ -2,15 +2,15 @@
 //#if (localAuth)
 using AppTemplate.Client.Common.Sessions;
 //#else
-using AppTemplate.PresentationApp.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Common.Sessions;
 //#endif
-using AppTemplate.PresentationApp.UnitTests.TestSupport;
-using AppTemplate.PresentationApp.ViewModels;
+using AppTemplate.PresentationAppDesktop.UnitTests.TestSupport;
+using AppTemplate.PresentationAppDesktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.ViewModels;
+namespace AppTemplate.PresentationAppDesktop.UnitTests.ViewModels;
 
 public sealed class MainViewModelTests
 {

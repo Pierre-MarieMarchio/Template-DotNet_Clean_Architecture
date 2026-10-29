@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.PresentationApp.Common.Hosting;
+﻿namespace AppTemplate.PresentationAppDesktop.Common.Hosting;
 
 public sealed class ApiOptions
 {

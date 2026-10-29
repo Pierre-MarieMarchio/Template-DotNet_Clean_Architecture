@@ -36,11 +36,13 @@ ever passed and let the review catch the rest.
 - **The file content ports do it** through `FileContentStoreContract` and
   `FileContentInventoryContract`, run against the in-memory double and every adapter.
 <!--#endif-->
+<!--#if (api)-->
 - **The stack as shipped is held by a small end-to-end suite**, one test per flow, run over HTTP
   against the Compose stack by `dotnet run Tools/Tasks.cs end-to-end`, apart from `verify`: no lower type
   fails for a broken Compose file, a mail that never reaches the inbox or a relay that drops a
   request, and none of them needs the whole stack built.
-<!--#if (ci)-->
+<!--#endif-->
+<!--#if (api && ci)-->
 - **CI runs that suite as a blocking job.**
 <!--#endif-->
 - **Coverage is a tripwire.** The floor in `coverage.minimum` catches an area shipped with no test.
@@ -51,8 +53,10 @@ ever passed and let the review catch the rest.
 
 - Adding an endpoint, a use case or a validator changes no list and no count: the tests over the
   whole surface pick it up.
+<!--#if (api)-->
 - A change to a route, a contract or a summary lands with its new OpenAPI reference, written by
   `dotnet run Tools/Tasks.cs openapi`, and the review reads the difference a client will see.
+<!--#endif-->
 <!--#if (postgreSql)-->
 - Ownership and a controller's HTTP behaviour are proved against PostgreSQL, so a run without Docker
   no longer exercises them.

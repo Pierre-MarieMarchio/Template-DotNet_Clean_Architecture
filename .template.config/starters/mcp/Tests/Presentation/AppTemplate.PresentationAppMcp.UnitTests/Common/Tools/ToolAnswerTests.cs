@@ -1,10 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.PresentationApp.Common.Tools;
+using AppTemplate.PresentationAppMcp.Common.Tools;
 using TextContentBlock = ModelContextProtocol.Protocol.TextContentBlock;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Common.Tools;
+namespace AppTemplate.PresentationAppMcp.UnitTests.Common.Tools;
 
 public sealed class ToolAnswerTests
 {

@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using Duende.IdentityModel.OidcClient.Browser;
 
-namespace AppTemplate.PresentationApp.Core.Common.Sessions;
+namespace AppTemplate.PresentationAppDesktop.Core.Common.Sessions;
 
 internal sealed class LoopbackBrowser : IBrowser, IDisposable
 {

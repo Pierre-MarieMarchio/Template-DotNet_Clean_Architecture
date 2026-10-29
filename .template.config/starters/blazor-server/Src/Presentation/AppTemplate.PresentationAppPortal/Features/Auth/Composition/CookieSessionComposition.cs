@@ -11,15 +11,15 @@ using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Seeding;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
 using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Common.Hosting;
+using AppTemplate.PresentationAppPortal.Common.Hosting;
 //#if (reminders)
-using AppTemplate.PresentationApp.Features.Reminders.Composition;
+using AppTemplate.PresentationAppPortal.Features.Reminders.Composition;
 //#endif
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
 internal static class CookieSessionComposition
 {

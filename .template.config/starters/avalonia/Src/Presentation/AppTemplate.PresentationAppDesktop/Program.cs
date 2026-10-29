@@ -1,8 +1,8 @@
-﻿using AppTemplate.PresentationApp.Common.Hosting;
+﻿using AppTemplate.PresentationAppDesktop.Common.Hosting;
 using Avalonia;
 using Microsoft.Extensions.Hosting;
 
-namespace AppTemplate.PresentationApp;
+namespace AppTemplate.PresentationAppDesktop;
 
 internal static class Program
 {

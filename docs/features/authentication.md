@@ -245,7 +245,7 @@ one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay
 `SecurityStampRotationTests`, `AccountLockoutTests`, `PasswordPolicyTests`,
 `DefaultDenyAuthorizationTests` and `AdministratorPolicyTests`.
 <!--#endif-->
-<!--#if (externalAuth)-->
+<!--#if (externalAuth && api)-->
 `Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
 first-request mapping, role mapping and the settings; the integration suite signs its requests
 with a test provider's keys.

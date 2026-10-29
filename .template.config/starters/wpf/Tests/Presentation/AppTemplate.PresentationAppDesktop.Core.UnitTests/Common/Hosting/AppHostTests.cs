@@ -1,16 +1,16 @@
 ﻿using System.Net;
 using AppTemplate.Client.Generated;
 //#if (externalAuth)
-using AppTemplate.PresentationApp.Core.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Core.Common.Sessions;
 //#endif
-using AppTemplate.PresentationApp.Core.UnitTests.TestSupport;
-using AppTemplate.PresentationApp.Core.ViewModels;
+using AppTemplate.PresentationAppDesktop.Core.UnitTests.TestSupport;
+using AppTemplate.PresentationAppDesktop.Core.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.Core.UnitTests.Common.Hosting;
+namespace AppTemplate.PresentationAppDesktop.Core.UnitTests.Common.Hosting;
 
 public sealed class AppHostTests
 {

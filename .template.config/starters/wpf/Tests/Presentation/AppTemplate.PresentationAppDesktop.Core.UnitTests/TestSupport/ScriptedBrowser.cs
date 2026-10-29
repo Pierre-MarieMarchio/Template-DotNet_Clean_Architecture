@@ -1,7 +1,7 @@
 ﻿using System.Web;
-using AppTemplate.PresentationApp.Core.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Core.Common.Sessions;
 
-namespace AppTemplate.PresentationApp.Core.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppDesktop.Core.UnitTests.TestSupport;
 
 internal sealed class ScriptedBrowser(Func<string, string>? callbackQuery = null) : ISystemBrowser
 {

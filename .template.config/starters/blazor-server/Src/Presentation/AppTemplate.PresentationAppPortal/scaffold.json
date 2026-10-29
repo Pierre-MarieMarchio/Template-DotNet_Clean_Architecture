@@ -1,7 +1,7 @@
 {
   "kind": "dotnet",
   "framework": "blazor-server",
-  "name": "AppTemplate.PresentationApp",
+  "name": "AppTemplate.PresentationAppPortal",
   "package": "Microsoft.DotNet.Web.ProjectTemplates.10.0",
   "version": "10.0.14",
   "template": "blazor",

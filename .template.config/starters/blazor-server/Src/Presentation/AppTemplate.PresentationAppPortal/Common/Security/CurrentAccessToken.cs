@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using AppTemplate.Application.Core.Common.Ports;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppPortal.Common.Security;
 
 internal sealed class CurrentAccessToken(CallerPrincipal caller) : ICurrentAccessToken
 {

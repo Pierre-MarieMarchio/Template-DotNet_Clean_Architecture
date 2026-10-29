@@ -1,10 +1,10 @@
 ﻿using System.Windows;
-using AppTemplate.PresentationApp.Core.Common.Hosting;
-using AppTemplate.PresentationApp.Core.ViewModels;
+using AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
+using AppTemplate.PresentationAppDesktop.Core.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace AppTemplate.PresentationApp;
+namespace AppTemplate.PresentationAppDesktop;
 
 public partial class App : Application
 {

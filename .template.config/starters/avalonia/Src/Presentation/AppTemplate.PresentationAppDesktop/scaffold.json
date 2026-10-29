@@ -1,7 +1,7 @@
 {
   "kind": "dotnet",
   "framework": "avalonia",
-  "name": "AppTemplate.PresentationApp",
+  "name": "AppTemplate.PresentationAppDesktop",
   "package": "Avalonia.Templates",
   "version": "12.1.4",
   "template": "avalonia.mvvm",

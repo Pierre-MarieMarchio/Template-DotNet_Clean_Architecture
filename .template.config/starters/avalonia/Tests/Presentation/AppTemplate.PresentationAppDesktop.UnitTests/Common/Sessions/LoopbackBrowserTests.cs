@@ -1,11 +1,11 @@
 ﻿using System.ComponentModel;
 using System.Net;
-using AppTemplate.PresentationApp.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Common.Sessions;
 using Duende.IdentityModel.OidcClient.Browser;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Common.Sessions;
+namespace AppTemplate.PresentationAppDesktop.UnitTests.Common.Sessions;
 
 public sealed class LoopbackBrowserTests
 {

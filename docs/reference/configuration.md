@@ -1,10 +1,19 @@
 ﻿# Configuration
 
+<!--#if (api)-->
 Every setting the API reads, one table per section; a section a team adds gets its own, which a
 test compares with the options classes. Every section is validated at start-up: a missing or
 out-of-range value stops the host and names the key. "Required" means start-up fails without it;
 a default applies when the key is absent. `Src/Presentation/AppTemplate.Api/appsettings.json`
-holds no secret, and a key `A:B` is the environment variable `A__B`. Loading and secrets are in
+holds no secret, and a key `A:B` is the environment variable `A__B`.
+<!--#endif-->
+<!--#if (!api)-->
+Every setting the hosts read, one table per section; a section a team adds gets its own, which a
+test compares with the options classes. Every section is validated at start-up: a missing or
+out-of-range value stops the host and names the key. "Required" means start-up fails without it;
+a default applies when the key is absent. No host's `appsettings.json` holds a secret, and a key
+`A:B` is the environment variable `A__B`.
+<!--#endif--> Loading and secrets are in
 [Deployment](../guides/deployment.md).
 
 The Default column is what a deployment gets. `appsettings.Development.json` on the host, and

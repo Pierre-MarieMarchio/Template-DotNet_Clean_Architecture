@@ -4,9 +4,9 @@ using AppTemplate.Client.Common.Sessions;
 using AppTemplate.Client.Generated;
 using AppTemplate.Client.Generated.Models;
 //#endif
-using AppTemplate.PresentationApp.Common.Hosting;
+using AppTemplate.PresentationAppDesktop.Common.Hosting;
 //#if (externalAuth)
-using AppTemplate.PresentationApp.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Common.Sessions;
 //#endif
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,7 +15,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Kiota.Abstractions;
 //#endif
 
-namespace AppTemplate.PresentationApp.ViewModels;
+namespace AppTemplate.PresentationAppDesktop.ViewModels;
 
 //#if (localAuth)
 public partial class MainViewModel(ApiClient api, ApiSession session, IOptions<ApiOptions> options) : ViewModelBase

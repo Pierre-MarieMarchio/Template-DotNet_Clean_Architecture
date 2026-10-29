@@ -1,9 +1,9 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
-using AppTemplate.PresentationApp.Common.Security;
+using AppTemplate.PresentationAppPortal.Common.Security;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
 internal sealed class CurrentSession(CallerPrincipal caller, IHttpContextAccessor httpContextAccessor) : ICurrentSession
 {

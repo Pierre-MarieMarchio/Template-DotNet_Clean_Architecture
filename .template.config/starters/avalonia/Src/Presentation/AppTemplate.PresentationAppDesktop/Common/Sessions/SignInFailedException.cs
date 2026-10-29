@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.PresentationApp.Common.Sessions;
+﻿namespace AppTemplate.PresentationAppDesktop.Common.Sessions;
 
 public sealed class SignInFailedException : Exception
 {

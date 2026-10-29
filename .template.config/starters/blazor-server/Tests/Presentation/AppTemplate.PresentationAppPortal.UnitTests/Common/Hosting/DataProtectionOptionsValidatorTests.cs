@@ -1,11 +1,11 @@
-﻿using AppTemplate.PresentationApp.Common.Hosting;
+﻿using AppTemplate.PresentationAppPortal.Common.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Common.Hosting;
+namespace AppTemplate.PresentationAppPortal.UnitTests.Common.Hosting;
 
 public sealed class DataProtectionOptionsValidatorTests
 {

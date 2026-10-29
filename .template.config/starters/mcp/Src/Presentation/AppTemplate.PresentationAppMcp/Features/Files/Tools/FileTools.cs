@@ -1,13 +1,13 @@
 ﻿using System.ComponentModel;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Common.Tools;
+using AppTemplate.PresentationAppMcp.Common.Security;
+using AppTemplate.PresentationAppMcp.Common.Tools;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace AppTemplate.PresentationApp.Features.Files.Tools;
+namespace AppTemplate.PresentationAppMcp.Features.Files.Tools;
 
 [McpServerToolType]
 internal sealed class FileTools(

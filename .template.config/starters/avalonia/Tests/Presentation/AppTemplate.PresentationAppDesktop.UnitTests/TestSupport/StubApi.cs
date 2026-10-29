@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 
-namespace AppTemplate.PresentationApp.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppDesktop.UnitTests.TestSupport;
 
 internal sealed class StubApi(Func<HttpRequestMessage, HttpResponseMessage> answer) : HttpMessageHandler
 {

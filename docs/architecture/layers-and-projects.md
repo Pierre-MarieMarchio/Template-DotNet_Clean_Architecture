@@ -102,6 +102,7 @@ instrumentation and its own meters, because only it may reference those packages
 database instrumentation to add.
 <!--#endif-->
 
+<!--#if (api)-->
 ## The API host
 
 <!--#if (!presentationBlazorServer && !presentationMcp)-->
@@ -116,6 +117,7 @@ A wire type is the API's own: each feature declares its requests and responses u
 and maps them by hand in `Contracts/Mapping/`. No application type and no port type is serialised
 as it is, so a field added inside the application is never published by that edit alone.
 
+<!--#endif-->
 <!--#if (presentationBlazorServer)-->
 ## The presentation project
 

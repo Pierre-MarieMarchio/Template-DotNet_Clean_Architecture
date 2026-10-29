@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Configuration.Options;
 
 public sealed class AuthenticationExternalInteractiveOptions
 {

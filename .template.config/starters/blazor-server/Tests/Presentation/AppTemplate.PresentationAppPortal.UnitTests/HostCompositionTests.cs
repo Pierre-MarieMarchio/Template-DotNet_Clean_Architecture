@@ -1,12 +1,12 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.PresentationApp.Common.Security;
+using AppTemplate.PresentationAppPortal.Common.Security;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests;
+namespace AppTemplate.PresentationAppPortal.UnitTests;
 
 public sealed class HostCompositionTests
 {

@@ -1,13 +1,13 @@
 ﻿using System.ComponentModel;
 using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Services;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Common.Tools;
+using AppTemplate.PresentationAppMcp.Common.Security;
+using AppTemplate.PresentationAppMcp.Common.Tools;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace AppTemplate.PresentationApp.Features.Notes.Tools;
+namespace AppTemplate.PresentationAppMcp.Features.Notes.Tools;
 
 [McpServerToolType]
 internal sealed class NoteTools(INoteService notes)

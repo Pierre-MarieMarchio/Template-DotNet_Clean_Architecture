@@ -2,7 +2,7 @@
 using System.Security.Claims;
 using AppTemplate.Application.Core.Common.Ports;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppMcp.Common.Security;
 
 internal sealed class CurrentAccessToken(IHttpContextAccessor httpContextAccessor) : ICurrentAccessToken
 {

@@ -1,17 +1,17 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Client.Common.Sessions;
-using AppTemplate.PresentationApp.Core.Common.Hosting;
+using AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
 using Duende.IdentityModel;
 using Duende.IdentityModel.OidcClient;
 using Duende.IdentityModel.OidcClient.Results;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Core.Common.Sessions;
+namespace AppTemplate.PresentationAppDesktop.Core.Common.Sessions;
 
 public sealed class DesktopSession(IOptions<SignInOptions> options, ISystemBrowser systemBrowser, IHttpClientFactory httpClients)
     : IAccessTokenSource
 {
-    public const string HttpClientName = "AppTemplate.PresentationApp.Core.SignIn";
+    public const string HttpClientName = "AppTemplate.PresentationAppDesktop.Core.SignIn";
 
     public static readonly TimeSpan RefreshAhead = TimeSpan.FromMinutes(1);
 

@@ -32,8 +32,12 @@ Which page answers your question, and where a new page goes.
 | [Ports and adapters](architecture/ports-and-adapters.md) | how the application reaches storage and the outside world |
 | [Domain and results](architecture/domain-and-results.md) | how rules are enforced, failures reported and facts published |
 | [Persistence model](architecture/persistence-model.md) | how data is mapped, saved and protected from lost updates |
+<!--#if (api)-->
 | [Request pipeline](architecture/request-pipeline.md) | what happens to every request on its way in and out |
+<!--#endif-->
+<!--#if (api)-->
 | [HTTP API](architecture/http-api.md) | the contract every endpoint offers a client |
+<!--#endif-->
 | [Shared mechanisms](architecture/shared-mechanisms.md) | the cache, outbound HTTP, the clock, the current user |
 
 ## Features
@@ -80,7 +84,9 @@ Which page answers your question, and where a new page goes.
 | Page | Answers |
 |---|---|
 | [Configuration](reference/configuration.md) | what each setting does |
+<!--#if (api)-->
 | [API](reference/api.md) | every route and every error code |
+<!--#endif-->
 | [Project layout](reference/project-layout.md) | where a file goes, and what it is called |
 
 ## Decisions

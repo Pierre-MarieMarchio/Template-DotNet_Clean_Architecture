@@ -36,7 +36,11 @@ public sealed class ExternalKeyTests
         var declared = ConstantsIn("*Options.cs", _sectionName);
 
         declared.Count.ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             18,
+            /*#else
+            8,
+            #endif*/
             "Far fewer options classes were found than this template holds, so this rule is reading " +
             "the wrong tree and passing for the wrong reason.");
 

@@ -1,13 +1,13 @@
 ﻿using System.ComponentModel;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Common.Tools;
+using AppTemplate.PresentationAppMcp.Common.Security;
+using AppTemplate.PresentationAppMcp.Common.Tools;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace AppTemplate.PresentationApp.Features.Reminders.Tools;
+namespace AppTemplate.PresentationAppMcp.Features.Reminders.Tools;
 
 [McpServerToolType]
 internal sealed class ReminderTools(

@@ -1,13 +1,13 @@
 ﻿using System.Net;
 using System.Web;
 using AppTemplate.Client.Common.Sessions;
-using AppTemplate.PresentationApp.Common.Sessions;
-using AppTemplate.PresentationApp.UnitTests.TestSupport;
+using AppTemplate.PresentationAppDesktop.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Common.Sessions;
+namespace AppTemplate.PresentationAppDesktop.UnitTests.Common.Sessions;
 
 public sealed class DesktopSessionTests
 {

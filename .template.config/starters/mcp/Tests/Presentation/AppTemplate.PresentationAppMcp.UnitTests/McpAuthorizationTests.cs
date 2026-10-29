@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 //#if (notes)
 using AppTemplate.Application.Features.Notes.Services;
 //#endif
-using AppTemplate.PresentationApp.UnitTests.TestSupport;
+using AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
 //#if (notes)
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -14,7 +14,7 @@ using ModelContextProtocol;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests;
+namespace AppTemplate.PresentationAppMcp.UnitTests;
 
 public sealed class McpAuthorizationTests
 {

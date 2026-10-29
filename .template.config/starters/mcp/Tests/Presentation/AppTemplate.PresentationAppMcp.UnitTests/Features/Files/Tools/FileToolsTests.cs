@@ -4,12 +4,12 @@ using AppTemplate.Application.Features.Files.Model.Dtos;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
-using AppTemplate.PresentationApp.Features.Files.Tools;
+using AppTemplate.PresentationAppMcp.Features.Files.Tools;
 using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.Files.Tools;
+namespace AppTemplate.PresentationAppMcp.UnitTests.Features.Files.Tools;
 
 public sealed class FileToolsTests
 {

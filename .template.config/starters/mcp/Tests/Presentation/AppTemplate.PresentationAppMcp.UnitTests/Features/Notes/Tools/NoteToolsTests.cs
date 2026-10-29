@@ -3,12 +3,12 @@ using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Model.Errors;
 using AppTemplate.Application.Features.Notes.Services;
-using AppTemplate.PresentationApp.Features.Notes.Tools;
+using AppTemplate.PresentationAppMcp.Features.Notes.Tools;
 using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.Notes.Tools;
+namespace AppTemplate.PresentationAppMcp.UnitTests.Features.Notes.Tools;
 
 public sealed class NoteToolsTests
 {

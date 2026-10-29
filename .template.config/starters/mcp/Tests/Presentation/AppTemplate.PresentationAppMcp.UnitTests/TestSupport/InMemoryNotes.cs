@@ -6,7 +6,7 @@ using AppTemplate.Application.Features.Notes.Model.Dtos;
 using AppTemplate.Application.Features.Notes.Model.Errors;
 using AppTemplate.Application.Features.Notes.Services;
 
-namespace AppTemplate.PresentationApp.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
 
 internal sealed class InMemoryNotes(ICurrentUser caller) : INoteService
 {

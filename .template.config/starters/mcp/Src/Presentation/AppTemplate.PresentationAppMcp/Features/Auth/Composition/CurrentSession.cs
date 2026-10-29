@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Auth.Features.Sessions.Ports.CurrentSession;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppMcp.Features.Auth.Composition;
 
 internal sealed class CurrentSession(IHttpContextAccessor httpContextAccessor) : ICurrentSession
 {

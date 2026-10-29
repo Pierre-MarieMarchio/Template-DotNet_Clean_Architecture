@@ -1,4 +1,4 @@
-﻿# PresentationApp
+﻿# PresentationAppPortal
 
 The presentation project beside the API: a Blazor Web App with server interactivity that calls the
 use cases in its own process. [Presentation project](../../../docs/features/presentation.md)
@@ -10,7 +10,7 @@ The folder starts with the project's own files: scaffold.json names the template
 version and the arguments of `dotnet new blazor`. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppPortal
 ```
 
 `bootstrap` runs the same step. It needs the network once, to fetch the template package. It keeps
@@ -20,22 +20,21 @@ project's own, and the step leaves it alone.
 
 ## Joining a project generated without one
 
-A project generated with `--presentation none` takes its presentation project later, at the project
-root:
+A project generated without this presentation project takes it later, at the project root:
 
 ```bash
-dotnet new cleanarch-presentation -n PresentationApp --framework blazor-server --project-name AppTemplate
+dotnet new cleanarch-presentation -n PresentationAppPortal --framework blazor-server --project-name AppTemplate
 ```
 
-Pass the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` too when they
-are not the defaults: the project's files are written for them.
+Pass the project's `--auth`, `--examples`, `--files`, `--database`, `--agent-files` and `--has-api` too
+when they are not the defaults: the project's files are written for them.
 
 It writes this folder, its tests and `docs/features/presentation.md`. The lines `--presentation`
 writes in files the item template cannot edit are listed below, each placed by the lines it goes
 beside. One task makes them all, or none when one of those lines is not found exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppPortal
 ```
 
 Then create the project as above and commit it. `dnx CleanArch.Create presentation` runs the three
@@ -45,13 +44,13 @@ task stops:
 - in `.dockerignore`, after the line:
 
   ```text
-  !Src/Presentation/AppTemplate.Api/appsettings.json
+  **/appsettings*.json
   ```
 
   add:
 
   ```text
-  !Src/Presentation/AppTemplate.PresentationApp/appsettings.json
+  !Src/Presentation/AppTemplate.PresentationAppPortal/appsettings.json
   ```
 
 - in `.env.example`, before the line:
@@ -63,9 +62,21 @@ task stops:
   add:
 
   ```bash
-  # The presentation project, loopback only.
-  PRESENTATION_PRESENTATION_APP_HOST_PORT=8090
+  # The Blazor presentation project, loopback only.
+  PRESENTATION_PRESENTATION_APP_PORTAL_HOST_PORT=8090
 
+  ```
+
+- in `docs/getting-started/first-run.md`, before the line:
+
+  ```markdown
+  | Mailpit, where mails land | <http://localhost:8025> |
+  ```
+
+  add:
+
+  ```markdown
+  | The Blazor presentation project | <http://localhost:8090> |
   ```
 
 <!--#if (externalAuth)-->
@@ -96,11 +107,10 @@ task stops:
   ```
 
 <!--#endif-->
-- in `docker-compose.yml`, after the api service's last lines:
+- in `docker-compose.yml`, after the mailpit service's last lines:
 
   ```yaml
-        retries: 5
-        start_period: 60s
+        - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
       networks: [backend]
 
   ```
@@ -108,18 +118,18 @@ task stops:
   add:
 
   ```yaml
-    presentation-presentation-app:
-      # The presentation project reads the api's settings with its own composition, and runs neither jobs nor migrations.
+    presentation-presentation-app-portal:
+      # The presentation project reads the hosts' settings with its own composition, and runs neither jobs nor migrations.
       extends:
         file: docker-compose.database.yml
         service: database-client
-      image: app-template-presentation-app:dev
+      image: app-template-presentation-app-portal:dev
       build:
         context: .
-        dockerfile: Src/Presentation/AppTemplate.PresentationApp/Dockerfile
+        dockerfile: Src/Presentation/AppTemplate.PresentationAppPortal/Dockerfile
       restart: unless-stopped
       environment:
-        <<: *api-environment
+        <<: *host-environment
 <!--#if (!localAuth)-->
         DataProtection__KeysDirectory: /data-protection-keys
 <!--#endif-->
@@ -129,13 +139,27 @@ task stops:
 <!--#endif-->
 <!--#if (!localAuth)-->
       volumes:
-        - presentation-app-keys:/data-protection-keys
+        - presentation-app-portal-keys:/data-protection-keys
 <!--#endif-->
       ports:
-        - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
+        - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_PORTAL_HOST_PORT:-8090}:8080"
       depends_on:
+<!--#if (api)-->
         api:
           condition: service_healthy
+<!--#endif-->
+<!--#if (!api && serverDatabase)-->
+        db:
+          condition: service_healthy
+<!--#endif-->
+<!--#if (!api)-->
+        mailpit:
+          condition: service_started
+<!--#endif-->
+<!--#if (!api && files)-->
+        objectstore:
+          condition: service_healthy
+<!--#endif-->
       healthcheck:
         test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
         interval: 15s
@@ -156,7 +180,7 @@ task stops:
   add:
 
   ```yaml
-    presentation-app-keys:
+    presentation-app-portal-keys:
   ```
 
 <!--#endif-->
@@ -185,13 +209,13 @@ task stops:
 
   ```csharp
 <!--#if (localAuth)-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition"],
+          ["Src/Presentation/AppTemplate.PresentationAppPortal"] = ["Composition"],
 <!--#endif-->
 <!--#if (externalAuth)-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Configuration/Options"],
+          ["Src/Presentation/AppTemplate.PresentationAppPortal"] = ["Composition", "Configuration/Options"],
 <!--#endif-->
 <!--#if (publicApi)-->
-          ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+          ["Src/Presentation/AppTemplate.PresentationAppPortal"] = null,
 <!--#endif-->
   ```
 
@@ -205,7 +229,7 @@ task stops:
   add:
 
   ```csharp
-          ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security"],
+          ["Src/Presentation/AppTemplate.PresentationAppPortal"] = ["Hosting", "Security"],
   ```
 
 - in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -219,22 +243,24 @@ task stops:
   add:
 
   ```csharp
-          ["AppTemplate.PresentationApp"] = ["Components", "wwwroot"],
+          ["AppTemplate.PresentationAppPortal"] = ["Components", "wwwroot"],
   ```
 
 - in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/OutboundHttpTests.cs`, after the
-  line:
+  lines:
 
   ```csharp
-          int hosts = 1;
+          string[] hosts =
+          [
   ```
 
   add:
 
   ```csharp
-          hosts++;
+              "AppTemplate.PresentationAppPortal",
   ```
 
+<!--#if (api)-->
 - in `docs/architecture/layers-and-projects.md`, replace the line:
 
   ```markdown
@@ -247,11 +273,11 @@ task stops:
   `AppTemplate.Api` is the host of the HTTP contract. It holds the controllers, the background jobs,
   ```
 
-- in `docs/architecture/layers-and-projects.md`, after the lines:
+<!--#endif-->
+- in `docs/architecture/layers-and-projects.md`, before the line:
 
   ```markdown
-  as it is, so a field added inside the application is never published by that edit alone.
-
+  ## Composition
   ```
 
   add:
@@ -353,26 +379,17 @@ task stops:
   A Blazor Web App beside it calls the same use cases in its own process.
   ```
 
-- in `docs/getting-started/overview.md`, replace the line:
+- in `docs/getting-started/overview.md`, before the lines:
 
   ```markdown
-  | `--presentation` | `none` | no presentation project beside the API |
+
+  To change a value, remove the part by hand or add it:
   ```
 
-  with:
+  add:
 
   ```markdown
   | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation project](../features/presentation.md)) |
-  ```
-
-- in `docs/getting-started/overview.md`, remove the lines:
-
-  ```markdown
-  - `dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name AppTemplate`
-    adds a presentation project beside the API. Pass this project's `--auth`, `--examples`, `--files`,
-    `--database` and `--agent-files` when they are not the defaults; then
-    `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Portal` makes the lines the README it
-    writes in the new project's folder lists outside it.
   ```
 
 - in `docs/guides/adding-a-feature.md`, after the line:
@@ -393,13 +410,13 @@ task stops:
 - in `docs/guides/removing-features.md`, after the line:
 
   ```markdown
-  | `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |
+  | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
   ```
 
   add:
 
   ```markdown
-  | the presentation project's `Program.cs` | the same line |
+  | the presentation project's `Program.cs` | the `Add<Features>()` line |
   ```
 
 <!--#endif-->

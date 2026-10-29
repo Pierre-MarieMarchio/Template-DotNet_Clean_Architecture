@@ -4,12 +4,12 @@ using AppTemplate.Application.Features.Reminders.Model.Dtos;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
-using AppTemplate.PresentationApp.Features.Reminders.Tools;
+using AppTemplate.PresentationAppMcp.Features.Reminders.Tools;
 using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.Reminders.Tools;
+namespace AppTemplate.PresentationAppMcp.UnitTests.Features.Reminders.Tools;
 
 public sealed class ReminderToolsTests
 {

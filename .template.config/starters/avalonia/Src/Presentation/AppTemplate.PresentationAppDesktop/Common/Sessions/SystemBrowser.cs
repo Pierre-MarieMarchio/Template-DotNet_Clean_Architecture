@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace AppTemplate.PresentationApp.Common.Sessions;
+namespace AppTemplate.PresentationAppDesktop.Common.Sessions;
 
 internal sealed class SystemBrowser : ISystemBrowser
 {

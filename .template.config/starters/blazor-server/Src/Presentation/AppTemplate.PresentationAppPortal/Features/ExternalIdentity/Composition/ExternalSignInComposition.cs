@@ -8,9 +8,9 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Presentation.Core;
 using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Configuration.Options;
 //#if (reminders)
-using AppTemplate.PresentationApp.Features.Reminders.Composition;
+using AppTemplate.PresentationAppPortal.Features.Reminders.Composition;
 //#endif
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -19,7 +19,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Composition;
 
 internal static class ExternalSignInComposition
 {

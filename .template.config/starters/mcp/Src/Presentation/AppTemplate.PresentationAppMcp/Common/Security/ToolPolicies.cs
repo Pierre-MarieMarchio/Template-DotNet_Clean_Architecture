@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.PresentationApp.Common.Security;
+﻿namespace AppTemplate.PresentationAppMcp.Common.Security;
 
 internal static class ToolPolicies
 {

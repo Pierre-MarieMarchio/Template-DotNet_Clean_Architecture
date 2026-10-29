@@ -1,7 +1,7 @@
 ﻿using System.Windows;
-using AppTemplate.PresentationApp.Core.ViewModels;
+using AppTemplate.PresentationAppDesktop.Core.ViewModels;
 
-namespace AppTemplate.PresentationApp;
+namespace AppTemplate.PresentationAppDesktop;
 
 public partial class MainWindow : Window
 {

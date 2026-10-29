@@ -10,25 +10,25 @@ using AppTemplate.Infrastructure.Storage;
 //#endif
 using AppTemplate.Presentation.Core.Common.Observability;
 using AppTemplate.Presentation.Core.Common.Outbound;
-using AppTemplate.PresentationApp.Common.Hosting;
-using AppTemplate.PresentationApp.Common.Security;
+using AppTemplate.PresentationAppMcp.Common.Hosting;
+using AppTemplate.PresentationAppMcp.Common.Security;
 //#if (localAuth)
-using AppTemplate.PresentationApp.Features.Auth.Composition;
+using AppTemplate.PresentationAppMcp.Features.Auth.Composition;
 //#endif
 //#if (externalAuth)
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+using AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Composition;
 //#endif
 //#if (files)
-using AppTemplate.PresentationApp.Features.Files.Tools;
+using AppTemplate.PresentationAppMcp.Features.Files.Tools;
 //#endif
 //#if (notes)
-using AppTemplate.PresentationApp.Features.Notes.Tools;
+using AppTemplate.PresentationAppMcp.Features.Notes.Tools;
 //#endif
 //#if (reminders)
-using AppTemplate.PresentationApp.Features.Reminders.Tools;
+using AppTemplate.PresentationAppMcp.Features.Reminders.Tools;
 //#endif
 //#if (todoLists)
-using AppTemplate.PresentationApp.Features.TodoLists.Tools;
+using AppTemplate.PresentationAppMcp.Features.TodoLists.Tools;
 //#endif
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;

@@ -1,10 +1,16 @@
 ﻿# Presentation project
 
-<!--#if (!presentationMcp)-->
+<!--#if (!presentationMcp && api)-->
 How the presentation project beside the API is created, composed, and how it signs people in.
 <!--#endif-->
-<!--#if (presentationMcp)-->
+<!--#if (!presentationMcp && !api)-->
+How the presentation project is created, composed, and how it signs people in.
+<!--#endif-->
+<!--#if (presentationMcp && api)-->
 How the MCP server beside the API is created and composed, which tools it offers, and who calls them.
+<!--#endif-->
+<!--#if (presentationMcp && !api)-->
+How the MCP server is created and composed, which tools it offers, and who calls them.
 <!--#endif-->
 
 ## What you get
@@ -417,7 +423,7 @@ bearer credential, which in an editor's MCP configuration is a header:
   "servers": {
     "app-template": {
       "type": "http",
-      "url": "http://localhost:8090/mcp",
+      "url": "http://localhost:8091/mcp",
       "headers": { "Authorization": "Bearer ak_..." }
     }
   }

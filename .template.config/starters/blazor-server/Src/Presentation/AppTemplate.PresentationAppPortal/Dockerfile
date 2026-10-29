@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
-# Build from the repository root: docker build -f Src/Presentation/AppTemplate.PresentationApp/Dockerfile -t app-template-presentation-app:local .
+# Build from the repository root: docker build -f Src/Presentation/AppTemplate.PresentationAppPortal/Dockerfile -t app-template-presentation-app-portal:local .
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403-noble@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 
 ARG BUILD_CONFIGURATION=Release
@@ -32,13 +32,13 @@ COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastru
 #if (files)
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",         "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
 #endif
-COPY ["Src/Presentation/AppTemplate.PresentationApp/AppTemplate.PresentationApp.csproj",                         "Src/Presentation/AppTemplate.PresentationApp/"]
+COPY ["Src/Presentation/AppTemplate.PresentationAppPortal/AppTemplate.PresentationAppPortal.csproj",                         "Src/Presentation/AppTemplate.PresentationAppPortal/"]
 
-RUN dotnet restore "Src/Presentation/AppTemplate.PresentationApp/AppTemplate.PresentationApp.csproj"
+RUN dotnet restore "Src/Presentation/AppTemplate.PresentationAppPortal/AppTemplate.PresentationAppPortal.csproj"
 
 COPY . .
 
-RUN dotnet publish "Src/Presentation/AppTemplate.PresentationApp/AppTemplate.PresentationApp.csproj" \
+RUN dotnet publish "Src/Presentation/AppTemplate.PresentationAppPortal/AppTemplate.PresentationAppPortal.csproj" \
         --configuration "${BUILD_CONFIGURATION}" \
         --no-restore \
         -p:UseAppHost=false \
@@ -50,7 +50,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-alpine3.24@sha256:254fe017495996d3a
 ARG TARGETARCH
 ARG TARGETPLATFORM
 
-LABEL org.opencontainers.image.title="AppTemplate.PresentationApp" \
+LABEL org.opencontainers.image.title="AppTemplate.PresentationAppPortal" \
       org.opencontainers.image.description="Clean Architecture .NET template — presentation project" \
       org.opencontainers.image.licenses="MIT" \
       io.apptemplate.target-platform="${TARGETPLATFORM}" \
@@ -77,7 +77,7 @@ RUN mkdir App_Data && chown "$APP_UID" App_Data
 #endif
 
 #if (!localAuth)
-# The data-protection key ring's folder, which the presentation-app-keys volume mounts, owned by the user the app runs as.
+# The data-protection key ring's folder, which the presentation-app-portal-keys volume mounts, owned by the user the app runs as.
 RUN mkdir /data-protection-keys && chown "$APP_UID" /data-protection-keys
 
 #endif
@@ -87,4 +87,4 @@ USER $APP_UID
 HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=5 \
     CMD wget --spider --quiet http://127.0.0.1:8080/health || exit 1
 
-ENTRYPOINT ["dotnet", "AppTemplate.PresentationApp.dll"]
+ENTRYPOINT ["dotnet", "AppTemplate.PresentationAppPortal.dll"]

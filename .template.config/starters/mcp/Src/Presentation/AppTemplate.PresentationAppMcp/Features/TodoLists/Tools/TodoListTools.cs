@@ -3,13 +3,13 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Common.Tools;
+using AppTemplate.PresentationAppMcp.Common.Security;
+using AppTemplate.PresentationAppMcp.Common.Tools;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
-namespace AppTemplate.PresentationApp.Features.TodoLists.Tools;
+namespace AppTemplate.PresentationAppMcp.Features.TodoLists.Tools;
 
 [McpServerToolType]
 internal sealed class TodoListTools(

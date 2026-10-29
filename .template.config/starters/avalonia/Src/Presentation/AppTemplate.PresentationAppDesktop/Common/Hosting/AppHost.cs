@@ -1,14 +1,14 @@
 ﻿using AppTemplate.Client;
 //#if (externalAuth)
 using AppTemplate.Client.Common.Sessions;
-using AppTemplate.PresentationApp.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Common.Sessions;
 //#endif
-using AppTemplate.PresentationApp.ViewModels;
+using AppTemplate.PresentationAppDesktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Common.Hosting;
+namespace AppTemplate.PresentationAppDesktop.Common.Hosting;
 
 internal static class AppHost
 {

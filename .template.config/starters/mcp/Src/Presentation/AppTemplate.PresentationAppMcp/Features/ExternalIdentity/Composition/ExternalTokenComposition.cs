@@ -7,17 +7,17 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 //#endif
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Presentation.Core;
-using AppTemplate.PresentationApp.Common.Hosting;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+using AppTemplate.PresentationAppMcp.Common.Hosting;
+using AppTemplate.PresentationAppMcp.Common.Security;
+using AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Configuration.Options;
 //#if (reminders)
-using AppTemplate.PresentationApp.Features.Reminders.Composition;
+using AppTemplate.PresentationAppMcp.Features.Reminders.Composition;
 //#endif
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.AspNetCore.Authentication;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+namespace AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Composition;
 
 internal static class ExternalTokenComposition
 {

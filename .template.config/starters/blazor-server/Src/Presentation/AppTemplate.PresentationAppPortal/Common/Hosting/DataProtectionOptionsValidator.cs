@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Common.Hosting;
+namespace AppTemplate.PresentationAppPortal.Common.Hosting;
 
 internal sealed class DataProtectionOptionsValidator(IHostEnvironment environment) : IValidateOptions<DataProtectionOptions>
 {

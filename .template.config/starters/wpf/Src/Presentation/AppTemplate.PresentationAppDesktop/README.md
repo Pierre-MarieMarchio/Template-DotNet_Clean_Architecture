@@ -1,7 +1,7 @@
-﻿# PresentationApp
+﻿# PresentationAppDesktop
 
 The presentation project beside the API: a WPF desktop app for Windows that calls the API through
-the .NET client of `Src/Clients`, its view models and host in `AppTemplate.PresentationApp.Core`.
+the .NET client of `Src/Clients`, its view models and host in `AppTemplate.PresentationAppDesktop.Core`.
 [Presentation project](../../../docs/features/presentation.md) describes it.
 
 ## Create the project
@@ -11,17 +11,17 @@ names that generator and the version it follows, which ships with the .NET SDK a
 pinned. From the project root:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppDesktop
 ```
 
 `bootstrap` runs the same step, which needs no network: it removes scaffold.json, then adds the app,
-`AppTemplate.PresentationApp.Core`, their tests and the .NET client to the solution. Run outside
+`AppTemplate.PresentationAppDesktop.Core`, their tests and the .NET client to the solution. Run outside
 `bootstrap`, once the OpenAPI reference exists, it then restores the tools and writes the client with
 `dotnet run Tools/Tasks.cs api-client`. Commit the project: from then on its files are this project's
 own, and the step leaves it alone.
 
 The app builds on every system, `EnableWindowsTargeting` fetching the Windows targeting pack, and
-runs on Windows. Its tests are those of `AppTemplate.PresentationApp.Core`, which run on every system.
+runs on Windows. Its tests are those of `AppTemplate.PresentationAppDesktop.Core`, which run on every system.
 <!--#if (externalAuth)-->
 
 ## Sign in
@@ -61,14 +61,13 @@ until both are set.
 
 ## Joining a project generated without one
 
-A project generated with `--presentation none` takes its presentation project later, at the project
-root:
+A project generated without this presentation project takes it later, at the project root:
 
 ```bash
 <!--#if (hasClient)-->
-dotnet new cleanarch-presentation -n PresentationApp --framework wpf --project-name AppTemplate --has-client true
+dotnet new cleanarch-presentation -n PresentationAppDesktop --framework wpf --project-name AppTemplate --has-client true
 <!--#else-->
-dotnet new cleanarch-presentation -n PresentationApp --framework wpf --project-name AppTemplate
+dotnet new cleanarch-presentation -n PresentationAppDesktop --framework wpf --project-name AppTemplate
 <!--#endif-->
 ```
 
@@ -78,7 +77,7 @@ project holds the .NET client already, generated with `--web blazor-wasm` or add
 WebAssembly app. A project generated with `--auth none` publishes no route for it to call, and the
 item template refuses it.
 
-It writes this folder, `AppTemplate.PresentationApp.Core` and its tests, the .NET client in
+It writes this folder, `AppTemplate.PresentationAppDesktop.Core` and its tests, the .NET client in
 `Src/Clients` with its tests,
 `docs/features/presentation.md` and the client's decision; `--has-client true` leaves the client, its
 tests and its decision out, and its edits below with them. The lines `--presentation` writes in
@@ -86,7 +85,7 @@ files the item template cannot edit are listed below, each placed by the lines i
 task makes them all, or none when one of those lines is not found exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationApp
+dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppDesktop
 ```
 
 Then create the project as above and commit it. `dnx CleanArch.Create presentation` runs the three
@@ -197,8 +196,8 @@ task stops:
   add:
 
   ```csharp
-          ["Src/Presentation/AppTemplate.PresentationApp"] = null,
-          ["Src/Presentation/AppTemplate.PresentationApp.Core"] = null,
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = null,
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop.Core"] = null,
 <!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = null,
 <!--#endif-->
@@ -214,11 +213,11 @@ task stops:
   add:
 
   ```csharp
-          ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = null,
 <!--#if (externalAuth)-->
-          ["Src/Presentation/AppTemplate.PresentationApp.Core"] = ["Hosting", "Sessions"],
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop.Core"] = ["Hosting", "Sessions"],
 <!--#else-->
-          ["Src/Presentation/AppTemplate.PresentationApp.Core"] = ["Hosting"],
+          ["Src/Presentation/AppTemplate.PresentationAppDesktop.Core"] = ["Hosting"],
 <!--#endif-->
 <!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
@@ -236,7 +235,7 @@ task stops:
   add:
 
   ```csharp
-          ["AppTemplate.PresentationApp.Core"] = ["ViewModels"],
+          ["AppTemplate.PresentationAppDesktop.Core"] = ["ViewModels"],
 <!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
 <!--#endif-->
@@ -253,7 +252,7 @@ task stops:
   add:
 
   ```csharp
-          ["AppTemplate.PresentationApp"] = ["App.xaml.cs", "MainWindow.xaml.cs"],
+          ["AppTemplate.PresentationAppDesktop"] = ["App.xaml.cs", "MainWindow.xaml.cs"],
   ```
 
 <!--#if (!hasClient)-->
@@ -365,26 +364,17 @@ task stops:
   A WPF desktop app for Windows beside it calls the API through a .NET client generated from its document.
   ```
 
-- in `docs/getting-started/overview.md`, replace the line:
+- in `docs/getting-started/overview.md`, before the lines:
 
   ```markdown
-  | `--presentation` | `none` | no presentation project beside the API |
+
+  To change a value, remove the part by hand or add it:
   ```
 
-  with:
+  add:
 
   ```markdown
   | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, its view models and host in `<Project>.<Name>.Core`, calling the API through the .NET client of `Src/Clients` ([Presentation project](../features/presentation.md)) |
-  ```
-
-- in `docs/getting-started/overview.md`, remove the lines:
-
-  ```markdown
-  - `dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name AppTemplate`
-    adds a presentation project beside the API. Pass this project's `--auth`, `--examples`, `--files`,
-    `--database` and `--agent-files` when they are not the defaults; then
-    `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Portal` makes the lines the README it
-    writes in the new project's folder lists outside it.
   ```
 
 - in `docs/README.md`, before the lines:

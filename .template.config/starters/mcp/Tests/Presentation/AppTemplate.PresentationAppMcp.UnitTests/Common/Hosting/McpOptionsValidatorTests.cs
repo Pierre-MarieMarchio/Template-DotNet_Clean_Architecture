@@ -1,8 +1,8 @@
-﻿using AppTemplate.PresentationApp.Common.Hosting;
+﻿using AppTemplate.PresentationAppMcp.Common.Hosting;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Common.Hosting;
+namespace AppTemplate.PresentationAppMcp.UnitTests.Common.Hosting;
 
 public sealed class McpOptionsValidatorTests
 {

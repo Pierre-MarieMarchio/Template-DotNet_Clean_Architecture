@@ -8,14 +8,7 @@
     {
       "id": "presentation",
       "name": {
-        "text": "Presentation project"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "presentationName",
-      "name": {
-        "text": "Presentation project name"
+        "text": "Presentation projects"
       },
       "isVisible": true
     },
@@ -44,13 +37,6 @@
       "id": "webRendering",
       "name": {
         "text": "Web app rendering"
-      },
-      "isVisible": true
-    },
-    {
-      "id": "jobs",
-      "name": {
-        "text": "Background jobs"
       },
       "isVisible": true
     },

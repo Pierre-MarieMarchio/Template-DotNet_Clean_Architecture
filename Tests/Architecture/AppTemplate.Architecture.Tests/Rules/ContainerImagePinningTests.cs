@@ -130,7 +130,7 @@ public sealed class ContainerImagePinningTests
         var compose = ComposeImages().ToHashSet(StringComparer.Ordinal);
         var fixtures = FixtureImages();
 
-        //#if (serverDatabase || files)
+        //#if ((api && (serverDatabase || files)) || (localAuth && serverDatabase))
         fixtures.ShouldNotBeEmpty("the integration suites start a container; a search that finds none is broken.");
         //#endif
 
@@ -244,12 +244,10 @@ public sealed class ContainerImagePinningTests
             .Where(IsSource)
             .Order(StringComparer.Ordinal)];
 
+    private static string IntegrationTests => Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Tests", "Integration");
+
     private static List<(string File, string Image)> FixtureImages() =>
-        [.. Directory
-            .EnumerateFiles(
-                Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Tests", "Integration"),
-                "*.cs",
-                SearchOption.AllDirectories)
+        [.. (Directory.Exists(IntegrationTests) ? Directory.EnumerateFiles(IntegrationTests, "*.cs", SearchOption.AllDirectories) : [])
             .Where(IsSource)
             .SelectMany(file => _fixtureImage
                 .Matches(File.ReadAllText(file))

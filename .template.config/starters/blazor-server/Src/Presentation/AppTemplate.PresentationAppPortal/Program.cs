@@ -10,14 +10,14 @@ using AppTemplate.Infrastructure.Storage;
 //#endif
 using AppTemplate.Presentation.Core.Common.Observability;
 using AppTemplate.Presentation.Core.Common.Outbound;
-using AppTemplate.PresentationApp.Common.Hosting;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Components;
+using AppTemplate.PresentationAppPortal.Common.Hosting;
+using AppTemplate.PresentationAppPortal.Common.Security;
+using AppTemplate.PresentationAppPortal.Components;
 //#if (localAuth)
-using AppTemplate.PresentationApp.Features.Auth.Composition;
+using AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 //#endif
 //#if (externalAuth)
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Composition;
 //#endif
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;

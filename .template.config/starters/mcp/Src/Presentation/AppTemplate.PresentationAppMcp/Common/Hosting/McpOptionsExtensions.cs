@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Common.Hosting;
+namespace AppTemplate.PresentationAppMcp.Common.Hosting;
 
 internal static class McpOptionsExtensions
 {

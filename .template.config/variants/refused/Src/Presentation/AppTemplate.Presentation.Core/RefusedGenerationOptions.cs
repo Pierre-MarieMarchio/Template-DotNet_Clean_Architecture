@@ -1,4 +1,4 @@
-//#if (auth == "none" && examples != "none")
+﻿//#if (auth == "none" && examples != "none")
 #error The template refuses --auth none with example features, which each belong to a caller: generate with --examples none.
 //#endif
 //#if (auth == "none" && files)
@@ -16,8 +16,14 @@
 //#if (web == "blazor-wasm" && auth == "none")
 #error The template refuses --web blazor-wasm with --auth none, whose API publishes no route for it to call: generate with --auth local or --auth external.
 //#endif
-//#if (presentation != "none" && (presentationName == "Api" || presentationName == "Api.IntegrationTests" || presentationName == "Api.UnitTests" || presentationName == "Application" || presentationName == "Application.Auth" || presentationName == "Application.Auth.UnitTests" || presentationName == "Application.Core" || presentationName == "Application.Core.UnitTests" || presentationName == "Application.UnitTests" || presentationName == "Architecture.Tests" || presentationName == "Client" || presentationName == "Client.UnitTests" || presentationName == "Domain" || presentationName == "Domain.Core" || presentationName == "Domain.Core.UnitTests" || presentationName == "Domain.UnitTests" || presentationName == "EndToEnd.Tests" || presentationName == "Infrastructure.Auth" || presentationName == "Infrastructure.Auth.IntegrationTests" || presentationName == "Infrastructure.Auth.UnitTests" || presentationName == "Infrastructure.Core" || presentationName == "Infrastructure.Core.UnitTests" || presentationName == "Infrastructure.Email" || presentationName == "Infrastructure.Email.UnitTests" || presentationName == "Infrastructure.InMemory" || presentationName == "Infrastructure.InMemory.UnitTests" || presentationName == "Infrastructure.Persistence" || presentationName == "Infrastructure.Persistence.UnitTests" || presentationName == "Infrastructure.Storage" || presentationName == "Infrastructure.Storage.UnitTests" || presentationName == "Presentation.Core" || presentationName == "Presentation.Core.UnitTests" || presentationName == "Worker" || presentationName == "Worker.UnitTests" || (presentation == "wpf" && (presentationName == "Infrastructure" || presentationName == "Presentation"))))
-#error The template refuses a --presentation-name that names one of its own projects, which generation would overwrite: generate with another name, such as Portal.
+//#if (presentation == "avalonia" && presentation == "wpf")
+#error The template refuses --presentation avalonia with --presentation wpf, which both write <Project>.Desktop: generate with one of them.
+//#endif
+//#if (presentation == "worker" && database == "sqlite")
+#error The template refuses --presentation worker with --database sqlite, whose file serves one process: generate with --database postgresql or sqlserver.
+//#endif
+//#if (presentation != "api" && presentation != "worker" && presentation != "avalonia" && presentation != "wpf" && web == "none" && !(presentation == "mcp" && auth == "local"))
+#error The template refuses presentation projects that hold neither the API nor the worker, so that no host runs the background jobs: generate with --presentation api or --presentation worker as well.
 //#endif
 //#if (database == "sqlserver" || database == "mysql" || database == "sqlite")
 #error This version of the template generates --database postgresql only: generate with --database postgresql.

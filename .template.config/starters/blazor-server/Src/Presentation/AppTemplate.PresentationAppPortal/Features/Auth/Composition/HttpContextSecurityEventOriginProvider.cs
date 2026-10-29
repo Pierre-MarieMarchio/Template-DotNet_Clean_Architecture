@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
 internal sealed class HttpContextSecurityEventOriginProvider(IHttpContextAccessor httpContextAccessor)
     : ISecurityEventOriginProvider

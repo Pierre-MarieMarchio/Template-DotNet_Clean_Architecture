@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppPortal.Common.Security;
 
 internal static class CallerIdentityExtensions
 {

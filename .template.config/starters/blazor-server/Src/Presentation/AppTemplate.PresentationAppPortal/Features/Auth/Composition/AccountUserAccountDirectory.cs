@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
 internal sealed class AccountUserAccountDirectory(IAccountsService accounts) : IUserAccountDirectory
 {

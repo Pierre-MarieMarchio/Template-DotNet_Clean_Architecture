@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Core.Common.Hosting;
+namespace AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
 
 internal sealed class ApiOptionsValidator : IValidateOptions<ApiOptions>
 {

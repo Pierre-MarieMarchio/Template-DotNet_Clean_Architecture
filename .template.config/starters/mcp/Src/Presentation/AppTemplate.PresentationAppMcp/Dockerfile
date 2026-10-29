@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
-# Build from the repository root: docker build -f Src/Presentation/AppTemplate.PresentationApp/Dockerfile -t app-template-presentation-app:local .
+# Build from the repository root: docker build -f Src/Presentation/AppTemplate.PresentationAppMcp/Dockerfile -t app-template-presentation-app-mcp:local .
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403-noble@sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b AS build
 
 ARG BUILD_CONFIGURATION=Release
@@ -32,13 +32,13 @@ COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Email/AppTemplate.Infrastru
 #if (files)
 COPY ["Src/Infrastructure/AppTemplate.Infrastructure.Storage/AppTemplate.Infrastructure.Storage.csproj",         "Src/Infrastructure/AppTemplate.Infrastructure.Storage/"]
 #endif
-COPY ["Src/Presentation/AppTemplate.PresentationApp/AppTemplate.PresentationApp.csproj",                         "Src/Presentation/AppTemplate.PresentationApp/"]
+COPY ["Src/Presentation/AppTemplate.PresentationAppMcp/AppTemplate.PresentationAppMcp.csproj",                         "Src/Presentation/AppTemplate.PresentationAppMcp/"]
 
-RUN dotnet restore "Src/Presentation/AppTemplate.PresentationApp/AppTemplate.PresentationApp.csproj"
+RUN dotnet restore "Src/Presentation/AppTemplate.PresentationAppMcp/AppTemplate.PresentationAppMcp.csproj"
 
 COPY . .
 
-RUN dotnet publish "Src/Presentation/AppTemplate.PresentationApp/AppTemplate.PresentationApp.csproj" \
+RUN dotnet publish "Src/Presentation/AppTemplate.PresentationAppMcp/AppTemplate.PresentationAppMcp.csproj" \
         --configuration "${BUILD_CONFIGURATION}" \
         --no-restore \
         -p:UseAppHost=false \
@@ -50,7 +50,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0.14-alpine3.24@sha256:254fe017495996d3a
 ARG TARGETARCH
 ARG TARGETPLATFORM
 
-LABEL org.opencontainers.image.title="AppTemplate.PresentationApp" \
+LABEL org.opencontainers.image.title="AppTemplate.PresentationAppMcp" \
       org.opencontainers.image.description="Clean Architecture .NET template — MCP server" \
       org.opencontainers.image.licenses="MIT" \
       io.apptemplate.target-platform="${TARGETPLATFORM}" \
@@ -82,4 +82,4 @@ USER $APP_UID
 HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=5 \
     CMD wget --spider --quiet http://127.0.0.1:8080/health || exit 1
 
-ENTRYPOINT ["dotnet", "AppTemplate.PresentationApp.dll"]
+ENTRYPOINT ["dotnet", "AppTemplate.PresentationAppMcp.dll"]

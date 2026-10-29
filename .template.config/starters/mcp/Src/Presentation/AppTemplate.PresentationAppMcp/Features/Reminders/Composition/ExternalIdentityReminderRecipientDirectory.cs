@@ -2,7 +2,7 @@
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Domain.Core.Common.Primitives;
 
-namespace AppTemplate.PresentationApp.Features.Reminders.Composition;
+namespace AppTemplate.PresentationAppMcp.Features.Reminders.Composition;
 
 internal sealed class ExternalIdentityReminderRecipientDirectory(IExternalIdentityService identities)
     : IReminderRecipientDirectory

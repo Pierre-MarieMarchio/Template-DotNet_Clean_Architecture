@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppPortal.Common.Security;
 
 public sealed class OperationScope(IServiceScopeFactory scopes, AuthenticationStateProvider authentication)
 {

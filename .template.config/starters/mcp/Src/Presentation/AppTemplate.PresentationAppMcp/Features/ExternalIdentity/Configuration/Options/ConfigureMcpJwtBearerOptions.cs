@@ -1,12 +1,12 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Common.Hosting;
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+using AppTemplate.PresentationAppMcp.Common.Hosting;
+using AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Composition;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Configuration.Options;
 
 internal sealed class ConfigureMcpJwtBearerOptions(
     IOptions<AuthenticationExternalOptions> externalOptions,

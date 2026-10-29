@@ -1,8 +1,8 @@
-﻿using AppTemplate.PresentationApp.Common.Hosting;
+﻿using AppTemplate.PresentationAppDesktop.Common.Hosting;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Common.Hosting;
+namespace AppTemplate.PresentationAppDesktop.UnitTests.Common.Hosting;
 
 public sealed class ApiOptionsValidatorTests
 {

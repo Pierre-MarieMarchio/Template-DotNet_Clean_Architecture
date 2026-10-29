@@ -37,10 +37,10 @@ public sealed class LayoutConventionTests
                 "Adapters/Observability",
                 "Rows/Configurations", "Rows/Mapping", "Rows/Models", "Rows/Tracking",
             ],
-        /*#if (jobsWorker && publicApi)
+        /*#if (api && jobsWorker && publicApi)
         ["Src/Presentation/AppTemplate.Api"] = null,
         #endif*/
-        //#if (!jobsWorker || !publicApi)
+        //#if (api && (!jobsWorker || !publicApi))
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Composition",
@@ -74,26 +74,26 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.InMemory"] = [],
         ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] = null,
         /*#if (presentationBlazorServer && localAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition"],
+        ["Src/Presentation/AppTemplate.PresentationAppPortal"] = ["Composition"],
         #endif*/
         /*#if (presentationBlazorServer && externalAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Configuration/Options"],
+        ["Src/Presentation/AppTemplate.PresentationAppPortal"] = ["Composition", "Configuration/Options"],
         #endif*/
         /*#if (presentationBlazorServer && publicApi)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        ["Src/Presentation/AppTemplate.PresentationAppPortal"] = null,
         #endif*/
         /*#if (presentationAvalonia)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = null,
         #endif*/
         /*#if (presentationMcp && localAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Tools"],
+        ["Src/Presentation/AppTemplate.PresentationAppMcp"] = ["Composition", "Tools"],
         #endif*/
         /*#if (presentationMcp && externalAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Configuration/Options", "Tools"],
+        ["Src/Presentation/AppTemplate.PresentationAppMcp"] = ["Composition", "Configuration/Options", "Tools"],
         #endif*/
         /*#if (presentationWpf)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
-        ["Src/Presentation/AppTemplate.PresentationApp.Core"] = null,
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = null,
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop.Core"] = null,
         #endif*/
         /*#if (webBlazorWasm)
         ["Src/Web/apps/FrameworkSite"] = null,
@@ -172,6 +172,7 @@ public sealed class LayoutConventionTests
         ["Src/Infrastructure/AppTemplate.Infrastructure.Storage"] =
             ["Budgets", "Factories", "Options"],
         //#endif
+        //#if (api)
         ["Src/Presentation/AppTemplate.Api"] =
             [
                 "Caching", "Concurrency", "Contracts", "Controllers", "Errors", "Hosting",
@@ -182,31 +183,32 @@ public sealed class LayoutConventionTests
                 "Localization", "Observability", "OpenApi",
                 "Security",
             ],
+        //#endif
         ["Src/Presentation/AppTemplate.Presentation.Core"] =
             ["Jobs", "Localization", "Observability", "Outbound", "Security"],
         /*#if (presentationBlazorServer)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security"],
+        ["Src/Presentation/AppTemplate.PresentationAppPortal"] = ["Hosting", "Security"],
         #endif*/
         /*#if (jobsWorker)
         ["Src/Presentation/AppTemplate.Worker"] = ["Jobs", "Security"],
         #endif*/
         /*#if (presentationAvalonia && localAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting"],
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = ["Hosting"],
         #endif*/
         /*#if (presentationAvalonia && externalAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Sessions"],
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = ["Hosting", "Sessions"],
         #endif*/
         /*#if (presentationMcp)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security", "Tools"],
+        ["Src/Presentation/AppTemplate.PresentationAppMcp"] = ["Hosting", "Security", "Tools"],
         #endif*/
         /*#if (presentationWpf)
-        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop"] = null,
         #endif*/
         /*#if (presentationWpf && localAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp.Core"] = ["Hosting"],
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop.Core"] = ["Hosting"],
         #endif*/
         /*#if (presentationWpf && externalAuth)
-        ["Src/Presentation/AppTemplate.PresentationApp.Core"] = ["Hosting", "Sessions"],
+        ["Src/Presentation/AppTemplate.PresentationAppDesktop.Core"] = ["Hosting", "Sessions"],
         #endif*/
         /*#if (webBlazorWasm && !externalAuth)
         ["Src/Web/apps/FrameworkSite"] = null,
@@ -375,13 +377,13 @@ public sealed class LayoutConventionTests
     private static readonly Dictionary<string, string[]> _generatorRootFolders = new(StringComparer.Ordinal)
     {
         /*#if (presentationBlazorServer)
-        ["AppTemplate.PresentationApp"] = ["Components", "wwwroot"],
+        ["AppTemplate.PresentationAppPortal"] = ["Components", "wwwroot"],
         #endif*/
         /*#if (presentationAvalonia)
-        ["AppTemplate.PresentationApp"] = ["Assets", "ViewModels", "Views"],
+        ["AppTemplate.PresentationAppDesktop"] = ["Assets", "ViewModels", "Views"],
         #endif*/
         /*#if (presentationWpf)
-        ["AppTemplate.PresentationApp.Core"] = ["ViewModels"],
+        ["AppTemplate.PresentationAppDesktop.Core"] = ["ViewModels"],
         #endif*/
         /*#if (webBlazorWasm)
         ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
@@ -394,10 +396,10 @@ public sealed class LayoutConventionTests
     private static readonly Dictionary<string, string[]> _generatorRootFiles = new(StringComparer.Ordinal)
     {
         /*#if (presentationAvalonia)
-        ["AppTemplate.PresentationApp"] = ["App.axaml.cs", "ViewLocator.cs"],
+        ["AppTemplate.PresentationAppDesktop"] = ["App.axaml.cs", "ViewLocator.cs"],
         #endif*/
         /*#if (presentationWpf)
-        ["AppTemplate.PresentationApp"] = ["App.xaml.cs", "MainWindow.xaml.cs"],
+        ["AppTemplate.PresentationAppDesktop"] = ["App.xaml.cs", "MainWindow.xaml.cs"],
         #endif*/
     };
 

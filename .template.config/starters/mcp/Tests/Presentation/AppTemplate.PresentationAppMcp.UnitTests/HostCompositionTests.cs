@@ -1,13 +1,13 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.PresentationApp.UnitTests.TestSupport;
+using AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ModelContextProtocol.Server;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests;
+namespace AppTemplate.PresentationAppMcp.UnitTests;
 
 public sealed class HostCompositionTests
 {

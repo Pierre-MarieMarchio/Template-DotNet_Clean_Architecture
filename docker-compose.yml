@@ -2,6 +2,85 @@
 
 name: app-template
 
+# The settings every host reads; each service adds its own.
+x-host-environment: &host-environment
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+  ASPNETCORE_HTTP_PORTS: "8080"
+
+  # Keep replicas x pool size under PostgreSQL's max_connections: docs/reference/configuration.md.
+  Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
+  Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
+
+  IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
+
+  Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
+
+  #if (localAuth)
+  Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
+  Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
+  Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
+  Jwt__RequireHttpsMetadata: ${JWT_REQUIRE_HTTPS_METADATA:-false}
+  Jwt__AccessTokenLifetimeInMinutes: ${JWT_ACCESS_TOKEN_LIFETIME_MINUTES:-60}
+
+  RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
+
+  Identity__PasswordRequiredLength: ${IDENTITY_PASSWORD_LENGTH:-8}
+  Identity__PasswordRequiredUniqueChars: ${IDENTITY_PASSWORD_UNIQUE_CHARS:-1}
+  Identity__PasswordRequireDigit: ${IDENTITY_PASSWORD_REQUIRE_DIGIT:-false}
+  Identity__PasswordRequireLowercase: ${IDENTITY_PASSWORD_REQUIRE_LOWERCASE:-false}
+  Identity__PasswordRequireUppercase: ${IDENTITY_PASSWORD_REQUIRE_UPPERCASE:-false}
+  Identity__PasswordRequireNonAlphanumeric: ${IDENTITY_PASSWORD_REQUIRE_NONALPHANUMERIC:-false}
+  Identity__LockoutEnabled: ${IDENTITY_LOCKOUT_ENABLED:-true}
+  Identity__LockoutMaxFailedAccessAttempts: ${IDENTITY_LOCKOUT_MAX_ATTEMPTS:-10}
+  Identity__LockoutDurationInMinutes: ${IDENTITY_LOCKOUT_DURATION_MINUTES:-1}
+  Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
+  Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
+  #endif
+  #if (externalAuth)
+  Authentication__External__Authority: ${EXTERNAL_AUTH_AUTHORITY:-}
+  Authentication__External__Audience: ${EXTERNAL_AUTH_AUDIENCE:-}
+  Authentication__External__RequireHttpsMetadata: ${EXTERNAL_AUTH_REQUIRE_HTTPS_METADATA:-true}
+  Authentication__External__Roles__Source: ${EXTERNAL_AUTH_ROLES_SOURCE:-Local}
+  Authentication__External__Roles__ClaimPath: ${EXTERNAL_AUTH_ROLES_CLAIM_PATH:-}
+  Authentication__External__Roles__AdministratorRole: ${EXTERNAL_AUTH_ADMINISTRATOR_ROLE:-Admin}
+  #endif
+
+  #if (files)
+  Files__Storage__S3__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
+  Files__Storage__S3__Endpoint: ${STORAGE_ENDPOINT:-http://objectstore:9000}
+  # The name a browser resolves, signed into every presigned URL.
+  Files__Storage__S3__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+  Files__Storage__S3__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
+  Files__Storage__S3__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
+  Files__Storage__S3__AccessKeyId: ${STORAGE_ACCESS_KEY_ID:-app-template-dev}
+  Files__Storage__S3__SecretAccessKey: ${STORAGE_SECRET_ACCESS_KEY:-app-template-dev-secret}
+  #endif
+  Email__Host: ${EMAIL_HOST:-mailpit}
+  Email__Port: ${EMAIL_PORT:-1025}
+  # mailpit speaks no TLS: None with the explicit opt-in; a real relay takes StartTls or SslOnConnect.
+  Email__Security: ${EMAIL_SECURITY:-None}
+  Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
+  Email__UserName: ${EMAIL_USERNAME:-}
+  Email__Password: ${EMAIL_PASSWORD:-}
+  Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
+  Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
+
+  #if (localAuth)
+  EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
+
+  PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
+
+  EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
+
+  # Development only; enabling it requires SEED_ADMIN_PASSWORD.
+  IdentitySeed__Enabled: ${SEED_ENABLED:-false}
+  IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
+  IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
+  #endif
+
+  # Arrays bind by index with the __N suffix.
+  Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:4200}
+
 #if (anyWeb)
 # One line per web app: its compose.yml declares the service, built from Src/Web.
 include:
@@ -38,6 +117,101 @@ services:
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
     networks: [backend]
 
+  #if (presentationBlazorServer)
+  presentation-presentation-app-portal:
+    # The presentation project reads the hosts' settings with its own composition, and runs neither jobs nor migrations.
+    extends:
+      file: docker-compose.database.yml
+      service: database-client
+    image: app-template-presentation-app-portal:dev
+    build:
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.PresentationAppPortal/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *host-environment
+      #if (!localAuth)
+      DataProtection__KeysDirectory: /data-protection-keys
+      #endif
+      #if (externalAuth)
+      Authentication__External__Interactive__ClientId: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID:-}
+      Authentication__External__Interactive__ClientSecret: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET:-}
+      #endif
+    #if (!localAuth)
+    volumes:
+      - presentation-app-portal-keys:/data-protection-keys
+    #endif
+    ports:
+      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_PORTAL_HOST_PORT:-8090}:8080"
+    depends_on:
+      #if (api)
+      api:
+        condition: service_healthy
+      #else
+      #if (serverDatabase)
+      db:
+        condition: service_healthy
+      #endif
+      mailpit:
+        condition: service_started
+      #if (files)
+      objectstore:
+        condition: service_healthy
+      #endif
+      #endif
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks: [backend]
+
+  #endif
+  #if (presentationMcp)
+  presentation-presentation-app-mcp:
+    # The MCP server reads the hosts' settings with its own composition, and runs neither jobs nor migrations.
+    extends:
+      file: docker-compose.database.yml
+      service: database-client
+    image: app-template-presentation-app-mcp:dev
+    build:
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.PresentationAppMcp/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *host-environment
+      #if (externalAuth)
+      Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8091/mcp}
+      #endif
+    ports:
+      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_MCP_HOST_PORT:-8091}:8080"
+    depends_on:
+      #if (api)
+      api:
+        condition: service_healthy
+      #else
+      #if (serverDatabase)
+      db:
+        condition: service_healthy
+      #endif
+      mailpit:
+        condition: service_started
+      #if (files)
+      objectstore:
+        condition: service_healthy
+      #endif
+      #endif
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks: [backend]
+
+  #endif
+  #if (api)
   api:
     # The connection string, from docker-compose.database.yml.
     extends:
@@ -48,16 +222,8 @@ services:
       context: .
       dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
     restart: unless-stopped
-    environment: &api-environment
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
-      ASPNETCORE_HTTP_PORTS: "8080"
-
-      # Keep replicas x pool size under PostgreSQL's max_connections: docs/reference/configuration.md.
-      Database__MaxPoolSize: ${DATABASE_MAX_POOL_SIZE:-20}
-      Database__CommandTimeoutSeconds: ${DATABASE_COMMAND_TIMEOUT_SECONDS:-30}
-
-      IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
-
+    environment:
+      <<: *host-environment
       #if (!jobsWorker)
       # false on an instance that only serves HTTP; with several instances, true on exactly one.
       Jobs__Enabled: ${JOBS_ENABLED:-true}
@@ -84,73 +250,6 @@ services:
 
       #endif
       #endif
-      Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
-
-      #if (localAuth)
-      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env (min 32 bytes; openssl rand -base64 48)}
-      Jwt__Issuer: ${JWT_ISSUER:?set JWT_ISSUER in .env}
-      Jwt__Audience: ${JWT_AUDIENCE:?set JWT_AUDIENCE in .env}
-      Jwt__RequireHttpsMetadata: ${JWT_REQUIRE_HTTPS_METADATA:-false}
-      Jwt__AccessTokenLifetimeInMinutes: ${JWT_ACCESS_TOKEN_LIFETIME_MINUTES:-60}
-
-      RefreshToken__LifetimeInDays: ${REFRESH_TOKEN_LIFETIME_DAYS:-7}
-
-      Identity__PasswordRequiredLength: ${IDENTITY_PASSWORD_LENGTH:-8}
-      Identity__PasswordRequiredUniqueChars: ${IDENTITY_PASSWORD_UNIQUE_CHARS:-1}
-      Identity__PasswordRequireDigit: ${IDENTITY_PASSWORD_REQUIRE_DIGIT:-false}
-      Identity__PasswordRequireLowercase: ${IDENTITY_PASSWORD_REQUIRE_LOWERCASE:-false}
-      Identity__PasswordRequireUppercase: ${IDENTITY_PASSWORD_REQUIRE_UPPERCASE:-false}
-      Identity__PasswordRequireNonAlphanumeric: ${IDENTITY_PASSWORD_REQUIRE_NONALPHANUMERIC:-false}
-      Identity__LockoutEnabled: ${IDENTITY_LOCKOUT_ENABLED:-true}
-      Identity__LockoutMaxFailedAccessAttempts: ${IDENTITY_LOCKOUT_MAX_ATTEMPTS:-10}
-      Identity__LockoutDurationInMinutes: ${IDENTITY_LOCKOUT_DURATION_MINUTES:-1}
-      Identity__RequireConfirmedEmail: ${IDENTITY_REQUIRE_CONFIRMED_EMAIL:-true}
-      Identity__RequireUniqueEmail: ${IDENTITY_REQUIRE_UNIQUE_EMAIL:-true}
-      #endif
-      #if (externalAuth)
-      Authentication__External__Authority: ${EXTERNAL_AUTH_AUTHORITY:-}
-      Authentication__External__Audience: ${EXTERNAL_AUTH_AUDIENCE:-}
-      Authentication__External__RequireHttpsMetadata: ${EXTERNAL_AUTH_REQUIRE_HTTPS_METADATA:-true}
-      Authentication__External__Roles__Source: ${EXTERNAL_AUTH_ROLES_SOURCE:-Local}
-      Authentication__External__Roles__ClaimPath: ${EXTERNAL_AUTH_ROLES_CLAIM_PATH:-}
-      Authentication__External__Roles__AdministratorRole: ${EXTERNAL_AUTH_ADMINISTRATOR_ROLE:-Admin}
-      #endif
-
-      #if (files)
-      Files__Storage__S3__BucketName: ${STORAGE_BUCKET_NAME:-app-files}
-      Files__Storage__S3__Endpoint: ${STORAGE_ENDPOINT:-http://objectstore:9000}
-      # The name a browser resolves, signed into every presigned URL.
-      Files__Storage__S3__PublicEndpoint: ${STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
-      Files__Storage__S3__ForcePathStyle: ${STORAGE_FORCE_PATH_STYLE:-true}
-      Files__Storage__S3__AllowInsecureTransport: ${STORAGE_ALLOW_INSECURE_TRANSPORT:-true}
-      Files__Storage__S3__AccessKeyId: ${STORAGE_ACCESS_KEY_ID:-app-template-dev}
-      Files__Storage__S3__SecretAccessKey: ${STORAGE_SECRET_ACCESS_KEY:-app-template-dev-secret}
-      #endif
-      Email__Host: ${EMAIL_HOST:-mailpit}
-      Email__Port: ${EMAIL_PORT:-1025}
-      # mailpit speaks no TLS: None with the explicit opt-in; a real relay takes StartTls or SslOnConnect.
-      Email__Security: ${EMAIL_SECURITY:-None}
-      Email__AllowInsecureTransport: ${EMAIL_ALLOW_INSECURE_TRANSPORT:-true}
-      Email__UserName: ${EMAIL_USERNAME:-}
-      Email__Password: ${EMAIL_PASSWORD:-}
-      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-no-reply@localhost}
-      Email__FromName: ${EMAIL_FROM_NAME:-AppTemplate (dev)}
-
-      #if (localAuth)
-      EmailConfirmation__ConfirmEmailUrl: ${CONFIRM_EMAIL_URL:-http://localhost:8080/confirm-email}
-
-      PasswordReset__ResetPasswordUrl: ${RESET_PASSWORD_URL:-http://localhost:8080/reset-password}
-
-      EmailChange__ConfirmEmailChangeUrl: ${CONFIRM_EMAIL_CHANGE_URL:-http://localhost:8080/confirm-email-change}
-
-      # Development only; enabling it requires SEED_ADMIN_PASSWORD.
-      IdentitySeed__Enabled: ${SEED_ENABLED:-false}
-      IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
-      IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
-      #endif
-
-      # Arrays bind by index with the __N suffix.
-      Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:4200}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
     depends_on:
@@ -172,9 +271,10 @@ services:
       start_period: 60s
     networks: [backend]
 
+  #endif
   #if (jobsWorker)
   worker:
-    # Runs the background jobs with the api's settings; it serves no HTTP and migrates nothing.
+    # Runs the background jobs with the hosts' settings; it serves no HTTP and migrates nothing.
     extends:
       file: docker-compose.database.yml
       service: database-client
@@ -184,7 +284,7 @@ services:
       dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
     restart: unless-stopped
     environment:
-      <<: *api-environment
+      <<: *host-environment
       DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       # One worker runs the passes; a second one stands by under each lease.
       Jobs__Enabled: ${JOBS_ENABLED:-true}
@@ -211,58 +311,21 @@ services:
 
       #endif
     depends_on:
+      #if (api)
       api:
         condition: service_healthy
-    networks: [backend]
-
-  #endif
-  #if (servedPresentation)
-  presentation-presentation-app:
-    #if (presentationMcp)
-    # The MCP server reads the api's settings with its own composition, and runs neither jobs nor migrations.
-    #endif
-    #if (presentationBlazorServer)
-    # The presentation project reads the api's settings with its own composition, and runs neither jobs nor migrations.
-    #endif
-    extends:
-      file: docker-compose.database.yml
-      service: database-client
-    image: app-template-presentation-app:dev
-    build:
-      context: .
-      dockerfile: Src/Presentation/AppTemplate.PresentationApp/Dockerfile
-    restart: unless-stopped
-    environment:
-      <<: *api-environment
-      #if (presentationMcp)
-      #if (externalAuth)
-      Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8090/mcp}
-      #endif
-      #endif
-      #if (presentationBlazorServer)
-      #if (!localAuth)
-      DataProtection__KeysDirectory: /data-protection-keys
-      #endif
-      #if (externalAuth)
-      Authentication__External__Interactive__ClientId: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID:-}
-      Authentication__External__Interactive__ClientSecret: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET:-}
-      #endif
-      #endif
-    #if (presentationBlazorServer && !localAuth)
-    volumes:
-      - presentation-app-keys:/data-protection-keys
-    #endif
-    ports:
-      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
-    depends_on:
-      api:
+      #else
+      #if (serverDatabase)
+      db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
-      interval: 15s
-      timeout: 3s
-      retries: 5
-      start_period: 30s
+      #endif
+      mailpit:
+        condition: service_started
+      #if (files)
+      objectstore:
+        condition: service_healthy
+      #endif
+      #endif
     networks: [backend]
 
   #endif
@@ -340,7 +403,7 @@ services:
 volumes:
   db-data:
   #if (presentationBlazorServer && !localAuth)
-  presentation-app-keys:
+  presentation-app-portal-keys:
   #endif
   #if (files)
   objectstore-data:

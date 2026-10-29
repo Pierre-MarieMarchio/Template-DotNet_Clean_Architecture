@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace AppTemplate.PresentationApp.Core.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppDesktop.Core.UnitTests.TestSupport;
 
 internal sealed class StubProvider(params HttpResponseMessage[] tokenAnswers)
 {

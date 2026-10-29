@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppMcp.Common.Security;
 
 internal sealed class AccessKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,

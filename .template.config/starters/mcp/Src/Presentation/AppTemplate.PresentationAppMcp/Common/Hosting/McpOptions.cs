@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.PresentationApp.Common.Hosting;
+﻿namespace AppTemplate.PresentationAppMcp.Common.Hosting;
 
 public sealed class McpOptions
 {

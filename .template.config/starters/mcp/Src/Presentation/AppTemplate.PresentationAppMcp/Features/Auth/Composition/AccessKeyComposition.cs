@@ -10,14 +10,14 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
-using AppTemplate.PresentationApp.Common.Hosting;
-using AppTemplate.PresentationApp.Common.Security;
+using AppTemplate.PresentationAppMcp.Common.Hosting;
+using AppTemplate.PresentationAppMcp.Common.Security;
 //#if (reminders)
-using AppTemplate.PresentationApp.Features.Reminders.Composition;
+using AppTemplate.PresentationAppMcp.Features.Reminders.Composition;
 //#endif
 using Microsoft.AspNetCore.Authentication;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppMcp.Features.Auth.Composition;
 
 internal static class AccessKeyComposition
 {

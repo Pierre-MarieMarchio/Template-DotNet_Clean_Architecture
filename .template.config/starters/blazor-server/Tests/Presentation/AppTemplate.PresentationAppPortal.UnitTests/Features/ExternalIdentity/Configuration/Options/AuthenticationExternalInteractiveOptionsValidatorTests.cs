@@ -1,8 +1,8 @@
-﻿using AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+﻿using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Configuration.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.PresentationAppPortal.UnitTests.Features.ExternalIdentity.Configuration.Options;
 
 public sealed class AuthenticationExternalInteractiveOptionsValidatorTests
 {

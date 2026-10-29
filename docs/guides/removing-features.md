@@ -57,9 +57,12 @@ Delete `Features/<Feature>/` in every layer that has one, and its mirror under `
 - `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
   and the integration folders `TodoLists/` and `Reminders/`.
 <!--#endif-->
-<!--#if (notes)-->
+<!--#if (notes && api)-->
 - Notes in the application, persistence and API, and
   `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/NotesSavingTests.cs`.
+<!--#endif-->
+<!--#if (notes && !api)-->
+- Notes in the application, persistence and each host.
 <!--#endif-->
 <!--#if (todoLists && !files)-->
 - `Common/Tagging/` in the domain and the application, with its tests: nothing is left tagged.
@@ -75,19 +78,23 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | `Src/Application/AppTemplate.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
 | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
-| `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |
 <!--#if (presentationBlazorServer || presentationMcp)-->
-| the presentation project's `Program.cs` | the same line |
+| the presentation project's `Program.cs` | the `Add<Features>()` line |
 <!--#endif-->
 <!--#if (presentationMcp)-->
 | the presentation project's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
+<!--#endif-->
+<!--#if (api)-->
+| `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |
 <!--#endif-->
 <!--#if (jobsWorker)-->
 | `Src/Presentation/<Project>.Worker/Program.cs` | the same line |
 <!--#endif-->
 | `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
 | `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
+<!--#if (api)-->
 | `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
+<!--#endif-->
 <!--#endif-->
 <!--#if (todoLists)-->
 <!--#if (!jobsWorker)-->
@@ -115,10 +122,16 @@ None of these breaks a build, and each goes stale:
 - the `Jobs:Reminders` section of both `appsettings` files, and the `JOBS_REMINDERS_*` lines of
   `.env.example` and `docker-compose.yml`;
 <!--#endif-->
-<!--#if (todoLists || notes)-->
+<!--#if ((todoLists || notes) && api)-->
 - the feature's requests in `AppTemplate.Api.http`;
 - the feature's rows in [the configuration](../reference/configuration.md) and [API](../reference/api.md)
   references, and in [adding a feature](adding-a-feature.md#patterns-from-the-examples).
+<!--#endif-->
+<!--#if ((todoLists || notes) && !api)-->
+- the feature's rows in [the configuration reference](../reference/configuration.md), and in
+  [adding a feature](adding-a-feature.md#patterns-from-the-examples).
+<!--#endif-->
+<!--#if (todoLists || notes)-->
 
 ### What stops being demonstrated
 <!--#endif-->
@@ -142,7 +155,9 @@ it, delete `Features/Files/` in every layer with its test mirrors, the integrati
 edit:
 
 - the four registration files above, and `AddStorageModule` in `Program.cs`;
+<!--#if (api)-->
 - the storage reference in `AppTemplate.Api.csproj` and its `COPY` line in the API's `Dockerfile`;
+<!--#endif-->
 - `AddFileJobs` and the file instruments of the background jobs;
 - the `Files` and `Jobs:Files` settings, and the object store in Compose and `.env.example`;
 - [the Files page](../features/files.md) and [ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md),

@@ -1,4 +1,4 @@
-﻿namespace AppTemplate.PresentationApp.Common.Hosting;
+﻿namespace AppTemplate.PresentationAppPortal.Common.Hosting;
 
 public sealed class DataProtectionOptions
 {

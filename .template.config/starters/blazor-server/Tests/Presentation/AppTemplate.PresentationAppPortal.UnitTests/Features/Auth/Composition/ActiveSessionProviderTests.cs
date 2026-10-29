@@ -3,8 +3,8 @@ using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.PresentationApp.Common.Security;
-using AppTemplate.PresentationApp.Features.Auth.Composition;
+using AppTemplate.PresentationAppPortal.Common.Security;
+using AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
@@ -13,7 +13,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.UnitTests.Features.Auth.Composition;
 
 public sealed class ActiveSessionProviderTests
 {

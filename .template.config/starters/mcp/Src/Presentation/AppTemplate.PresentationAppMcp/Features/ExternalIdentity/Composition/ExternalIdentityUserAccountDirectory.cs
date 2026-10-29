@@ -2,7 +2,7 @@
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Domain.Core.Common.Primitives;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+namespace AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Composition;
 
 internal sealed class ExternalIdentityUserAccountDirectory(IExternalIdentityService externalIdentities) : IUserAccountDirectory
 {

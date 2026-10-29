@@ -2,11 +2,11 @@
 using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
 using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.PresentationApp.Common.Security;
+using AppTemplate.PresentationAppPortal.Common.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
-namespace AppTemplate.PresentationApp.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
 internal sealed class ActiveSessionProvider(IServiceScopeFactory scopes, IDateTimeProvider clock)
 {

@@ -1,11 +1,11 @@
-﻿using AppTemplate.PresentationApp.ViewModels;
-using AppTemplate.PresentationApp.Views;
+﻿using AppTemplate.PresentationAppDesktop.ViewModels;
+using AppTemplate.PresentationAppDesktop.Views;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AppTemplate.PresentationApp;
+namespace AppTemplate.PresentationAppDesktop;
 
 public partial class App(IServiceProvider? services) : Application
 {

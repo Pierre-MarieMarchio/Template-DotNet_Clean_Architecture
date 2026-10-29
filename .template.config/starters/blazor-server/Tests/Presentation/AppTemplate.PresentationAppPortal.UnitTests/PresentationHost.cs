@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace AppTemplate.PresentationApp.UnitTests;
+namespace AppTemplate.PresentationAppPortal.UnitTests;
 
 internal sealed class PresentationHost : WebApplicationFactory<Program>
 {

@@ -3,7 +3,7 @@ using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Composition;
+using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Composition;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -11,7 +11,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.ExternalIdentity.Composition;
+namespace AppTemplate.PresentationAppPortal.UnitTests.Features.ExternalIdentity.Composition;
 
 public sealed class ExternalSignInMappingTests
 {

@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 
-namespace AppTemplate.PresentationApp.Common.Security;
+namespace AppTemplate.PresentationAppPortal.Common.Security;
 
 internal sealed class CallerPrincipal(IHttpContextAccessor httpContextAccessor)
 {

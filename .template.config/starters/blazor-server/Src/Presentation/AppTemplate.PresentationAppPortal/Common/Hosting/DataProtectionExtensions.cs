@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
 
-namespace AppTemplate.PresentationApp.Common.Hosting;
+namespace AppTemplate.PresentationAppPortal.Common.Hosting;
 
 internal static class DataProtectionExtensions
 {
@@ -17,7 +17,7 @@ internal static class DataProtectionExtensions
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<DataProtectionOptions>, DataProtectionOptionsValidator>();
 
-        var dataProtection = services.AddDataProtection().SetApplicationName("AppTemplate.PresentationApp");
+        var dataProtection = services.AddDataProtection().SetApplicationName("AppTemplate.PresentationAppPortal");
 
         if (configuration.GetSection(DataProtectionOptions.SectionName).Get<DataProtectionOptions>()?.KeysDirectory is { Length: > 0 } keys)
         {

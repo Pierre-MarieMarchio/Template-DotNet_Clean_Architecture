@@ -1,11 +1,11 @@
 ﻿using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Configuration.Options;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.PresentationAppPortal.UnitTests.Features.ExternalIdentity.Configuration.Options;
 
 public sealed class ConfigureExternalOpenIdConnectOptionsTests
 {

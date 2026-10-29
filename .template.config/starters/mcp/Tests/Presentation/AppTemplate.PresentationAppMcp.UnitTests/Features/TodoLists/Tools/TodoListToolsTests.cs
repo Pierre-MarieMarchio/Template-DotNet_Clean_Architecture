@@ -5,12 +5,12 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
-using AppTemplate.PresentationApp.Features.TodoLists.Tools;
+using AppTemplate.PresentationAppMcp.Features.TodoLists.Tools;
 using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.TodoLists.Tools;
+namespace AppTemplate.PresentationAppMcp.UnitTests.Features.TodoLists.Tools;
 
 public sealed class TodoListToolsTests
 {

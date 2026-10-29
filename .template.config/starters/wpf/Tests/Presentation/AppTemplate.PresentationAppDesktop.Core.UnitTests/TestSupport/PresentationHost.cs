@@ -1,11 +1,11 @@
-﻿using AppTemplate.PresentationApp.Core.Common.Hosting;
+﻿using AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
 //#if (externalAuth)
-using AppTemplate.PresentationApp.Core.Common.Sessions;
+using AppTemplate.PresentationAppDesktop.Core.Common.Sessions;
     //#endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace AppTemplate.PresentationApp.Core.UnitTests.TestSupport;
+namespace AppTemplate.PresentationAppDesktop.Core.UnitTests.TestSupport;
 
 internal static class PresentationHost
 {

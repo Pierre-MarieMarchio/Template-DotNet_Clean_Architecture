@@ -1,9 +1,9 @@
 ﻿using AppTemplate.Presentation.Core.Common.Security;
-using AppTemplate.PresentationApp.Common.Hosting;
+using AppTemplate.PresentationAppMcp.Common.Hosting;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.AspNetCore.Authentication;
 
-namespace AppTemplate.PresentationApp.Features.ExternalIdentity.Configuration.Options;
+namespace AppTemplate.PresentationAppMcp.Features.ExternalIdentity.Configuration.Options;
 
 internal sealed class ConfigureMcpAuthenticationOptions(
     IOptions<AuthenticationExternalOptions> externalOptions,

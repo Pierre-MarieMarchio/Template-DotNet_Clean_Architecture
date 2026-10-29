@@ -3,7 +3,7 @@ using System.Text;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Logout;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.PresentationApp.Features.Auth.Composition;
+using AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,7 +16,7 @@ using NSubstitute;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.UnitTests.Features.Auth.Composition;
+namespace AppTemplate.PresentationAppPortal.UnitTests.Features.Auth.Composition;
 
 public sealed class CookieSessionTests
 {

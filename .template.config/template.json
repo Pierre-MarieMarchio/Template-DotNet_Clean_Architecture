@@ -11,7 +11,7 @@
   "groupIdentity": "CleanArch.WebApi",
   "name": ".NET Clean Architecture API",
   "shortName": "cleanarch-webapi",
-  "description": "A .NET 10 HTTP API on Clean Architecture, meant to be kept: a domain, use cases, infrastructure modules behind ports and a thin presentation layer, on EF Core with PostgreSQL, SQL Server or SQLite (for development), with architecture tests, CI and its own documentation. Local accounts, an external OpenID Connect provider or no authentication; Files, the example features and a first web app are options.",
+  "description": "A .NET 10 HTTP API on Clean Architecture, meant to be kept: a domain, use cases, infrastructure modules behind ports and a thin presentation layer, on EF Core with PostgreSQL, SQL Server or SQLite (for development), with architecture tests, CI and its own documentation. Local accounts, an external OpenID Connect provider or no authentication; the hosts it holds (the HTTP API, a Blazor portal, an MCP server, a desktop app, a worker), Files, the example features and a first web app are options.",
   "sourceName": "AppTemplate",
   "defaultName": "MyCompany.MyProject",
   "preferNameDirectory": true,
@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\" || (presentation == \"wpf\" && (presentationName == \"Infrastructure\" || presentationName == \"Presentation\")))) || (jobs == \"worker\" && database == \"sqlite\"))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (presentation == \"worker\" && database == \"sqlite\") || (presentation != \"api\" && presentation != \"worker\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && !(presentation == \"mcp\" && auth == \"local\")))"
     },
     "database": {
       "type": "parameter",
@@ -655,32 +655,87 @@
     },
     "presentation": {
       "type": "parameter",
-      "displayName": "Presentation project",
+      "displayName": "Presentation projects",
       "datatype": "choice",
-      "defaultValue": "none",
+      "allowMultipleValues": true,
+      "defaultValue": "api",
       "choices": [
         {
-          "choice": "none",
-          "description": "No presentation project beside the API."
+          "choice": "api",
+          "description": "The HTTP API, <Project>.Api: versioned routes, OpenAPI, the reference the clients are written from. Comes with any web app, desktop client, or MCP server under local accounts, which call it."
         },
         {
           "choice": "blazor-server",
-          "description": "A Blazor Web App with server interactivity in Src/Presentation, created by dotnet new blazor and calling the use cases in process."
-        },
-        {
-          "choice": "avalonia",
-          "description": "An Avalonia desktop app in Src/Presentation, created by dotnet new avalonia.mvvm and calling the API through the .NET client of Src/Clients."
+          "description": "A Blazor Web App with server interactivity, <Project>.Portal, created by dotnet new blazor and calling the use cases in process."
         },
         {
           "choice": "mcp",
-          "description": "An MCP server in Src/Presentation, written in the shape of dotnet new mcpserver --transport remote, whose tools call the use cases in process for the caller its access key or its provider's token names. Needs --auth local or external."
+          "description": "An MCP server, <Project>.Mcp, written in the shape of dotnet new mcpserver --transport remote, whose tools call the use cases in process for the caller its access key or its provider's token names. Needs --auth local or external."
+        },
+        {
+          "choice": "avalonia",
+          "description": "An Avalonia desktop app, <Project>.Desktop, created by dotnet new avalonia.mvvm and calling the API through the .NET client of Src/Clients."
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows in Src/Presentation, written in the shape of dotnet new wpf, its view models and host in <name>.Core, calling the API through the .NET client of Src/Clients."
+          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, its view models and host in <Project>.Desktop.Core, calling the API through the .NET client of Src/Clients."
+        },
+        {
+          "choice": "worker",
+          "description": "A worker, <Project>.Worker, written from the shape of dotnet new worker, that runs the background jobs the API runs otherwise. Needs a server database."
         }
       ],
-      "description": "A presentation project beside the API, created at bootstrap by its framework's own generator or written whole: a server host reaches the application layer in process, a client reaches the API through the .NET client. A project generated without one adds it later with dotnet new cleanarch-presentation."
+      "description": "The presentation projects the project holds, one or several: each is a host of the use cases in Src/Presentation, created at bootstrap by its framework's own generator or written whole. A server host reaches the application layer in process, a client reaches the API through the .NET client. Pass the option once per project; a project adds one later with dotnet new cleanarch-presentation."
+    },
+    "presentationApi": {
+      "type": "computed",
+      "value": "(presentation == \"api\")"
+    },
+    "presentationBlazorServer": {
+      "type": "computed",
+      "value": "(presentation == \"blazor-server\")"
+    },
+    "presentationMcp": {
+      "type": "computed",
+      "value": "(presentation == \"mcp\")"
+    },
+    "presentationAvalonia": {
+      "type": "computed",
+      "value": "(presentation == \"avalonia\")"
+    },
+    "presentationWpf": {
+      "type": "computed",
+      "value": "(presentation == \"wpf\")"
+    },
+    "jobsWorker": {
+      "type": "computed",
+      "value": "(presentation == \"worker\")",
+      "description": "True when the worker runs the background jobs, which the API runs otherwise."
+    },
+    "needsApi": {
+      "type": "computed",
+      "value": "(anyWeb || presentationAvalonia || presentationWpf || (presentationMcp && localAuth))",
+      "description": "True when a part of the project calls the API over HTTP: a web app, a desktop client, or the MCP server under local accounts, whose access keys the API issues."
+    },
+    "api": {
+      "type": "computed",
+      "value": "(presentationApi || needsApi)",
+      "description": "True when the project holds the HTTP API, chosen or brought by what calls it."
+    },
+    "anyPresentation": {
+      "type": "computed",
+      "value": "(presentationBlazorServer || presentationMcp || presentationAvalonia || presentationWpf)",
+      "description": "True when the project holds a presentation project of its own beyond the API and the worker, which docs/features/presentation.md describes."
+    },
+    "accessKeys": {
+      "type": "computed",
+      "value": "(localAuth && presentationMcp)",
+      "description": "True when local accounts have an MCP server to call: brings the access keys its callers present, their routes, table, tests and decision."
+    },
+    "dotnetClient": {
+      "type": "computed",
+      "value": "(presentationAvalonia || presentationWpf || webBlazorWasm)",
+      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client of Src/Clients. Brings the client, its tests, the api-client task and the Kiota tool."
     },
     "clientPresentationNeedsAccounts": {
       "type": "parameter",
@@ -706,77 +761,7 @@
       "isRequired": "(presentation == \"mcp\" && auth == \"none\")",
       "description": "Never set. --presentation mcp acts for the caller an access key or a provider's token names, and --auth none names nobody: choose --auth local or external."
     },
-    "anyPresentation": {
-      "type": "computed",
-      "value": "(presentation != \"none\")"
-    },
-    "presentationBlazorServer": {
-      "type": "computed",
-      "value": "(presentation == \"blazor-server\")"
-    },
-    "presentationAvalonia": {
-      "type": "computed",
-      "value": "(presentation == \"avalonia\")"
-    },
-    "presentationMcp": {
-      "type": "computed",
-      "value": "(presentation == \"mcp\")"
-    },
-    "accessKeys": {
-      "type": "computed",
-      "value": "(localAuth && presentationMcp)",
-      "description": "True when local accounts have an MCP server to call: brings the access keys its callers present, their routes, table, tests and decision."
-    },
-    "servedPresentation": {
-      "type": "computed",
-      "value": "(presentationBlazorServer || presentationMcp)",
-      "description": "True when the presentation project is a server the compose stack runs: its one compose service is shared, so the template's compose file parses."
-    },
-    "presentationWpf": {
-      "type": "computed",
-      "value": "(presentation == \"wpf\")"
-    },
-    "dotnetClient": {
-      "type": "computed",
-      "value": "(presentationAvalonia || presentationWpf || webBlazorWasm)",
-      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client of Src/Clients. Brings the client, its tests, the api-client task and the Kiota tool."
-    },
-    "presentationName": {
-      "type": "parameter",
-      "displayName": "Presentation project name",
-      "datatype": "text",
-      "defaultValue": "",
-      "description": "The presentation project's name, in PascalCase: its project <Project>.<name> in Src/Presentation, its service presentation-<name>, its port PRESENTATION_<NAME>_HOST_PORT. Portal when not given, Mcp for --presentation mcp."
-    },
-    "presentationDefaultName": {
-      "type": "generated",
-      "generator": "switch",
-      "parameters": {
-        "evaluator": "C++",
-        "datatype": "string",
-        "cases": [
-          {
-            "condition": "(presentation == \"mcp\")",
-            "value": "Mcp"
-          },
-          {
-            "condition": "(true)",
-            "value": "Portal"
-          }
-        ]
-      }
-    },
-    "presentationNameOrDefault": {
-      "type": "generated",
-      "generator": "coalesce",
-      "parameters": {
-        "sourceVariableName": "presentationName",
-        "fallbackVariableName": "presentationDefaultName"
-      },
-      "replaces": "PresentationApp",
-      "fileRename": "PresentationApp"
-    },
-    "presentationNameIsTaken": {
+    "desktopIsOneFramework": {
       "type": "parameter",
       "datatype": "choice",
       "choices": [
@@ -785,77 +770,8 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\" || (presentation == \"wpf\" && (presentationName == \"Infrastructure\" || presentationName == \"Presentation\"))))",
-      "description": "Never set. --presentation-name names a project the template already writes, which generation would overwrite, or with --presentation wpf one whose <name>.Core is: choose another name, such as Portal."
-    },
-    "presentationNameWords": {
-      "type": "generated",
-      "generator": "regex",
-      "parameters": {
-        "source": "presentationNameOrDefault",
-        "steps": [
-          {
-            "regex": "([A-Z]+)([A-Z][a-z])",
-            "replacement": "$1-$2"
-          },
-          {
-            "regex": "([a-z0-9])([A-Z])",
-            "replacement": "$1-$2"
-          },
-          {
-            "regex": "[.\\s_-]+",
-            "replacement": "-"
-          }
-        ]
-      }
-    },
-    "presentationNameKebab": {
-      "type": "generated",
-      "generator": "casing",
-      "parameters": {
-        "source": "presentationNameWords",
-        "toLower": true
-      },
-      "replaces": "presentation-app"
-    },
-    "presentationNameUpper": {
-      "type": "generated",
-      "generator": "casing",
-      "parameters": {
-        "source": "presentationNameWords",
-        "toLower": false
-      }
-    },
-    "presentationNameEnvironment": {
-      "type": "generated",
-      "generator": "regex",
-      "parameters": {
-        "source": "presentationNameUpper",
-        "steps": [
-          {
-            "regex": "-",
-            "replacement": "_"
-          }
-        ]
-      },
-      "replaces": "PRESENTATION_APP"
-    },
-    "jobs": {
-      "type": "parameter",
-      "displayName": "Background jobs",
-      "datatype": "choice",
-      "defaultValue": "api",
-      "choices": [
-        {
-          "choice": "api",
-          "description": "The API runs the jobs on its timers, beside HTTP, each pass that must run once under a lease."
-        },
-        {
-          "choice": "worker",
-          "description": "A worker in Src/Presentation runs the jobs, written from the shape of dotnet new worker; the API serves HTTP alone. Needs a server database."
-        }
-      ],
-      "description": "The process that runs the background jobs: the API itself, or a worker of their own that the API leaves them to."
+      "isRequired": "(presentation == \"avalonia\" && presentation == \"wpf\")",
+      "description": "Never set. --presentation avalonia and --presentation wpf both write <Project>.Desktop: choose one of them."
     },
     "workerNeedsServerDatabase": {
       "type": "parameter",
@@ -866,12 +782,95 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(jobs == \"worker\" && database == \"sqlite\")",
-      "description": "Never set. --jobs worker runs the jobs in a second process, and a SQLite file serves one: choose --database postgresql or sqlserver, or --jobs api."
+      "isRequired": "(presentation == \"worker\" && database == \"sqlite\")",
+      "description": "Never set. --presentation worker runs the jobs in a second process, and a SQLite file serves one: choose --database postgresql or sqlserver, or leave the jobs to the API."
     },
-    "jobsWorker": {
-      "type": "computed",
-      "value": "(jobs == \"worker\")"
+    "jobsNeedTheApiOrTheWorker": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(presentation != \"api\" && presentation != \"worker\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && !(presentation == \"mcp\" && auth == \"local\"))",
+      "description": "Never set. The background jobs run in the API, or in the worker when the project holds one, and these presentation projects hold neither: add --presentation api or --presentation worker."
+    },
+    "presentationAppPortalName": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "Portal"
+      },
+      "replaces": "PresentationAppPortal",
+      "fileRename": "PresentationAppPortal"
+    },
+    "presentationAppMcpName": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "Mcp"
+      },
+      "replaces": "PresentationAppMcp",
+      "fileRename": "PresentationAppMcp"
+    },
+    "presentationAppDesktopName": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "Desktop"
+      },
+      "replaces": "PresentationAppDesktop",
+      "fileRename": "PresentationAppDesktop"
+    },
+    "presentationAppPortalKebab": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "portal"
+      },
+      "replaces": "presentation-app-portal"
+    },
+    "presentationAppMcpKebab": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "mcp"
+      },
+      "replaces": "presentation-app-mcp"
+    },
+    "presentationAppDesktopKebab": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "desktop"
+      },
+      "replaces": "presentation-app-desktop"
+    },
+    "presentationAppPortalEnvironment": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "PORTAL"
+      },
+      "replaces": "PRESENTATION_APP_PORTAL"
+    },
+    "presentationAppMcpEnvironment": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "MCP"
+      },
+      "replaces": "PRESENTATION_APP_MCP"
+    },
+    "presentationAppDesktopEnvironment": {
+      "type": "generated",
+      "generator": "constant",
+      "parameters": {
+        "value": "DESKTOP"
+      },
+      "replaces": "PRESENTATION_APP_DESKTOP"
     },
     "scaffoldedAtBootstrap": {
       "type": "computed",
@@ -1247,6 +1246,25 @@
           "condition": "(!anyPresentation)",
           "exclude": [
             "docs/features/presentation.md"
+          ]
+        },
+        {
+          "condition": "(!api)",
+          "exclude": [
+            "Src/Presentation/AppTemplate.Api/**",
+            "Tests/Presentation/AppTemplate.Api.UnitTests/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/**",
+            "Tests/EndToEnd/**",
+            "Tests/Load/**",
+            "AppTemplate.Api.http",
+            "docs/architecture/http-api.md",
+            "docs/architecture/request-pipeline.md",
+            "docs/reference/api.md",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ErrorCodeTableTests.cs",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpSurfaceTests.cs",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/IdempotentActionTests.cs",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/RequestPipelineTests.cs"
           ]
         },
         {
@@ -1974,12 +1992,23 @@
   ],
   "postActions": [
     {
-      "condition": "(!refusedOptions)",
+      "condition": "(!refusedOptions && api)",
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
       "description": "Bootstrap the project before anything else.",
       "manualInstructions": [
         {
           "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, writes the OpenAPI reference, restores the local tools and creates each context's initial migration. It needs the network, not Docker."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(!refusedOptions && !api)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Bootstrap the project before anything else.",
+      "manualInstructions": [
+        {
+          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, restores the local tools and creates each context's initial migration. It needs the network, not Docker."
         }
       ],
       "continueOnError": true

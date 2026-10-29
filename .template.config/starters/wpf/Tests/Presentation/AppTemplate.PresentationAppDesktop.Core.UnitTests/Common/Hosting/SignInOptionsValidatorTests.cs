@@ -1,9 +1,9 @@
-﻿using AppTemplate.PresentationApp.Core.Common.Hosting;
+﻿using AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using Xunit;
 
-namespace AppTemplate.PresentationApp.Core.UnitTests.Common.Hosting;
+namespace AppTemplate.PresentationAppDesktop.Core.UnitTests.Common.Hosting;
 
 public sealed class SignInOptionsValidatorTests
 {

@@ -705,7 +705,9 @@ internal static class NewUseCase
 
         output.WriteLine("  - its dependencies, in the primary constructor beside the validator");
         output.WriteLine("  - one unit test per decision the body adds, each refusal with its control");
+        //#if (api)
         output.WriteLine("  - an error code of its own: its row in docs/reference/api.md, which the error-code tests read");
+        //#endif
 
         string controller = $"Src/Presentation/{p}.Api/Features/{f}/Controllers/{f}Controller.cs";
         string where = File.Exists(Path.Combine(root, controller))

@@ -13,6 +13,7 @@ public sealed class CleanArchCommandTests : IDisposable
     {
         Run(["--help"], Path.GetTempPath()).ShouldBe(CleanArchCommand.Succeeded);
 
+        _output.ToString().ShouldContain("dotnet cleanarch [options]");
         _output.ToString().ShouldContain("--version");
         _output.ToString().ShouldContain("--help");
         _error.ToString().ShouldBeEmpty();

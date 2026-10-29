@@ -16,7 +16,7 @@ as long as the user works, and refreshes nothing it was not told how to.
 
 ## Decision
 
-- **Streamable HTTP, on the server, in process.** `<Project>.<Name>` is an ASP.NET Core host that
+- **Streamable HTTP, on the server, in process.** `<Project>.Mcp` is an ASP.NET Core host that
   composes the use cases in its own process
   ([ADR 0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md))
   and maps the endpoint of `ModelContextProtocol.AspNetCore` at `/mcp`. It runs stateless: each

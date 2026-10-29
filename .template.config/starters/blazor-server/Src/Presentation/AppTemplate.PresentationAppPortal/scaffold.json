@@ -1,0 +1,13 @@
+{
+  "kind": "dotnet",
+  "framework": "blazor-server",
+  "name": "AppTemplate.PresentationAppPortal",
+  "package": "Microsoft.DotNet.Web.ProjectTemplates.10.0",
+  "version": "10.0.14",
+  "template": "blazor",
+  "arguments": [
+    "--name", "{name}", "--output", "{directory}",
+    "--interactivity", "Server", "--auth", "None", "--no-https", "--no-restore"
+  ],
+  "keep": ["Components", "wwwroot"]
+}

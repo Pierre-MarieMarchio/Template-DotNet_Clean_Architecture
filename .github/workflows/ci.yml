@@ -264,6 +264,7 @@ jobs:
           fi
           echo "No known vulnerable packages."
 
+  #if (api)
   docker:
     name: Docker image
     runs-on: ubuntu-latest
@@ -406,6 +407,7 @@ jobs:
         #endif
         run: dotnet run Tools/Tasks.cs end-to-end
 
+  #endif
   compose:
     name: Compose manifest
     runs-on: ubuntu-latest
@@ -431,8 +433,10 @@ jobs:
             echo "::error title=Compose healthcheck::The api service healthcheck must probe /health (liveness), not /health/ready."
             exit 1
           fi
+          #if (api)
           if ! grep -q 'http://127.0.0.1:8080/health ' Src/Presentation/AppTemplate.Api/Dockerfile; then
             echo "::error title=Dockerfile HEALTHCHECK::The image HEALTHCHECK must probe /health (liveness), not /health/ready."
             exit 1
           fi
+          #endif
           echo "Both healthchecks target /health."

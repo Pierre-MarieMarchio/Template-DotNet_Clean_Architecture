@@ -52,7 +52,7 @@ public sealed class LauncherTests : IDisposable
     [Fact]
     public void ThePresentationReadmeSections_TheLauncherPrints_AreInTheStarter()
     {
-        string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AppTemplate.PresentationApp", "README.md");
+        string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AppTemplate.PresentationAppPortal", "README.md");
 
         Launcher.MarkdownSection(readme, Launcher.JoiningSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationJoinTask);
         Launcher.MarkdownSection(readme, Launcher.PresentationCreateSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationScaffoldTask);
@@ -101,6 +101,8 @@ public sealed class LauncherTests : IDisposable
         console.Output.ShouldContain("--auth local|external|none");
         console.Output.ShouldContain("--database postgresql|sqlserver|sqlite ");
         console.Output.ShouldContain("Authentication (default: local)");
+        console.Output.ShouldContain("--presentation api|blazor-server|mcp|avalonia|wpf|worker");
+        console.Output.ShouldContain("Presentation projects, one --presentation per value (default: api)");
     }
 
     [Fact]

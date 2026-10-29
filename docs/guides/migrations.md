@@ -134,6 +134,7 @@ Nothing is seeded. Data a feature needs at start belongs in its migration.
 
 ## Your own database
 
+<!--#if (api)-->
 Supply the connection string through user secrets; `AppTemplate.Api.csproj` already carries a
 `UserSecretsId`:
 
@@ -154,6 +155,11 @@ dotnet user-secrets set "ConnectionStrings:Default" "Server=…;Database=…;Use
 cd Src/Presentation/AppTemplate.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Data Source=…"
 ```
+<!--#endif-->
+<!--#endif-->
+<!--#if (!api)-->
+Supply the connection string to each host as the environment variable `ConnectionStrings__Default`,
+or through its user secrets.
 <!--#endif-->
 
 Never put a secret in `appsettings.json` or `appsettings.Development.json`: both are tracked. A

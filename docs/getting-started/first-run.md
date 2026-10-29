@@ -1,10 +1,13 @@
 ﻿# First run
 
-<!--#if (canAddFeature)-->
+<!--#if (canAddFeature && api)-->
 From a fresh clone to a running stack, an authenticated call and a first feature of your own.
 <!--#endif-->
-<!--#if (!canAddFeature)-->
+<!--#if (!canAddFeature && api)-->
 From a fresh clone to a running stack and a first call to the API.
+<!--#endif-->
+<!--#if (!api)-->
+From a fresh clone to a running stack whose hosts answer.
 <!--#endif-->
 Run every command from the repository root.
 
@@ -38,33 +41,39 @@ dotnet run Tools/Tasks.cs bootstrap
 
 Commit what it changes before anything else.
 <!--#if (presentationBlazorServer)-->
-It first creates the presentation project's pages with `dotnet new blazor` and adds the project to
-the solution ([Presentation project](../features/presentation.md#creating-the-project)).
+It creates the portal's pages with `dotnet new blazor` and adds the project to the solution
+([Presentation projects](../features/presentation.md#creating-the-project)).
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-It first creates the presentation project's views with `dotnet new avalonia.mvvm` and adds the
-project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
-and last writes the .NET client from the OpenAPI reference.
+It creates the desktop app's views with `dotnet new avalonia.mvvm` and adds the project to the
+solution ([Presentation projects](../features/presentation.md#creating-the-project)), and last
+writes the .NET client from the OpenAPI reference.
 <!--#endif-->
 <!--#if (presentationMcp)-->
-It first adds the MCP server, which comes written whole, and its tests to the solution
-([Presentation project](../features/presentation.md#creating-the-project)).
+It adds the MCP server, which comes written whole, and its tests to the solution
+([Presentation projects](../features/presentation.md#creating-the-project)).
 <!--#endif-->
 <!--#if (presentationWpf)-->
-It first adds the presentation project, its `.Core` project and their tests to the solution
-([Presentation project](../features/presentation.md#creating-the-project)), and last writes the
+It adds the desktop app, its `.Core` project and their tests to the solution
+([Presentation projects](../features/presentation.md#creating-the-project)), and last writes the
 .NET client from the OpenAPI reference.
 <!--#endif-->
 <!--#if (jobsWorker)-->
 It also adds the worker's project in `Src/Presentation`, written in the shape of `dotnet new worker`,
 to the solution with its tests.
 <!--#endif-->
+<!--#if (api)-->
 It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
 restores the local tools (`dotnet-ef` among them), then creates each database context's initial
-migration under its project's `Migrations` folder. The project ships no migration: the first one is
-written for this project's own model, and it is the project's from the commit on
-([migrations](../guides/migrations.md#the-initial-migration)).
+migration under its project's `Migrations` folder.
+<!--#endif-->
+<!--#if (!api)-->
+It formats the solution, restores the local tools (`dotnet-ef` among them), then creates each
+database context's initial migration under its project's `Migrations` folder.
+<!--#endif-->
+The project ships no migration: the first one is written for this project's own model, and it is
+the project's from the commit on ([migrations](../guides/migrations.md#the-initial-migration)).
 <!--#if (webFramework)-->
 It then writes the .NET client where the web app calls the API through it, and creates the app as the
 scaffold file in its folder describes, with the generator that file names.
@@ -76,8 +85,14 @@ pnpm.
 
 Both steps are required. Using directives sort around the project's own name, so their order is only
 right once the project has its name: until bootstrap runs, `dotnet format --verify-no-changes` fails.
+<!--#if (api)-->
 Without a migration, the API cannot create its schema, the migration drift tests fail, and `verify`
 refuses to start.
+<!--#endif-->
+<!--#if (!api)-->
+Without a migration, no schema can be created, the migration drift tests fail, and `verify` refuses
+to start.
+<!--#endif-->
 <!--#if (ci)-->
 It is also the first step of CI, so a first push would fail.
 <!--#endif-->
@@ -89,6 +104,7 @@ cp .env.example .env
 docker compose up -d --build --wait
 ```
 
+<!--#if (api)-->
 <!--#if (externalAuth)-->
 Before starting, set `EXTERNAL_AUTH_AUTHORITY` (your provider's issuer URL) and
 `EXTERNAL_AUTH_AUDIENCE` (this API's identifier there) in `.env`: the API refuses to start without
@@ -103,6 +119,12 @@ healthy. The API runs in Development, so it applies its migrations at start.
 |---|---|
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI (Development only) | <http://localhost:8080/scalar/v1> |
+<!--#if (presentationBlazorServer)-->
+| The portal | <http://localhost:8090> |
+<!--#endif-->
+<!--#if (presentationMcp)-->
+| The MCP server | <http://localhost:8091/mcp> |
+<!--#endif-->
 | Mailpit, where mails land | <http://localhost:8025> |
 <!--#if (postgreSql)-->
 | PostgreSQL | `127.0.0.1:5432` |
@@ -237,14 +259,74 @@ the document behind it, `/openapi/v1.json`, exist in Development only.
 <!--#if (accounts)-->
 Paste an access token into its authentication field to call the protected routes.
 <!--#endif-->
+<!--#endif-->
+<!--#if (!api)-->
+<!--#if (externalAuth)-->
+Before starting, set `EXTERNAL_AUTH_AUTHORITY` (your provider's issuer URL) and
+`EXTERNAL_AUTH_AUDIENCE` in `.env`: the hosts refuse to start without them.
 
+<!--#endif-->
+`.env` is git-ignored; the defaults in `.env.example` work on localhost. Compose stops at once on a
+missing variable rather than substituting an empty one, and `--wait` returns when every service is
+healthy.
+
+This project has no API, which is the host that applies the migrations at start in Development, and
+no other host migrates. Once the database is up, apply each context's migrations from the host:
+
+```bash
+dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+```
+
+<!--#if (localAuth)-->
+```bash
+dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Auth --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth
+```
+
+<!--#endif-->
+| Service | Address |
+|---|---|
+<!--#if (presentationBlazorServer)-->
+| The portal | <http://localhost:8090> |
+<!--#endif-->
+<!--#if (presentationMcp)-->
+| The MCP server | <http://localhost:8091/mcp> |
+<!--#endif-->
+| Mailpit, where mails land | <http://localhost:8025> |
+<!--#if (postgreSql)-->
+| PostgreSQL | `127.0.0.1:5432` |
+<!--#endif-->
+<!--#if (sqlServer)-->
+| SQL Server | `127.0.0.1:1433` |
+<!--#endif-->
+<!--#if (files)-->
+| Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
+<!--#endif-->
+
+Every port binds to `127.0.0.1`; [presentation projects](../features/presentation.md) describes each
+host.
+
+```bash
+docker compose logs -f    # follow the hosts
+docker compose down       # stop, keep the data
+docker compose down -v    # stop and delete the data
+```
+
+<!--#endif-->
 ## Run the tests
 
+<!--#if (api)-->
 ```bash
 dotnet run Tools/Tasks.cs test                    # the solution's suites, Docker needed
 dotnet run Tools/Tasks.cs test --no-integration   # without Docker
 dotnet run Tools/Tasks.cs end-to-end              # the end-to-end suite, against a stack of its own
 ```
+<!--#endif-->
+<!--#if (!api)-->
+```bash
+dotnet run Tools/Tasks.cs test                    # the solution's suites, Docker needed
+dotnet run Tools/Tasks.cs test --no-integration   # without Docker
+```
+<!--#endif-->
 
 <!--#if (postgreSql)-->
 The integration suites start their own PostgreSQL in a container.
@@ -255,11 +337,13 @@ The integration suites start their own SQL Server in a container.
 <!--#if (sqlite)-->
 The integration suites create their own SQLite file.
 <!--#endif-->
+<!--#if (api)-->
 The end-to-end suite starts a
 whole stack of its own on the same ports, so stop yours first with `docker compose down`.
+<!--#endif-->
 [Testing](../guides/testing.md) says what each suite proves.
 
-<!--#if (canAddFeature)-->
+<!--#if (canAddFeature && api)-->
 ## Add a feature
 
 Generate the skeleton of a feature owned by its caller:

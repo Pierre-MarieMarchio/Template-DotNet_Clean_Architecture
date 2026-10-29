@@ -168,6 +168,19 @@ public sealed class Questionnaire
 
     private static string Checked(TemplateOption option, string value)
     {
+        IReadOnlyList<string> values = TemplateOption.Values(value);
+        if (option.AllowsMany)
+        {
+            return values.Count == 0
+                ? throw new LauncherException($"--{option.CliName} needs at least one value.")
+                : option.Joined(values.Select(one => Checked(option with { AllowsMany = false }, one)));
+        }
+
+        if (values.Count > 1)
+        {
+            throw new LauncherException($"--{option.CliName} takes one value, not {string.Join(" and ", values)}.");
+        }
+
         switch (option.Kind)
         {
             case OptionKind.Choice:
@@ -199,8 +212,13 @@ public sealed class Questionnaire
         }
     }
 
-    private static string Shown(TemplateOption option, string value)
+    public static string Shown(TemplateOption option, string value)
     {
+        if (option.AllowsMany)
+        {
+            return string.Join(", ", TemplateOption.Values(value));
+        }
+
         if (option.Kind != OptionKind.Bool)
         {
             return value;
@@ -315,6 +333,9 @@ public sealed class Questionnaire
 
         switch (option.Kind)
         {
+            case OptionKind.Choice when option.AllowsMany:
+                return Selection(manifest, option, answers, askedWhen, [.. option.Choices.Where(choice => offer.Values.Contains(choice.Value))], defaultValue);
+
             case OptionKind.Choice:
                 string? chosen = Conversation.Choose(
                     option.Label,
@@ -337,5 +358,30 @@ public sealed class Questionnaire
                     _ => Reply.Answer(text),
                 };
         }
+    }
+
+    private Reply Selection(
+        TemplateManifest manifest,
+        TemplateOption option,
+        IReadOnlyDictionary<string, string> answers,
+        IReadOnlyDictionary<string, Condition> askedWhen,
+        IReadOnlyList<OptionChoice> offered,
+        string? defaultValue)
+    {
+        IReadOnlyCollection<string> selected = TemplateOption.Values(defaultValue);
+        while (Conversation.ChooseMany(option.Label, option.Description, offered, selected, atLeastOne: true) is { } chosen)
+        {
+            string answer = option.Joined(chosen);
+            var answered = new Dictionary<string, string>(answers, StringComparer.Ordinal) { [option.Symbol] = answer };
+            if (Offer.Unavoidable(manifest, answered, askedWhen) is not { Count: > 0 } refused)
+            {
+                return Reply.Answer(answer);
+            }
+
+            Conversation.Warn(string.Join(Environment.NewLine, refused.Select(refusal => refusal.Explanation)) + Environment.NewLine + "Asking again: " + option.Label + ".");
+            selected = chosen;
+        }
+
+        return Reply.Backward;
     }
 }

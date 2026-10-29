@@ -104,7 +104,9 @@ updates:
     target-branch: develop
     #endif
     directories:
+      #if (api)
       - /Src/Presentation/AppTemplate.Api
+      #endif
       #if (jobsWorker)
       - /Src/Presentation/AppTemplate.Worker
       #endif

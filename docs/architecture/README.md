@@ -68,8 +68,12 @@ document carrying the error's stable `code` on failure.
 | [Ports and adapters](ports-and-adapters.md) | How does the application reach storage and the outside world? |
 | [Domain and results](domain-and-results.md) | How are rules enforced, failures reported and facts published? |
 | [Persistence model](persistence-model.md) | How is data mapped, saved and protected from lost updates? |
+<!--#if (api)-->
 | [Request pipeline](request-pipeline.md) | What happens to every request on its way in and out? |
+<!--#endif-->
+<!--#if (api)-->
 | [HTTP API](http-api.md) | What contract does every endpoint offer a client? |
+<!--#endif-->
 | [Shared mechanisms](shared-mechanisms.md) | Which mechanisms can a feature use without writing them? |
 
 Where each file goes, and what it is called, is [the project layout](../reference/project-layout.md).
@@ -84,7 +88,9 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 | Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |
 | An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md) |
 | AutoMapper | mappings written by hand, checked by the compiler | [Layers and projects](layers-and-projects.md#the-api-host) |
+<!--#if (api)-->
 | Minimal APIs | MVC controllers, which carry the filters, the result mapping and the `ETag` handling | [HTTP API](http-api.md) |
+<!--#endif-->
 | Output caching | revalidation headers on responses, `ICacheStore` for values | [Shared mechanisms](shared-mechanisms.md#cache) |
 | An abstraction made for a single case | one extracted only once two real cases prove its shape | [Ports and adapters](ports-and-adapters.md#ports-are-named-for-intent) |
 | A `.Core` and a `.<Technology>` project per module | one project per capability | [Modules and boundaries](modules-and-boundaries.md#infrastructure-per-capability) |
@@ -96,10 +102,14 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 <!--#endif-->
 | HTTPS redirection, HSTS | TLS terminates upstream | [Deployment](../guides/deployment.md#behind-a-proxy) |
 <!--#if (accounts)-->
+<!--#if (api)-->
 | Permissions, tenants | one `Administrator` policy beside the default-deny fallback | [Request pipeline](request-pipeline.md#authorisation) |
 <!--#endif-->
+<!--#endif-->
 <!--#if (publicApi)-->
+<!--#if (api)-->
 | Roles, policies, tenants | every caller is admitted; nothing is owned by a tenant | [Request pipeline](request-pipeline.md#authorisation) |
+<!--#endif-->
 <!--#endif-->
 <!--#if (localAuth)-->
 | Machine-to-machine authentication | every token belongs to a person who signed in | [Authentication](../features/authentication.md) |
@@ -108,7 +118,9 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 | A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [ADR 0019](../decisions/0019-one-generated-api-client.md) |
 <!--#endif-->
 <!--#if (!anyWeb)-->
+<!--#if (api)-->
 | A client contracts package | a client generates its types from the API's OpenAPI document | [HTTP API](http-api.md#versioning-and-the-openapi-document) |
+<!--#endif-->
 <!--#endif-->
 
 ## Decisions

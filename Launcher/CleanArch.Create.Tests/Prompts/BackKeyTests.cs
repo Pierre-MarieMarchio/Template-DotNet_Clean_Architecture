@@ -67,9 +67,22 @@ public sealed class BackKeyTests
     {
         _console.Input.PushKey(ConsoleKey.Escape);
 
-        new RailMultiSelection("Set up the project now?", _choices, ["postgresql"], canGoBack: true).Show(_console).ShouldBeNull();
+        new RailMultiSelection("Set up the project now?", string.Empty, _choices, ["postgresql"], atLeastOne: false, canGoBack: true).Show(_console).ShouldBeNull();
 
         _console.Output.ShouldContain("enter confirm · ←/esc back");
+    }
+
+    [Fact]
+    public void AMultiSelectionThatNeedsAnAnswer_RefusesAnEmptyOne_UntilAValueIsChecked()
+    {
+        _console.Input.PushKey(ConsoleKey.Enter);
+        _console.Input.PushKey(ConsoleKey.Spacebar);
+        _console.Input.PushKey(ConsoleKey.Enter);
+
+        new RailMultiSelection("Presentation projects", string.Empty, _choices, [], atLeastOne: true, canGoBack: true).Show(_console)
+            .ShouldBe([_choices[0].Value]);
+
+        _console.Output.ShouldContain("Choose at least one.");
     }
 
     private static RailSelection Selection(bool canGoBack) =>

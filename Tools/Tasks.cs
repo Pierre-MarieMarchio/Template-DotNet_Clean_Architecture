@@ -23,8 +23,7 @@ internal static class Tasks
         Thin wrappers over the dotnet and docker commands of this repository. Each task prints the
         command it runs before running it, so the printed line gives the same result without this
         file. The repository root is the nearest directory at or above this file holding
-        AppTemplate.sln; the compose tasks and the vulnerability listing read the working directory,
-        and end-to-end runs from the root.
+        AppTemplate.sln; the compose tasks and the vulnerability listing read the working directory.
 
         Tasks:
         <tasks>
@@ -39,8 +38,9 @@ internal static class Tasks
         Options:
           --no-integration                 test: run only the projects that set IsTestProject and
                                            reference no Testcontainers, so no Docker daemon is needed
-          --configuration <Debug|Release>  build, test, coverage, end-to-end, migration-bundle, verify; after
-                                           a -- separator, because dotnet run claims the name
+          --configuration <Debug|Release>  build, test, coverage, migration-bundle, verify, and end-to-end
+                                           where the project holds the API; after a -- separator,
+                                           because dotnet run claims the name
           -m:<N>, -maxcpucount:<N>         restore, build, test, coverage, verify: at most N MSBuild nodes,
                                            and at most N test projects running at once; test and
                                            coverage then build first and test with --no-build
@@ -51,28 +51,15 @@ internal static class Tasks
                                            --help says what each one means
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
-          --keep-stack                     end-to-end: leave the stack it started running, data included,
-                                           for another run or a look at its logs
-
-        End-to-end:
-          end-to-end                       build and start the Compose stack from .env.example under
-                                           a project name of its own, so the development stack keeps
-                                           its data; wait until every service is healthy, run
-                                           Tests/EndToEnd against it, print the stack's logs on a
-                                           failure, then remove the stack and its volumes. A variable
-                                           set in the environment overrides .env.example, for the
-                                           stack and the suite alike
 
         Examples:
           dotnet run Tools/Tasks.cs test
           dotnet run Tools/Tasks.cs test --no-integration
-          dotnet run Tools/Tasks.cs end-to-end --keep-stack
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
           dotnet run Tools/Tasks.cs new-use-case TodoLists ArchiveTodoList --kind command
           dotnet run Tools/Tasks.cs remove-feature Widgets
           dotnet run Tools/Tasks.cs remove-feature Widgets --apply
           dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
-          dotnet run Tools/Tasks.cs openapi
           dotnet run Tools/Tasks.cs -- build --configuration Release
           dotnet run Tools/Tasks.cs verify -m:4
         """;
@@ -92,12 +79,16 @@ internal static class Tasks
         "migration-add",
         "database-update",
         "migration-bundle",
+        //#if (api)
         "openapi",
         "api-client",
         "run",
+        //#endif
         "compose-up",
         "compose-down",
+        //#if (api)
         "end-to-end",
+        //#endif
         //#if (sonar)
         "sonar",
         //#endif
@@ -113,6 +104,31 @@ internal static class Tasks
         //#endif
     ];
 
+    //#if (api)
+    private const string ApiUsage =
+        """
+
+        HTTP API:
+          openapi                          write the OpenAPI reference the API describes itself with,
+                                           which the clients are written from; bootstrap runs it
+          run                              run the API with dotnet run
+          end-to-end                       from the root, build and start the Compose stack from
+                                           .env.example under a project name of its own, so the
+                                           development stack keeps its data; wait until every
+                                           service is healthy, run
+                                           Tests/EndToEnd against it, print the stack's logs on a
+                                           failure, then remove the stack and its volumes. A variable
+                                           set in the environment overrides .env.example, for the
+                                           stack and the suite alike
+          --keep-stack                     end-to-end: leave the stack it started running, data included,
+                                           for another run or a look at its logs
+
+        Examples:
+          dotnet run Tools/Tasks.cs openapi
+          dotnet run Tools/Tasks.cs end-to-end --keep-stack
+        """;
+
+    //#endif
     private const string WebUsage =
         """
 
@@ -162,7 +178,9 @@ internal static class Tasks
 
     private static readonly string[] CheckedTasks =
     [
+        //#if (api)
         "api-client",
+        //#endif
         //#if (templateMaintenance)
         "web-lockfiles",
         //#endif
@@ -206,8 +224,13 @@ internal static class Tasks
         if (arguments is ["--help"] or ["-h"] or ["help"])
         {
             Console.WriteLine(Usage.Replace("<tasks>", TaskList(), StringComparison.Ordinal));
+            //#if (api)
+            Console.WriteLine(ApiUsage);
+            //#endif
             Console.WriteLine(WebUsage);
+            //#if (api)
             Console.WriteLine(ClientUsage);
+            //#endif
             //#if (templateMaintenance)
             Console.WriteLine(MaintenanceUsage);
             //#endif
@@ -389,7 +412,9 @@ internal static class Tasks
             //#endif
             persistence,
         ];
+        //#if (api)
         string api = Path.Combine(repoRoot, "Src", "Presentation", "AppTemplate.Api");
+        //#endif
         string runsettings = Path.Combine(repoRoot, "coverage.runsettings");
         string[] nodes = maxCpuCount is null ? [] : [$"-maxcpucount:{maxCpuCount}"];
         string[] modules = maxCpuCount is null ? [] : ["--max-parallel-test-modules", maxCpuCount];
@@ -540,6 +565,7 @@ internal static class Tasks
 
                 break;
 
+            //#if (api)
             case "openapi":
                 OpenApiReference(repoRoot, api);
                 break;
@@ -552,6 +578,7 @@ internal static class Tasks
                 Step("dotnet", "run", "--project", api);
                 break;
 
+            //#endif
             case "compose-up":
                 Step("docker", "compose", "up", "-d", "--wait");
                 break;
@@ -560,9 +587,12 @@ internal static class Tasks
                 Step("docker", "compose", "down");
                 break;
 
+            //#if (api)
             case "end-to-end":
                 EndToEnd(repoRoot, configuration, keepStack);
                 break;
+
+            //#endif
 
             //#if (sonar)
             case "sonar":
@@ -574,7 +604,9 @@ internal static class Tasks
                 PresentationScaffold(repoRoot, solution, only: null);
                 Step("dotnet", "format", solution);
                 Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
+                //#if (api)
                 OpenApiReference(repoRoot, api);
+                //#endif
 
                 try
                 {
@@ -589,11 +621,13 @@ internal static class Tasks
                 }
 
                 InitialMigrations(contexts);
+                //#if (api)
 
                 if (HoldsTheClient(repoRoot))
                 {
                     ApiClient(repoRoot, api, check: false);
                 }
+                //#endif
 
                 if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
                 {
@@ -601,7 +635,11 @@ internal static class Tasks
                 }
 
                 Write(
+                    /*#if (api)*/
                     "Formatting stable, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
+                    /*#else
+                    "Formatting stable, tools restored and each context's initial migration in its Migrations folder. "
+                    #endif*/
                     + "Commit this before anything else: the migrations are the project's own from now on.",
                     ConsoleColor.Green);
                 break;
@@ -613,11 +651,13 @@ internal static class Tasks
             case "verify":
                 RequireInitialMigrations(task, contexts);
                 Gates(repoRoot);
+                //#if (api)
 
                 if (HoldsTheClient(repoRoot))
                 {
                     ApiClient(repoRoot, api, check: true);
                 }
+                //#endif
 
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
@@ -645,11 +685,15 @@ internal static class Tasks
                 break;
 
             case "presentation-scaffold":
+                /*#if (api)*/
                 if (PresentationScaffold(repoRoot, solution, name) && File.Exists(OpenApiReferencePath(repoRoot, api)))
                 {
                     Step("dotnet", "tool", "restore");
                     ApiClient(repoRoot, api, check: false);
                 }
+                /*#else
+                PresentationScaffold(repoRoot, solution, name);
+                #endif*/
 
                 break;
 
@@ -658,11 +702,15 @@ internal static class Tasks
                 break;
 
             case "web-scaffold":
+                /*#if (api)*/
                 if (WebScaffold(repoRoot, solution, name) && File.Exists(OpenApiReferencePath(repoRoot, api)))
                 {
                     Step("dotnet", "tool", "restore");
                     ApiClient(repoRoot, api, check: false);
                 }
+                /*#else
+                WebScaffold(repoRoot, solution, name);
+                #endif*/
 
                 break;
 
@@ -684,6 +732,7 @@ internal static class Tasks
         return 0;
     }
 
+    //#if (api)
     private static void OpenApiReference(string repoRoot, string api)
     {
         string apiName = Path.GetFileName(api);
@@ -710,10 +759,12 @@ internal static class Tasks
     private static string OpenApiReferencePath(string repoRoot, string api) =>
         Path.Combine(repoRoot, "Tests", "Integration", Path.GetFileName(api) + ".IntegrationTests", "OpenApi", "v1.json");
 
+    //#endif
     private static string ClientFolder(string repoRoot) => Path.Combine(repoRoot, "Src", "Clients", "AppTemplate.Client");
 
     private static bool HoldsTheClient(string repoRoot) => Directory.Exists(ClientFolder(repoRoot));
 
+    //#if (api)
     private static void ApiClient(string repoRoot, string api, bool check)
     {
         string reference = OpenApiReferencePath(repoRoot, api);
@@ -864,6 +915,7 @@ internal static class Tasks
         }
     }
 
+    //#endif
     private static void Gates(string repoRoot)
     {
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");

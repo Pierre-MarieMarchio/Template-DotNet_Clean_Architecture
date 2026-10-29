@@ -744,7 +744,7 @@ jobs:
             fi
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
           done
-          mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | cut -d= -f2)
+          mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | grep -v '^PRESENTATION_MCP_' | cut -d= -f2)
           for port in "${presentations[@]}"; do
             base="http://127.0.0.1:${port}"
             curl -fsS -o page.html "$base/" || fail "The presentation project on $port does not answer /."
@@ -780,7 +780,7 @@ jobs:
         run: |
           set -euo pipefail
           fail() { echo "::error title=MCP server::$1"; exit 1; }
-          port=$(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | head -1 | cut -d= -f2)
+          port=$(grep -oE '^PRESENTATION_MCP_HOST_PORT=[0-9]+' .env | cut -d= -f2)
           api="http://127.0.0.1:$(grep -oE '^API_HOST_PORT=[0-9]+' .env | cut -d= -f2)"
           base="http://127.0.0.1:${port}"
           curl -fsS "$base/health" > /dev/null || fail "The MCP server on $port does not answer /health."
@@ -981,15 +981,17 @@ jobs:
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse mcp-public --auth none --examples none --files false --presentation mcp
           refuse wpf-public --auth none --examples none --files false --presentation wpf
-          # A WPF app writes <name>.Core beside it, so a name whose .Core the template writes is refused.
-          refuse wpf-core-name --presentation wpf --presentation-name Presentation
+          # Avalonia and WPF both write <Project>.Desktop.
+          refuse desktop-twice --presentation avalonia --presentation wpf
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
-          refuse worker-sqlite --database sqlite --jobs worker
+          refuse worker-sqlite --database sqlite --presentation api --presentation worker
+          # A project without the API runs its jobs in the worker added for it.
+          refuse worker-added-sqlite --database sqlite --presentation blazor-server
           # Server rendering needs a starter holding an ssr folder.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
-          # The item template refuses as -n each name --presentation-name refuses.
+          # The item template refuses as -n each name the template writes a project under.
           out="${{ runner.temp }}/refused-presentation"
           mkdir -p "$out"
           if (cd "$out" && dotnet new cleanarch-presentation -n Api --framework blazor-server --project-name Sample.Refused); then
@@ -1009,6 +1011,17 @@ jobs:
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
             echo "::error title=Wrote files::'dotnet new cleanarch-presentation --framework mcp --auth none' was refused but left files behind."
+            exit 1
+          fi
+          # A desktop client calls the API, which a project generated without it lacks.
+          out="${{ runner.temp }}/refused-desktop-no-api"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-presentation -n Desktop --framework avalonia --project-name Sample.Refused --has-api false); then
+            echo "::error title=Accepted::'dotnet new cleanarch-presentation --framework avalonia --has-api false' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-presentation --framework avalonia --has-api false' was refused but left files behind."
             exit 1
           fi
           # A WebAssembly app calls the versioned routes a project without accounts does not publish.

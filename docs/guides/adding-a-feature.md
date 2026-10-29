@@ -44,13 +44,13 @@ call in `Program.cs`, and the two test compositions. The solution compiles again
 and the feature composes after the last. An owner feature that is the project's first prints five more,
 for the account-deletion sweep it brings with it.
 <!--#if (presentationBlazorServer || presentationMcp)-->
-Each host composes itself, so the call goes in the presentation project's `Program.cs` too, and a first
-owner feature writes and registers that host's account directory beside the API's; the printed edits
+Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
+owner feature writes and registers each host's account directory beside the API's; the printed edits
 name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 <!--#endif-->
 <!--#if (presentationMcp)-->
 The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
-as the [presentation project](../features/presentation.md#declaring-a-tool) shows.
+as the [presentation projects](../features/presentation.md#declaring-a-tool) shows.
 <!--#endif-->
 
 ## What you write by hand
@@ -82,10 +82,16 @@ The request and response contracts, and anything beyond default-deny authorisati
 
 ### Tests
 
+<!--#if (api)-->
 The rules the feature protects, each with a test you have seen fail, and the integration tests against
 the project's database under `Tests/Integration/AppTemplate.Api.IntegrationTests`;
 [testing](testing.md#where-a-new-features-tests-go) says which type holds what. Add the feature's
 schema to the schemas `TestDatabase` truncates between tests.
+<!--#endif-->
+<!--#if (!api)-->
+The rules the feature protects, each with a test you have seen fail;
+[testing](testing.md#where-a-new-features-tests-go) says which type holds what.
+<!--#endif-->
 
 ### Migration
 
@@ -131,9 +137,17 @@ validator by folder. When the feature has a manifest, the files join it, so `rem
 removes them with the feature while they are untouched.
 
 The use case answers its validation, then throws `NotImplementedException` until its body is written:
-the rule in the aggregate, the load, the call and the commit, each decision with its test. The command
-prints the action, the using and the constructor parameter that serve it over HTTP, and for a query
-the response contract; then rewrite the OpenAPI reference with `dotnet run Tools/Tasks.cs openapi`.
+the rule in the aggregate, the load, the call and the commit, each decision with its test.
+<!--#if (api)-->
+The command prints the action, the using and the constructor parameter that serve it over HTTP, and
+for a query the response contract; then rewrite the OpenAPI reference with
+`dotnet run Tools/Tasks.cs openapi`.
+<!--#endif-->
+<!--#if (!api)-->
+The command prints the action, the using and the constructor parameter that would serve it over HTTP,
+and for a query the response contract; in a project without the API, call the use case from the host
+that offers it instead.
+<!--#endif-->
 
 It refuses, writing nothing, a feature that does not exist, a feature of the simple shape, whose
 operations are methods of its service, a use case the feature already has, and `--input id` where the
@@ -151,8 +165,10 @@ Some lists change only on purpose, and a test fails until they name what you add
 <!--#if (!anyFeature)-->
 | A registration | `HostComposition` in the architecture tests |
 <!--#endif-->
+<!--#if (api)-->
 | A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review |
 | An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
+<!--#endif-->
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
 | A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed` |

@@ -85,6 +85,10 @@ public sealed class LayoutConventionTests
         /*#if (presentationAvalonia)
         ["Src/Presentation/AppTemplate.PresentationApp"] = null,
         #endif*/
+        /*#if (presentationWpf)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        ["Src/Presentation/AppTemplate.PresentationApp.Core"] = null,
+        #endif*/
         /*#if (webBlazorWasm)
         ["Src/Web/apps/FrameworkSite"] = null,
         #endif*/
@@ -185,6 +189,15 @@ public sealed class LayoutConventionTests
         #endif*/
         /*#if (presentationAvalonia && externalAuth)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Sessions"],
+        #endif*/
+        /*#if (presentationWpf)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = null,
+        #endif*/
+        /*#if (presentationWpf && localAuth)
+        ["Src/Presentation/AppTemplate.PresentationApp.Core"] = ["Hosting"],
+        #endif*/
+        /*#if (presentationWpf && externalAuth)
+        ["Src/Presentation/AppTemplate.PresentationApp.Core"] = ["Hosting", "Sessions"],
         #endif*/
         /*#if (webBlazorWasm && !externalAuth)
         ["Src/Web/apps/FrameworkSite"] = null,
@@ -358,6 +371,9 @@ public sealed class LayoutConventionTests
         /*#if (presentationAvalonia)
         ["AppTemplate.PresentationApp"] = ["Assets", "ViewModels", "Views"],
         #endif*/
+        /*#if (presentationWpf)
+        ["AppTemplate.PresentationApp.Core"] = ["ViewModels"],
+        #endif*/
         /*#if (webBlazorWasm)
         ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
         #endif*/
@@ -370,6 +386,9 @@ public sealed class LayoutConventionTests
     {
         /*#if (presentationAvalonia)
         ["AppTemplate.PresentationApp"] = ["App.axaml.cs", "ViewLocator.cs"],
+        #endif*/
+        /*#if (presentationWpf)
+        ["AppTemplate.PresentationApp"] = ["App.xaml.cs", "MainWindow.xaml.cs"],
         #endif*/
     };
 
@@ -655,11 +674,12 @@ public sealed class LayoutConventionTests
         || path.Contains($"{Path.DirectorySeparatorChar}node_modules", StringComparison.Ordinal);
 
     private static string TypeNameOf(string file) =>
-        Path.GetFileName(file) is var name && name.EndsWith(_markupCodeBehind, StringComparison.Ordinal)
-            ? name[..^_markupCodeBehind.Length]
-            : Path.GetFileNameWithoutExtension(file);
+        Path.GetFileName(file) is var name
+            && _markupCodeBehinds.FirstOrDefault(codeBehind => name.EndsWith(codeBehind, StringComparison.Ordinal)) is { } markup
+                ? name[..^markup.Length]
+                : Path.GetFileNameWithoutExtension(file);
 
-    private const string _markupCodeBehind = ".axaml.cs";
+    private static readonly string[] _markupCodeBehinds = [".axaml.cs", ".xaml.cs"];
 
     private static bool IsGenerated(string path) =>
         path.Contains($"{Path.DirectorySeparatorChar}Migrations{Path.DirectorySeparatorChar}", StringComparison.Ordinal)

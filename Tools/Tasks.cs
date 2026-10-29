@@ -123,7 +123,8 @@ internal static class Tasks
                                            in a template hive of its own, keep the folders it names
                                            beside the project's own files, refuse a generated project
                                            file that declares what the project's own lacks, add the
-                                           project and its tests to the solution and format them; a
+                                           project, its <Name>.Core sibling when it has one, and
+                                           their tests to the solution and format them; a
                                            scaffold.json of kind written runs no template, the project
                                            being whole already; bootstrap runs it first, and a project
                                            created already is left alone
@@ -1231,13 +1232,20 @@ internal static class Tasks
 
         File.Delete(Path.Combine(folder, ScaffoldDescriptor));
 
-        string own = Path.Combine(folder, name + ".csproj");
-        bool client = HoldsTheClient(repoRoot) && File.ReadAllText(own).Contains(@"..\..\Clients\", StringComparison.Ordinal);
+        string[] sources =
+        [
+            Path.Combine(folder, name + ".csproj"),
+            .. new[] { Path.Combine(Path.GetDirectoryName(folder)!, name + ".Core", name + ".Core.csproj") }.Where(File.Exists),
+        ];
+        bool client = HoldsTheClient(repoRoot) && sources.Any(source => File.ReadAllText(source).Contains(@"..\..\Clients\", StringComparison.Ordinal));
         string tests = task == "web-scaffold" ? "Web" : "Presentation";
         string[] projects =
         [
-            own,
-            .. new[] { Path.Combine(repoRoot, "Tests", tests, name + ".UnitTests", name + ".UnitTests.csproj") }.Where(File.Exists),
+            .. sources,
+            .. sources
+                .Select(Path.GetFileNameWithoutExtension)
+                .Select(source => Path.Combine(repoRoot, "Tests", tests, source + ".UnitTests", source + ".UnitTests.csproj"))
+                .Where(File.Exists),
             .. (client ? ClientProjects(repoRoot) : []),
         ];
 

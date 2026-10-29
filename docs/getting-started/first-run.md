@@ -43,6 +43,11 @@ It first creates the presentation project's views with `dotnet new avalonia.mvvm
 project to the solution ([Presentation project](../features/presentation.md#creating-the-project)),
 and last writes the .NET client from the OpenAPI reference.
 <!--#endif-->
+<!--#if (presentationWpf)-->
+It first adds the presentation project, its `.Core` project and their tests to the solution
+([Presentation project](../features/presentation.md#creating-the-project)), and last writes the
+.NET client from the OpenAPI reference.
+<!--#endif-->
 It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
 restores the local tools (`dotnet-ef` among them), then creates each database context's initial

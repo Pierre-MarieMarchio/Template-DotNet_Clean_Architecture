@@ -67,7 +67,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
 | `--web-rendering` | `spa`, `ssr` | `spa` |
-| `--presentation` | `none`, `blazor-server`, `avalonia` | `none` |
+| `--presentation` | `none`, `blazor-server`, `avalonia`, `wpf` | `none` |
 | `--presentation-name` | PascalCase text | `Portal` |
 | `--jobs` | `api`, `worker` | `api` |
 

@@ -33,6 +33,8 @@ public sealed class AcceptanceSelectionTests
         "sqlite, smallest project",
         "sqlite, external auth, all examples",
         "windows, defaults",
+        "windows, wpf, local auth",
+        "windows, wpf, external auth, notes",
     ];
 
     private static readonly string[] _notRequired = ["web, every starter"];

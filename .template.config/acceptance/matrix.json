@@ -124,12 +124,13 @@
   },
   {
     "name": "sqlite, defaults",
-    "tags": ["database-sqlite"],
+    "tags": ["database-sqlite", "presentation-item", "presentation-wpf"],
     "options": "--database sqlite",
     "database": "sqlite",
     "auth_context": "true",
     "integration": "true",
-    "end_to_end": "true"
+    "end_to_end": "true",
+    "first_presentation": "--framework wpf --database sqlite"
   },
   {
     "name": "sqlite, smallest project",
@@ -152,5 +153,17 @@
     "tags": [],
     "runner": "windows-latest",
     "options": ""
+  },
+  {
+    "name": "windows, wpf, local auth",
+    "tags": ["presentation-wpf"],
+    "runner": "windows-latest",
+    "options": "--presentation wpf"
+  },
+  {
+    "name": "windows, wpf, external auth, notes",
+    "tags": ["presentation-wpf"],
+    "runner": "windows-latest",
+    "options": "--presentation wpf --auth external --examples notes"
   }
 ]

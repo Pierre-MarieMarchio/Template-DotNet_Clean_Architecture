@@ -135,6 +135,17 @@ HTTP through the .NET client of `Src/Clients/<Project>.Client`. It references th
 case and no module. [Presentation project](../features/presentation.md) describes it.
 
 <!--#endif-->
+<!--#if (presentationWpf)-->
+## The presentation project
+
+`Src/Presentation/<Project>.<Name>` is a desktop client for Windows: a WPF app that calls the API
+over HTTP through the .NET client of `Src/Clients/<Project>.Client`. Its view models and its host
+are in `Src/Presentation/<Project>.<Name>.Core`, which builds and runs its tests on every system.
+The app references that project alone, and it references the client alone
+(`EveryClient_ReachesTheCoreThroughTheApiAlone`), so neither is a host: they compose no use case
+and no module. [Presentation project](../features/presentation.md) describes them.
+
+<!--#endif-->
 ## Composition
 
 Each project exposes one registration class, and each feature one line in the `Program.cs` of each

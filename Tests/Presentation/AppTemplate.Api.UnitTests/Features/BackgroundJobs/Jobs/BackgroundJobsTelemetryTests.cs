@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Api.Common.Jobs;
-using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
 //#if (files)
 using AppTemplate.Api.Features.Files.Jobs;
@@ -84,7 +83,7 @@ public sealed class BackgroundJobsTelemetryTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddApiObservability(configuration);
+        services.AddObservability(configuration, typeof(BackgroundJobsTelemetryTests).Assembly);
         services.AddBackgroundJobs(configuration);
 
         return services.BuildServiceProvider();

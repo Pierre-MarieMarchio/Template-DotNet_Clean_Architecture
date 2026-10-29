@@ -3,7 +3,6 @@ using System.Security.Claims;
 //#if (postgreSql)
 using System.Text.RegularExpressions;
 //#endif
-using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Api.Common.Security;
 //#if (todoLists || notes)
 using AppTemplate.Application;
@@ -22,6 +21,7 @@ using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using AppTemplate.Presentation.Core.Common.Jobs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

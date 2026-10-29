@@ -26,7 +26,7 @@ first option added, and a user would be asked questions the engine no longer acc
 - **The launcher and the template package share one version**, the `templateVersion` of
   `.template.config/template.json`, and the launcher installs that version of the package.
 - **What the manifests cannot say stays in the launcher and is tested against them**: the web app's
-  name and audience are asked only with `--web`, an item template's project facts (name,
+  name, audience and rendering are asked only with `--web`, an item template's project facts (name,
   authentication, example features, Files module, database, workflows, agent files, scope,
   workspace) are read from the project's files, and a refusal that reads an item's `-n` is checked
   on the name asked.

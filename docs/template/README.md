@@ -31,3 +31,4 @@ propose one.
 - [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
 - [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)
 - [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)
+- [0011. A starter may render on the server](decisions/0011-a-starter-may-render-on-the-server.md)

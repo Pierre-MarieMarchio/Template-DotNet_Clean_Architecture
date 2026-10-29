@@ -1,6 +1,6 @@
 ﻿# 0008. A web app comes from a starter
 
-Status: Accepted
+Status: Accepted; [0011](0011-a-starter-may-render-on-the-server.md) replaces its server-side rendering bullet
 
 ## Context
 

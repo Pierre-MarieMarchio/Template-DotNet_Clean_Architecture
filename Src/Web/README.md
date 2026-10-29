@@ -75,7 +75,7 @@ template cannot edit is yours to add, exactly as `--web` would have written it f
   workspace's packages as an entry of their own:
 
   ```yaml
-        # Every web app's nginx image, by directory glob.
+        # Every web app's image, nginx or Node, by directory glob.
         - /Src/Web/apps/*
   ```
 

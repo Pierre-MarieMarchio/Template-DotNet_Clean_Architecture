@@ -1249,6 +1249,8 @@ internal static class RemoveFeature
         {
             Put(root, $"{project}/{Path.GetFileName(project)}.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
         }
+
+        Put(root, "cleanarch.json", "{\n  \"name\": \"Acme\"\n}\n");
     }
 
     private static string BareTree(string scratch, string adapter = "Auth")

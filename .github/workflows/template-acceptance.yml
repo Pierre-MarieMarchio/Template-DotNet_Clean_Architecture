@@ -1024,11 +1024,11 @@ jobs:
           fi
           out="${{ runner.temp }}/refused-ssr-app"
           mkdir -p "$out"
-          if (cd "$out" && dotnet new cleanarch-webapp -n SsrSite --framework vue --rendering ssr --scope sample-refused --auth none); then
-            echo "::error title=Accepted::'dotnet new cleanarch-webapp --framework vue --rendering ssr' must be refused."
+          if (cd "$out" && dotnet new cleanarch-webapp -n SsrSite --framework vite-vue --rendering ssr --scope sample-refused --auth none); then
+            echo "::error title=Accepted::'dotnet new cleanarch-webapp --framework vite-vue --rendering ssr' must be refused."
             exit 1
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
-            echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework vue --rendering ssr' was refused but left files behind."
+            echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework vite-vue --rendering ssr' was refused but left files behind."
             exit 1
           fi

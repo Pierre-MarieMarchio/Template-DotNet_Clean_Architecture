@@ -64,9 +64,9 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
         Dictionary<string, string> answers = questionnaire.Answer(
-            _project, new Dictionary<string, string> { ["web"] = "react", ["web-name"] = "Shop" }, _nothing, Launcher.ProjectAskedWhen);
+            _project, new Dictionary<string, string> { ["web"] = "vite-react", ["web-name"] = "Shop" }, _nothing, Launcher.ProjectAskedWhen);
 
-        _project.CommandArguments(answers).ShouldBe(["--web", "react", "--web-name", "Shop"]);
+        _project.CommandArguments(answers).ShouldBe(["--web", "vite-react", "--web-name", "Shop"]);
     }
 
     [Fact]

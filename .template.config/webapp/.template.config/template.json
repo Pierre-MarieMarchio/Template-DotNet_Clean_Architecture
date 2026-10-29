@@ -23,9 +23,7 @@
       "isRequired": true,
       "choices": [
         { "choice": "placeholder", "description": "A static page served by nginx, relaying /api to the API." },
-        { "choice": "react", "description": "The same app as vite-react, kept under this name until the next major version." },
         { "choice": "angular", "description": "An Angular app, created by the Angular CLI (ng new) when web-scaffold runs." },
-        { "choice": "vue", "description": "A Vue app, created by Vue's official CLI (create-vue, with TypeScript, Vue Router, Vitest and ESLint) when web-scaffold runs." },
         { "choice": "vite-react", "description": "A React app, created by Vite's official CLI (create-vite, react-ts) when web-scaffold runs." },
         { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
         { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." },
@@ -204,12 +202,11 @@
     "anyWeb": { "type": "computed", "value": "true" },
     "webPlaceholder": { "type": "computed", "value": "(framework == \"placeholder\")" },
     "webAngular": { "type": "computed", "value": "(framework == \"angular\")" },
-    "webVue": { "type": "computed", "value": "(framework == \"vue\")" },
-    "webViteReact": { "type": "computed", "value": "(framework == \"vite-react\" || framework == \"react\")" },
+    "webViteReact": { "type": "computed", "value": "(framework == \"vite-react\")" },
     "webViteVue": { "type": "computed", "value": "(framework == \"vite-vue\")" },
     "webViteSvelte": { "type": "computed", "value": "(framework == \"vite-svelte\")" },
     "webReactRouter": { "type": "computed", "value": "(framework == \"react-router\")" },
-    "webVite": { "type": "computed", "value": "(webVue || webViteReact || webViteVue || webViteSvelte || webReactRouter)" },
+    "webVite": { "type": "computed", "value": "(webViteReact || webViteVue || webViteSvelte || webReactRouter)" },
     "webBlazorWasm": { "type": "computed", "value": "(framework == \"blazor-wasm\")" },
     "webNodeFramework": { "type": "computed", "value": "(webAngular || webVite)" },
     "webFramework": { "type": "computed", "value": "(webNodeFramework || webBlazorWasm)" },
@@ -370,11 +367,6 @@
       "source": "../starters/angular/ssr/",
       "target": "./Src/Web/apps/",
       "condition": "(webAngular && webServerRendering)"
-    },
-    {
-      "source": "../starters/vue/",
-      "target": "./Src/Web/apps/",
-      "condition": "(webVue)"
     },
     {
       "source": "../starters/vite-react/",

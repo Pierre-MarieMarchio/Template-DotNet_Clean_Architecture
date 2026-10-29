@@ -42,9 +42,10 @@ every new value would cost a copy of the wiring.
     `build` and `test` scripts the workspace runs. A `lint` script is the CLI's own: `create-vite`
     writes one, the Angular CLI does not, and the workspace's `lint` skips an app without it.
 - **A `--web` value names its generator and never changes meaning.** `vite-react` is `create-vite`
-  with `react-ts`, `vue` is `create-vue`, `angular` is `ng new`; a different generator for the same
-  framework is a new value. `react`, the name `vite-react` had first, stays as its alias until the
-  next major version: one computed symbol chooses both, so both copy the same starter.
+  with `react-ts`, `vite-vue` is `create-vite` with `vue-ts`, `angular` is `ng new`.
+- **A framework has one value.** A second generator for a framework the catalogue already holds is
+  not added: two values writing the same framework in two ways ask a newcomer a question with no
+  answer that matters. React and Vue come from `create-vite`.
 - **Server-side rendering is out of scope.** A starter builds a static site served by nginx; one
   that needs a Node server is not a starter of this catalogue.
 - **The wiring differs by framework only through markers.** A difference is a marker on that

@@ -453,7 +453,7 @@ public sealed class TemplatePackagingTests
             folders.ShouldContain(starter, $"{folder}/template.json copies {startersSource}{starter}/, which does not exist.");
             File.Exists(Path.Combine(starters, starter, "FrameworkSite", "scaffold.json")).ShouldBeTrue(
                 $".template.config/starters/{starter}/FrameworkSite holds no scaffold.json, so web-scaffold would find nothing to run.");
-            ChosenValues(computed[symbol], option).ShouldContain(starter, $"--{option} {framework} is copied from the {starter} starter, so {symbol} must also choose {starter}: an alias names the same app as the value it repeats.");
+            starter.ShouldBe(framework, $"--{option} {framework} must copy its own starter, {startersSource}{framework}/: a framework has one value, never a second name for the same app.");
             Reaches(computed, "webFramework", symbol).ShouldBeTrue($"webFramework in {folder}/template.json must reach {symbol}, so the shared wiring comes with the {framework} starter.");
         }
     }

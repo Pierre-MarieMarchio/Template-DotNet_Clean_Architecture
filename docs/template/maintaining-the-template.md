@@ -98,11 +98,11 @@ with the read-only key, revokes the key and is refused with it.
 | sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
-| web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
+| web react, local auth | `--web vite-react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
 | web angular, external auth, notes | `--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
-| web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
-| web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
-| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
+| web react back office, smallest local project | `--web vite-react --web-audience admin --examples none --files false` |
+| web react, then an angular back office | `--web vite-react`, then `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
+| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework vite-react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port`, and once more for React Router with `--rendering ssr` |
 | windows, defaults | none, on `windows-latest` |
 | windows, wpf, local auth | `--presentation wpf`, on `windows-latest` |
@@ -149,7 +149,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 |---|---|
 | `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
-| a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vue, Vite and React Router |
+| a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--jobs worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
@@ -298,12 +298,12 @@ hash step and client folder in the `Dockerfile`, and the sentences of the `READM
 CLI.
 
 The app itself comes from a starter, one folder per `--web` value under `.template.config/starters`
-([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `angular`, `vue`,
+([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `angular`,
 `vite-react`, `vite-vue`, `vite-svelte` and `react-router`, each holding
 `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy into the app's
-folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. `react`
-has no folder: it is an alias of `vite-react`, chosen by the same computed symbol, `webViteReact`,
-so it copies the same starter.
+folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. A
+framework has one value: React and Vue come from Vite's CLI, so `vite-react` and `vite-vue` hold
+them, and no second value creates the same framework another way.
 
 A starter whose generator also renders on the server holds that form in `ssr/FrameworkSite/`, its
 own `scaffold.json` and `overlay/` ([template decision 0011](decisions/0011-a-starter-may-render-on-the-server.md)):
@@ -336,8 +336,8 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
    `./Src/Web/apps/` under that symbol, and the symbol reached from `webFramework`: through
    `webVite` for a Vite-based starter, which also gives it port 5173 in `webDefaultPort` and
    `defaultPort`; directly otherwise, with its own port in both. `TemplatePackagingTests` fails until
-   both templates agree with the folder. An alias is a choice without a folder, added to the
-   computed symbol of the value it repeats.
+   both templates agree with the folder. A framework that already has a value gets no second
+   one.
 3. Condition the wiring only where the new framework differs, and the README sentences that name
    its CLI and list what the starter adds. Give the value its row in
    `docs/getting-started/overview.md` and `docs/template/using-the-template.md`, and its name where

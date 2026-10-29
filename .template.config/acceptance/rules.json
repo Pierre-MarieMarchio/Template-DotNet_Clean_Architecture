@@ -93,10 +93,6 @@
       "tags": ["starter-vite-vue"]
     },
     {
-      "paths": [".template.config/starters/vue/**"],
-      "tags": ["starter-vue"]
-    },
-    {
       "paths": [
         "Src/Web/**",
         ".github/workflows/web.yml",

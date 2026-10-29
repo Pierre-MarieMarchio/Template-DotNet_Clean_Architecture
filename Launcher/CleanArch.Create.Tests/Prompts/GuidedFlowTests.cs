@@ -327,7 +327,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         AGeneratedProject();
         var console = new TestConsole();
 
-        new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "BackOffice", "--framework", "react", "--yes", "--setup"]).ShouldBe(1);
+        new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "BackOffice", "--framework", "vite-react", "--yes", "--setup"]).ShouldBe(1);
 
         console.Output.ShouldContain("web-app takes no --setup");
     }

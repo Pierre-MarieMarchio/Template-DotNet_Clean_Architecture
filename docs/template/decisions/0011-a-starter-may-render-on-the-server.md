@@ -13,7 +13,6 @@ letting their own choices through is why the apps come from them. At the pinned 
 |---|---|---|
 | `angular` | `@angular/cli` 22.2.3, `ng new` | `--ssr`: an Express `src/server.ts` on `AngularNodeAppEngine`, `outputMode: "server"`, every route prerendered by default |
 | `react-router` | `create-react-router` 8.5.0, React Router's templates at the pinned commit | `default` renders on the server unless `ssr: false`, served by `react-router-serve`; `node-custom-server` is the same app behind an Express server of its own |
-| `vue` | `create-vue` 3.24.0 | none: no flag renders on the server |
 | `vite-react`, `vite-vue`, `vite-svelte` | `create-vite` 9.3.1 | none: every template is client-only |
 | `blazor-wasm` | `dotnet new blazorwasm` | none: the server-rendered Blazor app is `dotnet new blazor`, the presentation project's |
 | `placeholder` | none | none: a static page |

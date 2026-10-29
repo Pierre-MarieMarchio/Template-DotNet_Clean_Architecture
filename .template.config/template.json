@@ -292,16 +292,8 @@
           "description": "One web app holding a static page, served by nginx, relaying /api to the API."
         },
         {
-          "choice": "react",
-          "description": "The same app as vite-react, kept under this name until the next major version."
-        },
-        {
           "choice": "angular",
           "description": "One Angular web app in the pnpm workspace Src/Web, created by the Angular CLI (ng new)."
-        },
-        {
-          "choice": "vue",
-          "description": "One Vue web app in the pnpm workspace Src/Web, created by Vue's official CLI (create-vue, with TypeScript, Vue Router, Vitest and ESLint)."
         },
         {
           "choice": "vite-react",
@@ -338,13 +330,9 @@
       "type": "computed",
       "value": "(web == \"angular\")"
     },
-    "webVue": {
-      "type": "computed",
-      "value": "(web == \"vue\")"
-    },
     "webViteReact": {
       "type": "computed",
-      "value": "(web == \"vite-react\" || web == \"react\")"
+      "value": "(web == \"vite-react\")"
     },
     "webViteVue": {
       "type": "computed",
@@ -360,7 +348,7 @@
     },
     "webVite": {
       "type": "computed",
-      "value": "(webVue || webViteReact || webViteVue || webViteSvelte || webReactRouter)"
+      "value": "(webViteReact || webViteVue || webViteSvelte || webReactRouter)"
     },
     "webBlazorWasm": {
       "type": "computed",
@@ -1627,11 +1615,6 @@
       "source": "./.template.config/starters/angular/ssr/",
       "target": "./Src/Web/apps/",
       "condition": "(webAngular && webServerRendering)"
-    },
-    {
-      "source": "./.template.config/starters/vue/",
-      "target": "./Src/Web/apps/",
-      "condition": "(webVue)"
     },
     {
       "source": "./.template.config/starters/vite-react/",

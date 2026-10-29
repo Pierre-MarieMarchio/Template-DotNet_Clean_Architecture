@@ -89,8 +89,8 @@
   },
   {
     "name": "web react, local auth",
-    "tags": ["presentation-blazor-server", "starter-blazor-wasm", "web"],
-    "options": "--web react --presentation blazor-server",
+    "tags": ["presentation-blazor-server", "starter-blazor-wasm", "starter-vite-react", "web"],
+    "options": "--web vite-react --presentation blazor-server",
     "auth_context": "true",
     "web": "true",
     "wasm_app": "--scope sample-generated-project"
@@ -106,37 +106,37 @@
   },
   {
     "name": "web react back office, smallest local project",
-    "tags": ["web"],
-    "options": "--web react --web-audience admin --examples none --files false",
+    "tags": ["starter-vite-react", "web"],
+    "options": "--web vite-react --web-audience admin --examples none --files false",
     "auth_context": "true",
     "web": "true"
   },
   {
     "name": "web react, then an angular back office",
-    "tags": ["starter-angular", "web"],
-    "options": "--web react",
+    "tags": ["starter-angular", "starter-vite-react", "web"],
+    "options": "--web vite-react",
     "auth_context": "true",
     "web": "true",
     "second_app": "--framework angular --audience admin --rendering ssr --scope sample-generated-project"
   },
   {
     "name": "no web, then a react app and its workspace",
-    "tags": ["presentation-avalonia", "presentation-item", "starter-blazor-wasm", "web"],
+    "tags": ["presentation-avalonia", "presentation-item", "starter-blazor-wasm", "starter-vite-react", "web"],
     "options": "",
     "auth_context": "true",
     "web": "true",
-    "first_app": "--framework react --scope sample-generated-project --workspace",
+    "first_app": "--framework vite-react --scope sample-generated-project --workspace",
     "first_presentation": "--framework avalonia",
     "wasm_app": "--scope sample-generated-project --has-client true"
   },
   {
     "name": "web, every starter",
-    "tags": ["presentation-avalonia", "presentation-item", "starter-angular", "starter-blazor-wasm", "starter-react-router", "starter-vite-react", "starter-vite-svelte", "starter-vite-vue", "starter-vue", "web"],
+    "tags": ["presentation-avalonia", "presentation-item", "starter-angular", "starter-blazor-wasm", "starter-react-router", "starter-vite-react", "starter-vite-svelte", "starter-vite-vue", "web"],
     "options": "--web blazor-wasm --examples none --files false",
     "auth_context": "true",
     "web": "true",
     "first_presentation": "--framework avalonia --examples none --files false --has-client true",
-    "more_apps": "VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router ReactRouterSsrSite:8091:react-router:ssr"
+    "more_apps": "ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router ReactRouterSsrSite:8091:react-router:ssr"
   },
   {
     "name": "sqlite, defaults",

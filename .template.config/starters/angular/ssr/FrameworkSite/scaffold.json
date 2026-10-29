@@ -1,0 +1,61 @@
+{
+  "framework": "angular",
+  "name": "framework-site",
+  "package": "@angular/cli",
+  "version": "22.2.3",
+  "arguments": [
+    "new", "{name}", "--directory", "{directory}",
+    "--standalone", "--routing", "--style=css", "--ssr", "--test-runner=vitest", "--ai-config=none",
+    "--package-manager=pnpm", "--skip-git", "--skip-install", "--interactive=false", "--defaults"
+  ],
+  "merge": {
+    "package.json": {
+      "name": "framework-site",
+      "packageManager": null,
+      "scripts": {
+        "dev": "ng serve",
+        "test": "ng test --watch=false",
+        "start": "node dist/server/server.mjs",
+        "serve:ssr:framework-site": null
+      },
+      "dependencies": {
+        "@app-template/api-client": "workspace:*"
+      }
+    },
+    "tsconfig.json": {
+      "compilerOptions": {
+        "allowImportingTsExtensions": true,
+        "noEmit": true
+      }
+    },
+    "angular.json": {
+      "projects": {
+        "framework-site": {
+          "architect": {
+            "build": {
+              "options": {
+                "outputPath": {
+                  "base": "dist"
+                }
+              },
+              "configurations": {
+                "production": {
+                  "optimization": {
+                    "styles": {
+                      "inlineCritical": false
+                    }
+                  }
+                }
+              }
+            },
+            "serve": {
+              "options": {
+                "port": 4200
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,9 +2,14 @@
 
 ## When
 
-<!--#if (serverDatabase)-->
+<!--#if (serverDatabase && !jobsWorker)-->
 The API goes to an environment other than your machine. It ships as one image that serves HTTP and
 runs the periodic jobs; the schema changes in a step of its own before the image starts.
+<!--#endif-->
+<!--#if (jobsWorker)-->
+The API goes to an environment other than your machine. It ships as two images from one commit: the
+API's, which serves HTTP, and the worker's, which runs the periodic jobs; the schema changes in a step
+of its own before either starts.
 <!--#endif-->
 <!--#if (sqlite)-->
 This project is not deployed. It runs on SQLite, a development database, and the API refuses to start
@@ -28,8 +33,17 @@ platform; the runtime is ASP.NET on alpine, both pinned by digest. The image run
 The `Dockerfile` copies each project file by name before restoring, so a project the API references
 needs its `COPY` line there too; the build passes locally without it, and only the image fails.
 
+<!--#if (jobsWorker)-->
+The worker's image is built the same way, from `Src/Presentation/<Project>.Worker/Dockerfile`, on the
+same runtime and user. It serves no port and carries no `HEALTHCHECK`: its log and its loops'
+`iterations` counter say it runs ([Background jobs](../features/background-jobs.md#several-instances)).
+Release both images together, so a pass and the route that shares its lease spell the lease's name
+the same.
+
+<!--#endif-->
 <!--#if (anyWeb)-->
-Each web app has its own nginx image, built from `Src/Web`; [the web front end](../features/web-frontend.md#images-and-headers)
+Each web app has its own image, built from `Src/Web`: nginx serves a single-page app, and a
+server-rendered app runs on its own Node server, as one instance; [the web front end](../features/web-frontend.md#images-and-headers)
 describes them.
 
 <!--#endif-->

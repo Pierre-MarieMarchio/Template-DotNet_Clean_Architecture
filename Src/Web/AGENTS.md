@@ -46,8 +46,15 @@ From `Src/Web`, after `corepack enable` once per machine:
 - An app calls the API through `@app-template/api-client`, typed from the API's document, and never
   imports another app.
 <!--#if (localAuth)-->
-- The access token lives in a variable, never in storage; the refresh token stays in the API's
-  `HttpOnly` cookie ([ADR 0016](../../docs/decisions/0016-browser-refresh-token-in-a-cookie.md)).
+- In a single-page app the access token lives in a variable, never in storage, and the refresh token
+  stays in the API's `HttpOnly` cookie ([ADR 0016](../../docs/decisions/0016-browser-refresh-token-in-a-cookie.md));
+  a server-rendered app keeps both on its server, and its pages send `X-CSRF: 1` through
+  `serverSessionMiddleware` ([ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+<!--#endif-->
+<!--#if (externalAuth)-->
+- A server-rendered app keeps the provider's tokens on its server, which signs people in at
+  `/session/sign-in`, and its pages send `X-CSRF: 1` through `serverSessionMiddleware`; no token
+  reaches the page ([ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
 <!--#endif-->
 - A new app or package comes from `dotnet new cleanarch-webapp` or `dotnet new cleanarch-webpackage`
   at the project root; [more apps and packages](../../docs/features/web-frontend.md#more-apps-and-packages)

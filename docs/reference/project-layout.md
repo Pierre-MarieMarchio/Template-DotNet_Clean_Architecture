@@ -94,6 +94,7 @@ Src/Infrastructure/
 Src/Presentation/
   AppTemplate.Presentation.Core         Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
+<!--#if (!jobsWorker)-->
   AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Jobs,Localization,Observability,OpenApi,
                                                 Security}
@@ -103,6 +104,18 @@ Src/Presentation/
 <!--#endif-->
                                                       Contracts/{Mapping,Requests,Responses},
                                                       Controllers,Jobs}
+<!--#endif-->
+<!--#if (jobsWorker)-->
+  AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+                                                Idempotency,Localization,Observability,OpenApi,
+                                                Security}
+                                        Features/<F>/{Composition,
+<!--#if (externalAuth)-->
+                                                      Configuration/Options,
+<!--#endif-->
+                                                      Contracts/{Mapping,Requests,Responses},
+                                                      Controllers}
+<!--#endif-->
 <!--#if (presentationBlazorServer && localAuth)-->
   <Project>.<Name>                      Common/{Hosting,Security}
                                         Features/<F>/Composition
@@ -128,6 +141,10 @@ Src/Presentation/
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
+<!--#if (jobsWorker)-->
+  <Project>.Worker                      Common/{Jobs,Security}
+                                        Features/<F>/{Composition,Jobs}
+<!--#endif-->
 <!--#if (dotnetClient)-->
 Src/Clients/
   AppTemplate.Client                    Common/{Composition,Errors,Sessions}
@@ -136,8 +153,12 @@ Src/Clients/
 <!--#endif-->
 <!--#if (anyWeb)-->
 Src/Web/                                the pnpm workspace: apps/ and packages/
-<!--#if (webBlazorWasm)-->
+<!--#if (webBlazorWasm && !externalAuth)-->
   apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
+                                        Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
+<!--#endif-->
+<!--#if (webBlazorWasm && externalAuth)-->
+  apps/FrameworkSite                    the WebAssembly app, a .NET project: Common/{Hosting,Sessions}, no Features/
                                         Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
 <!--#endif-->
 <!--#endif-->

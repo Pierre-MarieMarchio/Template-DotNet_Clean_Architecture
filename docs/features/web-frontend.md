@@ -14,9 +14,9 @@ from the `packageManager` field of `Src/Web/package.json`, which Corepack reads;
 | `Src/Web/packages/api-client` | the TypeScript client generated from the API's OpenAPI document |
 | `Src/Web/packages/tsconfig`, `Src/Web/packages/eslint-config` | the shared compiler and lint settings |
 
-Each app is its own deployable. Its development server, and in Compose its nginx container, relays
-`/api/` and `/health` to the API, so the browser talks to one origin per app and the API keeps
-CORS closed.
+Each app is its own deployable. Its development server, and in Compose its nginx container or, for
+an app rendered on the server, its Node server, relays `/api/` and `/health` to the API, so the
+browser talks to one origin per app and the API keeps CORS closed.
 
 <!--#if (webNodeFramework)-->
 ## Creating the app
@@ -36,6 +36,12 @@ for an answer: the descriptor in the app's folder gives the CLI every answer in 
 
 Commit the app with the lockfile. From then on the app is this project's own: `web-scaffold` leaves
 it alone, and the pages are yours to write.
+<!--#endif-->
+<!--#if (webServerRendering)-->
+
+The app is rendered on the server (`--web-rendering ssr`): the Angular CLI writes it with
+`ng new --ssr`, and the wiring adds its server's relay, headers and nonce, described under
+[images and headers](#images-and-headers).
 <!--#endif-->
 <!--#if (webBlazorWasm)-->
 ## Creating the app
@@ -77,7 +83,7 @@ pnpm --filter <app> dev
 
 `<app>` is the folder's kebab name. The development server relays to `API_UPSTREAM`, by default
 the API on the host. Under Compose, `docker compose up --build --wait` serves each app's build
-through nginx on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
+through nginx, or an app rendered on the server through its own Node server, on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
 `pnpm lint` and `pnpm test` in `Src/Web` run every app and package.
 
 ## Calling the API
@@ -157,13 +163,42 @@ if ('challengeToken' in answer) {
 `session.signOut()` ends the session and clears the cookie; `session.onChange` reports when the
 signed-in state flips. Concurrent refreshes share one request, since the API treats a second
 presentation of a cookie as theft; only a refused refresh signs the page out.
+
+### An app rendered on the server
+
+A server-rendered app keeps both tokens on its server, and the browser holds only the
+`__Host-session` cookie its server sets (`HttpOnly`, `Secure`, `SameSite=Lax`)
+([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)). The page posts
+the same sign-in routes through the relay, which keeps the tokens the API answers and returns the
+answer without them, and calls the API without a token; `serverSessionMiddleware` adds the
+`X-CSRF: 1` header the server requires on every call that changes state, and answers `403`
+`session.csrfHeaderRequired` without:
+
+```ts
+import { createApiClient, serverSessionMiddleware, unwrap } from '@app-template/api-client';
+
+export const api = createApiClient({ middleware: [serverSessionMiddleware()] });
+
+const answer = await unwrap(api.POST('/api/v1/auth/login', { body: { email, password } }));
+
+if (answer.status === 'twoFactorRequired') {
+  // ask for the code, then POST /api/v1/auth/login/two-factor with answer.challengeToken
+}
+
+await api.POST('/api/v1/auth/logout');
+```
+
+The server refreshes the access token before it expires, once for all the requests of a session,
+and a refused refresh ends the session. A page rendered on the server reads the session's token
+from the request context, `accessToken()`, beside `apiUpstream`, the API's address for a call
+made from the server.
 <!--#endif-->
 <!--#if (externalAuth)-->
 ### External provider
 
-Sign in with a maintained OpenID Connect library running the Authorization Code flow with PKCE,
-keep its tokens in memory, and hand the current access token to the client, which sends it on every
-call:
+A single-page app signs in with a maintained OpenID Connect library running the Authorization Code
+flow with PKCE, keeps its tokens in memory, and hands the current access token to the client, which
+sends it on every call:
 
 ```ts
 import { createApiClient } from '@app-template/api-client';
@@ -171,8 +206,50 @@ import { createApiClient } from '@app-template/api-client';
 export const api = createApiClient({ accessToken: () => currentAccessToken() });
 ```
 
-Add the provider's origin to `connect-src` in the app's `nginx.conf`. The session module of
-`api-client` is unused in this mode.
+It adds the provider's origin to `connect-src` in its `nginx.conf`; `createBrowserSession` serves
+local accounts only.
+<!--#if (webBlazorWasm)-->
+
+The WebAssembly app does this already, through Microsoft's authentication library for Blazor and the
+.NET client: its `README.md` gives the client to register at the provider and the `SignIn` section of
+its `wwwroot/appsettings.json`, which [the configuration reference](../reference/configuration.md)
+lists too.
+<!--#endif-->
+
+### An app rendered on the server
+
+A server-rendered app signs people in itself: its server is the OpenID Connect client, runs the
+authorization code flow with PKCE at the provider, and keeps the provider's tokens in its own
+memory; the browser holds only the `__Host-session` cookie its server sets (`HttpOnly`, `Secure`,
+`SameSite=Lax`) ([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+The page navigates to the server's routes and calls the API without a token, the server adding it;
+`serverSessionMiddleware` adds the `X-CSRF: 1` header the server requires on every call that
+changes state, and answers `403` `session.csrfHeaderRequired` without:
+
+```ts
+import { createApiClient, serverSessionMiddleware } from '@app-template/api-client';
+
+export const api = createApiClient({ middleware: [serverSessionMiddleware()] });
+
+location.assign(`/session/sign-in?returnTo=${encodeURIComponent(location.pathname)}`);
+
+const answer = await fetch('/session/sign-out', { method: 'POST', headers: { 'X-CSRF': '1' } });
+location.assign(((await answer.json()) as { location: string }).location);
+```
+
+`/session/sign-in` sends the browser to the provider with a code challenge, a state and a nonce;
+the provider sends it back to `/session/callback`, which opens the session and returns to
+`returnTo`, a path of the app's own origin. Sign in by a link or a navigation, not a form: the
+policy's `form-action 'self'` refuses a form whose answer redirects to the provider.
+`/session/sign-out` forgets the tokens and answers where to send the browser: the provider's
+sign-out when its discovery document names one, which ends the provider's session too, or `/`.
+The server refreshes the access token before it expires when the provider issued a refresh token,
+once for all the requests of a session; without one, the session ends with the access token. A
+page rendered on the server reads the session's token from the request context, `accessToken()`,
+beside `apiUpstream`.
+
+The app's `README.md` gives the client to register at the provider; its settings are in
+[the configuration reference](../reference/configuration.md#a-server-rendered-web-app).
 <!--#endif-->
 <!--#if (publicApi)-->
 ### No accounts
@@ -221,6 +298,14 @@ two lines to add, also in the app's `README.md`: an `include:` entry in `docker-
 `WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
+`--framework angular --rendering ssr` renders the app on its own Node server instead, as
+[images and headers](#images-and-headers) describes; the other frameworks are single-page apps
+only, and `--rendering spa` is the default.
+<!--#if (externalAuth)-->
+Such an app also needs its public origin, `WEB_<NAME>_ORIGIN`, in `.env.example`, and the
+provider's client of [an app rendered on the server](#an-app-rendered-on-the-server), both lines
+its `README.md` gives.
+<!--#endif-->
 <!--#if (accounts)-->
 
 `--framework blazor-wasm` adds a Blazor WebAssembly app. It also takes `--project-name <Project>`,
@@ -250,20 +335,20 @@ app as above.
 
 ## Images and headers
 
-Each app is its own image, built from `Src/Web` with the workspace lockfile and served by
-`nginx-unprivileged` (uid 101, port 8080); `API_UPSTREAM` names the API, resolved per request.
-Build one alone from the project root:
+Each app is its own image, built from `Src/Web` with the workspace lockfile; a single-page app's is
+served by `nginx-unprivileged` (uid 101, port 8080). `API_UPSTREAM` names the API, resolved per
+request. Build one alone from the project root:
 
 ```bash
 docker build -f Src/Web/apps/<Name>/Dockerfile Src/Web
 ```
 
-`nginx.conf` sets the page headers on the files it serves: a strict Content-Security-Policy,
+A single-page app's `nginx.conf` sets the page headers on the files it serves: a strict Content-Security-Policy,
 `X-Content-Type-Options`, `Referrer-Policy`, `Cross-Origin-Opener-Policy` and `Cache-Control`.
 Relayed `/api/` and `/health` answers keep the API's own headers. A file whose name carries a
 content hash is cached for a year; every other file, `index.html` first, revalidates, and an
 unknown path falls back to `index.html` for the app's router.
-<!--#if (webAngular)-->
+<!--#if (webAngular && !webServerRendering)-->
 The Angular app's policy allows inline styles, which Angular inserts at run time, and never inline
 scripts.
 <!--#endif-->
@@ -273,12 +358,37 @@ props and the .NET client, and its compose file names that root as the build con
 adds `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published
 page carries inline, which the image build computes from the page it has just published. Every file
 under `_framework/` carries its fingerprint in its name and is cached for a year.
+<!--#if (externalAuth)-->
+The origin of `EXTERNAL_AUTH_AUTHORITY`, which its compose file passes as `SIGN_IN_AUTHORITY`, joins
+its `connect-src` and `frame-src` when the container starts, so the page reaches the provider, and
+`frame-ancestors 'self'` lets the hidden frame that renews the token land back on the page.
+<!--#endif-->
 <!--#endif-->
 <!--#if (webReactRouter)-->
 The React Router app's page starts the app from inline scripts. Its policy allows each by its
 SHA-256 and no other: the image build hashes the inline scripts of the page it has just built and
 writes those hashes into `script-src` of the server's configuration, so the policy follows the page
 with nothing to edit by hand.
+<!--#endif-->
+
+An app rendered on the server (`--web-rendering ssr`, or `--rendering ssr` of `cleanarch-webapp`;
+Angular's) has no `nginx.conf`: its image runs the built server on Node, as the unprivileged `node`
+user on port 8080, and its `src/server.ts` does what nginx does for the others, through
+the relay of `@app-template/api-client/server`. Each page is rendered for its
+request with a fresh nonce, which its Content-Security-Policy names in `script-src` and Angular
+writes on every script it adds; the inline scripts the build writes into the page template,
+Angular's event-dispatch contract, run by the SHA-256 the server computes from that template when
+it starts, and no other inline script runs. The page is `Cache-Control: no-store`, and every route
+renders per request, since a page prerendered at build cannot carry a response's nonce. The server
+answers `400` to a host `NG_ALLOWED_HOSTS` does not list: the image allows `localhost` and
+`127.0.0.1`, and a deployment adds the host its users reach.
+<!--#if (accounts)-->
+It keeps its sessions in its own memory, so it runs as one instance, and a restart signs everyone
+out ([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+<!--#endif-->
+<!--#if (publicApi)-->
+It keeps no session, and runs as one instance
+([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
 <!--#endif-->
 
 <!--#if (ci)-->
@@ -294,6 +404,7 @@ a user other than root and exposes only 8080. Details are in
 ## Decisions
 
 - [0019 One generated API client](../decisions/0019-one-generated-api-client.md)
+- [0024 A server-rendered web app runs on its own server](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)
 <!--#if (localAuth)-->
 - [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
 <!--#endif-->

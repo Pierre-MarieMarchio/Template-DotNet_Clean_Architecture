@@ -68,6 +68,33 @@ public sealed class OfferTests
     }
 
     [Fact]
+    public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt()
+    {
+        var known = new Dictionary<string, string> { ["web"] = "vite-react", ["auth"] = "none" };
+
+        Offer offer = Offer.For(_project, Option(_project, "webRendering"), known, Launcher.ProjectAskedWhen);
+
+        offer.Values.ShouldBe(["spa"]);
+        offer.Reasons.Select(reason => reason.Symbol).ShouldBe(["serverRenderingNeedsAServerStarter"]);
+    }
+
+    [Theory]
+    [InlineData("local")]
+    [InlineData("external")]
+    [InlineData("none")]
+    public void ServerRendering_IsOffered_ForAnAngularApp_WhateverTheProjectAuthenticates(string auth)
+    {
+        var known = new Dictionary<string, string> { ["auth"] = auth };
+
+        Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = "angular" }, Launcher.ProjectAskedWhen)
+            .Values.ShouldBe(["spa", "ssr"]);
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "angular" }, _alwaysAsked)
+            .Values.ShouldBe(["spa", "ssr"]);
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "vue" }, _alwaysAsked)
+            .Values.ShouldBe(["spa"]);
+    }
+
+    [Fact]
     public void ATemplateWithoutRefusals_OffersEveryChoice()
     {
         TemplateManifest webPackage = Repository.Source.Manifest(TemplateKind.WebPackage);

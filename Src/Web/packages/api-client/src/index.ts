@@ -18,9 +18,11 @@ export {
 export {
   cookieModePaths,
   createBrowserSession,
+  csrfHeader,
   logoutPath,
   refreshPath,
   refreshTokenModeHeader,
+  serverSessionMiddleware,
   sessionMiddleware,
   type BrowserSession,
   type BrowserSessionOptions,

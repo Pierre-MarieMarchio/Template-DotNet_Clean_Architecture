@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using AppTemplate.Api.Features.Maintenance.Jobs;
-using AppTemplate.Api.UnitTests.TestSupport;
+using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 using Shouldly;
 using Xunit;
 

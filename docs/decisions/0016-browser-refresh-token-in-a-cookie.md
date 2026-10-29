@@ -26,10 +26,12 @@ another page provokes.
   cookie.
 
 <!--#if (anyWeb)-->
-In this project's web apps, the client package's `createBrowserSession` keeps the access token in
-a variable only, never in storage, and calls `refresh()` once at start so a reload costs one
-request. Concurrent refreshes share one request, since two would present one token twice and end
-the session, and only a refused refresh signs the page out.
+In this project's single-page web apps, the client package's `createBrowserSession` keeps the
+access token in a variable only, never in storage, and calls `refresh()` once at start so a reload
+costs one request. Concurrent refreshes share one request, since two would present one token twice
+and end the session, and only a refused refresh signs the page out. A server-rendered app keeps both
+tokens on its server instead, behind a session cookie of its own
+([ADR 0024](0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
 
 <!--#endif-->
 ## Consequences

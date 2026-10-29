@@ -45,6 +45,17 @@
       ],
       "description": "Who the app is for; the framework apps shape their screens by it."
     },
+    "rendering": {
+      "type": "parameter",
+      "displayName": "Rendering",
+      "datatype": "choice",
+      "defaultValue": "spa",
+      "choices": [
+        { "choice": "spa", "description": "A single-page app: a static site served by nginx." },
+        { "choice": "ssr", "description": "Rendered on the server for each request, by the framework's own Node server, which keeps the session; angular only." }
+      ],
+      "description": "How the app renders, where its generator offers both."
+    },
     "workspace": {
       "type": "parameter",
       "displayName": "Create the workspace",
@@ -167,6 +178,15 @@
       "isRequired": "(audience == \"admin\" && auth == \"none\")",
       "description": "Never set. --audience admin signs administrators in, which --auth none cannot."
     },
+    "serverRenderingNeedsAServerStarter": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "refused", "description": "Not an option to set: it names the refusal." }
+      ],
+      "isRequired": "(rendering == \"ssr\" && framework != \"angular\")",
+      "description": "Never set. --rendering ssr needs a framework whose generator renders on the server: choose --framework angular, or --rendering spa."
+    },
     "wasmWebNeedsAccounts": {
       "type": "parameter",
       "datatype": "choice",
@@ -193,6 +213,7 @@
     "webBlazorWasm": { "type": "computed", "value": "(framework == \"blazor-wasm\")" },
     "webNodeFramework": { "type": "computed", "value": "(webAngular || webVite)" },
     "webFramework": { "type": "computed", "value": "(webNodeFramework || webBlazorWasm)" },
+    "webServerRendering": { "type": "computed", "value": "(rendering == \"ssr\")" },
     "adminAudience": { "type": "computed", "value": "(audience == \"admin\")" },
     "todoLists": { "type": "computed", "value": "(examples == \"all\")" },
     "reminders": { "type": "computed", "value": "(examples == \"all\")" },
@@ -318,13 +339,37 @@
           "exclude": [
             "FrameworkSite/**"
           ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/nginx.conf"
+          ]
         }
       ]
     },
     {
       "source": "../starters/angular/",
       "target": "./Src/Web/apps/",
-      "condition": "(webAngular)"
+      "condition": "(webAngular)",
+      "modifiers": [
+        {
+          "exclude": [
+            "ssr/**"
+          ]
+        },
+        {
+          "condition": "(webServerRendering)",
+          "exclude": [
+            "FrameworkSite/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../starters/angular/ssr/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webAngular && webServerRendering)"
     },
     {
       "source": "../starters/vue/",
@@ -354,7 +399,22 @@
     {
       "source": "../starters/blazor-wasm/",
       "target": "./Src/Web/apps/",
-      "condition": "(webBlazorWasm)"
+      "condition": "(webBlazorWasm)",
+      "modifiers": [
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "FrameworkSite/Common/**",
+            "FrameworkSite/Pages/**",
+            "FrameworkSite/wwwroot/**"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "../variants/blazor-wasm-sign-in/",
+      "target": "./",
+      "condition": "(webBlazorWasm && externalAuth)"
     },
     {
       "source": "../../Src/Clients/",
@@ -459,7 +519,8 @@
       "condition": "(workspace)",
       "include": [
         "features/web-frontend.md",
-        "decisions/0019-one-generated-api-client.md"
+        "decisions/0019-one-generated-api-client.md",
+        "decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
       ]
     }
   ],
@@ -481,6 +542,17 @@
       "manualInstructions": [
         {
           "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines. A framework app is created by its official CLI: run dotnet run Tools/Tasks.cs web-scaffold <name> at the project root (or bootstrap), then commit the app with Src/Web/pnpm-lock.yaml. A placeholder needs only pnpm install in Src/Web."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "condition": "(webServerRendering && externalAuth)",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Sign people in at the provider from the app's server.",
+      "manualInstructions": [
+        {
+          "text": "Add WEB_<NAME>_ORIGIN to .env.example, and EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID and EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET where it names neither; Src/Web/apps/<name>/README.md gives the lines, and the client to register at the provider, under 'Calling the API and signing in'."
         }
       ],
       "continueOnError": true

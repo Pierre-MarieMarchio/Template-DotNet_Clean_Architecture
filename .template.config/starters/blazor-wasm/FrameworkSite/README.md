@@ -24,6 +24,15 @@ dotnet run Tools/Tasks.cs web-scaffold FrameworkSite
 what the template writes under `Layout`, `Pages`, `Properties` and `wwwroot`, with `App.razor` and
 `_Imports.razor`, removes scaffold.json, then adds the project to the solution. Commit the app: from
 then on its pages are this project's own, and the step leaves it alone.
+<!--#if (externalAuth)-->
+
+The template runs with `--auth Individual`, its wiring for an OpenID Connect provider: the
+authentication page, the log-in display, the redirect to the provider and the authentication state
+around the router. A file this folder holds wins over the template's: `Pages/Home.razor`, without the
+template's reminder to configure the provider in `Program.cs`, and the two settings files under
+`wwwroot`, which hold the `SignIn` section below instead of the template's sample provider. The step
+adds the app's unit tests to the solution with it.
+<!--#endif-->
 
 ## The client and the session
 
@@ -34,8 +43,55 @@ for the cookie mode on the session routes, holds the access token in memory, and
 on a `401`.
 <!--#endif-->
 <!--#if (externalAuth)-->
-Nobody signs in: the app registers an access token source that holds no token until sign-in is added,
-so the API answers `401` to every route it calls.
+It signs its user in at the OpenID Connect provider the API trusts, and the client sends the
+provider's access token on every call: `ProviderAccessTokenSource`, the client's `IAccessTokenSource`,
+asks the authentication library for the current token and gives none before sign-in, so a call made
+signed out goes without a header and the API answers `401` to a route that needs a caller.
+
+## Sign in
+
+`AddSignIn` runs the authorization code flow with PKCE through
+`Microsoft.AspNetCore.Components.WebAssembly.Authentication`, Microsoft's library for a browser app,
+on the settings of the `SignIn` section. It asks for the response type `code` itself: left unset, the
+library's script falls back to the implicit flow. **Log in** sends the browser to the provider,
+which sends it back to `authentication/login-callback`, where the library redeems the code;
+**Log out** ends the session at the provider too and comes back to `authentication/logout-callback`.
+A page marked `[Authorize]` sends a signed-out visitor to the provider first.
+
+The library keeps the tokens in the tab's `sessionStorage`, its default: a reload keeps the session,
+closing the tab ends it, and no token reaches `localStorage` or a cookie. A script running in the page
+could read them, which is what the page's Content-Security-Policy is there to prevent. No refresh
+token is asked for: once the access token expires, the library asks the provider for another in a
+hidden frame, which succeeds while the provider's own session cookie reaches it; a browser that
+withholds that cookie from a frame sends the user through **Log in** again.
+
+Register the app at the provider before its first run:
+
+- a public client, without a secret, since a browser cannot keep one, allowed the authorization code
+  flow with PKCE;
+- for each origin that serves the app, the redirect URI `<origin>/authentication/login-callback`, the
+  post-logout redirect URI `<origin>/authentication/logout-callback` and the origin itself as a web
+  origin, since the browser redeems the code: `http://localhost` on the port of
+  `WEB_FRAMEWORK_SITE_HOST_PORT` through the stack, the address of `Properties/launchSettings.json`
+  under `dotnet watch`, and the public one in a deployment;
+- the scopes of `SignIn:Scope`;
+- the API's audience, `Authentication:External:Audience`, in the access token it issues. How depends
+  on the provider: an API scope the client requests, added to `SignIn:Scope`, or an audience mapper on
+  the client.
+
+Then set `SignIn:Authority`, the issuer the API trusts, and `SignIn:ClientId` in
+`wwwroot/appsettings.json`. Every visitor's browser downloads that file, so it holds public values
+only, never a secret. The app refuses to start until both are set: the page shows its error bar
+instead, and the browser's console names each missing key. `wwwroot/appsettings.Development.json` sets
+`SignIn:RequireHttpsMetadata` to `false`, so a provider on the developer's machine may answer over
+`http` under `dotnet watch`; the published app keeps `true`.
+
+The page reaches the provider under its Content-Security-Policy: `nginx.conf` adds the origin of
+`SIGN_IN_AUTHORITY` to `connect-src`, for the discovery document and the tokens, and to `frame-src`,
+for the renewal, and lets the renewal's frame land back on the page with `frame-ancestors 'self'`.
+`compose.yml` sets `SIGN_IN_AUTHORITY` from `EXTERNAL_AUTH_AUTHORITY`, the provider the API trusts. A
+provider that serves its keys or tokens from another origin than its issuer's needs that origin added
+to the policy in `nginx.conf` too.
 <!--#endif-->
 
 ## Work on it
@@ -48,9 +104,19 @@ app's image and serves it on the port below.
 
 | File | What it is |
 |---|---|
+<!--#if (externalAuth)-->
+| `Common/` | the app's own code: `Hosting/` binds and checks the `SignIn` section and registers the sign-in, `Sessions/` hands the provider's access token to the client |
+| `wwwroot/appsettings.json` | the `SignIn` section, downloaded by the browser; `appsettings.Development.json` beside it relaxes `https` for `dotnet watch` |
+| `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline, and lets the page reach the provider's origin |
+<!--#else-->
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline |
+<!--#endif-->
 | `Dockerfile` | the image: the .NET SDK publishes the app from the repository root, and nginx serves `wwwroot`; `_framework/`, whose every file name carries its fingerprint, is cached for a year |
+<!--#if (externalAuth)-->
+| `compose.yml` | the `web-framework-site` service, built from the repository root, given the provider's issuer as `SIGN_IN_AUTHORITY` |
+<!--#else-->
 | `compose.yml` | the `web-framework-site` service, built from the repository root |
+<!--#endif-->
 
 ## Join the stack
 
@@ -87,6 +153,10 @@ template refuses it.
 
 It writes this folder, the .NET client in `Src/Clients` with its tests, and the client's decision;
 `--has-client true` leaves the client, its tests and its decision out, and its edits below with them.
+<!--#if (externalAuth)-->
+With `--auth external` it also writes the app's unit tests under `Tests`, which `web-scaffold` adds to
+the solution with the app.
+<!--#endif-->
 The lines `--web blazor-wasm` writes in files the item template cannot edit are listed below, each
 placed by the lines it goes beside. One task makes them all, or none when one of those lines is not
 found exactly once:
@@ -154,6 +224,9 @@ task stops:
   ```xml
     <ItemGroup Label="Web app on WebAssembly">
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
+<!--#if (externalAuth)-->
+      <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.14" />
+<!--#endif-->
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" />
     </ItemGroup>
 
@@ -255,7 +328,11 @@ task stops:
   add:
 
   ```csharp
+<!--#if (externalAuth)-->
+          ["Src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
+<!--#else-->
           ["Src/Web/apps/FrameworkSite"] = null,
+<!--#endif-->
 <!--#if (!hasClient)-->
           ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
 <!--#endif-->
@@ -346,6 +423,38 @@ task stops:
   add:
 
   ```text
+<!--#if (externalAuth)-->
+    apps/FrameworkSite                    the WebAssembly app, a .NET project: Common/{Hosting,Sessions}, no Features/
+<!--#else-->
     apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
+<!--#endif-->
                                           Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
   ```
+<!--#if (externalAuth)-->
+
+- in `docs/reference/configuration.md`, before the line:
+
+  ```markdown
+  ## Mail
+  ```
+
+  add:
+
+  ```markdown
+  ## The WebAssembly app
+
+  ### `SignIn`
+
+  Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
+  signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
+  downloads: public values only, never a secret. The API never reads it.
+
+  | Key | Type | Default | Notes |
+  |---|---|---|---|
+  | `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
+  | `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. |
+  | `Scope` | string | `openid profile email` | Must include `openid`. No `offline_access`: the provider renews the access token in a hidden frame while its own session lasts. The API's own scope goes here when the provider issues its audience that way. |
+  | `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only, as `wwwroot/appsettings.Development.json` sets it for `dotnet watch`. |
+
+  ```
+<!--#endif-->

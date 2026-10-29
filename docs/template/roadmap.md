@@ -24,18 +24,13 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 
 ## Coming, in order
 
-1. **.NET clients of the API**
-   ([#117](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/117)). A
-   .NET client generated from the API's OpenAPI document, `--presentation avalonia`,
-   `--web blazor-wasm` and `cleanarch-webapp --framework blazor-wasm`, which brings the client to a
-   project without one, are in; then signing in through an external provider from both clients.
-2. **Server rendering where the generator offers it**
+1. **Server rendering where the generator offers it**
    ([#128](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/128)).
-   `--web-rendering spa|ssr`, `spa` by default and refused for the starters whose generator only
-   makes single-page apps; the launcher then offers it only where it applies. A server-rendered app
-   runs on a Node server instead of nginx; it keeps its session on the server, since the browser
-   alone holds the access token today, and sends a content security policy with a nonce per
-   request. Angular first (`ng new --ssr`), then React Router.
+   `--web-rendering spa|ssr` and `cleanarch-webapp --rendering`, refused for the starters whose
+   generator only makes single-page apps, with Angular's server form (`ng new --ssr`) on its own
+   Node server and a nonce per response, and the session that server keeps for local accounts and
+   for an external provider, are in; then React Router's server form from its `node-custom-server`
+   template.
 
 ## Later
 
@@ -56,7 +51,7 @@ Each group comes once the items above have shipped, in no fixed order:
   `dotnet new` template and so is written by the template.
 - **Server hosts on the application layer**
   ([#121](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/121)):
-  MVC, Razor Pages, gRPC, an MCP server, a worker and a console.
+  MVC, Razor Pages, gRPC, an MCP server and a console.
 - **Around the apps**
   ([#122](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122)): an
   Aspire app host beside Docker Compose, Playwright end-to-end tests for the web apps, Storybook,

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "api": "node scripts/generate.mjs",
@@ -13,11 +14,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "openapi-fetch": "0.17.0"
+    "openapi-fetch": "0.17.0",
+    "openid-client": "6.8.8"
   },
   "devDependencies": {
     "@app-template/eslint-config": "workspace:*",
     "@app-template/tsconfig": "workspace:*",
+    "@types/node": "24.19.2",
     "eslint": "10.13.0",
     "openapi-typescript": "7.13.0",
     "typescript": "6.0.3",

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
-namespace AppTemplate.Api.UnitTests.TestSupport;
+namespace AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 
 internal sealed class ConcurrentRecordingLogger<T> : ILogger<T>
 {

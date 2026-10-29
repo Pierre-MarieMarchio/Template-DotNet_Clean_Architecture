@@ -62,9 +62,29 @@ writeFileSync('default.conf.template', server.replace(sources, (_, others) => `s
 HASHES
 #endif
 
+#if (webServerRendering)
+FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
+
+ENV NODE_ENV=production \
+    PORT=8080 \
+#if (webAngular)
+    NG_ALLOWED_HOSTS=localhost,127.0.0.1 \
+#endif
+    API_UPSTREAM=http://api:8080
+
+WORKDIR /app
+
+# The server build bundles its dependencies, so the image holds the build output alone.
+COPY --from=build /workspace/apps/FrameworkSite/dist/ ./dist/
+
+USER node
+#else
 FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e AS runtime
 
 ENV API_UPSTREAM=http://api:8080 \
+#if (webBlazorWasm && externalAuth)
+    SIGN_IN_AUTHORITY="" \
+#endif
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 #if (webReactRouter || webBlazorWasm)
@@ -80,8 +100,13 @@ COPY --from=publish /publish/wwwroot/ /usr/share/nginx/html/
 COPY apps/FrameworkSite/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /workspace/apps/FrameworkSite/dist/ /usr/share/nginx/html/
 #endif
+#endif
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=5 \
     CMD wget --spider --quiet http://127.0.0.1:8080/ || exit 1
+#if (webServerRendering)
+
+CMD ["node", "dist/server/server.mjs"]
+#endif

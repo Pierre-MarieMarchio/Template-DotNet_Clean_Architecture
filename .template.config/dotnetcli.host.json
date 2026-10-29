@@ -37,6 +37,15 @@
       "longName": "web-audience",
       "shortName": ""
     },
+    "webRendering": {
+      "longName": "web-rendering",
+      "shortName": ""
+    },
+    "serverRenderingNeedsAServerStarter": {
+      "longName": "server-rendering-needs-a-server-starter",
+      "shortName": "",
+      "isHidden": true
+    },
     "presentationName": {
       "longName": "presentation-name",
       "shortName": ""
@@ -53,6 +62,15 @@
     },
     "presentationNameIsTaken": {
       "longName": "presentation-name-is-taken",
+      "shortName": "",
+      "isHidden": true
+    },
+    "jobs": {
+      "longName": "jobs",
+      "shortName": ""
+    },
+    "workerNeedsServerDatabase": {
+      "longName": "worker-needs-server-database",
       "shortName": "",
       "isHidden": true
     }

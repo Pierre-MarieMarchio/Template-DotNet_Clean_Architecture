@@ -58,6 +58,7 @@ services:
 
       IdempotencyPurge__BatchSize: ${IDEMPOTENCY_PURGE_BATCH_SIZE:-1000}
 
+      #if (!jobsWorker)
       # false on an instance that only serves HTTP; with several instances, true on exactly one.
       Jobs__Enabled: ${JOBS_ENABLED:-true}
 
@@ -81,6 +82,7 @@ services:
       Jobs__Files__ReclaimOrphanedContentInterval: ${JOBS_FILES_RECLAIM_INTERVAL:-12:00:00}
       Jobs__Files__ReclaimOrphanedContentEnabled: ${JOBS_FILES_RECLAIM_ENABLED:-true}
 
+      #endif
       #endif
       Localization__DefaultCulture: ${LOCALIZATION_DEFAULT_CULTURE:-en}
 
@@ -170,6 +172,50 @@ services:
       start_period: 60s
     networks: [backend]
 
+  #if (jobsWorker)
+  worker:
+    # Runs the background jobs with the api's settings; it serves no HTTP and migrates nothing.
+    extends:
+      file: docker-compose.database.yml
+      service: database-client
+    image: app-template-worker:dev
+    build:
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      # One worker runs the passes; a second one stands by under each lease.
+      Jobs__Enabled: ${JOBS_ENABLED:-true}
+
+      Jobs__Maintenance__Interval: ${JOBS_MAINTENANCE_INTERVAL:-01:00:00}
+      Jobs__Maintenance__PurgeExpiredIdempotencyKeysEnabled: ${JOBS_MAINTENANCE_PURGE_IDEMPOTENCY_KEYS:-true}
+      #if (localAuth)
+      Jobs__Maintenance__PurgeExpiredRefreshTokensEnabled: ${JOBS_MAINTENANCE_PURGE_REFRESH_TOKENS:-true}
+      #endif
+
+      #if (reminders)
+      Jobs__Reminders__Interval: ${JOBS_REMINDERS_INTERVAL:-00:01:00}
+      Jobs__Reminders__Enabled: ${JOBS_REMINDERS_ENABLED:-true}
+      #endif
+
+      #if (files)
+      # Inspection off stops the Files feature, and reclaim off leaks storage: docs/reference/configuration.md.
+      Jobs__Files__InspectDepositedFilesInterval: ${JOBS_FILES_INSPECT_INTERVAL:-00:01:00}
+      Jobs__Files__InspectDepositedFilesEnabled: ${JOBS_FILES_INSPECT_ENABLED:-true}
+      Jobs__Files__PurgeAbandonedRegistrationsInterval: ${JOBS_FILES_PURGE_INTERVAL:-01:00:00}
+      Jobs__Files__PurgeAbandonedRegistrationsEnabled: ${JOBS_FILES_PURGE_ENABLED:-true}
+      Jobs__Files__ReclaimOrphanedContentInterval: ${JOBS_FILES_RECLAIM_INTERVAL:-12:00:00}
+      Jobs__Files__ReclaimOrphanedContentEnabled: ${JOBS_FILES_RECLAIM_ENABLED:-true}
+
+      #endif
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [backend]
+
+  #endif
   #if (presentationBlazorServer)
   presentation-presentation-app:
     # The presentation project reads the api's settings with its own composition, and runs neither jobs nor migrations.

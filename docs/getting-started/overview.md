@@ -26,6 +26,9 @@ A Blazor Web App beside it calls the same use cases in its own process.
 <!--#if (presentationAvalonia)-->
 An Avalonia desktop app beside it calls the API through a .NET client generated from its document.
 <!--#endif-->
+<!--#if (jobsWorker)-->
+A worker beside it runs the background jobs, which the API leaves to it.
+<!--#endif-->
 
 It is a starting point. The modules and mechanisms it carries are meant to stay; the product's own
 features grow beside them, and the documentation grows with them.
@@ -56,7 +59,12 @@ features grow beside them, and the documentation grows with them.
 <!--#if (files)-->
 | Files | stored files, an S3-compatible store and the background passes that inspect and reclaim them |
 <!--#endif-->
+<!--#if (!jobsWorker)-->
 | Background jobs | timers in the API process, switched per instance |
+<!--#endif-->
+<!--#if (jobsWorker)-->
+| Background jobs | timers in the worker, `Src/Presentation/<Project>.Worker`, a process of their own |
+<!--#endif-->
 | Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case |
 <!--#if (anyWeb)-->
 | Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
@@ -157,6 +165,9 @@ setting, table or test names it.
 <!--#if (anyWeb && !adminAudience)-->
 | `--web-audience` | `public` | the app is a site for the API's users |
 <!--#endif-->
+<!--#if (webServerRendering)-->
+| `--web-rendering` | `ssr` | the app is rendered on the server for each request, by its framework's own Node server ([Web front end](../features/web-frontend.md#images-and-headers)) |
+<!--#endif-->
 <!--#if (presentationBlazorServer)-->
 | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation project](../features/presentation.md)) |
 <!--#endif-->
@@ -165,6 +176,12 @@ setting, table or test names it.
 <!--#endif-->
 <!--#if (!anyPresentation)-->
 | `--presentation` | `none` | no presentation project beside the API |
+<!--#endif-->
+<!--#if (!jobsWorker)-->
+| `--jobs` | `api` | the API runs the background jobs ([Background jobs](../features/background-jobs.md)) |
+<!--#endif-->
+<!--#if (jobsWorker)-->
+| `--jobs` | `worker` | a worker in `Src/Presentation` runs the background jobs, written in the shape of `dotnet new worker`; the API serves HTTP alone ([Background jobs](../features/background-jobs.md)) |
 <!--#endif-->
 
 To change a value, remove the part by hand or add it:

@@ -49,6 +49,12 @@ internal static class WorkflowGate
           - a working-directory, or a path an action takes as input (context, file,
             global-json-file, node-version-file, package_json_file, cache_dependency_path),
             that is absent from disk; a path built from an expression is not read
+          - a trigger filtered by paths: or paths-ignore:, which leaves a required check it
+            skips pending
+          - a job-level if: on a matrix job of a workflow pull requests trigger: skipped whole,
+            it reports under its unexpanded name and none of its legs does; allowed only on a
+            matrix read from an earlier job's output (fromJSON(needs....)) when another job of
+            the workflow carries the same name, to report the legs that one leaves out
 
         Exit code 0 when every workflow is sound; 1 on a problem, and on a directory holding no
         workflow, which proves nothing.
@@ -86,6 +92,10 @@ internal static class WorkflowGate
         "cache_dependency_path",
         "cache-dependency-path",
     ];
+
+    private static readonly string[] PathFilters = ["paths", "paths-ignore"];
+
+    private static readonly string[] PullRequestTriggers = ["pull_request", "pull_request_target"];
 
     private static readonly Regex GoTemplate = new(@"\{\{.*?\}\}", RegexOptions.Singleline | RegexOptions.Compiled);
 
@@ -145,6 +155,22 @@ internal static class WorkflowGate
 
         var jobNames = new HashSet<string>(Keys(jobs), StringComparer.Ordinal);
 
+        var triggers = Get(root, "on");
+
+        foreach (var trigger in Keys(triggers))
+        {
+            foreach (var filter in PathFilters)
+            {
+                if (!IsNull(Get(Get(triggers, trigger), filter)))
+                {
+                    problems.Add(
+                        $"{name}: the {trigger} trigger filters by {filter}:, so a required check it skips stays pending; choose the work inside a job instead");
+                }
+            }
+        }
+
+        var pullRequestTriggered = TriggerNames(triggers).Any(PullRequestTriggers.Contains);
+
         var workflowEnv = new HashSet<string>(Keys(Get(root, "env")), StringComparer.Ordinal);
 
         var topPermissions = Get(root, "permissions");
@@ -171,6 +197,14 @@ internal static class WorkflowGate
             if (IsNull(topPermissions) && IsNull(Get(job, "permissions")))
             {
                 problems.Add($"{name}: job '{jobName}' has no permissions at job or workflow level");
+            }
+
+            if (pullRequestTriggered && !IsNull(Get(job, "if")) && !IsNull(Get(Get(job, "strategy"), "matrix"))
+                && !ReportsTheLegsItSkips(jobs, entry.Key, job))
+            {
+                problems.Add(
+                    $"{name}: job '{jobName}' is a matrix job with a job-level if:, so skipped whole it reports none of its legs; "
+                    + "read its matrix from an earlier job's output and report the other legs from a job of the same name");
             }
 
             if (IsFalsy(Get(job, "runs-on")))
@@ -370,8 +404,75 @@ internal static class WorkflowGate
 
         """;
 
+    private const string SelectedLegsFixture = """
+        name: Selected
+        on:
+          pull_request:
+        permissions:
+          contents: read
+        jobs:
+          changes:
+            runs-on: ubuntu-latest
+            timeout-minutes: 5
+            outputs:
+              run: ${{ steps.select.outputs.run }}
+              skip: ${{ steps.select.outputs.skip }}
+            steps:
+              - id: select
+                run: echo "run=[]" >> "$GITHUB_OUTPUT"
+          legs:
+            name: Leg (${{ matrix.name }})
+            needs: changes
+            if: needs.changes.outputs.run != '[]'
+            runs-on: ubuntu-latest
+            timeout-minutes: 5
+            strategy:
+              matrix: ${{ fromJSON(needs.changes.outputs.run) }}
+            steps:
+              - run: echo leg
+          skipped:
+            name: Leg (${{ matrix.name }})
+            needs: changes
+            if: needs.changes.outputs.skip != '[]'
+            runs-on: ubuntu-latest
+            timeout-minutes: 5
+            strategy:
+              matrix: ${{ fromJSON(needs.changes.outputs.skip) }}
+            steps:
+              - run: echo skipped
+
+        """;
+
+    private const string InlineMatrixWithIf =
+        "    if: github.actor != 'bot'\n    strategy:\n      matrix:\n        leg: [a, b]\n    runs-on: ubuntu-latest";
+
     private static readonly (string Label, string Text)[] MustFire =
     [
+        (
+            "a pull_request trigger filtered by paths",
+            CleanFixture.Replace("  push:\n", "  push:\n  pull_request:\n    paths: [Src/**]\n")
+        ),
+        (
+            "a push trigger filtered by paths-ignore",
+            CleanFixture.Replace("  push:\n", "  push:\n    paths-ignore: [docs/**]\n")
+        ),
+        (
+            "an inline matrix skipped whole on a pull request",
+            CleanFixture
+                .Replace("  push:\n", "  push:\n  pull_request:\n")
+                .Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)
+        ),
+        (
+            "an inline matrix skipped whole, the triggers listed",
+            CleanFixture
+                .Replace("  push:\n", "  [push, pull_request]\n")
+                .Replace("on:\n  [", "on: [")
+                .Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)
+        ),
+        (
+            "a computed matrix skipped whole with no job reporting the legs it leaves out",
+            SelectedLegsFixture.Replace("    name: Leg (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.skip", "    name: Skipped (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.skip")
+        ),
         (
             "needs: naming a job that does not exist",
             CleanFixture.Replace("    runs-on: ubuntu-latest", "    needs: absent\n    runs-on: ubuntu-latest")
@@ -472,6 +573,22 @@ internal static class WorkflowGate
     private static readonly (string Label, string Text)[] MustStaySilent =
     [
         ("a workflow with nothing wrong with it", CleanFixture),
+        ("a computed matrix skipped whole beside the job that reports the legs it leaves out", SelectedLegsFixture),
+        (
+            "a computed matrix per runner, beside the job that reports the legs both leave out",
+            SelectedLegsFixture.Replace(
+                "  skipped:\n",
+                "  windows:\n    name: Leg (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.run_windows != '[]'\n"
+                + "    runs-on: windows-latest\n    timeout-minutes: 5\n    strategy:\n      matrix: ${{ fromJSON(needs.changes.outputs.run_windows) }}\n"
+                + "    steps:\n      - run: echo leg\n  skipped:\n")
+        ),
+        ("an inline matrix with a job-level if: on push alone", CleanFixture.Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)),
+        (
+            "a job-level if: on a pull request job without a matrix",
+            CleanFixture
+                .Replace("  push:\n", "  push:\n  pull_request:\n")
+                .Replace("    runs-on: ubuntu-latest", "    if: github.actor != 'bot'\n    runs-on: ubuntu-latest")
+        ),
         (
             "a service image pinned by digest",
             CleanFixture.Replace(
@@ -610,6 +727,31 @@ internal static class WorkflowGate
         Console.WriteLine(
             "The gate fires on every faulted workflow, on none of the sound ones, and reads both spellings.");
         return 0;
+    }
+
+    private static IEnumerable<string> TriggerNames(YamlNode? triggers) => triggers switch
+    {
+        YamlScalarNode scalar when !IsNull(scalar) => [scalar.Value!],
+        YamlSequenceNode sequence => sequence.Children.OfType<YamlScalarNode>().Select(item => item.Value ?? ""),
+        _ => Keys(triggers),
+    };
+
+    private static bool ReportsTheLegsItSkips(YamlMappingNode jobs, YamlNode key, YamlMappingNode job)
+    {
+        var matrix = Get(Get(job, "strategy"), "matrix");
+        var name = Get(job, "name");
+
+        if (matrix is not YamlScalarNode computed
+            || !(computed.Value ?? "").Contains("fromJSON(needs.", StringComparison.Ordinal)
+            || IsNull(name))
+        {
+            return false;
+        }
+
+        return jobs.Children.Any(other =>
+            !ReferenceEquals(other.Key, key)
+            && Get(other.Value, "name") is { } otherName
+            && string.Equals(ScalarText(otherName), ScalarText(name!), StringComparison.Ordinal));
     }
 
     private static IEnumerable<string> MissingPath(string repo, string what, YamlNode? node)

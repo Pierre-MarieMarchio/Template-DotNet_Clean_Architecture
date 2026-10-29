@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Api.Features.Maintenance.Jobs;
-using AppTemplate.Api.UnitTests.TestSupport;
+using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 //#if (localAuth)
 using Microsoft.Extensions.Logging;
 //#endif

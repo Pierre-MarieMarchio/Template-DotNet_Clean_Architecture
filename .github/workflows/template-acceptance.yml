@@ -3,9 +3,10 @@ name: Template acceptance
 # Template repository only: each leg installs the template package packed from this checkout, generates under another name and gates what an adopter would get.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 # One run per ref: a new push cancels the previous one, except on main.
@@ -49,104 +50,59 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # The legs are the shapes the options produce, not their cross product; auth_context says whether the Auth DbContext exists.
+  # The legs a pull request's change can affect, from .template.config/acceptance; any other event runs them all.
+  changes:
+    name: Select the acceptance legs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+      run_count: ${{ steps.select.outputs.run_count }}
+      run_windows: ${{ steps.select.outputs.run_windows }}
+      run_windows_count: ${{ steps.select.outputs.run_windows_count }}
+      skip: ${{ steps.select.outputs.skip }}
+      skip_count: ${{ steps.select.outputs.skip_count }}
+
+    steps:
+      # A pull request checks out its merge commit; its first parent is the base branch.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: The selector can fail
+        run: dotnet run .template.config/acceptance/SelectLegs.cs -- --self-test
+
+      # --no-renames lists a moved file's old path as well as its new one; a diff that fails leaves no file, which runs every leg.
+      - name: Select the legs the change can affect
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          changed="${{ runner.temp }}/changed-paths.txt"
+          if [ "$EVENT" = pull_request ] && ! git diff --name-only --no-renames HEAD^1 HEAD > "$changed"; then
+            rm -f "$changed"
+          fi
+          dotnet run .template.config/acceptance/SelectLegs.cs -- --event "$EVENT" --labels "$LABELS" --changed "$changed" --output "$GITHUB_OUTPUT"
+
+  # The legs are the shapes the options produce, not their cross product, listed in .template.config/acceptance/matrix.json; auth_context says whether the Auth DbContext exists.
   template:
     name: Template acceptance (${{ matrix.name }})
-    needs: pack
+    needs: [changes, pack]
+    if: needs.changes.outputs.run_count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout_minutes || 45 }}
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: defaults
-            options: ""
-            auth_context: "true"
-            integration: "true"
-            generator: "true"
-            end_to_end: "true"
-          - name: auth none, smallest project
-            options: --auth none --examples none --files false --agent-files false
-            auth_context: "false"
-            integration: "true"
-          - name: external auth, notes
-            options: --auth external --examples notes --presentation avalonia
-            auth_context: "false"
-          - name: local auth, no files, no ci, no sonar
-            options: --auth local --examples none --files false --ci false --sonar false
-            auth_context: "true"
-            generator: "true"
-          - name: external auth, all examples
-            options: --auth external --examples all --files true
-            auth_context: "false"
-          # The SQL Server image is linux/amd64 only and about 1.6 GB: one leg, with a longer timeout.
-          - name: sql server, external auth, all examples
-            options: --database sqlserver --auth external --examples all --files true
-            database: sqlserver
-            auth_context: "false"
-            integration: "true"
-            end_to_end: "true"
-            timeout_minutes: 60
-          - name: external auth, no examples, no files
-            options: --auth external --examples none --files false
-            auth_context: "false"
-            generator: "true"
-            first_presentation: --framework avalonia --auth external --examples none --files false
-          - name: web placeholder, smallest project
-            options: --web placeholder --auth none --examples none --files false --presentation blazor-server
-            auth_context: "false"
-            web: "true"
-          - name: web react, local auth
-            options: --web react --presentation blazor-server
-            auth_context: "true"
-            web: "true"
-            wasm_app: --scope sample-generated-project
-          # No provider runs in Compose: the API needs one named to start, and fetches nothing from it until a token arrives.
-          - name: web angular, external auth, notes
-            options: --web angular --auth external --examples notes --presentation blazor-server
-            auth_context: "false"
-            web: "true"
-            stack_env: "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance"
-          - name: web react back office, smallest local project
-            options: --web react --web-audience admin --examples none --files false
-            auth_context: "true"
-            web: "true"
-          - name: web react, then an angular back office
-            options: --web react
-            auth_context: "true"
-            web: "true"
-            second_app: --framework angular --audience admin --scope sample-generated-project
-          - name: no web, then a react app and its workspace
-            options: ""
-            auth_context: "true"
-            web: "true"
-            first_app: --framework react --scope sample-generated-project --workspace
-            first_presentation: --framework avalonia
-            wasm_app: --scope sample-generated-project --has-client true
-          # Every framework starter in one workspace: the project's own app, the WebAssembly one with its .NET client, an Avalonia app on that client, then each other starter beside it, on a port of its own.
-          - name: web, every starter
-            options: --web blazor-wasm --examples none --files false
-            auth_context: "true"
-            web: "true"
-            first_presentation: --framework avalonia --examples none --files false --has-client true
-            more_apps: VueSite:8088:vue ViteReactSite:8083:vite-react ViteVueSite:8084:vite-vue ViteSvelteSite:8085:vite-svelte AngularSite:8086:angular ReactRouterSite:8087:react-router
-          - name: sqlite, defaults
-            options: --database sqlite
-            database: sqlite
-            auth_context: "true"
-            integration: "true"
-            end_to_end: "true"
-          - name: sqlite, smallest project
-            options: --database sqlite --auth none --examples none --files false
-            database: sqlite
-            auth_context: "false"
-            integration: "true"
-          - name: sqlite, external auth, all examples
-            options: --database sqlite --auth external --examples all --files true
-            database: sqlite
-            auth_context: "false"
-            integration: "true"
+      matrix: ${{ fromJSON(needs.changes.outputs.run) }}
 
     steps:
       - name: Checkout
@@ -306,6 +262,16 @@ jobs:
             exit 1
           fi
           dotnet run Tools/Tasks.cs web-scaffold WasmSite
+
+      # The WebAssembly app --web blazor-wasm writes is a .NET project of the solution too: created before the build, so the build compiles it and the Docker-free step runs its tests.
+      - name: Create the WebAssembly app before the build
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          for descriptor in $(grep -l '"kind": "dotnet"' Src/Web/apps/*/scaffold.json || true); do
+            dotnet run Tools/Tasks.cs web-scaffold "$(basename "$(dirname "$descriptor")")"
+          done
 
       # ASP.NET Core tolerates the trailing comma a condition can leave; a strict parser does not.
       - name: Assert every generated JSON file is strict JSON
@@ -632,7 +598,7 @@ jobs:
           pnpm test
           pnpm build
 
-      # React Router's builder keeps its page in a client folder of dist; every other starter writes it at the root.
+      # React Router's builder keeps its page in a client folder of dist, and a server-rendered app's build is its server; every other starter writes the page at the root.
       - name: Assert every app with a build script builds its page
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -642,9 +608,9 @@ jobs:
           import json, pathlib, sys
           missing = [manifest.parent for manifest in sorted(pathlib.Path("Src/Web/apps").glob("*/package.json"))
                      if "build" in json.loads(manifest.read_text(encoding="utf-8")).get("scripts", {})
-                     and not any((manifest.parent / "dist" / folder / "index.html").is_file() for folder in ("", "client"))]
+                     and not any((manifest.parent / "dist" / built).is_file() for built in ("index.html", "client/index.html", "server/server.mjs"))]
           for app in missing:
-              print(f"::error title=No built page::{app} has a build script and no index.html in dist or dist/client.")
+              print(f"::error title=No built page::{app} has a build script and no index.html in dist or dist/client, nor a server in dist/server.")
           sys.exit(1 if missing else 0)
           PY
 
@@ -688,7 +654,7 @@ jobs:
         run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
 
       - name: Build the images and start the stack
-        if: matrix.web == 'true'
+        if: matrix.web == 'true' || matrix.worker == 'true'
         working-directory: ${{ runner.temp }}/generated
         env:
           STACK_ENV: ${{ matrix.stack_env }}
@@ -701,7 +667,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash in the served script-src, which only React Router's image adds; an event-handler attribute never does.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A server-rendered app that keeps sessions refuses a POST without X-CSRF itself, and with an external provider refuses a sign-in callback it did not start and sends a sign-in to the provider, or answers 502 while the provider cannot be reached. A page that signs in at the provider may reach its origin.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -713,25 +679,42 @@ jobs:
           for port in "${ports[@]}"; do
             base="http://127.0.0.1:${port}"
             curl -fsS -D headers.txt -o page.html "$base/"
+            curl -fsS -D headers.again.txt -o page.again.html "$base/"
             headers=$(cat headers.txt)
             echo "$headers"
-            python3 - "$base" headers.txt page.html <<'PY' || fail "$base/ runs an inline script its Content-Security-Policy does not allow by hash."
+            python3 - "$base" headers.txt page.html headers.again.txt page.again.html <<'PY' || fail "$base/ runs an inline script its Content-Security-Policy allows neither by hash nor by nonce, or repeats a nonce."
           import base64, hashlib, re, sys
-          base, headers, page = sys.argv[1], open(sys.argv[2], encoding="utf-8").read(), open(sys.argv[3], encoding="utf-8").read()
-          policy = next((line.split(":", 1)[1] for line in headers.splitlines() if line.lower().startswith("content-security-policy:")), "")
-          allowed = next((directive.split()[1:] for directive in policy.split(";") if directive.split()[:1] == ["script-src"]), [])
-          inline = [body for attributes, body in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", page, re.I | re.S) if not re.search(r"\ssrc\s*=", attributes, re.I) and body.strip()]
-          refused = [body for body in inline if f"'sha256-{base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()}'" not in allowed]
+          def read(headers, page):
+              headers, page = open(headers, encoding="utf-8").read(), open(page, encoding="utf-8").read()
+              policy = next((line.split(":", 1)[1] for line in headers.splitlines() if line.lower().startswith("content-security-policy:")), "")
+              allowed = next((directive.split()[1:] for directive in policy.split(";") if directive.split()[:1] == ["script-src"]), [])
+              return page, allowed
+          base = sys.argv[1]
+          page, allowed = read(sys.argv[2], sys.argv[3])
+          _, allowed_again = read(sys.argv[4], sys.argv[5])
+          inline = [(attributes, body) for attributes, body in re.findall(r"<script\b([^>]*)>(.*?)</script\s*>", page, re.I | re.S)
+                    if not re.search(r"\ssrc\s*=", attributes, re.I) and not re.search(r"\stype\s*=\s*[\"']?application/(ld\+)?json", attributes, re.I) and body.strip()]
+          def nonce(attributes):
+              found = re.search(r"\snonce\s*=\s*[\"']([^\"']+)[\"']", attributes, re.I)
+              return f"'nonce-{found.group(1)}'" if found else None
+          refused = [body for attributes, body in inline
+                     if f"'sha256-{base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()}'" not in allowed and nonce(attributes) not in allowed]
+          nonces = {source for source in allowed if source.startswith("'nonce-")}
+          repeated = nonces & {source for source in allowed_again if source.startswith("'nonce-")}
           handlers = len(re.findall(r"<[^>]*\son[a-z]+\s*=", page, re.I))
           styles = sum(1 for body in re.findall(r"<style\b[^>]*>(.*?)</style\s*>", page, re.I | re.S) if body.strip())
           attributes = len(re.findall(r"<[^>]*\sstyle\s*=", page, re.I))
-          print(f"{base}/: {len(inline)} inline script(s), {len(refused)} without its hash in script-src, {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
-          sys.exit(1 if refused or handlers else 0)
+          print(f"{base}/: {len(inline)} inline script(s), {len(refused)} allowed neither by hash nor by nonce, {len(nonces)} nonce(s), {len(repeated)} repeated, {handlers} event-handler attribute(s), {styles} style element(s), {attributes} style attribute(s).")
+          sys.exit(1 if refused or repeated or handlers else 0)
           PY
             grep -qi '^content-security-policy:.*frame-ancestors' <<< "$headers" || fail "$base/ has no CSP with frame-ancestors."
+            if grep -q 'AuthenticationService.js' page.html; then
+              provider=$(grep -oE '^EXTERNAL_AUTH_AUTHORITY=https?://[^/]+' .env | cut -d= -f2)
+              grep -qiE "^content-security-policy:.*connect-src 'self' ${provider};.*frame-src 'self' ${provider}" <<< "$headers" || fail "$base/ signs in at ${provider}, which its Content-Security-Policy does not let the page reach."
+            fi
             grep -qi '^x-content-type-options: nosniff' <<< "$headers" || fail "$base/ has no X-Content-Type-Options."
             grep -qi '^referrer-policy:' <<< "$headers" || fail "$base/ has no Referrer-Policy."
-            grep -qi '^cache-control: no-cache' <<< "$headers" || fail "$base/ is cached."
+            grep -qiE '^cache-control: no-(cache|store)' <<< "$headers" || fail "$base/ is cached."
             grep -qi '<html' page.html || fail "$base/ served no page."
             curl -fsS "$base/health" > /dev/null || fail "$base/health is not relayed to the API."
             status=$(curl -sS -o relay.json -D relay.headers -w '%{http_code}' "$base/api/v1/relay-check")
@@ -742,6 +725,23 @@ jobs:
             esac
             grep -qi '^content-type: application/problem+json' relay.headers || fail "$base/api/ was not answered by the API."
             grep -q "\"code\":\"$code\"" relay.json || fail "$base/api/ answered $status without the API's $code problem code."
+            if [ "$code" = auth.required ] && grep -qi "^content-security-policy:.*'nonce-" <<< "$headers"; then
+              status=$(curl -sS -o csrf.json -w '%{http_code}' -X POST "$base/api/v1/relay-check")
+              [ "$status" = 403 ] && grep -q '"code":"session.csrfHeaderRequired"' csrf.json || fail "$base/ keeps a session, yet its relay answered $status, not its own 403, to a POST without X-CSRF."
+              status=$(curl -sS -o csrf.json -w '%{http_code}' -X POST -H 'X-CSRF: 1' "$base/api/v1/relay-check")
+              [ "$status" = 401 ] || fail "$base/ refused a POST that carries X-CSRF: its relay answered $status instead of the API's 401."
+              if grep -qE '^EXTERNAL_AUTH_AUTHORITY=https://' .env; then
+                status=$(curl -sS -o callback.json -w '%{http_code}' "$base/session/callback?code=forged&state=forged")
+                [ "$status" = 400 ] && grep -q '"code":"session.signInStateInvalid"' callback.json || fail "$base/ answered $status, not its own 400, to a sign-in callback it did not start."
+                status=$(curl -sS -o sign-in.json -D sign-in.headers -w '%{http_code}' "$base/session/sign-in")
+                provider=$(grep -oE '^EXTERNAL_AUTH_AUTHORITY=https://[^/]+' .env | cut -d= -f2)
+                case "$status" in
+                  302) grep -qi "^location: ${provider}/" sign-in.headers || fail "$base/session/sign-in redirected elsewhere than ${provider}." ;;
+                  502) grep -q '"code":"session.providerUnreachable"' sign-in.json || fail "$base/session/sign-in answered 502 without its own code." ;;
+                  *) fail "$base/session/sign-in answered $status instead of a redirect to ${provider}, or 502 while it cannot be reached." ;;
+                esac
+              fi
+            fi
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
           done
           mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | cut -d= -f2)
@@ -753,18 +753,128 @@ jobs:
             echo "Presentation project on $port: page and /health verified."
           done
 
+      # The worker runs its first maintenance pass as it starts; the API, which leaves the jobs to it, starts none.
+      - name: Assert the worker runs the jobs and the API none (worker legs)
+        if: matrix.worker == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            if docker compose logs worker | grep -q 'Purge of .* completed'; then
+              break
+            fi
+            sleep 2
+          done
+          docker compose logs worker | grep -q 'Purge of .* completed' || { echo "::error title=Worker::The worker logged no completed pass within two minutes."; exit 1; }
+          [ "$(docker compose ps --status running --quiet worker | wc -l)" -eq 1 ] || { echo "::error title=Worker::The worker is not running."; exit 1; }
+          if docker compose logs api | grep -q 'Maintenance job starting'; then
+            echo "::error title=Worker::The API started a job loop, which the worker runs."
+            exit 1
+          fi
+          echo "The worker completed a pass; the API runs no job."
+
       - name: Stack logs on failure
-        if: failure() && matrix.web == 'true'
+        if: failure() && (matrix.web == 'true' || matrix.worker == 'true')
         working-directory: ${{ runner.temp }}/generated
         run: docker compose logs --tail 200
 
       - name: Stop the stack
-        if: always() && matrix.web == 'true'
+        if: always() && (matrix.web == 'true' || matrix.worker == 'true')
         working-directory: ${{ runner.temp }}/generated
         run: |
           if [ -f .env ]; then
             docker compose down --volumes
           fi
+
+  # A leg whose runner is windows-latest, run as a Windows user runs the project: from PowerShell, through the tasks, with no Docker, which runs no Linux image there.
+  template-windows:
+    name: Template acceptance (${{ matrix.name }})
+    needs: [changes, pack]
+    if: needs.changes.outputs.run_windows_count != '0'
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.run_windows) }}
+
+    # Each step runs one command, so the exit code pwsh returns is that command's.
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      # The root files and Tools alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: Tools
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Download the template package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: template-package
+          path: ${{ runner.temp }}/package
+
+      - name: Install the template package
+        run: dotnet new install (Get-ChildItem "${{ runner.temp }}/package/*.nupkg").FullName
+
+      - name: Generate a project under a different name
+        env:
+          OPTIONS: ${{ matrix.options }}
+        run: dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" @("$env:OPTIONS".Split(' ', [StringSplitOptions]::RemoveEmptyEntries))
+
+      - name: Assert the template's own name leaked nowhere
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          $content = Get-ChildItem -Recurse -File -Force | Select-String -Pattern 'AppTemplate', 'app-template' -SimpleMatch -List | ForEach-Object Path
+          $paths = Get-ChildItem -Recurse -Force | Where-Object Name -Match 'AppTemplate|app-template' | ForEach-Object FullName
+          if ($content -or $paths) {
+            Write-Output "::error title=Template name leaked::The generated project still names the template."
+            @($content) + @($paths) | Write-Output
+            exit 1
+          }
+
+      - name: Bootstrap the project
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs bootstrap
+
+      - name: Build with warnings as errors
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs -- build --configuration Release
+
+      - name: Run the Docker-free tests
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release
+
+      - name: Run the generated project's hygiene gates
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs hygiene
+
+      - name: Assert every path the generated pages cite exists
+        run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
+
+  # Each leg the change cannot affect reports green under its own name, which the develop ruleset requires.
+  skipped:
+    name: Template acceptance (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.skip_count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    strategy:
+      matrix: ${{ fromJSON(needs.changes.outputs.skip) }}
+
+    steps:
+      - name: No changed path reaches this leg
+        env:
+          LEG: ${{ matrix.name }}
+        run: echo "No changed path reaches '$LEG'; the job 'Select the acceptance legs' names the rule each path matched."
 
   # A refused combination must exit non-zero and write nothing.
   template-refusals:
@@ -811,6 +921,9 @@ jobs:
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
+          refuse worker-sqlite --database sqlite --jobs worker
+          # Server rendering needs a starter holding an ssr folder.
+          refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name --presentation-name refuses.
@@ -833,5 +946,15 @@ jobs:
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
             echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework blazor-wasm --auth none' was refused but left files behind."
+            exit 1
+          fi
+          out="${{ runner.temp }}/refused-ssr-app"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-webapp -n SsrSite --framework vue --rendering ssr --scope sample-refused --auth none); then
+            echo "::error title=Accepted::'dotnet new cleanarch-webapp --framework vue --rendering ssr' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-webapp --framework vue --rendering ssr' was refused but left files behind."
             exit 1
           fi

@@ -17,6 +17,11 @@
       "longName": "wasm-web-needs-accounts",
       "shortName": "",
       "isHidden": true
+    },
+    "serverRenderingNeedsAServerStarter": {
+      "longName": "server-rendering-needs-a-server-starter",
+      "shortName": "",
+      "isHidden": true
     }
   }
 }

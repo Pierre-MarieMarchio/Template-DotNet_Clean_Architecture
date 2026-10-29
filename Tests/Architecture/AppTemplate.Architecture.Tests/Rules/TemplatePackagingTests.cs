@@ -299,7 +299,7 @@ public sealed class TemplatePackagingTests
             IsRefusal(candidate.Value)
             && candidate.Value.TryGetProperty("isRequired", out var required)
             && required.GetString() == condition);
-        bool inRefusedOptions = symbols.GetProperty("refusedOptions").GetProperty("value").GetString()!
+        bool inRefusedOptions = _combination.Replace(symbols.GetProperty("refusedOptions").GetProperty("value").GetString()!, string.Empty)
             .Contains($"database == \"{choice}\"", StringComparison.Ordinal);
         bool sourced = manifest.RootElement.GetProperty("sources").EnumerateArray().Any(source =>
             source.TryGetProperty("source", out var path) && path.GetString() == "./" + overlay
@@ -362,6 +362,44 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
+    [InlineData(".template.config", "web", "webRendering", "./.template.config/starters/")]
+    [InlineData(".template.config/webapp/.template.config", "framework", "rendering", "../starters/")]
+    public void ServerRendering_IsCopiedFromTheStartersHoldingIt_AndRefusedForEveryOther(string folder, string option, string rendering, string startersSource)
+    {
+        string[] serverStarters = [.. WebStarters().Where(starter => File.Exists(Path.Combine(StartersFolder, starter, "ssr", "FrameworkSite", "scaffold.json")))];
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        var computed = symbols.EnumerateObject()
+            .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
+            .Where(symbol => symbol.Name != "refusedOptions")
+            .ToDictionary(symbol => symbol.Name, symbol => symbol.Value.GetProperty("value").GetString()!);
+        var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
+        string refusal = $"({rendering} == \"ssr\" && {string.Join(" && ", serverStarters.Select(starter => $"{option} != \"{starter}\""))})";
+
+        serverStarters.ShouldNotBeEmpty("No starter under .template.config/starters holds ssr/FrameworkSite/scaffold.json, so this rule reads nothing.");
+        ChoiceValues(symbols.GetProperty(rendering)).ShouldBe(["spa", "ssr"], $"--{rendering} offers spa and ssr in {folder}/template.json.");
+        Facet(symbols.GetProperty(rendering), "defaultValue").ShouldBe("spa", $"--{rendering} keeps the single-page app as its default.");
+        computed["webServerRendering"].ShouldContain($"{rendering} == \"ssr\"", Case.Sensitive, $"webServerRendering in {folder}/template.json must hold when --{rendering} is ssr.");
+        Facet(symbols.GetProperty("serverRenderingNeedsAServerStarter"), "isRequired").ShouldBe(
+            refusal,
+            $"{folder}/template.json must refuse --{rendering} ssr for exactly the starters without an ssr folder, which the starters holding one are not.");
+
+        foreach (string starter in serverStarters)
+        {
+            string symbol = computed.Single(pair => ChosenValues(pair.Value, option).Contains(starter)).Key;
+            var spa = sources.Single(source => Text(source, "source") == $"{startersSource}{starter}/");
+            string[] excluded = [.. spa.GetProperty("modifiers").EnumerateArray()
+                .Select(modifier => $"{Text(modifier, "condition")}:{string.Join(",", modifier.GetProperty("exclude").EnumerateArray().Select(path => path.GetString()))}")];
+
+            excluded.ShouldBe([":ssr/**", "(webServerRendering):FrameworkSite/**"], $"{folder}/template.json must copy {startersSource}{starter}/ without its ssr folder, and without its FrameworkSite under webServerRendering, since the ssr folder holds the app's FrameworkSite then.");
+            sources.Count(source => Text(source, "source") == $"{startersSource}{starter}/ssr/"
+                    && Text(source, "target") == "./Src/Web/apps/"
+                    && Text(source, "condition") == $"({symbol} && webServerRendering)")
+                .ShouldBe(1, $"{folder}/template.json must copy {startersSource}{starter}/ssr/ into ./Src/Web/apps/ under ({symbol} && webServerRendering).");
+        }
+    }
+
+    [Theory]
     [InlineData(".template.config", "presentation", "./.template.config/starters/")]
     [InlineData(".template.config/presentation/.template.config", "framework", "../starters/")]
     public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource)
@@ -401,8 +439,77 @@ public sealed class TemplatePackagingTests
         string[] all = [.. Directory.GetDirectories(StartersFolder).Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal)];
 
         all.ShouldBe(
-            [.. WebStarters().Concat(PresentationStarters()).Order(StringComparer.Ordinal)],
-            "A folder under .template.config/starters holds FrameworkSite/scaffold.json for --web or the presentation project's scaffold.json for --presentation; one holding neither is copied by no option.");
+            [.. WebStarters().Concat(PresentationStarters()).Append(_workerStarter).Order(StringComparer.Ordinal)],
+            "A folder under .template.config/starters holds FrameworkSite/scaffold.json for --web, the presentation project's scaffold.json for --presentation, or the worker's for --jobs worker; one holding none is copied by no option.");
+    }
+
+    [Fact]
+    public void TheWorkerStarter_IsWrittenWhole_AndCopiedByJobsWorker()
+    {
+        string project = Path.Combine(StartersFolder, _workerStarter, "Src", "Presentation", "AppTemplate.Worker");
+        using var descriptor = JsonDocument.Parse(File.ReadAllText(Path.Combine(project, "scaffold.json")));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+
+        Text(descriptor.RootElement, "kind").ShouldBe("written", "The worker's starter holds its whole project, which its scaffold.json must say, so presentation-scaffold runs no generator.");
+        Text(descriptor.RootElement, "generator").ShouldNotBeNullOrWhiteSpace("A written starter names the generator whose shape it follows.");
+        Text(descriptor.RootElement, "version").ShouldNotBeNullOrWhiteSpace("A written starter names the version of the generator it follows.");
+        descriptor.RootElement.TryGetProperty("template", out _).ShouldBeFalse("A written starter names no template to run.");
+        File.Exists(Path.Combine(project, "AppTemplate.Worker.csproj")).ShouldBeTrue("A written starter holds its project file.");
+        File.Exists(Path.Combine(project, "Program.cs")).ShouldBeTrue("A written starter holds its composition root.");
+        manifest.RootElement.GetProperty("sources").EnumerateArray()
+            .Count(source => Text(source, "source") == $"./.template.config/starters/{_workerStarter}/"
+                && Text(source, "target") == "./"
+                && Text(source, "condition") == "(jobsWorker)")
+            .ShouldBe(1, "template.json must copy the worker's starter into ./ under the condition (jobsWorker).");
+    }
+
+    [Fact]
+    public void TheFoldersTheWorkerTakes_AreTheOnesTheApiLeavesOut()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var sources = manifest.RootElement.GetProperty("sources").EnumerateArray().ToList();
+
+        string[] taken = [.. MovedSources(sources)
+            .SelectMany(source => source.GetProperty("include").EnumerateArray()
+                .Select(include => Text(source, "source")![2..] + include.GetString()))
+            .Append("docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md")
+            .Order(StringComparer.Ordinal)];
+        string[] leftOut = [.. sources[0].GetProperty("modifiers").EnumerateArray()
+            .Where(modifier => Text(modifier, "condition") == "(jobsWorker)")
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(path => path.GetString()!))
+            .Order(StringComparer.Ordinal)];
+
+        taken.Length.ShouldBeGreaterThanOrEqualTo(4, "Far fewer moved folders were found than the worker takes, so this rule is not reading template.json.");
+        leftOut.ShouldBe(taken, "Under jobsWorker the API's source must leave out exactly the folders the worker's sources copy, or a job would run in both hosts or in neither.");
+    }
+
+    [Fact]
+    public void EveryNamespaceTheWorkerTakes_HasItsSwitchSymbol()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var symbols = manifest.RootElement.GetProperty("symbols");
+        var switched = symbols.EnumerateObject()
+            .Where(symbol => symbol.Name.StartsWith("jobsNamespace", StringComparison.Ordinal))
+            .ToDictionary(
+                symbol => Text(symbol.Value, "replaces")!,
+                symbol => symbol.Value.GetProperty("parameters").GetProperty("cases").EnumerateArray()
+                    .Single(@case => Text(@case, "condition") == "(jobsWorker)").GetProperty("value").GetString()!,
+                StringComparer.Ordinal);
+
+        string[] declared = [.. MovedSources(manifest.RootElement.GetProperty("sources").EnumerateArray().ToList())
+            .SelectMany(MovedFiles)
+            .SelectMany(File.ReadLines)
+            .Select(line => _declaredNamespace.Match(line))
+            .Where(match => match.Success)
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
+
+        declared.Length.ShouldBeGreaterThanOrEqualTo(5, "Far fewer namespaces were found in the moved folders than they declare, so this rule is not reading them.");
+        declared.Where(space => !switched.ContainsKey(space)).ShouldBeEmpty(
+            "A namespace declared in a folder --jobs worker moves needs a generated switch symbol of template.json that replaces it, or the moved file keeps the API's namespace in the worker.");
+        declared.Where(space => switched.TryGetValue(space, out string? worker) && worker != "Worker." + space["Api.".Length..]).ShouldBeEmpty(
+            "Each switch symbol of a moved namespace gives the worker the same namespace with Worker in place of Api.");
     }
 
     [Fact]
@@ -613,6 +720,30 @@ public sealed class TemplatePackagingTests
 
     private static string PresentationDescriptor(string presentation) =>
         Path.Combine(StartersFolder, presentation, "Src", "Presentation", "AppTemplate.PresentationApp", "scaffold.json");
+
+    private const string _workerStarter = "worker";
+
+    private static readonly Regex _combination = new(@"\([^()]*&&[^()]*\)", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _declaredNamespace = new(@"^namespace AppTemplate\.(\S+);$", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static IEnumerable<JsonElement> MovedSources(List<JsonElement> sources) =>
+        sources.Where(source => Text(source, "condition") == "(jobsWorker)"
+            && Text(source, "target") is { } target && target.Contains("AppTemplate.Worker", StringComparison.Ordinal));
+
+    private static IEnumerable<string> MovedFiles(JsonElement source)
+    {
+        string root = Path.Combine(ProjectReferenceGraph.RepositoryRoot, Text(source, "source")![2..]);
+
+        return source.GetProperty("include").EnumerateArray()
+            .Select(include => include.GetString()!.Replace("/**", string.Empty, StringComparison.Ordinal))
+            .SelectMany(folder => folder.Contains('*', StringComparison.Ordinal)
+                ? Directory.GetDirectories(Path.Combine(root, folder.Split("/*/")[0]))
+                    .Select(feature => Path.Combine(feature, folder.Split("/*/")[1]))
+                : [Path.Combine(root, folder)])
+            .Where(Directory.Exists)
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*.cs", SearchOption.AllDirectories));
+    }
 
     private static string[] WebStarters() =>
         [.. Directory.GetDirectories(StartersFolder)

@@ -79,13 +79,22 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 <!--#if (presentationBlazorServer)-->
 | the presentation project's `Program.cs` | the same line |
 <!--#endif-->
+<!--#if (jobsWorker)-->
+| `Src/Presentation/<Project>.Worker/Program.cs` | the same line |
+<!--#endif-->
 | `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
 | `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
 | `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
 <!--#endif-->
 <!--#if (todoLists)-->
+<!--#if (!jobsWorker)-->
 | `Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
 | `Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
+<!--#endif-->
+<!--#if (jobsWorker)-->
+| `Src/Presentation/<Project>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
+| `Src/Presentation/<Project>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
+<!--#endif-->
 | `Src/Infrastructure/AppTemplate.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
 | `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
 <!--#endif-->

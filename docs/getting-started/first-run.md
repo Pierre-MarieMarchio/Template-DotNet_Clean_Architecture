@@ -369,6 +369,32 @@ dotnet run Tools/Tasks.cs test --no-integration
 `/api/v1/widgets` now answers in Scalar. [Adding a feature](../guides/adding-a-feature.md) says what to
 write next.
 <!--#endif-->
+<!--#if (canAddFeature && !api)-->
+## Add a feature
+
+Generate the skeleton of a feature owned by its caller:
+
+```bash
+dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion delete
+```
+
+It writes every layer but an HTTP one, which this project does not hold, a manifest under
+`.feature-manifest`, and the feature's page in `docs/features/`, then prints the edits it leaves to
+you, each host's `Program.cs` among them. Make them in order: the solution compiles again after the
+first, and the feature composes after the last. Add the row it prints to `docs/README.md`.
+
+The database has applied the initial migration, so add one for the new tables, apply it as the first
+run did, then run the tests:
+
+```bash
+dotnet run Tools/Tasks.cs migration-add AddWidgets
+dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+dotnet run Tools/Tasks.cs test --no-integration
+```
+
+[Adding a feature](../guides/adding-a-feature.md) says what to write next, what each host shows of
+the feature among it.
+<!--#endif-->
 
 ## Next
 

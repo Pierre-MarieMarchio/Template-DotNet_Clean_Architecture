@@ -207,7 +207,7 @@ since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options th
 | `template` | the `package` and the `version` that generated the project |
 | `name` | the project's name, the prefix of every project under `Src` and `Tests` |
 | `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `jobs`, `ci`, `sonar`, `agentFiles` |
-| `client` | `true` when `Src/Clients` holds the .NET client |
+| `client` | `true` when the project holds the .NET client of the API |
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience` and `rendering` each was added with, and the `packages` added to it |
 | `presentation` | present with a presentation project: its `name` and its `framework` |
 

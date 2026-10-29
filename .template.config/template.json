@@ -1090,6 +1090,54 @@
       "replaces": "\"auth\": \"local\"",
       "description": "The --auth value cleanarch.json records."
     },
+    "architectureTestsDatabase": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(sqlServer)",
+            "value": "GeneratedDatabase = \"sqlserver\""
+          },
+          {
+            "condition": "(sqlite)",
+            "value": "GeneratedDatabase = \"sqlite\""
+          },
+          {
+            "condition": "(true)",
+            "value": "GeneratedDatabase = \"postgresql\""
+          }
+        ]
+      },
+      "replaces": "GeneratedDatabase = \"postgresql\"",
+      "description": "The --database value ProjectFileTests expects cleanarch.json to record."
+    },
+    "architectureTestsProviderCall": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(sqlServer)",
+            "value": "GeneratedProviderCall = \"UseSqlServer(\""
+          },
+          {
+            "condition": "(sqlite)",
+            "value": "GeneratedProviderCall = \"UseSqlite(\""
+          },
+          {
+            "condition": "(true)",
+            "value": "GeneratedProviderCall = \"UseNpgsql(\""
+          }
+        ]
+      },
+      "replaces": "GeneratedProviderCall = \"UseNpgsql(\"",
+      "description": "The provider call ProjectFileTests expects the contexts to be configured with."
+    },
     "projectFileDatabase": {
       "type": "generated",
       "generator": "join",

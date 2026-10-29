@@ -9,13 +9,9 @@ public sealed class ProjectFileTests
 {
     private static readonly string[] _workspacePackages = ["api-client", "eslint-config", "tsconfig"];
 
-    private static readonly Dictionary<string, string> _providerCalls = new(StringComparer.Ordinal)
-    {
-        ["postgresql"] = "UseNpgsql(",
-        ["sqlserver"] = "UseSqlServer(",
-        ["mysql"] = "UseMySql(",
-        ["sqlite"] = "UseSqlite(",
-    };
+    private const string GeneratedDatabase = "postgresql";
+
+    private const string GeneratedProviderCall = "UseNpgsql(";
 
     private static string Root => ProjectReferenceGraph.RepositoryRoot;
 
@@ -60,14 +56,16 @@ public sealed class ProjectFileTests
     [Fact]
     public void TheDatabase_IsTheProviderTheContextsUse()
     {
-        string database = Option("database");
         string provider = File.ReadAllText(Path.Combine(
             Root, "Src", "Infrastructure", $"{Name}.Infrastructure.Core", "Common", "Contexts", "DatabaseProvider.cs"));
 
-        _providerCalls.Where(call => provider.Contains(call.Value, StringComparison.Ordinal)).Select(call => call.Key).ShouldBe(
-            [database],
+        Option("database").ShouldBe(
+            GeneratedDatabase,
+            $"This project was generated with --database {GeneratedDatabase}, and cleanarch.json records another.");
+        provider.ShouldContain(
+            GeneratedProviderCall,
             Case.Sensitive,
-            $"cleanarch.json records --database {database}, and DatabaseProvider.cs configures the contexts for another provider.");
+            $"This project was generated with --database {GeneratedDatabase}, and DatabaseProvider.cs does not configure the contexts with {GeneratedProviderCall}.");
     }
 
     [Theory]

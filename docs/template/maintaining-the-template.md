@@ -95,7 +95,7 @@ with the read-only key, revokes the key and is refused with it.
 | worker, external auth, all examples | `--jobs worker --auth external --examples all --files true` |
 | mcp, external auth, all examples | `--presentation mcp --auth external --examples all --files true` |
 | mcp, local auth, notes | `--presentation mcp --examples notes --files false` |
-| sqlite, defaults | `--database sqlite` |
+| sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
 | web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
@@ -105,6 +105,8 @@ with the read-only key, revokes the key and is refused with it.
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port`, and once more for React Router with `--rendering ssr` |
 | windows, defaults | none, on `windows-latest` |
+| windows, wpf, local auth | `--presentation wpf`, on `windows-latest` |
+| windows, wpf, external auth, notes | `--presentation wpf --auth external --examples notes`, on `windows-latest` |
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
@@ -148,14 +150,16 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vue, Vite and React Router |
-| `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
+| `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--jobs worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
 | anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows one included |
 
-The Windows leg generates the default shape and carries no tag, so only a change that runs every
-leg reaches it.
+The `windows, defaults` leg generates the default shape and carries no tag, so only a change that
+runs every leg reaches it. The two WPF legs carry the WPF starter's tag, as the Linux leg that adds
+the app with `cleanarch-presentation` does: a change to the starter builds the app and runs its
+`.Core` tests on Linux, and builds, tests and checks it on Windows under both kinds of sign-in.
 
 Every leg runs on a push to `develop` or `main`, on a manual run, under the `full-acceptance` label,
 on an empty or unreadable diff, and on a change to the selector, its rules, the matrix or the
@@ -355,7 +359,8 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
 ## Presentation starters
 
 A `--presentation` value is a starter too, of kind `dotnet`
-([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)):
+([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)) or, for WPF,
+`written`:
 `.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
 `.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationApp` (its `scaffold.json`, project file,
 `Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
@@ -377,14 +382,25 @@ they add to shared files; `cleanarch-presentation` brings the same files and its
 those lines for `presentation-join`. `--presentation-name` has no default:
 `presentationNameOrDefault` gives `Mcp` under `presentationMcp` and `Portal` otherwise, and is the
 symbol that renames.
+`.template.config/starters/wpf`, copied under `presentationWpf`, which sets `dotnetClient` too, is
+written whole ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
+the WPF app, on `net10.0-windows` with `EnableWindowsTargeting` so that it builds on every system,
+holds `App.xaml`, `MainWindow.xaml` and their code-behind and references
+`AppTemplate.PresentationApp.Core` alone; that project, on `net10.0`, holds the view models, the
+settings, the host and the session, references the .NET client alone, and is the one its tests
+reference, so they run on Linux too. Its session is a copy of the Avalonia starter's, in its own
+namespace: `TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_InTheCoresNamespace` fails until a
+change to one copy is made to the other, and a third desktop client is the time to move them into a
+project of their own.
 `PresentationApp` is the token `--presentation-name` replaces, with `presentation-app` and
 `PRESENTATION_APP` beside it. A starter's C# is compiled only in a generated project, so a change to
 it is proved by generating one: Blazor's by the three acceptance legs that pass `--presentation`,
-Avalonia's by the leg that adds it with `cleanarch-presentation`, the MCP server's by the two legs
-that pass `--presentation mcp` and the SQLite leg that adds it with `cleanarch-presentation`.
+Avalonia's by the leg that adds it with `cleanarch-presentation`, WPF's by the two Windows legs and
+the SQLite leg that adds it, the MCP server's by the two legs that pass `--presentation mcp` and
+the SQLite external-auth leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
-folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` it also brings
+folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
 `Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. It cannot read the project it runs
 in, so it declares what the starter's markers read as parameters and computed symbols of the same
 names, values, defaults and refusals as `template.json`; `-n` replaces `PresentationApp` and
@@ -397,8 +413,7 @@ without one", as an edit placed after or before the lines around it, or in their
 `ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails, for each
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
-Avalonia, `presentationMcp` or `anyPresentation` for the MCP server, outside the files the item
-template brings whole and the solution, which
+Avalonia, `presentationWpf`, `dotnetClient` or `anyPresentation` for WPF, `presentationMcp` or `anyPresentation` for the MCP server, outside the files the item template brings whole and the solution, which
 `presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
 rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task; the overview and
 the web front end page stay as they are, since they describe the app the project was generated with.
@@ -417,15 +432,18 @@ post-action scripts declined: `dotnet new` asks again for ever on a closed input
 option only from a template that has such a script, so one that would ask fails instead of waiting
 for an answer. It keeps the folders and files the descriptor names, a file the starter holds
 winning, and refuses a generated project file that declares a package or a property the starter's
-lacks. A project that references the .NET client brings the client and its tests into the solution
-with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
+lacks. It adds the project to the solution with its `<Name>.Core` sibling when it has one, and the
+tests of each. A project that references the .NET client, itself or through that sibling, brings the
+client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
 
 `presentationNameIsTaken` refuses each name that would make `<Project>.<Name>` or its test project one
 of the template's own projects, as `--presentation-name` in `template.json` and as `-n` in
 `cleanarch-presentation`; `ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites` lists
-the projects under `Src` and `Tests` and fails until a new one is refused by both.
+the projects under `Src` and `Tests` and fails until a new one is refused by both. Under `wpf` it also
+refuses each name whose `<Name>.Core` is one of them, `Infrastructure` and `Presentation` beyond those
+already refused, and the same test fails until both templates do.
 
 ## The worker
 
@@ -455,8 +473,8 @@ included; `--check` fails until you do.
 ## The .NET client
 
 `Src/Clients/AppTemplate.Client` and its tests are built and tested in this checkout, and reach a
-generated project only when `dotnetClient` is true, which `--presentation avalonia` sets, or through
-`cleanarch-presentation --framework avalonia`. Its session is written under `localAuth`, its
+generated project only when `dotnetClient` is true, which `--presentation avalonia` and
+`--presentation wpf` set, or through `cleanarch-presentation --framework avalonia` or `wpf`. Its session is written under `localAuth`, its
 validation problem under `localAuth || anyFeature`, the two shapes whose document holds them.
 `dotnetClient` also brings the Kiota entry of the tool manifest; the `api-client` task, the CI step
 that runs `api-client --check`, the Dependabot group and the `Generated` exclusions are in every

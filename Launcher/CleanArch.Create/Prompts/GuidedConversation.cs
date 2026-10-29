@@ -22,6 +22,7 @@ public sealed class GuidedConversation : Conversation
         ["blazor-wasm"] = "mediumorchid",
         ["blazor-server"] = "mediumpurple",
         ["avalonia"] = "slateblue1",
+        ["wpf"] = "dodgerblue1",
         ["mcp"] = "darkorange",
     };
 

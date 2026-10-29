@@ -980,6 +980,9 @@ jobs:
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse mcp-public --auth none --examples none --files false --presentation mcp
+          refuse wpf-public --auth none --examples none --files false --presentation wpf
+          # A WPF app writes <name>.Core beside it, so a name whose .Core the template writes is refused.
+          refuse wpf-core-name --presentation wpf --presentation-name Presentation
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
           refuse worker-sqlite --database sqlite --jobs worker
           # Server rendering needs a starter holding an ssr folder.

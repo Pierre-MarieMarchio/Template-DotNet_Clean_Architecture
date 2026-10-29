@@ -250,7 +250,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         string output = Plain(console);
         output.ShouldContain("┌  Add a presentation project to Acme.Shop");
         output.ShouldContain("●  Read from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false");
-        output.ShouldContain("◇  Framework\n│  blazor-server · --framework avalonia calls the API's versioned routes");
+        output.ShouldContain("◇  Framework\n│  blazor-server · --framework avalonia and --framework wpf call the API's versioned routes");
         Order(output, "◇  Presentation name\n│  Portal", "Summary", "◇  Added Portal", "◇  Join done", "◇  Scaffold done", "The same, without questions", "└  Done.");
         Closing(output).ShouldContain("Commit Src/Presentation/Acme.Shop.Portal and its tests");
         _processes.CommandLines.Where(line => !line.StartsWith("dotnet new uninstall", StringComparison.Ordinal) && !line.StartsWith("dotnet new install", StringComparison.Ordinal)).ShouldBe(

@@ -526,13 +526,21 @@ public sealed class TemplatePackagingTests
                 .ShouldBe(1, $"{folder}/template.json must copy {startersSource}{presentation}/ into ./ under the condition ({chosenBy[0]}).");
 
             using var descriptor = JsonDocument.Parse(File.ReadAllText(PresentationDescriptor(presentation)));
-            string? kind = Text(descriptor.RootElement, "kind");
-            kind.ShouldBeOneOf(["dotnet", "written"], $"The {presentation} starter runs a dotnet new template or is written whole, which its scaffold.json must say.");
-            if (kind == "written")
+            switch (Text(descriptor.RootElement, "kind"))
             {
-                Text(descriptor.RootElement, "generator").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter is written whole, and names the generator whose shape it follows.");
-                descriptor.RootElement.TryGetProperty("template", out _).ShouldBeFalse($"The {presentation} starter is written whole, and names no template to run.");
-                File.Exists(Path.Combine(Path.GetDirectoryName(PresentationDescriptor(presentation))!, "AppTemplate.PresentationApp.csproj")).ShouldBeTrue($"The {presentation} starter is written whole, and holds its project file.");
+                case "dotnet":
+                    Text(descriptor.RootElement, "template").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter runs a dotnet new template, which its scaffold.json must name.");
+                    break;
+                case "written":
+                    Text(descriptor.RootElement, "generator").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter is written whole, and its scaffold.json names the generator whose shape it follows.");
+                    Text(descriptor.RootElement, "version").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter is written whole, and its scaffold.json names the version of the generator it follows.");
+                    descriptor.RootElement.TryGetProperty("template", out _).ShouldBeFalse($"The {presentation} starter is written whole, and its scaffold.json names no template to run.");
+                    File.Exists(Path.Combine(Path.GetDirectoryName(PresentationDescriptor(presentation))!, "AppTemplate.PresentationApp.csproj"))
+                        .ShouldBeTrue($"The {presentation} starter is written whole, and holds its project file.");
+                    break;
+                default:
+                    Assert.Fail($"The {presentation} starter's scaffold.json says neither kind dotnet, for a template it runs, nor written, for a project it holds whole.");
+                    break;
             }
         }
     }
@@ -645,6 +653,34 @@ public sealed class TemplatePackagingTests
         projects
             .Where(project => !itemRefusal.Contains($"name == \"{project}\"", StringComparison.Ordinal))
             .ShouldBeEmpty("cleanarch-presentation must refuse each -n the project template refuses as --presentation-name: add the name to presentationNameIsTaken of .template.config/presentation/.template.config/template.json.");
+
+        string[] namesOfACore = [.. projects
+            .Where(project => project.EndsWith(_coreSuffix, StringComparison.Ordinal))
+            .Select(project => project[..^_coreSuffix.Length])];
+
+        namesOfACore.Length.ShouldBeGreaterThanOrEqualTo(4, "Far fewer .Core projects were found than this template writes, so this rule is not reading its tree.");
+        namesOfACore
+            .Where(name => !refusal.Contains($"presentationName == \"{name}\"", StringComparison.Ordinal) || !itemRefusal.Contains($"name == \"{name}\"", StringComparison.Ordinal))
+            .ShouldBeEmpty("--presentation wpf writes <Project>.<name>.Core beside the app, so a name whose .Core is one of the template's projects must be refused too: add it to presentationNameIsTaken of both template.json files, under presentation == \"wpf\" or framework == \"wpf\".");
+    }
+
+    [Fact]
+    public void TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_InTheCoresNamespace()
+    {
+        string[] avalonia = DesktopSessionCode("avalonia");
+        string[] wpf = DesktopSessionCode("wpf");
+
+        avalonia.Length.ShouldBeGreaterThanOrEqualTo(10, "Far fewer files were found than the Avalonia starter's session and its tests hold, so this rule is not reading them.");
+        wpf.ShouldBe(
+            [.. avalonia.Select(path => path.Replace(_desktopProject, _desktopProject + _coreSuffix, StringComparison.Ordinal))],
+            "The WPF starter's .Core holds a copy of the Avalonia starter's desktop session and its tests, file for file. Change both copies together; a third desktop client is the time to move them into a project of their own.");
+
+        foreach ((string from, string to) in avalonia.Zip(wpf))
+        {
+            File.ReadAllText(Path.Combine(StartersFolder, "wpf", to)).ShouldBe(
+                File.ReadAllText(Path.Combine(StartersFolder, "avalonia", from)).Replace(_desktopProject + ".", _desktopProject + _coreSuffix + ".", StringComparison.Ordinal),
+                $"wpf/{to} differs from avalonia/{from} in more than the namespace: change both copies together.");
+        }
     }
 
     [Fact]
@@ -715,6 +751,11 @@ public sealed class TemplatePackagingTests
         "anyPresentation|presentationMcp|accessKeys",
         10,
         new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
+    [InlineData(
+        "wpf/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "anyPresentation|presentationWpf|dotnetClient",
+        10,
+        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
     [InlineData(
         "blazor-wasm/FrameworkSite/README.md",
         "webBlazorWasm|dotnetClient",
@@ -831,6 +872,33 @@ public sealed class TemplatePackagingTests
         Path.Combine(StartersFolder, presentation, "Src", "Presentation", "AppTemplate.PresentationApp", "scaffold.json");
 
     private const string _workerStarter = "worker";
+
+    private const string _coreSuffix = ".Core";
+
+    private const string _desktopProject = "AppTemplate.PresentationApp";
+
+    private static readonly string[] _desktopSessionCode =
+    [
+        "Src/Presentation/AppTemplate.PresentationApp/Common/Sessions",
+        "Src/Presentation/AppTemplate.PresentationApp/Common/Hosting/SignInOptions.cs",
+        "Src/Presentation/AppTemplate.PresentationApp/Common/Hosting/SignInOptionsValidator.cs",
+        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/Common/Sessions",
+        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/Common/Hosting/SignInOptionsValidatorTests.cs",
+        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/TestSupport/ScriptedBrowser.cs",
+        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/TestSupport/StubProvider.cs",
+    ];
+
+    private static string[] DesktopSessionCode(string starter)
+    {
+        string root = Path.Combine(StartersFolder, starter);
+        string project = starter == "wpf" ? _desktopProject + _coreSuffix : _desktopProject;
+
+        return [.. _desktopSessionCode
+            .Select(path => Path.Combine(root, path.Replace(_desktopProject, project, StringComparison.Ordinal)))
+            .SelectMany(path => Directory.Exists(path) ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories) : File.Exists(path) ? [path] : [])
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)];
+    }
 
     private static readonly Regex _combination = new(@"\([^()]*&&[^()]*\)", RegexOptions.None, TimeSpan.FromSeconds(5));
 

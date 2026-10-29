@@ -97,6 +97,9 @@ what changing it costs.
 <!--#if (presentationMcp)-->
 | An MCP server beside the API, in the shape of `dotnet new mcpserver --transport remote`, stateless on Streamable HTTP, each tool one use case called in process | An agent's client reaches the use cases as tools, acting for the caller its credential names | [Presentation project](../features/presentation.md) | — |
 <!--#endif-->
+<!--#if (presentationWpf)-->
+| A WPF desktop app for Windows beside the API, in the shape of `dotnet new wpf`, its view models in a `.Core` project that builds and is tested on every system, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases | [Presentation project](../features/presentation.md) | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) |
+<!--#endif-->
 
 ## Consequences
 

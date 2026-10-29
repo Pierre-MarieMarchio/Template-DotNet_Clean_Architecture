@@ -46,7 +46,7 @@ should run.
   the circuit's or the request's principal, given to each operation's own scope, so a use case
   never shares a database context across a circuit's lifetime.
 <!--#endif-->
-<!--#if (presentationAvalonia)-->
+<!--#if (presentationAvalonia || presentationWpf)-->
 - **The presentation project of this repository** is a desktop client. It calls the API through
   the .NET client and composes only that client, its settings and its view models; its caller is
   whoever the API's token names.

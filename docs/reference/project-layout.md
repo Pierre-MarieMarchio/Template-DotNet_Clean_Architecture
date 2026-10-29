@@ -22,6 +22,11 @@ named `<Type>.axaml.cs` declares `<Type>`.
 The MCP server keeps each feature's tools under `Features/<F>/Tools`, one class named
 `<F>Tools`, and what every tool shares under `Common/Tools`.
 <!--#endif-->
+<!--#if (presentationWpf)-->
+The presentation project's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
+markup, in the shape `dotnet new wpf` gives them, and its `.Core` project's root holds `ViewModels/`;
+a file named `<Type>.xaml.cs` declares `<Type>`.
+<!--#endif-->
 <!--#if (dotnetClient)-->
 The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
 writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
@@ -152,6 +157,20 @@ Src/Presentation/
 <!--#if (presentationMcp && externalAuth)-->
   <Project>.<Name>                      Common/{Hosting,Security,Tools}
                                         Features/<F>/{Composition,Configuration/Options,Tools}
+<!--#endif-->
+<!--#if (presentationWpf)-->
+  <Project>.<Name>                      no Common/, no Features/
+                                        App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
+<!--#endif-->
+<!--#if (presentationWpf && localAuth)-->
+  <Project>.<Name>.Core                 Common/{Hosting}
+                                        no Features/
+                                        ViewModels/
+<!--#endif-->
+<!--#if (presentationWpf && externalAuth)-->
+  <Project>.<Name>.Core                 Common/{Hosting,Sessions}
+                                        no Features/
+                                        ViewModels/
 <!--#endif-->
 <!--#if (jobsWorker)-->
   <Project>.Worker                      Common/{Jobs,Security}

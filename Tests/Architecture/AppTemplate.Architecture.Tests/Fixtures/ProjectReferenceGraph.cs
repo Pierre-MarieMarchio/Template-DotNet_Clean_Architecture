@@ -29,7 +29,8 @@ internal static class ProjectReferenceGraph
     internal static IEnumerable<ProjectNode> InfrastructureModules =>
         SourceProjects.Values.Where(project => IsInfrastructureModule(project.Name));
 
-    internal static bool IsClient(ProjectNode project) => project.References.Contains(_clientProject);
+    internal static bool IsClient(ProjectNode project) =>
+        project.Name != _clientProject && ClosureOf(project).Any(reached => reached.Name == _clientProject);
 
     internal static IEnumerable<ProjectNode> Clients => SourceProjects.Values.Where(IsClient);
 

@@ -69,12 +69,18 @@
   <!--#endif-->
   <!--#if (presentationAvalonia)-->
   <!-- One Avalonia 12.1.x band, the version Avalonia.Templates writes. -->
+  <!--#endif-->
+  <!--#if (presentationAvalonia || presentationWpf)-->
   <ItemGroup Label="Desktop presentation">
+  <!--#endif-->
+  <!--#if (presentationAvalonia)-->
     <PackageVersion Include="Avalonia" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+  <!--#endif-->
+  <!--#if (presentationAvalonia || presentationWpf)-->
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!--#if (externalAuth)-->
     <PackageVersion Include="Duende.IdentityModel.OidcClient" Version="7.1.0" />

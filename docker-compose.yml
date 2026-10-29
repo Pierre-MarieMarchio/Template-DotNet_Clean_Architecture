@@ -216,9 +216,13 @@ services:
     networks: [backend]
 
   #endif
-  #if (presentationBlazorServer)
+  #if (presentationBlazorServer || presentationMcp)
   presentation-presentation-app:
+    #if (presentationMcp)
+    # The MCP server reads the api's settings with its own composition, and runs neither jobs nor migrations.
+    #else
     # The presentation project reads the api's settings with its own composition, and runs neither jobs nor migrations.
+    #endif
     extends:
       file: docker-compose.database.yml
       service: database-client
@@ -229,6 +233,11 @@ services:
     restart: unless-stopped
     environment:
       <<: *api-environment
+      #if (presentationMcp)
+      #if (externalAuth)
+      Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8090/mcp}
+      #endif
+      #else
       #if (!localAuth)
       DataProtection__KeysDirectory: /data-protection-keys
       #endif
@@ -236,40 +245,11 @@ services:
       Authentication__External__Interactive__ClientId: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID:-}
       Authentication__External__Interactive__ClientSecret: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET:-}
       #endif
-    #if (!localAuth)
+      #endif
+    #if (presentationBlazorServer && !localAuth)
     volumes:
       - presentation-app-keys:/data-protection-keys
     #endif
-    ports:
-      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
-      interval: 15s
-      timeout: 3s
-      retries: 5
-      start_period: 30s
-    networks: [backend]
-
-  #endif
-  #if (presentationMcp)
-  presentation-presentation-app:
-    # The MCP server reads the api's settings with its own composition, and runs neither jobs nor migrations.
-    extends:
-      file: docker-compose.database.yml
-      service: database-client
-    image: app-template-presentation-app:dev
-    build:
-      context: .
-      dockerfile: Src/Presentation/AppTemplate.PresentationApp/Dockerfile
-    restart: unless-stopped
-    environment:
-      <<: *api-environment
-      #if (externalAuth)
-      Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8090/mcp}
-      #endif
     ports:
       - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
     depends_on:

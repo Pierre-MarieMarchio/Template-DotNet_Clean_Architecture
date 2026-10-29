@@ -243,7 +243,7 @@ public sealed partial class Launcher
     }
 
     private static Question SetupQuestion(Session session) =>
-        new(_setupKey, (_, remembered) =>
+        new(_setupKey, (answers, remembered) =>
         {
             string[] every = [.. ProjectSetup.Steps.Select(step => step.Title)];
             if (session.Parsed.Setup)
@@ -258,10 +258,16 @@ public sealed partial class Launcher
 
             IReadOnlyList<string>? chosen = session.Conversation.ChooseMany(
                 "Set up the project now?",
-                [.. ProjectSetup.Steps.Select(step => new OptionChoice(step.Title, step.Description))],
+                [.. ProjectSetup.Steps.Select(step => new OptionChoice(step.Title, step == ProjectSetup.Bootstrap ? BootstrapDescription(session, answers) : step.Description))],
                 remembered is null ? every : Steps(remembered));
             return chosen is null ? Reply.Backward : Reply.Answer(string.Join(_setupSeparator, chosen));
         });
+
+    private static string BootstrapDescription(Session session, IReadOnlyDictionary<string, string> answers)
+    {
+        TemplateManifest manifest = session.Source.Manifest(TemplateKind.Project);
+        return ProjectSetup.BootstrapDescription(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers)));
+    }
 
     private static string[] Steps(string? chosen) => chosen?.Split(_setupSeparator, StringSplitOptions.RemoveEmptyEntries) ?? [];
 
@@ -359,7 +365,10 @@ public sealed partial class Launcher
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
         Install(session, _workingDirectory);
-        session.Conversation.Perform($"Generating {name}", $"Generated {name}", () => session.Dotnet.Run(_workingDirectory, [manifest.ShortName, "-n", name, "-o", target, .. options]));
+        session.Conversation.Perform($"Generating {name}", $"Generated {name}", () => session.Dotnet.Run(
+                _workingDirectory,
+                [manifest.ShortName, "-n", name, "-o", target, .. options],
+                asked.Setup.Contains(ProjectSetup.Bootstrap.Title) ? [ProjectSetup.BootstrapTask] : null));
         List<SetupOutcome> outcomes = SetUp(session, target, asked.Setup);
 
         Equivalents(session, Arguments.NewCommand, [manifest.ShortName, "-n", name, "-o", output, .. options], asked.Setup.Count == ProjectSetup.Steps.Count);
@@ -423,10 +432,13 @@ public sealed partial class Launcher
         }
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
-        Install(session, project.Root);
-        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
-
         bool workspace = Condition.IsTruthy(manifest.Resolve("workspace", asked.Options));
+        Install(session, project.Root);
+        session.Conversation.Perform(
+            $"Adding {name}",
+            $"Added {name}",
+            () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options], workspace ? null : [WebJoinTask]));
+
         string appReadme = Path.Combine(folder, "README.md");
         string[] join = ["run", "Tools/Tasks.cs", WebJoinTask, name];
         string[] joinLines = MarkdownSection(appReadme, JoiningSection) is null ? [] : [TemplateEngine.CommandLine("dotnet", join)];
@@ -483,7 +495,7 @@ public sealed partial class Launcher
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
         Install(session, project.Root);
-        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options]));
+        session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options], [PresentationJoinTask, PresentationScaffoldTask]));
 
         string[] join = ["run", "Tools/Tasks.cs", PresentationJoinTask, folder];
         string[] scaffold = ["run", "Tools/Tasks.cs", PresentationScaffoldTask, folder];

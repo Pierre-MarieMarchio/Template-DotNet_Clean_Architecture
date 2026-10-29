@@ -50,6 +50,9 @@ Each rule has one home, and a test holds it wherever a test can.
   it.
 - A constraint you checked by hand becomes a rule in `Tests/Architecture`.
 - A decision that could reasonably have gone the other way is an ADR.
+- Commits and pull requests name their human author only, with no `Co-Authored-By` or "Generated
+  with" line naming an AI tool; the author answers for every line and can explain it
+  ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
 
 <!--#if (templateMaintenance)-->
 ## Working on the template

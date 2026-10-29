@@ -125,7 +125,7 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
         manifest.Refusals.Select(refusal => refusal.CliName).Order(StringComparer.Ordinal).ShouldBe(
-            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "jobs-need-the-api-or-the-worker", "mcp-needs-accounts", "my-sql-not-yet-generated", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
+            ["admin-web-needs-accounts", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "mcp-needs-accounts", "my-sql-not-yet-generated", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
     }
 
     [Fact]
@@ -193,6 +193,32 @@ public sealed class TemplateManifestTests
                     Launcher.ApiCallers.Any(caller => manifest.Holds(caller.When, answers)).ShouldBe(needsApi, $"presentation={chosen}, web={web}, auth={auth}");
                     Launcher.CallersOfTheApiAdded(manifest, answers).Count.ShouldBe(needsApi && !chosen.Split('|').Contains("api") ? Launcher.ApiCallers.Count(caller => manifest.Holds(caller.When, answers)) : 0);
                     added += Launcher.CallersOfTheApiAdded(manifest, answers).Count > 0 ? 1 : 0;
+                }
+            }
+        }
+
+        added.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public void TheWorkerTheLauncherAdds_IsExactlyWhatMakesTheTemplateAddIt()
+    {
+        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
+        TemplateOption presentation = manifest.Options.Single(option => option.Symbol == "presentation");
+        int added = 0;
+
+        foreach (string chosen in Selections(presentation))
+        {
+            foreach (string web in manifest.Options.Single(option => option.Symbol == "web").Choices.Select(choice => choice.Value))
+            {
+                foreach (string auth in manifest.Options.Single(option => option.Symbol == "auth").Choices.Select(choice => choice.Value))
+                {
+                    var answers = new Dictionary<string, string> { ["presentation"] = chosen, ["web"] = web, ["auth"] = auth };
+                    bool needsWorker = Condition.IsTruthy(manifest.Resolve("needsWorker", answers));
+
+                    Launcher.WorkerAdded(manifest, answers).ShouldBe(needsWorker, $"presentation={chosen}, web={web}, auth={auth}");
+                    Condition.IsTruthy(manifest.Resolve("jobsWorker", Launcher.WithTheHostsAdded(manifest, answers))).ShouldBe(Condition.IsTruthy(manifest.Resolve("jobsWorker", answers)));
+                    added += needsWorker ? 1 : 0;
                 }
             }
         }

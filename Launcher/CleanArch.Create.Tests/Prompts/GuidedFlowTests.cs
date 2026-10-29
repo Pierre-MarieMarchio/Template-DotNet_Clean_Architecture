@@ -479,6 +479,17 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
+    public void WithYes_TheWorker_IsAddedForAPortalWithoutTheApi_AndPassed()
+    {
+        TestConsole console = Terminal();
+
+        Run(console, "new", "-n", "Demo", "--presentation", "blazor-server", "--auth", "external", "--yes");
+
+        Plain(console).ShouldContain("Presentation projects: blazor-server, worker (the worker added for you: the jobs run in it)");
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--presentation blazor-server --presentation worker", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void APortalWithAWebApp_IsAnsweredTheApi_WhichTheWebAppCalls()
     {
         TestConsole console = Terminal();
@@ -488,7 +499,9 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Spacebar);
-        PushEnters(console, 13);
+        console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.DownArrow);
+        PushEnters(console, 12);
 
         Run(console, "new");
 

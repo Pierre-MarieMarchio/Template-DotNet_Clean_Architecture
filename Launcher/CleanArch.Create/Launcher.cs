@@ -63,9 +63,10 @@ public sealed partial class Launcher
     private const string _outputKey = "--output";
     private const string _setupKey = "--setup";
     private const string _reviewKey = "--review";
-    private const string _apiKey = "--api";
+    private const string _hostsAddedKey = "--hosts-added";
     private const string _presentationSymbol = "presentation";
     private const string _apiChoice = "api";
+    private const string _workerChoice = "worker";
     private const string _frameworkSymbol = "framework";
     private const char _setupSeparator = '|';
     private const string _itemNameSymbol = "name";
@@ -301,12 +302,21 @@ public sealed partial class Launcher
             ? [.. ApiCallers.Where(caller => manifest.Holds(caller.When, answers)).Select(caller => caller.Who)]
             : [];
 
-    public static Dictionary<string, string> WithTheApi(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers)
+    public static bool WorkerAdded(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers) =>
+        answers.TryGetValue(_presentationSymbol, out string? chosen)
+            && !TemplateOption.Values(chosen).Any(value => value is _apiChoice or _workerChoice)
+            && !ApiCallers.Any(caller => manifest.Holds(caller.When, answers));
+
+    public static Dictionary<string, string> WithTheHostsAdded(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers)
     {
         var completed = new Dictionary<string, string>(answers, StringComparer.Ordinal);
         if (CallersOfTheApiAdded(manifest, answers).Count > 0)
         {
             completed[_presentationSymbol] = PresentationOption(manifest).Joined([.. TemplateOption.Values(answers[_presentationSymbol]), _apiChoice]);
+        }
+        else if (WorkerAdded(manifest, answers))
+        {
+            completed[_presentationSymbol] = PresentationOption(manifest).Joined([.. TemplateOption.Values(answers[_presentationSymbol]), _workerChoice]);
         }
 
         return completed;
@@ -315,16 +325,16 @@ public sealed partial class Launcher
     private static TemplateOption PresentationOption(TemplateManifest manifest) =>
         manifest.Options.Single(option => option.Symbol == _presentationSymbol);
 
-    private static Question ApiQuestion(Session session, TemplateManifest manifest) =>
-        new(_apiKey, (answers, _) =>
+    private static Question HostsAddedQuestion(Session session, TemplateManifest manifest) =>
+        new(_hostsAddedKey, (answers, _) =>
         {
-            if (CallersOfTheApiAdded(manifest, answers) is { Count: > 0 } callers)
+            string? why = CallersOfTheApiAdded(manifest, answers) is { Count: > 0 } callers
+                ? $"the API added for you: {string.Join(" and ", callers)} {(callers.Count == 1 ? "calls" : "call")} it"
+                : WorkerAdded(manifest, answers) ? "the worker added for you: the jobs run in it" : null;
+            if (why is not null)
             {
                 TemplateOption presentation = PresentationOption(manifest);
-                session.Conversation.Answered(
-                    presentation.Label,
-                    Questionnaire.Shown(presentation, WithTheApi(manifest, answers)[_presentationSymbol]),
-                    $"the API added for you: {string.Join(" and ", callers)} {(callers.Count == 1 ? "calls" : "call")} it");
+                session.Conversation.Answered(presentation.Label, Questionnaire.Shown(presentation, WithTheHostsAdded(manifest, answers)[_presentationSymbol]), why);
             }
 
             return Reply.Passed(null);
@@ -460,7 +470,7 @@ public sealed partial class Launcher
         ];
         Question[] after =
         [
-            ApiQuestion(session, manifest),
+            HostsAddedQuestion(session, manifest),
             SetupQuestion(session),
             Reviewed(
                 session,
@@ -468,12 +478,12 @@ public sealed partial class Launcher
                 [
                     KeyValuePair.Create("Project name", given.GetValueOrDefault(_nameKey) ?? string.Empty),
                     KeyValuePair.Create("Output folder", given.GetValueOrDefault(_outputKey) ?? string.Empty),
-                    .. Questionnaire.Recap(manifest, WithTheApi(manifest, given)),
+                    .. Questionnaire.Recap(manifest, WithTheHostsAdded(manifest, given)),
                     KeyValuePair.Create("Setup steps", Recalled(Steps(given.GetValueOrDefault(_setupKey)))),
                 ],
                 given => $"Generate {given.GetValueOrDefault(_nameKey)}"),
         ];
-        Dictionary<string, string> answers = WithTheApi(manifest, questionnaire.Answer(manifest, parsed.TemplateOptions, _nothing, ProjectAskedWhen, before, after));
+        Dictionary<string, string> answers = WithTheHostsAdded(manifest, questionnaire.Answer(manifest, parsed.TemplateOptions, _nothing, ProjectAskedWhen, before, after));
         var asked = new Asked(answers.GetValueOrDefault(_nameKey), answers.GetValueOrDefault(_outputKey), answers, Steps(answers.GetValueOrDefault(_setupKey)));
         string name = asked.Name!;
         string output = asked.Output!;

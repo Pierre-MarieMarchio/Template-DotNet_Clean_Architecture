@@ -160,7 +160,7 @@ public sealed class OfferTests
         Offer.For(_project, Option(_project, "presentation"), known, Launcher.ProjectAskedWhen).Values
             .ShouldBe(["api", "blazor-server", "mcp", "avalonia", "wpf", "worker"]);
         Offer.Unavoidable(_project, new Dictionary<string, string>(known) { ["presentation"] = "blazor-server|mcp" }, Launcher.ProjectAskedWhen)
-            .Select(refusal => refusal.Symbol).ShouldBe(["jobsNeedTheApiOrTheWorker"]);
+            .ShouldBeEmpty();
     }
 
     [Fact]
@@ -173,16 +173,23 @@ public sealed class OfferTests
     }
 
     [Fact]
-    public void APortalAlone_LeavesNoWebAppOut_ForTheJobsNeedTheApiOrTheWorker()
+    public void APortalAlone_IsOfferedNoWebApp_ForTheWorkerAddedForIt()
     {
         var known = new Dictionary<string, string> { ["presentation"] = "blazor-server", ["auth"] = "external" };
 
         Offer offer = Offer.For(_project, Option(_project, "web"), known, Launcher.ProjectAskedWhen);
 
-        offer.Values.ShouldNotContain("none");
-        offer.Reasons.Select(refusal => refusal.Symbol).ShouldBe(["jobsNeedTheApiOrTheWorker"]);
-        Offer.For(_project, Option(_project, "web"), new Dictionary<string, string>(known) { ["presentation"] = "api|blazor-server" }, Launcher.ProjectAskedWhen)
-            .Values.ShouldContain("none");
+        offer.Values.ShouldContain("none");
+        offer.Reasons.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void APortalAlone_OnSqlite_IsRefusedTheWorkerAddedForIt()
+    {
+        var known = new Dictionary<string, string> { ["presentation"] = "blazor-server", ["auth"] = "external", ["web"] = "none", ["database"] = "sqlite" };
+
+        Offer.Unavoidable(_project, known, Launcher.ProjectAskedWhen).Select(refusal => refusal.Symbol).ShouldBe(["workerNeedsServerDatabase"]);
+        Offer.Unavoidable(_project, new Dictionary<string, string>(known) { ["presentation"] = "api|blazor-server" }, Launcher.ProjectAskedWhen).ShouldBeEmpty();
     }
 
     private List<string> Accepted(TemplateOption option, IReadOnlyList<string> offered, Dictionary<string, string> answers) =>

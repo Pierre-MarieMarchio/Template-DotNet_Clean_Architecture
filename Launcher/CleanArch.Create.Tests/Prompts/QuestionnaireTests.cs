@@ -217,7 +217,7 @@ public sealed class QuestionnaireTests
 
     [Theory]
     [InlineData("avalonia|wpf", "desktopIsOneFramework")]
-    [InlineData("blazor-server", "jobsNeedTheApiOrTheWorker")]
+    [InlineData("blazor-server", null)]
     [InlineData("api|worker", null)]
     public void WithoutATerminal_PresentationProjectsTheTemplateRefusesTogether_AreExplainedAndNotGenerated(string presentation, string? refusal)
     {

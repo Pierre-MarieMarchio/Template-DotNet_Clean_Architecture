@@ -147,8 +147,11 @@ setting, table or test names it.
 <!--#if (webViteSvelte)-->
 | `--web` | `vite-svelte` | a Svelte app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
 <!--#endif-->
-<!--#if (webReactRouter)-->
+<!--#if (webReactRouter && !webServerRendering)-->
 | `--web` | `react-router` | a React single-page app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
+<!--#endif-->
+<!--#if (webReactRouter && webServerRendering)-->
+| `--web` | `react-router` | a React app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
 <!--#endif-->
 <!--#if (webBlazorWasm)-->
 | `--web` | `blazor-wasm` | a Blazor WebAssembly app in `Src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `Src/Clients` |

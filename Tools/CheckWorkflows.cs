@@ -594,7 +594,7 @@ internal static class WorkflowGate
             CleanFixture.Replace(
                 "    runs-on: ubuntu-latest",
                 "    runs-on: ubuntu-latest\n    services:\n      db:\n        image: "
-                + "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1")
+                + "postgres:18.6-alpine3.23@sha256:1a0c23d53c1ad77468c8653fa6eed4f4105cfbef9e6f027bc1dfeb16949a8c29")
         ),
         (
             "path inputs that exist, and one built from the matrix",

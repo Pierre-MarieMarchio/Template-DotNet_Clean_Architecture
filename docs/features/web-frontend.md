@@ -24,7 +24,7 @@ browser talks to one origin per app and the API keeps CORS closed.
 The app is written by its framework's official CLI, at a version pinned in the app's folder:
 `create-vue` for `vue`; `create-vite` with its `react-ts`, `vue-ts` or `svelte-ts` template for
 `vite-react` (or `react`, the same app), `vite-vue` and `vite-svelte`; `create-react-router` for
-`react-router`, a single-page app; the Angular CLI's `ng new` for `angular`. `bootstrap` runs that
+`react-router`; the Angular CLI's `ng new` for `angular`. `bootstrap` runs that
 step once, through `dotnet run Tools/Tasks.cs web-scaffold`, and needs the network to fetch the CLI.
 It writes the CLI's starter, lays the wiring over it (the `/api` relay, the package name, the
 `api-client` dependency, the scripts the workspace runs), pins every dependency to the version
@@ -37,11 +37,17 @@ for an answer: the descriptor in the app's folder gives the CLI every answer in 
 Commit the app with the lockfile. From then on the app is this project's own: `web-scaffold` leaves
 it alone, and the pages are yours to write.
 <!--#endif-->
-<!--#if (webServerRendering)-->
+<!--#if (webServerRendering && webAngular)-->
 
 The app is rendered on the server (`--web-rendering ssr`): the Angular CLI writes it with
 `ng new --ssr`, and the wiring adds its server's relay, headers and nonce, described under
 [images and headers](#images-and-headers).
+<!--#endif-->
+<!--#if (webServerRendering && webReactRouter)-->
+
+The app is rendered on the server (`--web-rendering ssr`): `create-react-router` writes it from its
+`node-custom-server` template, React Router behind an Express server of its own, and the wiring
+adds that server's relay, headers and nonce, described under [images and headers](#images-and-headers).
 <!--#endif-->
 <!--#if (webBlazorWasm)-->
 ## Creating the app
@@ -190,7 +196,8 @@ await api.POST('/api/v1/auth/logout');
 
 The server refreshes the access token before it expires, once for all the requests of a session,
 and a refused refresh ends the session. A page rendered on the server reads the session's token
-from the request context, `accessToken()`, beside `apiUpstream`, the API's address for a call
+from the context its server hands the framework with each request, Angular's request context or
+React Router's load context: `accessToken()`, beside `apiUpstream`, the API's address for a call
 made from the server.
 <!--#endif-->
 <!--#if (externalAuth)-->
@@ -245,8 +252,9 @@ policy's `form-action 'self'` refuses a form whose answer redirects to the provi
 sign-out when its discovery document names one, which ends the provider's session too, or `/`.
 The server refreshes the access token before it expires when the provider issued a refresh token,
 once for all the requests of a session; without one, the session ends with the access token. A
-page rendered on the server reads the session's token from the request context, `accessToken()`,
-beside `apiUpstream`.
+page rendered on the server reads the session's token from the context its server hands the
+framework with each request, Angular's request context or React Router's load context:
+`accessToken()`, beside `apiUpstream`.
 
 The app's `README.md` gives the client to register at the provider; its settings are in
 [the configuration reference](../reference/configuration.md#a-server-rendered-web-app).
@@ -298,9 +306,9 @@ two lines to add, also in the app's `README.md`: an `include:` entry in `docker-
 `WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
-`--framework angular --rendering ssr` renders the app on its own Node server instead, as
-[images and headers](#images-and-headers) describes; the other frameworks are single-page apps
-only, and `--rendering spa` is the default.
+`--rendering ssr` with `--framework angular` or `react-router` renders the app on its own Node
+server instead, as [images and headers](#images-and-headers) describes; the other frameworks are
+single-page apps only, and `--rendering spa` is the default.
 <!--#if (externalAuth)-->
 Such an app also needs its public origin, `WEB_<NAME>_ORIGIN`, in `.env.example`, and the
 provider's client of [an app rendered on the server](#an-app-rendered-on-the-server), both lines
@@ -364,7 +372,7 @@ its `connect-src` and `frame-src` when the container starts, so the page reaches
 `frame-ancestors 'self'` lets the hidden frame that renews the token land back on the page.
 <!--#endif-->
 <!--#endif-->
-<!--#if (webReactRouter)-->
+<!--#if (webReactRouter && !webServerRendering)-->
 The React Router app's page starts the app from inline scripts. Its policy allows each by its
 SHA-256 and no other: the image build hashes the inline scripts of the page it has just built and
 writes those hashes into `script-src` of the server's configuration, so the policy follows the page
@@ -372,16 +380,20 @@ with nothing to edit by hand.
 <!--#endif-->
 
 An app rendered on the server (`--web-rendering ssr`, or `--rendering ssr` of `cleanarch-webapp`;
-Angular's) has no `nginx.conf`: its image runs the built server on Node, as the unprivileged `node`
-user on port 8080, and its `src/server.ts` does what nginx does for the others, through
-the relay of `@app-template/api-client/server`. Each page is rendered for its
-request with a fresh nonce, which its Content-Security-Policy names in `script-src` and Angular
-writes on every script it adds; the inline scripts the build writes into the page template,
-Angular's event-dispatch contract, run by the SHA-256 the server computes from that template when
-it starts, and no other inline script runs. The page is `Cache-Control: no-store`, and every route
-renders per request, since a page prerendered at build cannot carry a response's nonce. The server
-answers `400` to a host `NG_ALLOWED_HOSTS` does not list: the image allows `localhost` and
-`127.0.0.1`, and a deployment adds the host its users reach.
+Angular's and React Router's) has no `nginx.conf`: its image runs the built server on Node, as the
+unprivileged `node` user on port 8080, and its server, Angular's `src/server.ts` or React Router's
+`server/app.ts`, does what nginx does for the others, through the relay of
+`@app-template/api-client/server`. Each page is rendered for its request with a fresh nonce, which
+its Content-Security-Policy names in `script-src` and the framework writes on every script it adds:
+Angular through `CSP_NONCE`, React Router through `<ServerRouter nonce>`. No other inline script
+runs, but for the ones Angular's build writes into the page template, its event-dispatch contract,
+which run by the SHA-256 the server computes from that template when it starts. Angular's policy
+allows inline styles, which Angular inserts at run time; React Router's takes styles from the
+app's origin alone. The page is `Cache-Control: no-store`, and every route renders per request,
+since a page prerendered at build cannot carry a response's nonce. The server's build bundles its
+dependencies, so the image holds the build output alone. Angular's server answers `400` to a host
+`NG_ALLOWED_HOSTS` does not list: the image allows `localhost` and `127.0.0.1`, and a deployment
+adds the host its users reach.
 <!--#if (accounts)-->
 It keeps its sessions in its own memory, so it runs as one instance, and a restart signs everyone
 out ([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).

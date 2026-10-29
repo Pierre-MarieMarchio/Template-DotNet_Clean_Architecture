@@ -36,7 +36,7 @@ COPY . .
 RUN pnpm install --offline --frozen-lockfile --filter framework-site... \
     && pnpm --filter framework-site build
 #endif
-#if (webReactRouter || webBlazorWasm)
+#if ((webReactRouter && !webServerRendering) || webBlazorWasm)
 
 #if (webReactRouter)
 # React Router's page starts the app from inline scripts: the policy allows each by its SHA-256, and no other.

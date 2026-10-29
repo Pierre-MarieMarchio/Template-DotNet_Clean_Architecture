@@ -32,7 +32,10 @@ records those choices. This one records how the template offers it.
   `scaffold.json` and an `overlay/` of its own, beside `FrameworkSite/`. Both templates copy the
   starter's folder without `ssr/`, leave its `FrameworkSite/` out under `webServerRendering`, and
   copy its `ssr/` folder under the starter's symbol and `webServerRendering`, into the same app
-  folder. `angular` holds one: `ng new --ssr`, with every route rendered per request.
+  folder. `angular` holds one: `ng new --ssr`, with every route rendered per request. `react-router`
+  holds another: the `node-custom-server` template at the commit its single-page form takes, with
+  `ssr: true`, its Express app replaced by the server below and its `server.js` by a development
+  server alone.
 - **`ssr` is refused for every starter that does not hold it**, `--web none` included, by
   `serverRenderingNeedsAServerStarter`: a hidden required parameter whose condition
   `refusedOptions` repeats, as [0001](0001-options-remove-parts-and-refuse-combinations.md) has it.
@@ -40,13 +43,17 @@ records those choices. This one records how the template offers it.
   rendering only with a web app, so after a single-page-only starter the question has one choice
   left and is answered with it unasked. Every authentication mode takes `ssr`.
 - **A server-rendered starter keeps its own output contract.** `pnpm build` writes into the app's
-  `dist/` folder the server entry the image runs with Node, `dist/server/server.mjs`, and the browser
-  files it serves. The shared `Dockerfile` ends, under `webServerRendering`, on the pinned Node image
-  running that entry as the unprivileged `node` user on port 8080, with the healthcheck nginx has;
-  `nginx.conf` is left out by a path condition. The server does what nginx did: the `/api/` and
-  `/health` relay, the page headers, the cache rules, and the Content-Security-Policy, whose
-  `script-src` takes a nonce per response, and the hashes of the inline scripts the build writes into
-  the page template, computed when the server starts. With accounts, the overlay's server keeps the
+  `dist/` folder the server entry the image runs with Node, `dist/server/server.mjs`, holding every
+  dependency of the server, and the browser files it serves. Angular's builder bundles them;
+  React Router's overlay names the entry `server.mjs` and bundles every dependency into the server
+  build, from `server/app.ts`, which listens when Node runs it. The shared `Dockerfile` ends, under
+  `webServerRendering`, on the pinned Node image running that entry as the unprivileged `node` user
+  on port 8080, with the healthcheck nginx has; `nginx.conf` is left out by a path condition. The
+  server does what nginx did: the `/api/` and `/health` relay, the page headers, the cache rules,
+  and the Content-Security-Policy, whose `script-src` takes a nonce per response and, for Angular,
+  the hashes of the inline scripts the build writes into the page template, computed when the
+  server starts; React Router's build writes no page template, and its single-page form alone keeps
+  the hash step of the image build. With accounts, the overlay's server keeps the
   session, through `serverSessions` of `@app-template/api-client/server` for local accounts and
   `providerSessions` for an external provider, as the project's ADR 0024 describes; with an external
   provider the app's `compose.yml` passes it the provider and the client, and `.env.example` gains
@@ -54,7 +61,9 @@ records those choices. This one records how the template offers it.
   write one.
 - **No new acceptance leg.** The smallest web leg adds its second app as a server-rendered Angular
   app without accounts, the back-office leg its Angular back office with local accounts, and the
-  Angular leg with an external provider generates its first app rendered on the server. The
+  Angular leg with an external provider generates its first app rendered on the server; the
+  every-starter leg adds a React Router app rendered on the server, with local accounts, beside its
+  single-page one, each entry of its `more_apps` taking `:ssr` after its framework. The
   page check learns the nonce: an inline script runs by its hash or by the nonce its response's
   policy names, two responses never share one, and a data block such as Angular's transferred state
   is no script; a server-rendered app with accounts answers its own `403` to a `POST` without
@@ -79,6 +88,10 @@ records those choices. This one records how the template offers it.
   build, with no request's data, and it is already open to a project that sets its routes so.
 - **nginx kept in front of the Node server.** Each app would be two services, and the nonce is still
   the Node server's to write.
+- **React Router's server dependencies installed in the image**, as the CLI's own Dockerfile does,
+  with `pnpm deploy --prod`. A second install in the shared `Dockerfile`, pnpm's settings for
+  deploying a workspace package whose exports are TypeScript sources, which Node refuses to strip
+  under `node_modules`, and a runtime stage unlike Angular's; bundling keeps one.
 
 ## Consequences
 

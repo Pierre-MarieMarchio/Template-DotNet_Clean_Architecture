@@ -69,8 +69,9 @@ tool, under the template's version.
 - The acceptance matrix tests one tool over each leg's project file instead of a conditioned copy
   per leg, and the generators gain unit tests of their own.
 - A project now keeps in step with a package from the template, the condition under which
-  [0002](0002-nothing-about-the-template-reaches-a-project.md) says to revisit it. Accepting this
-  ADR comes with the ADR that supersedes 0002 and adds the tool to what reaches a project.
+  [0002](0002-nothing-about-the-template-reaches-a-project.md) says to revisit it. This ADR is
+  accepted together with [0018](0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md),
+  which supersedes 0002 and adds the tool to what reaches a project.
 
 ## Revisit when
 

@@ -38,3 +38,4 @@ propose one.
 - [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)
 - [0016. The launcher draws only glyphs every console font carries](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md)
 - [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md), proposed
+- [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), proposed; supersedes 0002 once accepted

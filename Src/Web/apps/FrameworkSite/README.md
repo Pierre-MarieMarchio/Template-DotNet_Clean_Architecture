@@ -170,7 +170,9 @@ What the template adds to the CLI's starter, and nothing else:
   browser talks to a single origin and the API keeps CORS closed; it sends the page security
   headers, caches a file whose name carries a content hash for a year and revalidates every other,
   and renders each page with a fresh nonce, which its Content-Security-Policy names in `script-src`
-  and its `Cache-Control: no-store` keeps from being served twice. The build writes Angular's
+  and its `Cache-Control: no-store` keeps from being served twice; with local accounts its relay is
+  `serverSessions`, which keeps each browser's session as "Calling the API and signing in" below
+  describes. The build writes Angular's
   event-dispatch contract inline into the page template, without a nonce, so the server adds to
   `script-src` the SHA-256 of each inline script of that template, computed when it starts;
 - `src/app/app.config.server.ts`, the CLI's, plus `CSP_NONCE` read from the request context, so
@@ -199,6 +201,7 @@ server-side request forgery, and answers `400` to any other: the image allows `l
 The pages are the CLI's starter: the screens are yours to write. The client is typed from the API's
 OpenAPI document, and `pnpm api` in `Src/Web` regenerates it when the API changes.
 <!--#if (localAuth)-->
+<!--#if (!webServerRendering)-->
 
 A browser keeps the access token in memory and leaves the refresh token to an `HttpOnly` cookie the
 API sets in cookie mode. `createBrowserSession` holds the token, `sessionMiddleware` sends it,
@@ -226,6 +229,36 @@ const me = await unwrap(api.GET('/api/v1/auth/me'));
 
 `unwrap` throws an `ApiError` whose `fieldErrors` are the problem document's `errors`, ready to show
 beside the form's fields; `session.signOut()` ends the session and clears the cookie.
+<!--#endif-->
+<!--#if (webServerRendering)-->
+
+This app's server keeps the session: `serverSessions` of `@app-template/api-client/server` holds
+both tokens in the server's memory, and the browser only the `__Host-session` cookie it sets
+(`HttpOnly`, `Secure`, `SameSite=Lax`). The page posts the sign-in routes through the relay, which
+keeps the tokens and answers without them, then calls the API with no token, the server adding it.
+`serverSessionMiddleware` sends the `X-CSRF: 1` header the server requires on a call that changes
+state:
+
+```ts
+import { createApiClient, serverSessionMiddleware, unwrap } from '@app-template/api-client';
+
+export const api = createApiClient({ middleware: [serverSessionMiddleware()] });
+
+const answer = await unwrap(api.POST('/api/v1/auth/login', { body: { email, password } }));
+
+if (answer.status === 'twoFactorRequired') {
+  // ask for the code, then POST /api/v1/auth/login/two-factor with answer.challengeToken
+}
+
+const me = await unwrap(api.GET('/api/v1/auth/me'));
+```
+
+A page rendered on the server calls the API from there, with the token of the browser's session:
+`src/server.ts` hands Angular `apiUpstream` and `accessToken` in the request context, which
+`inject(REQUEST_CONTEXT)` reads. `POST /api/v1/auth/logout` through the relay revokes the session
+and clears the cookie; `unwrap` throws an `ApiError` whose `fieldErrors` are the problem document's
+`errors`.
+<!--#endif-->
 <!--#if (adminAudience)-->
 The account administration endpoints, `/api/v1/auth/accounts` first, answer `403` to an account
 without the `Admin` role, which `me.roles` shows before the screens ask.

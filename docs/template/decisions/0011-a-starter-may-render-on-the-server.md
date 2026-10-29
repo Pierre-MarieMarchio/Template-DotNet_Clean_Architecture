@@ -34,12 +34,13 @@ records those choices. This one records how the template offers it.
   copy its `ssr/` folder under the starter's symbol and `webServerRendering`, into the same app
   folder. `angular` holds one: `ng new --ssr`, with every route rendered per request.
 - **`ssr` is refused for every starter that does not hold it**, `--web none` included, by
-  `serverRenderingNeedsAServerStarter`, and with accounts by
-  `serverRenderingWithAccountsNotYetGenerated`, since a server-rendered app keeps no session: each a
+  `serverRenderingNeedsAServerStarter`, and with an external provider by
+  `serverRenderingWithExternalAuthNotYetGenerated`, since a server-rendered app keeps a session for
+  local accounts only: each a
   hidden required parameter whose condition `refusedOptions` repeats, as
   [0001](0001-options-remove-parts-and-refuse-combinations.md) has it. The launcher reads them
   ([0004](0004-the-launcher-reads-the-templates-manifests.md)) and asks the rendering only with a web
-  app, so after a single-page-only starter, or with accounts, the question has one choice left and
+  app, so after a single-page-only starter, or with an external provider, the question has one choice left and
   is answered with it unasked.
 - **A server-rendered starter keeps its own output contract.** `pnpm build` writes into the app's
   `dist/` folder the server entry the image runs with Node, `dist/server/server.mjs`, and the browser
@@ -48,13 +49,17 @@ records those choices. This one records how the template offers it.
   `nginx.conf` is left out by a path condition. The server does what nginx did: the `/api/` and
   `/health` relay, the page headers, the cache rules, and the Content-Security-Policy, whose
   `script-src` takes a nonce per response, and the hashes of the inline scripts the build writes into
-  the page template, computed when the server starts. 0008's "never a nonce" stays true of the static apps,
-  which have no server to write one.
+  the page template, computed when the server starts. With local accounts, the overlay's server
+  keeps the session through `serverSessions` of `@app-template/api-client/server`, as the project's
+  ADR 0024 describes. 0008's "never a nonce" stays true of the static apps, which have no server to
+  write one.
 - **No new acceptance leg.** The smallest web leg adds its second app as a server-rendered Angular
-  app, and the page check learns the nonce: an inline script runs by its hash or by the nonce its
-  response's policy names, two responses never share one, and a data block such as Angular's
-  transferred state is no script. The refusal job asserts `ssr` refused for a single-page-only
-  starter and with accounts.
+  app without accounts, and the back-office leg its Angular back office with local accounts. The
+  page check learns the nonce: an inline script runs by its hash or by the nonce its response's
+  policy names, two responses never share one, and a data block such as Angular's transferred state
+  is no script; a server-rendered app with accounts answers its own `403` to a `POST` without
+  `X-CSRF`, and relays one that carries it. The refusal job asserts `ssr` refused for a
+  single-page-only starter and with an external provider.
 - `TemplatePackagingTests` holds that each starter holding `ssr/FrameworkSite/scaffold.json` is
   copied by both templates under `webServerRendering`, and that the refusal names exactly the
   starters that do not.
@@ -90,4 +95,4 @@ records those choices. This one records how the template offers it.
 
 A starter's server form cannot run behind the shared `Dockerfile` without changing it for every
 starter, a generator's server rendering needs a runtime other than Node, or a server-rendered app
-keeps a session, which lifts the refusal with accounts.
+keeps a session for an external provider, which lifts the last refusal.

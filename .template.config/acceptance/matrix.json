@@ -92,7 +92,7 @@
     "options": "--web react",
     "auth_context": "true",
     "web": "true",
-    "second_app": "--framework angular --audience admin --scope sample-generated-project"
+    "second_app": "--framework angular --audience admin --rendering ssr --scope sample-generated-project"
   },
   {
     "name": "no web, then a react app and its workspace",

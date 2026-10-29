@@ -61,7 +61,8 @@ install, lint, test and build, fails when an app with a build script has no buil
 second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
 headers and an answer only the API gives; it fails when a served page holds an event-handler
 attribute or an inline script the served `script-src` allows neither by its hash nor by the
-script's nonce, or when two responses share a nonce, and reports its inline styles; a page that
+script's nonce, or when two responses share a nonce, or when a server-rendered app with accounts
+relays a `POST` without `X-CSRF` instead of refusing it itself, and reports its inline styles; a page that
 loads the WebAssembly authentication script must carry the origin of `EXTERNAL_AUTH_AUTHORITY` in
 its served `connect-src` and `frame-src`. The every-starter leg adds
 each framework starter its first app is not, so one workspace proves them all together. Every leg
@@ -89,7 +90,7 @@ ask it in the stack for its page and `/health`. The leg that adds a first app ad
 | web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
 | web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
-| web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin` |
+| web react, then an angular back office | `--web react`, then `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
 | no web, then a react app and its workspace | none, then `cleanarch-webapp --framework react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port` |
 
@@ -275,8 +276,8 @@ own `scaffold.json` and `overlay/` ([template decision 0011](decisions/0011-a-st
 its `FrameworkSite/` out under `webServerRendering`, and copy `ssr/` under the starter's symbol and
 `webServerRendering`; the shared `Dockerfile` then ends on Node, and `nginx.conf` is left out.
 `--web-rendering ssr`, and `cleanarch-webapp --rendering ssr`, are refused for every other starter
-by `serverRenderingNeedsAServerStarter`, and with accounts by
-`serverRenderingWithAccountsNotYetGenerated`.
+by `serverRenderingNeedsAServerStarter`, and with an external provider by
+`serverRenderingWithExternalAuthNotYetGenerated`.
 
 Adding a starter, for a CLI that keeps the contract of decision 0008:
 

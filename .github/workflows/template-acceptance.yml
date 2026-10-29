@@ -665,7 +665,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A page that signs in at the provider may reach its origin.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A server-rendered app that keeps sessions refuses a POST without X-CSRF itself. A page that signs in at the provider may reach its origin.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -723,6 +723,12 @@ jobs:
             esac
             grep -qi '^content-type: application/problem+json' relay.headers || fail "$base/api/ was not answered by the API."
             grep -q "\"code\":\"$code\"" relay.json || fail "$base/api/ answered $status without the API's $code problem code."
+            if [ "$code" = auth.required ] && grep -qi "^content-security-policy:.*'nonce-" <<< "$headers"; then
+              status=$(curl -sS -o csrf.json -w '%{http_code}' -X POST "$base/api/v1/relay-check")
+              [ "$status" = 403 ] && grep -q '"code":"session.csrfHeaderRequired"' csrf.json || fail "$base/ keeps a session, yet its relay answered $status, not its own 403, to a POST without X-CSRF."
+              status=$(curl -sS -o csrf.json -w '%{http_code}' -X POST -H 'X-CSRF: 1' "$base/api/v1/relay-check")
+              [ "$status" = 401 ] || fail "$base/ refused a POST that carries X-CSRF: its relay answered $status instead of the API's 401."
+            fi
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
           done
           mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | cut -d= -f2)
@@ -809,9 +815,9 @@ jobs:
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
-          # Server rendering needs a starter holding an ssr folder, and keeps no session yet.
+          # Server rendering needs a starter holding an ssr folder, and keeps no session for an external provider yet.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
-          refuse ssr-accounts --web angular --web-rendering ssr
+          refuse ssr-external --auth external --web angular --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name --presentation-name refuses.

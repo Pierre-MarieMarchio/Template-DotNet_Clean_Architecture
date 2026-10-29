@@ -26,7 +26,7 @@ public abstract class FileContentInventoryContract
     public async Task ListKeysAsync_WalksEveryKeyOnceInOrdinalOrderAcrossPages()
     {
         string prefix = NewPrefix();
-        string[] keys = await StoreAsync(prefix, "202608/b", "202608/a", "202608/B", "202609/a", "20260/z");
+        string[] keys = await StoreAsync(prefix, "202608/b", "202608/a", "202608/_b", "202609/a", "20260/z");
 
         var walked = new List<string>();
         string? cursor = null;

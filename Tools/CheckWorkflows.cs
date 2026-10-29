@@ -574,6 +574,14 @@ internal static class WorkflowGate
     [
         ("a workflow with nothing wrong with it", CleanFixture),
         ("a computed matrix skipped whole beside the job that reports the legs it leaves out", SelectedLegsFixture),
+        (
+            "a computed matrix per runner, beside the job that reports the legs both leave out",
+            SelectedLegsFixture.Replace(
+                "  skipped:\n",
+                "  windows:\n    name: Leg (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.run_windows != '[]'\n"
+                + "    runs-on: windows-latest\n    timeout-minutes: 5\n    strategy:\n      matrix: ${{ fromJSON(needs.changes.outputs.run_windows) }}\n"
+                + "    steps:\n      - run: echo leg\n  skipped:\n")
+        ),
         ("an inline matrix with a job-level if: on push alone", CleanFixture.Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)),
         (
             "a job-level if: on a pull request job without a matrix",

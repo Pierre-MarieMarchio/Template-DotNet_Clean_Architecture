@@ -65,10 +65,11 @@
   },
   {
     "name": "web placeholder, smallest project",
-    "tags": ["presentation-blazor-server", "web"],
+    "tags": ["presentation-blazor-server", "starter-angular", "web"],
     "options": "--web placeholder --auth none --examples none --files false --presentation blazor-server",
     "auth_context": "false",
-    "web": "true"
+    "web": "true",
+    "second_app": "--framework angular --rendering ssr --auth none --scope sample-generated-project"
   },
   {
     "name": "web react, local auth",
@@ -100,7 +101,7 @@
     "options": "--web react",
     "auth_context": "true",
     "web": "true",
-    "second_app": "--framework angular --audience admin --scope sample-generated-project"
+    "second_app": "--framework angular --audience admin --rendering ssr --scope sample-generated-project"
   },
   {
     "name": "no web, then a react app and its workspace",
@@ -145,5 +146,11 @@
     "database": "sqlite",
     "auth_context": "false",
     "integration": "true"
+  },
+  {
+    "name": "windows, defaults",
+    "tags": [],
+    "runner": "windows-latest",
+    "options": ""
   }
 ]

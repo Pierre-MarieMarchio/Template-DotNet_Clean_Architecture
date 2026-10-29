@@ -67,6 +67,32 @@ public sealed class OfferTests
             .Values.ShouldBe(["public", "admin"]);
     }
 
+    [Theory]
+    [InlineData("vite-react", "none", "serverRenderingNeedsAServerStarter")]
+    [InlineData("angular", "external", "serverRenderingWithExternalAuthNotYetGenerated")]
+    public void ServerRendering_IsLeftOut_WhereNoAnswerGeneratesIt(string web, string auth, string refusal)
+    {
+        var known = new Dictionary<string, string> { ["web"] = web, ["auth"] = auth };
+
+        Offer offer = Offer.For(_project, Option(_project, "webRendering"), known, Launcher.ProjectAskedWhen);
+
+        offer.Values.ShouldBe(["spa"]);
+        offer.Reasons.Select(reason => reason.Symbol).ShouldBe([refusal]);
+    }
+
+    [Fact]
+    public void ServerRendering_IsOffered_ForAnAngularAppWithLocalAccountsOrNone()
+    {
+        var known = new Dictionary<string, string> { ["auth"] = "local" };
+
+        Offer.For(_project, Option(_project, "webRendering"), new Dictionary<string, string>(known) { ["web"] = "angular" }, Launcher.ProjectAskedWhen)
+            .Values.ShouldBe(["spa", "ssr"]);
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "angular" }, _alwaysAsked)
+            .Values.ShouldBe(["spa", "ssr"]);
+        Offer.For(_webApp, Option(_webApp, "rendering"), new Dictionary<string, string>(known) { ["framework"] = "vue" }, _alwaysAsked)
+            .Values.ShouldBe(["spa"]);
+    }
+
     [Fact]
     public void ATemplateWithoutRefusals_OffersEveryChoice()
     {

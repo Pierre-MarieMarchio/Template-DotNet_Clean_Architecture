@@ -76,6 +76,13 @@
       "isVisible": true
     },
     {
+      "id": "webRendering",
+      "name": {
+        "text": "Web app rendering"
+      },
+      "isVisible": true
+    },
+    {
       "id": "presentation",
       "name": {
         "text": "Presentation project"

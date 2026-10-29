@@ -42,7 +42,8 @@ the same.
 
 <!--#endif-->
 <!--#if (anyWeb)-->
-Each web app has its own nginx image, built from `Src/Web`; [the web front end](../features/web-frontend.md#images-and-headers)
+Each web app has its own image, built from `Src/Web`: nginx serves a single-page app, and a
+server-rendered app runs on its own Node server, as one instance; [the web front end](../features/web-frontend.md#images-and-headers)
 describes them.
 
 <!--#endif-->

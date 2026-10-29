@@ -14,6 +14,7 @@ public sealed partial class Launcher
     {
         ["webName"] = Condition.Parse("(web != \"none\")"),
         ["webAudience"] = Condition.Parse("(web != \"none\")"),
+        ["webRendering"] = Condition.Parse("(web != \"none\")"),
         ["presentationName"] = Condition.Parse("(presentation != \"none\")"),
     };
 

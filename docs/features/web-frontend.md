@@ -14,9 +14,9 @@ from the `packageManager` field of `Src/Web/package.json`, which Corepack reads;
 | `Src/Web/packages/api-client` | the TypeScript client generated from the API's OpenAPI document |
 | `Src/Web/packages/tsconfig`, `Src/Web/packages/eslint-config` | the shared compiler and lint settings |
 
-Each app is its own deployable. Its development server, and in Compose its nginx container, relays
-`/api/` and `/health` to the API, so the browser talks to one origin per app and the API keeps
-CORS closed.
+Each app is its own deployable. Its development server, and in Compose its nginx container or, for
+an app rendered on the server, its Node server, relays `/api/` and `/health` to the API, so the
+browser talks to one origin per app and the API keeps CORS closed.
 
 <!--#if (webNodeFramework)-->
 ## Creating the app
@@ -36,6 +36,12 @@ for an answer: the descriptor in the app's folder gives the CLI every answer in 
 
 Commit the app with the lockfile. From then on the app is this project's own: `web-scaffold` leaves
 it alone, and the pages are yours to write.
+<!--#endif-->
+<!--#if (webServerRendering)-->
+
+The app is rendered on the server (`--web-rendering ssr`): the Angular CLI writes it with
+`ng new --ssr`, and the wiring adds its server's relay, headers and nonce, described under
+[images and headers](#images-and-headers).
 <!--#endif-->
 <!--#if (webBlazorWasm)-->
 ## Creating the app
@@ -77,7 +83,7 @@ pnpm --filter <app> dev
 
 `<app>` is the folder's kebab name. The development server relays to `API_UPSTREAM`, by default
 the API on the host. Under Compose, `docker compose up --build --wait` serves each app's build
-through nginx on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
+through nginx, or an app rendered on the server through its own Node server, on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
 `pnpm lint` and `pnpm test` in `Src/Web` run every app and package.
 
 ## Calling the API
@@ -157,6 +163,35 @@ if ('challengeToken' in answer) {
 `session.signOut()` ends the session and clears the cookie; `session.onChange` reports when the
 signed-in state flips. Concurrent refreshes share one request, since the API treats a second
 presentation of a cookie as theft; only a refused refresh signs the page out.
+
+### An app rendered on the server
+
+A server-rendered app keeps both tokens on its server, and the browser holds only the
+`__Host-session` cookie its server sets (`HttpOnly`, `Secure`, `SameSite=Lax`)
+([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)). The page posts
+the same sign-in routes through the relay, which keeps the tokens the API answers and returns the
+answer without them, and calls the API without a token; `serverSessionMiddleware` adds the
+`X-CSRF: 1` header the server requires on every call that changes state, and answers `403`
+`session.csrfHeaderRequired` without:
+
+```ts
+import { createApiClient, serverSessionMiddleware, unwrap } from '@app-template/api-client';
+
+export const api = createApiClient({ middleware: [serverSessionMiddleware()] });
+
+const answer = await unwrap(api.POST('/api/v1/auth/login', { body: { email, password } }));
+
+if (answer.status === 'twoFactorRequired') {
+  // ask for the code, then POST /api/v1/auth/login/two-factor with answer.challengeToken
+}
+
+await api.POST('/api/v1/auth/logout');
+```
+
+The server refreshes the access token before it expires, once for all the requests of a session,
+and a refused refresh ends the session. A page rendered on the server reads the session's token
+from the request context, `accessToken()`, beside `apiUpstream`, the API's address for a call
+made from the server.
 <!--#endif-->
 <!--#if (externalAuth)-->
 ### External provider
@@ -228,6 +263,11 @@ two lines to add, also in the app's `README.md`: an `include:` entry in `docker-
 `WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
+<!--#if (!externalAuth)-->
+`--framework angular --rendering ssr` renders the app on its own Node server instead, as
+[images and headers](#images-and-headers) describes; the other frameworks are single-page apps
+only, and `--rendering spa` is the default.
+<!--#endif-->
 <!--#if (accounts)-->
 
 `--framework blazor-wasm` adds a Blazor WebAssembly app. It also takes `--project-name <Project>`,
@@ -257,20 +297,20 @@ app as above.
 
 ## Images and headers
 
-Each app is its own image, built from `Src/Web` with the workspace lockfile and served by
-`nginx-unprivileged` (uid 101, port 8080); `API_UPSTREAM` names the API, resolved per request.
-Build one alone from the project root:
+Each app is its own image, built from `Src/Web` with the workspace lockfile; a single-page app's is
+served by `nginx-unprivileged` (uid 101, port 8080). `API_UPSTREAM` names the API, resolved per
+request. Build one alone from the project root:
 
 ```bash
 docker build -f Src/Web/apps/<Name>/Dockerfile Src/Web
 ```
 
-`nginx.conf` sets the page headers on the files it serves: a strict Content-Security-Policy,
+A single-page app's `nginx.conf` sets the page headers on the files it serves: a strict Content-Security-Policy,
 `X-Content-Type-Options`, `Referrer-Policy`, `Cross-Origin-Opener-Policy` and `Cache-Control`.
 Relayed `/api/` and `/health` answers keep the API's own headers. A file whose name carries a
 content hash is cached for a year; every other file, `index.html` first, revalidates, and an
 unknown path falls back to `index.html` for the app's router.
-<!--#if (webAngular)-->
+<!--#if (webAngular && !webServerRendering)-->
 The Angular app's policy allows inline styles, which Angular inserts at run time, and never inline
 scripts.
 <!--#endif-->
@@ -292,6 +332,28 @@ SHA-256 and no other: the image build hashes the inline scripts of the page it h
 writes those hashes into `script-src` of the server's configuration, so the policy follows the page
 with nothing to edit by hand.
 <!--#endif-->
+<!--#if (!externalAuth)-->
+
+An app rendered on the server (`--web-rendering ssr`, or `--rendering ssr` of `cleanarch-webapp`;
+Angular's) has no `nginx.conf`: its image runs the built server on Node, as the unprivileged `node`
+user on port 8080, and its `src/server.ts` does what nginx does for the others, through
+the relay of `@app-template/api-client/server`. Each page is rendered for its
+request with a fresh nonce, which its Content-Security-Policy names in `script-src` and Angular
+writes on every script it adds; the inline scripts the build writes into the page template,
+Angular's event-dispatch contract, run by the SHA-256 the server computes from that template when
+it starts, and no other inline script runs. The page is `Cache-Control: no-store`, and every route
+renders per request, since a page prerendered at build cannot carry a response's nonce. The server
+answers `400` to a host `NG_ALLOWED_HOSTS` does not list: the image allows `localhost` and
+`127.0.0.1`, and a deployment adds the host its users reach.
+<!--#if (localAuth)-->
+It keeps its sessions in its own memory, so it runs as one instance, and a restart signs everyone
+out ([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+<!--#endif-->
+<!--#if (publicApi)-->
+It keeps no session, and runs as one instance
+([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+<!--#endif-->
+<!--#endif-->
 
 <!--#if (ci)-->
 ## CI
@@ -306,6 +368,7 @@ a user other than root and exposes only 8080. Details are in
 ## Decisions
 
 - [0019 One generated API client](../decisions/0019-one-generated-api-client.md)
+- [0024 A server-rendered web app runs on its own server](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)
 <!--#if (localAuth)-->
 - [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
 <!--#endif-->

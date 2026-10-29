@@ -165,6 +165,9 @@ setting, table or test names it.
 <!--#if (anyWeb && !adminAudience)-->
 | `--web-audience` | `public` | the app is a site for the API's users |
 <!--#endif-->
+<!--#if (webServerRendering)-->
+| `--web-rendering` | `ssr` | the app is rendered on the server for each request, by its framework's own Node server ([Web front end](../features/web-frontend.md#images-and-headers)) |
+<!--#endif-->
 <!--#if (presentationBlazorServer)-->
 | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation project](../features/presentation.md)) |
 <!--#endif-->

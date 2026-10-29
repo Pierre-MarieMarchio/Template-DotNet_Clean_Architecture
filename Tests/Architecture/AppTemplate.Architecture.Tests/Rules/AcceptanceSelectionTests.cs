@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
@@ -31,9 +32,18 @@ public sealed class AcceptanceSelectionTests
         "sqlite, defaults",
         "sqlite, smallest project",
         "sqlite, external auth, all examples",
+        "windows, defaults",
     ];
 
     private static readonly string[] _notRequired = ["web, every starter"];
+
+    private const string _linux = "ubuntu-latest";
+
+    private const string _windows = "windows-latest";
+
+    private const string _windowsJob = "template-windows";
+
+    private static readonly string[] _fieldsEveryLegHas = ["name", "tags", "runner"];
 
     private static readonly string[] _foldersOfTheirOwn = ["presentation", "webapp", "webpackage"];
 
@@ -42,6 +52,9 @@ public sealed class AcceptanceSelectionTests
     private static string TemplateConfig => Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config");
 
     private static string AcceptanceFolder => Path.Combine(TemplateConfig, "acceptance");
+
+    private static string AcceptanceWorkflow =>
+        Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".github", "workflows", "template-acceptance.yml");
 
     [Fact]
     public void TheLegs_AreTheChecksTheDevelopRulesetRequires_AndTheOnesItDoesNot()
@@ -53,6 +66,36 @@ public sealed class AcceptanceSelectionTests
             _requiredByTheDevelopRuleset.Concat(_notRequired).Order(StringComparer.Ordinal),
             "The legs of .template.config/acceptance/matrix.json differ from the checks the develop ruleset requires. Change the " +
             "ruleset on GitHub and the list in this test together, as docs/template/maintaining-the-template.md says.");
+    }
+
+    [Fact]
+    public void EveryLeg_RunsOnARunnerAJobServes()
+    {
+        var legs = Legs();
+
+        legs.Where(leg => leg.Runner is not (_linux or _windows)).Select(leg => $"{leg.Name}: {leg.Runner}").ShouldBeEmpty(
+            $"A leg of matrix.json names a runner no job of template-acceptance.yml serves: {_linux}, the default, or {_windows}.");
+        legs.ShouldContain(leg => leg.Runner == _windows, "No leg runs on Windows, where a Windows user runs the tasks.");
+    }
+
+    [Fact]
+    public void AWindowsLeg_SetsOnlyTheFieldsTheWindowsJobReads()
+    {
+        string[] read = [.. Regex.Matches(JobBlock(File.ReadAllLines(AcceptanceWorkflow), _windowsJob), @"\bmatrix\.([a-z_]+)", RegexOptions.None, TimeSpan.FromSeconds(5))
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)];
+
+        read.ShouldContain("options", $"The job '{_windowsJob}' of template-acceptance.yml reads no leg's options, so this rule reads the wrong job.");
+
+        foreach (var leg in Legs().Where(leg => leg.Runner == _windows))
+        {
+            leg.Entry.Select(field => field.Key).Except(_fieldsEveryLegHas.Concat(read), StringComparer.Ordinal).ShouldBeEmpty(
+                $"'{leg.Name}' runs on Windows and sets fields the job '{_windowsJob}' never reads, so what they ask for would not run: " +
+                "the Windows job starts no container and sets up no web workspace.");
+            string[] options = Words(leg.Entry["options"]?.GetValue<string>());
+            options.Zip(options.Skip(1)).Any(pair => pair.First == "--web" && pair.Second != "none").ShouldBeFalse(
+                $"'{leg.Name}' runs on Windows and generates a web app, which needs the pnpm and Node.js the job '{_windowsJob}' does not set up.");
+        }
     }
 
     [Fact]
@@ -179,6 +222,16 @@ public sealed class AcceptanceSelectionTests
         return tags;
     }
 
+    private static string JobBlock(string[] workflow, string job)
+    {
+        var jobKey = new Regex(@"^  [a-z][a-z0-9_-]*:\s*$", RegexOptions.None, TimeSpan.FromSeconds(5));
+        int start = Array.IndexOf(workflow, $"  {job}:");
+
+        start.ShouldBeGreaterThanOrEqualTo(0, $"template-acceptance.yml has no job '{job}'.");
+
+        return string.Join('\n', workflow.Skip(start + 1).TakeWhile(line => !jobKey.IsMatch(line)));
+    }
+
     private static string[] Words(string? arguments) =>
         arguments?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
 
@@ -187,7 +240,7 @@ public sealed class AcceptanceSelectionTests
 
     private sealed record Rule(string[] Paths, string[] Tags);
 
-    private sealed record Leg(string Name, string[] Tags, JsonObject Entry);
+    private sealed record Leg(string Name, string[] Tags, string Runner, JsonObject Entry);
 
     private static List<Rule> Rules() =>
         [.. JsonNode.Parse(File.ReadAllText(Path.Combine(AcceptanceFolder, "rules.json")))!["rules"]!.AsArray()
@@ -195,7 +248,11 @@ public sealed class AcceptanceSelectionTests
 
     private static List<Leg> Legs() =>
         [.. JsonNode.Parse(File.ReadAllText(Path.Combine(AcceptanceFolder, "matrix.json")))!.AsArray()
-            .Select(leg => new Leg(leg!["name"]!.GetValue<string>(), Strings(leg["tags"]), leg.AsObject()))];
+            .Select(leg => new Leg(
+                leg!["name"]!.GetValue<string>(),
+                Strings(leg["tags"]),
+                leg["runner"]?.GetValue<string>() ?? _linux,
+                leg.AsObject()))];
 
     private static string[] Strings(JsonNode? node) =>
         [.. node!.AsArray().Select(item => item!.GetValue<string>())];

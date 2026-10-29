@@ -16,6 +16,17 @@ export const cookieModePaths: readonly string[] = Object.freeze([
   logoutPath,
 ]);
 
+export const csrfHeader: Readonly<Record<'X-CSRF', '1'>> = Object.freeze({ 'X-CSRF': '1' });
+
+export function serverSessionMiddleware(): Middleware {
+  return {
+    onRequest({ request }) {
+      request.headers.set('X-CSRF', csrfHeader['X-CSRF']);
+      return request;
+    },
+  };
+}
+
 export interface SignedInTokens {
   accessToken: string;
   accessTokenExpiresAt: string;

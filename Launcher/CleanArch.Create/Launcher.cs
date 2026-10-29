@@ -414,10 +414,10 @@ public sealed partial class Launcher
         List<SetupOutcome> outcomes = SetUp(session, target, asked.Setup);
 
         Equivalents(session, Arguments.NewCommand, [manifest.ShortName, "-n", name, "-o", output, .. options], asked.Setup.Count == ProjectSetup.Steps.Count);
+        string[] left = [.. ProjectSetup.Left(outcomes)];
         string? section = Without(
             MarkdownSection(Path.Combine(target, "README.md"), "## Run it"),
-            [.. outcomes.Where(outcome => outcome.Status == SetupStatus.Done && outcome.Step.Replaces is not null).Select(outcome => outcome.Step.Replaces!)]);
-        IEnumerable<string> left = ProjectSetup.Left(outcomes).Where(command => section?.Contains(command, StringComparison.Ordinal) != true);
+            [.. outcomes.Where(outcome => outcome.Status == SetupStatus.Done && outcome.Step.Replaces is not null).Select(outcome => outcome.Step.Replaces!), .. left]);
         session.Conversation.Close(new Closing(
             null,
             [TemplateEngine.CommandLine("cd", [output]), .. left],

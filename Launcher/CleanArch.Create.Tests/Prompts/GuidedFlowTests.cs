@@ -219,8 +219,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         string output = Plain(console);
         Order(output, "◊  First commit done", "▲  Bootstrap failed", "exited with code 1", "NU1301", "▲  Bootstrap commit skipped", "◊  Copy .env done", "└  Almost there. Now run:");
         string left = Closing(output);
-        left.ShouldContain(ProjectSetup.BootstrapCommand);
-        left.ShouldContain("git commit -m \"chore: bootstrap\"");
+        Order(left, "cd ./Demo", ProjectSetup.BootstrapCommand, "git add -A", "git commit -m \"chore: bootstrap\"", "docker compose up -d --build --wait");
         left.ShouldNotContain(ProjectSetup.EnvironmentCommand);
     }
 

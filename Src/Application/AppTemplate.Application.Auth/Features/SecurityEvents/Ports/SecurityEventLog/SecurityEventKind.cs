@@ -47,4 +47,10 @@ public enum SecurityEventKind
     PasskeySignInSucceeded,
 
     PasskeySignInFailed,
+    //#if (accessKeys)
+
+    AccessKeyCreated,
+
+    AccessKeyRevoked,
+    //#endif
 }

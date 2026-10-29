@@ -82,6 +82,24 @@ WebAuthn on ASP.NET Core Identity. Registering takes two calls (`passkeys/regist
 so it never asks for the second factor. The ceremony state travels to the client sealed, lives
 five minutes and is spent once ([ADR 0015](../decisions/0015-passkeys-stand-on-their-own.md)).
 
+<!--#if (accessKeys)-->
+### Access keys
+
+An access key stands for its owner where a token cannot be refreshed: at this project's MCP server,
+whose clients keep one credential for weeks. `POST /api/v1/auth/access-keys`
+creates one from a name, its scopes (`read`, `write` or both) and an optional expiry, and
+re-authenticates the caller as registering a passkey does. The response carries the key, `ak_` and
+43 characters, once: only its SHA-256 hash is stored. `GET /api/v1/auth/access-keys` lists the
+live keys with their first characters and when each was last used, to the minute;
+`DELETE /api/v1/auth/access-keys/{accessKeyId}` revokes one. An account holds at most 25 live keys;
+a password change leaves them alive, a lockout refuses them and deleting the account deletes them.
+
+This API never accepts an access key: its bearer scheme reads JWTs only. The MCP server validates
+the key through `IAuthenticateAccessKeyUseCase` and acts as its owner. A malformed, unknown,
+revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`
+([ADR 0026](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)).
+
+<!--#endif-->
 ### Signing in with Google, Microsoft or Apple
 
 The client runs the provider's authorisation flow with PKCE and posts the `id_token` to
@@ -144,6 +162,15 @@ means bringing an authentication module and its fallback policy back.
 
 The presentation project signs people in to itself, with a cookie, over the same accounts: the
 [presentation project](presentation.md#signing-in) describes its sign-in and its session.
+
+<!--#endif-->
+<!--#if (presentationMcp)-->
+## The MCP server
+
+The MCP server beside the API authenticates its callers itself and acts for the owner its
+credential names: [presentation project](presentation.md#calling-it) describes the credential a
+client sends and which tools it reaches
+([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 
 <!--#endif-->
 ## Roles and policies
@@ -233,6 +260,9 @@ with a test provider's keys.
 - [0014 Anonymous routes reveal nothing](../decisions/0014-anonymous-routes-reveal-nothing.md)
 - [0015 Passkeys stand on their own](../decisions/0015-passkeys-stand-on-their-own.md)
 - [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
+<!--#if (accessKeys)-->
+- [0026 An access key stands for its owner where a token cannot be refreshed](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)
+<!--#endif-->
 <!--#endif-->
 <!--#if (externalAuth)-->
 - [0017 External subjects map to internal owners](../decisions/0017-external-subjects-map-to-internal-owners.md)

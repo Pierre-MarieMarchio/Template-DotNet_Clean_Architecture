@@ -254,6 +254,36 @@ services:
     networks: [backend]
 
   #endif
+  #if (presentationMcp)
+  presentation-presentation-app:
+    # The MCP server reads the api's settings with its own composition, and runs neither jobs nor migrations.
+    extends:
+      file: docker-compose.database.yml
+      service: database-client
+    image: app-template-presentation-app:dev
+    build:
+      context: .
+      dockerfile: Src/Presentation/AppTemplate.PresentationApp/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      #if (externalAuth)
+      Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8090/mcp}
+      #endif
+    ports:
+      - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_HOST_PORT:-8090}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks: [backend]
+
+  #endif
   #if (files)
   objectstore:
     # SeaweedFS stands in for S3 locally; in production point Files__Storage__S3__Endpoint at your provider.

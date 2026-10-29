@@ -49,7 +49,7 @@ public sealed class OutboundHttpTests
             .ToList();
 
         int hosts = 1;
-        /*#if (presentationBlazorServer)
+        /*#if (presentationBlazorServer || presentationMcp)
         hosts++;
         #endif*/
         /*#if (jobsWorker)

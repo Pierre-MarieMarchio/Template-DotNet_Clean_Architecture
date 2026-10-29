@@ -654,7 +654,7 @@ jobs:
         run: dotnet run Tools/CheckDocPaths.cs "${{ runner.temp }}/generated"
 
       - name: Build the images and start the stack
-        if: matrix.web == 'true' || matrix.worker == 'true'
+        if: matrix.web == 'true' || matrix.worker == 'true' || matrix.mcp == 'true'
         working-directory: ${{ runner.temp }}/generated
         env:
           STACK_ENV: ${{ matrix.stack_env }}
@@ -762,13 +762,72 @@ jobs:
           fi
           echo "The worker completed a pass; the API runs no job."
 
+      # The MCP server answers its health and refuses a call without a credential. Under an external provider its 401 names its resource metadata, which names the provider; under local accounts the seeded administrator creates access keys through the API, a note is written and read back through the tools, a read-only key is refused a write and a revoked key refused outright.
+      - name: Assert the MCP server acts for the caller its credential names (mcp legs)
+        if: matrix.mcp == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          fail() { echo "::error title=MCP server::$1"; exit 1; }
+          port=$(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | head -1 | cut -d= -f2)
+          api="http://127.0.0.1:$(grep -oE '^API_HOST_PORT=[0-9]+' .env | cut -d= -f2)"
+          base="http://127.0.0.1:${port}"
+          curl -fsS "$base/health" > /dev/null || fail "The MCP server on $port does not answer /health."
+          call() {
+            curl -sS -o mcp.out -w '%{http_code}' -X POST "$base/mcp" \
+              -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+              -H 'MCP-Protocol-Version: 2025-11-25' ${2:+-H "Authorization: Bearer $2"} --data "$1"
+          }
+          answer() { sed -n 's/^data: //p' mcp.out | grep . || cat mcp.out; }
+          tool() { printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"%s","arguments":%s}}' "$1" "$2"; }
+          status=$(call '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+          [ "$status" = 401 ] || fail "A call without a credential answered $status, not 401."
+          if grep -q '^MCP_RESOURCE=' .env; then
+            resource=$(grep -oE '^MCP_RESOURCE=.*' .env | cut -d= -f2-)
+            authority=$(grep -oE '^EXTERNAL_AUTH_AUTHORITY=.*' .env | tail -1 | cut -d= -f2-)
+            challenge=$(curl -sS -o /dev/null -D - -X POST "$base/mcp" -H 'Content-Type: application/json' --data '{}' | grep -i '^www-authenticate:' || true)
+            echo "$challenge" | grep -q 'resource_metadata="[^"]*/.well-known/oauth-protected-resource/mcp"' || fail "The 401 names no resource metadata: $challenge"
+            curl -fsS "$base/.well-known/oauth-protected-resource/mcp" > metadata.json || fail "The MCP server serves no resource metadata."
+            jq -e --arg resource "$resource" --arg authority "$authority" '.resource == $resource and (.authorization_servers | index($authority))' metadata.json > /dev/null \
+              || fail "The resource metadata does not name $resource and $authority: $(cat metadata.json)"
+            echo "MCP server on $port: /health, the 401 and its resource metadata verified."
+            exit 0
+          fi
+          email=$(grep -oE '^SEED_ADMIN_EMAIL=.*' .env | tail -1 | cut -d= -f2-)
+          password=$(grep -oE '^SEED_ADMIN_PASSWORD=.*' .env | tail -1 | cut -d= -f2-)
+          login=$(jq -n --arg email "$email" --arg password "$password" '{email: $email, password: $password}')
+          token=$(curl -fsS -X POST "$api/api/v1/auth/login" -H 'Content-Type: application/json' --data "$login" | jq -er '.tokens.accessToken') \
+            || fail "The seeded administrator could not sign in to the API."
+          create_key() {
+            jq -n --arg name "$1" --argjson scopes "$2" --arg password "$password" '{name: $name, scopes: $scopes, currentPassword: $password}' \
+              | curl -fsS -X POST "$api/api/v1/auth/access-keys" -H "Authorization: Bearer $token" -H 'Content-Type: application/json' --data @-
+          }
+          writer=$(create_key acceptance-writer '["read","write"]') || fail "The API created no access key."
+          reader=$(create_key acceptance-reader '["read"]') || fail "The API created no read-only access key."
+          key=$(echo "$writer" | jq -er '.key'); key_id=$(echo "$writer" | jq -er '.id'); read_key=$(echo "$reader" | jq -er '.key')
+          status=$(call '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$token")
+          [ "$status" = 401 ] || fail "The API's access token answered $status at the MCP server, not 401."
+          status=$(call "$(tool create_note '{"title":"Acceptance","body":"Written through MCP."}')" "$key")
+          [ "$status" = 200 ] || fail "create_note answered $status: $(cat mcp.out)"
+          note=$(answer | jq -er '.result.structuredContent.id') || fail "create_note returned no note: $(cat mcp.out)"
+          status=$(call "$(tool get_note "{\"noteId\":\"$note\"}")" "$read_key")
+          [ "$status" = 200 ] && answer | jq -e '.result.structuredContent.body == "Written through MCP."' > /dev/null || fail "get_note with the read-only key did not return the note: $(cat mcp.out)"
+          call "$(tool create_note '{"title":"Refused","body":"No."}')" "$read_key" > /dev/null
+          answer | jq -e '.error or .result.isError' > /dev/null || fail "The read-only key created a note: $(cat mcp.out)"
+          call '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$read_key" > /dev/null
+          answer | jq -e '[.result.tools[].name] | index("create_note") | not' > /dev/null || fail "The read-only key lists create_note: $(cat mcp.out)"
+          curl -fsS -X DELETE "$api/api/v1/auth/access-keys/$key_id" -H "Authorization: Bearer $token" || fail "The API did not revoke the access key."
+          status=$(call '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$key")
+          [ "$status" = 401 ] || fail "A revoked key answered $status, not 401."
+          echo "MCP server on $port: /health, a note written and read through access keys, a read-only key refused a write, a revoked key refused."
+
       - name: Stack logs on failure
-        if: failure() && (matrix.web == 'true' || matrix.worker == 'true')
+        if: failure() && (matrix.web == 'true' || matrix.worker == 'true' || matrix.mcp == 'true')
         working-directory: ${{ runner.temp }}/generated
         run: docker compose logs --tail 200
 
       - name: Stop the stack
-        if: always() && (matrix.web == 'true' || matrix.worker == 'true')
+        if: always() && (matrix.web == 'true' || matrix.worker == 'true' || matrix.mcp == 'true')
         working-directory: ${{ runner.temp }}/generated
         run: |
           if [ -f .env ]; then
@@ -909,6 +968,7 @@ jobs:
           refuse notes --auth none --examples notes
           refuse admin-web --auth none --examples none --files false --web placeholder --web-audience admin
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
+          refuse mcp-public --auth none --examples none --files false --presentation mcp
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
           refuse worker-sqlite --database sqlite --jobs worker
           # Server rendering needs a starter holding an ssr folder, and keeps no session for an external provider yet.
@@ -925,6 +985,17 @@ jobs:
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
             echo "::error title=Wrote files::'dotnet new cleanarch-presentation -n Api' was refused but left files behind."
+            exit 1
+          fi
+          # An MCP server acts for the caller its credential names, and a project without accounts names nobody.
+          out="${{ runner.temp }}/refused-mcp"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-presentation -n Mcp --framework mcp --project-name Sample.Refused --auth none --examples none --files false); then
+            echo "::error title=Accepted::'dotnet new cleanarch-presentation --framework mcp --auth none' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-presentation --framework mcp --auth none' was refused but left files behind."
             exit 1
           fi
           # A WebAssembly app calls the versioned routes a project without accounts does not publish.

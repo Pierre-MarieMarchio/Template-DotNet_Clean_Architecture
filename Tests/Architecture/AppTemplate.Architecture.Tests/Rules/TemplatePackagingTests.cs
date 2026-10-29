@@ -429,7 +429,14 @@ public sealed class TemplatePackagingTests
                 .ShouldBe(1, $"{folder}/template.json must copy {startersSource}{presentation}/ into ./ under the condition ({chosenBy[0]}).");
 
             using var descriptor = JsonDocument.Parse(File.ReadAllText(PresentationDescriptor(presentation)));
-            Text(descriptor.RootElement, "kind").ShouldBe("dotnet", $"The {presentation} starter runs a dotnet new template, which its scaffold.json must say.");
+            string? kind = Text(descriptor.RootElement, "kind");
+            kind.ShouldBeOneOf(["dotnet", "written"], $"The {presentation} starter runs a dotnet new template or is written whole, which its scaffold.json must say.");
+            if (kind == "written")
+            {
+                Text(descriptor.RootElement, "generator").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter is written whole, and names the generator whose shape it follows.");
+                descriptor.RootElement.TryGetProperty("template", out _).ShouldBeFalse($"The {presentation} starter is written whole, and names no template to run.");
+                File.Exists(Path.Combine(Path.GetDirectoryName(PresentationDescriptor(presentation))!, "AppTemplate.PresentationApp.csproj")).ShouldBeTrue($"The {presentation} starter is written whole, and holds its project file.");
+            }
         }
     }
 
@@ -606,6 +613,11 @@ public sealed class TemplatePackagingTests
         "anyPresentation|presentationAvalonia|dotnetClient",
         10,
         new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
+    [InlineData(
+        "mcp/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "anyPresentation|presentationMcp|accessKeys",
+        10,
+        new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
     [InlineData(
         "blazor-wasm/FrameworkSite/README.md",
         "webBlazorWasm|dotnetClient",

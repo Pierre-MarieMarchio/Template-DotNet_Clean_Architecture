@@ -85,6 +85,12 @@ public sealed class LayoutConventionTests
         /*#if (presentationAvalonia)
         ["Src/Presentation/AppTemplate.PresentationApp"] = null,
         #endif*/
+        /*#if (presentationMcp && localAuth)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Tools"],
+        #endif*/
+        /*#if (presentationMcp && externalAuth)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Composition", "Configuration/Options", "Tools"],
+        #endif*/
         /*#if (webBlazorWasm)
         ["Src/Web/apps/FrameworkSite"] = null,
         #endif*/
@@ -185,6 +191,9 @@ public sealed class LayoutConventionTests
         #endif*/
         /*#if (presentationAvalonia && externalAuth)
         ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Sessions"],
+        #endif*/
+        /*#if (presentationMcp)
+        ["Src/Presentation/AppTemplate.PresentationApp"] = ["Hosting", "Security", "Tools"],
         #endif*/
         /*#if (webBlazorWasm && !externalAuth)
         ["Src/Web/apps/FrameworkSite"] = null,

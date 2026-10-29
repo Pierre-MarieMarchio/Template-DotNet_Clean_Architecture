@@ -1,0 +1,8 @@
+{
+  "kind": "written",
+  "framework": "mcp",
+  "name": "AppTemplate.PresentationApp",
+  "generator": "dotnet new mcpserver --transport remote",
+  "package": "Microsoft.McpServer.ProjectTemplates.10.0",
+  "version": "10.0.14"
+}

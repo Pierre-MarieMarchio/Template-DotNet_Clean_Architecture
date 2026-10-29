@@ -51,6 +51,11 @@ should run.
   the .NET client and composes only that client, its settings and its view models; its caller is
   whoever the API's token names.
 <!--#endif-->
+<!--#if (presentationMcp)-->
+- **The presentation project of this repository** is an MCP server. It composes the use cases in
+  process, one per tool, and answers each request in a scope of its own, whose caller is the one
+  its credential names ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
+<!--#endif-->
 
 ## Alternatives considered
 

@@ -1,4 +1,223 @@
 export interface paths {
+    "/api/v1/auth/access-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the caller's live access keys, newest first, without their secrets. */
+        get: operations["ListAccessKeys"];
+        put?: never;
+        /**
+         * Creates an access key for a host whose callers cannot refresh a token, re-authenticating the
+         *     caller; the response carries the key, once. This API never accepts one as a credential.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/*+json": components["schemas"]["CreateAccessKeyRequest"];
+                    "application/json": components["schemas"]["CreateAccessKeyRequest"];
+                    "text/json": components["schemas"]["CreateAccessKeyRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreatedAccessKeyResponse"];
+                        "text/json": components["schemas"]["CreatedAccessKeyResponse"];
+                        "text/plain": components["schemas"]["CreatedAccessKeyResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/access-keys/{accessKeyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revokes one of the caller's access keys by the id the access key list names. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    accessKeyId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/accounts": {
         parameters: {
             query?: never;
@@ -7686,6 +7905,39 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description One of the caller's live access keys, as the access key list shows it. */
+        AccessKeyResponse: {
+            /**
+             * Format: date-time
+             * @description When it was created.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it stops working, or `null` when it lives until revoked.
+             */
+            expiresAt: null | string;
+            /**
+             * Format: uuid
+             * @description The key's id: what the revoke route takes.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When it last authenticated a caller, to the minute, or `null` when it never did.
+             */
+            lastUsedAt: null | string;
+            /** @description The label it was given. */
+            name: string;
+            /** @description The key's first characters, to tell keys apart; never the key. */
+            prefix: string;
+            /** @description What the key may do. */
+            scopes: string[];
+        };
+        /** @description The caller's live access keys, the newest first. */
+        AccessKeysResponse: {
+            accessKeys: components["schemas"]["AccessKeyResponse"][];
+        };
         /** @description One account as an administrator sees it in the list. */
         AccountSummaryResponse: {
             /** Format: date-time */
@@ -7748,6 +8000,46 @@ export interface components {
         ConfirmTwoFactorSetupResponse: {
             /** @description Shown once and never retrievable again. */
             recoveryCodes: string[];
+        };
+        /** @description A name, the scopes, an optional expiry and the current password for a new access key. */
+        CreateAccessKeyRequest: {
+            /** @description The account's password. */
+            currentPassword: null | string;
+            /**
+             * Format: date-time
+             * @description When the key stops working, in the future; `null` for a key that lives until revoked.
+             */
+            expiresAt: null | string;
+            /** @description A label for the key, shown in the access key list. */
+            name: string;
+            /** @description What the key may do: `read`, `write`, or both. */
+            scopes: string[];
+        };
+        /** @description A new access key, with its secret: the only response that ever carries it. */
+        CreatedAccessKeyResponse: {
+            /**
+             * Format: date-time
+             * @description When it was created.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When it stops working, or `null` when it lives until revoked.
+             */
+            expiresAt: null | string;
+            /**
+             * Format: uuid
+             * @description The key's id: what the revoke route takes.
+             */
+            id: string;
+            /** @description The key itself. Only its hash is stored: copy it now, it is never shown again. */
+            key: string;
+            /** @description The label it was given. */
+            name: string;
+            /** @description The key's first characters, which the list shows to tell keys apart. */
+            prefix: string;
+            /** @description What the key may do. */
+            scopes: string[];
         };
         /** @description The owner is the authenticated caller and is not a field here. */
         CreateNoteRequest: {
@@ -8278,6 +8570,73 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ListAccessKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessKeysResponse"];
+                    "text/json": components["schemas"]["AccessKeysResponse"];
+                    "text/plain": components["schemas"]["AccessKeysResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetFile: {
         parameters: {
             query?: never;

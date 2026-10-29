@@ -75,7 +75,12 @@ ask it in the stack for its page and `/health`. The leg that adds a first app ad
 `presentation-join` task, and from there runs as those three do. The two legs that pass `--jobs worker`
 build and test the worker with the rest; the generator leg among them writes the deleted-account sweep
 into the worker, and the other starts the stack and fails unless the worker logs a completed pass and
-the API starts no job loop.
+the API starts no job loop. The two legs that pass `--presentation mcp` start the stack and call the
+MCP server over raw JSON-RPC: it answers `/health` and refuses a call without a credential; under
+an external provider its `401` names its resource metadata, which names the provider; under local
+accounts the leg signs the seeded administrator in, creates an access key that writes and one that
+only reads through the API, creates a note and reads it back through the tools, is refused a write
+with the read-only key, revokes the key and is refused with it.
 
 | Leg | Options |
 |---|---|
@@ -88,9 +93,11 @@ the API starts no job loop.
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
 | worker, external auth, all examples | `--jobs worker --auth external --examples all --files true` |
+| mcp, external auth, all examples | `--presentation mcp --auth external --examples all --files true` |
+| mcp, local auth, notes | `--presentation mcp --examples notes --files false` |
 | sqlite, defaults | `--database sqlite` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
-| sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true` |
+| sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
 | web react, local auth | `--web react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
 | web angular, external auth, notes | `--web angular --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
 | web react back office, smallest local project | `--web react --web-audience admin --examples none --files false` |
@@ -141,7 +148,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vue, Vite and React Router |
-| `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
+| `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--jobs worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
@@ -358,10 +365,24 @@ project template copies the folder into the project's root under `presentationBl
 `presentationAvalonia`, which sets `dotnetClient`: it keeps the files `dotnet new avalonia.mvvm`
 writes at its root and in `Assets`, `ViewModels` and `Views`, owns the project file, `Program.cs`,
 `App.axaml.cs`, the main view model and window, and references the .NET client alone.
+`.template.config/starters/mcp` holds an MCP server written whole
+([template decision 0015](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)),
+copied under `presentationMcp`: its `scaffold.json` is of kind `written`, in the shape of
+`dotnet new mcpserver --transport remote`, so `presentation-scaffold` only adds it to the solution;
+it owns the project file, `Program.cs`, the settings, the image, the caller's authentication (an
+access key under `localAuth`, the provider's token under `externalAuth`) and one tools class per
+example feature, each excluded with its feature. Under local accounts the access keys its callers
+present come with it: `accessKeys` (`localAuth && presentationMcp`) keeps their files in the Auth
+context and the API, their tests and ADR 0026, leaves them out otherwise, and conditions the lines
+they add to shared files; `cleanarch-presentation` brings the same files and its `README.md` lists
+those lines for `presentation-join`. `--presentation-name` has no default:
+`presentationNameOrDefault` gives `Mcp` under `presentationMcp` and `Portal` otherwise, and is the
+symbol that renames.
 `PresentationApp` is the token `--presentation-name` replaces, with `presentation-app` and
 `PRESENTATION_APP` beside it. A starter's C# is compiled only in a generated project, so a change to
 it is proved by generating one: Blazor's by the three acceptance legs that pass `--presentation`,
-Avalonia's by the leg that adds it with `cleanarch-presentation`.
+Avalonia's by the leg that adds it with `cleanarch-presentation`, the MCP server's by the two legs
+that pass `--presentation mcp` and the SQLite leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` it also brings
@@ -377,7 +398,8 @@ without one", as an edit placed after or before the lines around it, or in their
 `ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails, for each
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
-Avalonia, outside the files the item template brings whole and the solution, which
+Avalonia, `presentationMcp` or `anyPresentation` for the MCP server, outside the files the item
+template brings whole and the solution, which
 `presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
 rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task; the overview and
 the web front end page stay as they are, since they describe the app the project was generated with.
@@ -565,3 +587,4 @@ version means adopting the change in an existing project takes manual work.
 - [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)
 - [0012. Where the jobs run is an option](decisions/0012-where-the-jobs-run-is-an-option.md)
 - [0013. A starter the generator cannot add to is written whole](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)
+- [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)

@@ -76,4 +76,12 @@ public sealed record SecurityEvent(
 
     public static SecurityEvent PasskeySignInFailed(Guid? userId) =>
         new(SecurityEventKind.PasskeySignInFailed, userId);
+    //#if (accessKeys)
+
+    public static SecurityEvent AccessKeyCreated(Guid userId) =>
+        new(SecurityEventKind.AccessKeyCreated, userId);
+
+    public static SecurityEvent AccessKeyRevoked(Guid userId) =>
+        new(SecurityEventKind.AccessKeyRevoked, userId);
+    //#endif
 }

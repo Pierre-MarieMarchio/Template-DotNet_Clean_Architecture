@@ -49,6 +49,10 @@
       "tags": ["presentation-avalonia"]
     },
     {
+      "paths": [".template.config/starters/mcp/**"],
+      "tags": ["presentation-mcp"]
+    },
+    {
       "paths": [".template.config/starters/worker/**"],
       "tags": ["jobs-worker"]
     },

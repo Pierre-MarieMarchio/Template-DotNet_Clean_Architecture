@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && (web != \"angular\" || auth == \"external\")) || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\")) || (jobs == \"worker\" && database == \"sqlite\"))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || (presentation == \"avalonia\" && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && (web != \"angular\" || auth == \"external\")) || (presentation != \"none\" && (presentationName == \"Api\" || presentationName == \"Api.IntegrationTests\" || presentationName == \"Api.UnitTests\" || presentationName == \"Application\" || presentationName == \"Application.Auth\" || presentationName == \"Application.Auth.UnitTests\" || presentationName == \"Application.Core\" || presentationName == \"Application.Core.UnitTests\" || presentationName == \"Application.UnitTests\" || presentationName == \"Architecture.Tests\" || presentationName == \"Client\" || presentationName == \"Client.UnitTests\" || presentationName == \"Domain\" || presentationName == \"Domain.Core\" || presentationName == \"Domain.Core.UnitTests\" || presentationName == \"Domain.UnitTests\" || presentationName == \"EndToEnd.Tests\" || presentationName == \"Infrastructure.Auth\" || presentationName == \"Infrastructure.Auth.IntegrationTests\" || presentationName == \"Infrastructure.Auth.UnitTests\" || presentationName == \"Infrastructure.Core\" || presentationName == \"Infrastructure.Core.UnitTests\" || presentationName == \"Infrastructure.Email\" || presentationName == \"Infrastructure.Email.UnitTests\" || presentationName == \"Infrastructure.InMemory\" || presentationName == \"Infrastructure.InMemory.UnitTests\" || presentationName == \"Infrastructure.Persistence\" || presentationName == \"Infrastructure.Persistence.UnitTests\" || presentationName == \"Infrastructure.Storage\" || presentationName == \"Infrastructure.Storage.UnitTests\" || presentationName == \"Presentation.Core\" || presentationName == \"Presentation.Core.UnitTests\" || presentationName == \"Worker\" || presentationName == \"Worker.UnitTests\")) || (jobs == \"worker\" && database == \"sqlite\"))"
     },
     "database": {
       "type": "parameter",
@@ -688,9 +688,13 @@
         {
           "choice": "avalonia",
           "description": "An Avalonia desktop app in Src/Presentation, created by dotnet new avalonia.mvvm and calling the API through the .NET client of Src/Clients."
+        },
+        {
+          "choice": "mcp",
+          "description": "An MCP server in Src/Presentation, written in the shape of dotnet new mcpserver --transport remote, whose tools call the use cases in process for the caller its access key or its provider's token names. Needs --auth local or external."
         }
       ],
-      "description": "A presentation project beside the API, created at bootstrap by its framework's own generator: a server host reaches the application layer in process, a client reaches the API through the .NET client. A project generated without one adds it later with dotnet new cleanarch-presentation."
+      "description": "A presentation project beside the API, created at bootstrap by its framework's own generator or written whole: a server host reaches the application layer in process, a client reaches the API through the .NET client. A project generated without one adds it later with dotnet new cleanarch-presentation."
     },
     "clientPresentationNeedsAccounts": {
       "type": "parameter",
@@ -704,6 +708,18 @@
       "isRequired": "(presentation == \"avalonia\" && auth == \"none\")",
       "description": "Never set. --presentation avalonia calls the API's versioned routes, and --auth none publishes none: choose --auth local or external."
     },
+    "mcpNeedsAccounts": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(presentation == \"mcp\" && auth == \"none\")",
+      "description": "Never set. --presentation mcp acts for the caller an access key or a provider's token names, and --auth none names nobody: choose --auth local or external."
+    },
     "anyPresentation": {
       "type": "computed",
       "value": "(presentation != \"none\")"
@@ -716,6 +732,15 @@
       "type": "computed",
       "value": "(presentation == \"avalonia\")"
     },
+    "presentationMcp": {
+      "type": "computed",
+      "value": "(presentation == \"mcp\")"
+    },
+    "accessKeys": {
+      "type": "computed",
+      "value": "(localAuth && presentationMcp)",
+      "description": "True when local accounts have an MCP server to call: brings the access keys its callers present, their routes, table, tests and decision."
+    },
     "dotnetClient": {
       "type": "computed",
       "value": "(presentationAvalonia || webBlazorWasm)",
@@ -725,8 +750,34 @@
       "type": "parameter",
       "displayName": "Presentation project name",
       "datatype": "text",
-      "defaultValue": "Portal",
-      "description": "The presentation project's name, in PascalCase: its project <Project>.<name> in Src/Presentation, its service presentation-<name>, its port PRESENTATION_<NAME>_HOST_PORT.",
+      "defaultValue": "",
+      "description": "The presentation project's name, in PascalCase: its project <Project>.<name> in Src/Presentation, its service presentation-<name>, its port PRESENTATION_<NAME>_HOST_PORT. Portal when not given, Mcp for --presentation mcp."
+    },
+    "presentationDefaultName": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(presentation == \"mcp\")",
+            "value": "Mcp"
+          },
+          {
+            "condition": "(true)",
+            "value": "Portal"
+          }
+        ]
+      }
+    },
+    "presentationNameOrDefault": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "presentationName",
+        "fallbackVariableName": "presentationDefaultName"
+      },
       "replaces": "PresentationApp",
       "fileRename": "PresentationApp"
     },
@@ -746,7 +797,7 @@
       "type": "generated",
       "generator": "regex",
       "parameters": {
-        "source": "presentationName",
+        "source": "presentationNameOrDefault",
         "steps": [
           {
             "regex": "([A-Z]+)([A-Z][a-z])",
@@ -1452,6 +1503,29 @@
           ]
         },
         {
+          "condition": "(!presentationMcp)",
+          "exclude": [
+            "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md"
+          ]
+        },
+        {
+          "condition": "(!accessKeys)",
+          "exclude": [
+            "Src/Application/AppTemplate.Application.Auth/Features/AccessKeys/**",
+            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/AccessKeys/**",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
+            "Src/Presentation/AppTemplate.Api/Features/Auth/Controllers/AccessKeysController.cs",
+            "Tests/Application/AppTemplate.Application.Auth.UnitTests/Features/AccessKeys/**",
+            "Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
+            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**",
+            "docs/decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md"
+          ]
+        },
+        {
           "condition": "(!localAuth)",
           "exclude": [
             "Src/Clients/AppTemplate.Client/Common/Sessions/ApiSession.cs",
@@ -1639,6 +1713,63 @@
             "**/Common/Sessions/**",
             "**/TestSupport/ScriptedBrowser.cs",
             "**/TestSupport/StubProvider.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "./.template.config/starters/mcp/",
+      "target": "./",
+      "condition": "(presentationMcp)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "**/Features/Auth/**",
+            "**/AccountReminderRecipientDirectory*.cs",
+            "**/AccessKey*.cs",
+            "**/TestKeys.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "**/Features/ExternalIdentity/**",
+            "**/ExternalIdentityReminderRecipientDirectory*.cs",
+            "**/McpOptions*.cs",
+            "**/TestTokens.cs"
+          ]
+        },
+        {
+          "condition": "(!todoLists)",
+          "exclude": [
+            "**/Features/TodoLists/**"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "**/Features/Reminders/**"
+          ]
+        },
+        {
+          "condition": "(!files)",
+          "exclude": [
+            "**/Features/Files/**"
+          ]
+        },
+        {
+          "condition": "(!notes)",
+          "exclude": [
+            "**/Features/Notes/**",
+            "**/InMemoryNotes.cs"
+          ]
+        },
+        {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "**/AccountUserAccountDirectory*.cs",
+            "**/ExternalIdentityUserAccountDirectory*.cs"
           ]
         }
       ]

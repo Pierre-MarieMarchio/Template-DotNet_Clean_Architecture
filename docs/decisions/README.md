@@ -85,5 +85,11 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#if (jobsWorker)-->
 | [0025](0025-jobs-run-in-a-worker-under-a-lease.md) | Jobs run in a worker, under a lease | Background work |
 <!--#endif-->
+<!--#if (accessKeys)-->
+| [0026](0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md) | An access key stands for its owner where a token cannot be refreshed | Authentication |
+<!--#endif-->
+<!--#if (presentationMcp)-->
+| [0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md) | An MCP server acts for the caller its credential names | Architecture |
+<!--#endif-->
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

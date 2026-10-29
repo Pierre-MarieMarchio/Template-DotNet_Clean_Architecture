@@ -56,6 +56,22 @@
     "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
   },
   {
+    "name": "mcp, external auth, all examples",
+    "tags": ["presentation-mcp"],
+    "options": "--presentation mcp --auth external --examples all --files true",
+    "auth_context": "false",
+    "mcp": "true",
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
+  },
+  {
+    "name": "mcp, local auth, notes",
+    "tags": ["presentation-mcp"],
+    "options": "--presentation mcp --examples notes --files false",
+    "auth_context": "true",
+    "mcp": "true",
+    "stack_env": "SEED_ENABLED=true\nSEED_ADMIN_PASSWORD=Acceptance-Passw0rd!"
+  },
+  {
     "name": "external auth, no examples, no files",
     "tags": ["generator", "presentation-avalonia", "presentation-item"],
     "options": "--auth external --examples none --files false",
@@ -141,11 +157,12 @@
   },
   {
     "name": "sqlite, external auth, all examples",
-    "tags": ["database-sqlite"],
+    "tags": ["database-sqlite", "presentation-item", "presentation-mcp"],
     "options": "--database sqlite --auth external --examples all --files true",
     "database": "sqlite",
     "auth_context": "false",
-    "integration": "true"
+    "integration": "true",
+    "first_presentation": "--framework mcp --auth external --examples all --files true --database sqlite"
   },
   {
     "name": "windows, defaults",

@@ -82,6 +82,12 @@
   </ItemGroup>
 
   <!--#endif-->
+  <!--#if (presentationMcp)-->
+  <ItemGroup Label="MCP server">
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
+  </ItemGroup>
+
+  <!--#endif-->
   <!-- One 1.18.x band. -->
   <ItemGroup Label="OpenTelemetry">
     <!--#if (postgreSql)-->

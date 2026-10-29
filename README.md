@@ -67,12 +67,12 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | `--web-name` | PascalCase text | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
 | `--web-rendering` | `spa`, `ssr` | `spa` |
-| `--presentation` | `none`, `blazor-server`, `avalonia` | `none` |
-| `--presentation-name` | PascalCase text | `Portal` |
+| `--presentation` | `none`, `blazor-server`, `avalonia`, `mcp` | `none` |
+| `--presentation-name` | PascalCase text | `Portal`, `Mcp` for `mcp` |
 | `--jobs` | `api`, `worker` | `api` |
 
 `--auth none` refuses the examples and Files, which belong to a caller, and `--web-audience admin`
-refuses `--auth none`; `--web-rendering ssr` takes `--web angular`, not yet with `--auth external`; `--presentation-name` refuses the name of one of the template's own projects;
+refuses `--auth none`; `--web-rendering ssr` takes `--web angular`, not yet with `--auth external`; `--presentation avalonia` and `--presentation mcp` refuse `--auth none`; `--presentation-name` refuses the name of one of the template's own projects;
 `--jobs worker` refuses `--database sqlite`.
 [Using the template](docs/template/using-the-template.md) says what each value
 generates, the combinations refused, what the name substitutes into, and the item templates

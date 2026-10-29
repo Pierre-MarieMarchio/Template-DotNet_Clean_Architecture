@@ -1,6 +1,11 @@
 ﻿# Presentation project
 
+<!--#if (!presentationMcp)-->
 How the presentation project beside the API is created, composed, and how it signs people in.
+<!--#endif-->
+<!--#if (presentationMcp)-->
+How the MCP server beside the API is created and composed, which tools it offers, and who calls them.
+<!--#endif-->
 
 ## What you get
 
@@ -18,6 +23,15 @@ client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI docum
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
+<!--#endif-->
+<!--#if (presentationMcp)-->
+`Src/Presentation/<Project>.<Name>` is a Model Context Protocol server: an agent's client, an
+assistant or an editor, connects to it over Streamable HTTP and calls its tools, each of which runs
+one use case in the server's own process. It has its own composition in its `Program.cs`: the same
+features and modules as the API, its own caller, its own authentication, and neither jobs nor
+migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+Every tool acts for the caller its credential names ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
 <!--#endif-->
 
@@ -42,9 +56,21 @@ already holds is kept. It then adds the project and its tests to the solution an
 step needs the network once. `bootstrap` later writes the client from the API's document with
 `dotnet run Tools/Tasks.cs api-client`.
 <!--#endif-->
+<!--#if (presentationMcp)-->
+The whole project comes with the project, written in the shape `dotnet new mcpserver --transport remote`
+gives a server: its project file, `Program.cs`, its settings, its image, its tools and the wiring
+under `Common/` and `Features/`. No template runs: `bootstrap` first runs
+`dotnet run Tools/Tasks.cs presentation-scaffold`, which adds the project and its tests to the
+solution and formats them, offline.
+<!--#endif-->
 
+<!--#if (!presentationMcp)-->
 Commit the project after bootstrap: from then on its pages are this project's own, and
 `presentation-scaffold` leaves it alone.
+<!--#endif-->
+<!--#if (presentationMcp)-->
+Commit the solution after bootstrap; `presentation-scaffold` leaves the project alone from then on.
+<!--#endif-->
 
 A project generated without one takes it later from `dotnet new cleanarch-presentation`, which
 writes the project, its tests and this page. `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`
@@ -269,6 +295,148 @@ The views are not tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps t
 to the client.
 <!--#endif-->
 
+<!--#if (presentationMcp)-->
+## The tools
+
+<!--#if (anyFeature)-->
+| Tool | Use case | Reads only |
+|---|---|---|
+<!--#if (todoLists)-->
+| `list_todo_lists` | the caller's to-do lists, a page at a time | yes |
+| `get_todo_list` | one list with its items | yes |
+| `create_todo_list` | a new, empty list | no |
+| `add_todo_item` | an item added to a list | no |
+<!--#endif-->
+<!--#if (reminders)-->
+| `list_reminders` | the reminders of one item | yes |
+| `schedule_reminder` | a reminder on one item | no |
+<!--#endif-->
+<!--#if (files)-->
+| `list_files` | the caller's stored files, a page at a time, never their content | yes |
+| `get_file` | one file's details | yes |
+<!--#endif-->
+<!--#if (notes)-->
+| `list_notes` | the caller's notes, a page at a time | yes |
+| `get_note` | one note with its body | yes |
+| `create_note` | a new note | no |
+<!--#endif-->
+
+<!--#endif-->
+<!--#if (!anyFeature)-->
+This project has no feature yet, so the server offers no tool until one is declared.
+
+<!--#endif-->
+No tool deletes, updates or replaces. A tool answers its result as JSON, in the result's structured
+content and as text. A failure is an error result carrying the problem's `code`, its `detail` and,
+for a refused input, its field `errors`, the codes the [API reference](../reference/api.md) lists:
+a record of another caller answers exactly as one that does not exist
+([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)).
+
+## Declaring a tool
+
+A tool is declared by hand, never because a use case exists. Each feature's tools are one class
+under `Features/<Feature>/Tools`, whose constructor takes the use cases it calls; each method is one
+tool, named and described for the agent, and says whether it only reads:
+
+```csharp
+[McpServerToolType]
+internal sealed class <Feature>Tools(IGet<Aggregate>UseCase get<Aggregate>)
+{
+    [McpServerTool(Name = "get_<aggregate>", Title = "Get a <aggregate>", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Authorize(Policy = ToolPolicies.Read)]
+    [Description("Gets one of the caller's <aggregates>. One that is not the caller's answers as one that does not exist.")]
+    public async Task<CallToolResult> Get<Aggregate>Async(
+        [Description("The <aggregate>'s id.")] Guid <aggregate>Id,
+        CancellationToken cancellationToken = default) =>
+        ToolAnswer.From(
+            await get<Aggregate>.ExecuteAsync(new Get<Aggregate>Query(<aggregate>Id), cancellationToken),
+            <aggregate> => <aggregate>.Value);
+}
+```
+
+`Program.cs` registers the class with `server.WithTools<<Feature>Tools>();`. A tool that creates
+or changes takes `ToolPolicies.Write`, and `ReadOnly = false`. `ToolAnswer.From` turns the use
+case's result into the tool's answer. Each tool joins the catalogue the tests read,
+`TestSupport/ToolCatalogue.cs`, which `HostCompositionTests` and `McpAuthorizationTests` hold the
+server to.
+
+## Calling it
+
+The server runs stateless on Streamable HTTP, at `/mcp`: each request is answered in a scope of its
+own that carries its caller, and the server never sends the client a request of its own, so a tool
+cannot ask the user anything mid-call.
+<!--#if (localAuth)-->
+A client authenticates with an access key: a signed-in user creates one with
+`POST /api/v1/auth/access-keys`, choosing its scopes, `read`, `write` or both, with its current
+password, and copies the key the answer shows once ([Authentication](authentication.md#access-keys)). The client sends it as a
+bearer credential, which in an editor's MCP configuration is a header:
+
+```json
+{
+  "servers": {
+    "app-template": {
+      "type": "http",
+      "url": "http://localhost:8090/mcp",
+      "headers": { "Authorization": "Bearer ak_..." }
+    }
+  }
+}
+```
+
+Every request presents the key again, so revoking it, its expiry, or an account the API would no
+longer sign in stops the next call. A key that grants `read` alone sees and calls the tools that
+only read. A request without a valid key is a `401`.
+<!--#endif-->
+<!--#if (externalAuth)-->
+A client authenticates with a token your provider issued for this server, whose audience is
+`Mcp:Resource`, the address clients connect to; a token issued for the API is refused. A request
+without one is a `401` whose `WWW-Authenticate` names the server's protected resource metadata,
+`/.well-known/oauth-protected-resource/mcp`, which names the provider: a client that follows the
+protocol's authorization signs its user in there and comes back with a token. The subject is mapped
+to this project's owner as the API maps it
+([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). The provider registers
+the server as a resource with that audience, and each client as a public client with a loopback
+redirect, unless it registers clients dynamically.
+<!--#endif-->
+
+## Configure
+
+The server reads the same sections as the API for what it composes, from the same environment in
+Compose.
+<!--#if (externalAuth)-->
+It reads the provider from `Authentication:External` and its own address from `Mcp:Resource`,
+which is required. The [configuration reference](../reference/configuration.md#mcp) has the row.
+<!--#endif-->
+<!--#if (localAuth)-->
+It needs no section of its own: an access key is checked against the accounts' own database.
+<!--#endif-->
+In Compose the server answers on `127.0.0.1`, on the port `PRESENTATION_<NAME>_HOST_PORT` sets in
+`.env`, at `/mcp`; `/health` and `/health/ready` answer anyone.
+
+## Tests
+
+`HostCompositionTests` builds the host as Development does, with every registration validated,
+resolves every use case it composes and every tool type, holds the tools to their catalogue, and
+proves the host runs no background service of its own. `McpAuthorizationTests` connects the
+protocol's own client to the host in memory: a call without a credential is refused,
+<!--#if (externalAuth)-->
+and so is a token issued for the API; the resource metadata names the provider;
+<!--#endif-->
+<!--#if (localAuth)-->
+and so is an unknown or revoked key; a key that only reads sees and calls no tool that writes;
+<!--#endif-->
+every tool says whether it only reads, and a record of another caller answers as an absent one.
+`ToolAnswerTests` holds the answers and their problems, each tool's own tests the use case it calls
+and what it passes.
+<!--#if (externalAuth)-->
+`McpOptionsValidatorTests` holds the server's address.
+<!--#endif-->
+`NoHost_ReferencesAnotherHost` keeps it from reaching the API's jobs and migrations.
+<!--#endif-->
+
 ## Decisions
 
 - [0022. A presentation project reaches the core through the API or the application layer](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)
+<!--#if (presentationMcp)-->
+- [0027. An MCP server acts for the caller its credential names](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)
+<!--#endif-->

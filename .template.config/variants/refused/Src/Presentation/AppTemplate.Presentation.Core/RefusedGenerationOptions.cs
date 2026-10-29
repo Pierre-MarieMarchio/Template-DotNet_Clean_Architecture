@@ -19,11 +19,8 @@
 //#if (presentation == "avalonia" && presentation == "wpf")
 #error The template refuses --presentation avalonia with --presentation wpf, which both write <Project>.Desktop: generate with one of them.
 //#endif
-//#if (presentation == "worker" && database == "sqlite")
-#error The template refuses --presentation worker with --database sqlite, whose file serves one process: generate with --database postgresql or sqlserver.
-//#endif
-//#if (presentation != "api" && presentation != "worker" && presentation != "avalonia" && presentation != "wpf" && web == "none" && !(presentation == "mcp" && auth == "local"))
-#error The template refuses presentation projects that hold neither the API nor the worker, so that no host runs the background jobs: generate with --presentation api or --presentation worker as well.
+//#if (jobsWorker && database == "sqlite")
+#error The template refuses the worker with --database sqlite, whose file serves one process: a project without the API runs its jobs in the worker, so generate with --database postgresql or sqlserver, or with --presentation api.
 //#endif
 //#if (database == "sqlserver" || database == "mysql" || database == "sqlite")
 #error This version of the template generates --database postgresql only: generate with --database postgresql.

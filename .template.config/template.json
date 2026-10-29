@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (presentation == \"worker\" && database == \"sqlite\") || (presentation != \"api\" && presentation != \"worker\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && !(presentation == \"mcp\" && auth == \"local\")))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\"))"
     },
     "database": {
       "type": "parameter",
@@ -707,11 +707,6 @@
       "type": "computed",
       "value": "(presentation == \"wpf\")"
     },
-    "jobsWorker": {
-      "type": "computed",
-      "value": "(presentation == \"worker\")",
-      "description": "True when the worker runs the background jobs, which the API runs otherwise."
-    },
     "needsApi": {
       "type": "computed",
       "value": "(anyWeb || presentationAvalonia || presentationWpf || (presentationMcp && localAuth))",
@@ -721,6 +716,16 @@
       "type": "computed",
       "value": "(presentationApi || needsApi)",
       "description": "True when the project holds the HTTP API, chosen or brought by what calls it."
+    },
+    "needsWorker": {
+      "type": "computed",
+      "value": "(!api && presentation != \"worker\")",
+      "description": "True when the project holds neither the API nor the worker, so that no host would run the background jobs without the worker."
+    },
+    "jobsWorker": {
+      "type": "computed",
+      "value": "(presentation == \"worker\" || needsWorker)",
+      "description": "True when the worker runs the background jobs, chosen or added for a project without the API, which runs them otherwise."
     },
     "anyPresentation": {
       "type": "computed",
@@ -782,20 +787,8 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(presentation == \"worker\" && database == \"sqlite\")",
-      "description": "Never set. --presentation worker runs the jobs in a second process, and a SQLite file serves one: choose --database postgresql or sqlserver, or leave the jobs to the API."
-    },
-    "jobsNeedTheApiOrTheWorker": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        {
-          "choice": "refused",
-          "description": "Not an option to set: it names the refusal."
-        }
-      ],
-      "isRequired": "(presentation != \"api\" && presentation != \"worker\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && !(presentation == \"mcp\" && auth == \"local\"))",
-      "description": "Never set. The background jobs run in the API, or in the worker when the project holds one, and these presentation projects hold neither: add --presentation api or --presentation worker."
+      "isRequired": "(database == \"sqlite\" && (presentation == \"worker\" || (presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && !(presentation == \"mcp\" && auth == \"local\"))))",
+      "description": "Never set. The worker runs the jobs in a second process, chosen with --presentation worker or added for a project without the API, and a SQLite file serves one: choose --database postgresql or sqlserver, or leave the jobs to the API with --presentation api."
     },
     "presentationAppPortalName": {
       "type": "generated",

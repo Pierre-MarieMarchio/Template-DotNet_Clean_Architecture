@@ -42,7 +42,8 @@ instruction that asks for it.
 
 The presentation projects are one multi-select, the API among them; when a web app, a desktop client
 or the MCP server under local accounts calls the API, it shows the API as answered for you and says
-which one calls it.
+which one calls it. When the hosts chosen hold neither the API nor the worker, it shows the worker
+as answered for you, since the jobs run in it, and passes `--presentation worker`.
 
 It adds a presentation project to a project generated without it the same way: the project's name,
 authentication, example features, Files module, database, agent files and whether it holds the API
@@ -154,7 +155,7 @@ error under warnings as errors. Pick a name with no such segment.
 
 | Option | Values | Default | Gives |
 |---|---|---|---|
-| `--presentation` | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`, once per value | `api` | the hosts the project holds in `Src/Presentation`, one or several ([template decision 0018](decisions/0018-a-project-is-the-presentation-projects-it-holds.md)): `api` is the HTTP API, `<Project>.Api`, which a web app, a desktop client or the MCP server under `--auth local` brings when it is not chosen; `blazor-server` is `<Project>.Portal`, a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `mcp` is `<Project>.Mcp`, an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names, bringing the access keys under `--auth local`; `avalonia` is `<Project>.Desktop`, a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`; `wpf` is `<Project>.Desktop` for Windows, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.Desktop.Core` so that its tests run on every system; `worker` is `<Project>.Worker`, written in the shape of `dotnet new worker`, which takes the API's background jobs and their tests. Without `worker` the jobs run in the API |
+| `--presentation` | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`, once per value | `api` | the hosts the project holds in `Src/Presentation`, one or several ([template decision 0018](decisions/0018-a-project-is-the-presentation-projects-it-holds.md)): `api` is the HTTP API, `<Project>.Api`, which a web app, a desktop client or the MCP server under `--auth local` brings when it is not chosen; `blazor-server` is `<Project>.Portal`, a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `mcp` is `<Project>.Mcp`, an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names, bringing the access keys under `--auth local`; `avalonia` is `<Project>.Desktop`, a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`; `wpf` is `<Project>.Desktop` for Windows, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.Desktop.Core` so that its tests run on every system; `worker` is `<Project>.Worker`, written in the shape of `dotnet new worker`, which takes the API's background jobs and their tests, and which a project holding neither the API nor the worker gets without choosing it. Without the worker the jobs run in the API |
 | `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
@@ -194,8 +195,7 @@ it, and the generated solution builds and passes its tests.
 | `--presentation avalonia` or `wpf` with `--auth none` | `--client-presentation-needs-accounts` | choose `--auth local` or `external` |
 | `--presentation mcp` with `--auth none` | `--mcp-needs-accounts` | choose `--auth local` or `external` |
 | `--presentation avalonia` with `--presentation wpf` | `--desktop-is-one-framework` | choose one of them |
-| `--presentation worker` with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or leave the jobs to the API |
-| presentation projects that hold neither the API nor the worker, such as `--presentation blazor-server` alone | `--jobs-need-the-api-or-the-worker` | add `--presentation api` or `--presentation worker` |
+| `--presentation worker`, or presentation projects that hold neither the API nor the worker, such as `--presentation blazor-server` alone, with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or leave the jobs to the API with `--presentation api` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing anything. Passing the parameter by hand gets past the engine and generates

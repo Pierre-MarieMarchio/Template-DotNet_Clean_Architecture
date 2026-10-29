@@ -24,8 +24,8 @@ switches and `isRequired` alike.
   copied under that value's symbol.
 - **The worker is a presentation value.** `--jobs` is gone: the jobs run in the worker when
   `worker` is chosen, in the API otherwise, by the same sources and switch symbols as before
-  ([0012](0012-where-the-jobs-run-is-an-option.md)). `workerNeedsServerDatabase` refuses `worker`
-  with `--database sqlite`.
+  ([0012](0012-where-the-jobs-run-is-an-option.md)). `workerNeedsServerDatabase` refuses the
+  worker, chosen or added, with `--database sqlite`.
 - **Each host has its name.** `Api`, `Portal` for `blazor-server`, `Mcp`, `Desktop` for `avalonia`
   or `wpf`, `Worker`. `--presentation-name` is gone; each starter carries a token of its own
   (`PresentationAppPortal`, `PresentationAppMcp`, `PresentationAppDesktop`, with their kebab and
@@ -44,8 +44,10 @@ switches and `isRequired` alike.
   their shared settings from `x-host-environment` in `docker-compose.yml`, and `new-feature`,
   which writes each feature's controller and contracts in the API, refuses. The acceptance leg
   `no api, blazor server, mcp and worker, external auth` generates, builds and tests that shape.
-- **Some host runs the jobs.** A project holding neither the API nor the worker would run no job:
-  `jobsNeedTheApiOrTheWorker` refuses it.
+- **The worker is added for the jobs.** A project holding neither the API nor the worker would run
+  no job: `needsWorker` is true for it, and `jobsWorker` is `presentation == "worker" ||
+  needsWorker`, so the worker comes as the API comes for its callers. The launcher shows the worker
+  as answered for you, the jobs running in it, and passes `--presentation worker`.
 - **`cleanarch-presentation` is told whether the project holds the API.** `--has-api`, true by
   default, conditions the lines its README lists for `presentation-join`, and
   `presentationNeedsTheApi` refuses a desktop client, or the MCP server under local accounts, in a
@@ -62,7 +64,11 @@ switches and `isRequired` alike.
   tests, its Compose service and the tasks around it by hand, which [0001](0001-options-remove-parts-and-refuse-combinations.md)
   says an option does instead.
 - **The jobs in the API brought by the portal or the MCP server alone.** The API would come back for
-  a reason nobody chose; a refusal that names the two hosts that run them keeps the choice visible.
+  a reason nobody chose, with an HTTP contract the project does not need; the worker holds the jobs
+  and nothing else.
+- **A refusal of a project holding neither the API nor the worker.** It kept the choice visible, at
+  the cost of a question asked again for an answer only one host gives; adding the worker answers it
+  the way the API is added for its callers, and the launcher still shows it.
 - **The jobs in whichever server host is chosen.** Every server host would carry the jobs' sources,
   settings and leases under a condition of its own, for a shape the worker already gives.
 - **A name option per host.** Five names to ask for hosts whose project names `cleanarch-presentation`
@@ -72,7 +78,8 @@ switches and `isRequired` alike.
 
 - The default generation is unchanged; every other shape that passed `--jobs worker` or
   `--presentation <value>` alone is written with the new syntax, and one that passed `--presentation
-  blazor-server` or `--presentation mcp --auth external` alone adds `--presentation api`.
+  blazor-server` or `--presentation mcp --auth external` alone adds `--presentation api`, or gets the
+  worker without it.
 - A project without the API has no HTTP contract to test end to end and no host that migrates in
   Development: its first-run page applies the migrations with `dotnet ef database update`.
 - Two server hosts share one compose environment block and each keeps its own service and port.

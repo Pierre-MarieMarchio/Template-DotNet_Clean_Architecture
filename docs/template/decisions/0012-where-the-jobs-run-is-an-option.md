@@ -22,7 +22,7 @@ places there, so generating it means generating the API without them.
   files declare is renamed by a generated switch symbol whose value is the host's
   (`jobsNamespace<Folder>`), since a replacement given as a custom operation is not applied to the
   files a glob selects.
-- **A server database only.** `--presentation worker` is refused with `--database sqlite`
+- **A server database only.** The worker is refused with `--database sqlite`
   (`workerNeedsServerDatabase`): an in-process lease cannot exclude the API's maintenance routes from
   the worker's pass, and a SQLite file serves one process.
 - **The worker has a fixed name**, `<Project>.Worker`, which `presentationNameIsTaken` refuses as

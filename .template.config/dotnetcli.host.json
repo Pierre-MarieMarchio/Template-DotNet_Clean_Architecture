@@ -70,11 +70,6 @@
       "longName": "desktop-is-one-framework",
       "shortName": "",
       "isHidden": true
-    },
-    "jobsNeedTheApiOrTheWorker": {
-      "longName": "jobs-need-the-api-or-the-worker",
-      "shortName": "",
-      "isHidden": true
     }
   }
 }

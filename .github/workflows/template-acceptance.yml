@@ -983,11 +983,10 @@ jobs:
           refuse wpf-public --auth none --examples none --files false --presentation wpf
           # Avalonia and WPF both write <Project>.Desktop.
           refuse desktop-twice --presentation avalonia --presentation wpf
-          # The jobs run in the API or in the worker, so a project needs one of them.
-          refuse no-job-host --presentation blazor-server
-          refuse no-job-host-external --presentation mcp --auth external
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
           refuse worker-sqlite --database sqlite --presentation api --presentation worker
+          # A project without the API runs its jobs in the worker added for it.
+          refuse worker-added-sqlite --database sqlite --presentation blazor-server
           # Server rendering needs a starter holding an ssr folder.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.

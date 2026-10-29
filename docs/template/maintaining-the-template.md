@@ -370,12 +370,13 @@ Each value but `api` is a starter, of kind `dotnet`
 ([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)) or, for WPF, the
 MCP server and the worker, `written`, copied under its value's symbol
 (`presentationBlazorServer`, `presentationMcp`, `presentationAvalonia`, `presentationWpf`,
-`jobsWorker`). `needsApi` brings the API with what calls it, a web app, a desktop client or the MCP
+`jobsWorker`, which `needsWorker` also sets). `needsApi` brings the API with what calls it, a web app, a desktop client or the MCP
 server under local accounts, and `api`, the API chosen or brought, conditions every part of it: its
 project and tests, the end-to-end suite, the load smoke, the `.http` file, its Compose service, the
 tasks around the OpenAPI document and the stack, the architecture rules and pages about the HTTP
-surface. `jobsNeedTheApiOrTheWorker` refuses a project whose hosts hold neither, and
-`desktopIsOneFramework` Avalonia and WPF together.
+surface. `needsWorker` brings the worker to a project whose hosts hold neither the API nor the
+worker, so that some host runs the jobs; `workerNeedsServerDatabase` refuses the worker, chosen or
+brought, with SQLite, and `desktopIsOneFramework` Avalonia and WPF together.
 `.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
 `.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationAppPortal` (its `scaffold.json`, project file,
 `Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
@@ -611,7 +612,9 @@ reaches `dotnet new` as the option repeated once per value; the launcher's condi
 answer a condition compares may hold. When a web app, a desktop client or the MCP server under
 local accounts calls the API, the launcher shows the API as answered for you, naming the caller,
 and passes it; `TheCallersTheLauncherNames_AreExactlyWhatMakesTheTemplateAddTheApi` holds the
-callers against `needsApi`. Inside a project, `presentation` asks the framework, then the name,
+callers against `needsApi`. When the hosts chosen hold neither the API nor the worker, it shows the
+worker as answered for you and passes it; `TheWorkerTheLauncherAdds_IsExactlyWhatMakesTheTemplateAddIt`
+holds that rule against `needsWorker`. Inside a project, `presentation` asks the framework, then the name,
 proposing the framework's own (`Portal`, `Mcp`, `Desktop`).
 
 ```bash

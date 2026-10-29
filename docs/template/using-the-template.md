@@ -10,7 +10,9 @@ dnx CleanArch.Create
 ```
 
 `CleanArch.Create` is a .NET tool, run without being installed. Its questions are the options this
-page lists, read from the templates' own manifests with their choices, defaults and descriptions. It
+page lists, in its order, read from the templates' own manifests with their choices, defaults and
+descriptions: first what the project holds, its presentation project, web app and where the jobs
+run, then how callers sign in, then its data, and last its tooling. It
 offers only the choices the template generates with the answers given so far, answers a question
 left with one choice and says which answer leaves it, explains a refused combination of flags
 before writing anything and asks its options again, refuses an output folder that holds files at its
@@ -147,20 +149,20 @@ error under warnings as errors. Pick a name with no such segment.
 
 | Option | Values | Default | Gives |
 |---|---|---|---|
-| `--auth` | `local`, `external`, `none` | `local` | `local`: the Auth module, its own context and migration, accounts, two-factor, passkeys, roles. `external`: bearer tokens from an OpenID Connect provider, each subject mapped to an owner in the business context. `none`: a public API, no accounts |
-| `--examples` | `all`, `notes`, `none` | `all` | TodoLists, Reminders and Notes; Notes alone; no example. Reminders needs TodoLists, so they come together |
-| `--database` | `postgresql`, `sqlserver`, `mysql`, `sqlite` | `postgresql` | `postgresql`: a schema per feature, the row's `xmin` as its version, advisory locks for the leases. `sqlserver`: schemas, a version counter the save stamps, application locks (`sp_getapplock`). `sqlite`, for development only: one file, a table prefix per feature (`<schema>_<Table>`), in-process leases, and an API that refuses to start outside Development. A project carries its provider only, and `mysql` is refused: this version does not generate it |
-| `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
-| `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
-| `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
-| `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
+| `--presentation` | `none`, `blazor-server`, `avalonia`, `wpf`, `mcp` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none`; `wpf` is a desktop app for Windows that calls the API the same way, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.<name>.Core` so that its tests run on every system, refused with `--auth none`; `mcp` is an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names; under `--auth local` it brings the access keys, which no other shape carries; refused with `--auth none` |
+| `--presentation-name` | PascalCase text | `Portal`, `Mcp` for `--presentation mcp` | the presentation project's name after the solution's, its Compose service and port variable |
 | `--web` | `none`, `placeholder`, `vue`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `react`, `blazor-wasm` | `none` | the first web app in `Src/Web`; a framework app is created by its official CLI or template at bootstrap, as the table below says; `blazor-wasm` calls the API through the .NET client and is refused with `--auth none` |
 | `--web-name` | PascalCase text | `Site` | the first app's folder, Compose service and port variable |
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
 | `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` and `react-router` |
-| `--presentation` | `none`, `blazor-server`, `avalonia`, `wpf`, `mcp` | `none` | a presentation project in `Src/Presentation`; `blazor-server` is a Blazor Web App with server interactivity that calls the use cases in process, its pages written by `dotnet new blazor` at bootstrap; `avalonia` is a desktop app that calls the API through the .NET client, its views written by `dotnet new avalonia.mvvm`, refused with `--auth none`; `wpf` is a desktop app for Windows that calls the API the same way, written in the shape of `dotnet new wpf`, its view models and host in `<Project>.<name>.Core` so that its tests run on every system, refused with `--auth none`; `mcp` is an MCP server written in the shape of `dotnet new mcpserver --transport remote`, whose tools call the use cases in process for the caller an access key or the provider's token names; under `--auth local` it brings the access keys, which no other shape carries; refused with `--auth none` |
-| `--presentation-name` | PascalCase text | `Portal`, `Mcp` for `--presentation mcp` | the presentation project's name after the solution's, its Compose service and port variable |
 | `--jobs` | `api`, `worker` | `api` | where the background jobs run: in the API, or in `<Project>.Worker`, a worker in `Src/Presentation` written in the shape of `dotnet new worker`, which takes the API's jobs and their tests while the API serves HTTP alone; refused with `--database sqlite` |
+| `--auth` | `local`, `external`, `none` | `local` | `local`: the Auth module, its own context and migration, accounts, two-factor, passkeys, roles. `external`: bearer tokens from an OpenID Connect provider, each subject mapped to an owner in the business context. `none`: a public API, no accounts |
+| `--database` | `postgresql`, `sqlserver`, `mysql`, `sqlite` | `postgresql` | `postgresql`: a schema per feature, the row's `xmin` as its version, advisory locks for the leases. `sqlserver`: schemas, a version counter the save stamps, application locks (`sp_getapplock`). `sqlite`, for development only: one file, a table prefix per feature (`<schema>_<Table>`), in-process leases, and an API that refuses to start outside Development. A project carries its provider only, and `mysql` is refused: this version does not generate it |
+| `--examples` | `all`, `notes`, `none` | `all` | TodoLists, Reminders and Notes; Notes alone; no example. Reminders needs TodoLists, so they come together |
+| `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
+| `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
+| `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
+| `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
 writes the app and never changes meaning:

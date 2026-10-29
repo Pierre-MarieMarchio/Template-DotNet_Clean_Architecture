@@ -29,6 +29,20 @@ public sealed class TemplateManifestTests
         manifest.Options.Select(option => option.Symbol).ShouldBe(shown);
     }
 
+    [Fact]
+    public void TheProjectsQuestions_AskWhatItHolds_ThenHowCallersSignIn_ThenItsData_ThenItsTooling()
+    {
+        string[][] groups =
+        [
+            ["presentation", "presentationName", "web", "webName", "webAudience", "webRendering", "jobs"],
+            ["auth"],
+            ["database", "examples", "files"],
+            ["ci", "sonar", "agentFiles"],
+        ];
+
+        Repository.Source.Manifest(TemplateKind.Project).Options.Select(option => option.Symbol).ShouldBe(groups.SelectMany(group => group));
+    }
+
     [Theory]
     [MemberData(nameof(Kinds))]
     public void EachOption_CarriesItsChoicesDefaultAndDescription_FromTemplateJson(string shortName)

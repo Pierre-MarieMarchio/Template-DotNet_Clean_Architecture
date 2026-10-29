@@ -240,7 +240,9 @@ change one of them missed.
    symbol when pages and code need a name for a combination. A hidden option or a long name goes in
    `dotnetcli.host.json`. A visible option gets its label in `ide.host.json`, which Visual Studio
    reads and which hides every symbol it does not list; `TemplatePackagingTests` refuses a refusal
-   shown or an option missing there.
+   shown or an option missing there. Its place there is the order the launcher asks in: what the
+   project holds, then how callers sign in, then its data, then its tooling, so that an answer
+   leaves out what it rules out in the questions after it.
 2. Exclude whole paths with a source modifier under a condition; condition content inside a file in
    that file's own comment syntax.
 3. A combination that cannot hold together is a hidden required parameter, and the same condition in

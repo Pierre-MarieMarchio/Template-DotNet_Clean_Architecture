@@ -1,0 +1,104 @@
+{
+  "rules": [
+    {
+      "paths": [
+        ".template.config/acceptance/SelectLegs.cs",
+        ".template.config/acceptance/rules.json",
+        ".template.config/acceptance/matrix.json",
+        ".github/workflows/template-acceptance.yml"
+      ],
+      "tags": ["all"]
+    },
+    {
+      "paths": [
+        "docs/template/**",
+        "docs/plans/**",
+        "docs/guide_architecture_pour_agent.md",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "Launcher/**",
+        "Tools/CheckWorkflows.cs",
+        "Tools/CheckComments.cs",
+        "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs",
+        "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
+        ".github/workflows/template-release.yml",
+        ".github/release-please/**",
+        ".github/ISSUE_TEMPLATE/**"
+      ],
+      "tags": ["none"]
+    },
+    {
+      "paths": [".template.config/acceptance/ApplyFeatureEdits.cs"],
+      "tags": ["generator"]
+    },
+    {
+      "paths": [".template.config/variants/database-sqlite/**"],
+      "tags": ["database-sqlite"]
+    },
+    {
+      "paths": [".template.config/variants/database-sqlserver/**"],
+      "tags": ["database-sqlserver"]
+    },
+    {
+      "paths": [".template.config/starters/blazor-server/**"],
+      "tags": ["presentation-blazor-server"]
+    },
+    {
+      "paths": [".template.config/starters/avalonia/**"],
+      "tags": ["presentation-avalonia"]
+    },
+    {
+      "paths": [".template.config/presentation/**"],
+      "tags": ["presentation-item"]
+    },
+    {
+      "paths": [".template.config/starters/angular/**"],
+      "tags": ["starter-angular"]
+    },
+    {
+      "paths": [".template.config/starters/blazor-wasm/**"],
+      "tags": ["starter-blazor-wasm"]
+    },
+    {
+      "paths": [".template.config/starters/react-router/**"],
+      "tags": ["starter-react-router"]
+    },
+    {
+      "paths": [".template.config/starters/vite-react/**"],
+      "tags": ["starter-vite-react"]
+    },
+    {
+      "paths": [".template.config/starters/vite-svelte/**"],
+      "tags": ["starter-vite-svelte"]
+    },
+    {
+      "paths": [".template.config/starters/vite-vue/**"],
+      "tags": ["starter-vite-vue"]
+    },
+    {
+      "paths": [".template.config/starters/vue/**"],
+      "tags": ["starter-vue"]
+    },
+    {
+      "paths": [
+        "Src/Web/**",
+        ".github/workflows/web.yml",
+        ".template.config/webapp/**",
+        ".template.config/webpackage/**",
+        ".template.config/variants/web-PlaceholderSite/**"
+      ],
+      "tags": ["web"]
+    },
+    {
+      "paths": [
+        ".template.config/variants/project/**",
+        ".template.config/variants/no-client/**",
+        ".template.config/variants/no-sonar/**",
+        ".template.config/variants/no-sonar-no-client/**",
+        ".template.config/variants/refused/**"
+      ],
+      "tags": ["all"]
+    }
+  ]
+}

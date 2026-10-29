@@ -45,7 +45,7 @@
     <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md" />
     <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/release-please/**;$(TemplateRoot).github/ISSUE_TEMPLATE/**" />
     <TemplateExclude Include="$(TemplateRoot)Tools/CheckDocPaths.cs;$(TemplateRoot)Tools/CheckWorkflows.cs;$(TemplateRoot)Tools/CheckComments.cs" />
-    <TemplateExclude Include="$(TemplateRoot)Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs;$(TemplateRoot)Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/v1.json" />
+    <TemplateExclude Include="$(TemplateRoot)Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs;$(TemplateRoot)Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AcceptanceSelectionTests.cs;$(TemplateRoot)Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/v1.json" />
     <TemplateExclude Include="$(TemplateRoot)Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/**;$(TemplateRoot)Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/**" />
     <TemplateExclude Include="$(TemplateRoot)Src/Web/**/dist/**;$(TemplateRoot)Src/Web/**/coverage/**;$(TemplateRoot)Src/Web/packages/api-client/openapi/**;$(TemplateRoot)Src/Web/pnpm-lock.yaml" />
   </ItemGroup>

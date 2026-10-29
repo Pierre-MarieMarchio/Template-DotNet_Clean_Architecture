@@ -951,7 +951,8 @@
         {
           "condition": "(!templateMaintenance)",
           "exclude": [
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs"
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs",
+            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AcceptanceSelectionTests.cs"
           ]
         },
         {

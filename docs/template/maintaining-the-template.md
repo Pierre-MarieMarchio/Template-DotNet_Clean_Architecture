@@ -11,7 +11,7 @@ still holds.
 | Gate | Checks |
 |---|---|
 | `Tools/CheckDocPaths.cs` | every repository path in a Markdown code span exists, and every `docs/` path a workflow, script or `.http` file names; `CHANGELOG.md` and the plans folder are exempt |
-| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk |
+| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
 | `api-client --check` | `Src/Clients/AppTemplate.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
@@ -37,8 +37,8 @@ CI, Sonar and release workflows run it before building, under `templateMaintenan
 
 ## The acceptance matrix
 
-`.github/workflows/template-acceptance.yml` packs the template package once, and per leg installs
-that `.nupkg`, generates under another name, asserts the source name leaked nowhere, bootstraps
+`.github/workflows/template-acceptance.yml` packs the template package once, chooses the legs the
+change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, bootstraps
 (the formatting, then `migration-initial` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
@@ -98,6 +98,58 @@ the engine refuses to overwrite one, so everything a web app needs from the API 
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
 
+The legs are the entries of `.template.config/acceptance/matrix.json`: the fields the workflow's
+steps read, and the `tags` that name what the leg generates. The leg with Angular and external
+authentication adds to its stack's `.env` the provider variables the API needs to start; no
+provider runs in Compose, and the API fetches nothing from the one it names until a token arrives.
+
+### Which legs a change runs
+
+A pull request runs the legs its change can affect, and every other leg still reports
+([template decision 0010](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)).
+The workflow's `Select the acceptance legs` job runs `.template.config/acceptance/SelectLegs.cs`
+after its `--self-test`, on the paths `git diff --name-only --no-renames HEAD^1 HEAD` lists for the
+pull request's merge commit. Each rule of `.template.config/acceptance/rules.json` maps path globs to
+tags, to `none` (no leg reads the path) or to `all`; the first rule a path matches decides, a path no
+rule matches runs every leg, and a leg runs when it carries a tag a changed path names. The
+`template` job takes the legs to run as its matrix; the `skipped` job reports each other leg green,
+with one echo step, under the same name, `Template acceptance (<leg>)`, the check the `develop`
+ruleset requires.
+
+| A change to | Runs |
+|---|---|
+| `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
+| `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the seven web legs |
+| a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vue, Vite and React Router |
+| `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
+| a `.template.config/variants/database-<name>` overlay | that provider's legs |
+| `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
+| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg |
+
+Every leg runs on a push to `develop` or `main`, on a manual run, under the `full-acceptance` label,
+on an empty or unreadable diff, and on a change to the selector, its rules, the matrix or the
+workflow. Labelling a pull request starts a run, so `full-acceptance` applies without a push.
+
+`AcceptanceSelectionTests`, a template-only rule, keeps the two files honest: the legs are the
+checks the ruleset requires plus the every-starter leg, which it does not; every folder under
+`.template.config/starters` and `.template.config/variants`, and each item template's, has a rule of
+its own; every tag a rule names is a leg's, and every leg's tag a rule's; each leg's tags are the ones
+its options choose; and every `none` path is left out of the template package. `Tools/CheckWorkflows.cs`
+refuses a `paths:` filter, which leaves a required check pending, and a job-level `if:` on a pull
+request's matrix job, which reports none of its legs when it skips them all, unless its matrix is read
+from an earlier job and another job of the same name reports the legs it leaves out.
+
+### Adding a leg
+
+1. Add its entry to `.template.config/acceptance/matrix.json`, with the fields its steps read and
+   the tags its options choose; `AcceptanceSelectionTests` fails until they agree.
+2. Add the leg's name to the required list in `AcceptanceSelectionTests`, and once that pull request
+   merges, `Template acceptance (<leg>)` to the required checks of the `develop` ruleset, which
+   would otherwise hold every other pull request pending; a leg left optional, as the every-starter
+   leg is, goes to that test's other list.
+3. Give a folder the leg is the first to generate a rule in `.template.config/acceptance/rules.json`,
+   and the leg its row in the table of legs above.
+
 ## Database providers
 
 A project carries one provider ([decision 0005](decisions/0005-a-project-carries-one-database-provider.md)),
@@ -134,7 +186,8 @@ A provider is refused until its overlay is wired. Wiring one is three edits to `
 source copying the folder under its computed symbol, the removal of its `NotYetGenerated` refusal with
 its `dotnetcli.host.json` entry, and its removal from `refusedOptions`. `TemplatePackagingTests`
 fails until the three agree with the folder. Its refusal line in the acceptance refusal job becomes a
-leg, and each leg's provider-leak check reads the leg's `database`.
+leg, tagged `database-<name>` with the overlay's rule in `.template.config/acceptance/rules.json`, and
+each leg's provider-leak check reads the leg's `database`.
 
 This version generates PostgreSQL, SQL Server and SQLite. MySQL stays refused, because the stable EF
 Core 10 providers cannot map the owned JSON entity Identity's passkeys use; no page names a MySQL
@@ -154,7 +207,8 @@ change one of them missed.
    that file's own comment syntax.
 3. A combination that cannot hold together is a hidden required parameter, and the same condition in
    `refusedOptions`, so the `#error` variant catches a hand-passed bypass.
-4. Add the leg that generates the new shape, and a refusal to the refusal job.
+4. Add the leg that generates the new shape, as [adding a leg](#adding-a-leg) says, and a refusal
+   to the refusal job.
 5. Condition every page whose truth changes, and judge each in every form it can take.
 
 ## Writing docs that condition
@@ -246,7 +300,9 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
 5. Add it to the every-starter leg of the acceptance matrix, with a port of its own, which
    scaffolds, builds and serves it beside the others and refuses an inline script its served policy
    does not allow by hash; a starter that differs in the wiring gets a leg of its own as well, unless
-   the every-starter leg already proves what differs, as it does for React Router's hash step.
+   the every-starter leg already proves what differs, as it does for React Router's hash step. Its
+   folder's rule in `.template.config/acceptance/rules.json` names the tag `starter-<value>`, which
+   each leg that generates it carries in `.template.config/acceptance/matrix.json`.
 
 ## Presentation starters
 
@@ -357,8 +413,8 @@ Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v
 and the other types stay out of it. A working branch is kept after its merge.
 
 The checks run on the pull request, which must be up to date with `develop`, so the merged tree is
-the one they passed and a push to `develop` does not run them again: it runs CodeQL, SonarQube and
-the release workflow. SonarQube analyses a push to the default branch only, as SonarCloud's free
+the one they passed. A push to `develop` runs CodeQL, SonarQube, the release workflow, and the
+acceptance matrix in full, as its pull request ran only the legs its change could affect. SonarQube analyses a push to the default branch only, as SonarCloud's free
 plan analyses one branch, so the SonarCloud project names `develop` as its main branch; it skips a
 Dependabot pull request, which gets no repository secret. Dependabot reads its configuration on the
 default branch, and `.github/dependabot.yml` names `develop` for each ecosystem in this repository
@@ -443,3 +499,4 @@ version means adopting the change in an existing project takes manual work.
 - [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)
 - [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
 - [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)
+- [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)

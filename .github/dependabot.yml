@@ -106,7 +106,7 @@ updates:
     directories:
       - /Src/Presentation/AppTemplate.Api
       #if (anyWeb)
-      # Every web app's nginx image, by directory glob.
+      # Every web app's image, nginx or Node, by directory glob.
       - /Src/Web/apps/*
       #endif
       #if (sonar)

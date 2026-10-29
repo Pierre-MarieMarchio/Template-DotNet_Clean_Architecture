@@ -37,6 +37,7 @@ public sealed class QuestionnaireTests
         answers["web"].ShouldBe("none");
         answers.ShouldNotContainKey("webName");
         answers.ShouldNotContainKey("webAudience");
+        answers.ShouldNotContainKey("webRendering");
         _project.CommandArguments(answers).ShouldBeEmpty();
     }
 

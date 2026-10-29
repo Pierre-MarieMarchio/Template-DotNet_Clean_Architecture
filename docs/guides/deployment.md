@@ -29,7 +29,8 @@ The `Dockerfile` copies each project file by name before restoring, so a project
 needs its `COPY` line there too; the build passes locally without it, and only the image fails.
 
 <!--#if (anyWeb)-->
-Each web app has its own nginx image, built from `Src/Web`; [the web front end](../features/web-frontend.md#images-and-headers)
+Each web app has its own image, built from `Src/Web`: nginx serves a single-page app, and a
+server-rendered app runs on its own Node server, as one instance; [the web front end](../features/web-frontend.md#images-and-headers)
 describes them.
 
 <!--#endif-->

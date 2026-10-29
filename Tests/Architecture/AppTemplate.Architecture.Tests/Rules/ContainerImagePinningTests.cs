@@ -145,7 +145,7 @@ public sealed class ContainerImagePinningTests
     [Fact]
     public void TheMatchers_AreSensitive()
     {
-        const string digest = "sha256:885cf05d376c7cf27afef02073e6bdac3841252537f16e244fd1c1e6a7c99fb1";
+        const string digest = "sha256:1a0c23d53c1ad77468c8653fa6eed4f4105cfbef9e6f027bc1dfeb16949a8c29";
 
         _pinned.IsMatch($"postgres:18.6-alpine3.23@{digest}").ShouldBeTrue();
         _pinned.IsMatch($"mcr.microsoft.com/dotnet/sdk:10.0.302-noble@{digest}").ShouldBeTrue();

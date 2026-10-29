@@ -118,7 +118,7 @@
     <!--#if (postgreSql)-->
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <!--#endif-->
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.18.3" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.18.5" />
   </ItemGroup>
 
   <ItemGroup Label="Test">

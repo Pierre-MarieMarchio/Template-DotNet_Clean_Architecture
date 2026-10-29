@@ -6,6 +6,8 @@ import {
 } from '@angular/ssr/node';
 //#if (localAuth)
 import { serverSessions } from '@app-template/api-client/server';
+//#elseif (externalAuth)
+import { checkProviderSettings, providerSessions } from '@app-template/api-client/server';
 //#else
 import { relayToApi } from '@app-template/api-client/server';
 //#endif
@@ -23,6 +25,8 @@ const app = express();
 const angularApp = new AngularNodeAppEngine();
 //#if (localAuth)
 const sessions = serverSessions(apiUpstream);
+//#elseif (externalAuth)
+const sessions = providerSessions(apiUpstream, process.env);
 //#endif
 
 const templateScriptHashes = existsSync(pageTemplate)
@@ -46,7 +50,7 @@ const contentSecurityPolicy = (nonce: string) =>
 
 app.disable('x-powered-by');
 
-//#if (localAuth)
+//#if (accounts)
 app.use(sessions.relay);
 //#else
 app.use(relayToApi(apiUpstream));
@@ -77,7 +81,7 @@ app.use((request, response, next) => {
   response.setHeader('Cache-Control', 'no-store');
 
   angularApp
-//#if (localAuth)
+//#if (accounts)
     .handle(request, { nonce, apiUpstream, accessToken: () => sessions.accessToken(request, response) })
 //#else
     .handle(request, { nonce })
@@ -87,6 +91,10 @@ app.use((request, response, next) => {
 });
 
 if (isMainModule(import.meta.url) || process.env['pm_id']) {
+//#if (externalAuth)
+  checkProviderSettings(process.env);
+
+//#endif
   const port = process.env['PORT'] || 4000;
   app.listen(port, (error) => {
     if (error) {

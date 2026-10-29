@@ -115,9 +115,10 @@ public sealed class Questionnaire
     {
         if (_missing.Count > 0)
         {
-            throw new LauncherException(
-                "There's no terminal to ask questions in, and these weren't given: " + string.Join(", ", _missing)
-                + ". Pass them as options, or add --yes to use the defaults.");
+            throw new LauncherException(_yes
+                ? "--yes can't choose these, which have no default: " + string.Join(", ", _missing) + ". Pass them as options."
+                : "There's no terminal to ask questions in, and these weren't given: " + string.Join(", ", _missing)
+                    + ". Pass them as options, or add --yes to use the defaults.");
         }
     }
 

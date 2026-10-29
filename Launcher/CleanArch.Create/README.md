@@ -105,14 +105,15 @@ Each asks on the same thread, with the same summary, as a new project.
 Every question is a flag named like the template's option; `--yes` takes the default of each one not
 given, or the only value the template leaves it, as `--examples none` and `--files false` after
 `--auth none`. Without `--yes`, a choice with no default takes its only value the same way. Each value
-taken this way is printed with the answer that leaves it. Without a terminal, every answer is a flag
-or `--yes` is passed. `--help` lists the options
+taken this way is printed with the answer that leaves it. An option with no default, as
+`presentation`'s `--framework` while more than one framework is left, is passed as a flag: `--yes`
+cannot choose it. Without a terminal, every answer is a flag or `--yes` is passed. `--help` lists the options
 with the values the template generates and their defaults.
 
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
 dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create presentation -n Portal --yes
+dnx CleanArch.Create presentation -n Portal --framework blazor-server --yes
 ```
 
 | Option | Meaning |

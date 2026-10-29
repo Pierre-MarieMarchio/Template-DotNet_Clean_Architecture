@@ -70,6 +70,18 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
+    public void Yes_AnOptionWithoutADefault_IsNamed_AsOneYesCannotChoose()
+    {
+        TemplateManifest presentation = Repository.Source.Manifest(TemplateKind.Presentation);
+        var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false" };
+
+        LauncherException error = Should.Throw<LauncherException>(() => questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>()));
+
+        error.Message.ShouldBe("--yes can't choose these, which have no default: --framework. Pass them as options.");
+    }
+
+    [Fact]
     public void WithoutATerminal_ARefusedCombination_IsExplainedAndNotGenerated()
     {
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);

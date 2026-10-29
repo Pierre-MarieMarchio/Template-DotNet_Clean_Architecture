@@ -59,7 +59,7 @@ given, or the only value the template leaves it: `--auth none --yes` generates w
 ```bash
 dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
 dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create presentation -n Portal --yes
+dnx CleanArch.Create presentation -n Portal --framework blazor-server --yes
 ```
 
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the

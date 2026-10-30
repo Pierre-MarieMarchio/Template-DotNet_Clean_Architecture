@@ -1,4 +1,6 @@
-﻿namespace CleanArch.Create.Projects;
+﻿using CleanArch.Tooling;
+
+namespace CleanArch.Create.Projects;
 
 public enum SetupStatus
 {

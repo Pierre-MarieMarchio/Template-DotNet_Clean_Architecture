@@ -23,7 +23,7 @@ public abstract class Conversation
 
     public abstract string? Choose(string label, string description, IReadOnlyList<OptionChoice> choices, string? defaultValue);
 
-    public abstract IReadOnlyList<string>? ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected);
+    public abstract IReadOnlyList<string>? ChooseMany(string label, string description, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected, bool atLeastOne);
 
     public abstract bool? Confirm(string label, string description, bool defaultValue);
 

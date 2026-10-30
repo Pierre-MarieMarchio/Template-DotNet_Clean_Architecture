@@ -38,7 +38,8 @@ pins and refuses an install of another version beside it.
   and is copied into `Src/Web/apps/`; a presentation starter holds its project and its tests at
   their paths and is copied into the project's root. `TemplatePackagingTests` holds that each
   folder under `.template.config/starters` is one or the other, and that each `--presentation`
-  value but `none` is a starter of kind `dotnet`. A web starter of kind `dotnet`, `blazor-wasm`,
+  value but `api` is a starter, of kind `dotnet` or, as
+  [0013](0013-a-starter-the-generator-cannot-add-to-is-written-whole.md) has it, `written`. A web starter of kind `dotnet`, `blazor-wasm`,
   holds its project under `FrameworkSite/` as the others do, and `web-scaffold` dispatches on the
   kind: the same scaffold as a presentation project, joining the solution, for it, `pnpm dlx` for
   the others.

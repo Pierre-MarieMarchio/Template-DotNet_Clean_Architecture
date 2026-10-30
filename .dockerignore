@@ -24,9 +24,14 @@
 # appsettings.Development.json, which legitimately holds a real local password,
 # and any appsettings.Production.json a developer drops in locally.
 **/appsettings*.json
+#if (presentationMcp)
+!Src/Presentation/AppTemplate.PresentationAppMcp/appsettings.json
+#endif
+#if (presentationBlazorServer)
+!Src/Presentation/AppTemplate.PresentationAppPortal/appsettings.json
+#endif
+#if (api)
 !Src/Presentation/AppTemplate.Api/appsettings.json
-#if (presentationBlazorServer || presentationMcp)
-!Src/Presentation/AppTemplate.PresentationApp/appsettings.json
 #endif
 #if (jobsWorker)
 !Src/Presentation/AppTemplate.Worker/appsettings.json

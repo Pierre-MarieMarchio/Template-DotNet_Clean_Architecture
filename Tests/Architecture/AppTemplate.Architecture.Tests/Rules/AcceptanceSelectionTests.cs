@@ -31,6 +31,8 @@ public sealed class AcceptanceSelectionTests
         "worker, external auth, all examples",
         "mcp, external auth, all examples",
         "mcp, local auth, notes",
+        "several hosts, local auth, notes",
+        "no api, blazor server, mcp and worker, external auth",
         "sqlite, defaults",
         "sqlite, smallest project",
         "sqlite, external auth, all examples",
@@ -147,11 +149,13 @@ public sealed class AcceptanceSelectionTests
             .Where(folder => Directory.Exists(Path.Combine(folder, "FrameworkSite")))
             .Select(folder => Path.GetFileName(folder))];
         string[] presentationStarters = [.. Directory.GetDirectories(Path.Combine(TemplateConfig, "starters"))
-            .Where(folder => Directory.Exists(Path.Combine(folder, "Src", "Presentation", "AppTemplate.PresentationApp")))
+            .Where(folder => Directory.Exists(Path.Combine(folder, "Src", "Presentation"))
+                && Directory.EnumerateFiles(Path.Combine(folder, "Src", "Presentation"), "scaffold.json", SearchOption.AllDirectories).Any())
             .Select(folder => Path.GetFileName(folder))];
 
         webStarters.ShouldContain("angular", "No web starter was found under .template.config/starters.");
         presentationStarters.ShouldContain("avalonia", "No presentation starter was found under .template.config/starters.");
+        presentationStarters.ShouldContain("worker", "The worker's starter, a --presentation value, was not found under .template.config/starters.");
 
         foreach (var leg in Legs())
         {
@@ -200,11 +204,6 @@ public sealed class AcceptanceSelectionTests
         if (Field("database") is { } database)
         {
             tags.Add($"database-{database}");
-        }
-
-        if (Chooses(options, "--jobs", "worker"))
-        {
-            tags.Add("jobs-worker");
         }
 
         if (firstPresentation.Length > 0)

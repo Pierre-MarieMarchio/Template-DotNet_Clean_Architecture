@@ -1,0 +1,13 @@
+{
+  "kind": "dotnet",
+  "framework": "avalonia",
+  "name": "AppTemplate.PresentationAppDesktop",
+  "package": "Avalonia.Templates",
+  "version": "12.1.4",
+  "template": "avalonia.mvvm",
+  "arguments": [
+    "--name", "{name}", "--output", "{directory}",
+    "--mvvm", "CommunityToolkit", "--no-restore"
+  ],
+  "keep": ["Assets", "ViewModels", "Views", "App.axaml", "ViewLocator.cs", "app.manifest"]
+}

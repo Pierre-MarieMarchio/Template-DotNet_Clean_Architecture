@@ -1,4 +1,6 @@
-﻿namespace CleanArch.Create;
+﻿using CleanArch.Create.Manifests;
+
+namespace CleanArch.Create;
 
 public sealed class Arguments
 {
@@ -78,7 +80,7 @@ public sealed class Arguments
                     parsed.Hive = inline ?? Value(arguments, ref index, key);
                     break;
                 case not null when key.StartsWith("--", StringComparison.Ordinal) && key.Length > 2:
-                    parsed._templateOptions[key[2..]] = inline ?? OptionalValue(arguments, ref index);
+                    parsed.AddTemplateOption(key[2..], inline ?? OptionalValue(arguments, ref index));
                     break;
                 default:
                     throw new LauncherException($"Unknown option '{argument}'. --help lists them all.");
@@ -87,6 +89,9 @@ public sealed class Arguments
 
         return parsed;
     }
+
+    private void AddTemplateOption(string name, string value) =>
+        _templateOptions[name] = _templateOptions.TryGetValue(name, out string? earlier) ? earlier + Condition.ValueSeparator + value : value;
 
     private static string Value(IReadOnlyList<string> arguments, ref int index, string key)
     {

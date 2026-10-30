@@ -60,6 +60,13 @@
         "text": "Project holds the .NET client"
       },
       "isVisible": true
+    },
+    {
+      "id": "hasApi",
+      "name": {
+        "text": "Project holds the API"
+      },
+      "isVisible": true
     }
   ]
 }

@@ -60,9 +60,9 @@ public sealed class GuidedConversation : Conversation
         return selected;
     }
 
-    public override IReadOnlyList<string>? ChooseMany(string label, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected)
+    public override IReadOnlyList<string>? ChooseMany(string label, string description, IReadOnlyList<OptionChoice> choices, IReadOnlyCollection<string> selected, bool atLeastOne)
     {
-        IReadOnlyList<string>? chosen = new RailMultiSelection(label, choices, selected, CanGoBack).Show(_console);
+        IReadOnlyList<string>? chosen = new RailMultiSelection(label, description, choices, selected, atLeastOne, CanGoBack).Show(_console);
         if (chosen is not null)
         {
             Recall(label, chosen.Count == 0 ? "Nothing" : string.Join(", ", chosen), null);

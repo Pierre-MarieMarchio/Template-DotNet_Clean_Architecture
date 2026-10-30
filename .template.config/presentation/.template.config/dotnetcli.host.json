@@ -46,6 +46,15 @@
       "longName": "my-sql-not-yet-generated",
       "shortName": "",
       "isHidden": true
+    },
+    "hasApi": {
+      "longName": "has-api",
+      "shortName": ""
+    },
+    "presentationNeedsTheApi": {
+      "longName": "presentation-needs-the-api",
+      "shortName": "",
+      "isHidden": true
     }
   }
 }

@@ -123,7 +123,8 @@ public sealed class OfferTests
 
             TemplateOption option = _project.Options[step.Next];
             bool asked = !Launcher.ProjectAskedWhen.TryGetValue(option.Symbol, out Condition? when) || _project.Holds(when, step.Answers);
-            IReadOnlyList<string> values = asked ? Offer.For(_project, option, step.Answers, Launcher.ProjectAskedWhen).Values : [];
+            IReadOnlyList<string> offered = asked ? Offer.For(_project, option, step.Answers, Launcher.ProjectAskedWhen).Values : [];
+            IReadOnlyList<string> values = option.AllowsMany ? Accepted(option, offered, step.Answers) : offered;
 
             if (values.Count == 0)
             {
@@ -138,6 +139,63 @@ public sealed class OfferTests
 
         ends.ShouldBeGreaterThan(100);
     }
+
+    [Fact]
+    public void EachDesktopFramework_IsOffered_ThoughBothTogetherAreRefusedOnceChosen()
+    {
+        var known = new Dictionary<string, string> { ["auth"] = "local" };
+
+        Offer.For(_project, Option(_project, "presentation"), known, Launcher.ProjectAskedWhen).Values
+            .ShouldBe(["api", "blazor-server", "mcp", "avalonia", "wpf", "worker"]);
+        Offer.Unavoidable(_project, new Dictionary<string, string>(known) { ["presentation"] = "avalonia|wpf" }, Launcher.ProjectAskedWhen)
+            .Select(refusal => refusal.Symbol).ShouldBe(["desktopIsOneFramework"]);
+        Offer.Unavoidable(_project, new Dictionary<string, string>(known) { ["presentation"] = "api|wpf" }, Launcher.ProjectAskedWhen).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void APortalOrAnMcpServer_IsOffered_WithoutAWebApp_ForTheApiBesideIt()
+    {
+        var known = new Dictionary<string, string> { ["web"] = "none", ["auth"] = "external" };
+
+        Offer.For(_project, Option(_project, "presentation"), known, Launcher.ProjectAskedWhen).Values
+            .ShouldBe(["api", "blazor-server", "mcp", "avalonia", "wpf", "worker"]);
+        Offer.Unavoidable(_project, new Dictionary<string, string>(known) { ["presentation"] = "blazor-server|mcp" }, Launcher.ProjectAskedWhen)
+            .ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AnAccountlessProject_IsOfferedNoPresentationThatNeedsAccounts()
+    {
+        Offer offer = Offer.For(_project, Option(_project, "presentation"), new Dictionary<string, string> { ["auth"] = "none" }, Launcher.ProjectAskedWhen);
+
+        offer.Values.ShouldBe(["api", "blazor-server", "worker"]);
+        offer.Reasons.Select(refusal => refusal.Symbol).ShouldBe(["clientPresentationNeedsAccounts", "mcpNeedsAccounts"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void APortalAlone_IsOfferedNoWebApp_ForTheWorkerAddedForIt()
+    {
+        var known = new Dictionary<string, string> { ["presentation"] = "blazor-server", ["auth"] = "external" };
+
+        Offer offer = Offer.For(_project, Option(_project, "web"), known, Launcher.ProjectAskedWhen);
+
+        offer.Values.ShouldContain("none");
+        offer.Reasons.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void APortalAlone_OnSqlite_IsRefusedTheWorkerAddedForIt()
+    {
+        var known = new Dictionary<string, string> { ["presentation"] = "blazor-server", ["auth"] = "external", ["web"] = "none", ["database"] = "sqlite" };
+
+        Offer.Unavoidable(_project, known, Launcher.ProjectAskedWhen).Select(refusal => refusal.Symbol).ShouldBe(["workerNeedsServerDatabase"]);
+        Offer.Unavoidable(_project, new Dictionary<string, string>(known) { ["presentation"] = "api|blazor-server" }, Launcher.ProjectAskedWhen).ShouldBeEmpty();
+    }
+
+    private List<string> Accepted(TemplateOption option, IReadOnlyList<string> offered, Dictionary<string, string> answers) =>
+        [.. Enumerable.Range(1, (1 << offered.Count) - 1)
+            .Select(members => option.Joined(offered.Where((_, index) => (members & (1 << index)) != 0)))
+            .Where(selection => Offer.Unavoidable(_project, new Dictionary<string, string>(answers) { [option.Symbol] = selection }, Launcher.ProjectAskedWhen).Count == 0)];
 
     private static TemplateOption Option(TemplateManifest manifest, string symbol) =>
         manifest.Options.Single(option => option.Symbol == symbol);

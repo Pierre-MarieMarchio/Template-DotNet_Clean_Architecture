@@ -46,10 +46,6 @@
       "shortName": "",
       "isHidden": true
     },
-    "presentationName": {
-      "longName": "presentation-name",
-      "shortName": ""
-    },
     "clientPresentationNeedsAccounts": {
       "longName": "client-presentation-needs-accounts",
       "shortName": "",
@@ -65,17 +61,13 @@
       "shortName": "",
       "isHidden": true
     },
-    "presentationNameIsTaken": {
-      "longName": "presentation-name-is-taken",
+    "workerNeedsServerDatabase": {
+      "longName": "worker-needs-server-database",
       "shortName": "",
       "isHidden": true
     },
-    "jobs": {
-      "longName": "jobs",
-      "shortName": ""
-    },
-    "workerNeedsServerDatabase": {
-      "longName": "worker-needs-server-database",
+    "desktopIsOneFramework": {
+      "longName": "desktop-is-one-framework",
       "shortName": "",
       "isHidden": true
     }

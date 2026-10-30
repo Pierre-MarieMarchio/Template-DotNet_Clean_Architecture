@@ -1,4 +1,6 @@
-﻿namespace CleanArch.Create.Tests;
+﻿using CleanArch.Tooling;
+
+namespace CleanArch.Create.Tests;
 
 internal sealed class FakeProcesses : IProcessRunner
 {

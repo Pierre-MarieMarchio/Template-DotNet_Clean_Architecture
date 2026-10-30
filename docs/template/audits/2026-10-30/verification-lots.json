@@ -1,0 +1,2252 @@
+{
+ "lots": {
+  "L1": [
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-01",
+    "axis": "concepts / forme d'un use case",
+    "claim": "Notre use case en 4 fichiers derrière IUseCase<,>, contre commande et handler MediatR en 1 fichier chez le concurrent. Le coût d'écriture est plus élevé chez nous pour un use case ou un champ ajouté, plus faible pour une feature entière générée.",
+    "evidence": "ours:Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/CreateTodoList/CreateTodoListUseCase.cs:13-46 et ICreateTodoListUseCase.cs:8 ; comp:src/Application/TodoItems/Commands/CreateTodoItem/CreateTodoItem.cs:6-36 ; p3-comp-1.md §5 (T2 ~110 lignes, T3 ~14 lignes/7 fichiers, T1 ~380) contre p3-ours-1.md §2 (T2 ~350, T3 ~45/~14, T1 ~215)",
+    "verdict": "choix assumé (ADR 0003)",
+    "n": "L1-001"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-02",
+    "axis": "concepts / médiateur et pipeline",
+    "claim": "Le concurrent livre MediatR 14 avec 5 behaviours et AutoMapper 16, commerciaux au-delà de 5 M$, sans clé de licence ; son LoggingBehaviour journalise {@Request} en entier. Chez nous, aucun médiateur, et MediatR est interdit par test.",
+    "evidence": "comp:src/Application/DependencyInjection.cs:16-23 ; comp:Directory.Packages.props:9,14 ; comp:src/Application/Common/Behaviours/LoggingBehaviour.cs:32-33 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1346 ; ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayerDependencyTests.cs:32-49,78-95",
+    "verdict": "choix assumé (ADR 0003)",
+    "n": "L1-002"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-03",
+    "axis": "concepts / validation",
+    "claim": "Validation automatique par behaviour (exception) chez le concurrent ; appel explicite qui renvoie un Result chez nous. Aucun des deux ne vérifie qu'une commande a son validateur ou que le validateur est consommé ; aujourd'hui, nos 56 validateurs sont tous injectés.",
+    "evidence": "comp:src/Application/Common/Behaviours/ValidationBehaviour.cs:17-29 ; ours CreateTodoListUseCase.cs:26-38 ; grep AbstractValidator< sous Src/Application = 56, EnsureValidAsync( = 57, grep IValidator|AbstractValidator sous Tests/Architecture = 0 ; script : aucun validateur orphelin",
+    "verdict": "égalité",
+    "n": "L1-003"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-04",
+    "axis": "concepts / erreurs",
+    "claim": "Chez nous : Result/Error à 8 ErrorType, code stable, table testée dans les deux sens. Chez le concurrent : 4 exceptions traduites en ProblemDetails sans code, les autres laissées au middleware par défaut, et un 400 sans corps.",
+    "evidence": "ours:Src/Application/AppTemplate.Application.Core/Common/Results/ErrorType.cs:3-20 ; ours:Src/Presentation/AppTemplate.Api/Common/Errors/GlobalExceptionHandler.cs:19-47 ; comp:src/Web/Infrastructure/ProblemDetailsExceptionHandler.cs:17-46 ; comp:src/Web/Endpoints/TodoItems.cs:34-35",
+    "verdict": "on dépasse",
+    "n": "L1-004"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-05",
+    "axis": "concepts / erreurs (défaut chez nous)",
+    "claim": "domain.invariantViolated répond 409 par DomainGuard.Try et 400 si l'exception n'est pas attrapée ; api.md ne donne que 409, et aucun test ne tient le 400.",
+    "evidence": "ours:Src/Application/AppTemplate.Application.Core/Common/Validation/DomainGuard.cs:18-20 ; CommonErrors.cs:9-11 ; GlobalExceptionHandler.cs:27-31 ; docs/architecture/domain-and-results.md:59-60 ; docs/reference/api.md:247 ; Tests/Presentation/AppTemplate.Api.UnitTests/Common/Errors/GlobalExceptionHandlerTests.cs : 0 occurrence de DomainException",
+    "verdict": "retard",
+    "n": "L1-005"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-06",
+    "axis": "concepts / événements",
+    "claim": "Le concurrent publie dans SavingChanges, avant l'écriture, et en synchrone bloquant, alors que son ADR-003 dit « after SaveChangesAsync » ; il n'a aucun test d'événement. Chez nous, publication après commit, conforme à l'ADR 0006, et événements reliés aux consommateurs par test.",
+    "evidence": "comp:src/Infrastructure/Data/Interceptors/DispatchDomainEventsInterceptor.cs:17-30 ; comp:docs/decisions/ADR-003-MediatR-Contracts-In-Domain.md:13 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1112 ; ours:Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptor.cs:16-25,39-58,80-96 ; ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/DomainEventTests.cs:27,71",
+    "verdict": "on dépasse",
+    "n": "L1-006"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-07",
+    "axis": "concepts / entités de base",
+    "claim": "Le concurrent a des entités anémiques (int Id et setters publics, MediatR.Contracts dans Domain). Chez nous : AggregateRoot<TId>, ids Guid v7, état non modifiable publiquement, tenu par DomainModelTests.",
+    "evidence": "comp:src/Domain/Common/BaseEntity.cs:5-9 ; comp:src/Domain/Entities/TodoList.cs:3-10 ; comp:src/Domain/Domain.csproj:9 ; ours:Src/Domain/AppTemplate.Domain.Core/Common/Primitives/AggregateRoot.cs:5-16 ; ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/DomainModelTests.cs:25,47,82,110,147",
+    "verdict": "on dépasse",
+    "n": "L1-007"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-08",
+    "axis": "concepts / mapping",
+    "claim": "AutoMapper (ProjectTo, AssertConfigurationIsValid) chez le concurrent ; mapping manuel chez nous. L'absence d'AutoMapper est un choix écrit, mais aucun test ne l'interdit, alors qu'un test interdit MediatR.",
+    "evidence": "comp:src/Application/TodoLists/Queries/GetTodos/TodoListDto.cs:20-26 ; comp:tests/Application.UnitTests/Common/Mappings/MappingTests.cs:29-33 ; ours:docs/architecture/README.md:89 ; ours:Src/Application/AppTemplate.Application/Features/TodoLists/Model/Mapping/TodoListDtoMapping.cs:7-21 ; grep AutoMapper Tests/Architecture : vide",
+    "verdict": "choix assumé (docs/architecture/README.md, What is deliberately absent)",
+    "n": "L1-008"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-09",
+    "axis": "concepts / autorisation",
+    "claim": "Chez nous : politique de repli authentifiée, liste anonyme fermée et testée, politique Administrator testée en 401 et 403, RequireUserId dans chaque use case. Chez le concurrent : RequireAuthorization par groupe, [Authorize] applicatif sur 1 requête sur 9, CORS ouvert à toute origine.",
+    "evidence": "ours:Src/Presentation/AppTemplate.Api/Program.cs:113-114 ; ours:Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AdministratorPolicyTests.cs:13,28 ; comp:src/Web/Endpoints/TodoItems.cs:13 ; comp:src/Application/TodoLists/Queries/GetTodos/GetTodos.cs:9 ; comp:src/Application/Common/Behaviours/AuthorizationBehaviour.cs:24-73 ; comp:src/Web/Program.cs:28-31",
+    "verdict": "on dépasse",
+    "n": "L1-009"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-10",
+    "axis": "concepts / autorisation (à expliciter)",
+    "claim": "Chez nous, l'autorisation par rôle vit dans l'hôte (contrôleurs, outils MCP), sans ADR qui le dise et sans test qui lie les use cases d'administration aux hôtes qui les appellent. Le concurrent permet ce contrôle dans la requête applicative, quel que soit l'hôte.",
+    "evidence": "grep 'Authorize(Policy' : 5 contrôleurs de l'API et 4 outils MCP sous .template.config/starters/mcp ; grep Administrator|IsInRole sous Src/Application : aucun contrôle de rôle ; ours:docs/decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md (« its authentication ») ; comp AuthorizationBehaviour.cs:34-58",
+    "verdict": "choix assumé (ADR 0022, partiel)",
+    "n": "L1-010"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-11",
+    "axis": "concepts / propriété des données",
+    "claim": "Le concurrent n'a aucune propriété des données : tout utilisateur authentifié lit et modifie tout. Chez nous, le propriétaire est dans le SQL pour les lectures et les stores, et des tests d'isolation existent.",
+    "evidence": "comp:src/Application/TodoLists/Commands/DeleteTodoList/DeleteTodoList.cs:18-22 ; p3-comp-1.md T1 ; ours:Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Access/Queries/TodoListQueries.cs:25,40 ; NoteStore.cs:76,91 ; ours:Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs:15-81",
+    "verdict": "on dépasse",
+    "n": "L1-011"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-12",
+    "axis": "concepts / propriété des données (défaut chez nous)",
+    "claim": "Le chemin agrégat charge par id seul puis compare le propriétaire en mémoire, c'est-à-dire le schéma que l'ADR 0009 écarte ; « no code path holds another user's row » est donc faux. Le générateur recopie ce schéma dans chaque nouvelle feature à agrégat.",
+    "evidence": "ours:Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/TodoLists/Access/Repositories/TodoListRepository.cs:17-29 ; ours:Src/Application/AppTemplate.Application.Core/Common/Ownership/OwnedAggregate.cs:20 ; ITodoListRepository.cs:8, IReminderRepository.cs:8, IStoredFileRepository.cs:8 (GetAsync(Guid id)) ; ours:docs/decisions/0009-ownership-is-in-the-query.md:7-9,14-15,28 ; ours:Tools/NewFeature.cs:4536-4545,3648-3652",
+    "verdict": "retard",
+    "n": "L1-012"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-13",
+    "axis": "concepts / CQRS et accès aux données",
+    "claim": "Le concurrent expose les DbSet à l'application (IApplicationDbContext, ADR-001), un choix contesté chez lui. Chez nous, les écritures passent par un Repository d'agrégat, les lectures par un port Queries qui projette, sans IQueryable, et c'est testé.",
+    "evidence": "comp:src/Application/Common/Interfaces/IApplicationDbContext.cs:5-12 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/482 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/405 ; ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/StorageShapeTests.cs:49 ; PortConventionTests.cs:32",
+    "verdict": "choix assumé (ADR 0003, 0005)",
+    "n": "L1-013"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-14",
+    "axis": "concepts / enregistrement DI (défaut chez nous)",
+    "claim": "Les messages de UseCaseConventionTests disent « registration is explicit rather than scanned », alors que AddFeature scanne par namespace. Ailleurs, la composition est testée (ContainerCompositionTests), ce que le concurrent n'a pas.",
+    "evidence": "ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/UseCaseConventionTests.cs:58,197 ; ours:Src/Application/AppTemplate.Application/ApplicationModule.cs:156-170 ; ours:docs/guides/adding-a-feature.md:153 ; comp:src/Application/DependencyInjection.cs:11-17",
+    "verdict": "retard",
+    "n": "L1-014"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-15",
+    "axis": "architecture / projets et références",
+    "claim": "Chez nous : 14 projets, avec une couche .Core, un module d'infra par capacité, l'auth isolée et testée (TheApplicationLayer_KnowsNothingOfAuthentication) et des adaptateurs internes. Chez le concurrent : 4 couches, EF Core dans Application, MediatR.Contracts dans Domain, et un endpoint Web qui utilise un type d'Infrastructure. Le coût de nos 14 projets n'est pas prouvé.",
+    "evidence": "find Src -name '*.csproj' = 14 ; ours:Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj:46-60 ; ours LayerDependencyTests.cs:177-203 ; AdapterVisibilityTests.cs:14 ; comp:src/Application/Application.csproj:9-18 ; comp:src/Web/Web.csproj:14-16 ; comp:src/Web/Endpoints/Users.cs:1,12 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/415",
+    "verdict": "on dépasse",
+    "n": "L1-015"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-16",
+    "axis": "architecture / tests d'architecture",
+    "claim": "Chez nous : 195 tests d'architecture NetArchTest et 17 contre-épreuves dans 14 fichiers, et une violation hors cycle est rouge en 9 s avec le csproj fautif. Chez le concurrent : aucun test d'architecture ; EF ajouté à Domain ne produit aucun signal, et seul un cycle échoue, en MSB4006. Sa PR #1633 décrit les frontières en prose.",
+    "evidence": "grep -rc Fact|Theory Tests/Architecture = 195 ; grep 'public .*Sensitive' = 17 méthodes, 14 fichiers ; ModuleDependencyTests.cs:263,293,380,403 ; p3-ours-1.md tâche 8 ; p3-comp-1.md T8 ; https://github.com/jasontaylordev/CleanArchitecture/pull/1633",
+    "verdict": "on dépasse",
+    "n": "L1-016"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-17",
+    "axis": "architecture / analyzers",
+    "claim": "Chez nous : AnalysisLevel latest-recommended, EnforceCodeStyleInBuild et TreatWarningsAsErrors, et les erreurs CA/IDE arrêtent le build. Chez le concurrent : TreatWarningsAsErrors seul, avec 19 règles de nommage en suggestion.",
+    "evidence": "ours:Directory.Build.props:13-15 ; p3-ours-1.md §5 ; comp:Directory.Build.props:5 ; comp:.editorconfig:196-268",
+    "verdict": "on dépasse",
+    "n": "L1-017"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-18",
+    "axis": "architecture / analyzers (défaut chez nous)",
+    "claim": "Notre règle « ni #pragma, ni NoWarn, ni sévérité baissée » n'est pas tenue, et aucun test ne la vérifie.",
+    "evidence": "ours:Src/Presentation/AppTemplate.Api/Common/Hosting/HttpPipelineModule.cs:67-69 ; ours:Directory.Build.props:27 ; ours:Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj:16 ; ours:.editorconfig:57-59,91 ; ours:docs/guides/build-and-ci.md:70-72",
+    "verdict": "retard",
+    "n": "L1-018"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-19",
+    "axis": "architecture / doc contre code (chez nous)",
+    "claim": "Deux pages disent « six authentication features » ; Application.Auth/Features en contient 7.",
+    "evidence": "ours:docs/architecture/layers-and-projects.md:34 ; ours:docs/reference/project-layout.md:201 ; ls Src/Application/AppTemplate.Application.Auth/Features | wc -l = 7",
+    "verdict": "retard",
+    "n": "L1-019"
+   },
+   {
+    "src": "p5-G1-opus",
+    "id": "G1-20",
+    "axis": "concepts / dépendances sous licence",
+    "claim": "Le concurrent a refusé de retirer MediatR et AutoMapper malgré les demandes. Nous pouvons dire explicitement que le template n'a aucune dépendance sous licence commerciale.",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1325 ; https://github.com/jasontaylordev/CleanArchitecture/pull/1348 ; https://github.com/jasontaylordev/CleanArchitecture/pull/1321 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1206 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1346 (commentaire du 2026-03-24 demandant une alternative)",
+    "verdict": "on dépasse",
+    "n": "L1-020"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C1",
+    "axis": "conventions",
+    "claim": "Notre organisation par feature dans chaque couche, à vocabulaire fermé, est tenue par des tests. Celle du concurrent (par feature dans Application, par nature ailleurs) n'est tenue par rien.",
+    "evidence": "ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs:12-110,274,350 ; ours:docs/architecture/modules-and-boundaries.md:101-117 ; comp:src/Domain/Entities, src/Infrastructure/Data/Configurations, src/Web/Endpoints ; aucun NetArchTest/ArchUnit chez lui (carte p1 comp §1) ; collision du namespace Projects (p3-comp-1.md T1)",
+    "verdict": "on dépasse",
+    "n": "L1-021"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C2",
+    "axis": "conventions",
+    "claim": "L'arborescence par feature à vocabulaire fermé est un choix qu'une autre équipe a fait autrement (le concurrent), mais aucune ADR ne la couvre. ADR 0004 traite de l'isolation, pas de l'arborescence.",
+    "evidence": "ls ours:docs/decisions (aucune ADR de layout) ; AGENTS.md « A choice another team could reasonably have made otherwise is an ADR » ; raison seulement dans modules-and-boundaries.md:116-117",
+    "verdict": "retard",
+    "n": "L1-022"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C3",
+    "axis": "conventions",
+    "claim": "Le nommage (un type public par fichier, suffixe = dossier, namespace = dossier) est tenu par test chez nous. Chez le concurrent, il reste à suggestion et un fichier porte commande + handler.",
+    "evidence": "LayoutConventionTests.cs:464,544 ; FeatureFolderVocabularyTests.cs:78 ; project-layout.md section Naming ; comp:.editorconfig:196-268 (19 règles à suggestion) ; comp:src/Application/TodoItems/Commands/CreateTodoItem/CreateTodoItem.cs:6,13",
+    "verdict": "on dépasse",
+    "n": "L1-023"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C4",
+    "axis": "conventions",
+    "claim": "Nos chemins de fichiers atteignent 176 caractères sous Tests (208 dans les starters) contre 95 chez le concurrent, qui garde des dossiers de projet courts avec RootNamespace/AssemblyName complets.",
+    "evidence": "git ls-files | awk '{print length}' : ours 176 (Tests/Application/AppTemplate.Application.Auth.UnitTests/.../SignInWithExternalProviderCommandValidatorTests.cs), moyenne .cs 103 ; comp max 95, moyenne 53 ; comp:src/Application/Application.csproj:4-5 ; issue ouverte https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/166",
+    "verdict": "retard",
+    "n": "L1-024"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C5",
+    "axis": "conventions",
+    "claim": "Un projet de test miroir par projet source (14/14) chez nous, contre un projet par couche et par type chez le concurrent, dont un vide. Le miroir n'est pourtant tenu par aucun test, alors que la table des listes fermées l'exige.",
+    "evidence": "find -name '*.csproj' Src vs Tests (14/14) ; grep 'UnitTests|mirror' Tests/Architecture/.../Rules : seulement TemplatePackagingTests ; ours:docs/guides/adding-a-feature.md:196 ; comp:tests/Infrastructure.IntegrationTests ne contient que GlobalUsings.cs",
+    "verdict": "on dépasse",
+    "n": "L1-025"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C6",
+    "axis": "conventions",
+    "claim": "Notre style est imposé au build : sévérités error, EnforceCodeStyleInBuild, BOM 1774/1774, 0 commentaire de prose. Celui du concurrent est indicatif : suggestion, BOM 70/40, 43 commentaires, préférence primary constructors non suivie (35 champs injectés par constructeur classique).",
+    "evidence": "ours:.editorconfig:16,26,30,63-89 ; ours:Directory.Build.props:13-15 ; comp:.editorconfig:181,184 ; comp:Directory.Build.props:5 ; scripts de comptage BOM et grep '^\\s*//' sur src",
+    "verdict": "on dépasse",
+    "n": "L1-026"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C7",
+    "axis": "conventions",
+    "claim": "docs/guides/adding-a-setting.md:23 (« Write <Section>OptionsValidator … beside it ») se lit comme un fichier séparé, que le vocabulaire Options refuse. Le modèle cité met le validateur internal dans le même fichier.",
+    "evidence": "FeatureFolderVocabularyTests.cs:37 [\"Options\"] = [\"Options\"] ; Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Idempotency/IdempotencyPurgeOptions.cs:5,12 ; p3-ours-1.md F10 (2 tests rouges en suivant la page)",
+    "verdict": "retard",
+    "n": "L1-027"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-C8",
+    "axis": "conventions",
+    "claim": "project-layout.md:4 et :304 disent qu'un fichier ou un projet mal placé « fails the build ». En réalité, c'est un test d'architecture qui échoue, et le build passe.",
+    "evidence": "ours:docs/reference/project-layout.md:4,304 ; p3-ours-1.md T8 (« le build passe avec la référence interdite », rouge à dotnet test Architecture)",
+    "verdict": "retard",
+    "n": "L1-028"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E1",
+    "axis": "extensibilité",
+    "claim": "Pour ajouter une feature ou un use case, nos générateurs écrivent beaucoup plus et chaque liste oubliée fait échouer un test. Le concurrent produit un squelette à NotImplementedException, branché par scan, et une route ou un handler oublié passe sans signal.",
+    "evidence": "ours:Tools/NewFeature.cs:15-40,1227-1229 ; ours:docs/guides/adding-a-feature.md:173-196 ; comp:templates/ca-use-case/FeatureName/Commands/CleanArchitectureUseCase/CleanArchitectureUseCase.cs:34-42 ; comp:src/Application/DependencyInjection.cs:11-23 ; personas p3-comp-1 T1 (~380 lignes) vs p3-ours-1 T1 (54 fichiers outil, ~215 lignes)",
+    "verdict": "on dépasse",
+    "n": "L1-029"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E2",
+    "axis": "extensibilité",
+    "claim": "Ajouter un module : chez nous, un projet par capacité, sans référence entre modules, avec une procédure et des messages de test. Chez le concurrent, une Infrastructure unique, sans règle ni page.",
+    "evidence": "ours:docs/architecture/modules-and-boundaries.md:7-20 ; ModuleDependencyTests.cs:215,345 ; LayoutConventionTests.cs:367-371 ; comp:src/Infrastructure/DependencyInjection.cs:15-78 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/945 (0 réponse)",
+    "verdict": "on dépasse",
+    "n": "L1-030"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E3",
+    "axis": "extensibilité",
+    "claim": "Mail (deux transports par configuration), stockage (adaptateurs avec tests de contrat hérités) et authentification (local, external, none) : nous les fournissons comme points d'extension, le concurrent n'en a aucun.",
+    "evidence": "ours:Src/Infrastructure/AppTemplate.Infrastructure.Email/EmailModule.cs:39-65 ; ours:Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/Features/Files/Contracts/FileContentStoreContract.cs:8, hérité par StoredObjectTests, FileSystemFileContentStoreTests, InMemoryFileContentStoreTests ; ADR 0020:34-37 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1043",
+    "verdict": "on dépasse",
+    "n": "L1-031"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E4",
+    "axis": "extensibilité",
+    "claim": "Base de données : #if dans le code chez lui (7 fichiers), surcouches par provider chez nous (5 fichiers sous Src pour SQL Server, 7 pour SQLite). Des deux côtés, changer de base après la génération se fait à la main ; c'est plus long chez nous.",
+    "evidence": "comp:src/Infrastructure/DependencyInjection.cs:26-40 ; comp:src/AppHost/Program.cs:7-23 ; ours:docs/template/decisions/0005-a-project-carries-one-database-provider.md (Consequences) ; find .template.config/variants/database-*/Src",
+    "verdict": "choix assumé (ADR template 0005)",
+    "n": "L1-032"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E5",
+    "axis": "extensibilité",
+    "claim": "Ajouter un host : chez nous, chaque host se compose lui-même (règles testées, projet Presentation.Core partagé, sous-template + presentation-join). Chez le concurrent, aucun outil, et AddInfrastructureServices enregistre l'auth web, ce qui fait échouer un worker au démarrage.",
+    "evidence": "ours:docs/decisions/0022-...md:21-29 ; ModuleDependencyTests.cs:380,403 ; ours:.template.config/starters/worker/Src/Presentation/AppTemplate.Worker/Program.cs:37,65-71 ; comp:src/Infrastructure/DependencyInjection.cs:58-73 ; p3-comp-1.md T6 (EndpointDataSource) ; https://github.com/jasontaylordev/CleanArchitecture/issues/95 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1388",
+    "verdict": "on dépasse",
+    "n": "L1-033"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E6",
+    "axis": "extensibilité",
+    "claim": "Le worker ne s'ajoute pas après la génération (le sous-template presentation propose blazor-server, avalonia, mcp, wpf). Un chemin manuel est documenté.",
+    "evidence": ".template.config/presentation/.template.config/template.json (choix framework) ; ours:docs/template/decisions/0012-where-the-jobs-run-is-an-option.md (« No item template moves the jobs ») ; ours:docs/features/background-jobs.md:156-163 ; p3-ours-1.md F15",
+    "verdict": "choix assumé (ADR template 0012)",
+    "n": "L1-034"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E7",
+    "axis": "extensibilité",
+    "claim": "Après un ajout, des outils restent incomplets chez nous : migration-add ne vise que le contexte métier ; web-app imprime 10 éditions, dont 7 non contrôlées par un test, et web-join ne les applique pas.",
+    "evidence": "ours:Tools/Tasks.cs:529-535 ; p3-ours-1.md F13, F16 ; issue https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/151",
+    "verdict": "retard",
+    "n": "L1-035"
+   },
+   {
+    "src": "p5-G1-x",
+    "id": "G1-X",
+    "axis": "architecture et frontières",
+    "claim": "Aucun test d'architecture de notre template n'interdit une référence à MediatR : seule la doc (ADR 0003) l'écarte, rien ne rougit si un projet l'ajoute.",
+    "evidence": "grep -rn MediatR Tests/Architecture = aucun résultat ; docs/decisions/0003-use-cases-and-ports-are-explicit.md",
+    "verdict": "retard",
+    "n": "L1-036"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E8",
+    "axis": "extensibilité",
+    "claim": "Remplacer une brique : notre application n'importe ni EF, ni ASP.NET Core, ni MediatR, ni MailKit, et un test l'interdit. Chez le concurrent, MediatR est dans 22 fichiers et dans le domaine (BaseEvent : INotification), et des DbSet passent par IApplicationDbContext (13 fichiers).",
+    "evidence": "ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayerDependencyTests.cs:32-49 ; comp:src/Domain/Common/BaseEvent.cs:5 ; comp:src/Domain/Domain.csproj:9 ; comp:src/Application/Common/Interfaces/IApplicationDbContext.cs:7-9 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1346 ; https://github.com/jasontaylordev/CleanArchitecture/pull/1348",
+    "verdict": "on dépasse",
+    "n": "L1-037"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E9",
+    "axis": "extensibilité",
+    "claim": "Pour un transverse sur tous les use cases, il suffit d'une ligne de behaviour chez le concurrent. Chez nous, il n'y a pas de point d'extension : chaque use case est enregistré sous son interface nommée, et aucune page ne montre de décorateur. Aucun coût utilisateur n'est prouvé.",
+    "evidence": "comp:src/Application/DependencyInjection.cs:16-23 ; ours:Src/Application/AppTemplate.Application.Core/ApplicationCoreModule.cs:58-61 ; ours:docs/decisions/0003-use-cases-and-ports-are-explicit.md:18-20,45-46 ; grep -i decorat docs Src : seule l'ADR",
+    "verdict": "choix assumé (ADR 0003)",
+    "n": "L1-038"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E10",
+    "axis": "extensibilité",
+    "claim": "Ce qu'une équipe peut changer : chez le concurrent, tout, sans aucun signal (domaine vers EF Core accepté). Chez nous, changer une convention fait échouer un test qui dit où l'écrire ; décision et test changent ensemble, et les ADR de l'équipe sont numérotées à partir de 1000.",
+    "evidence": "p3-comp-1.md T8 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/731 ; AGENTS.md ; ours:docs/decisions/README.md:22-25 ; LayoutConventionTests.cs:367-371",
+    "verdict": "on dépasse",
+    "n": "L1-039"
+   },
+   {
+    "src": "p5-G2-opus",
+    "id": "G2-E11",
+    "axis": "extensibilité",
+    "claim": "Nous répondons déjà à ses demandes ouvertes sur ces axes : sans exemples ni Identity (#1192, #1613), Blazor (#1444, 26 votes), Vue (#1570), worker (#95, #195), plusieurs présentations (#246, discussion 1388), alternative à Identity (discussion 1043).",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1192 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1444 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1570 ; https://github.com/jasontaylordev/CleanArchitecture/issues/246 ; options --examples, --auth, --web, --presentation (inventaire p1 §2)",
+    "verdict": "on dépasse",
+    "n": "L1-040"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-01",
+    "axis": "1.1 médiateur / CQRS / forme d'un use case",
+    "claim": "Pas de médiateur chez nous : 4 fichiers et ~72 lignes par use case contre 1 fichier et 37 lignes chez le concurrent. Le coût est d'écriture, couvert par le générateur ; le coût de licence MediatR est réel chez le concurrent.",
+    "evidence": "nous: Src/Application/AppTemplate.Application/Features/TodoLists/UseCases/Commands/CreateTodoList/*.cs (3+14+47+8 lignes) ; Tests/Architecture/.../Rules/LayerDependencyTests.cs:48 interdit MediatR. conc: src/Application/TodoItems/Commands/CreateTodoItem/CreateTodoItem.cs:6-37 ; src/Application/DependencyInjection.cs:16-23. Preuve de coût : https://github.com/jasontaylordev/CleanArchitecture/discussions/1413 (avertissement de licence dans un projet généré, client presque touché), https://github.com/jasontaylordev/CleanArchitecture/discussions/1346, https://github.com/jasontaylordev/CleanArchitecture/issues/1325",
+    "verdict": "choix assumé (ADR 3)",
+    "n": "L1-041"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-02",
+    "axis": "1.2 pipeline et validation",
+    "claim": "Validation appelée à la main dans chaque use case : aucun test d'architecture n'exige l'appel du validateur, alors que le behaviour du concurrent le garantit (mais 4 validateurs pour 7 commandes chez lui). Ses behaviours ont un coût prouvé par ses utilisateurs.",
+    "evidence": "nous: grep -rn \"IValidator\\|EnsureValid\" Tests/Architecture = vide ; UseCaseConventionTests.cs:23,82,101,120 ne contrôlent que dossier/nom/sealed/public ; ValidationExtensions.cs:8-19. conc: ValidationBehaviour.cs:19-29 ; issues 700 (https://github.com/jasontaylordev/CleanArchitecture/issues/700), 324 (https://github.com/jasontaylordev/CleanArchitecture/issues/324), 1046 (https://github.com/jasontaylordev/CleanArchitecture/issues/1046)",
+    "verdict": "choix assumé (ADR 3), avec un trou : règle non tenue par test",
+    "n": "L1-042"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-03",
+    "axis": "1.3 erreurs",
+    "claim": "Result/Error à code stable et table testée : on dépasse (le concurrent lève des exceptions, sans code stable). Défaut interne : domain.invariantViolated répond 409 via DomainGuard.Try et 400 via le gestionnaire global ; api.md ne liste que 409 ; aucun test du 400 ; contre la phrase « une situation répond toujours le même statut et code ».",
+    "evidence": "nous: DomainGuard.cs:18-21 ; GlobalExceptionHandler.cs:27-31 ; docs/reference/api.md:247 ; docs/architecture/domain-and-results.md:59-60 ; docs/architecture/http-api.md:44-46 ; GlobalExceptionHandlerTests.cs sans cas DomainException. conc: src/Web/Infrastructure/ProblemDetailsExceptionHandler.cs:19-43 ; issue 341 (https://github.com/jasontaylordev/CleanArchitecture/issues/341)",
+    "verdict": "on dépasse",
+    "n": "L1-043"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-04",
+    "axis": "1.4 événements de domaine",
+    "claim": "Événements publiés après commit, restitués si la sauvegarde échoue, reliés aux consommateurs par test ; le concurrent publie avant l'écriture, version synchrone bloquante, un seul handler, aucun test, et son ADR dit « après SaveChangesAsync » (doc contredit le code). Nous avons aussi un GetAwaiter().GetResult() dans SavedChanges.",
+    "evidence": "nous: DomainEventDispatchSaveChangesInterceptor.cs:39-56,69,80-86 ; DomainEventTests.cs:27,71 ; ADR 0006. conc: DispatchDomainEventsInterceptor.cs:17-20,47-48 ; docs/decisions/ADR-003-MediatR-Contracts-In-Domain.md:13 ; issue 326 (https://github.com/jasontaylordev/CleanArchitecture/issues/326) ; discussion 1298 (https://github.com/jasontaylordev/CleanArchitecture/discussions/1298)",
+    "verdict": "choix assumé (ADR 6)",
+    "n": "L1-044"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-05",
+    "axis": "1.5 entités de base",
+    "claim": "Entités immuables, ids Guid v7, value objects en record, setters publics interdits par test ; le concurrent a des setters publics, un id int et une base ValueObject.",
+    "evidence": "nous: Entity.cs:12 ; TodoList.cs:28-35 ; DomainModelTests.cs:47,110,147. conc: src/Domain/Common/BaseEntity.cs:9,13-14 ; src/Domain/Entities/TodoItem.cs:35-41",
+    "verdict": "on dépasse",
+    "n": "L1-045"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-06",
+    "axis": "1.6 mapping",
+    "claim": "Mapping à la main, sans AutoMapper ni Mapperly ; choix écrit seulement dans docs/architecture/README.md, sans ADR, alors que le concurrent a subi la licence AutoMapper et des retours négatifs sur Mapperly. Une ADR serait justifiée.",
+    "evidence": "nous: TodoListDtoMapping.cs:8-24 ; grep AutoMapper|Mapster|Mapperly dans Directory.Packages.props = vide. conc: TodoListDto.cs:20-26 ; GetTodos.cs:43-47 ; MappingTests.cs:31-34 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1206 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1346",
+    "verdict": "choix assumé (aucune ADR : docs/architecture/README.md)",
+    "n": "L1-046"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-07",
+    "axis": "1.7 autorisation",
+    "claim": "Politique de repli RequireAuthenticatedUser et liste fermée des actions anonymes testée ; le concurrent pose RequireAuthorization groupe par groupe, un seul [Authorize] applicatif pour 9 requêtes via réflexion, aucun test qui détecte un groupe oublié.",
+    "evidence": "nous: Src/Presentation/AppTemplate.Api/Program.cs:111-116 ; HttpSurfaceTests.cs:10-23. conc: src/Web/Endpoints/TodoItems.cs:13 ; AuthorizationBehaviour.cs:58-66 ; grep \"\\[Authorize\" src = 1 résultat applicatif (GetTodos.cs:9)",
+    "verdict": "on dépasse",
+    "n": "L1-047"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-08",
+    "axis": "1.8 propriété des données",
+    "claim": "Le concurrent n'a aucune propriété. Chez nous, ADR 0009 dit qu'aucun chemin ne tient la ligne d'un autre utilisateur et qu'on filtre dans la requête ; le chemin agrégat (GetAsync(Guid id) puis OwnedAggregate.Require) charge par id et compare en mémoire, et le générateur écrit la même forme. La réponse HTTP reste un 404 identique (testé).",
+    "evidence": "nous: TodoListRepository.cs:24-29 ; OwnedAggregate.cs:20-23 ; ITodoListRepository.cs:9 ; docs/decisions/0009-ownership-is-in-the-query.md:7-9 et :28 ; Tools/NewFeature.cs:3051,3648. conc: GetTodos.cs:43-47 ; UpdateTodoItem.cs:25-28 ; grep Forbidden|403 tests = vide",
+    "verdict": "on dépasse le concurrent ; retard sur notre propre ADR 9",
+    "n": "L1-048"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-09",
+    "axis": "1.9 horloge",
+    "claim": "IDateTimeProvider maison dans 46 fichiers, 4 faux (un en production, trois en test), 2 contournements directs d'UtcNow, aucune règle d'architecture ; le concurrent utilise TimeProvider du framework.",
+    "evidence": "nous: IDateTimeProvider.cs:5 ; docs/architecture/shared-mechanisms.md:76 ; S3FileDirectTransfer.cs:78 ; FileSystemFileContentInventory.cs:61 ; ExternalIdentityProvisioningTests.cs:368 ; AuditingSaveChangesInterceptorTests.cs:100 ; MovableDateTimeProvider.cs:5 ; Infrastructure.InMemory/Common/Time/FixedDateTimeProvider.cs. conc: src/Infrastructure/DependencyInjection.cs:76 ; AuditableEntityInterceptor.cs:12",
+    "verdict": "retard",
+    "n": "L1-049"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G2-01",
+    "axis": "2.1 projets et références / 2.2 tests d'architecture",
+    "claim": "14 projets, graphe de références lu dans les .csproj et tenu par tests (seuls les hôtes référencent l'infrastructure, adaptateurs internes) ; le concurrent n'a aucun test, son Domain référence MediatR.Contracts et son Web utilise un type d'Infrastructure.",
+    "evidence": "nous: ModuleDependencyTests.cs:380-397,215,434 ; AdapterVisibilityTests.cs ; LayerDependencyTests.cs:10-30. conc: src/Domain/Domain.csproj:9 ; src/Web/Web.csproj:14-16 ; src/Web/Endpoints/Users.cs:1,12 ; grep NetArchTest|ArchUnit = vide ; https://github.com/jasontaylordev/CleanArchitecture/discussions/1607",
+    "verdict": "on dépasse",
+    "n": "L1-050"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G2-02",
+    "axis": "2.2 contre-épreuves",
+    "claim": "Les règles d'architecture savent échouer dans 16 fichiers sur 34 seulement ; 7 fichiers centraux (UseCaseConventionTests, DomainModelTests, HttpSurfaceTests, StorageShapeTests, StorageVocabularyTests, ErrorCodeTableTests, ConfigurationSurfaceTests) n'ont pas de jumeau IsSensitive.",
+    "evidence": "nous: grep -ln Sensitive Tests/Architecture/.../Rules/*.cs = 16 fichiers ; RuleAssertions.cs:11-17 ; LayerDependencyTests.cs:206-219",
+    "verdict": "on dépasse (contre-épreuve partielle)",
+    "n": "L1-051"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G2-03",
+    "axis": "2.3 analyzers et diagnostics",
+    "claim": "La règle écrite « jamais de #pragma, de NoWarn ni de sévérité abaissée » est violée 5 fois (NoWarn global CS1591/CS1573, NoWarn AV0029/AV0030, #pragma ASP0000 autour de BuildServiceProvider, 3 severity=none globaux) sans test qui la tienne ; le #pragma masque un second conteneur de services. Le concurrent n'a pas de règle, un #pragma CS1998.",
+    "evidence": "nous: Directory.Build.props:27 ; AppTemplate.Api.csproj:16 ; HttpPipelineModule.cs:67-69 ; Program.cs:106 ; .editorconfig:57-59 ; AGENTS.md « Changing code » ; docs/guides/build-and-ci.md:70-72 ; grep pragma|NoWarn Tests/Architecture = vide. conc: GetWeatherForecastsQuery.cs:12-14",
+    "verdict": "retard",
+    "n": "L1-052"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G2-04",
+    "axis": "2.4 accès aux données depuis Application",
+    "claim": "Ports en quatre mots, sans IQueryable, domaine non mappé ; le concurrent expose IApplicationDbContext (ADR-001 sienne). La question revient à chaque cohorte d'utilisateurs du concurrent.",
+    "evidence": "nous: ITodoListRepository.cs:9-17 ; ADR 0003 et 0005. conc: IApplicationDbContext.cs:5-12 ; docs/decisions/ADR-001-Use-EFCore-In-Application-Layer.md ; https://github.com/jasontaylordev/CleanArchitecture/issues/464 ; https://github.com/jasontaylordev/CleanArchitecture/discussions/482 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1100",
+    "verdict": "choix assumé (ADR 3, ADR 5)",
+    "n": "L1-053"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G2-05",
+    "axis": "2.5 audit des paquets",
+    "claim": "NuGetAudit all/low + TreatWarningsAsErrors, sans WarningsNotAsErrors pour NU190x : un projet généré depuis un paquet figé peut ne plus compiler quand un avis tombe, comme chez le concurrent (10.8.0, 118 erreurs, 7 mois après la release). La doc interdit de relâcher l'audit ; un job CI et verify lisent déjà dotnet list package --vulnerable. Scénario non rejoué chez nous.",
+    "evidence": "nous: Directory.Build.props:15,19-21 ; docs/guides/build-and-ci.md:161-165 ; .github/workflows/ci.yml:239-265 ; grep NU190|WarningsNotAsErrors = vide. conc: https://github.com/jasontaylordev/CleanArchitecture/issues/1675 (ouverte)",
+    "verdict": "égalité",
+    "n": "L1-054"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G2-06",
+    "axis": "2.6 doc et messages de test",
+    "claim": "Deux messages de UseCaseConventionTests disent « explicit rather than scanned » alors que l'enregistrement des use cases et validateurs est un scan par dossier (AddFeature) ; la page adding-a-feature.md dit la vérité. Défaut mineur ; le concurrent a le même type de dérive (son ADR-003 dit « après SaveChangesAsync », le code publie avant).",
+    "evidence": "nous: UseCaseConventionTests.cs:58,197 ; ApplicationModule.cs:152-165 ; docs/guides/adding-a-feature.md:153. conc: ADR-003-MediatR-Contracts-In-Domain.md:13 ; DispatchDomainEventsInterceptor.cs:17-20",
+    "verdict": "égalité",
+    "n": "L1-055"
+   },
+   {
+    "src": "p5-G1-sonnet",
+    "id": "G1-10",
+    "axis": "ouvertures (issues et discussions du concurrent)",
+    "claim": "Demandes ouvertes ou fermées du concurrent que nous couvrons déjà : exclure les exemples (1192, ouverte depuis 2024, « sur la roadmap ») et Identity (1613) ; nous avons --examples none et --auth none|external. Soft delete refusé par lui comme trop complexe (1329) : nous ne l'offrons pas non plus.",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1192 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1613 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1329 ; nous: p1-map-ours §6 (options --auth, --examples) ; StorageShapeTests.cs:21",
+    "verdict": "on dépasse",
+    "n": "L1-056"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C1",
+    "axis": "conventions",
+    "claim": "Nommage et règles d'analyse : nos règles cassent le build ou le gate, celles du concurrent sont des suggestions d'éditeur. Notre jeu couvre peu de symboles (4 règles de nommage) et viole notre propre règle « jamais de NoWarn ».",
+    "evidence": "conc .editorconfig:196-268 (19 règles à suggestion), :181 file_scoped:silent, .github/workflows/build.yml:55-66 (restore, build, test, pas de format). nous .editorconfig:30,63-85 (error/warning), Tools/Tasks.cs:481 (format --verify-no-changes), Directory.Build.props:27 (NoWarn CS1591;CS1573), HttpPipelineModule.cs:67 (#pragma ASP0000).",
+    "verdict": "on dépasse",
+    "n": "L1-057"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C2",
+    "axis": "conventions",
+    "claim": "Organisation : feature dans chaque couche avec vocabulaire de dossiers fermé et testé, contre feature dans Application seulement chez le concurrent.",
+    "evidence": "nous LayoutConventionTests.cs:225,274,350,407,464,520 ; 24 fichiers TodoLists dans Domain+Persistence (find) ; 4 fichiers par use case contre 2 (conc src/Application/TodoItems/Commands/CreateTodoItem/). ADR 0002, 0004, 0007.",
+    "verdict": "choix assumé (ADR 0002, 0004, 0007)",
+    "n": "L1-058"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C2b",
+    "axis": "conventions",
+    "claim": "Chemins profonds : notre plus long chemin .cs fait 176 caractères contre 88 chez le concurrent ; effet sur Windows non reproduit.",
+    "evidence": "find | awk length sur Src et Tests (nous: Tests/Application/AppTemplate.Application.Auth.UnitTests/Features/ExternalLogins/.../SignInWithExternalProviderCommandValidatorTests.cs = 176) ; issue #166 ouverte chez nous.",
+    "verdict": "retard",
+    "n": "L1-059"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C3",
+    "axis": "conventions",
+    "claim": "Tests : projet miroir par projet source et noms Sujet_Comportement, contre 6 projets par type chez le concurrent avec un projet d'intégration vide. Mais docs/reference/project-layout.md:5 promet que chaque règle de la page est tenue par un test, et la règle du miroir (ligne 196) ne l'est par aucun.",
+    "evidence": "conc tests/ (6 projets, Infrastructure.IntegrationTests = GlobalUsings.cs seul, README-template.md:57). nous docs/reference/project-layout.md:5-6,196 ; grep UnitTests dans Tests/Architecture ne trouve que TemplatePackagingTests.cs.",
+    "verdict": "on dépasse",
+    "n": "L1-060"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C4",
+    "axis": "conventions",
+    "claim": "Style de fichier : nous imposons BOM, LF, un type public par fichier et zéro commentaire de prose par outil ; le concurrent a un BOM mélangé (70/40), des fichiers à plusieurs types et 43 lignes de commentaire de prose. La règle des commentaires est un choix d'AGENTS.md sans ADR.",
+    "evidence": "nous .editorconfig:5,24-26 ; LayoutConventionTests.cs:544 ; Tools/CheckComments.cs ; grep '^\\s*//[^#/]' Src = 0. conc CreateTodoItem.cs:6,13 ; ServiceDefaults/Extensions.cs:13-15 ; grep src = 43.",
+    "verdict": "on dépasse",
+    "n": "L1-061"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C5",
+    "axis": "conventions",
+    "claim": "Notre .editorconfig déclare prefer_primary_constructors = false alors que 208 classes de Src utilisent un constructeur primaire ; le concurrent déclare true et en emploie 2.",
+    "evidence": "nous .editorconfig:48 ; CreateTodoListUseCase.cs:13 ; grep sur Src = 208. conc .editorconfig:184 ; BearerSecuritySchemeTransformer.cs:12, Colour.cs:3.",
+    "verdict": "fait",
+    "n": "L1-062"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C6",
+    "axis": "conventions",
+    "claim": "Documentation des conventions : 88 pages, 28 ADR et une page de layout contre 3 ADR et un README de 60 lignes. Le concurrent a clos l'issue #1364 en disant avoir ajouté des README par couche, puis les a supprimés (#1568, 2026-03-17). Chez nous, aucun README ni AGENTS.md de couche sous Src/Domain, Application, Infrastructure.",
+    "evidence": "git show --stat 94d3ba8 (suppression de src/{Application,Domain,Infrastructure,Web}/README.md) ; find README sur competitor-main ; nous docs/reference/project-layout.md, Src/Web/AGENTS.md seul AGENTS.md de dossier.",
+    "verdict": "on dépasse",
+    "n": "L1-063"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-C7",
+    "axis": "conventions",
+    "claim": "Le concurrent utilise un .slnx ; notre solution principale est un .sln alors que notre lanceur utilise déjà un .slnx. Aucun coût utilisateur prouvé.",
+    "evidence": "conc CleanArchitecture.slnx ; nous AppTemplate.sln, Tools/Tasks.cs:936 (Launcher/CleanArch.Create.slnx) ; 11 fichiers citent AppTemplate.sln (grep -rln).",
+    "verdict": "égalité",
+    "n": "L1-064"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E1",
+    "axis": "extensibilité",
+    "claim": "Ajouter un use case : aucun enregistrement des deux côtés (scan par assembly chez lui, par dossier de feature chez nous). Nous livrons en plus test, manifeste et action de contrôleur imprimée. --input n'accepte que id ou none, donc une recherche par texte réécrit 4 fichiers (persona). Le message de UseCaseConventionTests dit « explicit rather than scanned » alors que le code scanne ; la page adding-a-feature.md:153 est exacte.",
+    "evidence": "conc DependencyInjection.cs:14,16-17 ; README-template.md:40 ; persona p3-comp-1 T1-T2. nous ApplicationModule.cs:156-165 ; ApplicationCoreModule.cs:49-84 ; UseCaseConventionTests.cs:58,197 ; docs/guides/adding-a-feature.md:153,169-172 ; persona p3-ours-1 T2.",
+    "verdict": "on dépasse",
+    "n": "L1-065"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E2",
+    "axis": "extensibilité",
+    "claim": "Ajouter une feature : le concurrent n'a aucun outil et la première compilation casse si la feature se nomme Projects (collision avec la classe Aspire). Nous écrivons 54 fichiers en 0,7 s avec 12 listes fermées qui rougissent, mais new-feature n'applique pas ses 6 à 11 modifications et n'imprime pas openapi ; le gate est donc rouge au premier passage.",
+    "evidence": "conc IApplicationDbContext.cs:7,9 ; ApplicationDbContext.cs:14,16 ; WebApplicationExtensions.cs:14,24 ; FunctionalTestSetup.cs:21 ; persona p3-comp-1 T1. nous Tools/NewFeature.cs:1227-1229 ; docs/guides/adding-a-feature.md:18,173-197 ; persona p3-ours-1 T1 (~215 lignes à la main) ; docs/template/decisions/0017 (item template ne peut pas éditer les enregistrements).",
+    "verdict": "on dépasse",
+    "n": "L1-066"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E3",
+    "axis": "extensibilité",
+    "claim": "Ajouter un host : le concurrent n'en offre aucun et son AddInfrastructureServices enregistre Identity et les cookies, donc un worker échoue à l'activation (persona). Nous offrons 6 presentations, presentation-join et deux tests d'architecture (aucun host ne référence un autre, chacun compose l'application). L'outil oublie la migration d'Auth et openapi, qui rougissent ensuite.",
+    "evidence": "conc Infrastructure/DependencyInjection.cs:48-72 ; persona p3-comp-1 T6. nous ModuleDependencyTests.cs:403,421 ; ADR 0022 ; persona p3-ours-1 T6b (83 fichiers ajoutés, 31 modifiés).",
+    "verdict": "on dépasse",
+    "n": "L1-067"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E4",
+    "axis": "extensibilité",
+    "claim": "Provider et briques : changer de base exige de régénérer des deux côtés. Chez nous : un provider par projet, recouvrements sqlite et sqlserver, e-mail et stockage par configuration derrière un port, adaptateurs internes, ports plafonnés à 6 opérations. Un troisième transport d'e-mail se code dans la chaîne de if d'EmailModule. Le concurrent expose les DbSet dans l'application et n'a ni e-mail ni stockage. MySQL est absent des deux côtés : issue #1571 ouverte chez lui, MySQL encore listé par notre --help (issue #165).",
+    "evidence": "conc Infrastructure/DependencyInjection.cs:26-33 ; IApplicationDbContext.cs:7-9 ; .github/workflows/test-templates.yml:18-20. nous docs/template/decisions/0005 ; EmailModule.cs:39-60 ; PortConventionTests.cs:17 ; .template.config/variants/.",
+    "verdict": "choix assumé (template ADR 0005)",
+    "n": "L1-068"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E5",
+    "axis": "extensibilité",
+    "claim": "Comportement transversal : le concurrent ajoute un behaviour MediatR en une ligne et son Program.cs est libre. Chez nous il n'existe ni behaviour, ni recette pour entourer tous les use cases (seul AddUseCases est un point central) ; la page dit « A host cannot insert a step in the middle » sans ADR qui porte la raison.",
+    "evidence": "conc DependencyInjection.cs:19-22 ; Web/Program.cs:25-49. nous docs/architecture/request-pipeline.md:27 ; RequestPipelineTests.cs:63 ; docs/decisions/0003 ligne 45 ; grep decorat docs Src ne trouve que cette ligne. Aucune issue ne prouve le coût chez nous.",
+    "verdict": "choix assumé (ADR 0003)",
+    "n": "L1-069"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E6",
+    "axis": "extensibilité",
+    "claim": "Retirer les exemples ou l'authentification : nous avons --examples none, --auth none, --files et remove-feature ; le concurrent n'a aucune option (issue #1192 « on the roadmap », #1613 close en doublon) et retire à la main. Un projet minimal chez nous est généré en 5,5 s et passe 798 tests. Hors squelette intact, notre retrait reste manuel (25 min pour Notes).",
+    "evidence": "conc .template.config/template.json (2 options) ; issues 1192, 1613 ; persona p3-comp-1 T7. nous docs/guides/removing-features.md:21-25 ; persona p2-ours-1 (minimal) ; persona p3-ours-1 T7a, T7b.",
+    "verdict": "on dépasse",
+    "n": "L1-070"
+   },
+   {
+    "src": "p5-G2-sonnet",
+    "id": "G2-E7",
+    "axis": "extensibilité",
+    "claim": "Outillage modifiable : Tools/ (14 980 lignes de C#) est dans l'arbre généré ; l'ADR template 0017, au statut Proposed, nomme un fork de 11 600 lignes que chaque équipe porte. Le concurrent n'a pas cette dette parce qu'il offre moins. En contrepartie, un ProjectReference interdit chez nous fait rougir ModuleDependencyTests en 9 s, alors que chez le concurrent un paquet EF ajouté au Domain donne 0 signal.",
+    "evidence": "nous wc -l Tools/*.cs ; docs/template/decisions/0017 lignes 3,79,86 ; docs/template/roadmap.md (#163, non livré) ; persona p3-ours-1 T8. conc persona p3-comp-1 T8 ; templates/ca-use-case/.template.config/template.json.",
+    "verdict": "choix assumé (ADR template 0017, Proposed)",
+    "n": "L1-071"
+   }
+  ],
+  "L2": [
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T1",
+    "axis": "tests et qualité",
+    "claim": "Types et volume de tests : 3 456 tests sur 6 types tabulés, intégration HTTP contre une vraie base, architecture tenue par tests ; le concurrent a 32 méthodes, un projet d'intégration vide et des tests fonctionnels qui passent par le médiateur",
+    "evidence": "ours:docs/guides/testing.md:17-31 ; ours:Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs:15-29 ; grep [Fact|Theory] = 3456 ; comp:tests/Application.FunctionalTests/Infrastructure/TestApp.cs:13-23 ; comp:README-template.md:57 contre Infrastructure.IntegrationTests vide",
+    "verdict": "on dépasse",
+    "n": "L2-001"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T2",
+    "axis": "tests et qualité",
+    "claim": "Pile de test et base : xUnit v3/MTP + Testcontainers à image épinglée par digest, contre NUnit/VSTest + Aspire TestAppHost + Respawn",
+    "evidence": "ours:Directory.Packages.props:137-159 ; ours:.../Infrastructure/DatabaseServer.cs:7-14 ; ours:docs/decisions/0001-adopt-the-generated-baseline.md:73 ; comp:tests/Application.FunctionalTests/FunctionalTestSetup.cs:20-41 ; comp:docs/decisions/ADR-002...md:32-38",
+    "verdict": "choix assumé (ADR 0001)",
+    "n": "L2-002"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T3",
+    "axis": "tests et qualité",
+    "claim": "Boucle de retour plus lente : verify en 4 à 5 min, CI de PR en 10 min, acceptance en 35 min, contre dotnet test en 40 s et build CI en 3 min ; aucune commande rapide ne prédit ce que verify verra",
+    "evidence": "out/p3-ours-1.md:27 ; out/p3-ours-2.md:18,43,138 (6 verify rouges sur 16) ; out/p3-comp-1.md:19 ; gh api actions/runs?status=success (moyennes calculées)",
+    "verdict": "retard",
+    "n": "L2-003"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T4",
+    "axis": "tests et qualité",
+    "claim": "Couverture : plancher à 89 %, fusion Cobertura et gate tenus par tests ; le concurrent référence coverlet sans rapport ni seuil. Défauts : plancher identique dans toutes les variantes et jamais mesuré par l'acceptance ; mesure en Debug contre contrôle CI en Release",
+    "evidence": "ours:coverage.minimum:1-2 ; ours:.github/workflows/ci.yml:25,106-147 ; ours:Tests/Architecture/.../CoverageFloorTests.cs:13-55 ; grep coverage template-acceptance.yml = vide ; personas/p2-ours-1/work/Acme.DnDefault/coverage.minimum = 89 ; comp:.github/workflows/build.yml:65-66",
+    "verdict": "on dépasse",
+    "n": "L2-004"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T5",
+    "axis": "tests et qualité",
+    "claim": "Analyseurs : AnalysisLevel latest-recommended, EnforceCodeStyleInBuild, NuGetAudit low et format vérifié en CI, contre TreatWarningsAsErrors seul et un editorconfig presque entièrement en suggestion",
+    "evidence": "ours:Directory.Build.props:11-22 ; ours:.github/workflows/ci.yml:71-73 ; comp:Directory.Build.props:5 ; comp:.editorconfig (19 suggestion, 2 warning non appliqués au build)",
+    "verdict": "on dépasse",
+    "n": "L2-005"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T6",
+    "axis": "tests et qualité",
+    "claim": "La règle « jamais de NoWarn global ni de #pragma » est contredite dans le code et aucun test ne la tient",
+    "evidence": "ours:.editorconfig:91 et AGENTS.md:90 contre ours:Directory.Build.props:27, Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj:16, .editorconfig:57-59, HttpPipelineModule.cs:67-69",
+    "verdict": "fait",
+    "n": "L2-006"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T7",
+    "axis": "tests et qualité",
+    "claim": "Aucun test navigateur : les jambes web contrôlent la page servie par curl et Python ; le concurrent a 6 scénarios Reqnroll + Playwright joués en CI. À prendre sous forme d'un smoke Playwright TypeScript par starter dans Src/Web, en amendant l'ADR 0020",
+    "evidence": "ours:.github/workflows/template-acceptance.yml:671-700 ; issue #122 « Later: ... Playwright » ; comp:tests/Web.AcceptanceTests/Features/*.feature ; comp:.github/workflows/build.yml:60-66",
+    "verdict": "retard",
+    "n": "L2-007"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-T8",
+    "axis": "tests et qualité",
+    "claim": "Gate local : verify enchaîne format, build, tests, dérive des migrations et audit, chaque gate avec son autotest ; le concurrent n'a pas de gate livré, et une migration oubliée passe sans signal",
+    "evidence": "ours:Tools/Tasks.cs:651-685 ; ours:docs/guides/build-and-ci.md:63-67 ; comp:CleanArchitecture.nuspec:33 (build/** exclu) ; out/p3-comp-1.md:41",
+    "verdict": "on dépasse",
+    "n": "L2-008"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C1",
+    "axis": "CI et release",
+    "claim": "Le projet généré du concurrent ne reçoit aucun workflow ni aucun bot de dépendances (nuspec) ; le nôtre reçoit ci, codeql, release, web, sonar et dependabot",
+    "evidence": "comp:CleanArchitecture.nuspec:33 (exclut build.yml, codeql.yml, release.yml, test-templates.yml, renovate.json), identique à v10.8.0 ; ls personas/p2-comp-*/work/* sans .github ; option PipelineProvider retirée par e30d9b3 (#1584) ; personas/p2-ours-1/work/Acme.DnDefault/.github/",
+    "verdict": "on dépasse",
+    "n": "L2-009"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C2",
+    "axis": "CI et release",
+    "claim": "La matrice de génération tourne avant la fusion (25 jambes choisies par sélecteur), contre une matrice 3x3 après fusion seulement, qui a laissé main rouge 11 fois sur 50",
+    "evidence": "ours:.github/workflows/template-acceptance.yml:4-10,53-105,939+ ; ours:docs/template/decisions/0010-... (alternative nocturne rejetée) ; comp:.github/workflows/test-templates.yml:3-6 ; gh api runs Test Templates main : failure 11 / success 39 ; PR #1670 fusionnée par renovate[bot], react-sqlserver en échec (run 39630944581)",
+    "verdict": "choix assumé (ADR template 0010)",
+    "n": "L2-010"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C3",
+    "axis": "CI et release",
+    "claim": "Dépendances : Dependabot sur 5 écosystèmes sans fusion automatique, contre Renovate qui fusionne seul tout ce qui n'est pas majeur, actions comprises, sans passer par la matrice",
+    "evidence": "ours:.github/dependabot.yml:5-198 ; comp:renovate.json:14-31 ; 51 des 58 commits depuis v10.8.0 viennent de Renovate (carte p1)",
+    "verdict": "on dépasse",
+    "n": "L2-011"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C4",
+    "axis": "CI et release",
+    "claim": "Même exposition aux avis NuGet transformés en erreur ; ni l'un ni l'autre ne recompile le paquet publié. À faire : un workflow planifié qui installe la version de nuget.org, génère et compile, en réponse à l'issue #1675 du concurrent",
+    "evidence": "ours:Directory.Build.props:15,19-21 ; grep schedule: .github/workflows = codeql.yml seul ; ours:docs/guides/build-and-ci.md:161-165 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1675 (ouverte, 0 réponse) ; out/p3-comp-1.md:17",
+    "verdict": "égalité",
+    "n": "L2-012"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C5",
+    "axis": "CI et release",
+    "claim": "Versioning : release-please, Conventional Commits, CHANGELOG, garde tag = version, main avancée par fast-forward ; le concurrent tire la version du tag et ses notes du corps de la release, sans CHANGELOG. Trou mineur : aucun check n'impose le format des titres de PR",
+    "evidence": "ours:.github/release-please/config.json ; ours:.github/workflows/template-release.yml:67-77,205-230 ; ours:CHANGELOG.md:6-8 ; CONTRIBUTING.md:65 sans check ; comp:.github/workflows/release.yml:28-50",
+    "verdict": "on dépasse",
+    "n": "L2-013"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C6",
+    "axis": "CI et release",
+    "claim": "Publication : smoke du paquet dans un hive isolé, attestation de provenance, Trusted Publishing OIDC dans un environnement protégé, miroir GitHub Packages ; le concurrent pousse avec une clé API stockée, nuget latest, Mono et -SkipDuplicate, sans test ni attestation",
+    "evidence": "ours:.github/workflows/template-release.yml:86-109,141-174 ; comp:.github/workflows/release.yml:20-26,52-62",
+    "verdict": "on dépasse",
+    "n": "L2-014"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C7",
+    "axis": "CI et release",
+    "claim": "Supply chain : actions épinglées par SHA et permissions imposées par un gate, images par digest, SBOM et provenance dans la release générée ; le concurrent référence ses actions par tag majeur, que Renovate met à jour seul",
+    "evidence": "ours:Tools/CheckWorkflows.cs:65,197-199,240-242 ; ours:.github/workflows/release.yml:249-256 ; ours:.github/workflows/ci.yml:362-375 ; comp:.github/workflows/*.yml (actions/checkout@v7, codeql-action@v4)",
+    "verdict": "on dépasse",
+    "n": "L2-015"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C8",
+    "axis": "CI et release",
+    "claim": "Notre release est cassée : release-please échoue sur chaque push develop depuis le 2026-10-28, à cause du BOM de template.json réintroduit par #137 ; la PR #91 est figée à 1.1.0 malgré feat! #169 et #172 ; aucun gate de PR ne contrôle ce BOM",
+    "evidence": "gh api actions/jobs/<id>/logs du run 41053367456 : « release-please failed: Unexpected token '﻿' ... is not valid JSON » ; head -c3 template.json = efbbbf ; BOM retiré par cade4e3d (2026-10-22), revenu avec 428c0db2 (2026-10-28) ; gh api pulls?state=open : #91 mise à jour le 2026-10-28T16:37",
+    "verdict": "retard",
+    "n": "L2-016"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C9",
+    "axis": "CI et release",
+    "claim": "La doc dit que toute dépendance, SDK compris, est à une version exacte, mais global.json roule (10.0.100 + latestFeature) et le Dockerfile prend 10.0.403 ; build-and-ci.md:83 décrit les déclencheurs de ci.yml comme push et PR vers main seulement, alors qu'il tourne aussi sur les PR vers develop et sur workflow_dispatch",
+    "evidence": "ours:global.json:3-4 ; ours:docs/guides/build-and-ci.md:83,148-154 ; ours:docs/decisions/0001-adopt-the-generated-baseline.md:33-34 ; ours:.github/workflows/ci.yml:3-8 ; codeql.yml:4-8 ; web.yml:4-9",
+    "verdict": "fait",
+    "n": "L2-017"
+   },
+   {
+    "src": "p5-G3-opus",
+    "id": "G3-C10",
+    "axis": "CI et release",
+    "claim": "Analyse statique : CodeQL des deux côtés (chez nous en matrice C#, TypeScript et Actions, actions épinglées), plus Sonar en option chez nous",
+    "evidence": "ours:.github/workflows/codeql.yml:4-80 ; ours:.github/workflows/sonarqube.yml ; comp:.github/workflows/codeql.yml:3-44",
+    "verdict": "égalité",
+    "n": "L2-018"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S1",
+    "axis": "sécurité",
+    "claim": "Authentification : trois modes (local, OIDC externe, aucun), refresh tokens en familles, 2FA, passkeys, clés d'accès, politique de mot de passe validée au démarrage. Le concurrent se limite à MapIdentityApi avec les options par défaut.",
+    "evidence": "comp/src/Infrastructure/DependencyInjection.cs:46-73 ; comp/src/Web/Endpoints/Users.cs:12 ; grep RequireConfirmed|Lockout|Password. dans comp/src : vide ; ours/Src/Infrastructure/AppTemplate.Infrastructure.Auth/Common/Options/IdentityPolicyOptions.cs:12,26,44-47 ; ours/Tests/Integration/AppTemplate.Api.IntegrationTests/Security/{PasswordPolicyTests,AccountLockoutTests,RefreshTokenTests}.cs",
+    "verdict": "on dépasse",
+    "n": "L2-019"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S2",
+    "axis": "sécurité",
+    "claim": "Notre politique de repli exige un utilisateur authentifié, et un test appelle chaque route ; le propriétaire est dans la requête (404). Le concurrent n'a pas de repli : RequireAuthorization par groupe, [Authorize] applicatif sur 1 requête sur 9, aucun propriétaire.",
+    "evidence": "ours/Src/Presentation/AppTemplate.Api/Program.cs:112-115 ; DefaultDenyAuthorizationTests.cs:40-80 ; OwnershipIsolationTests.cs:15-129 ; comp/src/Infrastructure/DependencyInjection.cs:50,65 ; comp/src/Web/Endpoints/TodoItems.cs:13 ; comp/src/Application/TodoLists/Queries/GetTodos/GetTodos.cs:9,43-47",
+    "verdict": "on dépasse",
+    "n": "L2-020"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S3",
+    "axis": "sécurité",
+    "claim": "Notre surface anonyme est une liste fermée et testée (12 actions + 4 endpoints) ; OpenAPI et Scalar n'existent qu'en Development, et un limiteur protège les routes d'authentification. Le concurrent expose OpenAPI et Scalar dans tous les environnements, sans limiteur.",
+    "evidence": "ours/Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpSurfaceTests.cs:10-28 ; ours/Src/Presentation/AppTemplate.Api/Program.cs:170-175 ; RateLimitingExtensions.cs:39-44 ; comp/src/Web/Program.cs:35-36 ; grep RateLimit dans comp/src : vide",
+    "verdict": "on dépasse",
+    "n": "L2-021"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S4",
+    "axis": "sécurité",
+    "claim": "Nous posons nosniff, XFO DENY, Referrer-Policy et une CSP default-deny validée au démarrage, et le CORS reste fermé sans liste d'origines. Le concurrent n'a que HSTS, la redirection HTTPS et un CORS AllowAnyOrigin. L'absence de HSTS chez nous est un choix assumé.",
+    "evidence": "ours/Src/Presentation/AppTemplate.Api/Common/Security/SecurityHeadersExtensions.cs:60-73 ; SecurityHeaderOptions.cs:9-10 ; CorsExtensions.cs:25-30 ; ours/docs/decisions/0001-adopt-the-generated-baseline.md:63 ; comp/src/Web/Program.cs:24-31 ; PR fermée sans fusion https://github.com/jasontaylordev/CleanArchitecture/pull/1402",
+    "verdict": "on dépasse ; HSTS : choix assumé (ADR 0001)",
+    "n": "L2-022"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S5",
+    "axis": "sécurité",
+    "claim": "Défaut interne : le portail Blazor Server n'a ni politique de repli ni aucun en-tête de sécurité (CSP, frame-ancestors, XFO, nosniff). Son formulaire de connexion peut être encadré par un autre site, et aucune ADR ne l'assume.",
+    "evidence": "ours/.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationAppPortal/Program.cs:31,76-105 ; .../Features/Auth/Composition/CookieSessionComposition.cs:77-78 ; ours/docs/features/presentation.md:126 ; grep XFrameOptions|nosniff|ContentSecurityPolicy dans le starter et Presentation.Core : vide",
+    "verdict": "retard (défaut interne, sans pendant chez le concurrent)",
+    "n": "L2-023"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S6",
+    "axis": "sécurité",
+    "claim": "Secrets : nous avons des garde-fous (clé JWT de développement refusée hors dev, 32 octets minimum, aucun secret dans les fichiers suivis). Le concurrent branche Azure Key Vault en option et n'a pas de garde-fou.",
+    "evidence": "ours/Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Sessions/Configuration/Options/JwtOptions.cs:39-51 ; ours/Src/Presentation/AppTemplate.Api/appsettings.json:2,154-157 ; ours/docs/guides/deployment.md:92-106 ; comp/src/Web/DependencyInjection.cs:39-48",
+    "verdict": "on dépasse (garde-fous) / égalité (coffre)",
+    "n": "L2-024"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S7",
+    "axis": "sécurité",
+    "claim": "Dépendances : audit NuGet low avec un listing lu par verify et par la CI, Dependabot sur 5 écosystèmes, CodeQL C#/JS/actions, versions et digests exacts. La 10.8.0 publiée du concurrent ne compile plus (NU1902/NU1903), et sa doc n'en dit rien.",
+    "evidence": "ours/Directory.Build.props:15,19-21 ; ours/Tools/Tasks.cs:2031-2045 ; ours/.github/workflows/ci.yml:239-265 ; ours/docs/guides/build-and-ci.md:161-164 ; rel/Directory.Packages.props:58-62 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1675 ; out/p2-comp-1.md:19-21,63 ; comp/src/Web/ClientApp/package.json:38 (nswag latest)",
+    "verdict": "on dépasse",
+    "n": "L2-025"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "S8",
+    "axis": "sécurité",
+    "claim": "Risque interne : même mécanisme que #1675 (TreatWarningsAsErrors + audit low). Aucun job planifié ne génère depuis la version publiée, et aucun audit npm ne tourne dans verify ni en CI.",
+    "evidence": "ours/Directory.Build.props:15,21 ; grep schedule|cron ours/.github/workflows : seul codeql.yml:9-10 ; grep 'pnpm audit|npm audit' dans ours/Tools ours/.github ours/docs : vide",
+    "verdict": "retard (défaut interne)",
+    "n": "L2-026"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F1",
+    "axis": "front-ends",
+    "claim": "Nous proposons 7 valeurs de web, dont 6 frameworks, écrits par les CLI officielles à version exacte, plus des hôtes .NET. Le concurrent copie Angular (NgModule) et React (JSX non typé) dans le template ; sa release est en Angular 21/Karma, main en 22/vitest. Vue, SvelteKit et Blazor sont demandés chez lui, en vain.",
+    "evidence": "ours/.template.config/starters/angular/FrameworkSite/scaffold.json:1-9 ; ours/.template.config/starters (11 dossiers) ; rel/src/Web/ClientApp/package.json:21,41-45 ; comp/src/Web/ClientApp-React/src (15 .jsx) ; https://github.com/jasontaylordev/CleanArchitecture/issues/1570 , /1625 , /1444",
+    "verdict": "on dépasse",
+    "n": "L2-027"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F2",
+    "axis": "front-ends",
+    "claim": "Topologie : chez nous, une app est son propre déployable derrière un relais même origine. Chez le concurrent, l'API sert la SPA (UseFileServer + MapFallbackToFile) ; sa SPA Angular appelle le mauvais port sous Aspire (#1594). Aucune ADR ne pose notre choix face à l'alternative.",
+    "evidence": "ours/docs/features/web-frontend.md:17-19 ; ours/Tests/EndToEnd/AppTemplate.EndToEnd.Tests/WebAppTests.cs:36 ; comp/src/Web/Program.cs:33,48 ; comp/src/Web/Web.csproj:40-60 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1594",
+    "verdict": "choix différent (non posé en ADR)",
+    "n": "L2-028"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F3",
+    "axis": "front-ends",
+    "claim": "Client : un seul client TypeScript (openapi-typescript + openapi-fetch), committé, avec codes d'erreur stables et 67 tests ; la CI échoue sur une dérive ; Kiota pour .NET. Le concurrent utilise NSwag latest, régénéré à chaque build et ignoré par git.",
+    "evidence": "ours/docs/decisions/0019-one-generated-api-client.md ; ours/Src/Web/packages/api-client/package.json:16-28 ; ours/Src/Web/packages/api-client/test/*.ts (67 it/test) ; ours/.github/workflows/web.yml:68-69 ; comp/src/Web/ClientApp/package.json:7,10,38 ; comp/.gitignore:43-44",
+    "verdict": "on dépasse",
+    "n": "L2-029"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F4",
+    "axis": "front-ends",
+    "claim": "SSR Angular/React Router avec un nonce par réponse, les empreintes des scripts du gabarit et une session côté serveur (__Host-session + X-CSRF). Chez le concurrent, aucun SSR : AppServerModule est du code mort, et oidc-client traîne dans angular.json.",
+    "evidence": "ours/.template.config/starters/angular/ssr/FrameworkSite/overlay/src/server.ts:32-49,77-81 ; ours/Src/Web/packages/api-client/src/server/store.ts:5,51,160-166 ; WebAppTests.cs:55,79,99 ; comp/src/Web/ClientApp/src/app/app.server.module.ts ; comp/src/Web/ClientApp/angular.json:17-41 ; comp/src/Web/Web.csproj:51",
+    "verdict": "on dépasse ; instance unique : choix assumé (ADR 0024)",
+    "n": "L2-030"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F5",
+    "axis": "front-ends",
+    "claim": "Nos apps sont des images non root, épinglées par digest, avec une CSP stricte par framework, vérifiées en CI, installées en frozen-lockfile. Le concurrent n'a ni image ni CSP, et sa publication lance npm install.",
+    "evidence": "ours/Src/Web/apps/FrameworkSite/nginx.conf:60-73 ; ours/Src/Web/apps/FrameworkSite/Dockerfile:5,14,36,80,82 ; ours/.github/workflows/web.yml:57,141-144 ; comp/src/Web/Web.csproj:42-46 ; comp/src/Web/ClientApp/src/index.html:9-18",
+    "verdict": "on dépasse",
+    "n": "L2-031"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F6",
+    "axis": "front-ends",
+    "claim": "Nous n'avons aucun test qui pilote un navigateur. Le concurrent a des scénarios Reqnroll + Playwright, dont la connexion, sur Angular. Chez nous, c'est différé (#122).",
+    "evidence": "comp/tests/Web.AcceptanceTests/Features/Login.feature ; out/p3-comp-1.md:58 ; https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122 ; grep -rl playwright ours/Tests : vide",
+    "verdict": "retard",
+    "n": "L2-032"
+   },
+   {
+    "src": "p5-G4-opus",
+    "id": "F7",
+    "axis": "front-ends",
+    "claim": "Défaut interne : verify ne lance ni lint, ni tests, ni build du workspace web. Ajouter une SPA ou une app SSR demande une dizaine d'éditions à la main, dont 7 qu'aucun test ne contrôle ; web-join n'existe que pour Blazor WASM et porte un défaut ouvert (#151).",
+    "evidence": "ours/Tools/Tasks.cs:663 (seul appel web de verify : WebLockfiles) ; out/p3-ours-1.md:40,75 ; out/p3-ours-2.md:104-110 ; https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/151",
+    "verdict": "retard (défaut interne ; le concurrent n'a aucun mécanisme)",
+    "n": "L2-033"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T1",
+    "axis": "1 tests et qualité",
+    "claim": "Étendue et types de tests : 3 456 méthodes Fact/Theory sur 7 types (unitaire, architecture, intégration, contrat, e2e Compose, charge, lanceur) contre 34 tests NUnit et 6 scénarios Playwright chez le concurrent.",
+    "evidence": "grep -rEh \"^\\s*\\[(Fact|Theory)\\b\" Tests Launcher = 3456 ; docs/guides/testing.md tableau « The test types » ; competitor-main/tests : 34 [Test]/[TestCase], Infrastructure.IntegrationTests sans test ; ADR 0020",
+    "verdict": "on dépasse",
+    "n": "L2-034"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T2",
+    "axis": "1 tests et qualité",
+    "claim": "Tests d'architecture, de contrat OpenAPI, de codes d'erreur et de default-deny : présents chez nous (34 fichiers de règles, 195 méthodes), absents chez le concurrent.",
+    "evidence": "Tests/Architecture/AppTemplate.Architecture.Tests/Rules (34 fichiers) ; OpenApiDocumentTests, ErrorCodeTableTests ; grep NetArchTest|ArchUnit dans competitor-main : vide",
+    "verdict": "on dépasse",
+    "n": "L2-035"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T3",
+    "axis": "1 tests et qualité",
+    "claim": "Couverture : plancher mesuré (89), fusion Cobertura par union, test du fichier plancher, Sonar sur code nouveau ; le concurrent référence coverlet.collector sans jamais lire un rapport ni fixer de plancher.",
+    "evidence": "coverage.minimum:2 ; .github/workflows/ci.yml:132-147 ; Tests/Architecture/.../Rules/CoverageFloorTests.cs:12-20 ; sonarqube.yml:109 ; competitor-main/Directory.Packages.props:12 ; grep coverage dans .github/workflows du concurrent : vide",
+    "verdict": "on dépasse",
+    "n": "L2-036"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T4",
+    "axis": "1 tests et qualité",
+    "claim": "Analyseurs et gate de style plus durs chez nous (latest-recommended, EnforceCodeStyleInBuild, format --verify-no-changes, CheckComments, CheckDocPaths) que chez le concurrent (TreatWarningsAsErrors seul). Mais notre règle écrite « jamais NoWarn ni #pragma » est contredite par trois usages sans test : doc fausse ou code à corriger.",
+    "evidence": "Directory.Build.props:12-15,27 ; Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj:16 ; Src/Presentation/AppTemplate.Api/Common/Hosting/HttpPipelineModule.cs:67 ; AGENTS.md « Never silence a diagnostic » ; docs/guides/build-and-ci.md ; competitor-main/Directory.Build.props:5,8 et un #pragma CS1998 dans GetWeatherForecastsQuery.cs:12",
+    "verdict": "on dépasse",
+    "n": "L2-037"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T5",
+    "axis": "1 tests et qualité",
+    "claim": "Tests navigateur : le concurrent lance Playwright + Reqnroll (connexion valide/invalide, page protégée) dans sa CI de PR ; nous n'avons que des tests HTTP de bout en bout (WebAppTests : page servie et relais /api) et 5 tests TypeScript du client d'API. À prendre en un seul starter, en xUnit simple, ADR qui complète 0020 ; refuser Reqnroll.",
+    "evidence": "competitor-main/.github/workflows/build.yml:61-66 ; tests/Web.AcceptanceTests/Features/Login.feature ; docs/guides/testing.md § The end-to-end suite ; docs/template/roadmap.md « Around the apps » (#122)",
+    "verdict": "retard",
+    "n": "L2-038"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T6",
+    "axis": "1 tests et qualité",
+    "claim": "Base réelle en test : Aspire + Respawn chez le concurrent, Testcontainers + troncature des schémas chez nous ; même garantie (vraie base), outils différents. Aspire est en roadmap #122.",
+    "evidence": "competitor-main/tests/Application.FunctionalTests/FunctionalTestSetup.cs:21-46 ; competitor ADR-001 ligne 51 ; docs/decisions/0001-adopt-the-generated-baseline.md:73 ; docs/guides/testing.md § Running them",
+    "verdict": "choix assumé (ADR 0001)",
+    "n": "L2-039"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T7",
+    "axis": "1 tests et qualité",
+    "claim": "Vitesse de retour de PR : médiane 163 s chez le concurrent (34 tests) contre 409 s chez nous (CI complète avec Docker, e2e, hygiène, 3 456 tests) ; non comparable à travail égal.",
+    "evidence": "gh api .../actions/workflows/{build.yml,327799370}/runs?event=pull_request&status=success : n=100, médianes 163 s et 409 s ; durées run_started_at à updated_at, file d'attente comprise",
+    "verdict": "égalité",
+    "n": "L2-040"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-T8",
+    "axis": "1 tests et qualité",
+    "claim": "Preuve du template généré : 25 jambes choisies par chemins modifiés + 2 jambes Windows + 12 refus + fuite du nom + JSON strict + relais web, 32 contrôles exigés par le ruleset develop ; le concurrent a 9 jambes (3 fronts x 3 bases), lancées après fusion seulement (push main et dispatch), 11 échecs sur 50 runs.",
+    "evidence": ".template.config/acceptance/matrix.json (25) ; .github/workflows/template-acceptance.yml:849-870,939-1000,277-289,656-671 ; gh api rulesets : 32 contrôles ; competitor-main/.github/workflows/test-templates.yml:3-19 ; gh api .../test-templates.yml/runs : 39 success, 11 failure",
+    "verdict": "on dépasse",
+    "n": "L2-041"
+   },
+   {
+    "src": "p5-G3-x",
+    "id": "G3-X",
+    "axis": "tests et qualité",
+    "claim": "Le concurrent a un projet de tests d'architecture (NetArchTest) qui tient le sens des dépendances entre couches ; nous sommes à égalité sur ce point.",
+    "evidence": "competitor-main/tests/Architecture.Tests/LayerTests.cs ; Directory.Packages.props (NetArchTest.Rules)",
+    "verdict": "égalité",
+    "n": "L2-042"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C1",
+    "axis": "2 CI et release",
+    "claim": "DÉFAUT CHEZ NOUS : le job release-please du workflow « Template release » échoue à chaque push sur develop depuis le 2026-10-28 (36 échecs, 35 succès, 2 annulés ; dernier succès 2026-10-27). Cause : .template.config/template.json commence par un BOM (EF BB BF), réintroduit par le commit 72293efe (#137) après son retrait en cade4e3d ; release-please le lit comme extra-file JSON. Pack, publish, mirror et promote sont ignorés ; la PR de release #91 est figée (« behind ») ; rien ne le détecte (jambe « none » pour template-release.yml, contrôle JSON en utf-8-sig, CoverageFloorTests interdit le BOM pour coverage.minimum mais aucun test pour template.json).",
+    "evidence": "gh run view 41053367456 --log-failed : « release-please failed: Unexpected token '﻿', \"﻿{ \"$sch\"... is not valid JSON » ; head -c3 .template.config/template.json | xxd = efbbbf ; git show 72293efe^: sans BOM, 72293efe: avec BOM ; .github/release-please/config.json:12-18 ; .template.config/acceptance/rules.json (tags none) ; template-acceptance.yml:282 ; PR #91",
+    "verdict": "retard",
+    "n": "L2-043"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C2",
+    "axis": "2 CI et release",
+    "claim": "Publication du paquet : Trusted Publishing OIDC, environnement nuget avec relecteur, paquet installé et projet par défaut construit avant push, tag = version vérifié, provenance attestée, miroir GitHub Packages, main par fast-forward ; le concurrent pousse avec un secret NUGET_API_KEY longue durée, sans build ni test avant push, sans provenance.",
+    "evidence": ".github/workflows/template-release.yml:67-109,141-174,205-230 ; docs/template/decisions/0006 et 0007 ; competitor-main/.github/workflows/release.yml:25-26,52-62",
+    "verdict": "on dépasse",
+    "n": "L2-044"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C3",
+    "axis": "2 CI et release",
+    "claim": "Versionnement : release-please sur commits conventionnels, semver propre, branches net<major>.0 chez nous ; version = tag manuel aligné sur la majeure .NET chez le concurrent (22 releases, dernière le 2026-03-23). Choix différent couvert par l'ADR template 0006.",
+    "evidence": "docs/template/decisions/0006-develop-integrates-main-holds-the-releases.md ; gh api repos/jasontaylordev/CleanArchitecture/releases",
+    "verdict": "choix assumé (ADR template 0006)",
+    "n": "L2-045"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C4",
+    "axis": "2 CI et release",
+    "claim": "Fraîcheur de la release publiée : le concurrent a 58 commits (54 deps) depuis v10.8.0 et son paquet ne compile plus (issue ouverte #1675, NU1902/NU1903, 118 erreurs sous TreatWarningsAsErrors). Nous avons exactement la même exposition (TreatWarningsAsErrors + NuGetAuditLevel low, doc « never a relaxed audit level ») et aucun workflow planifié qui regénère et audite le projet par défaut ; seul codeql.yml a un cron. À prendre : un cron hebdomadaire installant le dernier paquet publié, build + dotnet list package --vulnerable, issue si rouge (ADR template à écrire). À refuser : relâcher l'audit.",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1675 ; git log v10.8.0..main = 58 ; Directory.Build.props:15,19-21 ; docs/guides/build-and-ci.md § Supply chain ; grep schedule|cron dans .github/workflows : codeql.yml:9-10 seulement",
+    "verdict": "retard",
+    "n": "L2-046"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C5",
+    "axis": "2 CI et release",
+    "claim": "CI de PR : actions par SHA, images par digest, permissions minimales, concurrency, timeouts, et un outil qui vérifie les workflows et se teste ; le concurrent référence ses actions par tag mobile (checkout@v7), sans concurrency ni timeout.",
+    "evidence": ".github/workflows/ci.yml:16,36,281 ; Tools/CheckWorkflows.cs:34-62 ; competitor-main/.github/workflows/build.yml:29 ; renovate.json sans pinGitHubActionDigests",
+    "verdict": "on dépasse",
+    "n": "L2-047"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C6",
+    "axis": "2 CI et release",
+    "claim": "Ce que reçoit le projet généré : nous livrons CI, CodeQL, release d'image (SBOM, provenance, lots de migrations), Dependabot et Sonar facultatif ; le nuspec du concurrent exclut ses workflows, renovate.json et ISSUE_TEMPLATE : aucun contrôle ni mise à jour automatique dans le projet généré.",
+    "evidence": ".github/workflows/ci.yml, release.yml:238-260, dependabot.yml ; competitor-main/CleanArchitecture.nuspec:33",
+    "verdict": "on dépasse",
+    "n": "L2-048"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C7",
+    "axis": "2 CI et release",
+    "claim": "Mise à jour des dépendances : Dependabot par bandes, sans ignore ni automerge, branche develop protégée par 32 contrôles requis ; Renovate avec automerge des minor/patch/digest chez le concurrent, main protégée sans contrôle requis (enforcement off), renovate[bot] fusionne seul. Un automerge limité aux actions n'a de sens chez nous que derrière les contrôles requis (confort, confiance basse).",
+    "evidence": ".github/dependabot.yml ; gh api rulesets (32 contrôles) ; competitor-main/renovate.json:15-23 ; gh api repos/jasontaylordev/CleanArchitecture/branches/main : required_status_checks.contexts [] ; PR #1674 fusionnée par renovate[bot]",
+    "verdict": "choix assumé (ADR 0001)",
+    "n": "L2-049"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C8",
+    "axis": "2 CI et release",
+    "claim": "Analyse de sécurité du code : CodeQL des deux côtés ; nous ajoutons JS/TS, la langue actions sur le template, et Sonar facultatif avec quality gate sur code nouveau ; le concurrent n'a pas de Sonar ni de job d'audit des paquets vulnérables.",
+    "evidence": ".github/workflows/codeql.yml:41-51 ; sonarqube.yml:109 ; ci.yml:239-265 ; competitor-main/.github/workflows/codeql.yml:34-44",
+    "verdict": "on dépasse",
+    "n": "L2-050"
+   },
+   {
+    "src": "p5-G3-sonnet",
+    "id": "G3-C9",
+    "axis": "2 CI et release",
+    "claim": "Ce qu'on peut faire que le concurrent ne fait pas : issue ouverte #1594 (le front Angular du template par défaut appelle sa propre URL au lieu de l'API, depuis 2026-03-26) est une classe de défaut que notre jambe d'acceptation « every web app serves its page and relays to the API » couvre ; sa CI ne lance aucun appel API par le front sur un template généré. Aucune de ses 8 issues ouvertes ni des 10 discussions les plus commentées lues ne porte sur les tests ou la CI.",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1594 ; template-acceptance.yml:656-671 ; competitor-main/.github/workflows/test-templates.yml:59-77",
+    "verdict": "on dépasse",
+    "n": "L2-051"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S1",
+    "axis": "sécurité",
+    "claim": "Autorisation par défaut et surface anonyme : chez nous repli authentifié, liste fermée d'actions anonymes et balayage de toutes les routes ; chez le concurrent aucun repli et OpenAPI/Scalar publics en production.",
+    "evidence": "concurrent : grep FallbackPolicy src vide ; src/Infrastructure/DependencyInjection.cs:50,65 ; src/Web/Endpoints/TodoItems.cs:13 ; src/Web/Program.cs:35-36. Nous : Src/Presentation/AppTemplate.Api/Program.cs:113-114,170-174 ; Tests/Architecture/.../Rules/HttpSurfaceTests.cs:10-85 ; Tests/Integration/.../Security/DefaultDenyAuthorizationTests.cs:38-76",
+    "verdict": "on dépasse",
+    "n": "L2-052"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S2",
+    "axis": "sécurité",
+    "claim": "Propriété des données : chez nous le propriétaire est dans le prédicat et une ressource d'autrui répond 404 ; chez le concurrent aucun propriétaire, ids entiers, tout utilisateur authentifié supprime ou lit tout.",
+    "evidence": "concurrent : src/Application/TodoItems/Commands/DeleteTodoItem/DeleteTodoItem.cs:15-26 (FindAsync par id puis Remove) ; GetTodos sans filtre. Nous : docs/decisions/0009 ; TodoListQueries.cs:40 ; Tests/Integration/.../Security/OwnershipIsolationTests.cs",
+    "verdict": "on dépasse",
+    "n": "L2-053"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S3",
+    "axis": "sécurité",
+    "claim": "Authentification : trois modes, sessions en famille de jetons, 2FA, passkeys, politique de mot de passe et verrouillage, administrateur de développement par secret ; le concurrent délègue à MapIdentityApi avec les valeurs par défaut du framework et un mot de passe d'administrateur écrit dans le code. Surface de code maison à maintenir de notre côté.",
+    "evidence": "concurrent : src/Infrastructure/DependencyInjection.cs:52-73 ; src/Web/Endpoints/Users.cs:12 ; src/Infrastructure/Data/ApplicationDbContextInitialiser.cs:83 (Administrator1!). Nous : ConfigureJwtBearerOptions.cs:35-105 ; IdentityPolicyOptions.cs:12-32 ; IdentitySeedOptions.cs ; docs/features/authentication.md ; LoginUniformityTests.cs",
+    "verdict": "on dépasse",
+    "n": "L2-054"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S4",
+    "axis": "sécurité",
+    "claim": "Points faibles à nous : un jeton d'accès reste valable après la fin de sa session (jusqu'à 15 min, 60 dans compose) et aucune procédure de rotation de la clé HS256 unique n'est écrite.",
+    "evidence": "ConfigureJwtBearerOptions.cs:79-105 (OnTokenValidated ne contrôle que le tampon de sécurité, pas le sid) ; docs/reference/configuration.md:67 « An access token cannot be revoked before it expires » ; JwtOptions.cs:16 ; docker-compose.yml:23 ; SECURITY.md « rotated » sans procédure",
+    "verdict": "retard",
+    "n": "L2-055"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S5",
+    "axis": "sécurité",
+    "claim": "En-têtes, CORS, limiteur de débit : chez nous nosniff, no-referrer, X-Frame-Options, CSP default-src 'none', CORS fermé tant qu'aucune origine n'est configurée, limiteur global et par authentification, en-têtes transmis restreints ; chez le concurrent CORS AllowAnyOrigin, aucun en-tête, aucun limiteur.",
+    "evidence": "concurrent : src/Web/Program.cs:28-31,33 ; grep Content-Security|nosniff|RateLimit|ForwardedHeaders|Antiforgery vide. Nous : Common/Security/SecurityHeadersExtensions.cs:60-73 ; SecurityHeaderOptions.cs:9-12 ; CorsExtensions.cs:27-30 ; RateLimitingExtensions.cs:20-70 ; ReverseProxyOptions.cs:32-38",
+    "verdict": "on dépasse",
+    "n": "L2-056"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S6",
+    "axis": "sécurité",
+    "claim": "TLS et HSTS : le concurrent les met dans l'application (UseHttpsRedirection, UseHsts 30 jours par défaut hors Development) ; nous les laissons au composant qui termine TLS, écrit et rendu obligatoire dans SECURITY.md sans test.",
+    "evidence": "concurrent : src/Web/Program.cs:22-27. Nous : docs/decisions/0001-adopt-the-generated-baseline.md:63 ; docs/guides/deployment.md:112-114 ; docs/architecture/request-pipeline.md:30-31 ; SECURITY.md « Before you deploy » n°1",
+    "verdict": "choix assumé (ADR 0001)",
+    "n": "L2-057"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S7",
+    "axis": "sécurité",
+    "claim": "Secrets : validation des options au démarrage, clé de développement refusée hors Development, JWT_KEY exigé par compose, mot de passe d'amorçage par secrets utilisateur. Petit retard : le concurrent a un crochet Azure Key Vault, nous n'avons qu'une phrase sur les variables d'environnement ; à rattraper par une recette de documentation, sans dépendance de fournisseur.",
+    "evidence": "concurrent : src/Web/DependencyInjection.cs:41-47 ; Web.csproj (Azure.Identity). Nous : JwtOptions.cs:35-52 ; docker-compose.yml:19 ; appsettings.json:2 ; docs/guides/deployment.md:92-106",
+    "verdict": "on dépasse",
+    "n": "L2-058"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S8",
+    "axis": "sécurité",
+    "claim": "Pile locale aux valeurs relâchées : compose et .env.example livrent mot de passe de 8 caractères sans classes, verrouillage 10 essais/1 min, ASPNETCORE_ENVIRONMENT=Development par défaut, secret S3 de repli ; en-tête « Local stack » mais aucun test ni mise en garde de deployment.md ne tient que cette pile ne sert pas de modèle de production.",
+    "evidence": "docker-compose.yml:7,27-35,56 ; .env.example:26,112-116 ; docs/guides/deployment.md",
+    "verdict": "retard",
+    "n": "L2-059"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S9",
+    "axis": "sécurité",
+    "claim": "Dépendances vulnérables : détection et épinglage plus complets chez nous (NuGetAuditMode all, liste --vulnerable --include-transitive lue en CI et dans verify, Dependabot sur 5 écosystèmes, règle d'épinglage transitif). Mais exposition identique à l'issue #1675 du concurrent (NU1902 sous TreatWarningsAsErrors casse un projet fraîchement généré) : aucun workflow planifié ne régénère le projet par défaut, et notre release est en échec depuis le 2026-10-28.",
+    "evidence": "concurrent : Directory.Build.props:5 ; Directory.Packages.props:33-34 (pin absent du tag v10.8.0) ; renovate.json:22,30 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1675. Nous : Directory.Build.props:15-23 ; .github/workflows/ci.yml:257-265 ; docs/guides/build-and-ci.md:161-165 ; .github/dependabot.yml:5,79,102,140,178 ; grep cron .github/workflows : seul codeql.yml:10 ; release.yml dernier run failure 2026-10-28",
+    "verdict": "égalité",
+    "n": "L2-060"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S10",
+    "axis": "sécurité",
+    "claim": "Audit des dépendances JavaScript absent de la gate : SECURITY.md écrit « Every dependency pinned and audited » alors que seul NuGet est audité ; pas de pnpm audit. Le concurrent n'audite pas non plus ses paquets npm.",
+    "evidence": "SECURITY.md (tableau des protections) ; grep -ri 'pnpm audit|npm audit' docs .github Tools vide ; .github/workflows/web.yml:56-74 ; docs/guides/build-and-ci.md:150-165",
+    "verdict": "retard",
+    "n": "L2-061"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-S11",
+    "axis": "sécurité",
+    "claim": "Processus de sécurité du dépôt : SECURITY.md et signalement privé activé chez nous, absents chez le concurrent. Mais 11 alertes CodeQL ouvertes sur develop (1 high js/polynomial-redos dans session.ts:50, 10 medium cs/log-forging) toutes créées le 2026-10-22 et sans suite, et secret scanning, push protection et Dependabot security updates désactivés sur le dépôt. Gravité réelle discutable (baseUrl fourni par le développeur, journal JSON), état des alertes du concurrent illisible (403).",
+    "evidence": "gh api repos/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/code-scanning/alerts?state=open (alertes 1 à 11, commit 935d552a) ; security_and_analysis disabled ; private-vulnerability-reporting enabled:true chez nous, enabled:false chez le concurrent ; SECURITY.md:5-12 ; Src/Web/packages/api-client/src/session.ts:50 ; GlobalExceptionHandler.cs:58-93",
+    "verdict": "retard",
+    "n": "L2-062"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F1",
+    "axis": "front-ends",
+    "claim": "Frameworks proposés : 7 valeurs --web (angular, vite-react, vite-vue, vite-svelte, react-router, blazor-wasm, placeholder), audience public/admin, rendu spa/ssr pour Angular et React Router, hôtes Blazor Server, Avalonia, WPF, MCP ; le concurrent propose Angular (NgModule) et React (JSX non typé), avec un module serveur Angular mort. Ses issues ouvertes demandent Vue (#1570), SvelteKit (#1625), Blazor (#1444), --minimal (#1192).",
+    "evidence": "concurrent : .template.config/template.json:228-258 ; ClientApp/src/app/app.module.ts:27 ; app.server.module.ts sans ssr dans angular.json ; https://github.com/jasontaylordev/CleanArchitecture/issues/1570 ; /1625 ; /1444 ; /1192. Nous : .template.config/template.json:86,457-467 ; .template.config/starters/*/scaffold.json (Angular 22.2.3, create-vite 9.3.1, create-react-router 8.5.0)",
+    "verdict": "on dépasse",
+    "n": "L2-063"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F2",
+    "axis": "front-ends",
+    "claim": "Squelette officiel contre démonstration livrée : nous écrivons l'app par la CLI officielle épinglée et laissons les pages à l'équipe, sans écran de connexion en SPA ; le concurrent livre connexion, inscription, tâches et météo en Angular et React, testés par Playwright. Coût utilisateur identifiable (premier écran authentifié à écrire) et recette de connexion non testée de bout en bout. À prendre : un test de bout en bout de la recette de connexion (item Playwright de #122), pas de pages livrées.",
+    "evidence": "concurrent : ClientApp/src/api-authorization/*, ClientApp-React/src/components/api-authorization/*, tests/Web.AcceptanceTests, .github/workflows/test-templates.yml:63-69 ; issue #1236 https://github.com/jasontaylordev/CleanArchitecture/issues/1236 (mainteneur : « considerable effort »). Nous : docs/features/web-frontend.md (Creating the app, Signing in) ; grep login|sign-in dans .template.config/starters ne rend que blazor-wasm ; Tests/EndToEnd/.../WebAppTests.cs:34-99 ; docs/template/decisions/0003, 0008",
+    "verdict": "choix assumé (ADR 0008)",
+    "n": "L2-064"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F3",
+    "axis": "front-ends",
+    "claim": "Client d'API : chez nous openapi-fetch sur openapi-typescript à versions exactes, schema.ts committé, régénération contrôlée en CI, erreurs typées par code (unwrap/ApiError), client Kiota .NET ; chez le concurrent NSwag lancé à chaque prestart/prebuild avec nswag latest, sortie ignorée par git donc dérive indétectable, client en classes (plus idiomatique en Angular).",
+    "evidence": "concurrent : ClientApp/package.json:5-14,38 ; ClientApp-React/package.json:22 ; .gitignore:43-44 ; git ls-files sans web-api-client ni openapi. Nous : Src/Web/packages/api-client/package.json ; .github/workflows/web.yml:68-74 ; src/index.ts, problem-details.ts, session.ts:55-120",
+    "verdict": "on dépasse",
+    "n": "L2-065"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F4",
+    "axis": "front-ends",
+    "claim": "Rendu côté serveur et sessions : SSR sécurisé chez nous (nonce CSP par réponse, jetons gardés sur le serveur, cookie __Host-session, X-CSRF, client OIDC serveur avec PKCE), limite d'échelle écrite (sessions en mémoire, une instance) ; le concurrent n'a pas de SSR en service.",
+    "evidence": "Src/Web/packages/api-client/src/server/store.ts:46,51,160-166 ; server/provider.ts:142-198 ; docs/decisions/0024 ; docs/features/web-frontend.md:395-399 ; Tests/EndToEnd/.../WebAppTests.cs:53-99",
+    "verdict": "on dépasse",
+    "n": "L2-066"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F5",
+    "axis": "front-ends",
+    "claim": "Build et sécurité des apps front : nginx sans privilèges, CSP et en-têtes, hachages SHA-256 des scripts en ligne, images à digest, pnpm --frozen-lockfile, scripts d'installation refusés, CI qui vérifie utilisateur non root et port 8080 ; le concurrent sert le SPA depuis l'API sans CSP, lance npm install à la publication, autorise les scripts d'installation de 4 paquets et fusionne automatiquement les mises à jour non majeures.",
+    "evidence": "concurrent : src/Web/Program.cs:33,48 ; src/Web/Web.csproj (Exec npm install) ; ClientApp/package.json:48-53 ; renovate.json:22. Nous : Src/Web/apps/FrameworkSite/nginx.conf:60-72 ; Dockerfile (étape HASHES) ; Src/Web/pnpm-workspace.yaml ; .github/workflows/web.yml:56-57,141-155",
+    "verdict": "on dépasse",
+    "n": "L2-067"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F6",
+    "axis": "front-ends",
+    "claim": "Boucle de développement et tests navigateur : le concurrent orchestre SPA, API et base par Aspire et exécute 6 scénarios Playwright en CI ; nous avons Compose, un relais de développement et 4 théories de bout en bout sans pilotage de navigateur ; Aspire et Playwright sont dans notre issue #122 (Later, 0 commentaire).",
+    "evidence": "concurrent : src/AppHost/Program.cs:39-41 ; ClientApp/proxy.conf.js:3-5 ; tests/Web.AcceptanceTests ; issue #1594 (variable d'URL de l'API divergente). Nous : docs/features/web-frontend.md (Running it) ; Src/Web/packages/api-client/test/ ; https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122 ; docs/template/roadmap.md",
+    "verdict": "retard",
+    "n": "L2-068"
+   },
+   {
+    "src": "p5-G4-sonnet",
+    "id": "G4-F7",
+    "axis": "front-ends",
+    "claim": "Défauts propres au front prouvés : web-join refuse une app WebAssembly qui a créé son espace de travail (#151) ; chemins générés de 176 caractères (#166) ; un clone n'a aucune app front avant bootstrap (réseau requis) et le job web-apps échoue si le résultat n'est pas committé.",
+    "evidence": "https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/151 ; /issues/166 ; .github/workflows/web.yml:93-96 ; docs/features/web-frontend.md (Creating the app)",
+    "verdict": "retard",
+    "n": "L2-069"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV01",
+    "axis": "",
+    "claim": "Indispensable : une course sur un index unique métier répond 500 sans code ; il faut un repli typé en 409 dans EfUnitOfWork et GlobalExceptionHandler (~15-20 lignes, sans option). Contre-argument retenu : la course reste traitée au store quand la feature veut un code à elle.",
+    "evidence": "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/EfUnitOfWork.cs:15-20 (seule DbUpdateConcurrencyException) ; Src/Presentation/AppTemplate.Api/Common/Errors/GlobalExceptionHandler.cs:42-46 (500 server.unexpected) ; cas réels traités à la main : AccountsService.cs:63-67, ExternalIdentityStore.cs:59-66, IdempotencyStore.cs:47 ; docs/architecture/http-api.md:44-46 ; concurrent : grep 'DbUpdateException|UniqueConstraint|23505' src = 0",
+    "verdict": "survit",
+    "n": "L2-070"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV02",
+    "axis": "",
+    "claim": "Indispensable (extraction interne) : passe à intervalle générique (portée de fond, appel d'un IUseCase<Result<int>>, compteur par outcome, trace, journal). Deux copies quasi identiques dans l'arbre, plus une troisième dans MaintenanceBackgroundService.",
+    "evidence": "Src/Presentation/AppTemplate.Api/Features/Reminders/Jobs/ReminderBackgroundService.cs:35-90 contre Src/Presentation/AppTemplate.Api/Features/Files/Jobs/FileBackgroundService.cs:102-150 ; AddMaintenanceTask déjà documentée (docs/features/background-jobs.md:179-189) et appelée 4 fois",
+    "verdict": "survit",
+    "n": "L2-071"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV03",
+    "axis": "",
+    "claim": "Indispensable (test) : une règle d'architecture qui exige que chaque AbstractValidator<TCommand> soit injecté dans exactement un use case. CS9113 combiné à TreatWarningsAsErrors garantit alors qu'il est lu.",
+    "evidence": "grep 'IValidator|AbstractValidator' Tests/Architecture : vide ; 56 AbstractValidator< et 58 EnsureValidAsync sous Src/Application ; CompleteTodoItemUseCase.cs:12-16 (constructeur primaire) ; Directory.Build.props:15",
+    "verdict": "survit",
+    "n": "L2-072"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV04",
+    "axis": "",
+    "claim": "Indispensable (test) : interdire #pragma et <NoWarn> par un test d'architecture, avec une liste d'exceptions motivées. La règle tenue à la main a déjà deux violations, et le motif de NoWarn n'existe plus que dans l'historique git.",
+    "evidence": "Src/Presentation/AppTemplate.Api/Common/Hosting/HttpPipelineModule.cs:67-69 ; Src/Presentation/AppTemplate.Api/AppTemplate.Api.csproj:16 ; docs/guides/build-and-ci.md:70-72 ; commit 06d10744 ; grep AV0029 docs : vide ; CheckComments.cs ne rejoint pas un projet généré",
+    "verdict": "survit",
+    "n": "L2-073"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV05",
+    "axis": "",
+    "claim": "Utile en option : exporter les journaux en OTLP derrière le réglage existant OpenTelemetry:Enabled (~5 lignes ; le paquet est déjà référencé).",
+    "evidence": "Src/Presentation/AppTemplate.Api/Program.cs:45-47 (ClearProviders + AddJsonConsole) ; Directory.Packages.props:104 (OpenTelemetry.Extensions.Hosting 1.20.1) ; concurrent src/ServiceDefaults/Extensions.cs:46-50",
+    "verdict": "survit",
+    "n": "L2-074"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV06",
+    "axis": "",
+    "claim": "Utile en option, priorité basse : un RetryBackoff partagé (deux copies identiques), conditionné par reminders || files pour ne pas rester orphelin.",
+    "evidence": "Src/Domain/AppTemplate.Domain/Features/Reminders/Model/Entities/Reminder.cs:11-13,131-142 ; Src/Domain/AppTemplate.Domain/Features/Files/Model/Entities/StoredFile.cs:14-16,188-199",
+    "verdict": "survit",
+    "n": "L2-075"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV07",
+    "axis": "",
+    "claim": "Utile en option : l'AppHost Aspire à côté de Compose, déjà inscrit à la feuille de route (#122). Pas indispensable : Compose est un choix de l'ADR 0001.",
+    "evidence": "docs/template/roadmap.md:45-48 ; docs/decisions/0001-adopt-the-generated-baseline.md:62 ; concurrent src/AppHost/Program.cs",
+    "verdict": "survit",
+    "n": "L2-076"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV08",
+    "axis": "",
+    "claim": "Refusées par une ADR ou par la liste « deliberately absent » : outbox ou garantie d'envoi, planification calendaire (cron), pipeline de behaviours, HSTS, suppression douce, multi-tenant, bus, output caching, reprise d'envoi des notifications.",
+    "evidence": "docs/decisions/0006-events-after-commit-without-an-outbox.md:14-29 ; ADR 0025 (Alternatives : Quartz/Hangfire ; Revisit when : calendars) ; ADR 0011:62-63 ; docs/architecture/README.md:85,88,89,94,103,106 ; StorageShapeTests.cs:21",
+    "verdict": "hors-perimetre",
+    "n": "L2-077"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV09",
+    "axis": "",
+    "claim": "Rejetées faute de second cas réel ou parce que le gain ne paie pas le coût : annuaire d'adresses (un seul cas, 49 lignes), lignes de tags partagées (~30 lignes, requêtes différentes, exemples seulement), réconciliation parent/enfants (formes divergentes, prix de l'ADR 0005), identifiants typés, outil NewModule, canal d'alerte.",
+    "evidence": "diff TodoItemTag* contre StoredFileTag* ; Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/*.cs ; TodoListMapper.cs:68-120 contre StoredFileMapper.cs:72-88 ; AggregateTracker.cs:10 ; docs/reference/project-layout.md:302-310",
+    "verdict": "hors-perimetre",
+    "n": "L2-078"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV10",
+    "axis": "",
+    "claim": "Déjà fournies par le template ou par le framework : port de mail à gabarit (EmailTemplate, deux utilisateurs), cache L2 (une ligne IDistributedCache), port d'écriture entre features (permis par l'ADR 0004), seuil de requête lente (traces et ligne de journal).",
+    "evidence": "EmailTemplate.cs ; EmailReminderNotifier.cs:11-29 ; AccountEmailFactory.cs ; ADR 0001:55 ; docs/decisions/0004-features-meet-through-ports-and-events.md:14-17 ; docs/features/observability.md:8-12",
+    "verdict": "hors-perimetre",
+    "n": "L2-079"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV11",
+    "axis": "",
+    "claim": "L'épreuve opus se trompe trois fois : le cron est une décision (ADR 0025), pas un manque ; AddMaintenanceTask est documentée ; le port de mail existe. L'épreuve sonnet a raison sur les trois.",
+    "evidence": "ADR 0025 (Alternatives considered) ; docs/features/background-jobs.md:179-189 ; grep -rln EmailTemplate Src = 3 fichiers",
+    "verdict": "contradiction",
+    "n": "L2-080"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV12",
+    "axis": "",
+    "claim": "Les inventaires divergent sur la complétude. L'opus manque le NoWarn et le test de la suppression douce. Le sonnet cite deux lignes invalides chez le concurrent : DispatchDomainEventsInterceptor:89-93 (le fichier fait 50 lignes) et TimeProvider à la ligne 190 au lieu de 76. Value objects : complet, pas partiel.",
+    "evidence": "AppTemplate.Api.csproj:16 ; StorageShapeTests.cs:21 ; competitor src/Infrastructure/Data/Interceptors/DispatchDomainEventsInterceptor.cs:17-30 (50 lignes) ; competitor src/Infrastructure/DependencyInjection.cs:76 ; DomainModelTests.cs:110, CollectionContractTests.cs:166",
+    "verdict": "contradiction",
+    "n": "L2-081"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV13",
+    "axis": "",
+    "claim": "Un code, deux statuts : domain.invariantViolated répond 409 par DomainGuard et 400 quand la DomainException n'est pas attrapée, contre la règle « One situation always answers the same status and code ».",
+    "evidence": "GlobalExceptionHandler.cs:27-31 ; docs/reference/api.md:247 ; docs/architecture/domain-and-results.md:59-60 ; docs/architecture/http-api.md:45-46",
+    "verdict": "defaut",
+    "n": "L2-082"
+   },
+   {
+    "src": "p4-devil",
+    "id": "DV14",
+    "axis": "",
+    "claim": "Documentation qui dérive : AGENTS.md dit que new-use-case promeut une feature simple, alors que l'outil la refuse ; et la fenêtre de rejeu après un crash entre le commit métier et CompleteAsync n'est pas écrite dans les conséquences de l'ADR 0010.",
+    "evidence": "AGENTS.md:143,149 contre Tools/NewUseCase.cs:288-293 et docs/guides/adding-a-feature.md:169-171 ; IdempotencyFilter.cs:100,129 ; docs/decisions/0010-idempotency-key-is-a-lease-per-user.md:10-11,24-25",
+    "verdict": "defaut",
+    "n": "L2-083"
+   }
+  ],
+  "L3": [
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-1",
+    "axis": "docs et onboarding",
+    "claim": "La doc appartient au projet généré et suit les options ; celle du concurrent est un site externe qui ne suit pas les versions, et le paquet v10.8.0 n'embarque aucune page.",
+    "evidence": "ours:docs/template/decisions/0002-nothing-about-the-template-reaches-a-project.md (Accepted) ; 88 pages, 790 blocs <!--#if dans 56 pages ; ours:docs/getting-started/overview.md:100-108 (provenance) ; comp:README.md:11 ; comp:.template.config/template.json:220-227 ; `ls rel:docs` répond No such file ; comp:README-template.md (68 lignes) ; WebFetch du site : pied de page 10.8.0, sans page par version",
+    "verdict": "choix assumé (ADR template 0002), on dépasse",
+    "n": "L3-001"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-2",
+    "axis": "docs et onboarding",
+    "claim": "Premier contact : le concurrent est plus court et sa page NuGet se suffit à elle-même, mais le build qu'il promet échoue ; notre parcours va jusqu'à un appel authentifié, avec des trous dans le README.",
+    "evidence": "comp:README.md:37-40 ; out/p2-comp-1.md lignes 77 et 85 (0 build sur 3 sans NuGetAudit=false) ; issue #1675 ; ours:README.md:56-70 (pas de --database), :21 (liste des fronts incomplète) ; out/p2-ours-1.md lignes 66-82",
+    "verdict": "égalité",
+    "n": "L3-002"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-3",
+    "axis": "docs et onboarding",
+    "claim": "Profondeur : nous avons 10 pages d'architecture, 7 guides et 3 références, dont configuration et codes d'erreur ; le site du concurrent n'a aucune référence.",
+    "evidence": "ls ours:docs/{architecture,guides,reference} ; ours:docs/architecture/README.md:85,90 ; WebFetch du site (sections Architecture et Features, déploiement sans secrets) ; out/p3-comp-1.md lignes 39 et 45-47",
+    "verdict": "on dépasse",
+    "n": "L3-003"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-4",
+    "axis": "docs et onboarding",
+    "claim": "Le README généré affirme une HTTP API et liste :8080 sans condition, alors qu'une combinaison d'options produit un projet sans API.",
+    "evidence": "ours:.template.config/variants/project/README.md:9-20,55-61 (pas de condition api) ; template.json : api = (presentationApi || needsApi) ; ours:.template.config/acceptance/matrix.json:86 (blazor-server + mcp + worker, auth external)",
+    "verdict": "retard",
+    "n": "L3-004"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-5",
+    "axis": "docs et onboarding",
+    "claim": "9 écarts entre la doc et le code qu'aucun test ne voit, dont : 'six' features d'auth contre 7, api.md à 409 seul contre 400, ADR 0009 contredite par le code, roadmap et issues #120/#121 périmées, guide des réglages ambigu.",
+    "evidence": "ours:docs/architecture/layers-and-projects.md:34 ; ours:docs/reference/api.md:247 contre GlobalExceptionHandler.cs:27-31 ; ADR 0009:28 contre TodoListRepository.cs:24-29 ; ours:docs/template/roadmap.md:4,40 contre README.md:70 ; ours:docs/guides/adding-a-setting.md:23 contre JobsFilesOptions.cs:22 et FeatureFolderVocabularyTests.cs:37",
+    "verdict": "retard",
+    "n": "L3-005"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-6",
+    "axis": "docs et onboarding",
+    "claim": "Nous avons des tests qui lisent la doc (citations, configuration, codes d'erreur), le concurrent aucun ; ses écarts entre doc et code sont multiples et un lien d'ADR vers son wiki est mort.",
+    "evidence": "ours:Tests/Architecture/AppTemplate.Architecture.Tests/Rules/DocumentationCitationTests.cs:12,85-213 ; comp:README.md:84 (Angular 21) contre package.json:20 (^22.2.2) ; comp:README-template.md:57 contre tests/Infrastructure.IntegrationTests vide ; comp:docs/decisions/ADR-003:13 contre DispatchDomainEventsInterceptor.cs:17-29 ; issue #1554 avec has_wiki=false",
+    "verdict": "on dépasse",
+    "n": "L3-006"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-7",
+    "axis": "docs et onboarding",
+    "claim": "ADR : 28 de projet et 20 du template, 25 sur 28 nomment un test, chacune a sa section Revisit when ; le concurrent en a 3, sans test.",
+    "evidence": "ls ours:docs/decisions ; grep -E '[A-Z][A-Za-z]+Tests' (25/28, exceptions 0019, 0021, 0022) ; ours:docs/decisions/README.md:10-25 ; comp:docs/decisions/README.md:7-11 (1 560 mots)",
+    "verdict": "on dépasse",
+    "n": "L3-007"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-8",
+    "axis": "communauté et entretien",
+    "claim": "Popularité très inférieure, et le dépôt n'a ni description, ni topics, ni homepage.",
+    "evidence": "gh api repos : 20 692 étoiles, 4 295 forks contre 1 et 0 ; ours description=null, topics=[] ; nuget azuresearch : 275 469 contre 89 (templates) et 96 (CleanArch.Create)",
+    "verdict": "retard",
+    "n": "L3-008"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-9",
+    "axis": "communauté et entretien",
+    "claim": "Une seule release, aux notes GitHub vides (261 caractères), et une chaîne release-please cassée, ce qui contredit le template ADR 0006 ; le concurrent a 17 releases en 24 mois, chacune annoncée.",
+    "evidence": "gh api .../releases (v1.0.0, corps de 261 caractères) ; template-release.yml : 6 échecs sur 6 le 2026-10-30 ; PR #91 ouverte depuis le 2026-10-22 ; ours:docs/template/decisions/0006-...md:7-9 ; discussions Announcements #1508 à #1593",
+    "verdict": "retard",
+    "n": "L3-009"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-10",
+    "axis": "communauté et entretien",
+    "claim": "Pas de communauté externe : 16 issues, toutes du mainteneur, et des Discussions désactivées. Le concurrent a 367 discussions, mais une réactivité inégale (des mois sur #1628, #1392, #1594).",
+    "evidence": "gh api issues?state=all (ours) ; has_discussions=false ; comp : issues créées depuis le 2025-10-30 (22, dont 15 fermées) ; commentaire du mainteneur sur #1628 le 2026-10-11 ('sorry it took so long') ; #1594 sans réponse du mainteneur",
+    "verdict": "retard",
+    "n": "L3-010"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-11",
+    "axis": "communauté et entretien",
+    "claim": "Le bus factor vaut 1 des deux côtés ; nos formulaires d'issue, CONTRIBUTING et SECURITY dépassent les siens, mais il nous manque un CODE_OF_CONDUCT.",
+    "evidence": "git log --since=2025-10-30 : comp 72/83 commits humains par le mainteneur (87 %), ours 514/543 humains par un seul auteur ; ours:.github/ISSUE_TEMPLATE/bug_report.yml:8-65 contre comp:.github/ISSUE_TEMPLATE/bug_report.md ; comp:CODE_OF_CONDUCT.md",
+    "verdict": "égalité",
+    "n": "L3-011"
+   },
+   {
+    "src": "p5-G5-opus",
+    "id": "G5-12",
+    "axis": "communauté et entretien",
+    "claim": "Plusieurs issues et discussions ouvertes du concurrent demandent ce que nous livrons déjà ; nous pouvons aussi écrire la page de montée de version qu'il n'a pas.",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1192, /1613, /1570, /1625, /1444, /1632 ; discussions/1475 (régénérer puis comparer) ; ours:README.md:60-66 ; ours:CHANGELOG.md:15-18",
+    "verdict": "on dépasse",
+    "n": "L3-012"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-1",
+    "axis": "docs et onboarding",
+    "claim": "Documentation du projet : 88 pages livrées dans le projet généré, conditionnées par options, contre 5 fichiers .md dans le dépôt du concurrent et un site externe ; son projet généré ne reçoit qu'un README de 68 lignes.",
+    "evidence": "ours/docs (88 502 mots) ; ours/.template.config/template.json:1124-1135 (exclusions) ; comp/README.md:11 ; comp/README-template.md:68 ; site sitemap 17 URLs",
+    "verdict": "on dépasse",
+    "n": "L3-013"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-2",
+    "axis": "docs et onboarding",
+    "claim": "Vitrine : le concurrent a un site Starlight avec recherche Pagefind, 5 badges, liste Technologies, description, homepage et 9 topics ; notre README n'a aucun badge et le dépôt GitHub n'a ni description, ni homepage, ni topics, ni Discussions.",
+    "evidence": "gh api repos/... (description null, topics []) ; comp/README.md:3-7,79-102 ; site/getting-started.html (generator Starlight v0.38.1, pagefind) ; ours/README.md:1-110",
+    "verdict": "retard",
+    "n": "L3-014"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-3",
+    "axis": "docs et onboarding",
+    "claim": "La doc est tenue en partie par des tests chez nous (codes d'erreur, réglages, citations) ; chez le concurrent aucun test et quatre écarts doc/code (ADR-003 et page infrastructure du site disent après la sauvegarde alors que l'intercepteur publie dans SavingChangesAsync ; README Angular 21 contre ^22.2.2 ; README-template annonce des tests d'intégration vides ; site promet un build propre). Nos écarts : SECURITY.md contredit README et advisory privée, roadmap liste WPF comme à venir, table de services du README sans portail ni MCP, section d'installation dupliquée, mysql listé dans --help, guide adding-a-setting ambigu ; les citations de docs/** ne sont pas testées dans le projet généré.",
+    "evidence": "comp/docs/decisions/ADR-003-MediatR-Contracts-In-Domain.md:13 ; comp/src/Infrastructure/Data/Interceptors/DispatchDomainEventsInterceptor.cs:25-29 ; comp/README.md:84 ; comp/src/Web/ClientApp/package.json:20 ; comp/README-template.md:57 ; ours/Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ErrorCodeTableTests.cs:32,44 ; ConfigurationSurfaceTests.cs:141,157,201 ; DocumentationCitationTests.cs:12,281-286 ; ours/.template.config/template.json:1135 ; ours/SECURITY.md:12-16 ; ours/README.md:105-106 ; ours/docs/template/roadmap.md:39-41 ; ours/.template.config/variants/project/README.md:57-67 ; ours/docs/template/using-the-template.md:81-84,99-103 ; ours/.template.config/template.json:103-104 ; ours/docs/guides/adding-a-setting.md:23",
+    "verdict": "on dépasse",
+    "n": "L3-015"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-4",
+    "axis": "docs et onboarding",
+    "claim": "ADR : 28 ADR de projet et 20 du template, critères d'écriture, statut Superseded, Revisit when, lien explicite avec les tests ; le concurrent a 3 ADR bien formés (rubrique « When this decision does not apply » à envier) mais sans test et dont un contredit le code.",
+    "evidence": "ours/docs/decisions/README.md:8-33 ; ours/docs/_page-templates/adr.md:14,24 ; comp/docs/decisions/README.md:1-12 ; comp/docs/decisions/ADR-001-Use-EFCore-In-Application-Layer.md:66-72",
+    "verdict": "on dépasse",
+    "n": "L3-016"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-5",
+    "axis": "docs et onboarding",
+    "claim": "Onboarding : le concurrent est plus court (3 commandes, Docker inutile en SQLite) mais la version publiée 10.8.0 ne compile pas (120 erreurs NU1902/NU1903, 0 build sur 3 avec la seule doc) ; chez nous 5 commandes, Docker toujours requis, chemin mesuré réussi sur develop 1.1.0-dev (pile saine en 38,7 s, 3 257 tests sans Docker) avec frictions (--yes avalé par dnx, 401 sur /). La version 1.0.0 de nuget.org n'a pas été mesurée.",
+    "evidence": "comp/README.md:19-35,61-75 ; out/p2-comp-1.md (journal 12:06:59, 12:08:55) ; ours/README.md:28-54 ; out/p2-ours-1.md (F1, F3) ; ours/docs/template/using-the-template.md:68",
+    "verdict": "égalité",
+    "n": "L3-017"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-6",
+    "axis": "docs et onboarding",
+    "claim": "Instructions pour agents : AGENTS.md (et Src/Web/AGENTS.md) avec option --agent-files chez nous, rien chez le concurrent ; son issue #1632 demandant un AGENTS.md est fermée sans commentaire.",
+    "evidence": "ours/AGENTS.md ; ours/README.md:65,90 ; find comp -maxdepth 3 : aucun AGENTS.md/CLAUDE.md/copilot-instructions.md ; https://github.com/jasontaylordev/CleanArchitecture/issues/1632",
+    "verdict": "on dépasse",
+    "n": "L3-018"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-7",
+    "axis": "docs et onboarding",
+    "claim": "Aucun des deux n'a de guide pour reprendre une version plus récente du template dans un projet existant ; le mainteneur du concurrent répond qu'il n'y a pas de mécanisme automatique ; notre CHANGELOG définit notable et breaking et pourrait servir de base à une page upgrading.",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/discussions/1475 ; ours/CHANGELOG.md:9-16 ; ours/docs/getting-started/existing-repository.md ; git log : feat! #169 et #172",
+    "verdict": "égalité",
+    "n": "L3-019"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-8",
+    "axis": "communauté et entretien",
+    "claim": "Audience : 20 692 étoiles, 4 295 forks, 371 observateurs, 275 469 téléchargements NuGet (6 011 pour 10.8.0) contre 1 étoile, 0 fork, 89 et 96 téléchargements chez nous.",
+    "evidence": "gh api repos/jasontaylordev/CleanArchitecture et repos/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture ; API de recherche nuget.org (totalDownloads)",
+    "verdict": "retard",
+    "n": "L3-020"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-9",
+    "axis": "communauté et entretien",
+    "claim": "Cadence : le concurrent a publié 15 releases du 2026-02-28 au 2026-03-23 puis aucune depuis 221 jours, alors que main compte 58 commits (51 renovate) et que le paquet publié ne compile plus (#1675) ; nous avons une seule release (1.0.0, 2026-10-22) et une chaîne automatisée qui est en panne (G5-10). Deux défauts distincts.",
+    "evidence": "gh api repos/jasontaylordev/CleanArchitecture/releases ; git log --since=2026-03-24 ; comp/.github/workflows/release.yml:3-5 ; comp/renovate.json ; https://github.com/jasontaylordev/CleanArchitecture/issues/1675 ; ours/.github/workflows/template-release.yml:3",
+    "verdict": "égalité",
+    "n": "L3-021"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-10",
+    "axis": "communauté et entretien",
+    "claim": "Notre workflow template-release échoue à chaque push sur develop depuis le 2026-10-27 18:58 UTC (35 échecs) : release-please ne peut pas lire .template.config/template.json qui commence par un BOM ; la PR de release 91 (1.1.0) n'a pas été mise à jour depuis le 2026-10-28 et ne tient pas compte des deux commits feat!. Aucune publication à tort (jobs skipped). Cause non rejouée.",
+    "evidence": "gh api repos/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/actions/workflows/template-release.yml/runs (36 failure, 35 success) ; journal logs/l.zip : « release-please failed: Unexpected token '﻿', ... is not valid JSON » après « Fetching .template.config/template.json » ; head -c 6 ours/.template.config/template.json | xxd = efbb bf7b ; PR #91 mise à jour le 2026-10-28T16:37Z ; ours/.github/release-please/config.json (extra-files json)",
+    "verdict": "retard",
+    "n": "L3-022"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-11",
+    "axis": "communauté et entretien",
+    "claim": "Notes de version : pas de CHANGELOG chez le concurrent, corps de release = liste de PR dominée par renovate (v10.8.0 : 5 puces renovate sur 6). Chez nous un CHANGELOG de 1 158 lignes avec une politique « notable / breaking » ; mais le corps de la release GitHub v1.0.0 est une seule ligne de documentation, la section « what the first release contains » n'y figure pas.",
+    "evidence": "gh api repos/jasontaylordev/CleanArchitecture/releases/tags/v10.8.0 ; ours/CHANGELOG.md:9-16,19,26 ; gh api repos/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/releases/tags/v1.0.0",
+    "verdict": "on dépasse",
+    "n": "L3-023"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-12",
+    "axis": "communauté et entretien",
+    "claim": "Canaux de questions : le concurrent a 367 discussions (184 Q&A, 38 avec réponse retenue ; 27 en 2025, 22 en 2026, dernière d'utilisateur le 2026-04-17) et un lien « Ask a question » ; chez nous Discussions désactivées (HTTP 410), blank_issues_enabled false, un seul contact_links (sécurité) : aucun canal pour une question.",
+    "evidence": "gh api repos/jasontaylordev/CleanArchitecture/discussions (367) ; comp/.github/ISSUE_TEMPLATE/config.yml ; ours/.github/ISSUE_TEMPLATE/config.yml:1-6 ; gh api .../discussions sur notre dépôt : 410 ; has_discussions false",
+    "verdict": "retard",
+    "n": "L3-024"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-13",
+    "axis": "communauté et entretien",
+    "claim": "Réactivité aux tiers : non mesurable chez nous (16 issues, toutes de l'auteur, 0 commentaire tiers) ; le concurrent ferme par lots (2025-07, 2026-02, 2026-10-11), corrige le jour même en période active (#1555, #1565) mais laisse d'autres issues 2 à 5 mois (#1613, #1625) ou sans réponse (#1594).",
+    "evidence": "gh api repos/*/issues?state=all ; https://github.com/jasontaylordev/CleanArchitecture/issues/1594 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1625 ; https://github.com/jasontaylordev/CleanArchitecture/issues/1613",
+    "verdict": "égalité",
+    "n": "L3-025"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-14",
+    "axis": "communauté et entretien",
+    "claim": "Bus factor : un mainteneur unique des deux côtés (concurrent : ~637 des 800 commits humains soit 80 %, 72 de 82 sur le dernier an, longue traîne de 103 identités ; nous : 514 sur 514, 62 des 100 dernières PR). Chez nous le risque est atténué par ce qui est écrit (48 ADR, AGENTS.md, tests d'architecture).",
+    "evidence": "git shortlog -sn HEAD dans repos/competitor-main et repos/ours ; gh api repos/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/pulls?state=all&per_page=100",
+    "verdict": "égalité",
+    "n": "L3-026"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-15",
+    "axis": "communauté et entretien",
+    "claim": "Fichiers de santé : score GitHub identique (71) ; le concurrent a un CODE_OF_CONDUCT et un FUNDING mais ni CONTRIBUTING, ni modèle de PR, ni SECURITY.md, rapport privé désactivé ; nous avons CONTRIBUTING, modèle de PR testé, formulaires YAML à champs obligatoires et rapport privé activé, mais pas de code de conduite et un SECURITY.md qui contredit README et advisory.",
+    "evidence": "gh api repos/*/community/profile ; gh api repos/*/private-vulnerability-reporting ; ours/SECURITY.md:12-16 ; ours/.github/ISSUE_TEMPLATE/config.yml:3-6 ; ours/.github/ISSUE_TEMPLATE/bug_report.yml ; comp/.github/ISSUE_TEMPLATE/bug_report.md",
+    "verdict": "égalité",
+    "n": "L3-027"
+   },
+   {
+    "src": "p5-G5-sonnet",
+    "id": "G5-16",
+    "axis": "communauté et entretien",
+    "claim": "Demandes d'utilisateurs ouvertes ou fermées chez le concurrent que nous couvrons déjà : --examples none (#1192 « on the roadmap », #1613), Vue (#1570), Blazor (#1444), AGENTS.md (#1632), ports fixes (#1594), build en erreur sur NuGetAudit documenté et vérifié par verify (#1675) ; non revendicables : MySQL (#1571, refusé par notre roadmap) et SvelteKit (#1625, nous n'avons que vite-svelte).",
+    "evidence": "https://github.com/jasontaylordev/CleanArchitecture/issues/1192 ; .../issues/1613 ; .../issues/1570 ; .../issues/1444 ; .../issues/1632 ; .../issues/1594 ; .../issues/1675 ; ours/README.md:60-61,66,70 ; ours/.template.config/template.json:202-214 ; ours/docs/guides/build-and-ci.md:161-165 ; ours/Tools/Tasks.cs:681,2029-2045 ; ours/docs/template/roadmap.md:64",
+    "verdict": "on dépasse",
+    "n": "L3-028"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F1",
+    "axis": "",
+    "claim": "dnx avale --yes : les exemples de la doc et l'astuce 'skip the questions' du launcher ne marchent pas via dnx ; le message d'erreur demande d'ajouter --yes déjà passé",
+    "evidence": "docs/template/using-the-template.md:68-70 ; 12:09:12 `dnx CleanArch.Create@1.1.0-dev new -n Acme.NonInt --yes </dev/null` -> \"There's no terminal to ask questions in, and these weren't given: --presentation, --web, ... or add --yes to use the defaults.\" ; 12:39:01 même commande sous pty rouvre le TUI ; contournement `dnx ... -- new -n Acme.NonInt --yes` OK en 13.5 s",
+    "verdict": "friction",
+    "n": "L3-029"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F2",
+    "axis": "",
+    "claim": "test --no-integration du projet riche : Mcp.UnitTests et Portal.UnitTests prennent 2m55 et 1m52 (26 et 15 tests), total 6m25 contre 1m10 en défaut ; non documenté ; cause non identifiée",
+    "evidence": "test-lrich.log ; rejeu isolé 12:39:43 (load 0.32) : `duration: 2m 54s 858ms` et `duration: 1m 51s 524ms` ; user 1m59 pour 6m25 reels ; Tests/Presentation/Acme.LRich.Portal.UnitTests/PresentationHost.cs (WebApplicationFactory par test)",
+    "verdict": "friction",
+    "n": "L3-030"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F3",
+    "axis": "",
+    "claim": "La racine de l'API répond 401 ; l'endpoint de vie /health n'est pas cité dans first-run (trouvé en essayant 5 chemins)",
+    "evidence": "12:16:30 GET / -> 401 problem+json auth.required ; /health 200 ; /healthz,/alive,/health/live,/api/v1/health 401 ; /health documenté seulement dans docs/reference/api.md:14 et docs/features/observability.md:46",
+    "verdict": "manque",
+    "n": "L3-031"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F4",
+    "axis": "",
+    "claim": "README du projet riche liste API, Scalar, Mailpit et Web app mais pas Portal 8090 ni MCP 8091/mcp, que first-run.md liste ; le service compose s'appelle presentation-portal",
+    "evidence": "Acme.LRich/README.md (table Service/Address) vs docs/getting-started/first-run.md ; `docker compose logs portal` -> 'no such service: portal' ; compose ps : acme-lrich-presentation-portal-1",
+    "verdict": "friction",
+    "n": "L3-032"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F5",
+    "axis": "",
+    "claim": "Bruit git après bootstrap du projet riche : dizaines d'avertissements CRLF/LF sur les fichiers Blazor et le .sln",
+    "evidence": "git add -A : \"warning: in the working copy of 'Src/Presentation/Acme.LRich.Portal/Components/App.razor', CRLF will be replaced by LF\" ; \"Acme.LRich.sln, LF will be replaced by CRLF\"",
+    "verdict": "friction",
+    "n": "L3-033"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F6",
+    "axis": "",
+    "claim": "Incohérences d'options : --help liste mysql alors qu'il est refusé ; README GitHub dit 'a project holds the API or the worker' alors que api+worker est accepté et généré",
+    "evidence": "`dotnet new cleanarch-webapi --help` (mysql MySQL 8.4...) vs launcher 'MySQL is not generated by this version' ; README lignes 77-78 ; Acme.LRich/Src/Presentation contient Api et Worker ; docs/features/background-jobs.md explique que le worker prend les jobs",
+    "verdict": "friction",
+    "n": "L3-034"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "F7",
+    "axis": "",
+    "claim": "Section d'installation nuget.org dupliquée dans la doc du template",
+    "evidence": "docs/template/using-the-template.md:81-84 et :99-103 (dotnet new install CleanArch.WebApi.Templates / dotnet new update)",
+    "verdict": "friction",
+    "n": "L3-035"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "A1",
+    "axis": "",
+    "claim": "Le launcher guidé marche de bout en bout (14 écrans, réponses déduites annoncées, récapitulatif, commit + bootstrap + commit + .env) et imprime les commandes équivalentes",
+    "evidence": "guided-rich.typescript ; Acme.GRich git log : bbac4b6 chore: bootstrap, 9f67bbb chore: generate ; .env présent ; 'Web app rendering: spa · the only option when First web app is vite-react'",
+    "verdict": "avance",
+    "n": "L3-036"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "A2",
+    "axis": "",
+    "claim": "Launcher et dotnet new produisent le même projet ; bootstrap fiable (défaut 2m27, minimal 50 s, riche 3m17)",
+    "evidence": "cmp2.py : Acme.NonInt vs Acme.DnDefault et Acme.DnMin vs Acme.LMin, seul X.sln diffère ; bootstrap-*.log 'bootstrap completed.'",
+    "verdict": "avance",
+    "n": "L3-037"
+   },
+   {
+    "src": "p2-ours-1",
+    "id": "A4",
+    "axis": "",
+    "claim": "Premier code métier : new-feature écrit 30 fichiers en 2.5 s et liste 6 éditions ; les tests d'architecture guident les oublis (api.md, migration) avec des messages actionnables ; 14 suites vertes ensuite",
+    "evidence": "12:34:07 new-feature Widgets Widget ; 12:37:15 3 échecs (ErrorCodeTableTests, PendingModelChangesTests, ErrorCodeStatusTests) ; 12:38:44 14/14 verts après api.md + migration-add + openapi",
+    "verdict": "avance",
+    "n": "L3-038"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F1",
+    "axis": "",
+    "claim": "Le launcher masque la cause réelle d'un échec de bootstrap : il n'affiche que la queue d'une pile dotnet format, sans journal ni consigne ; la cause (ENOSPC) n'apparaît qu'en relançant bootstrap à la main.",
+    "evidence": "/home/pmmarchio/.cache-p2-ours-2/guided.clean, bloc « Bootstrap failed ... 'dotnet format ...sln' exited with 1 » ; relance : « NuGet.targets(198,5): error : No space left on device » (work/boot-lguided.log)",
+    "verdict": "friction",
+    "n": "L3-039"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F2",
+    "axis": "",
+    "claim": "Le projet généré par dotnet new n'est pas un dépôt git alors que le message de fin et la doc demandent de commiter ; la doc générée ne dit jamais git init. Seul le launcher guidé le fait.",
+    "evidence": "`git status` dans DnDefault : « fatal: not a git repository » ; grep « git init » dans docs et Tools : aucune occurrence ; le guidé indique « Commits the generated files, after a git init if the folder is not a repo »",
+    "verdict": "friction",
+    "n": "L3-040"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F3",
+    "axis": "",
+    "claim": "Combinaison refusée via dotnet new : message obscur, sans la correction à appliquer, et dossier vide laissé.",
+    "evidence": "`dotnet new cleanarch-webapi -n Acme.Shop -o Bad1 --auth none` : « Missing mandatory option(s) ... '--auth-none-needs-examples-none', '--auth-none-needs-files-false' » (code 102) ; idem `--database sqlite --presentation worker` : '--worker-needs-server-database'. Le launcher corrige seul : « Example features: none (the only option when Authentication is none) ».",
+    "verdict": "friction",
+    "n": "L3-041"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F4",
+    "axis": "",
+    "claim": "Le README dit « a project holds the API or the worker » mais api + worker est accepté et génère les deux hôtes : formulation ambiguë.",
+    "evidence": "README (GitHub, section options) vs génération DnRich : Src/Presentation contient Api, Mcp, Portal, Worker ; docs/getting-started/overview.md : « A worker beside it runs the background jobs, which the API leaves to it »",
+    "verdict": "friction",
+    "n": "L3-042"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F5",
+    "axis": "",
+    "claim": "Le launcher teste git config user.name et ignore GIT_AUTHOR_* / GIT_COMMITTER_* ; son message dit pourtant quoi faire.",
+    "evidence": "guided2.clean : « First commit skipped / git doesn't know who you are yet: user.name and user.email aren't set. » avec les variables GIT_* exportées",
+    "verdict": "friction",
+    "n": "L3-043"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F6",
+    "axis": "",
+    "claim": "Les features d'exemple TodoLists, Reminders et Notes n'ont pas de page dans docs/features, malgré « one page per feature » et des pages d'architecture qui les citent.",
+    "evidence": "ls docs/features (config riche, examples all) : accounts, authentication, background-jobs, email, files, observability, presentation, web-frontend ; docs/README.md sans ligne pour elles",
+    "verdict": "manque",
+    "n": "L3-044"
+   },
+   {
+    "src": "p2-ours-2",
+    "id": "F8",
+    "axis": "",
+    "claim": "Le launcher non interactif et dotnet new produisent le même arbre et le launcher imprime la commande dotnet new équivalente ; sans TTY ni --yes, il donne une erreur claire.",
+    "evidence": "`diff -rq DnDef2 LNiDefault` : seul Acme.Shop.sln diffère (GUID) ; « Done. The same with dotnet new: dotnet new cleanarch-webapi -n Acme.Shop -o LNiDefault » ; « There's no terminal to ask questions in, and these weren't given: ... Pass them as options, or add --yes »",
+    "verdict": "avance",
+    "n": "L3-045"
+   },
+   {
+    "src": "p5-G5-x",
+    "id": "G5-X",
+    "axis": "docs et onboarding",
+    "claim": "Le concurrent publie ses domain events après la sauvegarde, dans SavedChangesAsync, conformément à son ADR-003 : sa doc et son code concordent.",
+    "evidence": "competitor-main/src/Infrastructure/Data/Interceptors/DispatchDomainEventsInterceptor.cs:25-30 ; docs/decisions/ADR-003-MediatR-Contracts-In-Domain.md:13",
+    "verdict": "fait",
+    "n": "L3-046"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F1",
+    "axis": "",
+    "claim": "Le template publié (10.8.0) ne compile pas : `dotnet build` échoue sur toutes les configurations générées à cause de NU1902/NU1903 traités en erreurs. Le message ne dit pas quoi faire et la doc affirme que le build est propre.",
+    "evidence": "Def : `dotnet build` -> 0 Warning(s), 120 Error(s), ex. `Application.FunctionalTests.csproj : error NU1903: Warning As Error: Package 'System.Security.Cryptography.Pkcs' 10.0.1 has a known high severity vulnerability`. Min : 108 Error(s). Issue GitHub #1675 ouverte le 2026-10-28. Doc : « the template should build cleanly out of the box ». Contournement deviné : `-p:NuGetAudit=false` -> Build succeeded en 15 s.",
+    "verdict": "retard",
+    "n": "L3-047"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F2",
+    "axis": "",
+    "claim": "`dotnet test` ne passe pas contrairement à la doc : les 6 tests d'acceptation Playwright exigent un téléchargement de navigateurs via pwsh, non documenté.",
+    "evidence": "Failed: 6, Passed: 0 -> `Executable doesn't exist at .../chromium_headless_shell-1208 ... pwsh bin/Debug/netX/playwright.ps1 install`. Le script réel est dans artifacts/bin/Web.AcceptanceTests/debug/playwright.ps1. Doc : « no configuration or manual setup required ». Les 33 autres tests passent (6+8+19).",
+    "verdict": "manque",
+    "n": "L3-048"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F3",
+    "axis": "",
+    "claim": "Le premier lancement avertit d'un certificat de dev non approuvé, et la doc ne cite pas `dotnet dev-certs https --trust`.",
+    "evidence": "Journal 12:12:25 : `warn: The ASP.NET Core developer certificate is not trusted` et `No trusted Aspire development certificate was found`. 0 occurrence de dev-certs dans les pages lues.",
+    "verdict": "manque",
+    "n": "L3-049"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F4",
+    "axis": "",
+    "claim": "Les URL de l'API et du frontend sont dynamiques ; ni le README ni la doc ne les donnent hors dashboard. Les requêtes HTTP réelles confirment que l'appli répond.",
+    "evidence": "Journal 12:18:46 : frontend http://localhost:33051/ -> 200 text/html ; API http://localhost:38459/api/TodoLists -> 401 ; dashboard https://localhost:17286/health -> 200. Ports trouvés par `ss -ltnp`.",
+    "verdict": "friction",
+    "n": "L3-050"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F5",
+    "axis": "",
+    "claim": "Toute l'API est protégée : premier appel en 401 et aucun identifiant d'amorçage documenté (README, doc, Web.http).",
+    "evidence": "`/api/TodoLists` -> 401. Identifiants dans src/Infrastructure/Data/ApplicationDbContextInitialiser.cs:79-84 (administrator@localhost / Administrator1!). 0 occurrence dans la doc.",
+    "verdict": "manque",
+    "n": "L3-051"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F6",
+    "axis": "",
+    "claim": "Le premier code métier est bien guidé : tranches verticales Application/<Feature>/Commands|Queries, `dotnet new ca-usecase`, `IEndpointGroup` découvert automatiquement, exemple TodoLists complet.",
+    "evidence": "Pages doc « Code scaffolding » et « Application layer » ; src/Web/Endpoints/TodoLists.cs (Rich généré) ; `dotnet new ca-usecase --help` liste -fn, -ut, -rt. Scaffolding non exécuté.",
+    "verdict": "avance",
+    "n": "L3-052"
+   },
+   {
+    "src": "p2-comp-1",
+    "id": "F7",
+    "axis": "",
+    "claim": "Installation, génération et démarrage Aspire avec SQLite sont rapides et sans question quand l'audit NuGet est désactivé.",
+    "evidence": "install 2,7 s ; `dotnet new ca-sln` 2,2 s ; build 15 s ; AppHost « Distributed application started » 12 s après lancement ; Node et Docker non requis pour `-cf none` / SQLite comme annoncé par le README.",
+    "verdict": "avance",
+    "n": "L3-053"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F1",
+    "axis": "",
+    "claim": "dnx consomme --yes/-y : il faut `--yes` avant `--` et `--yes` après ; l'aide du lanceur ne le dit pas",
+    "evidence": "12:26 `dnx CleanArch.Create@1.1.0-dev --yes -n Acme.Shop -y` => \"There's no terminal to ask questions in, and these weren't given: --presentation, --web, ...\"; `dnx ... --yes -- -n Acme.Shop --yes` fonctionne (10 s)",
+    "verdict": "friction",
+    "n": "L3-054"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F2",
+    "axis": "",
+    "claim": "`dotnet run Tools/Tasks.cs new-feature --help` affiche l'aide de dotnet run ; la vraie aide est `dotnet run Tools/NewFeature.cs -- --help`, non citée par `Tasks.cs help`",
+    "evidence": "Sortie `.NET Run Command Usage: dotnet run [<applicationArguments>...]`; `Tasks.cs help` lignes 29-32 : \"whose --help says what each one means\"",
+    "verdict": "friction",
+    "n": "L3-055"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F3",
+    "axis": "",
+    "claim": "new-feature n'applique pas ses 6 modifications obligatoires, n'imprime pas `openapi`, garde les champs placeholders (Description a réécrire en Budget dans 22 fichiers) et ne génère aucun test d'intégration",
+    "evidence": "Sortie new-feature : \"The solution does not compile until edit 1 is made... Six edits, each by hand\"; `grep Description` sur 22 fichiers Projects ; \"Not generated... the integration tests against PostgreSQL\"",
+    "verdict": "manque",
+    "n": "L3-056"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F4",
+    "axis": "",
+    "claim": "Les erreurs d'oubli sont attrapées par des tests aux messages actionnables (migration, openapi, config)",
+    "evidence": "PendingModelChangesTests : \"run 'dotnet run Tools/Tasks.cs migration-add <Name>'\" ; OpenApiDocumentTests : \"run dotnet run Tools/Tasks.cs openapi\" ; ConfigurationSurfaceTests : \"Add a row to that section's table\"",
+    "verdict": "avance",
+    "n": "L3-057"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F5",
+    "axis": "",
+    "claim": "new-use-case : excellent pour une commande par id (action de contrôleur imprimée) mais aucune des deux entrées ne convient à une recherche par texte ; interface générée sans paramètre ; le test généré ne se recompile plus dès qu'on injecte des dépendances",
+    "evidence": "SearchProjectsUseCase.ExecuteAsync(CancellationToken) et SearchProjectsDto(Guid Id) ; 4 fichiers réécrits ; ArchiveProjectUseCaseTests CS7036 au 1er build",
+    "verdict": "manque",
+    "n": "L3-058"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F6",
+    "axis": "",
+    "claim": "Aucun outil ni mention dans `help` pour ajouter un champ, un réglage ou un domain event ; ~14, ~13 et ~8 fichiers a la main",
+    "evidence": "`Tasks.cs help` : liste des tâches sans new-field/new-setting/new-event ; docs/guides/adding-a-setting.md et adding-a-feature.md (tableau des listes fermées)",
+    "verdict": "manque",
+    "n": "L3-059"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F7",
+    "axis": "",
+    "claim": "Le guide adding-a-setting.md (étape 2) contredit les tests d'architecture : un validateur en fichier séparé ou public est refusé",
+    "evidence": "FeatureFolderVocabularyTests : \"ProjectsOptionsValidator.cs sits in 'Configuration/Options/', whose files are named [Options]\" ; LayoutConventionTests : \"declares 2 public types (ProjectsOptions, ProjectsOptionsValidator)\" ; correctif : validateur internal dans le même fichier (comme IdempotencyPurgeOptions.cs)",
+    "verdict": "friction",
+    "n": "L3-060"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F8",
+    "axis": "",
+    "claim": "Les clés d'un réglage dans appsettings.json, docker-compose.yml et .env.example ne sont contrôlées par aucun test (étape 6 du guide)",
+    "evidence": "Suppression des 3 entrées PROJECTS_SEARCH_RESULT_LIMIT / Projects:SearchResultLimit puis `Tasks.cs test --no-integration` : aucun échec (journal 14:28)",
+    "verdict": "manque",
+    "n": "L3-061"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F9",
+    "axis": "",
+    "claim": "format-fix ne corrige pas IDE1006 et son message `Unable to fix IDE1006` ne nomme pas le fichier",
+    "evidence": "format-fix 12:49 : \"Unable to fix IDE1006. Code fix NamingStyleCodeFixProvider doesn't support Fix All\" ; `Tasks.cs format` : ProjectCrudTests.cs(14,26) error IDE1006 Missing prefix '_'",
+    "verdict": "friction",
+    "n": "L3-062"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F10",
+    "axis": "",
+    "claim": "web-app (lanceur) imprime 10 modifications à la main au lieu de les faire, web-join ne sert pas pour la première app, 7 modifs sur 10 ne sont contrôlées par aucun test, l'ADR 0024 est créé sans ligne d'index ; contraste net avec `presentation` qui fait tout",
+    "evidence": "t6-webapp.log (118 lignes, \"To do by hand\") ; `Tasks.cs web-join Portal` : \"has no '## Joining a project generated without one' section\" ; tests d'archi 162/162 verts sans dependabot/codeql/doc rows ; grep 0024 dans docs/decisions/README.md : rien",
+    "verdict": "retard",
+    "n": "L3-063"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F11",
+    "axis": "",
+    "claim": "verify ne couvre pas le web : pas de pnpm lint/test/build ni de contrôle du schema.ts généré ; un client web périmé après un changement d'API passe le gate",
+    "evidence": "Après le join MCP, `pnpm api` a modifié Src/Web/packages/api-client/src/generated/schema.ts (+359 lignes) alors que verify n'avait rien signalé ; log verify sans étape pnpm",
+    "verdict": "manque",
+    "n": "L3-064"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F12",
+    "axis": "",
+    "claim": "presentation (MCP) fait join + scaffold + solution + format en 30 s (83 fichiers créés, 31 modifiés, listes fermées d'archi incluses)",
+    "evidence": "t6-mcp.log \"Join done.\" \"Scaffold done.\" ; git show --name-status : 83 A, 31 M",
+    "verdict": "avance",
+    "n": "L3-065"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F13",
+    "axis": "",
+    "claim": "Après presentation, la migration du contexte Auth n'est imprimée qu'en haut de sortie ; `Tasks.cs migration-add` ne vise que le contexte métier et crée sans avertir une migration VIDE ; openapi et pnpm api ne sont pas lancés",
+    "evidence": "`migration-add AddAccessKeys` => AddAccessKeys.cs avec Up() vide dans Persistence ; seul `dotnet ef ... --project Src/Infrastructure/Acme.Shop.Infrastructure.Auth` correct ; OpenApiDocumentTests rouge (AccessKeyResponse: absent became)",
+    "verdict": "manque",
+    "n": "L3-066"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F14",
+    "axis": "",
+    "claim": "`presentation` ne propose pas worker (seulement à la génération) et `dnx ... web-app --help` réaffiche l'aide globale sans les options du web-app",
+    "evidence": "`dotnet new cleanarch-presentation --help` : blazor-server, avalonia, mcp, wpf ; `dnx ... -- web-app --help` = aide globale",
+    "verdict": "manque",
+    "n": "L3-067"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F15",
+    "axis": "",
+    "claim": "remove-feature n'agit que sur un squelette jamais modifié ni enregistré ; sinon rapport seul et travail manuel lourd (exemple Notes : 7 dossiers, 12 enregistrements, tests MCP, vocabulaire de layout, .http, doc dont des mentions en prose non détectées)",
+    "evidence": "remove-feature Notes : \"Blockers: '.feature-manifest/Notes.json' does not exist... Nothing was changed\" ; Projects : 30 fichiers edited, 8 added ; Widgets --apply : 29 fichiers supprimés ; tests rouges après suppression : ErrorCodeTableTests (note.notFound), LayoutConventionTests (Access/Stores)",
+    "verdict": "retard",
+    "n": "L3-068"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F16",
+    "axis": "",
+    "claim": "Règle d'architecture Domain vers Infrastructure : le build passe, le test d'architecture échoue en 9 s avec le csproj fautif et la raison ; avec Infrastructure.Email c'est MSBuild (MSB4006)",
+    "evidence": "ModuleDependencyTests.TheDomainLayer_ReferencesNothingOutsideItself : \"Src/Domain/Acme.Shop.Domain/Acme.Shop.Domain.csproj -> Acme.Shop.Infrastructure.Core ... a project in it may reference another project of the same layer and nothing else at all\" ; dotnet build Domain : Build succeeded 2 s",
+    "verdict": "avance",
+    "n": "L3-069"
+   },
+   {
+    "src": "p3-ours-1",
+    "id": "F20",
+    "axis": "",
+    "claim": "Gate verify fiable sur du code correct : 3 733 à 3 789 tests, Docker/Testcontainers sans intervention, 4 à 5 minutes",
+    "evidence": "t1-verify2.log total 3768 failed 0 (3m55) ; t5-verify.log 3789 (4m08) ; t7b-verify.log 3733 (5m11)",
+    "verdict": "avance",
+    "n": "L3-070"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F0",
+    "axis": "",
+    "claim": "Audit non exécutable : /tmp (tmpfs 16G) plein à 100 %, bootstrap et le rapport .md ont échoué en ENOSPC. Limite d'environnement, pas friction du template.",
+    "evidence": "df -h /tmp : tmpfs 16G 16G 4.1M 100 % ; `dotnet run Tools/Tasks.cs bootstrap` : 'No space left on device : /tmp/NuGetScratchpmmarchio/...' ; Write du rapport : 'ENOSPC: no space left on device, write' ; df -k à 13:27 : 4 Ko libres ; du -sh personas : p2-comp-1 4.7G, p2-ours-1 3.4G, p3-comp-1 3.7G, p3-ours-1 2.7G",
+    "verdict": "manque",
+    "n": "L3-071"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F1",
+    "axis": "",
+    "claim": "Le restore de Tools/Tasks.cs (file-based app) télécharge des packs runtime linux-x64 et l'ILCompiler NativeAOT même pour `help` ; aucun PublishAot=false ; prérequis non dit (espace et téléchargement). Cause AOT par défaut non vérifiée.",
+    "evidence": "`dotnet run Tools/Tasks.cs help` : \"Failed to download package 'Microsoft.AspNetCore.App.Runtime.linux-x64.10.0.9' ... runtime.linux-x64.microsoft.dotnet.ilcompiler/10.0.9 ... No space left on device\" ; Tools/Tasks.cs:1 '#:property UseAppHost=false' seul ; grep PublishAot Tools/ Directory.Build.props : 0 résultat ; docs/getting-started/first-run.md Prerequisites : SDK et Docker seulement",
+    "verdict": "friction",
+    "n": "L3-072"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F2",
+    "axis": "",
+    "claim": "Sans TTY, `--yes` placé avant `--` est absorbé par dnx ; le message du launcher dit d'ajouter --yes sans préciser où (marche : `dnx CleanArch.Create@1.1.0-dev -- new -n X --yes`). Limite d'agent partielle.",
+    "evidence": "`dnx CleanArch.Create@1.1.0-dev --yes -- new -n Acme.Tracker` : \"There's no terminal to ask questions in, and these weren't given: --presentation, --web, --auth, ... Pass them as options, or add --yes to use the defaults.\" ; avec --yes après -- : généré en 10 s",
+    "verdict": "friction",
+    "n": "L3-073"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F3",
+    "axis": "",
+    "claim": "Le projet généré n'est pas un dépôt git alors que la doc demande de committer ce que bootstrap écrit ; `--setup` du launcher le ferait. Citation de --setup dans les docs du projet non vérifiée.",
+    "evidence": "git status dans Acme.Tracker avant mon git init : 'fatal: not a git repository' ; dnx --help : '--setup  after new, run every setup step without asking: commit, bootstrap, commit, copy .env' ; AGENTS.md : 'run bootstrap and commit what it writes'",
+    "verdict": "friction",
+    "n": "L3-074"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F4",
+    "axis": "",
+    "claim": "Le launcher propose `web-app` et `presentation` (découvrables via --help) mais la doc du projet généré ne documente que `dotnet new cleanarch-webapp|cleanarch-presentation` puis presentation-join ; dnx/CleanArch.Create absents de tous les .md.",
+    "evidence": "dnx --help : 'web-app  add a web app to the project you're in', 'presentation  add a presentation project ...' ; docs/getting-started/overview.md:48-55 ; grep -rn 'dnx\\|CleanArch.Create' --include=*.md : 0 résultat",
+    "verdict": "manque",
+    "n": "L3-075"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F7",
+    "axis": "",
+    "claim": "Statique, non exécuté : `new-feature` écrit les fichiers mais n'édite rien et imprime environ 11 édits à la main (AppDbContext, ApplicationModule, PersistenceModule, Program.cs, 2 compositions de test, +5 pour le balayage du premier owner), puis migration-add, row docs/README.md et api.md.",
+    "evidence": "docs/guides/adding-a-feature.md : 'The command writes files and edits none.' ; 'An owner feature that is the project's first prints five more' ; Tools/NewFeature.cs:2022 'Eleven edits'",
+    "verdict": "friction",
+    "n": "L3-076"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F9",
+    "axis": "",
+    "claim": "Pas de guide pas à pas pour un domain event (seulement la page d'architecture) ; pas d'outil non plus. Un host supplémentaire n'a que overview.md et `Tasks.cs help`.",
+    "evidence": "ls docs/guides : adding-a-feature, adding-a-setting, build-and-ci, deployment, migrations, removing-features, testing ; docs/architecture/domain-and-results.md:31-46 ; docs/getting-started/overview.md:48-55 ; Tasks.cs help : presentation-scaffold/join, web-scaffold/join",
+    "verdict": "manque",
+    "n": "L3-077"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F10",
+    "axis": "",
+    "claim": "Statique : guide de réglage très guidé (7 étapes numérotées, snippet de registration, test de limites, vérification par commande, undo) et gardé par ConfigurationSurfaceTests. Non exécuté.",
+    "evidence": "docs/guides/adding-a-setting.md (Steps 1-7, Check, Undo)",
+    "verdict": "avance",
+    "n": "L3-078"
+   },
+   {
+    "src": "p3-ours-2",
+    "id": "F11",
+    "axis": "",
+    "claim": "Statique : retirer les exemples est manuel (dossiers + ~11 fichiers à éditer) et laisse du périmé que rien ne signale (appsettings, .env.example, docker-compose, .http, docs). `--apply` refuse une feature dont une registration existe : contradiction possible avec la tâche 1, à vérifier.",
+    "evidence": "docs/guides/removing-features.md : 'What to edit' (11 lignes), 'Configuration and samples: None of these breaks a build, and each goes stale' ; '--apply ... refuses, deleting nothing, once a file was edited or added or a registration exists'",
+    "verdict": "friction",
+    "n": "L3-079"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F01",
+    "axis": "",
+    "claim": "Le projet fraîchement généré ne compile pas : l'audit NuGet des vulnérabilités est promu en erreur (TreatWarningsAsErrors), le message ne dit pas quoi faire.",
+    "evidence": "`dotnet build` dans Acme (12:49:23) : 120 erreurs, par ex. `error NU1902: Warning As Error: Package 'MessagePack' 2.5.192 ...`, `NU1903 ... SQLitePCLRaw.lib.e_sqlite3 2.1.11`, `System.Security.Cryptography.Xml 10.0.1`. Directory.Build.props contient `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`. Corrigé en ajoutant `<WarningsNotAsErrors>NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>`.",
+    "verdict": "friction",
+    "n": "L3-080"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F02",
+    "axis": "",
+    "claim": "Le gate complet n'est pas vert du premier coup : 6 tests d'acceptation Playwright échouent, le README ne mentionne ni Playwright ni pwsh, et le projet d'intégration ne contient aucun test.",
+    "evidence": "`dotnet test --no-build` : `Failed! - Failed: 6, Passed: 0 ... Acme.Web.AcceptanceTests.dll` avec `Executable doesn't exist at .../chrome-headless-shell`. `tests/Infrastructure.IntegrationTests` ne contient que GlobalUsings.cs. Sur mon poste, `playwright.ps1 install` répond `Playwright does not support chromium on ubuntu26.04-x64` puis `libnspr4.so: cannot open shared object file` (limite de l'environnement : acceptation non vérifiée).",
+    "verdict": "friction",
+    "n": "L3-081"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F03",
+    "axis": "",
+    "claim": "L'outillage se limite à `ca-sln` et `ca-usecase`. Aucun outil pour une feature complète, un événement, un réglage, un second front, un host ou le retrait d'une feature.",
+    "evidence": "`dotnet new list` : seuls `ca-sln` et `ca-usecase`. `ca-usecase --help` : options -pn, -fn, -ut, -rt uniquement. T1 : ~380 lignes à la main ; T6 et T7 : tout à la main.",
+    "verdict": "manque",
+    "n": "L3-082"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F04",
+    "axis": "",
+    "claim": "Les squelettes `ca-usecase` compilent mais lèvent `NotImplementedException` à l'exécution ; l'outil ne crée ni DTO, ni endpoint, ni test, ni DbSet, et n'imprime aucune étape suivante.",
+    "evidence": "src/Application/Projects/Commands/CreateProject/CreateProject.cs généré : handler avec `throw new NotImplementedException();`, sans BOM. Build d'un squelette `Probes` : 0 erreur. `-rt ProjectDto` et `-rt PaginatedList` ne créent aucun type. Sortie de l'outil : `The template \"Clean Architecture Solution Use Case\" was created successfully.`",
+    "verdict": "friction",
+    "n": "L3-083"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F05",
+    "axis": "",
+    "claim": "Une feature nommée « Projects » casse silencieusement la compilation des tests fonctionnels : le namespace masque la classe générée par Aspire `Projects`.",
+    "evidence": "`tests/Application.FunctionalTests/FunctionalTestSetup.cs(21,35): error CS0234: The type or namespace name 'TestAppHost' does not exist in the namespace 'Acme.Application.Projects'`. Contournement : `global::Projects.TestAppHost`. Le même masquage survient avec un dossier de test `Projects`.",
+    "verdict": "friction",
+    "n": "L3-084"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F06",
+    "axis": "",
+    "claim": "`ca-usecase` doit être lancé depuis src/Application ; `--help` ne le dit pas et, depuis la racine, l'outil crée le dossier au mauvais endroit sans erreur.",
+    "evidence": "README : « Start in the .\\src\\Application\\ folder ». `dotnet new ca-usecase -n Foo -fn Bars -ut command --dry-run` à la racine : `Create: ./Bars/Commands/Foo/Foo.cs`.",
+    "verdict": "friction",
+    "n": "L3-085"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F07",
+    "axis": "",
+    "claim": "Pas de migrations ni de `dotnet-ef` dans le projet, et l'initialiseur fait EnsureDeleted+EnsureCreated ; une migration ajoutée n'est jamais appliquée et une migration oubliée n'est signalée par rien (PendingModelChangesWarning ignoré).",
+    "evidence": "`dotnet ef migrations add ...` : `Could not execute because the specified command or file was not found ... dotnet-ef does not exist`. Il a fallu `dotnet new tool-manifest && dotnet tool install dotnet-ef`. src/Infrastructure/Data/ApplicationDbContextInitialiser.cs : `EnsureDeletedAsync(); EnsureCreatedAsync();`. src/Infrastructure/DependencyInjection.cs : `warnings.Ignore(RelationalEventId.PendingModelChangesWarning)`. 24 tests OK avec la migration présente et sans elle.",
+    "verdict": "manque",
+    "n": "L3-086"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F08",
+    "axis": "",
+    "claim": "Le template n'a ni pagination, ni exemple d'entité possédée par un utilisateur, ni exemple d'options validées ; tout est à inventer. UnitTests n'a pas de `global using NUnit`.",
+    "evidence": "src/Application/Common/Models contient seulement LookupDto.cs et Result.cs ; `grep Options src` sans résultat utile ; `tests/Application.UnitTests/Projects/ProjectsOptionsValidatorTests.cs : error CS0246 'TestCase' could not be found`.",
+    "verdict": "manque",
+    "n": "L3-087"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F09",
+    "axis": "",
+    "claim": "Le « test de bout en bout » fourni est un test MediatR via WebApiFactory, pas un appel HTTP ni UI. L'acceptance ne couvre que l'Angular.",
+    "evidence": "tests/Application.FunctionalTests/Infrastructure/TestApp.cs (SendAsync via ISender) ; WebApiFactory.cs n'est utilisé que par FunctionalTestSetup.cs.",
+    "verdict": "manque",
+    "n": "L3-088"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F10",
+    "axis": "",
+    "claim": "Ajouter un second host demande de recomposer à la main ; AddInfrastructureServices n'est pas neutre hors web.",
+    "evidence": "Worker seul : `Unable to resolve service for type 'Microsoft.AspNetCore.Routing.EndpointDataSource' while attempting to activate 'AuthorizationPolicyCache'` ; contournement `ValidateOnBuild=false`. Le worker boot ensuite et échoue avec `SQLite Error 1: 'no such table: Projects'` (seul Web crée la base). `dotnet new worker` pose un `Version=` qui entre en conflit avec la gestion centralisée des packages (réécriture du csproj).",
+    "verdict": "friction",
+    "n": "L3-089"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F12",
+    "axis": "",
+    "claim": "Pas de test d'architecture : seul un cycle de projets est refusé, avec un message obscur ; une dépendance non cyclique interdite passe sans signal.",
+    "evidence": "`dotnet add src/Domain reference src/Infrastructure` puis build : `NuGet.targets(1297,5): error MSB4006: There is a circular dependency in the target dependency graph involving target \"_GenerateRestoreProjectPathWalk\"`. `dotnet add src/Domain package Microsoft.EntityFrameworkCore` : 0 erreur. Aucun NetArchTest/ArchUnit dans Directory.Packages.props ni tests.",
+    "verdict": "manque",
+    "n": "L3-090"
+   },
+   {
+    "src": "p3-comp-1",
+    "id": "F13",
+    "axis": "",
+    "claim": "Point fort : ajouter un use case, un endpoint, un validateur, un profil AutoMapper ou un événement ne demande aucune liste à compléter ; les tests fonctionnels sont rapides.",
+    "evidence": "src/Application/DependencyInjection.cs (AddValidatorsFromAssembly, AddMediatR RegisterServicesFromAssembly, AddMaps) ; MapEndpoints(typeof(Program).Assembly) ; T5 sans enregistrement ; 25 tests fonctionnels en ~1 s ; OpenAPI v1.json contient /api/Projects.",
+    "verdict": "avance",
+    "n": "L3-091"
+   }
+  ]
+ },
+ "decoys": {
+  "L1": "G1-X",
+  "L2": "G3-X",
+  "L3": "G5-X"
+ },
+ "have": [
+  "p1-inventory",
+  "p1-map-comp",
+  "p1-map-comp-A",
+  "p1-map-comp-B",
+  "p1-map-ours",
+  "p1-map-ours-A",
+  "p1-map-ours-B",
+  "p2-comp-1",
+  "p2-comp-2",
+  "p2-ours-1",
+  "p2-ours-2",
+  "p3-comp-1",
+  "p3-ours-1",
+  "p3-ours-2",
+  "p4-devil",
+  "p4-devil (Write a renvoyé « ENOSPC: no space left on device » ; le contenu complet du rapport se trouve dans findings)",
+  "p4-inventory-opus",
+  "p4-inventory-sonnet",
+  "p4-ordeal-sonnet",
+  "p5-G1-opus",
+  "p5-G1-sonnet",
+  "p5-G2-opus",
+  "p5-G2-sonnet",
+  "p5-G3-opus",
+  "p5-G3-sonnet",
+  "p5-G4-opus",
+  "p5-G4-sonnet",
+  "p5-G5-opus",
+  "p5-G5-sonnet",
+  "tmp tmpfs 16G plein à 100 % ; le contenu complet est dans ce résumé et dans les constats)"
+ ]
+}

@@ -38,15 +38,25 @@ The command writes files and edits none. It writes:
 - `.feature-manifest/<Features>.json`: the options and the SHA-256 of every file written;
 - the feature page `docs/features/<features>.md`, from `docs/_page-templates/feature.md`.
 
+<!--#if (!api)-->
+This project holds no HTTP API, so it writes no controller, no contract and no API test: the hosts
+offer the feature through its use cases.
+
+<!--#endif-->
 Then it prints the edits that compose the feature: the schema, set and configuration in
 `AppDbContext`, an `Add<Features>()` in `ApplicationModule`, the adapters in `PersistenceModule`, the
 call in `Program.cs`, and the two test compositions. The solution compiles again after the first edit,
 and the feature composes after the last. An owner feature that is the project's first prints five more,
 for the account-deletion sweep it brings with it.
-<!--#if (presentationBlazorServer || presentationMcp)-->
+<!--#if ((presentationBlazorServer || presentationMcp) && api)-->
 Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
 owner feature writes and registers each host's account directory beside the API's; the printed edits
 name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+<!--#endif-->
+<!--#if (!api)-->
+Each host composes itself, so the call goes in every host's `Program.cs`, and a first owner feature
+writes and registers each host's account directory; the printed edits name every host
+([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 <!--#endif-->
 <!--#if (presentationMcp)-->
 The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
@@ -75,10 +85,18 @@ through that feature's ports and events.
 The record's columns, indexes and constraints in its EF configuration. The store or the repository
 stays one capability; [ports and adapters](../architecture/ports-and-adapters.md) names the shapes.
 
+<!--#if (api)-->
 ### API
 
 The request and response contracts, and anything beyond default-deny authorisation. The
 [HTTP API](../architecture/http-api.md) conventions apply to every route.
+<!--#endif-->
+<!--#if (!api)-->
+### Hosts
+
+What each host shows of the feature, calling its service or its use cases, and anything beyond
+default-deny authorisation.
+<!--#endif-->
 
 ### Tests
 
@@ -144,9 +162,8 @@ for a query the response contract; then rewrite the OpenAPI reference with
 `dotnet run Tools/Tasks.cs openapi`.
 <!--#endif-->
 <!--#if (!api)-->
-The command prints the action, the using and the constructor parameter that would serve it over HTTP,
-and for a query the response contract; in a project without the API, call the use case from the host
-that offers it instead.
+The command prints the hosts that may offer it: inject its interface where one of them serves the
+feature.
 <!--#endif-->
 
 It refuses, writing nothing, a feature that does not exist, a feature of the simple shape, whose
@@ -206,14 +223,25 @@ Some lists change only on purpose, and a test fails until they name what you add
 
 ## Promote a simple feature
 
+<!--#if (api)-->
 A record feature that gains a rule moves to the rich shape; the routes, contracts, `ETag` and owner
 scoping do not change:
+<!--#endif-->
+<!--#if (!api)-->
+A record feature that gains a rule moves to the rich shape; the version and the owner scoping do not
+change:
+<!--#endif-->
 
 1. Extract the aggregate, its factory and rehydration, and its repository port.
 2. Replace the store by the repository: keep the record, add the mapper and the tracker; the queries
    port stays.
 3. Split the service into one use case per operation.
+<!--#if (api)-->
 4. Point the controller at the use cases.
+<!--#endif-->
+<!--#if (!api)-->
+4. Point each host that called the service at the use cases.
+<!--#endif-->
 
 The migration is empty unless the rule needs a column or an index.
 

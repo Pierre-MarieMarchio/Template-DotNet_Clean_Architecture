@@ -92,12 +92,15 @@ network. A step that fails says why and leaves the README's section for what rem
 output leaves out the instructions `dotnet new` ends with, which ask for those two tasks.
 
 `web-app` reads the project's scope, name, authentication, example features, Files module, CI,
-agent files and whether it holds the .NET client the same way. A Blazor WebAssembly app brings the .NET client, so after
-`cleanarch-webapp` it runs `dotnet run Tools/Tasks.cs web-join <Name>`, which makes the edits the
-app's `README.md` lists outside its folder, all or none; with `--workspace` it leaves that for after
-the workspace's own lines. A project holds one Blazor WebAssembly app in this version, so a second
-is refused before anything is written. When it runs `web-join`, the plain output leaves out the
-instruction `dotnet new` ends with that asks for it, and keeps the others.
+agent files and whether it holds the .NET client the same way. After `cleanarch-webapp` it runs
+`dotnet run Tools/Tasks.cs web-join <Name>` with the framework, audience and rendering it asked,
+which records the app in the project's `cleanarch.json`; a Blazor WebAssembly app brings the .NET
+client, and for it the task first makes the edits the app's `README.md` lists outside its folder,
+all or none. A project holds one Blazor WebAssembly app in this version, so a second is refused
+before anything is written. `web-package` runs `web-join <name>` after `cleanarch-webpackage`,
+which records the package, and `presentation-join` records the presentation project. The plain
+output leaves out the instruction `dotnet new` ends with that asks for `web-join`, and keeps the
+others.
 
 Each asks on the same thread, with the same summary, as a new project.
 

@@ -18,6 +18,8 @@ public sealed class TemplatePackagingTests
 
     private static readonly string[] _projectRoots = ["Src", "Tests"];
 
+    private static readonly string[] _recordedAppKeys = ["framework", "audience", "rendering"];
+
     private static readonly Regex _guid = new(
         "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
         RegexOptions.None,
@@ -135,6 +137,88 @@ public sealed class TemplatePackagingTests
 
         JsonNode.DeepEquals(full, withoutTools).ShouldBeTrue(
             $".template.config/variants/{variant}/.config/dotnet-tools.json has drifted from .config/dotnet-tools.json.");
+    }
+
+    [Fact]
+    public void TheCheckoutsProjectFile_RecordsWhatTheDefaultGenerationWrites()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var projectFile = JsonNode.Parse(File.ReadAllText(Path.Combine(root, "cleanarch.json")))!;
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        JsonElement symbols = manifest.RootElement.GetProperty("symbols");
+        var options = new JsonObject();
+
+        foreach (JsonProperty option in RecordedOptions(symbols))
+        {
+            string value = option.Value.GetProperty("defaultValue").GetString()!;
+            options[option.Name] = Text(option.Value, "datatype") == "bool" ? JsonValue.Create(bool.Parse(value)) : JsonValue.Create(value);
+        }
+
+        var expected = new JsonObject
+        {
+            ["template"] = new JsonObject
+            {
+                ["package"] = XDocument.Load(Path.Combine(root, ".template.config", "TemplatePackage.csproj")).Descendants("PackageId").Single().Value,
+                ["version"] = Text(symbols.GetProperty("templateVersion"), "replaces"),
+            },
+            ["name"] = manifest.RootElement.GetProperty("sourceName").GetString(),
+            ["options"] = options,
+            ["client"] = false,
+            ["presentation"] = new JsonArray(new JsonObject { ["name"] = "Api", ["framework"] = "api" }),
+        };
+
+        JsonNode.DeepEquals(projectFile, expected).ShouldBeTrue(
+            $"cleanarch.json is the file the defaults generate, {expected.ToJsonString()}, with every option of template.json that is not a part, under its default; it holds {projectFile.ToJsonString()}.");
+    }
+
+    [Theory]
+    [InlineData("project-file-web", new[] { "web" })]
+    public void EachProjectFileVariant_IsTheCheckoutsPlusItsParts(string variant, string[] parts)
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var withParts = JsonNode.Parse(File.ReadAllText(Path.Combine(root, ".template.config", "variants", variant, "cleanarch.json")))!.AsObject();
+        var checkout = JsonNode.Parse(File.ReadAllText(Path.Combine(root, "cleanarch.json")))!;
+
+        withParts.Select(property => property.Key).Except(checkout.AsObject().Select(property => property.Key)).ShouldBe(
+            parts,
+            Case.Sensitive,
+            $".template.config/variants/{variant}/cleanarch.json adds other keys than {string.Join(" and ", parts)} to cleanarch.json, or in another order.");
+
+        foreach (string part in parts)
+        {
+            withParts.Remove(part);
+        }
+
+        JsonNode.DeepEquals(checkout, withParts).ShouldBeTrue($".template.config/variants/{variant}/cleanarch.json has drifted from cleanarch.json.");
+    }
+
+    [Fact]
+    public void EveryValueTheProjectFileRecords_IsReplacedAtGeneration()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var withParts = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(root, ".template.config", "variants", "project-file-web", "cleanarch.json")))!;
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        JsonElement symbols = manifest.RootElement.GetProperty("symbols");
+        string sourceName = manifest.RootElement.GetProperty("sourceName").GetString()!;
+        string[] replaced = [.. symbols.EnumerateObject().Select(symbol => Text(symbol.Value, "replaces")).OfType<string>(), sourceName];
+        string Line(JsonNode? owner, string key) => $"\"{key}\": {owner![key]!.ToJsonString()}";
+        JsonNode api = withParts["presentation"]![0]!;
+
+        string[] recorded =
+        [
+            .. RecordedOptions(symbols).Select(option => Line(withParts["options"], option.Name)),
+            Line(withParts, "client"),
+            .. _recordedAppKeys.Select(key => Line(withParts["web"]!["apps"]![0], key)),
+            $"{{\n      {Line(api, "name")},\n      {Line(api, "framework")}\n    }}",
+            withParts["name"]!.GetValue<string>(),
+            withParts["template"]!["version"]!.GetValue<string>(),
+            withParts["web"]!["scope"]!.GetValue<string>(),
+            withParts["web"]!["apps"]![0]!["name"]!.GetValue<string>(),
+        ];
+
+        recorded.Where(token => !replaced.Contains(token, StringComparer.Ordinal)).ShouldBeEmpty(
+            "No symbol of template.json replaces these values of the cleanarch.json files, so every project would record the checkout's value.");
     }
 
     [Fact]
@@ -276,7 +360,8 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config", "(!refusedOptions && scaffoldedAtBootstrap)", "scaffold.json")]
     [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Clients")]
     [InlineData(".template.config", "(!refusedOptions && anyWeb)", "Node.js and pnpm")]
-    [InlineData(".template.config/webapp/.template.config", "(webBlazorWasm)", "web-join <name>")]
+    [InlineData(".template.config/webapp/.template.config", null, "web-join <name> --web <framework>")]
+    [InlineData(".template.config/webpackage/.template.config", null, "web-join <name>")]
     [InlineData(".template.config/webapp/.template.config", "(webFramework)", "web-scaffold <name>")]
     [InlineData(".template.config/webapp/.template.config", "(webFramework)", "Node.js, pnpm")]
     [InlineData(".template.config/webapp/.template.config", "(webPlaceholder)", "pnpm install")]
@@ -982,6 +1067,11 @@ public sealed class TemplatePackagingTests
 
     private static string? Text(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) ? value.GetString() : null;
+
+    private static IEnumerable<JsonProperty> RecordedOptions(JsonElement symbols) =>
+        symbols.EnumerateObject()
+            .Where(symbol => Text(symbol.Value, "type") == "parameter" && !IsRefusal(symbol.Value))
+            .Where(symbol => !symbol.Name.StartsWith("web", StringComparison.Ordinal) && !symbol.Name.StartsWith("presentation", StringComparison.Ordinal));
 
     private static bool IsRefusal(JsonElement symbol) =>
         symbol.TryGetProperty("choices", out var choices)

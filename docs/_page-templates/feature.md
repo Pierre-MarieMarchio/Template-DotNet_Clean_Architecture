@@ -10,7 +10,12 @@ The rules it protects and the path of a request through the layers: <shape>.
 
 ## Use it
 
+<!--#if (api)-->
 Each endpoint with an example request, the codes it returns and the errors a client handles:
+<!--#endif-->
+<!--#if (!api)-->
+Each operation, the host that offers it and the errors a caller handles:
+<!--#endif-->
 
 <endpoints>
 

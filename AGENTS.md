@@ -126,7 +126,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 
 ## Adding or removing a feature
 
-<!--#if (canAddFeature && api)-->
+<!--#if (canAddFeature)-->
 ```bash
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete|anonymise
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
@@ -135,18 +135,22 @@ dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes 
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
 ```
 
+<!--#endif-->
+<!--#if (canAddFeature && api)-->
 `new-feature` writes the skeleton, its manifest and its page, then prints the hand edits, the
 `docs/README.md` row and the `docs/reference/api.md` row; its fields (`Name`, `Description`) are
 placeholders you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is
 promoted first) and prints its action.
-[Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
-This project holds no HTTP API, and `new-feature` writes each feature's controller, contracts and
-tests in it, so it refuses here; write a feature by hand from
-[adding a feature](docs/guides/adding-a-feature.md), composed in each host's `Program.cs`, with its
-page from `docs/_page-templates/feature.md` and its row in `docs/README.md`.
-[Removing features](docs/guides/removing-features.md) gives the reverse.
+`new-feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
+with its manifest and its page, then prints the hand edits, each host's `Program.cs` among them, and
+the `docs/README.md` row; its fields (`Name`, `Description`) are placeholders you rewrite.
+`new-use-case` adds one operation to a rich feature (a simple one is promoted first) and prints the
+hosts that may offer it.
+<!--#endif-->
+<!--#if (canAddFeature)-->
+[Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->
 This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from

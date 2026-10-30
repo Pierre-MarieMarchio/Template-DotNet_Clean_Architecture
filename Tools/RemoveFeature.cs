@@ -157,7 +157,7 @@ internal static class RemoveFeature
 
         if (!apply)
         {
-            PrintReport(output, analysis);
+            PrintReport(output, root, analysis);
             output.WriteLine();
             output.WriteLine(
                 analysis.Blockers.Count == 0
@@ -169,7 +169,7 @@ internal static class RemoveFeature
 
         if (analysis.Blockers.Count > 0)
         {
-            PrintReport(output, analysis);
+            PrintReport(output, root, analysis);
             error.WriteLine();
             error.WriteLine($"error: {features} was not removed, and nothing was deleted. Remove it by hand with the report above.");
 
@@ -775,7 +775,7 @@ internal static class RemoveFeature
 
     private static Regex Rx(string pattern) => new(pattern, RegexOptions.None, Timeout);
 
-    private static void PrintReport(TextWriter output, Analysis analysis)
+    private static void PrintReport(TextWriter output, string root, Analysis analysis)
     {
         output.WriteLine($"Feature {analysis.Features}" + (analysis.Type is null ? " (no manifest, so its type is unknown)" : $" (type {analysis.Type})"));
         output.WriteLine();
@@ -849,8 +849,17 @@ internal static class RemoveFeature
         output.WriteLine("  dotnet build <the solution>                  0 warnings, 0 errors");
         output.WriteLine("  dotnet test Tests/Architecture/<Prefix>.Architecture.Tests");
         output.WriteLine("  dotnet format <the solution> --verify-no-changes");
-        output.WriteLine("  git status                                   review what is left, including docs/ and *.http samples");
+        output.WriteLine(HasApi(root)
+            ? "  git status                                   review what is left, including docs/ and *.http samples"
+            : "  git status                                   review what is left, including docs/");
         output.WriteLine("  a migration that drops the feature's tables, if a database applied one; never rewrite an applied migration");
+    }
+
+    private static bool HasApi(string root)
+    {
+        string presentation = Path.Combine(root, "Src", "Presentation");
+
+        return Directory.Exists(presentation) && Directory.EnumerateDirectories(presentation, "*.Api").Any();
     }
 
     private static void PrintHits(TextWriter output, Analysis analysis)
@@ -1010,6 +1019,7 @@ internal static class RemoveFeature
             NameCollisionCases(scratch, Expect);
             SharedFilesCases(scratch, Expect);
             PageCases(scratch, Expect);
+            WithoutTheApiCases(scratch, Expect);
         }
         finally
         {
@@ -1603,6 +1613,58 @@ internal static class RemoveFeature
             {
                 expect(false, $"After removing {features}, its last feature, '{Path.GetRelativePath(root, empty)}' was left empty.");
             }
+        }
+    }
+
+    private static void WithoutTheApiCases(string scratch, Action<bool, string> expect)
+    {
+        string[][] combinations =
+        [
+            ["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag"],
+            ["Notes", "Note", "--access", "shared", "--operations", "get,list"],
+        ];
+
+        foreach (string[] combination in combinations)
+        {
+            string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+            string features = combination[0];
+
+            Projects(root);
+            Directory.Delete(Path.Combine(root, "Src/Presentation/Acme.Api"), recursive: true);
+            Directory.Delete(Path.Combine(root, "Tests/Presentation/Acme.Api.UnitTests"), recursive: true);
+
+            Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+            Put(root, "Src/Presentation/Acme.Portal/Program.cs", "builder.Services.AddTodoLists();\n");
+            Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+
+            var original = Snapshot(root);
+
+            expect(Generate(root, combination) == 0, $"The generator refused {features} in a tree without the API.");
+
+            var generated = Snapshot(root);
+
+            expect(generated.Count > original.Count, $"The generator wrote nothing for {features} in a tree without the API.");
+
+            var report = Invoke(root, features);
+
+            expect(
+                report.Code == 0 && Same(generated, Snapshot(root)) && report.Output.Contains("Blockers: none.", StringComparison.Ordinal),
+                $"The report on a fresh {features} without the API changed the tree or found a blocker: {report.Output}");
+            expect(!report.Output.Contains(".http", StringComparison.Ordinal), $"The report on {features} without the API pointed at HTTP samples it cannot hold.");
+
+            File.AppendAllText(Path.Combine(root, "Src/Presentation/Acme.Portal/Program.cs"), $"builder.Services.Add{features}();\n");
+
+            var composedSnapshot = Snapshot(root);
+            var composed = Invoke(root, features, "--apply");
+
+            expect(composed.Code == 1 && Same(composedSnapshot, Snapshot(root)), $"{features} was removed although its registration was in the portal's Program.cs.");
+
+            Put(root, "Src/Presentation/Acme.Portal/Program.cs", "builder.Services.AddTodoLists();\n");
+
+            var applied = Invoke(root, features, "--apply");
+
+            expect(applied.Code == 0, $"A fresh {features} without the API was refused: {applied.Output}{applied.Error}");
+            expect(Same(original, Snapshot(root)), $"After removing {features} without the API the tree is not the one that was there before it was generated.");
         }
     }
 }

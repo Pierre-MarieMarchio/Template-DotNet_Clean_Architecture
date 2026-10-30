@@ -42,8 +42,11 @@ switches and `isRequired` alike.
   Compose service, no `openapi`, `run`, `api-client` or `end-to-end` task, no OpenAPI document, no
   .NET client, and none of the architecture rules or pages about the HTTP surface; the hosts read
   their shared settings from `x-host-environment` in `docker-compose.yml`, and `new-feature`,
-  which writes each feature's controller and contracts in the API, refuses. The acceptance leg
-  `no api, blazor server, mcp and worker, external auth` generates, builds and tests that shape.
+  `new-use-case` and `remove-feature` write and remove every layer of a feature but the HTTP one:
+  no controller, contract or API test, and the edits and rows they print name the hosts'
+  `Program.cs`, never the API; they tell the shape from whether `Src/Presentation/<Project>.Api`
+  exists. The acceptance leg `no api, blazor server, mcp and worker, external auth` generates,
+  builds and tests that shape.
 - **The worker is added for the jobs.** A project holding neither the API nor the worker would run
   no job: `needsWorker` is true for it, and `jobsWorker` is `presentation == "worker" ||
   needsWorker`, so the worker comes as the API comes for its callers. The launcher shows the worker

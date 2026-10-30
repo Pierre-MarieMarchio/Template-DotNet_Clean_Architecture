@@ -1,7 +1,8 @@
 ﻿using System.Text.RegularExpressions;
-using CleanArch.Create.Manifests;
 using CleanArch.Create.Projects;
-using CleanArch.Create.Prompts;
+using CleanArch.Tooling;
+using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Prompts;
 using Spectre.Console;
 
 namespace CleanArch.Create;
@@ -115,7 +116,7 @@ public sealed partial class Launcher
             Arguments parsed = Arguments.Parse(arguments);
             TemplateSource source = parsed.TemplateSource is { } path
                 ? TemplateSource.FromPath(Path.GetFullPath(path, _workingDirectory))
-                : TemplateSource.Embedded();
+                : TemplateSource.Embedded(typeof(Launcher).Assembly);
             if (parsed.Help)
             {
                 _console.Verbatim(_help + Environment.NewLine + Environment.NewLine + TemplateOptions(source.Manifest(TemplateKind.Project)));

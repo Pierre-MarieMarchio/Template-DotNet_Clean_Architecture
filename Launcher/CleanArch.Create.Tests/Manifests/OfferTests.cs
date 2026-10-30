@@ -1,4 +1,4 @@
-﻿using CleanArch.Create.Manifests;
+﻿using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
 

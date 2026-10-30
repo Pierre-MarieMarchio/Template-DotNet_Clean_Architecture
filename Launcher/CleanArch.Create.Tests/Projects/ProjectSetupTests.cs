@@ -1,5 +1,6 @@
-﻿using CleanArch.Create.Manifests;
-using CleanArch.Create.Projects;
+﻿using CleanArch.Create.Projects;
+using CleanArch.Tooling;
+using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
 

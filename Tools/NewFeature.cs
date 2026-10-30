@@ -1670,6 +1670,16 @@ internal static class NewFeature
         expect(result.Output.Contains("TodoListsSchema", StringComparison.Ordinal), "The composition steps do not name the schema constant.");
         expect(result.Output.Contains("migration-add", StringComparison.Ordinal), "The migration step is not printed.");
         expect(result.Output.Contains("last-write-wins", StringComparison.Ordinal), "The last-write-wins consequence of --concurrency none is not printed.");
+
+        string vowelRoot = NewTree(scratch);
+        var vowel = Invoke(vowelRoot, "Invoices", "Invoice", "--access", "shared");
+        string vowelTests = File.ReadAllText(System.IO.Path.Combine(
+            vowelRoot, "Tests/Application/Acme.Application.UnitTests/Features/Invoices/Services/InvoiceServiceTests.cs"));
+
+        expect(vowel.Code == 0, $"A feature named with a vowel was refused: {vowel.Error}");
+        expect(
+            vowelTests.Contains("GetAsync_AnInvoiceThatIsNotThere_IsNotFound", StringComparison.Ordinal) && !vowelTests.Contains("_AInvoice", StringComparison.Ordinal),
+            "A test name does not give a feature named with a vowel the article 'An'.");
     }
 
     private static void SubsetCases(string scratch, Action<bool, string> expect)
@@ -5626,7 +5636,7 @@ internal static class Templates
 
         %if get%
             [Fact]
-            public async Task GetAsync_A%A%ThatIsNotThere_IsNotFound()
+            public async Task GetAsync_%An%%A%ThatIsNotThere_IsNotFound()
             {
                 _queries.GetAsync(%AnyOwner%Arg.Any<Guid>(), Arg.Any<CancellationToken>())
                     .Returns((%ReadDto%?)null);
@@ -5656,7 +5666,7 @@ internal static class Templates
         %end%
         %if delete%
             [Fact]
-            public async Task DeleteAsync_A%A%ThatCannotBeStaged_FailsAndCommitsNothing()
+            public async Task DeleteAsync_%An%%A%ThatCannotBeStaged_FailsAndCommitsNothing()
             {
                 _store.StageRemovalAsync(%AnyOwner%Arg.Any<Guid>(), %AnyPrecondition%Arg.Any<CancellationToken>())
                     .Returns(%A%ChangeStatus.NotFound);

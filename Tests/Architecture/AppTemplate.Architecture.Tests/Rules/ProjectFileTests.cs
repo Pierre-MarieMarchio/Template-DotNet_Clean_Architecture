@@ -9,9 +9,9 @@ public sealed class ProjectFileTests
 {
     private static readonly string[] _workspacePackages = ["api-client", "eslint-config", "tsconfig"];
 
-    private const string GeneratedDatabase = "postgresql";
+    private const string _generatedDatabase = "postgresql";
 
-    private const string GeneratedProviderCall = "UseNpgsql(";
+    private const string _generatedProviderCall = "UseNpgsql(";
 
     private static string Root => ProjectReferenceGraph.RepositoryRoot;
 
@@ -60,12 +60,12 @@ public sealed class ProjectFileTests
             Root, "Src", "Infrastructure", $"{Name}.Infrastructure.Core", "Common", "Contexts", "DatabaseProvider.cs"));
 
         Option("database").ShouldBe(
-            GeneratedDatabase,
-            $"This project was generated with --database {GeneratedDatabase}, and cleanarch.json records another.");
+            _generatedDatabase,
+            $"This project was generated with --database {_generatedDatabase}, and cleanarch.json records another.");
         provider.ShouldContain(
-            GeneratedProviderCall,
+            _generatedProviderCall,
             Case.Sensitive,
-            $"This project was generated with --database {GeneratedDatabase}, and DatabaseProvider.cs does not configure the contexts with {GeneratedProviderCall}.");
+            $"This project was generated with --database {_generatedDatabase}, and DatabaseProvider.cs does not configure the contexts with {_generatedProviderCall}.");
     }
 
     [Theory]

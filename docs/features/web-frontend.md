@@ -303,7 +303,9 @@ dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin -
 `placeholder`; `--scope` is the package scope of
 `Src/Web/package.json`; `--auth` repeats this project's value. The command prints
 two lines to add, also in the app's `README.md`: an `include:` entry in `docker-compose.yml` and
-`WEB_<NAME>_HOST_PORT` in `.env.example`. Then run
+`WEB_<NAME>_HOST_PORT` in `.env.example`. Record the app in `cleanarch.json` with the values it was
+given, `dotnet run Tools/Tasks.cs web-join BackOffice --web angular --web-audience admin`, adding
+`--web-rendering ssr` for an app rendered on the server. Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
 `--rendering ssr` with `--framework angular` or `react-router` renders the app on its own Node
@@ -320,7 +322,8 @@ its `README.md` gives.
 this project's `-n`, and its `--examples`, `--files` and `--agent-files` when they are not the defaults, and
 brings the .NET client of the API, or with `--has-client true` uses the one this project holds. Its
 `README.md` lists the lines it adds outside its folders, which
-`dotnet run Tools/Tasks.cs web-join BackOffice` makes before `web-scaffold` creates the app.
+`dotnet run Tools/Tasks.cs web-join BackOffice --web blazor-wasm` makes before it records the app,
+and before `web-scaffold` creates it.
 <!--#endif-->
 
 Add a framework-agnostic package, one exported function and its test, the same way:
@@ -329,15 +332,16 @@ Add a framework-agnostic package, one exported function and its test, the same w
 dotnet new cleanarch-webpackage -n tokens --scope app-template
 ```
 
-Run `pnpm install` in `Src/Web` and add `"@app-template/tokens": "workspace:*"` to each app that
-uses it. Internal packages are private and export their TypeScript sources, which each app's bundler
+Record it with `dotnet run Tools/Tasks.cs web-join tokens`, run `pnpm install` in `Src/Web` and add
+`"@app-template/tokens": "workspace:*"` to each app that uses it. Internal packages are private and export their TypeScript sources, which each app's bundler
 compiles. An app never imports another app. A package for one framework is the project's to write.
 
 Removing an app is deleting its folder, its `include:` line and its port line, then running
 `pnpm install`.
 
 A project generated without a web app adds its first one with the same command plus
-`--workspace` (`--scope` required), which also creates `Src/Web` and `.github/workflows/web.yml`;
+`--workspace` (`--scope` required), which also creates `Src/Web` and `.github/workflows/web.yml`,
+then records it with `web-join` as above;
 the API side is in every project already. Add the lines `Src/Web/README.md` lists, then create the
 app as above.
 

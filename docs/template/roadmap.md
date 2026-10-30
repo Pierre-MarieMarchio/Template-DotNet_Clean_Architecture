@@ -53,7 +53,8 @@ Each group comes in no fixed order:
   only creates; a team changes the tool through its configuration, its code templates, its local
   commands or the ejection of one command, as
   [ADR 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
-  [ADR 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) propose.
+  [ADR 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) decide. A project
+  already records its generation in `cleanarch.json`, which `Tools/Tasks.cs` reads.
 
 ## Not planned
 

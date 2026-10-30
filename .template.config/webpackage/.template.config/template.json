@@ -53,6 +53,16 @@
   "postActions": [
     {
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "description": "Record the package in the project.",
+      "manualInstructions": [
+        {
+          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name>, which records the package in cleanarch.json."
+        }
+      ],
+      "continueOnError": true
+    },
+    {
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
       "description": "Link the package into the workspace.",
       "manualInstructions": [
         {

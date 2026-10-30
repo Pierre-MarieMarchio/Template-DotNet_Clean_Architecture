@@ -1,6 +1,6 @@
 ﻿# 0002. Nothing about the template reaches a project
 
-Status: Accepted
+Status: Superseded by [0018](0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md)
 
 ## Context
 

@@ -112,6 +112,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
   rewritten, as [migrations](docs/guides/migrations.md) says.
 - `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
   says.
+- `cleanarch.json`: generation writes it and `web-join` or `presentation-join` records a part added
+  since, as [the project file](docs/reference/project-layout.md#the-project-file) says.
 
 ## Writing docs
 

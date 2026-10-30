@@ -162,7 +162,7 @@ placed by the lines it goes beside. One task makes them all, or none when one of
 found exactly once:
 
 ```bash
-dotnet run Tools/Tasks.cs web-join FrameworkSite
+dotnet run Tools/Tasks.cs web-join FrameworkSite --web blazor-wasm
 ```
 
 Then create the app and join the stack as above, and commit it. The edits, to make by hand where the

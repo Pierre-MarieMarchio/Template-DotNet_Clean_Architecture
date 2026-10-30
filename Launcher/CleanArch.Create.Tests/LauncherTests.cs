@@ -1,4 +1,5 @@
-﻿using Shouldly;
+﻿using CleanArch.Tooling;
+using Shouldly;
 using Spectre.Console.Testing;
 using Xunit;
 

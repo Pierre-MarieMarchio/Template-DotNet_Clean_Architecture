@@ -15,7 +15,7 @@ draw are outside it.
 
 - **Above Latin-1, the launcher draws WGL4 glyphs only.** `♦` for the question asked, `◊` for an
   answer, `▲` for a warning, `●` for a note, `■` and `□` for the steps, square box-drawing borders,
-  and a spinner turning through box-drawing glyphs (`Launcher/CleanArch.Create/Prompts/RailSpinner.cs`).
+  and a spinner turning through box-drawing glyphs (`Launcher/CleanArch.Tooling/Prompts/RailSpinner.cs`).
 - **A test holds it.** `GuidedFlowTests.EveryGlyphDrawn_IsOneConsoleFontsCarry_SoTheThreadStaysAligned`
   runs a whole new project on the thread and fails on any glyph above Latin-1 outside the WGL4 list
   it holds.

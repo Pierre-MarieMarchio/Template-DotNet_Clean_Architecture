@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>CleanArch.Cli</RootNamespace>
+    <TemplateConfig>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../.template.config'))/</TemplateConfig>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dotnet-cleanarch</ToolCommandName>
+    <PackageId>CleanArch.Cli</PackageId>
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(TemplateConfig)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</Version>
+    <Title>.NET Clean Architecture project tool</Title>
+    <Authors>Pierre-MarieMarchio</Authors>
+    <Description>The tool a project generated from the CleanArch.WebApi.Templates package pins at its template version: dotnet cleanarch.</Description>
+    <PackageTags>dotnet-new;dotnet-tool;clean-architecture;webapi;scaffolding</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="$(TemplateConfig)icon.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CleanArch.Cli.Tests" />
+  </ItemGroup>
+
+  <Target Name="RequireTemplateVersion" BeforeTargets="GenerateNuspec">
+    <Error Condition="'$(Version)' == ''" Text="No templateVersion symbol with a value was found in .template.config/template.json." />
+  </Target>
+
+</Project>

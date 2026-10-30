@@ -1,6 +1,6 @@
 ﻿# 0019. The launcher creates, and the project's tool adds
 
-Status: Proposed; once accepted with [0017](0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md), replaces the project-facts bullet of [0004](0004-the-launcher-reads-the-templates-manifests.md)
+Status: Accepted; replaces the project-facts bullet of [0004](0004-the-launcher-reads-the-templates-manifests.md)
 
 ## Context
 

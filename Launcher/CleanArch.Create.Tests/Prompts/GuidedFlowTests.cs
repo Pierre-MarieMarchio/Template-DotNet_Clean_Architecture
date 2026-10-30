@@ -592,7 +592,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         string output = Plain(console);
         Order(output, _created, TemplateEngine.PostActionsHeading, _scaffoldInstruction, "Join done.");
         output.ShouldNotContain(_joinInstruction, customMessage: "The template engine's instruction to run web-join is relayed while the launcher runs it.");
-        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm");
+        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm --web blazor-wasm --web-audience public --web-rendering spa");
     }
 
     [Fact]
@@ -610,7 +610,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm");
 
         string output = Plain(console);
-        Order(output, "▲  Join failed", "dotnet run Tools/Tasks.cs web-join Wasm", "└  Almost there. A few things to do by hand, from Src/Web/apps/Wasm/README.md:");
+        Order(output, "▲  Join failed", "dotnet run Tools/Tasks.cs web-join Wasm --web blazor-wasm --web-audience public --web-rendering spa", "└  Almost there. A few things to do by hand, from Src/Web/apps/Wasm/README.md:");
     }
 
     private static TestConsole Terminal()

@@ -27,10 +27,13 @@ At the project root, `@app-template` being this workspace's scope:
 
 ```bash
 dotnet new cleanarch-webapp -n BackOffice --framework vite-react --scope app-template --audience admin
+dotnet run Tools/Tasks.cs web-join BackOffice --web vite-react --web-audience admin
 dotnet new cleanarch-webpackage -n tokens --scope app-template
+dotnet run Tools/Tasks.cs web-join tokens
 ```
 
-Pass the project's `--auth` to `cleanarch-webapp` when it is not the default.
+Pass the project's `--auth` to `cleanarch-webapp` when it is not the default. `web-join` records
+the app or the package in `cleanarch.json`, with the values the app was given.
 The app's `README.md` gives the two lines that join it to the stack.
 
 ## The first app of a project generated without one
@@ -167,6 +170,7 @@ template cannot edit is yours to add, exactly as `--web` would have written it f
 `--workspace` adds `docs/features/web-frontend.md` and `docs/decisions/0019-one-generated-api-client.md`
 themselves.
 
-Another app's lines are in its own `README.md`. Then run `dotnet run Tools/Tasks.cs web-scaffold` for
-a framework app, or `pnpm install` here for a placeholder, and commit the workspace with its
-`pnpm-lock.yaml`.
+Another app's lines are in its own `README.md`. Record the app with
+`dotnet run Tools/Tasks.cs web-join PlaceholderSite --web <framework>`, which writes the workspace
+into `cleanarch.json` with it. Then run `dotnet run Tools/Tasks.cs web-scaffold` for a framework app,
+or `pnpm install` here for a placeholder, and commit the workspace with its `pnpm-lock.yaml`.

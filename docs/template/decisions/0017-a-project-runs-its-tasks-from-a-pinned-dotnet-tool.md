@@ -1,6 +1,6 @@
 ﻿# 0017. A project runs its tasks from a pinned .NET tool
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

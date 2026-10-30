@@ -20,10 +20,14 @@ a SQLite file for the database.
 |---|---|---|---|
 | Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `Tests/<Layer>/<Project>.UnitTests/Features/<Feature>/`, mirroring `Src/` |
 | Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AppTemplate.Architecture.Tests` |
+<!--#if (api || localAuth)-->
 | Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `Tests/Integration/` |
+<!--#endif-->
+<!--#if (api)-->
 | Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
 | End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
+<!--#endif-->
 
 Unit and architecture tests need nothing and run in seconds.
 <!--#if (serverDatabase)-->
@@ -33,8 +37,10 @@ The integration and contract tests need Docker and run in minutes.
 The integration and contract tests run in minutes, on a SQLite file of their own rather than a database
 container.
 <!--#endif-->
+<!--#if (api)-->
 The end-to-end suite needs the whole stack built and started, and runs
 apart from both.
+<!--#endif-->
 
 ## The risks this project holds
 
@@ -63,7 +69,9 @@ apart from both.
 | Doubles that tell the truth | contract tests run against the double and each adapter | `FileContentStoreContract`, `FileContentInventoryContract` |
 | Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
 <!--#endif-->
+<!--#if (api)-->
 | The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests` |
+<!--#endif-->
 
 A feature that brings a risk of its own adds a row here.
 
@@ -75,10 +83,12 @@ A feature that brings a risk of its own adds a row here.
 - **Validators:** one test per rule, at its boundaries.
 - **Integration:** ownership on every entry point that names a row; concurrency where two writers
   meet; one test that reads every member of every response the feature serves.
+<!--#if (api)-->
 - **Contract:** the feature's codes as rows of [the API reference](../reference/api.md#error-codes),
   and the OpenAPI reference rewritten with `dotnet run Tools/Tasks.cs openapi` and read in the review.
 - **End-to-end:** nothing, unless the feature changes what the stack runs: a new service, a mail, a
   relay.
+<!--#endif-->
 - **Nothing** for composition, default deny or folder conventions: the tests over the whole surface
   pick the feature up.
 
@@ -106,6 +116,7 @@ linked into the in-memory and integration suites.
 
 ## Running them
 
+<!--#if (api)-->
 ```bash
 dotnet run Tools/Tasks.cs test                                          # the solution
 dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
@@ -113,6 +124,14 @@ dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the ar
 dotnet run Tools/Tasks.cs openapi                                       # rewrite the OpenAPI reference after a contract change
 dotnet run Tools/Tasks.cs end-to-end                                    # the end-to-end suite against a stack of its own
 ```
+<!--#endif-->
+<!--#if (!api)-->
+```bash
+dotnet run Tools/Tasks.cs test                                          # the solution
+dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
+dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
+```
+<!--#endif-->
 
 <!--#if (postgreSql)-->
 Each integration project starts one PostgreSQL container and one host for the whole suite, and every
@@ -147,6 +166,7 @@ docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 ```
 <!--#endif-->
 
+<!--#if (api)-->
 ## The end-to-end suite
 
 `dotnet run Tools/Tasks.cs end-to-end` builds and starts the Compose stack from `.env.example` under a
@@ -186,6 +206,7 @@ formatted with the rest. `test --no-integration` runs only the projects that set
 <!--#if (ci)-->
 CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
 test.
+<!--#endif-->
 <!--#endif-->
 
 ## Coverage

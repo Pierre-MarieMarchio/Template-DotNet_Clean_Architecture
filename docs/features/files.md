@@ -140,11 +140,16 @@ feature: nothing becomes readable.
 
 ## Tests
 
+<!--#if (api)-->
 The domain and use-case rules are unit-tested under `Features/Files` in each test project. The
 integration suite runs against the project's database and SeaweedFS: the API flows, ownership, quotas under
 concurrency and the passes in `Tests/Integration/AppTemplate.Api.IntegrationTests/Files/`, and the
 store itself (signed grants, the public endpoint, the inventory) in
 `Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/`.
+<!--#endif-->
+<!--#if (!api)-->
+The domain and use-case rules are unit-tested under `Features/Files` in each test project.
+<!--#endif-->
 
 ## Decisions
 

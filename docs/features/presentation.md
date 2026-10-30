@@ -1,108 +1,104 @@
-﻿# Presentation project
+﻿# Presentation projects
 
-<!--#if (!presentationMcp)-->
-How the presentation project beside the API is created, composed, and how it signs people in.
-<!--#endif-->
-<!--#if (presentationMcp)-->
-How the MCP server beside the API is created and composed, which tools it offers, and who calls them.
-<!--#endif-->
+How each presentation project this project holds is created and composed, and how it signs people in or is called. Each has a section of its own after the shared ones.
 
 ## What you get
 
 <!--#if (presentationBlazorServer)-->
-`Src/Presentation/<Project>.<Name>` is a Blazor Web App with server interactivity. It runs on the
+`Src/Presentation/<Project>.Portal` is the portal, a Blazor Web App with server interactivity. It runs on the
 server and calls the use cases in its own process, with its own composition in its `Program.cs`:
-the same features and modules as the API, its own caller, its own sign-in, and neither jobs nor
+the same features and modules as the other hosts, its own caller, its own sign-in, and neither jobs nor
 migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
+Its tests are in `Tests/Presentation/<Project>.Portal.UnitTests`.
+
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-`Src/Presentation/<Project>.<Name>` is an Avalonia desktop app on the MVVM pattern, with
+`Src/Presentation/<Project>.Desktop` is the desktop app, an Avalonia app on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
 client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
-<!--#endif-->
-<!--#if (presentationMcp)-->
-`Src/Presentation/<Project>.<Name>` is a Model Context Protocol server: an agent's client, an
-assistant or an editor, connects to it over Streamable HTTP and calls its tools, each of which runs
-one use case in the server's own process. It has its own composition in its `Program.cs`: the same
-features and modules as the API, its own caller, its own authentication, and neither jobs nor
-migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-Every tool acts for the caller its credential names ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
-Its tests are in `Tests/Presentation/<Project>.<Name>.UnitTests`.
+Its tests are in `Tests/Presentation/<Project>.Desktop.UnitTests`.
+
 <!--#endif-->
 <!--#if (presentationWpf)-->
-`Src/Presentation/<Project>.<Name>` is a WPF desktop app for Windows on the MVVM pattern, with
+`Src/Presentation/<Project>.Desktop` is the desktop app, a WPF app for Windows on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
 client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). The app targets
 `net10.0-windows` and holds its windows alone. Its view models, its settings, its host and its
-session are in `Src/Presentation/<Project>.<Name>.Core`, on `net10.0`, which references that client
+session are in `Src/Presentation/<Project>.Desktop.Core`, on `net10.0`, which references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 The app builds on every system, with `EnableWindowsTargeting`, and runs on Windows. Its tests are in
-`Tests/Presentation/<Project>.<Name>.Core.UnitTests`, against the `.Core` project, and run on every
+`Tests/Presentation/<Project>.Desktop.Core.UnitTests`, against the `.Core` project, and run on every
 system.
-<!--#endif-->
 
+<!--#endif-->
+<!--#if (presentationMcp)-->
+`Src/Presentation/<Project>.Mcp` is the MCP server, which speaks the Model Context Protocol: an agent's client, an
+assistant or an editor, connects to it over Streamable HTTP and calls its tools, each of which runs
+one use case in the server's own process. It has its own composition in its `Program.cs`: the same
+features and modules as the other hosts, its own caller, its own authentication, and neither jobs nor
+migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+Every tool acts for the caller its credential names ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
+Its tests are in `Tests/Presentation/<Project>.Mcp.UnitTests`.
+
+<!--#endif-->
 ## Creating the project
 
+`bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`, which creates each
+presentation project the solution does not hold yet, adds it and its tests to the solution, and
+formats what it wrote.
+
 <!--#if (presentationBlazorServer)-->
-The project's own files come with the project: its project file, `Program.cs`, its settings, its
+The portal's own files come with this project: its project file, `Program.cs`, its settings, its
 image, and the wiring under `Common/` and `Features/`. The pages come from Microsoft's own
-template: `bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`, which runs
-`dotnet new blazor` from the template package and version the project's descriptor pins, in a
-template hive of its own, and keeps what it writes under `Components` and `wwwroot`. It then adds
-the project and its tests to the solution and formats them. The step needs the network once.
+template: the step runs `dotnet new blazor` from the template package and version the project's
+descriptor pins, in a template hive of its own, and keeps what it writes under `Components` and
+`wwwroot`. It needs the network once.
+
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-The project's own files come with the project: its project file, `Program.cs`, `App.axaml.cs`,
-its settings, the main window and its view model, and the wiring under `Common/`. The rest comes
-from Avalonia's own template: `bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`,
-which runs `dotnet new avalonia.mvvm` from the template package and version the project's
-descriptor pins, in a template hive of its own, and keeps what it writes under `Assets`,
-`ViewModels` and `Views`, with `App.axaml`, its view locator and `app.manifest`; a file the project
-already holds is kept. It then adds the project and its tests to the solution and formats them. The
-step needs the network once. `bootstrap` later writes the client from the API's document with
-`dotnet run Tools/Tasks.cs api-client`.
-<!--#endif-->
-<!--#if (presentationMcp)-->
-The whole project comes with the project, written in the shape `dotnet new mcpserver --transport remote`
-gives a server: its project file, `Program.cs`, its settings, its image, its tools and the wiring
-under `Common/` and `Features/`. No template runs: `bootstrap` first runs
-`dotnet run Tools/Tasks.cs presentation-scaffold`, which adds the project and its tests to the
-solution and formats them, offline.
+The desktop app's own files come with this project: its project file, `Program.cs`,
+`App.axaml.cs`, its settings, the main window and its view model, and the wiring under `Common/`.
+The rest comes from Avalonia's own template: the step runs `dotnet new avalonia.mvvm` from the
+template package and version the project's descriptor pins, in a template hive of its own, and
+keeps what it writes under `Assets`, `ViewModels` and `Views`, with `App.axaml`, its view locator
+and `app.manifest`; a file the project already holds is kept. It needs the network once.
+`bootstrap` later writes the client from the API's document with `dotnet run Tools/Tasks.cs api-client`.
+
 <!--#endif-->
 <!--#if (presentationWpf)-->
-The app and its `.Core` project come whole with the project. `dotnet new wpf` ships with the .NET
-SDK alone, so no version of it can be pinned: the app is written in the shape it gives, a `WinExe`
-on `net10.0-windows` with `UseWPF`, `App.xaml`, `MainWindow.xaml` and their code-behind. `App.xaml`
-names no start-up window: `App.xaml.cs` builds the host and shows the main window with its view
-model. The generator's assembly information file is left out, its theme attribute serving custom
-control themes the app has none of. `bootstrap` first runs `dotnet run Tools/Tasks.cs presentation-scaffold`, which
-runs no template: it adds the app, its `.Core` project and their tests to the solution with the .NET
-client, and formats them, without the network. `bootstrap` later writes the client from the API's
-document with `dotnet run Tools/Tasks.cs api-client`.
-<!--#endif-->
+The desktop app and its `.Core` project come whole with this project. `dotnet new wpf` ships with
+the .NET SDK alone, so no version of it can be pinned: the app is written in the shape it gives, a
+`WinExe` on `net10.0-windows` with `UseWPF`, `App.xaml`, `MainWindow.xaml` and their code-behind.
+`App.xaml` names no start-up window: `App.xaml.cs` builds the host and shows the main window with
+its view model. The generator's assembly information file is left out, its theme attribute serving
+custom control themes the app has none of. The step runs no template and adds the .NET client
+beside the app, without the network. `bootstrap` later writes the client from the API's document
+with `dotnet run Tools/Tasks.cs api-client`.
 
-<!--#if (!presentationMcp)-->
-Commit the project after bootstrap: from then on its pages are this project's own, and
-`presentation-scaffold` leaves it alone.
 <!--#endif-->
 <!--#if (presentationMcp)-->
-Commit the solution after bootstrap; `presentation-scaffold` leaves the project alone from then on.
+The MCP server comes whole with this project, written in the shape `dotnet new mcpserver --transport remote`
+gives a server: its project file, `Program.cs`, its settings, its image, its tools and the wiring
+under `Common/` and `Features/`. No template runs: the step works offline.
+
 <!--#endif-->
+Commit what `bootstrap` adds: from then on `presentation-scaffold` leaves each project alone, and
+the pages a framework's template wrote are this project's own.
 
 A project generated without one takes it later from `dotnet new cleanarch-presentation`, which
 writes the project, its tests and this page. `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`
 then makes the lines the `README.md` in the project's folder lists outside them, every one or none,
-and `presentation-scaffold` creates the project the same way.
+and records the project in `cleanarch.json`; `presentation-scaffold` creates it the same way.
 
 <!--#if (presentationBlazorServer)-->
-## Calling a use case
+## Portal
+
+### Calling a use case
 
 A Blazor Server circuit lives for as long as its browser tab, and so does the dependency-injection
 scope it was opened with. A use case resolved from it would keep its database context, its unit of
@@ -125,7 +121,7 @@ rendered statically, a sign-in form among them, can inject a use case directly: 
 scope, and its user is the caller. A use case resolved anywhere else refuses to answer who calls
 it, rather than guess.
 
-## Signing in
+### Portal sign-in
 
 No page, and no authorization by default: a page asks for a signed-in user with `[Authorize]`, or
 `[Authorize(Policy = AuthorizationPolicies.Administrator)]`, and the router shows it only then
@@ -173,11 +169,11 @@ is on, and hands the `LoginOutcome.Authenticated` it gets to `CookieSession.Sign
 }
 ```
 
-`SignInAsync` validates the access token the use case issued with the API's own bearer settings, so
-the cookie holds exactly the claims the API would see: the user, the session, the roles and the
+`SignInAsync` validates the access token the use case issued with the bearer settings every host shares, so
+the cookie holds exactly the claims a bearer token carries: the user, the session, the roles and the
 time of the sign-in. It keeps the refresh token, encrypted in the cookie, for the sign-out, and
 expires with it; it never rotates it, since two requests of the same page would present it twice.
-The cookie is the session the API lists and ends
+The cookie is a session of the identity module
 ([ADR 0013](../decisions/0013-a-session-is-a-refresh-token-family.md)): every five minutes, a
 request and an open circuit ask whether that session is still listed, and sign out the moment it is
 not, after a password change, a sign-out everywhere or an administrator's lock. A form posting to
@@ -188,8 +184,8 @@ Passkeys need script in the page and are left to it.
 <!--#if (externalAuth)-->
 The sign-in is your provider's, with the OpenID Connect code flow: `/account/sign-in` sends the
 browser there and back, and the subject the provider returns is mapped to this project's owner as
-the API maps it ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). Roles
-come from the same source as the API's: with `Roles:Source` set to `Claim`, the provider must put
+every host maps it ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). Roles
+come from the same source in every host: with `Roles:Source` set to `Claim`, the provider must put
 them in the ID token, which is the token this host reads. A form posting to `/account/sign-out`,
 with its antiforgery token, ends the cookie session; the provider's own session stays.
 <!--#endif-->
@@ -197,9 +193,9 @@ with its antiforgery token, ends the cookie session; the provider's own session 
 Nobody signs in: this project authenticates nobody, and `ICurrentUser` names no caller.
 <!--#endif-->
 
-## Configure
+### Portal settings
 
-The project reads the same sections as the API for what it composes, from the same environment in
+The portal reads the same sections as the other hosts for what it composes, from the same environment in
 Compose.
 <!--#if (externalAuth)-->
 Its client at the provider is `Authentication:External:Interactive`.
@@ -212,12 +208,12 @@ Compose mounts on a volume.
 The keys that protect its cookie and its forms are the identity module's key ring, in the database
 the API shares with it.
 <!--#endif-->
-The [configuration reference](../reference/configuration.md) has each row. In Compose the project
-answers on `127.0.0.1`, on the port `PRESENTATION_<NAME>_HOST_PORT` sets in `.env`.
+The [configuration reference](../reference/configuration.md) has each row. In Compose the portal
+answers on `127.0.0.1`, on the port `PRESENTATION_PORTAL_HOST_PORT` sets in `.env`.
 
-## Tests
+### Portal tests
 
-`HostCompositionTests` builds the host as Development does, with every registration validated,
+`HostCompositionTests` builds the portal's host as Development does, with every registration validated,
 resolves every use case it composes in an operation's scope, proves that scope carries the caller
 and that a use case resolved outside one refuses to name it, and that the host runs no background
 service of its own.
@@ -232,10 +228,12 @@ revalidation.
 <!--#if (!localAuth)-->
 `DataProtectionOptionsValidatorTests` holds the key ring's setting.
 <!--#endif-->
-`NoHost_ReferencesAnotherHost` keeps it from reaching the API's jobs and migrations.
+`NoHost_ReferencesAnotherHost` keeps the portal from reaching the jobs and migrations of another host.
 <!--#endif-->
 <!--#if (presentationAvalonia || presentationWpf)-->
-## Calling the API
+## Desktop app
+
+### Calling the API
 
 <!--#if (presentationAvalonia)-->
 The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts.
@@ -264,7 +262,7 @@ A problem answer arrives as an `ApiException`; `ApiProblem.From` gives its code 
 errors, the code the [API reference](../reference/api.md) lists. The client retries a transient
 failure with the standard resilience handler.
 
-## Signing in
+### Desktop sign-in
 
 <!--#if (localAuth)-->
 The main window signs in with the API's own routes. `MainViewModel` posts the email and the password
@@ -293,7 +291,7 @@ public client, the redirect URI `http://127.0.0.1/` on any port, and the API's a
 access token.
 <!--#endif-->
 
-## Configure
+### Desktop settings
 
 <!--#if (localAuth)-->
 The app reads one section, `Api`, from the `appsettings.json` beside it: `BaseAddress`, the API's
@@ -305,12 +303,12 @@ a window: `Api`, the API's address, and `SignIn`, its client at the provider. Th
 leaves `SignIn:Authority` and `SignIn:ClientId` empty, so the app refuses to start until they are
 set. The [configuration reference](../reference/configuration.md#api) has the rows.
 <!--#endif--> Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
-app with `dotnet run --project Src/Presentation/<Project>.<Name>`.
+app with `dotnet run --project Src/Presentation/<Project>.Desktop`.
 <!--#if (presentationWpf)-->
 The app runs on Windows alone; elsewhere the solution still builds it and runs the `.Core` tests.
 <!--#endif-->
 
-## Tests
+### Desktop tests
 
 `AppHostTests` builds the app's host and proves it refuses to start without an absolute API
 address, and that the view model and the client compose against it; `ApiOptionsValidatorTests`
@@ -335,9 +333,10 @@ tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app to its `.Co
 that project to the client.
 <!--#endif-->
 <!--#endif-->
-
 <!--#if (presentationMcp)-->
-## The tools
+## MCP server
+
+### The tools
 
 <!--#if (anyFeature)-->
 | Tool | Use case | Reads only |
@@ -369,11 +368,13 @@ This project has no feature yet, so the server offers no tool until one is decla
 <!--#endif-->
 No tool deletes, updates or replaces. A tool answers its result as JSON, in the result's structured
 content and as text. A failure is an error result carrying the problem's `code`, its `detail` and,
-for a refused input, its field `errors`, the codes the [API reference](../reference/api.md) lists:
-a record of another caller answers exactly as one that does not exist
+for a refused input, its field `errors`: a record of another caller answers exactly as one that does not exist
 ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)).
+<!--#if (api)-->
+The codes are the ones the [API reference](../reference/api.md) lists.
+<!--#endif-->
 
-## Declaring a tool
+### Declaring a tool
 
 A tool is declared by hand, never because a use case exists. Each feature's tools are one class
 under `Features/<Feature>/Tools`, whose constructor takes the use cases it calls; each method is one
@@ -401,7 +402,7 @@ case's result into the tool's answer. Each tool joins the catalogue the tests re
 `TestSupport/ToolCatalogue.cs`, which `HostCompositionTests` and `McpAuthorizationTests` hold the
 server to.
 
-## Calling it
+### Calling it
 
 The server runs stateless on Streamable HTTP, at `/mcp`: each request is answered in a scope of its
 own that carries its caller, and the server never sends the client a request of its own, so a tool
@@ -417,7 +418,7 @@ bearer credential, which in an editor's MCP configuration is a header:
   "servers": {
     "app-template": {
       "type": "http",
-      "url": "http://localhost:8090/mcp",
+      "url": "http://localhost:8091/mcp",
       "headers": { "Authorization": "Bearer ak_..." }
     }
   }
@@ -434,15 +435,15 @@ A client authenticates with a token your provider issued for this server, whose 
 without one is a `401` whose `WWW-Authenticate` names the server's protected resource metadata,
 `/.well-known/oauth-protected-resource/mcp`, which names the provider: a client that follows the
 protocol's authorization signs its user in there and comes back with a token. The subject is mapped
-to this project's owner as the API maps it
+to this project's owner as every host maps it
 ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). The provider registers
 the server as a resource with that audience, and each client as a public client with a loopback
 redirect, unless it registers clients dynamically.
 <!--#endif-->
 
-## Configure
+### MCP settings
 
-The server reads the same sections as the API for what it composes, from the same environment in
+The server reads the same sections as the other hosts for what it composes, from the same environment in
 Compose.
 <!--#if (externalAuth)-->
 It reads the provider from `Authentication:External` and its own address from `Mcp:Resource`,
@@ -451,10 +452,10 @@ which is required. The [configuration reference](../reference/configuration.md#m
 <!--#if (localAuth)-->
 It needs no section of its own: an access key is checked against the accounts' own database.
 <!--#endif-->
-In Compose the server answers on `127.0.0.1`, on the port `PRESENTATION_<NAME>_HOST_PORT` sets in
+In Compose the server answers on `127.0.0.1`, on the port `PRESENTATION_MCP_HOST_PORT` sets in
 `.env`, at `/mcp`; `/health` and `/health/ready` answer anyone.
 
-## Tests
+### MCP tests
 
 `HostCompositionTests` builds the host as Development does, with every registration validated,
 resolves every use case it composes and every tool type, holds the tools to their catalogue, and
@@ -472,7 +473,7 @@ and what it passes.
 <!--#if (externalAuth)-->
 `McpOptionsValidatorTests` holds the server's address.
 <!--#endif-->
-`NoHost_ReferencesAnotherHost` keeps it from reaching the API's jobs and migrations.
+`NoHost_ReferencesAnotherHost` keeps the server from reaching the jobs and migrations of another host.
 <!--#endif-->
 
 ## Decisions

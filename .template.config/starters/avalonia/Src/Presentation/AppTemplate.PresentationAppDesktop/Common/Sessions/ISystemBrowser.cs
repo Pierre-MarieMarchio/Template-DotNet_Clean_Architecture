@@ -1,0 +1,6 @@
+﻿namespace AppTemplate.PresentationAppDesktop.Common.Sessions;
+
+public interface ISystemBrowser
+{
+    void Open(Uri address);
+}

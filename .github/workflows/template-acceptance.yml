@@ -131,6 +131,12 @@ jobs:
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" $OPTIONS
 
+      # The project file records the name and the options generation was given, every other option under its default; the joins below record each part added after.
+      - name: Assert cleanarch.json records the leg's options
+        env:
+          OPTIONS: ${{ matrix.options }}
+        run: dotnet run .template.config/acceptance/CheckProjectFile.cs -- "${{ runner.temp }}/generated" Sample.Generated.Project "$OPTIONS"
+
       - name: Assert the template's own name leaked nowhere
         working-directory: ${{ runner.temp }}/generated
         run: |
@@ -204,6 +210,7 @@ jobs:
           sed -i 's#^services:$#include:\n  - path: Src/Web/apps/Site/compose.yml\n\nservices:#' docker-compose.yml
           printf 'WEB_SITE_HOST_PORT=5173\n' >> .env.example
           printf '# ---------------------------------------------------------------------------\n# The web workspace: each web app builds from Src/Web with its own image.\n# ---------------------------------------------------------------------------\nSrc/Web/\n' >> .dockerignore
+          dotnet run Tools/Tasks.cs web-join Site --web "$(sed -nE 's/.*--framework ([^ ]+).*/\1/p' <<< "$FIRST_APP")"
           sed -i 's#^Tests/                                  one test project#Src/Web/                                the pnpm workspace: apps/ and packages/\n&#' docs/reference/project-layout.md
           grep -A3 '^include:' docker-compose.yml
 
@@ -256,8 +263,8 @@ jobs:
           fi
           sed -i 's#^include:$#include:\n  - path: Src/Web/apps/WasmSite/compose.yml#' docker-compose.yml
           printf 'WEB_WASM_SITE_HOST_PORT=8089\n' >> .env.example
-          dotnet run Tools/Tasks.cs web-join WasmSite
-          if ! dotnet run Tools/Tasks.cs web-join WasmSite | grep -q 'in place already'; then
+          dotnet run Tools/Tasks.cs web-join WasmSite --web blazor-wasm
+          if ! dotnet run Tools/Tasks.cs web-join WasmSite --web blazor-wasm | grep -q 'in place already'; then
             echo "::error title=Not idempotent::A second web-join did not find its edits in place."
             exit 1
           fi
@@ -552,6 +559,10 @@ jobs:
           sed -i 's#^include:$#include:\n  - path: Src/Web/apps/BackOffice/compose.yml#' docker-compose.yml
           printf 'WEB_BACK_OFFICE_HOST_PORT=8082\n' >> .env.example
           grep -A3 '^include:' docker-compose.yml
+          given() { sed -nE "s/.*--$1 ([^ ]+).*/\\1/p" <<< "$SECOND_APP"; }
+          audience=$(given audience)
+          rendering=$(given rendering)
+          dotnet run Tools/Tasks.cs web-join BackOffice --web "$(given framework)" --web-audience "${audience:-public}" --web-rendering "${rendering:-spa}"
 
       # Each entry is Name:port:framework, then :ssr for an app rendered on the server; the app joins the stack by the two lines its README gives.
       - name: Add every other starter with cleanarch-webapp
@@ -572,6 +583,7 @@ jobs:
             variable=$(sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' <<< "$name" | tr '[:lower:]' '[:upper:]')
             sed -i "s#^include:\$#include:\n  - path: Src/Web/apps/$name/compose.yml#" docker-compose.yml
             printf 'WEB_%s_HOST_PORT=%s\n' "$variable" "$port" >> .env.example
+            dotnet run Tools/Tasks.cs web-join "$name" --web "$framework" --web-rendering "${rendering:-spa}"
           done
           grep -A9 '^include:' docker-compose.yml
           grep '^WEB_' .env.example
@@ -626,11 +638,18 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
+          dotnet run Tools/Tasks.cs web-join tokens
           cd Src/Web
           pnpm install --no-frozen-lockfile
           pnpm lint
           pnpm test
           pnpm build
+
+      # The Docker-free step held cleanarch.json to the tree before the apps and the package added since; the joins recorded those too.
+      - name: Assert cleanarch.json records every part added
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet test --project Tests/Architecture/Sample.Generated.Project.Architecture.Tests --configuration Release --no-build -- --filter-class '*ProjectFileTests'
 
       # A second run creates nothing and changes nothing: the client is reproducible and created apps are left alone.
       - name: Assert web-scaffold is idempotent
@@ -744,7 +763,7 @@ jobs:
             fi
             echo "Web app on $port: page, headers, /health and /api/ relay verified."
           done
-          mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | cut -d= -f2)
+          mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | grep -v '^PRESENTATION_MCP_' | cut -d= -f2)
           for port in "${presentations[@]}"; do
             base="http://127.0.0.1:${port}"
             curl -fsS -o page.html "$base/" || fail "The presentation project on $port does not answer /."
@@ -780,7 +799,7 @@ jobs:
         run: |
           set -euo pipefail
           fail() { echo "::error title=MCP server::$1"; exit 1; }
-          port=$(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | head -1 | cut -d= -f2)
+          port=$(grep -oE '^PRESENTATION_MCP_HOST_PORT=[0-9]+' .env | cut -d= -f2)
           api="http://127.0.0.1:$(grep -oE '^API_HOST_PORT=[0-9]+' .env | cut -d= -f2)"
           base="http://127.0.0.1:${port}"
           curl -fsS "$base/health" > /dev/null || fail "The MCP server on $port does not answer /health."
@@ -863,11 +882,13 @@ jobs:
         shell: pwsh
 
     steps:
-      # The root files and Tools alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
+      # The root files, Tools and the acceptance checks alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: Tools
+          sparse-checkout: |
+            Tools
+            .template.config/acceptance
 
       - name: Set up .NET SDK (from global.json)
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -887,6 +908,11 @@ jobs:
         env:
           OPTIONS: ${{ matrix.options }}
         run: dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" @("$env:OPTIONS".Split(' ', [StringSplitOptions]::RemoveEmptyEntries))
+
+      - name: Assert cleanarch.json records the leg's options
+        env:
+          OPTIONS: ${{ matrix.options }}
+        run: dotnet run .template.config/acceptance/CheckProjectFile.cs -- "${{ runner.temp }}/generated" Sample.Generated.Project "$env:OPTIONS"
 
       - name: Assert the template's own name leaked nowhere
         working-directory: ${{ runner.temp }}/generated
@@ -981,15 +1007,17 @@ jobs:
           refuse avalonia-public --auth none --examples none --files false --presentation avalonia
           refuse mcp-public --auth none --examples none --files false --presentation mcp
           refuse wpf-public --auth none --examples none --files false --presentation wpf
-          # A WPF app writes <name>.Core beside it, so a name whose .Core the template writes is refused.
-          refuse wpf-core-name --presentation wpf --presentation-name Presentation
+          # Avalonia and WPF both write <Project>.Desktop.
+          refuse desktop-twice --presentation avalonia --presentation wpf
           refuse wasm-public --auth none --examples none --files false --web blazor-wasm
-          refuse worker-sqlite --database sqlite --jobs worker
+          refuse worker-sqlite --database sqlite --presentation api --presentation worker
+          # A project without the API runs its jobs in the worker added for it.
+          refuse worker-added-sqlite --database sqlite --presentation blazor-server
           # Server rendering needs a starter holding an ssr folder.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
-          # The item template refuses as -n each name --presentation-name refuses.
+          # The item template refuses as -n each name the template writes a project under.
           out="${{ runner.temp }}/refused-presentation"
           mkdir -p "$out"
           if (cd "$out" && dotnet new cleanarch-presentation -n Api --framework blazor-server --project-name Sample.Refused); then
@@ -1009,6 +1037,17 @@ jobs:
           fi
           if [ -n "$(find "$out" -type f -print -quit)" ]; then
             echo "::error title=Wrote files::'dotnet new cleanarch-presentation --framework mcp --auth none' was refused but left files behind."
+            exit 1
+          fi
+          # A desktop client calls the API, which a project generated without it lacks.
+          out="${{ runner.temp }}/refused-desktop-no-api"
+          mkdir -p "$out"
+          if (cd "$out" && dotnet new cleanarch-presentation -n Desktop --framework avalonia --project-name Sample.Refused --has-api false); then
+            echo "::error title=Accepted::'dotnet new cleanarch-presentation --framework avalonia --has-api false' must be refused."
+            exit 1
+          fi
+          if [ -n "$(find "$out" -type f -print -quit)" ]; then
+            echo "::error title=Wrote files::'dotnet new cleanarch-presentation --framework avalonia --has-api false' was refused but left files behind."
             exit 1
           fi
           # A WebAssembly app calls the versioned routes a project without accounts does not publish.

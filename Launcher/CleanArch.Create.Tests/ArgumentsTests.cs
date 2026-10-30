@@ -25,6 +25,10 @@ public sealed class ArgumentsTests
     }
 
     [Fact]
+    public void Parse_KeepsEveryValueOfARepeatedTemplateOption() =>
+        Arguments.Parse(["--presentation", "api", "--presentation=mcp", "--presentation", "worker"]).TemplateOptions["presentation"].ShouldBe("api|mcp|worker");
+
+    [Fact]
     public void Parse_LeavesTheCommandToTheLauncher_WhenNoneIsGiven() =>
         Arguments.Parse(["--yes"]).Command.ShouldBeNull();
 

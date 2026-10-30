@@ -88,20 +88,21 @@ The one exemption is `AppTemplate.Infrastructure.Auth`, whose JWT bearer handler
 framework; the test names it with that reason and fails if the reason stops being true.
 <!--#endif-->
 
-<!--#if (postgreSql)-->
+<!--#if (postgreSql && api)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and Npgsql instrumentation and its own meters, because only it may reference those packages.
 <!--#endif-->
-<!--#if (sqlServer)-->
+<!--#if (sqlServer && api)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and SqlClient instrumentation and its own meters, because only it may reference those packages.
 <!--#endif-->
-<!--#if (sqlite)-->
+<!--#if (sqlite && api)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 instrumentation and its own meters, because only it may reference those packages. SQLite has no
 database instrumentation to add.
 <!--#endif-->
 
+<!--#if (api)-->
 ## The API host
 
 <!--#if (!presentationBlazorServer && !presentationMcp)-->
@@ -116,44 +117,45 @@ A wire type is the API's own: each feature declares its requests and responses u
 and maps them by hand in `Contracts/Mapping/`. No application type and no port type is serialised
 as it is, so a field added inside the application is never published by that edit alone.
 
+<!--#endif-->
 <!--#if (presentationBlazorServer)-->
-## The presentation project
+## The portal
 
-`Src/Presentation/<Project>.<Name>` is a second host: a Blazor Web App that calls the use cases in
-its own process. It references the application projects and the modules it composes, like the API,
-and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
-its own caller, its sign-in and the adapters a host supplies. [Presentation project](../features/presentation.md)
+`Src/Presentation/<Project>.Portal` is a host: a Blazor Web App that calls the use cases in
+its own process. It references the application projects and the modules it composes, and never another
+host (`NoHost_ReferencesAnotherHost`); under `Common/` and `Features/` it keeps
+its own caller, its sign-in and the adapters a host supplies. [Presentation projects](../features/presentation.md)
 describes it.
 
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-## The presentation project
+## The desktop app
 
-`Src/Presentation/<Project>.<Name>` is a desktop client: an Avalonia app that calls the API over
+`Src/Presentation/<Project>.Desktop` is a desktop client: an Avalonia app that calls the API over
 HTTP through the .NET client of `Src/Clients/<Project>.Client`. It references that client alone
 (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use
-case and no module. [Presentation project](../features/presentation.md) describes it.
+case and no module. [Presentation projects](../features/presentation.md) describes it.
 
 <!--#endif-->
 <!--#if (presentationMcp)-->
-## The presentation project
+## The MCP server
 
-`Src/Presentation/<Project>.<Name>` is a second host: an MCP server whose tools call the use cases
+`Src/Presentation/<Project>.Mcp` is a host: an MCP server whose tools call the use cases
 in its own process, one use case each. It references the application projects and the modules it
-composes, like the API, and never the API itself (`NoHost_ReferencesAnotherHost`); under `Common/`
+composes, and never another host (`NoHost_ReferencesAnotherHost`); under `Common/`
 and `Features/` it keeps its own caller, its authentication, its tools and the adapters a host
-supplies. [Presentation project](../features/presentation.md) describes it.
+supplies. [Presentation projects](../features/presentation.md) describes it.
 
 <!--#endif-->
 <!--#if (presentationWpf)-->
-## The presentation project
+## The desktop app
 
-`Src/Presentation/<Project>.<Name>` is a desktop client for Windows: a WPF app that calls the API
+`Src/Presentation/<Project>.Desktop` is a desktop client for Windows: a WPF app that calls the API
 over HTTP through the .NET client of `Src/Clients/<Project>.Client`. Its view models and its host
-are in `Src/Presentation/<Project>.<Name>.Core`, which builds and runs its tests on every system.
+are in `Src/Presentation/<Project>.Desktop.Core`, which builds and runs its tests on every system.
 The app references that project alone, and it references the client alone
 (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so neither is a host: they compose no use case
-and no module. [Presentation project](../features/presentation.md) describes them.
+and no module. [Presentation projects](../features/presentation.md) describes them.
 
 <!--#endif-->
 ## Composition

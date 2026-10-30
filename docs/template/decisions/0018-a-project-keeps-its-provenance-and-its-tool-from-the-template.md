@@ -1,6 +1,6 @@
 ﻿# 0018. A project keeps its provenance and its tool from the template
 
-Status: Proposed; once accepted with [0017](0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md), supersedes [0002](0002-nothing-about-the-template-reaches-a-project.md)
+Status: Accepted; supersedes [0002](0002-nothing-about-the-template-reaches-a-project.md)
 
 ## Context
 

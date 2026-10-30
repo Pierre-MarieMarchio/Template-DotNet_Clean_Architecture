@@ -20,7 +20,18 @@ public sealed record TemplateOption(
     OptionKind Kind,
     IReadOnlyList<OptionChoice> Choices,
     string? DefaultValue,
-    Condition? RequiredWhen);
+    Condition? RequiredWhen,
+    bool AllowsMany = false)
+{
+    public static IReadOnlyList<string> Values(string? answer) =>
+        answer?.Split(Condition.ValueSeparator, StringSplitOptions.RemoveEmptyEntries) ?? [];
+
+    public string Joined(IEnumerable<string> values)
+    {
+        var chosen = values.ToHashSet(StringComparer.Ordinal);
+        return string.Join(Condition.ValueSeparator, Choices.Select(choice => choice.Value).Where(chosen.Contains));
+    }
+}
 
 public sealed record Refusal(string Symbol, string CliName, Condition When, string Explanation);
 
@@ -127,7 +138,8 @@ public sealed class TemplateManifest
                 Kind(symbol.Value),
                 Choices(symbol.Value),
                 defaultValue,
-                RequiredWhen(symbol.Value));
+                RequiredWhen(symbol.Value),
+                symbol.Value.TryGetProperty("allowMultipleValues", out JsonElement many) && many.ValueKind == JsonValueKind.True);
         }
 
         return new TemplateManifest(
@@ -207,8 +219,11 @@ public sealed class TemplateManifest
             bool required = option.RequiredWhen is { } requiredWhen && Holds(requiredWhen, answers);
             if (required || !string.Equals(value, option.DefaultValue, StringComparison.Ordinal))
             {
-                arguments.Add("--" + option.CliName);
-                arguments.Add(value);
+                foreach (string one in option.AllowsMany ? TemplateOption.Values(value) : [value])
+                {
+                    arguments.Add("--" + option.CliName);
+                    arguments.Add(one);
+                }
             }
         }
 

@@ -25,15 +25,15 @@ public sealed class ProjectSetupTests : IDisposable
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     [Theory]
-    [InlineData("none", "none", "api", "")]
-    [InlineData("angular", "none", "api", ", creates each project or app a scaffold.json describes, installs the web workspace, which needs Node.js and pnpm")]
-    [InlineData("none", "avalonia", "api", ", creates each project or app a scaffold.json describes, writes the .NET client")]
-    [InlineData("none", "none", "worker", ", creates each project or app a scaffold.json describes")]
-    [InlineData("placeholder", "none", "api", ", installs the web workspace, which needs Node.js and pnpm")]
-    public void TheBootstrapStep_SaysWhatBootstrapWritesForTheShapeChosen(string web, string presentation, string jobs, string writes)
+    [InlineData("none", "api", "")]
+    [InlineData("angular", "api", ", creates each project or app a scaffold.json describes, installs the web workspace, which needs Node.js and pnpm")]
+    [InlineData("none", "avalonia", ", creates each project or app a scaffold.json describes, writes the .NET client")]
+    [InlineData("none", "api|worker", ", creates each project or app a scaffold.json describes")]
+    [InlineData("placeholder", "api", ", installs the web workspace, which needs Node.js and pnpm")]
+    public void TheBootstrapStep_SaysWhatBootstrapWritesForTheShapeChosen(string web, string presentation, string writes)
     {
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
-        var answers = new Dictionary<string, string>(StringComparer.Ordinal) { ["web"] = web, ["presentation"] = presentation, ["jobs"] = jobs };
+        var answers = new Dictionary<string, string>(StringComparer.Ordinal) { ["web"] = web, ["presentation"] = presentation };
 
         ProjectSetup.BootstrapDescription(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers))).ShouldBe(
             "Runs " + ProjectSetup.BootstrapCommand + ": formatting, OpenAPI document, tools and first migrations"

@@ -132,6 +132,19 @@ public sealed class GeneratedProjectTests : IDisposable
     }
 
     [Fact]
+    public void Find_ReadsTheApi_FromItsPresentationProject()
+    {
+        AProject();
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Worker"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Apis"));
+        GeneratedProject.Find(_root).ShouldNotBeNull().HasApi.ShouldBeFalse();
+
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().HasApi.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Find_SeesNoProject_WithoutTheTasksBesideTheSolution()
     {
         Write("Acme.Shop.sln", string.Empty);

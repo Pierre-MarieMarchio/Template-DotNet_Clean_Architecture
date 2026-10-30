@@ -38,19 +38,29 @@ The command writes files and edits none. It writes:
 - `.feature-manifest/<Features>.json`: the options and the SHA-256 of every file written;
 - the feature page `docs/features/<features>.md`, from `docs/_page-templates/feature.md`.
 
+<!--#if (!api)-->
+This project holds no HTTP API, so it writes no controller, no contract and no API test: the hosts
+offer the feature through its use cases.
+
+<!--#endif-->
 Then it prints the edits that compose the feature: the schema, set and configuration in
 `AppDbContext`, an `Add<Features>()` in `ApplicationModule`, the adapters in `PersistenceModule`, the
 call in `Program.cs`, and the two test compositions. The solution compiles again after the first edit,
 and the feature composes after the last. An owner feature that is the project's first prints five more,
 for the account-deletion sweep it brings with it.
-<!--#if (presentationBlazorServer || presentationMcp)-->
-Each host composes itself, so the call goes in the presentation project's `Program.cs` too, and a first
-owner feature writes and registers that host's account directory beside the API's; the printed edits
+<!--#if ((presentationBlazorServer || presentationMcp) && api)-->
+Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
+owner feature writes and registers each host's account directory beside the API's; the printed edits
 name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+<!--#endif-->
+<!--#if (!api)-->
+Each host composes itself, so the call goes in every host's `Program.cs`, and a first owner feature
+writes and registers each host's account directory; the printed edits name every host
+([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 <!--#endif-->
 <!--#if (presentationMcp)-->
 The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
-as the [presentation project](../features/presentation.md#declaring-a-tool) shows.
+as the [presentation projects](../features/presentation.md#declaring-a-tool) shows.
 <!--#endif-->
 
 ## What you write by hand
@@ -75,17 +85,31 @@ through that feature's ports and events.
 The record's columns, indexes and constraints in its EF configuration. The store or the repository
 stays one capability; [ports and adapters](../architecture/ports-and-adapters.md) names the shapes.
 
+<!--#if (api)-->
 ### API
 
 The request and response contracts, and anything beyond default-deny authorisation. The
 [HTTP API](../architecture/http-api.md) conventions apply to every route.
+<!--#endif-->
+<!--#if (!api)-->
+### Hosts
+
+What each host shows of the feature, calling its service or its use cases, and anything beyond
+default-deny authorisation.
+<!--#endif-->
 
 ### Tests
 
+<!--#if (api)-->
 The rules the feature protects, each with a test you have seen fail, and the integration tests against
 the project's database under `Tests/Integration/AppTemplate.Api.IntegrationTests`;
 [testing](testing.md#where-a-new-features-tests-go) says which type holds what. Add the feature's
 schema to the schemas `TestDatabase` truncates between tests.
+<!--#endif-->
+<!--#if (!api)-->
+The rules the feature protects, each with a test you have seen fail;
+[testing](testing.md#where-a-new-features-tests-go) says which type holds what.
+<!--#endif-->
 
 ### Migration
 
@@ -131,9 +155,16 @@ validator by folder. When the feature has a manifest, the files join it, so `rem
 removes them with the feature while they are untouched.
 
 The use case answers its validation, then throws `NotImplementedException` until its body is written:
-the rule in the aggregate, the load, the call and the commit, each decision with its test. The command
-prints the action, the using and the constructor parameter that serve it over HTTP, and for a query
-the response contract; then rewrite the OpenAPI reference with `dotnet run Tools/Tasks.cs openapi`.
+the rule in the aggregate, the load, the call and the commit, each decision with its test.
+<!--#if (api)-->
+The command prints the action, the using and the constructor parameter that serve it over HTTP, and
+for a query the response contract; then rewrite the OpenAPI reference with
+`dotnet run Tools/Tasks.cs openapi`.
+<!--#endif-->
+<!--#if (!api)-->
+The command prints the hosts that may offer it: inject its interface where one of them serves the
+feature.
+<!--#endif-->
 
 It refuses, writing nothing, a feature that does not exist, a feature of the simple shape, whose
 operations are methods of its service, a use case the feature already has, and `--input id` where the
@@ -151,8 +182,10 @@ Some lists change only on purpose, and a test fails until they name what you add
 <!--#if (!anyFeature)-->
 | A registration | `HostComposition` in the architecture tests |
 <!--#endif-->
+<!--#if (api)-->
 | A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review |
 | An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
+<!--#endif-->
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
 | A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed` |
@@ -190,14 +223,25 @@ Some lists change only on purpose, and a test fails until they name what you add
 
 ## Promote a simple feature
 
+<!--#if (api)-->
 A record feature that gains a rule moves to the rich shape; the routes, contracts, `ETag` and owner
 scoping do not change:
+<!--#endif-->
+<!--#if (!api)-->
+A record feature that gains a rule moves to the rich shape; the version and the owner scoping do not
+change:
+<!--#endif-->
 
 1. Extract the aggregate, its factory and rehydration, and its repository port.
 2. Replace the store by the repository: keep the record, add the mapper and the tracker; the queries
    port stays.
 3. Split the service into one use case per operation.
+<!--#if (api)-->
 4. Point the controller at the use cases.
+<!--#endif-->
+<!--#if (!api)-->
+4. Point each host that called the service at the use cases.
+<!--#endif-->
 
 The migration is empty unless the rule needs a column or an index.
 

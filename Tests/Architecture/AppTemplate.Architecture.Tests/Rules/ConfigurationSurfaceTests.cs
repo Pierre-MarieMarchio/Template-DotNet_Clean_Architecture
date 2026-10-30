@@ -111,7 +111,11 @@ public sealed class ConfigurationSurfaceTests
         var documented = DocumentedSections();
 
         bound.Count.ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             18,
+            /*#else
+            8,
+            #endif*/
             "Far fewer bound sections were found than this template has, so the source scan is not " +
             "reading the tree it is meant to describe.");
 
@@ -121,7 +125,11 @@ public sealed class ConfigurationSurfaceTests
             "guide is being read with the wrong heading shape.");
 
         bound.Values.Sum(facts => facts.Keys.Count).ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             42,
+            /*#else
+            20,
+            #endif*/
             "Far fewer bindable members were found than the options classes declare, so the member " +
             "pattern has stopped matching the shape they are written in.");
 
@@ -131,11 +139,17 @@ public sealed class ConfigurationSurfaceTests
             ignoreOrder: true,
             "TwoFactor is the section this rule was written for: bound and validated with these keys, " +
             "each of which needs its row in docs/reference/configuration.md like any other.");
-        /*#else
+        /*#elseif (api)
         bound["Idempotency"].Keys.ShouldBe(
             ["ClaimLease", "Enabled", "MaxKeyLength", "MaxStoredResponseBytes", "Retention"],
             ignoreOrder: true,
             "Idempotency is bound by the HTTP pipeline whatever the project was generated with, so it " +
+            "is the section a scan that reads the tree at all has to find, with every key it binds.");
+        #else
+        bound["Database"].Keys.ShouldBe(
+            ["CommandTimeoutSeconds", "MaxPoolSize"],
+            ignoreOrder: true,
+            "Database is bound by the persistence module whatever the project was generated with, so it " +
             "is the section a scan that reads the tree at all has to find, with every key it binds.");
         #endif*/
     }

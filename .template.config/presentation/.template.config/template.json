@@ -192,6 +192,18 @@
       "isRequired": "(framework == \"mcp\" && auth == \"none\")",
       "description": "Never set. --framework mcp acts for the caller an access key or a provider's token names, and a project generated with --auth none names nobody."
     },
+    "presentationNeedsTheApi": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(((framework == \"avalonia\" || framework == \"wpf\") || (framework == \"mcp\" && auth == \"local\")) && !hasApi)",
+      "description": "Never set. --framework avalonia and --framework wpf call the API, and --framework mcp under local accounts takes the access keys it issues, and a project without the API has neither: add the presentation to a project that holds the API."
+    },
     "mySqlNotYetGenerated": {
       "type": "parameter",
       "datatype": "choice",
@@ -231,6 +243,10 @@
     "sqlite": {
       "type": "computed",
       "value": "(database == \"sqlite\")"
+    },
+    "serverDatabase": {
+      "type": "computed",
+      "value": "(!sqlite)"
     },
     "todoLists": {
       "type": "computed",
@@ -282,6 +298,17 @@
       "datatype": "bool",
       "defaultValue": "false",
       "description": "The project holds Src/Clients/<project>.Client already, generated with --web blazor-wasm, --presentation avalonia or --presentation wpf, or added by cleanarch-webapp --framework blazor-wasm: an Avalonia or a WPF app uses it, and the item template writes neither the client nor its tests nor its decision."
+    },
+    "hasApi": {
+      "type": "parameter",
+      "displayName": "Project holds the API",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "The project holds Src/Presentation/<project>.Api, generated with --presentation api or brought by what calls it: a desktop client calls it, and the MCP server under local accounts takes the access keys it issues. The lines to add name the API only where the project has it."
+    },
+    "api": {
+      "type": "computed",
+      "value": "(hasApi)"
     },
     "developmentConnectionString": {
       "type": "generated",
@@ -354,14 +381,32 @@
         ]
       }
     },
-    "presentationNameKebab": {
+    "presentationAppPortalKebab": {
       "type": "generated",
       "generator": "casing",
       "parameters": {
         "source": "presentationNameWords",
         "toLower": true
       },
-      "replaces": "presentation-app"
+      "replaces": "presentation-app-portal"
+    },
+    "presentationAppMcpKebab": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "presentationNameWords",
+        "toLower": true
+      },
+      "replaces": "presentation-app-mcp"
+    },
+    "presentationAppDesktopKebab": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "presentationNameWords",
+        "toLower": true
+      },
+      "replaces": "presentation-app-desktop"
     },
     "presentationNameUpper": {
       "type": "generated",
@@ -371,7 +416,7 @@
         "toLower": false
       }
     },
-    "presentationNameEnvironment": {
+    "presentationAppPortalEnvironment": {
       "type": "generated",
       "generator": "regex",
       "parameters": {
@@ -383,14 +428,56 @@
           }
         ]
       },
-      "replaces": "PRESENTATION_APP"
+      "replaces": "PRESENTATION_APP_PORTAL"
     },
-    "presentationProjectName": {
+    "presentationAppMcpEnvironment": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "presentationNameUpper",
+        "steps": [
+          {
+            "regex": "-",
+            "replacement": "_"
+          }
+        ]
+      },
+      "replaces": "PRESENTATION_APP_MCP"
+    },
+    "presentationAppDesktopEnvironment": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "presentationNameUpper",
+        "steps": [
+          {
+            "regex": "-",
+            "replacement": "_"
+          }
+        ]
+      },
+      "replaces": "PRESENTATION_APP_DESKTOP"
+    },
+    "presentationAppPortalProject": {
       "type": "derived",
       "valueSource": "name",
       "valueTransform": "identity",
-      "replaces": "PresentationApp",
-      "fileRename": "PresentationApp"
+      "replaces": "PresentationAppPortal",
+      "fileRename": "PresentationAppPortal"
+    },
+    "presentationAppMcpProject": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "PresentationAppMcp",
+      "fileRename": "PresentationAppMcp"
+    },
+    "presentationAppDesktopProject": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "identity",
+      "replaces": "PresentationAppDesktop",
+      "fileRename": "PresentationAppDesktop"
     }
   },
   "SpecialCustomOperations": {

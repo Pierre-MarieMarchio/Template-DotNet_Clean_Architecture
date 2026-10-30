@@ -1,14 +1,23 @@
 ﻿# Agents
 
 How to work in this repository: the commands, where code goes, the rules, and what done means.
-<!--#if (localAuth)-->
+<!--#if (api && localAuth)-->
 This project is a .NET 10 HTTP API on Clean Architecture whose callers sign in with local accounts.
 <!--#endif-->
-<!--#if (externalAuth)-->
+<!--#if (api && externalAuth)-->
 This project is a .NET 10 HTTP API on Clean Architecture whose callers bring an OpenID Connect token.
 <!--#endif-->
-<!--#if (publicApi)-->
+<!--#if (api && publicApi)-->
 This project is a .NET 10 HTTP API on Clean Architecture that authenticates nobody.
+<!--#endif-->
+<!--#if (!api && localAuth)-->
+This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, whose users sign in with local accounts.
+<!--#endif-->
+<!--#if (!api && externalAuth)-->
+This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, whose users sign in with an OpenID Connect provider.
+<!--#endif-->
+<!--#if (!api && publicApi)-->
+This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, that authenticates nobody.
 <!--#endif-->
 
 Your request comes first, then the `AGENTS.md` nearest the file you change, then this one. A folder
@@ -21,9 +30,16 @@ once before a change that adds a type; [the documentation index](docs/README.md)
 
 ## Commands
 
+<!--#if (api)-->
 From the repository root. Right after generating, before anything else, run `bootstrap` and commit
 what it writes: it formats the usings the rename reordered, writes the OpenAPI reference, restores
 the local tools and creates each context's initial migration, and the other tasks assume all four.
+<!--#endif-->
+<!--#if (!api)-->
+From the repository root. Right after generating, before anything else, run `bootstrap` and commit
+what it writes: it formats the usings the rename reordered, restores the local tools and creates
+each context's initial migration, and the other tasks assume all three.
+<!--#endif-->
 <!--#if (presentationBlazorServer || presentationAvalonia)-->
 It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
 <!--#endif-->
@@ -46,7 +62,9 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 <!--#endif-->
 | Every task and option | `dotnet run Tools/Tasks.cs help`; `-m:<N>` caps build and test parallelism | nothing |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
+<!--#if (api)-->
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
+<!--#endif-->
 
 ## Where code goes
 
@@ -56,7 +74,9 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
   choose the aggregate when use cases beyond the five operations are foreseen (`new-use-case`
   refuses a service).
 - [Modules and boundaries](docs/architecture/modules-and-boundaries.md): what may depend on what.
+<!--#if (api)-->
 - [HTTP API](docs/architecture/http-api.md): the contract every endpoint offers.
+<!--#endif-->
 - A registration, an anonymous endpoint, a folder word, a domain event or a new project joins a list a
   test reads; [the closed lists](docs/guides/adding-a-feature.md#the-closed-lists-a-feature-joins)
   name each one and the test that fails until it is there.
@@ -92,6 +112,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
   rewritten, as [migrations](docs/guides/migrations.md) says.
 - `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
   says.
+- `cleanarch.json`: generation writes it and `web-join` or `presentation-join` records a part added
+  since, as [the project file](docs/reference/project-layout.md#the-project-file) says.
 
 ## Writing docs
 
@@ -115,10 +137,21 @@ dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes 
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
 ```
 
+<!--#endif-->
+<!--#if (canAddFeature && api)-->
 `new-feature` writes the skeleton, its manifest and its page, then prints the hand edits, the
 `docs/README.md` row and the `docs/reference/api.md` row; its fields (`Name`, `Description`) are
 placeholders you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is
 promoted first) and prints its action.
+<!--#endif-->
+<!--#if (canAddFeature && !api)-->
+`new-feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
+with its manifest and its page, then prints the hand edits, each host's `Program.cs` among them, and
+the `docs/README.md` row; its fields (`Name`, `Description`) are placeholders you rewrite.
+`new-use-case` adds one operation to a rich feature (a simple one is promoted first) and prints the
+hosts that may offer it.
+<!--#endif-->
+<!--#if (canAddFeature)-->
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->

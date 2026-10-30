@@ -46,7 +46,7 @@ public sealed partial class FirstFrameTests
     [Fact]
     public void AMultiSelection_ShowsEveryStep_Checked_AndItsKeys_BeforeAnyKey()
     {
-        Unanswered(() => new RailMultiSelection("Set up the project now?", _databases, [.. _databases.Select(choice => choice.Value)], canGoBack: false).Show(_console));
+        Unanswered(() => new RailMultiSelection("Set up the project now?", string.Empty, _databases, [.. _databases.Select(choice => choice.Value)], atLeastOne: false, canGoBack: false).Show(_console));
 
         string frame = Plain(_console);
         frame.ShouldContain("■ postgresql");

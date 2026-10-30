@@ -21,8 +21,10 @@ Each row links to the page that describes it.
 
 | Protection | Where it is described |
 |---|---|
-<!--#if (accounts)-->
+<!--#if (accounts && api)-->
 | Default-deny authorisation: an endpoint is protected unless it opts out, and an unknown route answers `401` to an anonymous caller | [Request pipeline › Authorisation](docs/architecture/request-pipeline.md#authorisation) |
+<!--#endif-->
+<!--#if (accounts)-->
 | Another caller's resource answers `404`, never `403`: the owner is in the query | [ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md) |
 <!--#endif-->
 <!--#if (publicApi)-->
@@ -40,11 +42,13 @@ Each row links to the page that describes it.
 <!--#if (externalAuth)-->
 | Bearer tokens validated against the provider's keys; each (issuer, subject) mapped to an internal owner | [Authentication › An external identity provider](docs/features/authentication.md#an-external-identity-provider), [ADR 0017](docs/decisions/0017-external-subjects-map-to-internal-owners.md) |
 <!--#endif-->
+<!--#if (api)-->
 | Rate limiting per client address, answering `429` with `Retry-After` | [Request pipeline › Rate limiting](docs/architecture/request-pipeline.md#rate-limiting) |
 | An oversized body refused before it is buffered, and logged; a timeout per request | [Request pipeline › Body size and timeouts](docs/architecture/request-pipeline.md#body-size-and-timeouts) |
 | Security headers on every response, a default-deny CSP, CORS that allows nothing until told | [Request pipeline › CORS and security headers](docs/architecture/request-pipeline.md#cors-and-security-headers) |
 | No exception text reaches a client; every refusal is a problem document with a `code` and a `traceId` | [Request pipeline › Problem details](docs/architecture/request-pipeline.md#problem-details) |
 | Request logs carry a fixed field list: never the `Authorization` header, cookies, the query or the body | [Request pipeline › Request logging](docs/architecture/request-pipeline.md#request-logging) |
+<!--#endif-->
 | Lost updates refused: the row version exposed as `ETag`, checked from `If-Match` | [ADR 0008](docs/decisions/0008-optimistic-concurrency-end-to-end.md) |
 <!--#if (files)-->
 | Stored files keyed by a random key, bound to their digest, inspected from their bytes, served through narrow signed grants | [Files › Inspection and scanning](docs/features/files.md#inspection-and-scanning), [ADR 0018](docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md) |

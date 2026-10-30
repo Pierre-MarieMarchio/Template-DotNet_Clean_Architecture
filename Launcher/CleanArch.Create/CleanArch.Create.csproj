@@ -32,6 +32,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CleanArch.Tooling\CleanArch.Tooling.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="$(TemplateConfig)template.json" LogicalName=".template.config/template.json" />
     <EmbeddedResource Include="$(TemplateConfig)dotnetcli.host.json" LogicalName=".template.config/dotnetcli.host.json" />
     <EmbeddedResource Include="$(TemplateConfig)ide.host.json" LogicalName=".template.config/ide.host.json" />

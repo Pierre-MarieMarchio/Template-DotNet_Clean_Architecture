@@ -19,7 +19,7 @@ internal static class ProjectFileCheck
         Checks the cleanarch.json a generation wrote at <project>'s root against the file the
         generation's name and options make: the template package and version, the name, every
         option that is not a part under the value given or its default, the client, the first web
-        app and the presentation project. <options> are the cleanarch-webapi options of the leg,
+        app and every presentation project. <options> are the cleanarch-webapi options of the leg,
         as one argument or several; their defaults and long names are read from template.json and
         dotnetcli.host.json beside this folder. The text must match too: two-space indentation, the
         contract's key order and a final newline.
@@ -35,6 +35,11 @@ internal static class ProjectFileCheck
     };
 
     private static readonly string[] ClientPresentations = ["avalonia", "wpf"];
+
+    private static readonly (string Framework, string Name)[] Hosts =
+    [
+        ("api", "Api"), ("blazor-server", "Portal"), ("mcp", "Mcp"), ("avalonia", "Desktop"), ("wpf", "Desktop"), ("worker", "Worker"),
+    ];
 
     internal static int Run(string[] arguments)
     {
@@ -90,7 +95,7 @@ internal static class ProjectFileCheck
         string Value(string symbol) => given.GetValueOrDefault(symbol) ?? symbols.GetProperty(symbol).GetProperty("defaultValue").GetString()!;
 
         var options = new JsonObject();
-        foreach (string option in new[] { "auth", "database", "examples", "files", "jobs", "ci", "sonar", "agentFiles" })
+        foreach (string option in new[] { "auth", "database", "examples", "files", "ci", "sonar", "agentFiles" })
         {
             options[option] = symbols.GetProperty(option).GetProperty("datatype").GetString() == "bool"
                 ? JsonValue.Create(bool.Parse(Value(option)))
@@ -98,7 +103,13 @@ internal static class ProjectFileCheck
         }
 
         string web = Value("web");
-        string presentation = Value("presentation");
+        string[] chosen = Value("presentation").Split('|');
+        bool api = chosen.Contains("api")
+            || web != "none"
+            || chosen.Intersect(ClientPresentations).Any()
+            || (chosen.Contains("mcp") && Value("auth") == "local");
+        bool worker = chosen.Contains("worker") || !api;
+        bool Holds(string framework) => framework switch { "api" => api, "worker" => worker, _ => chosen.Contains(framework) };
         var project = new JsonObject
         {
             ["template"] = new JsonObject
@@ -108,7 +119,7 @@ internal static class ProjectFileCheck
             },
             ["name"] = name,
             ["options"] = options,
-            ["client"] = ClientPresentations.Contains(presentation) || web == "blazor-wasm",
+            ["client"] = chosen.Intersect(ClientPresentations).Any() || web == "blazor-wasm",
         };
 
         if (web != "none")
@@ -127,14 +138,9 @@ internal static class ProjectFileCheck
             };
         }
 
-        if (presentation != "none")
-        {
-            project["presentation"] = new JsonObject
-            {
-                ["name"] = given.GetValueOrDefault("presentationName") ?? (presentation == "mcp" ? "Mcp" : "Portal"),
-                ["framework"] = presentation,
-            };
-        }
+        project["presentation"] = new JsonArray([.. Hosts
+            .Where(host => Holds(host.Framework))
+            .Select(host => new JsonObject { ["name"] = host.Name, ["framework"] = host.Framework })]);
 
         return project.ToJsonString(Written) + "\n";
     }
@@ -153,7 +159,8 @@ internal static class ProjectFileCheck
                 throw new ArgumentException($"'{arguments[index]}' is not an option followed by its value.");
             }
 
-            given[symbolOf.GetValueOrDefault(arguments[index]) ?? arguments[index][2..]] = arguments[index + 1];
+            string symbol = symbolOf.GetValueOrDefault(arguments[index]) ?? arguments[index][2..];
+            given[symbol] = given.TryGetValue(symbol, out string? earlier) ? earlier + "|" + arguments[index + 1] : arguments[index + 1];
         }
 
         return given;
@@ -166,7 +173,7 @@ internal static class ProjectFileCheck
 
         try
         {
-            string options = "--web vite-react --web-audience admin --presentation wpf --agent-files false";
+            string options = "--web vite-react --web-audience admin --presentation wpf --presentation worker --agent-files false";
             File.WriteAllText(Path.Combine(scratch, "cleanarch.json"), Expected("Acme.Shop", [.. options.Split(' ')]));
 
             if (Run([scratch, "Acme.Shop", options]) != 0)
@@ -178,7 +185,8 @@ internal static class ProjectFileCheck
             string[] expectations =
             [
                 "\"auth\": \"local\"", "\"agentFiles\": false", "\"client\": true", "\"scope\": \"acme-shop\"",
-                "\"name\": \"Site\"", "\"audience\": \"admin\"", "\"rendering\": \"spa\"", "\"name\": \"Portal\"",
+                "\"name\": \"Site\"", "\"audience\": \"admin\"", "\"rendering\": \"spa\"", "\"name\": \"Api\"",
+                "\"framework\": \"wpf\"", "\"name\": \"Worker\"",
             ];
             problems.AddRange(expectations.Where(line => !text.Contains(line, StringComparison.Ordinal)).Select(line => $"The expected file lacks {line}."));
 

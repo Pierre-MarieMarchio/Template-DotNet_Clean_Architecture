@@ -1,10 +1,19 @@
 ﻿# Configuration
 
+<!--#if (api)-->
 Every setting the API reads, one table per section; a section a team adds gets its own, which a
 test compares with the options classes. Every section is validated at start-up: a missing or
 out-of-range value stops the host and names the key. "Required" means start-up fails without it;
 a default applies when the key is absent. `Src/Presentation/AppTemplate.Api/appsettings.json`
-holds no secret, and a key `A:B` is the environment variable `A__B`. Loading and secrets are in
+holds no secret, and a key `A:B` is the environment variable `A__B`.
+<!--#endif-->
+<!--#if (!api)-->
+Every setting the hosts read, one table per section; a section a team adds gets its own, which a
+test compares with the options classes. Every section is validated at start-up: a missing or
+out-of-range value stops the host and names the key. "Required" means start-up fails without it;
+a default applies when the key is absent. No host's `appsettings.json` holds a secret, and a key
+`A:B` is the environment variable `A__B`.
+<!--#endif--> Loading and secrets are in
 [Deployment](../guides/deployment.md).
 
 The Default column is what a deployment gets. `appsettings.Development.json` on the host, and
@@ -148,15 +157,15 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 | `Roles:AdministratorRole` | string | `Admin` | The role the `Administrator` policy requires. |
 
 <!--#if (presentationBlazorServer)-->
-The presentation project reads this section too, as the provider it signs people in with.
+The portal reads this section too, as the provider it signs people in with.
 
 ### `Authentication:External:Interactive`
 
-The presentation project's client at the provider, for the OpenID Connect code flow; the API never reads it.
+The portal's client at the provider, for the OpenID Connect code flow; the API never reads it.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `ClientId` | string | `""` | **Required.** The client the provider registered for the presentation project. |
+| `ClientId` | string | `""` | **Required.** The client the provider registered for the portal. |
 | `ClientSecret` | string | — | Its secret, for a confidential client; a public client sends none and relies on PKCE. |
 
 <!--#endif-->
@@ -175,11 +184,11 @@ Read by the MCP server alone; the API never reads it.
 <!--#endif-->
 <!--#endif-->
 <!--#if (presentationBlazorServer && !localAuth)-->
-## Presentation project
+## Portal
 
 ### `DataProtection`
 
-Read by the presentation project alone, for the keys that protect its session cookie and its forms.
+Read by the portal alone, for the keys that protect its session cookie and its forms.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -187,7 +196,7 @@ Read by the presentation project alone, for the keys that protect its session co
 
 <!--#endif-->
 <!--#if (presentationAvalonia || presentationWpf)-->
-## Presentation project
+## Desktop app
 
 ### `Api`
 

@@ -9,7 +9,6 @@
     "database": "postgresql",
     "examples": "all",
     "files": true,
-    "jobs": "api",
     "ci": true,
     "sonar": true,
     "agentFiles": true
@@ -26,5 +25,11 @@
       }
     ],
     "packages": []
-  }
+  },
+  "presentation": [
+    {
+      "name": "Api",
+      "framework": "api"
+    }
+  ]
 }

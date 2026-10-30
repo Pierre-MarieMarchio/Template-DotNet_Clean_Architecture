@@ -164,17 +164,17 @@ means bringing an authentication module and its fallback policy back.
 <!--#endif-->
 <!--#if (accounts)-->
 <!--#if (presentationBlazorServer && !publicApi)-->
-## The presentation project
+## The portal
 
-The presentation project signs people in to itself, with a cookie, over the same accounts: the
-[presentation project](presentation.md#signing-in) describes its sign-in and its session.
+The portal signs people in to itself, with a cookie, over the same accounts: the
+[presentation projects](presentation.md#portal-sign-in) page describes its sign-in and its session.
 
 <!--#endif-->
 <!--#if (presentationMcp)-->
 ## The MCP server
 
-The MCP server beside the API authenticates its callers itself and acts for the owner its
-credential names: [presentation project](presentation.md#calling-it) describes the credential a
+The MCP server authenticates its callers itself and acts for the owner its
+credential names: [presentation projects](presentation.md#calling-it) describes the credential a
 client sends and which tools it reaches
 ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
 
@@ -245,7 +245,7 @@ one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay
 `SecurityStampRotationTests`, `AccountLockoutTests`, `PasswordPolicyTests`,
 `DefaultDenyAuthorizationTests` and `AdministratorPolicyTests`.
 <!--#endif-->
-<!--#if (externalAuth)-->
+<!--#if (externalAuth && api)-->
 `Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
 first-request mapping, role mapping and the settings; the integration suite signs its requests
 with a test provider's keys.

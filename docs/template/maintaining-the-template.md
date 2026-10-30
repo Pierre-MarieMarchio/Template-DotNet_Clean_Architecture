@@ -76,29 +76,33 @@ compiles it and its tests run with the others. The three web legs that pass `--p
 blazor-server`, one per authentication mode, create the presentation project, build and test it, and
 ask it in the stack for its page and `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
-`presentation-join` task, and from there runs as those three do. The two legs that pass `--jobs worker`
+`presentation-join` task, and from there runs as those three do. The legs that pass `--presentation worker`
 build and test the worker with the rest; the generator leg among them writes the deleted-account sweep
-into the worker, and the other starts the stack and fails unless the worker logs a completed pass and
-the API starts no job loop. The two legs that pass `--presentation mcp` start the stack and call the
-MCP server over raw JSON-RPC: it answers `/health` and refuses a call without a credential; under
+into the worker, and the two that start the stack fail unless the worker logs a completed pass and
+the API starts no job loop. The legs that pass `--presentation mcp` with the API start the stack and
+call the MCP server over raw JSON-RPC: it answers `/health` and refuses a call without a credential; under
 an external provider its `401` names its resource metadata, which names the provider; under local
 accounts the leg signs the seeded administrator in, creates an access key that writes and one that
 only reads through the API, creates a note and reads it back through the tools, is refused a write
-with the read-only key, revokes the key and is refused with it.
+with the read-only key, revokes the key and is refused with it. The several-hosts leg starts the API,
+the Blazor portal, the MCP server and the worker in one stack, and the leg without the API generates,
+builds and tests a portal, an MCP server and a worker with no HTTP API at all.
 
 | Leg | Options |
 |---|---|
 | defaults | none |
 | auth none, smallest project | `--auth none --examples none --files false` |
 | external auth, notes | `--auth external --examples notes --presentation avalonia` |
-| local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false --jobs worker` |
+| local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false --presentation api --presentation worker` |
 | external auth, all examples | `--auth external --examples all --files true --web blazor-wasm` |
 | external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
 | web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
 | sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
-| worker, external auth, all examples | `--jobs worker --auth external --examples all --files true` |
-| mcp, external auth, all examples | `--presentation mcp --auth external --examples all --files true` |
-| mcp, local auth, notes | `--presentation mcp --examples notes --files false` |
+| worker, external auth, all examples | `--presentation api --presentation worker --auth external --examples all --files true` |
+| mcp, external auth, all examples | `--presentation api --presentation mcp --auth external --examples all --files true` |
+| mcp, local auth, notes | `--presentation mcp --examples notes --files false`, the API brought by the MCP server's access keys |
+| several hosts, local auth, notes | `--presentation api --presentation blazor-server --presentation mcp --presentation worker --examples notes --files false` |
+| no api, blazor server, mcp and worker, external auth | `--presentation blazor-server --presentation mcp --presentation worker --auth external --examples notes --files false` |
 | sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
 | sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
@@ -155,7 +159,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
-| `.template.config/starters/worker` | the legs that pass `--jobs worker` |
+| `.template.config/starters/worker` | the legs that pass `--presentation worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
 | anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows one included |
@@ -366,11 +370,21 @@ Adding a starter, for a CLI that keeps the contract of decision 0008:
 
 ## Presentation starters
 
-A `--presentation` value is a starter too, of kind `dotnet`
-([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)) or, for WPF,
-`written`:
+`--presentation` names every host a project holds, one or several, `api` by default
+([template decision 0020](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)).
+Each value but `api` is a starter, of kind `dotnet`
+([template decision 0009](decisions/0009-a-dotnet-project-comes-from-a-starter.md)) or, for WPF, the
+MCP server and the worker, `written`, copied under its value's symbol
+(`presentationBlazorServer`, `presentationMcp`, `presentationAvalonia`, `presentationWpf`,
+`jobsWorker`, which `needsWorker` also sets). `needsApi` brings the API with what calls it, a web app, a desktop client or the MCP
+server under local accounts, and `api`, the API chosen or brought, conditions every part of it: its
+project and tests, the end-to-end suite, the load smoke, the `.http` file, its Compose service, the
+tasks around the OpenAPI document and the stack, the architecture rules and pages about the HTTP
+surface. `needsWorker` brings the worker to a project whose hosts hold neither the API nor the
+worker, so that some host runs the jobs; `workerNeedsServerDatabase` refuses the worker, chosen or
+brought, with SQLite, and `desktopIsOneFramework` Avalonia and WPF together.
 `.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
-`.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationApp` (its `scaffold.json`, project file,
+`.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationAppPortal` (its `scaffold.json`, project file,
 `Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
 project template copies the folder into the project's root under `presentationBlazorServer`.
 `.template.config/starters/avalonia` holds a desktop client's the same way, copied under
@@ -387,31 +401,37 @@ example feature, each excluded with its feature. Under local accounts the access
 present come with it: `accessKeys` (`localAuth && presentationMcp`) keeps their files in the Auth
 context and the API, their tests and ADR 0026, leaves them out otherwise, and conditions the lines
 they add to shared files; `cleanarch-presentation` brings the same files and its `README.md` lists
-those lines for `presentation-join`. `--presentation-name` has no default:
-`presentationNameOrDefault` gives `Mcp` under `presentationMcp` and `Portal` otherwise, and is the
-symbol that renames.
+those lines for `presentation-join`.
 `.template.config/starters/wpf`, copied under `presentationWpf`, which sets `dotnetClient` too, is
 written whole ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
 the WPF app, on `net10.0-windows` with `EnableWindowsTargeting` so that it builds on every system,
 holds `App.xaml`, `MainWindow.xaml` and their code-behind and references
-`AppTemplate.PresentationApp.Core` alone; that project, on `net10.0`, holds the view models, the
+`AppTemplate.PresentationAppDesktop.Core` alone; that project, on `net10.0`, holds the view models, the
 settings, the host and the session, references the .NET client alone, and is the one its tests
 reference, so they run on Linux too. Its session is a copy of the Avalonia starter's, in its own
 namespace: `TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_InTheCoresNamespace` fails until a
 change to one copy is made to the other, and a third desktop client is the time to move them into a
 project of their own.
-`PresentationApp` is the token `--presentation-name` replaces, with `presentation-app` and
-`PRESENTATION_APP` beside it. A starter's C# is compiled only in a generated project, so a change to
-it is proved by generating one: Blazor's by the three acceptance legs that pass `--presentation`,
+Each starter carries a token of its own, so that two hosts never meet on a path, a service or a port:
+`PresentationAppPortal` for Blazor, `PresentationAppMcp` for the MCP server, `PresentationAppDesktop`
+for Avalonia and WPF, each with its kebab-case (`presentation-app-portal`) and upper-case
+(`PRESENTATION_APP_PORTAL`) forms. The project template replaces them with the hosts' names, `Portal`,
+`Mcp` and `Desktop`, by constant symbols, and `cleanarch-presentation` with `-n`. The portal answers
+on 8090 and the MCP server on 8091; both read the settings every host shares from
+`x-host-environment` in `docker-compose.yml`. A starter's C# is compiled only in a generated project,
+so a change to it is proved by generating one: Blazor's by the acceptance legs that pass `--presentation blazor-server`,
 Avalonia's by the leg that adds it with `cleanarch-presentation`, WPF's by the two Windows legs and
-the SQLite leg that adds it, the MCP server's by the two legs that pass `--presentation mcp` and
+the SQLite leg that adds it, the MCP server's by the legs that pass `--presentation mcp` and
 the SQLite external-auth leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
-`Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. It cannot read the project it runs
+`Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. It offers no
+worker, whose jobs it cannot move. `--has-api`, true by default, says whether the project holds the
+API: its computed `api` conditions the README's lines, and `presentationNeedsTheApi` refuses a
+desktop client, or the MCP server under local accounts, in a project without it. It cannot read the project it runs
 in, so it declares what the starter's markers read as parameters and computed symbols of the same
-names, values, defaults and refusals as `template.json`; `-n` replaces `PresentationApp` and
+names, values, defaults and refusals as `template.json`; `-n` replaces the starter's token and
 `--project-name` replaces `AppTemplate` in the two spellings the source name gives it, the name and
 its lower-case namespace. `ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem`
 fails when a symbol the starters read is missing or differs, or when the two templates leave out
@@ -444,26 +464,28 @@ lacks. It adds the project to the solution with its `<Name>.Core` sibling when i
 tests of each. A project that references the .NET client, itself or through that sibling, brings the
 client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
-`--presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
+`--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
 
-`presentationNameIsTaken` refuses each name that would make `<Project>.<Name>` or its test project one
-of the template's own projects, as `--presentation-name` in `template.json` and as `-n` in
-`cleanarch-presentation`; `ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites` lists
-the projects under `Src` and `Tests` and fails until a new one is refused by both. Under `wpf` it also
-refuses each name whose `<Name>.Core` is one of them, `Infrastructure` and `Presentation` beyond those
-already refused, and the same test fails until both templates do.
+`presentationNameIsTaken` refuses each `-n` of `cleanarch-presentation` that would make
+`<Project>.<Name>` or its test project one of the template's own projects;
+`ThePresentationItemsNameRefusal_NamesEveryProjectTheTemplateWrites` lists the projects under `Src`
+and `Tests` and fails until a new one is refused. Under `wpf` it also refuses each name whose
+`<Name>.Core` is one of them, `Infrastructure` and `Presentation` beyond those already refused, and the
+same test fails until it does.
 
 ## The worker
 
-`--jobs worker` moves the jobs out of the API
-([template decision 0012](decisions/0012-where-the-jobs-run-is-an-option.md)). The worker's own files
+`--presentation worker` moves the jobs out of the API
+([template decision 0012](decisions/0012-where-the-jobs-run-is-an-option.md)), and without the API
+it is the host that runs them. The worker's own files
 are a starter written whole, `.template.config/starters/worker`
 ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
 its project file, `Program.cs`, settings, `Dockerfile`, caller identity and the compositions of the
 directories its passes read, with its test project and `WorkerCompositionTests`. Its `scaffold.json`
 is of kind `written`, so `presentation-scaffold` only adds the two projects to the solution and
 formats them. The jobs themselves stay where they are in this checkout, the API's `Common/Jobs` and
-`Features/*/Jobs` with their unit tests: under `jobsWorker` the API's source leaves them out, and two
+`Features/*/Jobs` with their unit tests: under `jobsWorker` the API's source leaves them out, or the
+API is left out whole, and two
 sources of `template.json` copy them under the worker and its tests. Each namespace they declare has
 a generated switch symbol, `jobsNamespace<Folder>`, whose value is the API's or the worker's; a job
 folder a new feature brings needs one, and `TemplatePackagingTests` fails until it has it. The API's
@@ -595,6 +617,7 @@ its files rather than asking them; `GeneratedProjectTests` holds each reading on
 | `--files` | the `Infrastructure.Storage` project |
 | `--database` | the provider package `Infrastructure.Core` references: SQL Server, SQLite, PostgreSQL otherwise |
 | `--ci`, `--agent-files` | `.github/workflows/ci.yml`, `AGENTS.md` |
+| `--has-api` | the `Src/Presentation/<Name>.Api` folder |
 | `--scope`, `--workspace` | the name in `Src/Web/package.json`, the project's name in kebab case without one; `Src/Web` |
 
 `presentation` runs `cleanarch-presentation`, then the project's `presentation-join` and
@@ -608,8 +631,21 @@ it offers never ends in a refusal. The terminal thread is tested on Spectre's `T
 markers and their order rather than its colours, with the processes it starts replaced. One test packs the
 templates, runs the launcher without a terminal for a project, its first web app, a package and a
 presentation project, and compares the tree with what `dotnet new` writes from the same answers with
-`--presentation blazor-server`; it stops before `presentation-scaffold`, which fetches Microsoft's
-template package from NuGet.
+`--presentation api --presentation blazor-server`: the lines `presentation-join` places by the
+anchors of the starter's `README.md` land where the project template writes them, so an anchor
+moved, or a block of the project template moved away from its anchor, fails it. It stops before
+`presentation-scaffold`, which fetches Microsoft's template package from NuGet.
+
+A multi-valued option, `--presentation`, is one multi-select that keeps at least one value and
+reaches `dotnet new` as the option repeated once per value; the launcher's conditions read `==` as
+"among the values" and `!=` as "not among them", splitting an answer on `|`, which no free-text
+answer a condition compares may hold. When a web app, a desktop client or the MCP server under
+local accounts calls the API, the launcher shows the API as answered for you, naming the caller,
+and passes it; `TheCallersTheLauncherNames_AreExactlyWhatMakesTheTemplateAddTheApi` holds the
+callers against `needsApi`. When the hosts chosen hold neither the API nor the worker, it shows the
+worker as answered for you and passes it; `TheWorkerTheLauncherAdds_IsExactlyWhatMakesTheTemplateAddIt`
+holds that rule against `needsWorker`. Inside a project, `presentation` asks the framework, then the name,
+proposing the framework's own (`Portal`, `Mcp`, `Desktop`).
 
 ```bash
 dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive
@@ -644,3 +680,4 @@ version means adopting the change in an existing project takes manual work.
 - [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)
 - [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
 - [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004
+- [0020. A project is the presentation projects it holds](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)

@@ -9,10 +9,15 @@
     "database": "postgresql",
     "examples": "all",
     "files": true,
-    "jobs": "api",
     "ci": true,
     "sonar": true,
     "agentFiles": true
   },
-  "client": false
+  "client": false,
+  "presentation": [
+    {
+      "name": "Api",
+      "framework": "api"
+    }
+  ]
 }

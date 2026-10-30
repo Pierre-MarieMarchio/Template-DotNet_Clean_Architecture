@@ -49,8 +49,8 @@ public sealed class ProjectFileTests
             auth == "local",
             $"cleanarch.json records --auth {auth}, and the local accounts' project Src/Application/{Name}.Application.Auth comes with local alone.");
         Holds($"Src/Presentation/{Name}.Api/Features/ExternalIdentity").ShouldBe(
-            auth == "external",
-            $"cleanarch.json records --auth {auth}, and the external provider's mapping Src/Presentation/{Name}.Api/Features/ExternalIdentity comes with external alone.");
+            auth == "external" && Holds($"Src/Presentation/{Name}.Api"),
+            $"cleanarch.json records --auth {auth}, and the API's external provider mapping Src/Presentation/{Name}.Api/Features/ExternalIdentity comes with external alone.");
     }
 
     [Fact]
@@ -78,16 +78,6 @@ public sealed class ProjectFileTests
         string relative = string.Format(System.Globalization.CultureInfo.InvariantCulture, path, Name);
 
         Holds(relative).ShouldBe(Flag(option), $"cleanarch.json records options.{option} as {Flag(option)}, and {relative} comes with true alone.");
-    }
-
-    [Fact]
-    public void TheJobs_RunWhereTheTreeHostsThem()
-    {
-        string jobs = Option("jobs");
-
-        Holds($"Src/Presentation/{Name}.Worker").ShouldBe(
-            jobs == "worker",
-            $"cleanarch.json records --jobs {jobs}, and the worker Src/Presentation/{Name}.Worker comes with worker alone.");
     }
 
     [Fact]
@@ -147,30 +137,29 @@ public sealed class ProjectFileTests
     }
 
     [Fact]
-    public void ThePresentationProject_IsTheOneTheTreeHolds()
+    public void ThePresentationProjects_AreTheOnesTheTreeHolds()
     {
-        JsonObject? presentation = ProjectFile["presentation"] as JsonObject;
-        string? name = presentation is null ? null : Text(presentation, "name");
-        string[] own = [$"{Name}.Api", $"{Name}.Presentation.Core", $"{Name}.Worker"];
-        string[] recorded = name is null ? [] : [$"{Name}.{name}", $"{Name}.{name}.Core"];
+        JsonObject[] presentations = [.. (ProjectFile["presentation"] as JsonArray ?? []).OfType<JsonObject>()];
+        string[] recorded = [.. presentations.Select(presentation => $"{Name}.{Text(presentation, "name")}")];
 
-        Folders("Src/Presentation").Except(own, StringComparer.Ordinal).Except(recorded, StringComparer.Ordinal).ShouldBeEmpty(
-            "Src/Presentation holds a presentation project cleanarch.json does not record: presentation-join records one added with cleanarch-presentation.");
+        Folders("Src/Presentation")
+            .Where(folder => folder != $"{Name}.Presentation.Core" && !recorded.Any(project => folder == project + ".Core"))
+            .ShouldBe(
+                [.. recorded.Order(StringComparer.Ordinal)],
+                Case.Sensitive,
+                "cleanarch.json records other presentation projects than Src/Presentation holds: presentation-join records one added with cleanarch-presentation.");
 
-        if (presentation is null)
+        foreach (JsonObject presentation in presentations)
         {
-            return;
-        }
+            string name = Text(presentation, "name");
+            string descriptor = Path.Combine(Root, "Src", "Presentation", $"{Name}.{name}", "scaffold.json");
 
-        string folder = Path.Combine(Root, "Src", "Presentation", $"{Name}.{name}");
-        Directory.Exists(folder).ShouldBeTrue($"cleanarch.json records the presentation project {name}, and Src/Presentation/{Name}.{name} does not exist.");
-
-        string descriptor = Path.Combine(folder, "scaffold.json");
-        if (File.Exists(descriptor))
-        {
-            Text((JsonObject)JsonNode.Parse(File.ReadAllText(descriptor))!, "framework").ShouldBe(
-                Text(presentation, "framework"),
-                $"cleanarch.json records {name} with another framework than its scaffold.json names.");
+            if (File.Exists(descriptor))
+            {
+                Text((JsonObject)JsonNode.Parse(File.ReadAllText(descriptor))!, "framework").ShouldBe(
+                    Text(presentation, "framework"),
+                    $"cleanarch.json records {name} with another framework than its scaffold.json names.");
+            }
         }
     }
 

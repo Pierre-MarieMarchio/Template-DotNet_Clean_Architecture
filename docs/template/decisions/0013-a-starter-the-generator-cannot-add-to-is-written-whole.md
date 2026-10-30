@@ -7,12 +7,12 @@ Status: Accepted
 [0009](0009-a-dotnet-project-comes-from-a-starter.md) makes a .NET project a starter: a descriptor
 names a template package at an exact version, `presentation-scaffold` runs it in a hive of its own
 and keeps the folders the descriptor names, and the starter owns the rest. For the worker of
-`--jobs worker`, the generator writes nothing the project would keep, and the WPF app of
+`--presentation worker`, the generator writes nothing the project would keep, and the WPF app of
 `--presentation wpf` has no generator a descriptor could pin:
 
 | Host | Generator, as checked | What it writes | What the project would keep |
 |---|---|---|---|
-| `--jobs worker` | `dotnet new worker`, from `Microsoft.DotNet.Web.ProjectTemplates.10.0` 10.0.14 | a `Microsoft.NET.Sdk.Worker` project on `Microsoft.Extensions.Hosting`, `Program.cs` on `Host.CreateApplicationBuilder`, a sample worker class, the settings and the launch settings | nothing: the starter owns the project, `Program.cs`, the settings and the launch settings, and the sample goes |
+| `--presentation worker` | `dotnet new worker`, from `Microsoft.DotNet.Web.ProjectTemplates.10.0` 10.0.14 | a `Microsoft.NET.Sdk.Worker` project on `Microsoft.Extensions.Hosting`, `Program.cs` on `Host.CreateApplicationBuilder`, a sample worker class, the settings and the launch settings | nothing: the starter owns the project, `Program.cs`, the settings and the launch settings, and the sample goes |
 | `--presentation wpf` | `dotnet new wpf`, from `Microsoft.DotNet.Wpf.ProjectTemplates` 10.0.9-servicing.26270.113, which ships with the .NET SDK alone: nuget.org stops at 3.0.0, so no version can be installed into a hive | a `WinExe` on `net10.0-windows` with `UseWPF`, `App.xaml` with a `StartupUri`, an empty `MainWindow.xaml`, their code-behind and an assembly information file declaring `ThemeInfo` | nothing: the starter owns the project, the window and the code-behind, `App.xaml` names no start-up window since `App.xaml.cs` starts the host first, and the assembly information file goes, the app having no custom control theme |
 
 ## Decision

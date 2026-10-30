@@ -164,6 +164,7 @@ public sealed class TemplatePackagingTests
             ["name"] = manifest.RootElement.GetProperty("sourceName").GetString(),
             ["options"] = options,
             ["client"] = false,
+            ["presentation"] = new JsonArray(new JsonObject { ["name"] = "Api", ["framework"] = "api" }),
         };
 
         JsonNode.DeepEquals(projectFile, expected).ShouldBeTrue(
@@ -172,8 +173,6 @@ public sealed class TemplatePackagingTests
 
     [Theory]
     [InlineData("project-file-web", new[] { "web" })]
-    [InlineData("project-file-presentation", new[] { "presentation" })]
-    [InlineData("project-file-web-presentation", new[] { "web", "presentation" })]
     public void EachProjectFileVariant_IsTheCheckoutsPlusItsParts(string variant, string[] parts)
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
@@ -198,24 +197,24 @@ public sealed class TemplatePackagingTests
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
         var withParts = JsonNode.Parse(File.ReadAllText(
-            Path.Combine(root, ".template.config", "variants", "project-file-web-presentation", "cleanarch.json")))!;
+            Path.Combine(root, ".template.config", "variants", "project-file-web", "cleanarch.json")))!;
         using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
         JsonElement symbols = manifest.RootElement.GetProperty("symbols");
         string sourceName = manifest.RootElement.GetProperty("sourceName").GetString()!;
         string[] replaced = [.. symbols.EnumerateObject().Select(symbol => Text(symbol.Value, "replaces")).OfType<string>(), sourceName];
         string Line(JsonNode? owner, string key) => $"\"{key}\": {owner![key]!.ToJsonString()}";
+        JsonNode api = withParts["presentation"]![0]!;
 
         string[] recorded =
         [
             .. RecordedOptions(symbols).Select(option => Line(withParts["options"], option.Name)),
             Line(withParts, "client"),
             .. _recordedAppKeys.Select(key => Line(withParts["web"]!["apps"]![0], key)),
-            Line(withParts["presentation"], "framework") + "\n  }",
+            $"{{\n      {Line(api, "name")},\n      {Line(api, "framework")}\n    }}",
             withParts["name"]!.GetValue<string>(),
             withParts["template"]!["version"]!.GetValue<string>(),
             withParts["web"]!["scope"]!.GetValue<string>(),
             withParts["web"]!["apps"]![0]!["name"]!.GetValue<string>(),
-            withParts["presentation"]!["name"]!.GetValue<string>(),
         ];
 
         recorded.Where(token => !replaced.Contains(token, StringComparer.Ordinal)).ShouldBeEmpty(
@@ -353,8 +352,11 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
-    [InlineData(".template.config", "(!refusedOptions)", "dotnet run Tools/Tasks.cs bootstrap")]
-    [InlineData(".template.config", "(!refusedOptions)", "the network, not Docker")]
+    [InlineData(".template.config", "(!refusedOptions && api)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData(".template.config", "(!refusedOptions && api)", "the network, not Docker")]
+    [InlineData(".template.config", "(!refusedOptions && api)", "writes the OpenAPI reference")]
+    [InlineData(".template.config", "(!refusedOptions && !api)", "dotnet run Tools/Tasks.cs bootstrap")]
+    [InlineData(".template.config", "(!refusedOptions && !api)", "the network, not Docker")]
     [InlineData(".template.config", "(!refusedOptions && scaffoldedAtBootstrap)", "scaffold.json")]
     [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Clients")]
     [InlineData(".template.config", "(!refusedOptions && anyWeb)", "Node.js and pnpm")]
@@ -598,16 +600,16 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
-    [InlineData(".template.config", "presentation", "./.template.config/starters/")]
-    [InlineData(".template.config/presentation/.template.config", "framework", "../starters/")]
-    public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource)
+    [InlineData(".template.config", "presentation", "./.template.config/starters/", new string[0])]
+    [InlineData(".template.config/presentation/.template.config", "framework", "../starters/", new[] { _workerStarter })]
+    public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource, string[] notOffered)
     {
-        string[] folders = PresentationStarters();
+        string[] folders = [.. PresentationStarters().Except(notOffered, StringComparer.Ordinal)];
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
         var symbols = manifest.RootElement.GetProperty("symbols");
         string[] presentations = [.. symbols.GetProperty(option).GetProperty("choices").EnumerateArray()
             .Select(choice => choice.GetProperty("choice").GetString()!)
-            .Where(choice => choice is not "none")
+            .Where(choice => choice is not _apiChoice)
             .Order(StringComparer.Ordinal)];
         var computed = symbols.EnumerateObject()
             .Where(symbol => symbol.Value.GetProperty("type").GetString() == "computed")
@@ -636,7 +638,7 @@ public sealed class TemplatePackagingTests
                     Text(descriptor.RootElement, "generator").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter is written whole, and its scaffold.json names the generator whose shape it follows.");
                     Text(descriptor.RootElement, "version").ShouldNotBeNullOrWhiteSpace($"The {presentation} starter is written whole, and its scaffold.json names the version of the generator it follows.");
                     descriptor.RootElement.TryGetProperty("template", out _).ShouldBeFalse($"The {presentation} starter is written whole, and its scaffold.json names no template to run.");
-                    File.Exists(Path.Combine(Path.GetDirectoryName(PresentationDescriptor(presentation))!, "AppTemplate.PresentationApp.csproj"))
+                    File.Exists(Path.Combine(StarterProject(presentation), Path.GetFileName(StarterProject(presentation)) + ".csproj"))
                         .ShouldBeTrue($"The {presentation} starter is written whole, and holds its project file.");
                     break;
                 default:
@@ -652,8 +654,8 @@ public sealed class TemplatePackagingTests
         string[] all = [.. Directory.GetDirectories(StartersFolder).Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal)];
 
         all.ShouldBe(
-            [.. WebStarters().Concat(PresentationStarters()).Append(_workerStarter).Order(StringComparer.Ordinal)],
-            "A folder under .template.config/starters holds FrameworkSite/scaffold.json for --web, the presentation project's scaffold.json for --presentation, or the worker's for --jobs worker; one holding none is copied by no option.");
+            [.. WebStarters().Concat(PresentationStarters()).Order(StringComparer.Ordinal)],
+            "A folder under .template.config/starters holds FrameworkSite/scaffold.json for --web, or the presentation project's scaffold.json for --presentation; one holding none is copied by no option.");
     }
 
     [Fact]
@@ -720,18 +722,14 @@ public sealed class TemplatePackagingTests
 
         declared.Length.ShouldBeGreaterThanOrEqualTo(5, "Far fewer namespaces were found in the moved folders than they declare, so this rule is not reading them.");
         declared.Where(space => !switched.ContainsKey(space)).ShouldBeEmpty(
-            "A namespace declared in a folder --jobs worker moves needs a generated switch symbol of template.json that replaces it, or the moved file keeps the API's namespace in the worker.");
+            "A namespace declared in a folder --presentation worker moves needs a generated switch symbol of template.json that replaces it, or the moved file keeps the API's namespace in the worker.");
         declared.Where(space => switched.TryGetValue(space, out string? worker) && worker != "Worker." + space["Api.".Length..]).ShouldBeEmpty(
             "Each switch symbol of a moved namespace gives the worker the same namespace with Worker in place of Api.");
     }
 
     [Fact]
-    public void ThePresentationNameRefusal_NamesEveryProjectTheTemplateWrites()
+    public void ThePresentationItemsNameRefusal_NamesEveryProjectTheTemplateWrites()
     {
-        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
-        var symbols = manifest.RootElement.GetProperty("symbols");
-        string refusal = symbols.GetProperty("presentationNameIsTaken").GetProperty("isRequired").GetString()!;
-        string refused = symbols.GetProperty("refusedOptions").GetProperty("value").GetString()!;
         const string prefix = "AppTemplate.";
 
         string[] projects = [.. _projectRoots
@@ -744,16 +742,12 @@ public sealed class TemplatePackagingTests
             .Order(StringComparer.Ordinal)];
 
         projects.Length.ShouldBeGreaterThanOrEqualTo(10, "Far fewer projects were found than this template writes, so the walk is not reading its tree.");
-        projects
-            .Where(project => !refusal.Contains($"presentationName == \"{project}\"", StringComparison.Ordinal))
-            .ShouldBeEmpty("--presentation-name must be refused when <Project>.<name> or its test project would be one of the template's projects, which generation would overwrite: add the name to presentationNameIsTaken.");
-        refused.ShouldContain(refusal, Case.Sensitive, "refusedOptions must hold the presentation name refusal, so the #error variant catches a hand-passed bypass.");
 
         using var item = JsonDocument.Parse(File.ReadAllText(PresentationItemManifestPath()));
         string itemRefusal = item.RootElement.GetProperty("symbols").GetProperty("presentationNameIsTaken").GetProperty("isRequired").GetString()!;
         projects
             .Where(project => !itemRefusal.Contains($"name == \"{project}\"", StringComparison.Ordinal))
-            .ShouldBeEmpty("cleanarch-presentation must refuse each -n the project template refuses as --presentation-name: add the name to presentationNameIsTaken of .template.config/presentation/.template.config/template.json.");
+            .ShouldBeEmpty("cleanarch-presentation must refuse each -n that names one of the template's projects or its test project, which the item would overwrite: add the name to presentationNameIsTaken of .template.config/presentation/.template.config/template.json.");
 
         string[] namesOfACore = [.. projects
             .Where(project => project.EndsWith(_coreSuffix, StringComparison.Ordinal))
@@ -761,8 +755,8 @@ public sealed class TemplatePackagingTests
 
         namesOfACore.Length.ShouldBeGreaterThanOrEqualTo(4, "Far fewer .Core projects were found than this template writes, so this rule is not reading its tree.");
         namesOfACore
-            .Where(name => !refusal.Contains($"presentationName == \"{name}\"", StringComparison.Ordinal) || !itemRefusal.Contains($"name == \"{name}\"", StringComparison.Ordinal))
-            .ShouldBeEmpty("--presentation wpf writes <Project>.<name>.Core beside the app, so a name whose .Core is one of the template's projects must be refused too: add it to presentationNameIsTaken of both template.json files, under presentation == \"wpf\" or framework == \"wpf\".");
+            .Where(name => !itemRefusal.Contains($"name == \"{name}\"", StringComparison.Ordinal))
+            .ShouldBeEmpty("--framework wpf writes <Project>.<name>.Core beside the app, so a name whose .Core is one of the template's projects must be refused too: add it to presentationNameIsTaken under framework == \"wpf\".");
     }
 
     [Fact]
@@ -818,7 +812,7 @@ public sealed class TemplatePackagingTests
 
             foreach (string facet in (string[])["datatype", "defaultValue", "isRequired", "value", "replaces"])
             {
-                if (facet is "value" or "isRequired" && ChoosesTheStarter(symbol.Value, facet))
+                if (facet is "value" or "isRequired" && ChoosesTheStarterOrReadsTheProject(symbol.Value, facet))
                 {
                     continue;
                 }
@@ -829,7 +823,7 @@ public sealed class TemplatePackagingTests
             ChoiceValues(symbol.Value).ShouldBe(ChoiceValues(declared), $"cleanarch-presentation offers other values of {symbol.Name} than the project template.");
         }
 
-        foreach (string starter in PresentationStarters())
+        foreach (string starter in PresentationStarters().Where(starter => starter != _workerStarter))
         {
             JsonNode.DeepEquals(StarterModifiers(project.RootElement, "./.template.config/starters/", starter), StarterModifiers(item.RootElement, "../starters/", starter)).ShouldBeTrue(
                 $"cleanarch-presentation must leave out of the {starter} starter exactly what the project template leaves out, under the same conditions.");
@@ -838,22 +832,22 @@ public sealed class TemplatePackagingTests
 
     [Theory]
     [InlineData(
-        "blazor-server/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "blazor-server/Src/Presentation/AppTemplate.PresentationAppPortal/README.md",
         "anyPresentation|presentationBlazorServer",
         10,
         new[] { "docs/features/presentation.md" })]
     [InlineData(
-        "avalonia/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "avalonia/Src/Presentation/AppTemplate.PresentationAppDesktop/README.md",
         "anyPresentation|presentationAvalonia|dotnetClient",
         10,
         new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
     [InlineData(
-        "mcp/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "mcp/Src/Presentation/AppTemplate.PresentationAppMcp/README.md",
         "anyPresentation|presentationMcp|accessKeys",
         10,
         new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
     [InlineData(
-        "wpf/Src/Presentation/AppTemplate.PresentationApp/README.md",
+        "wpf/Src/Presentation/AppTemplate.PresentationAppDesktop/README.md",
         "anyPresentation|presentationWpf|dotnetClient",
         10,
         new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
@@ -966,27 +960,35 @@ public sealed class TemplatePackagingTests
             .Single(source => Text(source, "source") == $"{startersSource}{starter}/")
             .GetProperty("modifiers").GetRawText());
 
-    private static bool ChoosesTheStarter(JsonElement symbol, string facet) =>
-        Facet(symbol, facet)?.Contains("framework == ", StringComparison.Ordinal) == true;
+    private static bool ChoosesTheStarterOrReadsTheProject(JsonElement symbol, string facet) =>
+        Facet(symbol, facet) is { } value
+        && (value.Contains("framework == ", StringComparison.Ordinal) || value.Contains("hasApi", StringComparison.Ordinal));
 
     private static string PresentationDescriptor(string presentation) =>
-        Path.Combine(StartersFolder, presentation, "Src", "Presentation", "AppTemplate.PresentationApp", "scaffold.json");
+        Path.Combine(StarterProject(presentation), "scaffold.json");
+
+    private static string StarterProject(string presentation) =>
+        Path.Combine(StartersFolder, presentation, "Src", "Presentation") is var projects && Directory.Exists(projects)
+            ? Directory.GetDirectories(projects).Order(StringComparer.Ordinal).FirstOrDefault(project => File.Exists(Path.Combine(project, "scaffold.json"))) ?? projects
+            : projects;
+
+    private const string _apiChoice = "api";
 
     private const string _workerStarter = "worker";
 
     private const string _coreSuffix = ".Core";
 
-    private const string _desktopProject = "AppTemplate.PresentationApp";
+    private const string _desktopProject = "AppTemplate.PresentationAppDesktop";
 
     private static readonly string[] _desktopSessionCode =
     [
-        "Src/Presentation/AppTemplate.PresentationApp/Common/Sessions",
-        "Src/Presentation/AppTemplate.PresentationApp/Common/Hosting/SignInOptions.cs",
-        "Src/Presentation/AppTemplate.PresentationApp/Common/Hosting/SignInOptionsValidator.cs",
-        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/Common/Sessions",
-        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/Common/Hosting/SignInOptionsValidatorTests.cs",
-        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/TestSupport/ScriptedBrowser.cs",
-        "Tests/Presentation/AppTemplate.PresentationApp.UnitTests/TestSupport/StubProvider.cs",
+        "Src/Presentation/AppTemplate.PresentationAppDesktop/Common/Sessions",
+        "Src/Presentation/AppTemplate.PresentationAppDesktop/Common/Hosting/SignInOptions.cs",
+        "Src/Presentation/AppTemplate.PresentationAppDesktop/Common/Hosting/SignInOptionsValidator.cs",
+        "Tests/Presentation/AppTemplate.PresentationAppDesktop.UnitTests/Common/Sessions",
+        "Tests/Presentation/AppTemplate.PresentationAppDesktop.UnitTests/Common/Hosting/SignInOptionsValidatorTests.cs",
+        "Tests/Presentation/AppTemplate.PresentationAppDesktop.UnitTests/TestSupport/ScriptedBrowser.cs",
+        "Tests/Presentation/AppTemplate.PresentationAppDesktop.UnitTests/TestSupport/StubProvider.cs",
     ];
 
     private static string[] DesktopSessionCode(string starter)

@@ -32,8 +32,12 @@ Which page answers your question, and where a new page goes.
 | [Ports and adapters](architecture/ports-and-adapters.md) | how the application reaches storage and the outside world |
 | [Domain and results](architecture/domain-and-results.md) | how rules are enforced, failures reported and facts published |
 | [Persistence model](architecture/persistence-model.md) | how data is mapped, saved and protected from lost updates |
+<!--#if (api)-->
 | [Request pipeline](architecture/request-pipeline.md) | what happens to every request on its way in and out |
+<!--#endif-->
+<!--#if (api)-->
 | [HTTP API](architecture/http-api.md) | the contract every endpoint offers a client |
+<!--#endif-->
 | [Shared mechanisms](architecture/shared-mechanisms.md) | the cache, outbound HTTP, the clock, the current user |
 
 ## Features
@@ -54,13 +58,13 @@ Which page answers your question, and where a new page goes.
 | [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
 <!--#endif-->
 <!--#if (presentationBlazorServer)-->
-| [Presentation project](features/presentation.md) | the server-rendered project beside the API, and signing people in to it |
+| [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
 <!--#endif-->
 <!--#if (presentationAvalonia || presentationWpf)-->
-| [Presentation project](features/presentation.md) | the desktop app beside the API, and signing in to the API from it |
+| [The desktop app](features/presentation.md#desktop-app) | the desktop app, how it is created, and signing in to the API from it |
 <!--#endif-->
 <!--#if (presentationMcp)-->
-| [Presentation project](features/presentation.md) | the MCP server beside the API, its tools, and who may call them |
+| [The MCP server](features/presentation.md#mcp-server) | the MCP server, how it is created, its tools, and who may call them |
 <!--#endif-->
 
 ## Guides
@@ -80,7 +84,9 @@ Which page answers your question, and where a new page goes.
 | Page | Answers |
 |---|---|
 | [Configuration](reference/configuration.md) | what each setting does |
+<!--#if (api)-->
 | [API](reference/api.md) | every route and every error code |
+<!--#endif-->
 | [Project layout](reference/project-layout.md) | where a file goes, and what it is called |
 
 ## Decisions

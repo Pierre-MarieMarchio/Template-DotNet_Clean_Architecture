@@ -29,6 +29,17 @@ public sealed class ConditionTests
     public void IsTrue_ReadsTheTemplateEngineSyntax(string text, bool expected) =>
         Condition.Parse(text).IsTrue(_values.GetValueOrDefault).ShouldBe(expected);
 
+    [Theory]
+    [InlineData("(presentation == \"mcp\")", true)]
+    [InlineData("(presentation == \"worker\")", true)]
+    [InlineData("(presentation == \"avalonia\")", false)]
+    [InlineData("(presentation != \"api\")", true)]
+    [InlineData("(presentation != \"mcp\")", false)]
+    [InlineData("(presentation == \"mcp\" && presentation == \"worker\")", true)]
+    [InlineData("(presentation != \"api\" && presentation != \"worker\")", false)]
+    public void AValueOfSeveral_IsEqualToEachOfItsValues_AndToNoOther(string text, bool expected) =>
+        Condition.Parse(text).IsTrue(new Dictionary<string, string> { ["presentation"] = "mcp|worker" }.GetValueOrDefault).ShouldBe(expected);
+
     [Fact]
     public void Symbols_AreTheNamesTheConditionReads() =>
         Condition.Parse("(auth == \"none\" && (examples != \"none\" || files))").Symbols

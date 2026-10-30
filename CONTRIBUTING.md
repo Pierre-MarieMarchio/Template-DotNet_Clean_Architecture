@@ -20,7 +20,9 @@ Each rule has one home, and a test holds it wherever a test can.
 | What may depend on what | [Architecture](docs/architecture/README.md), held by `Tests/Architecture` |
 | Which project and folder a file goes in, and its name | [Project layout](docs/reference/project-layout.md) |
 | A feature's shape: an aggregate, or a service over a store | [Feature shapes](docs/architecture/feature-shapes.md) |
+<!--#if (api)-->
 | The contract every endpoint offers | [HTTP API](docs/architecture/http-api.md) |
+<!--#endif-->
 <!--#if (agentFiles)-->
 | Clean comments: the code reads by itself; a comment only says what the code cannot | [AGENTS.md › Changing code](AGENTS.md#changing-code), [ADR 0001](docs/decisions/0001-adopt-the-generated-baseline.md) |
 | Extract an abstraction only once two real cases prove it | [AGENTS.md › Changing code](AGENTS.md#changing-code) |

@@ -26,7 +26,7 @@ public sealed partial class EndToEndTests : IDisposable
         Launch(launched, ["web-package", "-n", "tokens", "--yes", "--template-source", package, "--hive", hive]);
         Launch(launched, ["presentation", "--framework", "blazor-server", "--yes", "--template-source", package, "--hive", hive]);
 
-        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--presentation", "blazor-server", "--debug:custom-hive", hive]);
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--presentation", "api", "--presentation", "blazor-server", "--debug:custom-hive", hive]);
         DotNet(direct, ["new", "cleanarch-webapp", "-n", "BackOffice", "--framework", "vite-react", "--audience", "admin", "--auth", "external", "--scope", "acme-shop", "--workspace", "--debug:custom-hive", hive]);
         DotNet(direct, ["new", "cleanarch-webpackage", "-n", "tokens", "--scope", "acme-shop", "--debug:custom-hive", hive]);
         DotNet(direct, ["run", "Tools/Tasks.cs", "web-join", "BackOffice", "--web", "vite-react", "--web-audience", "admin", "--web-rendering", "spa"]);

@@ -174,11 +174,12 @@ Every leg runs on a push to `main`, on a manual run, on the nightly run of `deve
 the matrix or the workflow. A push to `develop` starts no acceptance run: its pull request ran the
 legs its change could affect, and the nightly run proves the merged tree whole.
 
-The nightly run starts at 02:00 UTC and runs only when `develop` has moved: the
-`Has develop moved since the last scheduled run` step compares the commit with the one of the last
-scheduled run that finished green or red, a cancelled one not counting, and passes `--moved false` to
-the selector when they are the same; a list it cannot read counts as a move. A red night is
-announced by GitHub alone: it emails the person who last changed the cron line, if their
+The nightly run starts at 02:17 UTC, off the top of the hour when GitHub delays scheduled runs, and
+runs only when `develop` has moved: the `Has develop moved since the last scheduled run` step
+compares the commit with the one of the last scheduled run that finished green or red, a cancelled
+one not counting, and passes `--moved false` to the selector when they are the same; a list it
+cannot read counts as a move. A red night is announced by GitHub alone: it emails the person who
+last changed the cron line, if their
 notification settings send workflow failures, and shows the run under the Actions tab of
 `develop`; look there after a merge when no mail came. GitHub disables a scheduled workflow after 60
 days without repository activity, which a `develop` that moves rarely can reach.

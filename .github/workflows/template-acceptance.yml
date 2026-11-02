@@ -6,7 +6,7 @@ on:
     branches: [main]
   # develop, the default branch, is proved whole once a night when it has moved; its pull requests ran the legs their change reaches.
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "17 2 * * *"
   pull_request:
     branches: [main, develop]
     types: [opened, synchronize, reopened, labeled]

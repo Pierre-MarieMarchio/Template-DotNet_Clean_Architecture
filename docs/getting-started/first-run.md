@@ -84,7 +84,8 @@ pnpm.
 <!--#endif-->
 
 Both steps are required. Using directives sort around the project's own name, so their order is only
-right once the project has its name: until bootstrap runs, `dotnet format --verify-no-changes` fails.
+right once the project has its name. The build does not check that order: until bootstrap runs,
+`dotnet run Tools/Tasks.cs format` fails, and `verify` with it.
 <!--#if (api)-->
 Without a migration, the API cannot create its schema, the migration drift tests fail, and `verify`
 refuses to start.

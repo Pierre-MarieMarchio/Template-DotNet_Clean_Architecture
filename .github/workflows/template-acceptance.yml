@@ -299,14 +299,13 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs presentation-scaffold
 
-      # Using order depends on the generated name, so one bootstrap run must be enough: docs/getting-started/first-run.md.
-      - name: Bootstrap formatting, then verify it is stable
+      # Using order depends on the generated name and an option can leave a using unused, so bootstrap fixes both before anything checks them: docs/getting-started/first-run.md.
+      - name: Bootstrap formatting
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
           dotnet tool restore
-          dotnet format Sample.Generated.Project.sln
-          dotnet format Sample.Generated.Project.sln --verify-no-changes --verbosity normal
+          dotnet format Sample.Generated.Project.sln --diagnostics IDE0055 IDE0005
 
       # The project ships no migration: bootstrap's migration-initial creates each context's first one, which every later step reads, and a second run creates none.
       - name: Bootstrap the initial migrations
@@ -360,6 +359,11 @@ jobs:
           fi
           dotnet run Tools/Tasks.cs api-client
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
+
+      # The build holds the style it can see; one bootstrap run must leave the rest, using order and encoding among it, unchanged.
+      - name: Check the formatting the build does not
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs format
 
       # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
@@ -932,6 +936,10 @@ jobs:
       - name: Build with warnings as errors
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs -- build --configuration Release
+
+      - name: Check the formatting the build does not
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet run Tools/Tasks.cs format
 
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated

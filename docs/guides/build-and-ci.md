@@ -14,7 +14,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (!anyWeb)-->
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
-| `restore`, `build`, `test`, `format`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker |
+| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker |
+| `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
@@ -42,7 +43,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `verify` | the whole gate, in CI's order |
 
 Everything under `Tools/` is a file-based C# app: the SDK `global.json` pins is all it needs. The
-first run of a file compiles it, which takes a moment.
+first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and
+`.editorconfig` as the solution.
 
 ## The gate
 
@@ -52,10 +54,9 @@ A change is done when this passes, without overrides:
 dotnet run Tools/Tasks.cs verify
 ```
 
-It refuses to start while a context has no migration, then runs `hygiene`, restore,
-`dotnet format --verify-no-changes`, the build, the tests, the migration drift check for every
-context, and the vulnerability listing. The coverage floor is a
-separate task, `coverage`.
+It refuses to start while a context has no migration, then runs `hygiene`, restore, `format`, the
+build, the tests, the migration drift check for every context, and the vulnerability listing. The
+coverage floor is a separate task, `coverage`.
 When the project holds the .NET client, it runs `api-client --check` after `hygiene`, so a contract
 change without its regenerated client fails.
 
@@ -69,11 +70,18 @@ assembly both fail. A rule added to a gate comes with the fixture that fails wit
 
 `TreatWarningsAsErrors` is set in `Directory.Build.props` for every project. Do not silence a
 diagnostic with `#pragma`, `<NoWarn>` or a lowered severity; a diagnostic wrong for one file gets a
-path-scoped `.editorconfig` section with its reason. Every project generates its documentation file,
-which is what makes an unused `using` (IDE0005) fail the build.
+path-scoped `.editorconfig` section with its reason.
 
-`.cs` and `.md` files are UTF-8 with BOM. A file created without one fails the formatting gate;
-`format-fix` adds it.
+The build holds the code style: `EnforceCodeStyleInBuild` runs the `.editorconfig` rules during
+compilation, so a formatting defect (IDE0055), a private field without its underscore (IDE1006) or an
+unused `using` (IDE0005) fails `dotnet build` like any warning. IDE0055 and IDE1006 need their
+`dotnet_diagnostic` severity in `.editorconfig`, and IDE0005 needs the documentation file every
+project generates; `CodeStyleEnforcementTests` fails when either is missing. What the build cannot
+see is left to `format`: the order of using directives, the encoding and line endings, and IDE0003
+and IDE0049, whose analyzers the SDK's build does not carry. `verify` runs it before the build.
+
+`.cs` and `.md` files are UTF-8 with BOM. A file created without one fails `format`; `format-fix`
+adds it.
 
 <!--#if (ci)-->
 ## Workflows

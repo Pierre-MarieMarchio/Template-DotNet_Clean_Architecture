@@ -9,9 +9,9 @@ using System.Text.RegularExpressions;
 
 internal static class RemoveFeature
 {
-    private const string ManifestFolder = ".feature-manifest";
+    private const string _manifestFolder = ".feature-manifest";
 
-    private const string Usage =
+    private const string _usage =
         "Usage: dotnet run Tools/RemoveFeature.cs <Features> [--apply] [--root <path>]\n"
         + "  <Features>  the folder of the feature, PascalCase and plural, e.g. Widgets\n"
         + "  --apply     delete the generated files of an untouched, uncomposed feature. Without it,\n"
@@ -19,22 +19,22 @@ internal static class RemoveFeature
         + "  --root      the tree to read, default the current directory.\n"
         + "       dotnet run Tools/RemoveFeature.cs --self-test";
 
-    private const int MaxPossiblePrinted = 40;
+    private const int _maxPossiblePrinted = 40;
 
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(2);
 
-    private static readonly Regex Declaration = new(@"\b(?:(?:record\s+)?(?:class|struct)|interface|record|enum)\s+([A-Z]\w*)", RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly Regex _declaration = new(@"\b(?:(?:record\s+)?(?:class|struct)|interface|record|enum)\s+([A-Z]\w*)", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    private static readonly Regex ProductPrefix = new(@"^(?:Src|Tests)/[^/]+/(.+?)\.(?:Domain|Application|Infrastructure|Presentation|Api)\b", RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly Regex _productPrefix = new(@"^(?:Src|Tests)/[^/]+/(.+?)\.(?:Domain|Application|Infrastructure|Presentation|Api)\b", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    private static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    private static readonly HashSet<string> SkippedFolders = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _skippedFolders = new(StringComparer.Ordinal)
     {
         ".git", ".vs", ".claude", "bin", "obj", "artifacts", "node_modules", "TestResults",
     };
 
-    private static readonly string[] TextExtensions =
+    private static readonly string[] _textExtensions =
     [
         ".cs", ".csproj", ".props", ".targets", ".sln", ".slnx", ".json", ".http", ".md", ".yml", ".yaml",
         ".xml", ".config", ".txt", ".sh", ".editorconfig",
@@ -74,7 +74,7 @@ internal static class RemoveFeature
         string? Page,
         bool PageGone);
 
-    private static readonly Regex[] SharedPaths =
+    private static readonly Regex[] _sharedPaths =
     [
         Rx(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$"),
         Rx(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$"),
@@ -83,12 +83,12 @@ internal static class RemoveFeature
         Rx(@"^Src/Presentation/[^/]+/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$"),
     ];
 
-    private static readonly Regex SharedFolder = Rx(@"^(Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts)/");
+    private static readonly Regex _sharedFolder = Rx(@"^(Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts)/");
 
-    private static readonly Regex SharedUse = Rx(
+    private static readonly Regex _sharedUse = Rx(
         @"\b(IDeletedAccountDataPolicy|IUserAccountDirectory|I?SweepDeletedAccountDataUseCase|AddDeletedAccountSweep(Jobs)?|DeletedAccountSweepOptions|AccountUserAccountDirectory|ExternalIdentityUserAccountDirectory)\b|\.Features\.DeletedAccounts\b");
 
-    private static readonly HashSet<string> SharedHosts = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _sharedHosts = new(StringComparer.Ordinal)
     {
         "DeletedAccounts", "Auth", "ExternalIdentity", "BackgroundJobs",
     };
@@ -102,7 +102,7 @@ internal static class RemoveFeature
 
         if (args is ["--help"] or ["-h"])
         {
-            Console.WriteLine(Usage);
+            Console.WriteLine(_usage);
 
             return 0;
         }
@@ -138,7 +138,7 @@ internal static class RemoveFeature
             }
         }
 
-        if (features is null || !PascalCase.IsMatch(features))
+        if (features is null || !_pascalCase.IsMatch(features))
         {
             return Refuse(error, "Name the feature folder, PascalCase and plural, e.g. Widgets.");
         }
@@ -188,7 +188,7 @@ internal static class RemoveFeature
     {
         error.WriteLine($"error: {problem}");
         error.WriteLine();
-        error.WriteLine(Usage);
+        error.WriteLine(_usage);
 
         return 1;
     }
@@ -196,7 +196,7 @@ internal static class RemoveFeature
     private static Analysis Analyze(string root, string features)
     {
         var blockers = new List<string>();
-        string manifestPath = $"{ManifestFolder}/{features}.json";
+        string manifestPath = $"{_manifestFolder}/{features}.json";
         string manifestFull = Path.Combine(root, manifestPath);
 
         Manifest? manifest = null;
@@ -241,7 +241,7 @@ internal static class RemoveFeature
 
         foreach (string path in shared)
         {
-            var match = SharedFolder.Match(path);
+            var match = _sharedFolder.Match(path);
 
             if (match.Success && !folders.Contains(match.Groups[1].Value, StringComparer.Ordinal))
             {
@@ -282,7 +282,7 @@ internal static class RemoveFeature
         extra.Sort(StringComparer.Ordinal);
 
         var declared = manifest is null ? [] : DeclaredTypes(root, manifest, manifest.Type);
-        string? product = manifest?.Files.Select(entry => ProductPrefix.Match(entry.Path)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
+        string? product = manifest?.Files.Select(entry => _productPrefix.Match(entry.Path)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
         var hits = Scan(root, features, manifest?.Type, declared, product, folders, listed, manifestPath);
 
         if (modified.Count > 0)
@@ -323,7 +323,7 @@ internal static class RemoveFeature
 
     private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers)
     {
-        string manifests = Path.Combine(root, ManifestFolder);
+        string manifests = Path.Combine(root, _manifestFolder);
 
         if (Directory.Exists(manifests))
         {
@@ -347,7 +347,7 @@ internal static class RemoveFeature
                 }
                 catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or IOException)
                 {
-                    blockers.Add($"'{ManifestFolder}/{other}.json' cannot be read ({exception.Message}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
+                    blockers.Add($"'{_manifestFolder}/{other}.json' cannot be read ({exception.Message}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
                 }
             }
         }
@@ -376,7 +376,7 @@ internal static class RemoveFeature
                 {
                     string text = lines[i].Trim();
 
-                    if (text.StartsWith("//", StringComparison.Ordinal) || !SharedUse.IsMatch(text))
+                    if (text.StartsWith("//", StringComparison.Ordinal) || !_sharedUse.IsMatch(text))
                     {
                         continue;
                     }
@@ -384,7 +384,7 @@ internal static class RemoveFeature
                     int at = relative.IndexOf("/Features/", StringComparison.Ordinal);
                     string? folder = at < 0 ? null : relative[(at + "/Features/".Length)..].Split('/')[0];
 
-                    if (folder is null || SharedHosts.Contains(folder))
+                    if (folder is null || _sharedHosts.Contains(folder))
                     {
                         uses.Add(new Hit(Kind.Composition, relative, i + 1, text));
                     }
@@ -446,13 +446,13 @@ internal static class RemoveFeature
             string type = top.GetProperty("type").GetString() ?? string.Empty;
             var files = new List<Entry>();
             var shared = new List<string>();
-            var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, Timeout);
+            var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, _timeout);
 
             foreach (var file in top.GetProperty("files").EnumerateArray())
             {
                 string entry = file.GetProperty("path").GetString() ?? string.Empty;
                 string digest = file.GetProperty("sha256").GetString() ?? string.Empty;
-                bool isShared = SharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
+                bool isShared = _sharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
 
                 if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared) || digest.Length != 64)
                 {
@@ -543,7 +543,7 @@ internal static class RemoveFeature
 
         foreach (string child in Directory.EnumerateDirectories(directory))
         {
-            if (!SkippedFolders.Contains(Path.GetFileName(child)))
+            if (!_skippedFolders.Contains(Path.GetFileName(child)))
             {
                 foreach (string file in Walk(child, pattern))
                 {
@@ -578,7 +578,7 @@ internal static class RemoveFeature
                 continue;
             }
 
-            foreach (Match match in Declaration.Matches(File.ReadAllText(full)))
+            foreach (Match match in _declaration.Matches(File.ReadAllText(full)))
             {
                 names.Add(match.Groups[1].Value);
             }
@@ -610,7 +610,7 @@ internal static class RemoveFeature
                 break;
             }
 
-            if (c == '\'' )
+            if (c == '\'')
             {
                 int close = line.IndexOf('\'', i + (i + 1 < line.Length && line[i + 1] == '\\' ? 3 : 2));
 
@@ -731,8 +731,8 @@ internal static class RemoveFeature
             if (relative == manifestPath
                 || ownFiles.Contains(relative)
                 || ownFolders.Any(folder => relative.StartsWith(folder, StringComparison.Ordinal))
-                || !TextExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)
-                || relative.StartsWith($"{ManifestFolder}/", StringComparison.Ordinal))
+                || !_textExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)
+                || relative.StartsWith($"{_manifestFolder}/", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -773,7 +773,7 @@ internal static class RemoveFeature
         return hits;
     }
 
-    private static Regex Rx(string pattern) => new(pattern, RegexOptions.None, Timeout);
+    private static Regex Rx(string pattern) => new(pattern, RegexOptions.None, _timeout);
 
     private static void PrintReport(TextWriter output, string root, Analysis analysis)
     {
@@ -848,7 +848,7 @@ internal static class RemoveFeature
         output.WriteLine("After a removal, run:");
         output.WriteLine("  dotnet build <the solution>                  0 warnings, 0 errors");
         output.WriteLine("  dotnet test Tests/Architecture/<Prefix>.Architecture.Tests");
-        output.WriteLine("  dotnet format <the solution> --verify-no-changes");
+        output.WriteLine("  dotnet run Tools/Tasks.cs format");
         output.WriteLine(HasApi(root)
             ? "  git status                                   review what is left, including docs/ and *.http samples"
             : "  git status                                   review what is left, including docs/");
@@ -880,14 +880,14 @@ internal static class RemoveFeature
 
         output.WriteLine($"Possible matches, the name as text, to read and judge: {possible.Count}");
 
-        foreach (var hit in possible.Take(MaxPossiblePrinted))
+        foreach (var hit in possible.Take(_maxPossiblePrinted))
         {
             output.WriteLine($"  {hit.Path}:{hit.Line}  {hit.Text}");
         }
 
-        if (possible.Count > MaxPossiblePrinted)
+        if (possible.Count > _maxPossiblePrinted)
         {
-            output.WriteLine($"  ... and {possible.Count - MaxPossiblePrinted} more, not printed");
+            output.WriteLine($"  ... and {possible.Count - _maxPossiblePrinted} more, not printed");
         }
     }
 
@@ -925,8 +925,8 @@ internal static class RemoveFeature
                 RemoveEmpty(Path.Combine(root, Path.GetDirectoryName(analysis.Page)!));
             }
 
-            File.Delete(Path.Combine(root, ManifestFolder, $"{analysis.Features}.json"));
-            RemoveEmpty(Path.Combine(root, ManifestFolder));
+            File.Delete(Path.Combine(root, _manifestFolder, $"{analysis.Features}.json"));
+            RemoveEmpty(Path.Combine(root, _manifestFolder));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -948,7 +948,7 @@ internal static class RemoveFeature
 
         PrintHits(output, analysis);
         output.WriteLine();
-        output.WriteLine("Run now: dotnet build the solution, then the architecture tests, then dotnet format --verify-no-changes.");
+        output.WriteLine("Run now: dotnet build the solution, then the architecture tests, then dotnet run Tools/Tasks.cs format.");
         output.WriteLine("It was never composed here, so no migration was written for it; any list above that is not empty is yours to read.");
 
         return 0;
@@ -1070,7 +1070,7 @@ internal static class RemoveFeature
     private static string Sha(string root, string relative) =>
         Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, relative))));
 
-    private static readonly string[] SkeletonFiles =
+    private static readonly string[] _skeletonFiles =
     [
         "Src/Domain/Acme.Domain/Features/Widgets/Model/Entities/Widget.cs",
         "Src/Application/Acme.Application/Features/Widgets/Services/WidgetService.cs",
@@ -1090,7 +1090,7 @@ internal static class RemoveFeature
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
 
-        foreach (string file in SkeletonFiles)
+        foreach (string file in _skeletonFiles)
         {
             Put(root, file, "namespace Acme;\n// " + file + "\n" + Declarations(Path.GetFileNameWithoutExtension(file)));
         }
@@ -1102,7 +1102,7 @@ internal static class RemoveFeature
 
         var json = new StringBuilder("{\n  \"schemaVersion\": 1,\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Widgets\",\n  \"type\": \"Widget\",\n  \"files\": [\n");
 
-        json.Append(string.Join(",\n", SkeletonFiles.Order(StringComparer.Ordinal).Select(file => $"    {{ \"path\": \"{file}\", \"sha256\": \"{Sha(root, file)}\" }}")));
+        json.Append(string.Join(",\n", _skeletonFiles.Order(StringComparer.Ordinal).Select(file => $"    {{ \"path\": \"{file}\", \"sha256\": \"{Sha(root, file)}\" }}")));
         json.Append("\n  ]\n}\n");
         Put(root, ".feature-manifest/Widgets.json", json.ToString());
 
@@ -1122,8 +1122,8 @@ internal static class RemoveFeature
         var after = Snapshot(root);
 
         expect(applied.Code == 0, $"An untouched skeleton was refused: {applied.Error}{applied.Output}");
-        expect(SkeletonFiles.All(file => !File.Exists(Path.Combine(root, file))), "A generated file was left behind.");
-        expect(!Directory.Exists(Path.Combine(root, ManifestFolder)), "The manifest or its folder was left behind.");
+        expect(_skeletonFiles.All(file => !File.Exists(Path.Combine(root, file))), "A generated file was left behind.");
+        expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), "The manifest or its folder was left behind.");
         expect(!after.Keys.Any(key => key.Contains("Widgets", StringComparison.Ordinal)), "A folder of the feature was left behind.");
         expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/Acme.Api/Program.cs")), "A file the feature did not own was deleted.");
 
@@ -1145,15 +1145,15 @@ internal static class RemoveFeature
             expect(result.Output.Contains(expected, StringComparison.Ordinal), $"{name}: the report does not say '{expected}'.");
         }
 
-        Refused("modified file", tree => File.AppendAllText(Path.Combine(tree, SkeletonFiles[1]), "// edited\n"), "edited since");
-        Refused("missing file", tree => File.Delete(Path.Combine(tree, SkeletonFiles[0])), "are gone");
+        Refused("modified file", tree => File.AppendAllText(Path.Combine(tree, _skeletonFiles[1]), "// edited\n"), "edited since");
+        Refused("missing file", tree => File.Delete(Path.Combine(tree, _skeletonFiles[0])), "are gone");
         Refused("extra file", tree => Put(tree, "Src/Domain/Acme.Domain/Features/Widgets/Model/Entities/Extra.cs", "x\n"), "added to the feature's generated folders");
         Refused("extra file in a new subfolder", tree => Put(tree, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "added to the feature's generated folders");
         Refused("outside reference", tree => Put(tree, "Tests/Other/Acme.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;\n"), "use(s) of the feature's types");
         Refused("outside use of a type", tree => Put(tree, "Src/Other/Uses.cs", "var s = new WidgetService();\n"), "use(s) of the feature's types");
         Refused("a migration mentions it", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "b.ToTable(\"widgets\", \"widgets\");\nusing Acme.Persistence.Features.Widgets.Rows.Models;\n"), "migration or snapshot");
         Refused("a snapshot mentions its record", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "modelBuilder.Entity(\"Acme.WidgetRecord\", b => { });\n"), "migration or snapshot");
-        Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(SkeletonFiles[0], "Src/Domain/Acme.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
+        Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(_skeletonFiles[0], "Src/Domain/Acme.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
 
         string[] edits =
         [
@@ -1191,7 +1191,7 @@ internal static class RemoveFeature
 
         string bare = Skeleton(scratch);
 
-        File.Delete(Path.Combine(bare, ManifestFolder, "Widgets.json"));
+        File.Delete(Path.Combine(bare, _manifestFolder, "Widgets.json"));
 
         var bareBefore = Snapshot(bare);
         var bareReport = Invoke(bare, "Widgets");
@@ -1211,12 +1211,12 @@ internal static class RemoveFeature
 
         string dirty = Skeleton(scratch);
 
-        File.AppendAllText(Path.Combine(dirty, SkeletonFiles[0]), "// edited\n");
+        File.AppendAllText(Path.Combine(dirty, _skeletonFiles[0]), "// edited\n");
 
         var dirtySnapshot = Snapshot(dirty);
         var dirtyReport = Invoke(dirty, "Widgets");
 
-        expect(dirtyReport.Code == 0 && Same(dirtySnapshot, Snapshot(dirty)) && dirtyReport.Output.Contains("Edited: " + SkeletonFiles[0], StringComparison.Ordinal), "The report on an edited skeleton changed it or missed the edit.");
+        expect(dirtyReport.Code == 0 && Same(dirtySnapshot, Snapshot(dirty)) && dirtyReport.Output.Contains("Edited: " + _skeletonFiles[0], StringComparison.Ordinal), "The report on an edited skeleton changed it or missed the edit.");
 
         var auth = Invoke(Skeleton(scratch), "Auth", "--apply");
 
@@ -1286,7 +1286,7 @@ internal static class RemoveFeature
         return root;
     }
 
-    private static readonly string[] SharedFiles =
+    private static readonly string[] _sharedFiles =
     [
         "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
         "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs",
@@ -1305,12 +1305,12 @@ internal static class RemoveFeature
         var original = Snapshot(alone);
 
         expect(Generate(alone, widgets) == 0, "The generator refused Widgets in a bare tree.");
-        expect(SharedFiles.All(file => File.Exists(Path.Combine(alone, file))), "The first owner feature did not bring the shared files.");
+        expect(_sharedFiles.All(file => File.Exists(Path.Combine(alone, file))), "The first owner feature did not bring the shared files.");
 
         var report = Invoke(alone, "Widgets");
 
         expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"(a) the report on the only owner feature found a blocker: {report.Output}");
-        expect(SharedFiles.All(file => report.Output.Contains(file, StringComparison.Ordinal)), "(a) the report does not list the shared files.");
+        expect(_sharedFiles.All(file => report.Output.Contains(file, StringComparison.Ordinal)), "(a) the report does not list the shared files.");
 
         var applied = Invoke(alone, "Widgets", "--apply");
 
@@ -1358,7 +1358,7 @@ internal static class RemoveFeature
 
         expect(Invoke(notes, "Widgets", "--apply").Code == 0, "(c) a shared feature held the owner feature back.");
         expect(
-            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal) || pair.Key == $"{ManifestFolder}/Notes.json")
+            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal) || pair.Key == $"{_manifestFolder}/Notes.json")
                 .All(pair => Snapshot(notes).TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
             "(c) removing Widgets touched Notes.");
         expect(Invoke(notes, "Notes", "--apply").Code == 0, "(c) Notes was refused.");
@@ -1394,7 +1394,7 @@ internal static class RemoveFeature
 
         string edited = WithWidgets();
 
-        File.AppendAllText(Path.Combine(edited, SharedFiles[1]), "// edited\n");
+        File.AppendAllText(Path.Combine(edited, _sharedFiles[1]), "// edited\n");
         Refused("(f) a shared file edited", edited, "Widgets", "edited since");
 
         string added = WithWidgets();
@@ -1412,12 +1412,12 @@ internal static class RemoveFeature
 
         string stale = WithWidgets();
 
-        Put(stale, $"{ManifestFolder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
+        Put(stale, $"{_manifestFolder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
         Refused("(i) a stale owner manifest", stale, "Widgets", "Gizmos (generated, --access owner)");
 
         string unreadable = WithWidgets();
 
-        Put(unreadable, $"{ManifestFolder}/Gizmos.json", "{ not json\n");
+        Put(unreadable, $"{_manifestFolder}/Gizmos.json", "{ not json\n");
         Refused("an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
     }
 
@@ -1482,7 +1482,7 @@ internal static class RemoveFeature
 
         expect(Generate(forged, widgets) == 0, "The generator refused Widgets for the forged page.");
 
-        string manifest = Path.Combine(forged, ManifestFolder, "Widgets.json");
+        string manifest = Path.Combine(forged, _manifestFolder, "Widgets.json");
 
         File.WriteAllText(manifest, File.ReadAllText(manifest).Replace(pagePath, "docs/README.md", StringComparison.Ordinal));
 

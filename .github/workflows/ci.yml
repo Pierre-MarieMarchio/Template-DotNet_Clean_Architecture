@@ -68,9 +68,9 @@ jobs:
           dotnet tool restore
           dotnet run Tools/Tasks.cs api-client --check
 
-      # Whitespace, using order and the BOM, which the build's code-style analysis does not check; before the build, to fail fast.
-      - name: Verify formatting (.editorconfig)
-        run: dotnet format "$SOLUTION" --verify-no-changes --no-restore --verbosity normal
+      # Using order, the BOM, line endings, IDE0003 and IDE0049, which the build's code-style analysis does not check; before the build, to fail fast.
+      - name: Verify the formatting the build does not
+        run: dotnet run Tools/Tasks.cs format
 
       # TreatWarningsAsErrors lives in Directory.Build.props, and no flag here overrides it.
       - name: Build
@@ -208,8 +208,9 @@ jobs:
       - name: Restore
         run: dotnet restore Launcher/CleanArch.Create.slnx
 
-      - name: Formatting
-        run: dotnet format Launcher/CleanArch.Create.slnx --verify-no-changes --no-restore
+      # What the build's code-style analysis does not check, as Tools/Tasks.cs's verify runs it.
+      - name: Formatting the build does not check
+        run: dotnet format Launcher/CleanArch.Create.slnx --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore
 
       - name: Build
         run: dotnet build Launcher/CleanArch.Create.slnx --configuration "$CONFIGURATION" --no-restore

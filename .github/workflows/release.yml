@@ -51,8 +51,8 @@ jobs:
           dotnet run Tools/Tasks.cs migration-initial
 
       #endif
-      - name: Verify formatting
-        run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
+      - name: Verify the formatting the build does not
+        run: dotnet run Tools/Tasks.cs format
 
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore

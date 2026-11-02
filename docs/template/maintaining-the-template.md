@@ -41,7 +41,7 @@ CI, Sonar and release workflows run it before building, under `templateMaintenan
 change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, checks
 its `cleanarch.json` against the leg's options with `.template.config/acceptance/CheckProjectFile.cs`, bootstraps
 (the formatting, then `migration-initial` after asserting no migration was generated, and once more to
-prove it creates nothing), builds with warnings as errors, runs the Docker-free tests, checks every generated context for
+prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
 run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then

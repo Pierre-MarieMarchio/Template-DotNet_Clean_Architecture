@@ -15,7 +15,7 @@ return Tasks.Run(args);
 
 internal static class Tasks
 {
-    private const string Usage =
+    private const string _usage =
         """
         Usage: dotnet run Tools/Tasks.cs <task> [<name> [<second>]] [options]
                dotnet run Tools/Tasks.cs help
@@ -70,7 +70,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs verify -m:4
         """;
 
-    private static readonly string[] KnownTasks =
+    private static readonly string[] _knownTasks =
     [
         "restore",
         "build",
@@ -109,7 +109,7 @@ internal static class Tasks
     ];
 
     //#if (api)
-    private const string ApiUsage =
+    private const string _apiUsage =
         """
 
         HTTP API:
@@ -133,7 +133,7 @@ internal static class Tasks
         """;
 
     //#endif
-    private const string WebUsage =
+    private const string _webUsage =
         """
 
         Presentation projects:
@@ -172,7 +172,7 @@ internal static class Tasks
                                            cleanarch-webpackage cannot edit
         """;
 
-    private const string ClientUsage =
+    private const string _clientUsage =
         """
 
         .NET client, once the project holds Src/Clients/AppTemplate.Client:
@@ -184,7 +184,7 @@ internal static class Tasks
                                            verify runs it
         """;
 
-    private static readonly string[] CheckedTasks =
+    private static readonly string[] _checkedTasks =
     [
         //#if (api)
         "api-client",
@@ -195,7 +195,7 @@ internal static class Tasks
     ];
     //#if (templateMaintenance)
 
-    private const string MaintenanceUsage =
+    private const string _maintenanceUsage =
         """
 
         Template repository only:
@@ -233,16 +233,16 @@ internal static class Tasks
 
         if (arguments is ["--help"] or ["-h"] or ["help"])
         {
-            Console.WriteLine(Usage.Replace("<tasks>", TaskList(projectFile), StringComparison.Ordinal));
+            Console.WriteLine(_usage.Replace("<tasks>", TaskList(projectFile), StringComparison.Ordinal));
             //#if (api)
-            Console.WriteLine(ApiUsage);
+            Console.WriteLine(_apiUsage);
             //#endif
-            Console.WriteLine(WebUsage);
+            Console.WriteLine(_webUsage);
             //#if (api)
-            Console.WriteLine(ClientUsage);
+            Console.WriteLine(_clientUsage);
             //#endif
             //#if (templateMaintenance)
-            Console.WriteLine(MaintenanceUsage);
+            Console.WriteLine(_maintenanceUsage);
             //#endif
             return 0;
         }
@@ -294,7 +294,7 @@ internal static class Tasks
             {
                 configuration = argument["--configuration=".Length..];
             }
-            else if (MaxCpuCountPrefixes.FirstOrDefault(prefix => argument.StartsWith(prefix, StringComparison.Ordinal)) is { } prefix)
+            else if (_maxCpuCountPrefixes.FirstOrDefault(prefix => argument.StartsWith(prefix, StringComparison.Ordinal)) is { } prefix)
             {
                 maxCpuCount = argument[prefix.Length..];
 
@@ -303,7 +303,7 @@ internal static class Tasks
                     throw new InvalidOperationException($"'{argument}' needs a whole number of at least 1 after the colon, as in -m:4.");
                 }
             }
-            else if (FeatureOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
+            else if (_featureOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
             {
                 featureOptions.Add(argument);
 
@@ -317,7 +317,7 @@ internal static class Tasks
                     featureOptions.Add(arguments[++i]);
                 }
             }
-            else if (UseCaseOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
+            else if (_useCaseOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
             {
                 useCaseOptions.Add(argument);
 
@@ -331,7 +331,7 @@ internal static class Tasks
                     useCaseOptions.Add(arguments[++i]);
                 }
             }
-            else if (WebJoinOptionNames.FirstOrDefault(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)) is { } webOption)
+            else if (_webJoinOptionNames.FirstOrDefault(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)) is { } webOption)
             {
                 if (argument.Length > webOption.Length)
                 {
@@ -351,8 +351,8 @@ internal static class Tasks
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
                     + "--keep-stack, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
-                    + $"new-feature {string.Join(", ", FeatureOptionNames)}, for new-use-case {string.Join(", ", UseCaseOptionNames)}, "
-                    + $"and for web-join {string.Join(", ", WebJoinOptionNames)}.");
+                    + $"new-feature {string.Join(", ", _featureOptionNames)}, for new-use-case {string.Join(", ", _useCaseOptionNames)}, "
+                    + $"and for web-join {string.Join(", ", _webJoinOptionNames)}.");
             }
             else if (task is null)
             {
@@ -413,10 +413,10 @@ internal static class Tasks
             throw new InvalidOperationException($"'--keep-stack' is an option of the end-to-end task, not of '{task ?? "(no task)"}'.");
         }
 
-        if (check && (task is null || !CheckedTasks.Contains(task, StringComparer.Ordinal)))
+        if (check && (task is null || !_checkedTasks.Contains(task, StringComparer.Ordinal)))
         {
             throw new InvalidOperationException(
-                $"'--check' is an option of these tasks only, {string.Join(", ", CheckedTasks)}; not of '{task ?? "(no task)"}'.");
+                $"'--check' is an option of these tasks only, {string.Join(", ", _checkedTasks)}; not of '{task ?? "(no task)"}'.");
         }
 
         if (task is null)
@@ -425,7 +425,7 @@ internal static class Tasks
                 "A task is required (help lists them with their options). It has to be one of these:" + Environment.NewLine + TaskList(projectFile));
         }
 
-        if (!KnownTasks.Contains(task, StringComparer.Ordinal))
+        if (!_knownTasks.Contains(task, StringComparer.Ordinal))
         {
             throw new InvalidOperationException(
                 $"'{task}' does not belong to the set of tasks. Supply one of these and then try the command again:"
@@ -503,7 +503,7 @@ internal static class Tasks
                 break;
 
             case "format":
-                Step("dotnet", "format", solution, "--verify-no-changes", "--verbosity", "normal");
+                VerifyWhatTheBuildDoesNotCheck(solution, "--verbosity", "normal");
                 break;
 
             case "format-fix":
@@ -625,8 +625,7 @@ internal static class Tasks
 
             case "bootstrap":
                 PresentationScaffold(repoRoot, solution, only: null);
-                Step("dotnet", "format", solution);
-                Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
+                Step("dotnet", "format", solution, "--diagnostics", "IDE0055", "IDE0005");
                 //#if (api)
                 OpenApiReference(projectFile, api);
                 //#endif
@@ -638,7 +637,7 @@ internal static class Tasks
                 catch (InvalidOperationException error)
                 {
                     throw new InvalidOperationException(
-                        error.Message + " The formatting is done and stable. The local tools are not restored, so the initial migrations "
+                        error.Message + " The formatting is done. The local tools are not restored, so the initial migrations "
                         + "are not created and the tasks that run dotnet ef cannot work yet: migration-add, database-update, "
                         + "migration-bundle and verify. Fix the restore and run bootstrap again.");
                 }
@@ -659,9 +658,9 @@ internal static class Tasks
 
                 Write(
                     /*#if (api)*/
-                    "Formatting stable, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
+                    "Formatting done, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
                     /*#else
-                    "Formatting stable, tools restored and each context's initial migration in its Migrations folder. "
+                    "Formatting done, tools restored and each context's initial migration in its Migrations folder. "
                     #endif*/
                     + "Commit this before anything else: the migrations are the project's own from now on.",
                     ConsoleColor.Green);
@@ -686,7 +685,7 @@ internal static class Tasks
                 WebLockfiles(repoRoot, check: true);
                 //#endif
                 Step("dotnet", ["restore", solution, .. nodes]);
-                Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
+                VerifyWhatTheBuildDoesNotCheck(solution, "--no-restore");
                 Step("dotnet", ["build", solution, "--configuration", configuration, "--no-restore", .. nodes]);
                 Step("dotnet", ["test", solution, "--configuration", configuration, "--no-build", .. modules]);
                 Step(
@@ -958,13 +957,18 @@ internal static class Tasks
         OptionalGate(repoRoot, "CheckComments.cs", repoRoot);
     }
 
+    private static readonly string[] _styleRulesTheBuildLacks = ["IDE0003", "IDE0049"];
+
+    private static void VerifyWhatTheBuildDoesNotCheck(string solution, params string[] options) =>
+        Step("dotnet", ["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", .. options]);
+
     //#if (templateMaintenance)
     private static void LauncherGate(string repoRoot, string configuration)
     {
         string launcher = Path.Combine(repoRoot, "Launcher", "CleanArch.Create.slnx");
 
         Step("dotnet", "restore", launcher);
-        Step("dotnet", "format", launcher, "--verify-no-changes", "--no-restore");
+        VerifyWhatTheBuildDoesNotCheck(launcher, "--no-restore");
         Step("dotnet", "build", launcher, "--configuration", configuration, "--no-restore");
         Step("dotnet", "test", "--solution", launcher, "--configuration", configuration, "--no-build");
     }
@@ -1066,13 +1070,13 @@ internal static class Tasks
             """;
     }
 
-    private const string ScaffoldDescriptor = "scaffold.json";
+    private const string _scaffoldDescriptor = "scaffold.json";
 
-    private static readonly string Pnpm = OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm";
+    private static readonly string _pnpm = OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm";
 
-    private static readonly Regex ExactVersion = new(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$");
+    private static readonly Regex _exactVersion = new(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$");
 
-    private static readonly JsonSerializerOptions WrittenJson = new()
+    private static readonly JsonSerializerOptions _writtenJson = new()
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
@@ -1082,7 +1086,7 @@ internal static class Tasks
     {
         try
         {
-            StepIn(Path.Combine(repoRoot, "Src", "Web"), Pnpm, arguments);
+            StepIn(Path.Combine(repoRoot, "Src", "Web"), _pnpm, arguments);
         }
         catch (InvalidOperationException error)
         {
@@ -1106,7 +1110,7 @@ internal static class Tasks
         string apps = Path.Combine(web, "apps");
         string[] pending = Directory.Exists(apps)
             ? [.. Directory.GetDirectories(apps)
-                .Where(folder => File.Exists(Path.Combine(folder, ScaffoldDescriptor)) && !File.Exists(Path.Combine(folder, "package.json")))
+                .Where(folder => File.Exists(Path.Combine(folder, _scaffoldDescriptor)) && !File.Exists(Path.Combine(folder, "package.json")))
                 .Order(StringComparer.Ordinal)]
             : [];
 
@@ -1120,13 +1124,13 @@ internal static class Tasks
             }
             else if (File.Exists(Path.Combine(folder, "package.json")) || Directory.EnumerateFiles(folder, "*.csproj").Any())
             {
-                Write($"Src/Web/apps/{only} holds no {ScaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
+                Write($"Src/Web/apps/{only} holds no {_scaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
                 pending = [];
             }
             else
             {
                 throw new InvalidOperationException(
-                    $"Src/Web/apps/{only} holds no {ScaffoldDescriptor}, so there is nothing to create. "
+                    $"Src/Web/apps/{only} holds no {_scaffoldDescriptor}, so there is nothing to create. "
                     + "dotnet new cleanarch-webapp writes one in the app's folder.");
             }
         }
@@ -1135,7 +1139,7 @@ internal static class Tasks
 
         foreach (string folder in pending)
         {
-            if (ReadJson(Path.Combine(folder, ScaffoldDescriptor))["kind"]?.GetValue<string>() is "dotnet")
+            if (ReadJson(Path.Combine(folder, _scaffoldDescriptor))["kind"]?.GetValue<string>() is "dotnet")
             {
                 client |= ScaffoldProject(repoRoot, solution, folder);
             }
@@ -1173,7 +1177,7 @@ internal static class Tasks
     private static void ScaffoldApp(string web, string folder)
     {
         string app = Path.GetFileName(folder);
-        JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
+        JsonObject descriptor = ReadJson(Path.Combine(folder, _scaffoldDescriptor));
         string name = Text(descriptor, "name", app);
         string cli = Text(descriptor, "package", app) + "@" + Text(descriptor, "version", app);
         string scratch = Path.Combine(web, ".web-scaffold-" + Guid.NewGuid().ToString("N"));
@@ -1194,7 +1198,7 @@ internal static class Tasks
 
             try
             {
-                Launch(scratch, new Dictionary<string, string>(StringComparer.Ordinal), Pnpm, arguments, closeInput: true);
+                Launch(scratch, new Dictionary<string, string>(StringComparer.Ordinal), _pnpm, arguments, closeInput: true);
             }
             catch (InvalidOperationException error)
             {
@@ -1230,7 +1234,7 @@ internal static class Tasks
                 string path = Path.Combine(starter, file);
                 JsonObject merged = ReadJson(path);
                 Merge(merged, patch?.AsObject() ?? []);
-                File.WriteAllText(path, merged.ToJsonString(WrittenJson) + "\n");
+                File.WriteAllText(path, merged.ToJsonString(_writtenJson) + "\n");
             }
 
             CopyFiles(starter, folder, overwrite: false);
@@ -1248,17 +1252,17 @@ internal static class Tasks
             Directory.Delete(overlay, recursive: true);
         }
 
-        File.Delete(Path.Combine(folder, ScaffoldDescriptor));
+        File.Delete(Path.Combine(folder, _scaffoldDescriptor));
         Write($"Created Src/Web/apps/{app} from {cli} and its overlay.", ConsoleColor.Green);
     }
 
-    private static readonly string[] GeneratedPropertiesTheBuildSets = ["TargetFramework", "Nullable", "ImplicitUsings"];
+    private static readonly string[] _generatedPropertiesTheBuildSets = ["TargetFramework", "Nullable", "ImplicitUsings"];
 
     private static bool PresentationScaffold(string repoRoot, string solution, string? only)
     {
         string presentation = Path.Combine(repoRoot, "Src", "Presentation");
         string[] pending = [.. Directory.GetDirectories(presentation)
-            .Where(folder => File.Exists(Path.Combine(folder, ScaffoldDescriptor)))
+            .Where(folder => File.Exists(Path.Combine(folder, _scaffoldDescriptor)))
             .Order(StringComparer.Ordinal)];
 
         if (only is not null)
@@ -1271,12 +1275,12 @@ internal static class Tasks
             }
             else if (File.Exists(Path.Combine(folder, only + ".csproj")))
             {
-                Write($"Src/Presentation/{only} holds no {ScaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
+                Write($"Src/Presentation/{only} holds no {_scaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
                 pending = [];
             }
             else
             {
-                throw new InvalidOperationException($"Src/Presentation/{only} holds no {ScaffoldDescriptor}, so there is nothing to create.");
+                throw new InvalidOperationException($"Src/Presentation/{only} holds no {_scaffoldDescriptor}, so there is nothing to create.");
             }
         }
 
@@ -1295,13 +1299,13 @@ internal static class Tasks
         string project = Path.GetFileName(folder);
         string shown = Path.GetRelativePath(repoRoot, folder).Replace('\\', '/');
         string task = shown.StartsWith("Src/Web/", StringComparison.Ordinal) ? "web-scaffold" : "presentation-scaffold";
-        JsonObject descriptor = ReadJson(Path.Combine(folder, ScaffoldDescriptor));
+        JsonObject descriptor = ReadJson(Path.Combine(folder, _scaffoldDescriptor));
         string kind = descriptor["kind"]?.GetValue<string>() ?? "pnpm";
 
         if (kind is not ("dotnet" or "written"))
         {
             throw new InvalidOperationException(
-                $"{shown}/{ScaffoldDescriptor} is of kind '{kind}', and a .NET project is created by dotnet new or written by the template.");
+                $"{shown}/{_scaffoldDescriptor} is of kind '{kind}', and a .NET project is created by dotnet new or written by the template.");
         }
 
         string name = Text(descriptor, "name", project);
@@ -1312,7 +1316,7 @@ internal static class Tasks
             Generate(descriptor, folder, project, name, package, shown, task);
         }
 
-        File.Delete(Path.Combine(folder, ScaffoldDescriptor));
+        File.Delete(Path.Combine(folder, _scaffoldDescriptor));
 
         string[] sources =
         [
@@ -1416,16 +1420,16 @@ internal static class Tasks
             Path.Combine(repoRoot, "Tests", "Clients", "AppTemplate.Client.UnitTests", "AppTemplate.Client.UnitTests.csproj"),
         }.Where(File.Exists)];
 
-    private const string JoiningSection = "## Joining a project generated without one";
+    private const string _joiningSection = "## Joining a project generated without one";
 
-    private static readonly Regex JoiningEdit = new(
+    private static readonly Regex _joiningEdit = new(
         @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     private static void PresentationJoin(ProjectFile projectFile, string folder)
     {
         string relative = "Src/Presentation/" + folder;
         string prefix = projectFile.Name + ".";
-        string descriptor = Path.Combine(projectFile.Root, relative, ScaffoldDescriptor);
+        string descriptor = Path.Combine(projectFile.Root, relative, _scaffoldDescriptor);
 
         if (!folder.StartsWith(prefix, StringComparison.Ordinal) || folder.Length == prefix.Length)
         {
@@ -1438,7 +1442,7 @@ internal static class Tasks
         if (!recorded && !File.Exists(descriptor))
         {
             throw new InvalidOperationException(
-                $"{relative} holds no {ScaffoldDescriptor} to read its framework from, so no file was changed: name the folder cleanarch-presentation wrote, before presentation-scaffold creates it.");
+                $"{relative} holds no {_scaffoldDescriptor} to read its framework from, so no file was changed: name the folder cleanarch-presentation wrote, before presentation-scaffold creates it.");
         }
 
         Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", required: true);
@@ -1516,7 +1520,7 @@ internal static class Tasks
 
         string[] text = File.Exists(readme) ? File.ReadAllLines(readme) : [];
 
-        if (!required && !text.Contains(JoiningSection, StringComparer.Ordinal))
+        if (!required && !text.Contains(_joiningSection, StringComparer.Ordinal))
         {
             Write($"{folder} lists no edit outside its folder.", ConsoleColor.Green);
             return;
@@ -1578,11 +1582,11 @@ internal static class Tasks
 
     private static List<ReadmeEdit> ReadmeEdits(string[] readme, string relative)
     {
-        int start = Array.IndexOf(readme, JoiningSection);
+        int start = Array.IndexOf(readme, _joiningSection);
 
         if (start < 0)
         {
-            throw new InvalidOperationException($"{relative} has no '{JoiningSection}' section, so there is nothing to join.");
+            throw new InvalidOperationException($"{relative} has no '{_joiningSection}' section, so there is nothing to join.");
         }
 
         var edits = new List<ReadmeEdit>();
@@ -1602,7 +1606,7 @@ internal static class Tasks
                 header += " " + readme[index].Trim();
             }
 
-            Match bullet = JoiningEdit.Match(header);
+            Match bullet = _joiningEdit.Match(header);
             if (!bullet.Success)
             {
                 throw new InvalidOperationException($"{relative}: '{header}' names no file and no 'after', 'before', 'replace' or 'remove'.");
@@ -1616,7 +1620,7 @@ internal static class Tasks
 
         if (edits.Count == 0)
         {
-            throw new InvalidOperationException($"{relative}: '{JoiningSection}' lists no edit in the form this task reads.");
+            throw new InvalidOperationException($"{relative}: '{_joiningSection}' lists no edit in the form this task reads.");
         }
 
         return edits;
@@ -1746,7 +1750,7 @@ internal static class Tasks
                 .Select(package => $"the package {package}"),
             .. template.Descendants("PropertyGroup").Elements()
                 .Select(property => property.Name.LocalName)
-                .Where(property => !GeneratedPropertiesTheBuildSets.Contains(property, StringComparer.Ordinal))
+                .Where(property => !_generatedPropertiesTheBuildSets.Contains(property, StringComparer.Ordinal))
                 .Where(property => !project.Descendants(property).Any())
                 .Select(property => $"the property {property}"),
         ];
@@ -1772,7 +1776,7 @@ internal static class Tasks
             {
                 string declared = range?.GetValue<string>() ?? string.Empty;
 
-                if (declared.StartsWith("workspace:", StringComparison.Ordinal) || ExactVersion.IsMatch(declared))
+                if (declared.StartsWith("workspace:", StringComparison.Ordinal) || _exactVersion.IsMatch(declared))
                 {
                     continue;
                 }
@@ -1791,7 +1795,7 @@ internal static class Tasks
 
         if (changed)
         {
-            File.WriteAllText(manifest, package.ToJsonString(WrittenJson) + "\n");
+            File.WriteAllText(manifest, package.ToJsonString(_writtenJson) + "\n");
         }
 
         return changed;
@@ -1972,18 +1976,18 @@ internal static class Tasks
     //#endif
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
-    private const string InitialMigrationName = "InitialCreate";
+    private const string _initialMigrationName = "InitialCreate";
 
-    private static readonly string[] MaxCpuCountPrefixes = ["-m:", "-maxcpucount:"];
+    private static readonly string[] _maxCpuCountPrefixes = ["-m:", "-maxcpucount:"];
 
-    private static readonly string[] FeatureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
+    private static readonly string[] _featureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
 
-    private static readonly string[] UseCaseOptionNames = ["--kind", "--input"];
+    private static readonly string[] _useCaseOptionNames = ["--kind", "--input"];
 
-    private static readonly string[] WebJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
+    private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
 
     private static string TaskList(ProjectFile projectFile) =>
-        "  " + string.Join(", ", KnownTasks.Where(task => task != "sonar" || projectFile.Sonar));
+        "  " + string.Join(", ", _knownTasks.Where(task => task != "sonar" || projectFile.Sonar));
 
     private static string RequiredSecond(string task, string? second)
     {
@@ -2051,7 +2055,7 @@ internal static class Tasks
             }
 
             Step(
-                "dotnet", "ef", "migrations", "add", InitialMigrationName,
+                "dotnet", "ef", "migrations", "add", _initialMigrationName,
                 "--project", context,
                 "--startup-project", context);
         }
@@ -2257,9 +2261,9 @@ internal sealed class ProjectFile
 {
     internal const string FileName = "cleanarch.json";
 
-    private static readonly string[] KeyOrder = ["template", "name", "options", "client", "web", "presentation"];
+    private static readonly string[] _keyOrder = ["template", "name", "options", "client", "web", "presentation"];
 
-    private static readonly JsonSerializerOptions Written = new()
+    private static readonly JsonSerializerOptions _written = new()
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
@@ -2308,7 +2312,7 @@ internal sealed class ProjectFile
     {
         if (_json["client"]?.GetValue<bool>() != true)
         {
-            Place(_json, "client", JsonValue.Create(true), KeyOrder);
+            Place(_json, "client", JsonValue.Create(true), _keyOrder);
             Save("the .NET client");
         }
     }
@@ -2318,7 +2322,7 @@ internal sealed class ProjectFile
         if (_json["presentation"] is not JsonArray presentations)
         {
             presentations = [];
-            Place(_json, "presentation", presentations, KeyOrder);
+            Place(_json, "presentation", presentations, _keyOrder);
         }
 
         presentations.Add((JsonNode)new JsonObject { ["name"] = name, ["framework"] = framework });
@@ -2368,7 +2372,7 @@ internal sealed class ProjectFile
         if (_json["web"] is not JsonObject web)
         {
             web = new JsonObject { ["scope"] = scope, ["apps"] = new JsonArray(), ["packages"] = new JsonArray() };
-            Place(_json, "web", web, KeyOrder);
+            Place(_json, "web", web, _keyOrder);
         }
 
         if (web[key] is not JsonArray list)
@@ -2398,7 +2402,7 @@ internal sealed class ProjectFile
 
     private void Save(string recorded)
     {
-        File.WriteAllText(FilePath, _json.ToJsonString(Written) + "\n", new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        File.WriteAllText(FilePath, _json.ToJsonString(_written) + "\n", new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         Console.WriteLine($"{FileName} records {recorded} now.");
     }
 

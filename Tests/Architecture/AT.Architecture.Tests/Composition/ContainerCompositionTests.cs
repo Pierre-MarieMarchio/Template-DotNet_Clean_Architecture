@@ -2,10 +2,14 @@
 //#if (localAuth)
 using AppTemplate.Application.Core.Common.Ports;
 //#endif
+//#if (aggregates || localAuth)
 using AppTemplate.Application.Core.Common.UseCases;
+//#endif
 using AppTemplate.Architecture.Tests.Fixtures;
+//#if (aggregates || localAuth)
 using FluentValidation;
 using Mediator;
+//#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -110,6 +114,7 @@ public sealed class ContainerCompositionTests
             string.Join($"{Environment.NewLine}  ", failures));
     }
 
+    //#if (aggregates || localAuth)
     [Fact]
     public void EveryMessageWithAValidator_PassesThroughTheValidationBehaviour()
     {
@@ -140,6 +145,7 @@ public sealed class ContainerCompositionTests
                 "Result the behaviour can fail with.");
     }
 
+    //#endif
     [Fact]
     public void TheApiContainer_ResolvesEveryApplicationPort()
     {

@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
-using AppTemplate.Api.UnitTests.TestSupport;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Presentation.Core.Common.Jobs;

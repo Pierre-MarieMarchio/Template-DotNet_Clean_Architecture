@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Api.Features.Files.Jobs;
 using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
-using AppTemplate.Api.UnitTests.TestSupport;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;

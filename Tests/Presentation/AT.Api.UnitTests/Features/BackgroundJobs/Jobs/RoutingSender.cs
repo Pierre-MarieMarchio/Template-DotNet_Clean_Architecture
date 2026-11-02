@@ -2,7 +2,7 @@
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AppTemplate.Api.UnitTests.TestSupport;
+namespace AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 
 internal sealed class RoutingSender(IServiceProvider services) : ISender
 {

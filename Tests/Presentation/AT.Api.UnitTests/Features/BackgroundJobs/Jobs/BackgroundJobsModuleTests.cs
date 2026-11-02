@@ -9,7 +9,6 @@ using AppTemplate.Api.Features.Maintenance.Jobs;
 //#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
 //#endif
-using AppTemplate.Api.UnitTests.TestSupport;
 //#if (localAuth)
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;

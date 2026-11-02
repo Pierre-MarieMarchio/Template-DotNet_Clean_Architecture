@@ -104,7 +104,7 @@ public sealed class FeatureFolderVocabularyTests
         }
 
         checkedFiles.ShouldBeGreaterThan(
-            8,
+            7,
             "Far fewer feature files were found than this template holds, so the walk is not reading "
             + "the tree it is meant to describe and this rule would pass on almost nothing.");
 

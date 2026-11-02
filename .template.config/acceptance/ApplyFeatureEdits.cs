@@ -7,7 +7,7 @@ return FeatureEdits.Run(args);
 
 internal static class FeatureEdits
 {
-    private const string Usage =
+    private const string _usage =
         """
         Usage: dotnet run .template.config/acceptance/ApplyFeatureEdits.cs <new-feature output> <root>
 
@@ -22,22 +22,22 @@ internal static class FeatureEdits
         other problem.
         """;
 
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(2);
 
-    private static readonly UTF8Encoding Utf8WithBom = new(encoderShouldEmitUTF8Identifier: true);
+    private static readonly UTF8Encoding _utf8WithBom = new(encoderShouldEmitUTF8Identifier: true);
 
-    private static readonly Regex EditHeader = new(@"^ {1,2}(\d+)\. (.*)$", RegexOptions.None, Timeout);
+    private static readonly Regex _editHeader = new(@"^ {1,2}(\d+)\. (.*)$", RegexOptions.None, _timeout);
 
-    private static readonly Regex Identifier = new(@"\b[A-Z][A-Za-z0-9_]*\b", RegexOptions.None, Timeout);
+    private static readonly Regex _identifier = new(@"\b[A-Z][A-Za-z0-9_]*\b", RegexOptions.None, _timeout);
 
-    private static readonly Regex TypeDeclaration = new(
+    private static readonly Regex _typeDeclaration = new(
         @"^\s*(?:(?:public|internal|private|protected|sealed|static|abstract|partial|readonly)\s+)*(?:class|interface|record|enum|struct)\s+([A-Z][A-Za-z0-9_]*)",
         RegexOptions.Multiline,
-        Timeout);
+        _timeout);
 
-    private static readonly Regex FileNamespace = new(@"^namespace\s+([A-Za-z0-9_.]+);", RegexOptions.Multiline, Timeout);
+    private static readonly Regex _fileNamespace = new(@"^namespace\s+([A-Za-z0-9_.]+);", RegexOptions.Multiline, _timeout);
 
-    private static readonly HashSet<string> SkippedFolders = new(StringComparer.Ordinal) { "bin", "obj", ".git", "TestResults" };
+    private static readonly HashSet<string> _skippedFolders = new(StringComparer.Ordinal) { "bin", "obj", ".git", "TestResults" };
 
     private sealed record Edit(int Number, string Path, string Header, List<string> Code);
 
@@ -45,7 +45,7 @@ internal static class FeatureEdits
     {
         if (arguments is not [string output, string root] || arguments.Contains("--help"))
         {
-            Console.WriteLine(Usage);
+            Console.WriteLine(_usage);
             return arguments.Contains("--help") ? 0 : 1;
         }
 
@@ -100,7 +100,7 @@ internal static class FeatureEdits
 
         foreach (string line in output)
         {
-            if (EditHeader.Match(line) is { Success: true } header)
+            if (_editHeader.Match(line) is { Success: true } header)
             {
                 string text = header.Groups[2].Value;
                 int colon = text.IndexOf(": ", StringComparison.Ordinal);
@@ -155,7 +155,7 @@ internal static class FeatureEdits
     }
 
     private static string? Inline(Edit edit, string pattern) =>
-        Regex.Match(edit.Header, pattern, RegexOptions.None, Timeout) is { Success: true } match ? match.Value : null;
+        Regex.Match(edit.Header, pattern, RegexOptions.None, _timeout) is { Success: true } match ? match.Value : null;
 
     private static void Context(string root, Edit edit, Dictionary<string, List<string>> declarations)
     {
@@ -170,7 +170,7 @@ internal static class FeatureEdits
 
     private static void ApplicationModule(string root, Edit edit, Dictionary<string, List<string>> declarations)
     {
-        string method = Required(Regex.Match(edit.Header, @"an (Add\w+)\(\)", RegexOptions.None, Timeout), edit);
+        string method = Required(Regex.Match(edit.Header, @"an (Add\w+)\(\)", RegexOptions.None, _timeout), edit);
         List<string> lines = Read(root, edit.Path);
 
         InsertBefore(
@@ -193,7 +193,7 @@ internal static class FeatureEdits
 
     private static void PersistenceModule(string root, Edit edit, Dictionary<string, List<string>> declarations)
     {
-        string method = Required(Regex.Match(edit.Header, @"an (Add\w+)\(services\)", RegexOptions.None, Timeout), edit);
+        string method = Required(Regex.Match(edit.Header, @"an (Add\w+)\(services\)", RegexOptions.None, _timeout), edit);
         List<string> lines = Read(root, edit.Path);
 
         InsertBefore(lines, "        AddIdempotencyFeature(services, configuration);", [$"        {method}(services);"]);
@@ -214,7 +214,7 @@ internal static class FeatureEdits
     private static void ProgramFile(string root, Edit edit, Dictionary<string, List<string>> declarations)
     {
         string call = Inline(edit, @"builder\.Services\.Add\w+\(\);")!;
-        string[] hosts = [.. Regex.Matches(edit.Header, @"Src/Presentation/[^\s,]+/Program\.cs", RegexOptions.None, Timeout)
+        string[] hosts = [.. Regex.Matches(edit.Header, @"Src/Presentation/[^\s,]+/Program\.cs", RegexOptions.None, _timeout)
             .Select(match => match.Value)
             .Prepend(edit.Path)
             .Distinct(StringComparer.Ordinal)];
@@ -287,7 +287,7 @@ internal static class FeatureEdits
 
     private static string? ApplicationNamespace(List<string> lines, Edit edit)
     {
-        Match named = Regex.Match(edit.Header, @"with using ([A-Za-z0-9_.]+);", RegexOptions.None, Timeout);
+        Match named = Regex.Match(edit.Header, @"with using ([A-Za-z0-9_.]+);", RegexOptions.None, _timeout);
 
         return named.Success && !lines.Contains($"using {named.Groups[1].Value};") ? named.Groups[1].Value : null;
     }
@@ -315,7 +315,7 @@ internal static class FeatureEdits
         Dictionary<string, List<string>> declarations,
         string? alsoNeeded = null)
     {
-        string? own = lines.Select(line => FileNamespace.Match(line)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
+        string? own = lines.Select(line => _fileNamespace.Match(line)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
         var needed = new SortedSet<string>(StringComparer.Ordinal);
 
         if (alsoNeeded is not null)
@@ -323,7 +323,7 @@ internal static class FeatureEdits
             needed.Add(alsoNeeded);
         }
 
-        foreach (Match name in code.SelectMany(text => Identifier.Matches(text)))
+        foreach (Match name in code.SelectMany(text => _identifier.Matches(text)))
         {
             if (declarations.TryGetValue(name.Value, out List<string>? namespaces) && namespaces.Count == 1)
             {
@@ -351,12 +351,12 @@ internal static class FeatureEdits
         {
             string text = File.ReadAllText(file);
 
-            if (FileNamespace.Match(text) is not { Success: true } space)
+            if (_fileNamespace.Match(text) is not { Success: true } space)
             {
                 continue;
             }
 
-            foreach (Match type in TypeDeclaration.Matches(text))
+            foreach (Match type in _typeDeclaration.Matches(text))
             {
                 if (!declarations.TryGetValue(type.Groups[1].Value, out List<string>? namespaces))
                 {
@@ -380,7 +380,7 @@ internal static class FeatureEdits
             yield return file;
         }
 
-        foreach (string child in Directory.EnumerateDirectories(folder).Where(child => !SkippedFolders.Contains(Path.GetFileName(child))))
+        foreach (string child in Directory.EnumerateDirectories(folder).Where(child => !_skippedFolders.Contains(Path.GetFileName(child))))
         {
             foreach (string file in SourceFiles(child))
             {
@@ -437,5 +437,5 @@ internal static class FeatureEdits
     }
 
     private static void Write(string root, string relative, List<string> lines) =>
-        File.WriteAllText(Path.Combine(root, relative), string.Join('\n', lines) + "\n", Utf8WithBom);
+        File.WriteAllText(Path.Combine(root, relative), string.Join('\n', lines) + "\n", _utf8WithBom);
 }

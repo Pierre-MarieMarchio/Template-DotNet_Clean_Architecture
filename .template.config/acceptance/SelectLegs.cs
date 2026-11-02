@@ -9,10 +9,11 @@ return LegSelector.Run(args);
 
 internal static class LegSelector
 {
-    private const string Usage =
+    private const string _usage =
         """
         Usage: dotnet run .template.config/acceptance/SelectLegs.cs -- --event <name> [--labels <json>]
-                   [--changed <file>] [--output <file>]
+                   [--changed <file>] [--action <name>] [--label <name>] [--moved <true|false>]
+                   [--output <file>]
                dotnet run .template.config/acceptance/SelectLegs.cs -- --self-test
 
         Chooses the acceptance legs a change can affect. It reads rules.json and matrix.json beside
@@ -24,6 +25,11 @@ internal static class LegSelector
         --changed names no file (the diff could not be read) or an empty one, and when one path
         runs them all.
 
+        No leg runs, and none is reported skipped, when a pull request is labelled with anything
+        but full-acceptance (--action labeled, --label the label added), and when a schedule finds
+        --moved false: the branch has not moved since the last scheduled run. Without --moved, a
+        schedule runs every leg.
+
         A leg runs on ubuntu-latest unless its 'runner' says windows-latest. --labels takes the pull
         request's label names as a JSON array. --output appends run and run_windows, the legs to run
         on each runner, and skip, every leg skipped whichever its runner (each a matrix:
@@ -34,19 +40,19 @@ internal static class LegSelector
         no leg carries, a runner no job serves, or a malformed argument.
         """;
 
-    private const string FullAcceptanceLabel = "full-acceptance";
+    private const string _fullAcceptanceLabel = "full-acceptance";
 
-    private const string EveryLeg = "all";
+    private const string _everyLeg = "all";
 
-    private const string NoLeg = "none";
+    private const string _noLeg = "none";
 
-    private const string Linux = "ubuntu-latest";
+    private const string _linux = "ubuntu-latest";
 
-    private const string Windows = "windows-latest";
+    private const string _windows = "windows-latest";
 
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(2);
 
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+    private static readonly UTF8Encoding _utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private sealed record Rule(Regex[] Paths, string[] Patterns, string[] Tags);
 
@@ -58,7 +64,7 @@ internal static class LegSelector
     {
         if (arguments.Contains("--help") || arguments.Contains("-h"))
         {
-            Console.WriteLine(Usage);
+            Console.WriteLine(_usage);
             return 0;
         }
 
@@ -76,16 +82,24 @@ internal static class LegSelector
 
             var options = Options(arguments);
             string eventName = options.GetValueOrDefault("--event")
-                ?? throw new InvalidOperationException("--event is required.\n\n" + Usage);
+                ?? throw new InvalidOperationException("--event is required.\n\n" + _usage);
             string[] labels = Labels(options.GetValueOrDefault("--labels"));
             List<string>? changed = Changed(options.GetValueOrDefault("--changed"));
 
-            Selection selection = Select(rules, legs, eventName, labels, changed);
+            string? idle = Idle(
+                eventName,
+                options.GetValueOrDefault("--action"),
+                options.GetValueOrDefault("--label"),
+                options.GetValueOrDefault("--moved") != "false");
+
+            Selection selection = idle is null
+                ? Select(rules, legs, eventName, labels, changed)
+                : new Selection([], [], [idle]);
             Report(selection);
 
             if (options.GetValueOrDefault("--output") is { } output)
             {
-                File.AppendAllText(output, Outputs(selection), Utf8NoBom);
+                File.AppendAllText(output, Outputs(selection), _utf8NoBom);
             }
 
             return 0;
@@ -97,6 +111,21 @@ internal static class LegSelector
         }
     }
 
+    private static string? Idle(string eventName, string? action, string? label, bool moved)
+    {
+        if (eventName == "pull_request" && action == "labeled" && !string.IsNullOrEmpty(label) && label != _fullAcceptanceLabel)
+        {
+            return $"Labelling a pull request '{label}' changes no file, so no leg runs again.";
+        }
+
+        if (eventName == "schedule" && !moved)
+        {
+            return "The branch has not moved since the last scheduled run, so no leg runs.";
+        }
+
+        return null;
+    }
+
     private static Selection Select(List<Rule> rules, List<Leg> legs, string eventName, string[] labels, List<string>? changed)
     {
         if (eventName != "pull_request")
@@ -104,9 +133,9 @@ internal static class LegSelector
             return Everything(legs, $"A {eventName} event runs every leg.");
         }
 
-        if (labels.Contains(FullAcceptanceLabel, StringComparer.Ordinal))
+        if (labels.Contains(_fullAcceptanceLabel, StringComparer.Ordinal))
         {
-            return Everything(legs, $"The {FullAcceptanceLabel} label runs every leg.");
+            return Everything(legs, $"The {_fullAcceptanceLabel} label runs every leg.");
         }
 
         if (changed is null)
@@ -131,12 +160,12 @@ internal static class LegSelector
                 return Everything(legs, $"{path} matches no rule, so every leg runs.");
             }
 
-            if (rule.Tags.Contains(EveryLeg, StringComparer.Ordinal))
+            if (rule.Tags.Contains(_everyLeg, StringComparer.Ordinal))
             {
                 return Everything(legs, $"{path} runs every leg ({string.Join(", ", rule.Patterns)}).");
             }
 
-            string[] named = [.. rule.Tags.Where(tag => tag != NoLeg)];
+            string[] named = [.. rule.Tags.Where(tag => tag != _noLeg)];
             tags.UnionWith(named);
             reasons.Add(named.Length == 0 ? $"{path}: read by no leg." : $"{path}: {string.Join(", ", named)}.");
         }
@@ -158,7 +187,7 @@ internal static class LegSelector
         Console.WriteLine($"Runs {selection.Run.Count} leg(s):");
         foreach (Leg leg in selection.Run)
         {
-            Console.WriteLine($"  + {leg.Name}{(leg.Runner == Linux ? string.Empty : $" ({leg.Runner})")}");
+            Console.WriteLine($"  + {leg.Name}{(leg.Runner == _linux ? string.Empty : $" ({leg.Runner})")}");
         }
 
         Console.WriteLine($"Skips {selection.Skip.Count} leg(s):");
@@ -170,8 +199,8 @@ internal static class LegSelector
 
     private static string Outputs(Selection selection)
     {
-        Leg[] linux = [.. selection.Run.Where(leg => leg.Runner == Linux)];
-        Leg[] windows = [.. selection.Run.Where(leg => leg.Runner == Windows)];
+        Leg[] linux = [.. selection.Run.Where(leg => leg.Runner == _linux)];
+        Leg[] windows = [.. selection.Run.Where(leg => leg.Runner == _windows)];
         var skip = new JsonArray([.. selection.Skip.Select(leg => (JsonNode)new JsonObject { ["name"] = leg.Name })]);
 
         return new StringBuilder()
@@ -218,12 +247,12 @@ internal static class LegSelector
             string name = entry["name"]?.GetValue<string>()
                 ?? throw new InvalidOperationException("A leg in matrix.json has no name.");
             string[] tags = Strings(entry["tags"], $"the tags of '{name}'");
-            string runner = entry["runner"]?.GetValue<string>() ?? Linux;
+            string runner = entry["runner"]?.GetValue<string>() ?? _linux;
             entry.Remove("tags");
 
-            if (runner is not (Linux or Windows))
+            if (runner is not (_linux or _windows))
             {
-                throw new InvalidOperationException($"'{name}' in matrix.json runs on '{runner}', which no job serves: {Linux} or {Windows}.");
+                throw new InvalidOperationException($"'{name}' in matrix.json runs on '{runner}', which no job serves: {_linux} or {_windows}.");
             }
 
             return new Leg(name, tags, runner, entry);
@@ -243,7 +272,7 @@ internal static class LegSelector
         var carried = legs.SelectMany(leg => leg.Tags).ToHashSet(StringComparer.Ordinal);
         string[] orphans = [.. rules
             .SelectMany(rule => rule.Tags)
-            .Where(tag => tag is not EveryLeg and not NoLeg && !carried.Contains(tag))
+            .Where(tag => tag is not _everyLeg and not _noLeg && !carried.Contains(tag))
             .Distinct(StringComparer.Ordinal)];
 
         if (orphans.Length > 0)
@@ -283,19 +312,19 @@ internal static class LegSelector
             }
         }
 
-        return new Regex(expression.Append('$').ToString(), RegexOptions.CultureInvariant, Timeout);
+        return new Regex(expression.Append('$').ToString(), RegexOptions.CultureInvariant, _timeout);
     }
 
     private static Dictionary<string, string> Options(string[] arguments)
     {
-        string[] known = ["--event", "--labels", "--changed", "--output"];
+        string[] known = ["--event", "--labels", "--changed", "--action", "--label", "--moved", "--output"];
         var options = new Dictionary<string, string>(StringComparer.Ordinal);
 
         for (int i = 0; i < arguments.Length; i++)
         {
             if (!known.Contains(arguments[i], StringComparer.Ordinal) || i + 1 >= arguments.Length)
             {
-                throw new InvalidOperationException($"Unexpected argument '{arguments[i]}'.\n\n" + Usage);
+                throw new InvalidOperationException($"Unexpected argument '{arguments[i]}'.\n\n" + _usage);
             }
 
             options[arguments[i]] = arguments[++i];
@@ -320,7 +349,7 @@ internal static class LegSelector
 
     private sealed record Case(string Label, string Event, string[] Labels, string[]? Changed, string[]? Expected);
 
-    private static readonly string[] WebLegs =
+    private static readonly string[] _webLegs =
     [
         "external auth, all examples",
         "web placeholder, smallest project",
@@ -332,13 +361,13 @@ internal static class LegSelector
         "web, every starter",
     ];
 
-    private static readonly Case[] Cases =
+    private static readonly Case[] _cases =
     [
         new("a template-only page", "pull_request", [], ["docs/template/maintaining-the-template.md"], []),
         new("the launcher and a template-only gate", "pull_request", [], ["Launcher/CleanArch.Create/Program.cs", "Tools/CheckWorkflows.cs"], []),
         new("the repository README, not a web app's", "pull_request", [], ["README.md"], []),
-        new("a web app's page", "pull_request", [], ["Src/Web/apps/FrameworkSite/README.md"], WebLegs),
-        new("the web workflow and the webapp item", "pull_request", [], [".github/workflows/web.yml", ".template.config/webapp/.template.config/template.json"], WebLegs),
+        new("a web app's page", "pull_request", [], ["Src/Web/apps/FrameworkSite/README.md"], _webLegs),
+        new("the web workflow and the webapp item", "pull_request", [], [".github/workflows/web.yml", ".template.config/webapp/.template.config/template.json"], _webLegs),
         new("the Vite Vue starter", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json"], ["web, every starter"]),
         new("the Angular starter", "pull_request", [], [".template.config/starters/angular/FrameworkSite/scaffold.json"],
             ["web placeholder, smallest project", "web angular, external auth, notes", "web react, then an angular back office", "web, every starter"]),
@@ -377,8 +406,9 @@ internal static class LegSelector
         new("the acceptance workflow", "pull_request", [], [".github/workflows/template-acceptance.yml"], null),
         new("an empty diff", "pull_request", [], [], null),
         new("an unreadable diff", "pull_request", [], null, null),
-        new("the full-acceptance label", "pull_request", ["documentation", FullAcceptanceLabel], ["docs/template/roadmap.md"], null),
+        new("the full-acceptance label", "pull_request", ["documentation", _fullAcceptanceLabel], ["docs/template/roadmap.md"], null),
         new("a push", "push", [], ["docs/template/roadmap.md"], null),
+        new("a schedule", "schedule", [], null, null),
         new("a manual run", "workflow_dispatch", [], null, null),
     ];
 
@@ -387,7 +417,7 @@ internal static class LegSelector
         var failures = new List<string>();
         string[] everyLeg = [.. legs.Select(leg => leg.Name)];
 
-        foreach (Case test in Cases)
+        foreach (Case test in _cases)
         {
             Selection selection = Select(rules, legs, test.Event, test.Labels, test.Changed?.ToList());
             string[] expected = test.Expected ?? everyLeg;
@@ -420,7 +450,7 @@ internal static class LegSelector
             failures.Add("the skip output or the counts do not match the legs chosen");
         }
 
-        string[] windowsLegs = [.. legs.Where(leg => leg.Runner == Windows).Select(leg => leg.Name)];
+        string[] windowsLegs = [.. legs.Where(leg => leg.Runner == _windows).Select(leg => leg.Name)];
 
         if (windowsLegs.Length == 0 || lines.GetValueOrDefault("run_windows") != "{\"include\":[]}" || lines.GetValueOrDefault("run_windows_count") != "0"
             || !windowsLegs.All(name => skipMatrix?["include"]?.AsArray().Any(leg => leg?["name"]?.GetValue<string>() == name) == true))
@@ -445,13 +475,41 @@ internal static class LegSelector
             failures.Add("a leg on a runner no job serves is accepted");
         }
 
-        if (Labels("null").Length != 0 || Labels("[\"a\",\"full-acceptance\"]") is not ["a", FullAcceptanceLabel])
+        if (Labels("null").Length != 0 || Labels("[\"a\",\"full-acceptance\"]") is not ["a", _fullAcceptanceLabel])
         {
             failures.Add("the labels of a push, or of a pull request, are misread");
         }
 
-        int total = Cases.Length * 2 + 6;
-        Console.WriteLine($"Self-test: {Cases.Length} change(s) against rules.json and matrix.json, and the outputs they write.");
+        (string Event, string? Action, string? Label, bool Moved, bool Idles)[] idling =
+        [
+            ("pull_request", "labeled", "dependencies", true, true),
+            ("pull_request", "labeled", _fullAcceptanceLabel, true, false),
+            ("pull_request", "labeled", null, true, false),
+            ("pull_request", "opened", null, true, false),
+            ("pull_request", "synchronize", null, true, false),
+            ("schedule", null, null, false, true),
+            ("schedule", null, null, true, false),
+            ("push", null, null, false, false),
+            ("workflow_dispatch", null, null, false, false),
+        ];
+
+        foreach (var (eventName, action, label, moved, idles) in idling)
+        {
+            if ((Idle(eventName, action, label, moved) is not null) != idles)
+            {
+                failures.Add($"{eventName} {action} {label} moved={moved}: the run should {(idles ? "" : "not ")}idle whole");
+            }
+        }
+
+        var nothing = OutputLines(new Selection([], [], ["idle"]));
+
+        if (nothing.GetValueOrDefault("run_count") != "0" || nothing.GetValueOrDefault("run_windows_count") != "0" || nothing.GetValueOrDefault("skip_count") != "0")
+        {
+            failures.Add("a run that idles reports a leg, run or skipped, so a required check would turn green unproved");
+        }
+
+        int total = _cases.Length * 2 + 6 + idling.Length + 1;
+        Console.WriteLine($"Self-test: {_cases.Length} change(s) against rules.json and matrix.json, and the outputs they write.");
 
         if (failures.Count > 0)
         {

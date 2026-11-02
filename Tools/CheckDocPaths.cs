@@ -7,30 +7,30 @@ using System.Text.RegularExpressions;
 
 internal static class CheckDocPaths
 {
-    private static readonly Regex CodeSpan = new(@"`([^`\n]+)`");
+    private static readonly Regex _codeSpan = new(@"`([^`\n]+)`");
 
-    private static readonly Regex Candidate = new(
+    private static readonly Regex _candidate = new(
         @"^(?:\./)?"
         + @"(?:Src|Tests|Tools|docs|\.github|\.config)/[\w\-./]+"
         + @"|^(?:[\w\-.]+\.(?:sln|slnx|props|json|yml|md|ps1|http|runsettings|minimum|csproj|py))$");
 
-    private static readonly Regex BareFilename = new(
+    private static readonly Regex _bareFilename = new(
         @"^[\w\-.]+\."
         + @"(?:sln|slnx|props|json|ya?ml|md|ps1|sh|http|runsettings|minimum|csproj|py|cs)$");
 
-    private static readonly Regex Trailing = new(@"(?:'s|[.,;:)\]]+)$");
+    private static readonly Regex _trailing = new(@"(?:'s|[.,;:)\]]+)$");
 
-    private const string DocDir = "docs";
+    private const string _docDir = "docs";
 
-    private static readonly Regex BareDocPath = new($@"(?<![\w`/]){DocDir}/[\w\-./]+");
+    private static readonly Regex _bareDocPath = new($@"(?<![\w`/]){_docDir}/[\w\-./]+");
 
-    private static readonly string[] CommentingSuffixes =
+    private static readonly string[] _commentingSuffixes =
         [".yaml", ".yml", ".http", ".ps1", ".py", ".props", ".cs", ".editorconfig"];
 
-    private static readonly SearchValues<char> NotPathCharacters =
+    private static readonly SearchValues<char> _notPathCharacters =
         SearchValues.Create("*$<>|(){}\"'");
 
-    private static readonly HashSet<string> SkippedDirectoryNames =
+    private static readonly HashSet<string> _skippedDirectoryNames =
         new(["bin", "obj", ".git", ".vs"], StringComparer.Ordinal);
 
     private sealed record Scan(
@@ -40,7 +40,7 @@ internal static class CheckDocPaths
         int CommentingFiles,
         int BareChecked);
 
-    private const string Help =
+    private const string _help =
         """
         Usage: dotnet run Tools/CheckDocPaths.cs [<root>]
                dotnet run Tools/CheckDocPaths.cs --self-test
@@ -60,7 +60,7 @@ internal static class CheckDocPaths
     {
         if (args is ["--help"] or ["-h"])
         {
-            Console.WriteLine(Help);
+            Console.WriteLine(_help);
             return 0;
         }
 
@@ -82,7 +82,7 @@ internal static class CheckDocPaths
     }
 
     private static bool UnderExemptDirectory(string fullPath) =>
-        Segments(fullPath).Any(ExemptDirectoryNames.Contains);
+        Segments(fullPath).Any(_exemptDirectoryNames.Contains);
 
     private static string[] Segments(string fullPath) =>
         fullPath.Split(
@@ -95,7 +95,7 @@ internal static class CheckDocPaths
                      [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                      StringSplitOptions.RemoveEmptyEntries))
         {
-            if (SkippedDirectoryNames.Contains(part))
+            if (_skippedDirectoryNames.Contains(part))
             {
                 return true;
             }
@@ -199,10 +199,10 @@ internal static class CheckDocPaths
         return candidates.Where(path => !ignored.Contains(Normalised(path))).ToList();
     }
 
-    private static readonly HashSet<string> ExemptFileNames =
+    private static readonly HashSet<string> _exemptFileNames =
         new(StringComparer.OrdinalIgnoreCase) { "CHANGELOG.md" };
 
-    private static readonly HashSet<string> ExemptDirectoryNames =
+    private static readonly HashSet<string> _exemptDirectoryNames =
         new(StringComparer.Ordinal) { "plans" };
 
     private static List<string> CollectMarkdown(string repo, List<FileSystemInfo> entries)
@@ -211,7 +211,7 @@ internal static class CheckDocPaths
             .Where(entry => entry is FileInfo
                             && entry.Exists
                             && Suffix(entry.Name) == ".md"
-                            && !ExemptFileNames.Contains(entry.Name)
+                            && !_exemptFileNames.Contains(entry.Name)
                             && !UnderExemptDirectory(entry.FullName)
                             && !UnderSkippedDirectory(entry.FullName))
             .Select(entry => entry.FullName)
@@ -225,7 +225,7 @@ internal static class CheckDocPaths
         var candidates = entries
             .Where(entry => entry is FileInfo
                             && entry.Exists
-                            && CommentingSuffixes.Contains(Suffix(entry.Name))
+                            && _commentingSuffixes.Contains(Suffix(entry.Name))
                             && !UnderSkippedDirectory(entry.FullName))
             .Select(entry => entry.FullName)
             .ToList();
@@ -257,11 +257,11 @@ internal static class CheckDocPaths
             var text = ReadText(markdown);
             var relativeMarkdown = Relative(repo, markdown);
 
-            foreach (Match span in CodeSpan.Matches(text))
+            foreach (Match span in _codeSpan.Matches(text))
             {
                 var raw = span.Groups[1].Value.Trim();
 
-                if (raw.AsSpan().IndexOfAny(NotPathCharacters) >= 0 || raw.Contains(' '))
+                if (raw.AsSpan().IndexOfAny(_notPathCharacters) >= 0 || raw.Contains(' '))
                 {
                     continue;
                 }
@@ -278,7 +278,7 @@ internal static class CheckDocPaths
 
                 if (!cleaned.Contains('/'))
                 {
-                    if (!BareFilename.IsMatch(cleaned))
+                    if (!_bareFilename.IsMatch(cleaned))
                     {
                         continue;
                     }
@@ -293,7 +293,7 @@ internal static class CheckDocPaths
                     continue;
                 }
 
-                if (!Candidate.IsMatch(cleaned))
+                if (!_candidate.IsMatch(cleaned))
                 {
                     continue;
                 }
@@ -315,9 +315,9 @@ internal static class CheckDocPaths
             var text = ReadText(source);
             var relativeSource = Relative(repo, source);
 
-            foreach (Match match in BareDocPath.Matches(text))
+            foreach (Match match in _bareDocPath.Matches(text))
             {
-                var cited = Trailing.Replace(match.Value, string.Empty);
+                var cited = _trailing.Replace(match.Value, string.Empty);
 
                 bareChecked++;
 
@@ -343,7 +343,7 @@ internal static class CheckDocPaths
             + $"checked {result.Checked} path reference(s).");
         Console.WriteLine(
             $"Scanned {result.CommentingFiles} commented file(s); "
-            + $"checked {result.BareChecked} bare {DocDir}/ reference(s).");
+            + $"checked {result.BareChecked} bare {_docDir}/ reference(s).");
         Console.WriteLine();
 
         if (result.MarkdownFiles == 0)
@@ -374,7 +374,7 @@ internal static class CheckDocPaths
         return 0;
     }
 
-    private static readonly (string Label, (string Path, string Content)[] Files)[] MustFire =
+    private static readonly (string Label, (string Path, string Content)[] Files)[] _mustFire =
     [
         (
             "a backticked path that resolves to nothing",
@@ -395,7 +395,7 @@ internal static class CheckDocPaths
             [
                 ("README.md", "See `Src/Application/Present.cs`.\n"),
                 ("Src/Application/Present.cs", ""),
-                ("deploy.yaml", $"# rationale: {DocDir}/nowhere.md\n"),
+                ("deploy.yaml", $"# rationale: {_docDir}/nowhere.md\n"),
             ]
         ),
         (
@@ -408,7 +408,7 @@ internal static class CheckDocPaths
         ),
     ];
 
-    private static readonly (string Label, (string Path, string Content)[] Files)[] MustStaySilent =
+    private static readonly (string Label, (string Path, string Content)[] Files)[] _mustStaySilent =
     [
         (
             "a backticked path that resolves",
@@ -429,8 +429,8 @@ internal static class CheckDocPaths
             [
                 ("README.md", "See `Src/Application/Present.cs`.\n"),
                 ("Src/Application/Present.cs", ""),
-                ($"{DocDir}/architecture/README.md", "`Src/Application/Present.cs`\n"),
-                ("deploy.yaml", $"# rationale: {DocDir}/architecture/README.md\n"),
+                ($"{_docDir}/architecture/README.md", "`Src/Application/Present.cs`\n"),
+                ("deploy.yaml", $"# rationale: {_docDir}/architecture/README.md\n"),
             ]
         ),
         (
@@ -465,7 +465,7 @@ internal static class CheckDocPaths
         ),
     ];
 
-    private static readonly (string Path, string Content)[] IgnoredNote =
+    private static readonly (string Path, string Content)[] _ignoredNote =
     [
         (".gitignore", "ignored/\n"),
         ("README.md", "The handler lives in `Src/Application/Present.cs`.\n"),
@@ -473,15 +473,15 @@ internal static class CheckDocPaths
         ("ignored/WORKING-NOTE.md", "A scratch note citing `Src/Application/Missing.cs`.\n"),
     ];
 
-    private static readonly (string Path, string Content)[] PlannedTree =
+    private static readonly (string Path, string Content)[] _plannedTree =
     [
         ("README.md", "The handler lives in `Src/Application/Present.cs`.\n"),
         ("Src/Application/Present.cs", ""),
-        ($"{DocDir}/plans/WAVE-ONE.md", "The handler will live in `Src/Application/Planned.cs`.\n"),
+        ($"{_docDir}/plans/WAVE-ONE.md", "The handler will live in `Src/Application/Planned.cs`.\n"),
         ("NOTES.md", "The handler lives in `Src/Application/Absent.cs`.\n"),
     ];
 
-    private static readonly string[] PlannedTreeProblems = ["NOTES.md: `Src/Application/Absent.cs`"];
+    private static readonly string[] _plannedTreeProblems = ["NOTES.md: `Src/Application/Absent.cs`"];
 
     private static void Materialise(string root, (string Path, string Content)[] files)
     {
@@ -541,7 +541,7 @@ internal static class CheckDocPaths
     {
         var failures = new List<string>();
 
-        foreach (var (label, files) in MustFire)
+        foreach (var (label, files) in _mustFire)
         {
             RunInTemporaryTree(files, root =>
             {
@@ -552,7 +552,7 @@ internal static class CheckDocPaths
             });
         }
 
-        foreach (var (label, files) in MustStaySilent)
+        foreach (var (label, files) in _mustStaySilent)
         {
             RunInTemporaryTree(files, root =>
             {
@@ -567,7 +567,7 @@ internal static class CheckDocPaths
 
         var ignoredNoteChecked = false;
 
-        RunInTemporaryTree(IgnoredNote, root =>
+        RunInTemporaryTree(_ignoredNote, root =>
         {
             if (!InitialiseRepository(root))
             {
@@ -593,7 +593,7 @@ internal static class CheckDocPaths
             }
         });
 
-        RunInTemporaryTree(PlannedTree, root =>
+        RunInTemporaryTree(_plannedTree, root =>
         {
             var result = ScanTree(root);
 
@@ -604,18 +604,18 @@ internal static class CheckDocPaths
                     + $"{result.MarkdownFiles}");
             }
 
-            if (!result.Problems.SequenceEqual(PlannedTreeProblems, StringComparer.Ordinal))
+            if (!result.Problems.SequenceEqual(_plannedTreeProblems, StringComparer.Ordinal))
             {
                 failures.Add(
                     "a plan the gate exempts must raise nothing while the note beside it still does; "
-                    + $"expected {Repr(PlannedTreeProblems)}, got {Repr(result.Problems)}");
+                    + $"expected {Repr(_plannedTreeProblems)}, got {Repr(result.Problems)}");
             }
         });
 
-        var total = MustFire.Length + MustStaySilent.Length + (ignoredNoteChecked ? 1 : 0) + 1;
+        var total = _mustFire.Length + _mustStaySilent.Length + (ignoredNoteChecked ? 1 : 0) + 1;
 
         Console.WriteLine(
-            $"Self-test: {MustFire.Length} faulted tree(s), {MustStaySilent.Length} sound tree(s), "
+            $"Self-test: {_mustFire.Length} faulted tree(s), {_mustStaySilent.Length} sound tree(s), "
             + $"{(ignoredNoteChecked ? "1 ignored-note tree" : "no ignored-note tree (git absent)")}, "
             + "1 exempt-plan tree.");
         Console.WriteLine();

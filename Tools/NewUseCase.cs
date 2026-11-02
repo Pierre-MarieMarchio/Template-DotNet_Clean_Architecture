@@ -8,9 +8,9 @@ using System.Text.RegularExpressions;
 
 internal static class NewUseCase
 {
-    private const string ManifestFolder = ".feature-manifest";
+    private const string _manifestFolder = ".feature-manifest";
 
-    private const string Usage =
+    private const string _usage =
         "Usage: dotnet run Tools/NewUseCase.cs <Features> <UseCase> --kind command|query\n"
         + "           [--input id|none]\n"
         + "           [--root <path>]\n"
@@ -23,18 +23,18 @@ internal static class NewUseCase
         + "  --root      the tree to write into, default the current directory.\n"
         + "       dotnet run Tools/NewUseCase.cs --self-test";
 
-    private static readonly string[] OptionNames = ["--kind", "--input", "--root"];
+    private static readonly string[] _optionNames = ["--kind", "--input", "--root"];
 
-    private static readonly string[] ReservedNames =
+    private static readonly string[] _reservedNames =
     [
         "Access", "Api", "Application", "Auth", "Commands", "Common", "Contracts", "Controllers", "Core",
         "Dtos", "Domain", "Entities", "Errors", "Features", "Infrastructure", "Model", "Models",
         "Persistence", "Policies", "Ports", "Presentation", "Queries", "Rows", "Services", "UseCases",
     ];
 
-    private static readonly string[] ReservedSuffixes = ["UseCase", "Command", "Query", "Validator", "Dto"];
+    private static readonly string[] _reservedSuffixes = ["UseCase", "Command", "Query", "Validator", "Dto"];
 
-    private static readonly string[] Keywords =
+    private static readonly string[] _keywords =
     [
         "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
         "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
@@ -46,9 +46,9 @@ internal static class NewUseCase
         "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
     ];
 
-    private static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    private static readonly Regex TokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
+    private static readonly Regex _tokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     private sealed record Emission(string Path, string Content);
 
@@ -85,7 +85,7 @@ internal static class NewUseCase
 
         if (args is ["--help"] or ["-h"])
         {
-            Console.WriteLine(Usage);
+            Console.WriteLine(_usage);
 
             return 0;
         }
@@ -144,7 +144,7 @@ internal static class NewUseCase
         }
 
         error.WriteLine();
-        error.WriteLine(Usage);
+        error.WriteLine(_usage);
         error.WriteLine();
         error.WriteLine("Nothing was written.");
 
@@ -177,9 +177,9 @@ internal static class NewUseCase
                 value = argument[(equals + 1)..];
             }
 
-            if (!OptionNames.Contains(name, StringComparer.Ordinal))
+            if (!_optionNames.Contains(name, StringComparer.Ordinal))
             {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", OptionNames[..^1])}.");
+                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])}.");
 
                 continue;
             }
@@ -314,7 +314,7 @@ internal static class NewUseCase
                 .Select(Path.GetFileNameWithoutExtension)
                 .OfType<string>()
                 .Select(file => file[1..^"Repository".Length])
-                .Where(type => PascalCase.IsMatch(type))
+                .Where(type => _pascalCase.IsMatch(type))
                 .Order(StringComparer.Ordinal)]
             : [];
 
@@ -354,7 +354,7 @@ internal static class NewUseCase
             dtoExists = File.Exists(Path.Combine(application, "Model", "Dtos", dto + ".cs"));
         }
 
-        string manifest = $"{ManifestFolder}/{features}.json";
+        string manifest = $"{_manifestFolder}/{features}.json";
         string manifestFull = Path.Combine(root, manifest);
 
         if (File.Exists(manifestFull))
@@ -385,12 +385,12 @@ internal static class NewUseCase
     {
         var problems = new List<string>();
 
-        if (!PascalCase.IsMatch(features))
+        if (!_pascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a feature folder: <Features> is PascalCase and plural, e.g. Invoices.");
         }
 
-        if (!PascalCase.IsMatch(name))
+        if (!_pascalCase.IsMatch(name))
         {
             problems.Add($"'{name}' is not a use case name: <UseCase> is PascalCase, e.g. ApproveInvoice.");
         }
@@ -410,17 +410,17 @@ internal static class NewUseCase
             problems.Add("A use case name longer than 60 characters makes a path that some tools cannot open. Shorten it.");
         }
 
-        if (ReservedNames.Contains(name, StringComparer.Ordinal))
+        if (_reservedNames.Contains(name, StringComparer.Ordinal))
         {
             problems.Add($"'{name}' is already a segment of the namespaces around a use case. Name the operation: a verb and its subject.");
         }
 
-        if (ReservedSuffixes.FirstOrDefault(suffix => name.EndsWith(suffix, StringComparison.Ordinal)) is { } suffix)
+        if (_reservedSuffixes.FirstOrDefault(suffix => name.EndsWith(suffix, StringComparison.Ordinal)) is { } suffix)
         {
             problems.Add($"'{name}' ends in '{suffix}', which the generated types append themselves. Name the operation alone, e.g. {name[..^suffix.Length]}.");
         }
 
-        if (Keywords.Contains(Lower(name), StringComparer.Ordinal))
+        if (_keywords.Contains(Lower(name), StringComparer.Ordinal))
         {
             problems.Add($"'{name}' becomes the C# keyword '{Lower(name)}' once its first letter is lowered, which is how the controller names it. Choose another name.");
         }
@@ -491,7 +491,7 @@ internal static class NewUseCase
 
     private static string Render(string template, Dictionary<string, string> tokens)
     {
-        string text = TokenPattern.Replace(
+        string text = _tokenPattern.Replace(
             template,
             match => tokens.TryGetValue(match.Groups[1].Value, out string? value) ? value : match.Value);
 
@@ -1100,7 +1100,7 @@ internal static class NewUseCase
 
             expect(created.SequenceEqual(files.Order(StringComparer.Ordinal)), $"[{label}] wrote {string.Join(", ", created)}.");
             expect(before.All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value), $"[{label}] changed a file it does not own.");
-            expect(!Directory.Exists(Path.Combine(root, ManifestFolder)), $"[{label}] wrote a manifest where the feature had none.");
+            expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), $"[{label}] wrote a manifest where the feature had none.");
             expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
             expect(result.Output.Contains("Src/Presentation/Acme.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal), $"[{label}] did not name the feature's controller.");
 
@@ -1157,7 +1157,7 @@ internal static class NewUseCase
     private static void ManifestCases(string scratch, Action<bool, string> expect)
     {
         string root = NewTree(scratch);
-        string manifest = Path.Combine(root, ManifestFolder, "Invoices.json");
+        string manifest = Path.Combine(root, _manifestFolder, "Invoices.json");
         const string generated = "Src/Application/Acme.Application/Features/Invoices/UseCases/Commands/CreateInvoice/CreateInvoiceUseCase.cs";
         string page = $"docs/features/{Kebab("Invoices")}.md";
         string original =
@@ -1203,7 +1203,7 @@ internal static class NewUseCase
         expect(!File.Exists(manifest + ".new"), "The staged manifest was left behind.");
 
         string broken = NewTree(scratch);
-        string brokenManifest = Path.Combine(broken, ManifestFolder, "Invoices.json");
+        string brokenManifest = Path.Combine(broken, _manifestFolder, "Invoices.json");
 
         Directory.CreateDirectory(Path.GetDirectoryName(brokenManifest)!);
         File.WriteAllText(brokenManifest, "{ not json");
@@ -1268,9 +1268,9 @@ internal static class NewUseCase
             yield return $"{relative}: not LF endings closed by exactly one newline.";
         }
 
-        if (TokenPattern.IsMatch(text))
+        if (_tokenPattern.IsMatch(text))
         {
-            yield return $"{relative}: a token was left unsubstituted: {TokenPattern.Match(text).Value}";
+            yield return $"{relative}: a token was left unsubstituted: {_tokenPattern.Match(text).Value}";
         }
 
         if (text.Contains("//", StringComparison.Ordinal) || text.Contains("/*", StringComparison.Ordinal))

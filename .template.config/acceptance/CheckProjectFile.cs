@@ -11,7 +11,7 @@ return ProjectFileCheck.Run(args);
 
 internal static class ProjectFileCheck
 {
-    private const string Usage =
+    private const string _usage =
         """
         Usage: dotnet run .template.config/acceptance/CheckProjectFile.cs -- <project> <name> [<options>]
                dotnet run .template.config/acceptance/CheckProjectFile.cs -- --self-test
@@ -27,16 +27,16 @@ internal static class ProjectFileCheck
         Exit code 0 when the file is the expected one; 1 when it differs, or on a malformed argument.
         """;
 
-    private static readonly JsonSerializerOptions Written = new()
+    private static readonly JsonSerializerOptions _written = new()
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         NewLine = "\n",
     };
 
-    private static readonly string[] ClientPresentations = ["avalonia", "wpf"];
+    private static readonly string[] _clientPresentations = ["avalonia", "wpf"];
 
-    private static readonly (string Framework, string Name)[] Hosts =
+    private static readonly (string Framework, string Name)[] _hosts =
     [
         ("api", "Api"), ("blazor-server", "Portal"), ("mcp", "Mcp"), ("avalonia", "Desktop"), ("wpf", "Desktop"), ("worker", "Worker"),
     ];
@@ -45,7 +45,7 @@ internal static class ProjectFileCheck
     {
         if (arguments is [] or ["--help"] or ["-h"])
         {
-            Console.WriteLine(Usage);
+            Console.WriteLine(_usage);
             return arguments.Length == 0 ? 1 : 0;
         }
 
@@ -56,7 +56,7 @@ internal static class ProjectFileCheck
 
         if (arguments.Length < 2)
         {
-            Console.Error.WriteLine("A project folder and the name it was generated under are required." + Environment.NewLine + Usage);
+            Console.Error.WriteLine("A project folder and the name it was generated under are required." + Environment.NewLine + _usage);
             return 1;
         }
 
@@ -106,7 +106,7 @@ internal static class ProjectFileCheck
         string[] chosen = Value("presentation").Split('|');
         bool api = chosen.Contains("api")
             || web != "none"
-            || chosen.Intersect(ClientPresentations).Any()
+            || chosen.Intersect(_clientPresentations).Any()
             || (chosen.Contains("mcp") && Value("auth") == "local");
         bool worker = chosen.Contains("worker") || !api;
         bool Holds(string framework) => framework switch { "api" => api, "worker" => worker, _ => chosen.Contains(framework) };
@@ -119,7 +119,7 @@ internal static class ProjectFileCheck
             },
             ["name"] = name,
             ["options"] = options,
-            ["client"] = chosen.Intersect(ClientPresentations).Any() || web == "blazor-wasm",
+            ["client"] = chosen.Intersect(_clientPresentations).Any() || web == "blazor-wasm",
         };
 
         if (web != "none")
@@ -138,11 +138,11 @@ internal static class ProjectFileCheck
             };
         }
 
-        project["presentation"] = new JsonArray([.. Hosts
+        project["presentation"] = new JsonArray([.. _hosts
             .Where(host => Holds(host.Framework))
             .Select(host => new JsonObject { ["name"] = host.Name, ["framework"] = host.Framework })]);
 
-        return project.ToJsonString(Written) + "\n";
+        return project.ToJsonString(_written) + "\n";
     }
 
     private static Dictionary<string, string> Given(string[] arguments, JsonElement hosts)

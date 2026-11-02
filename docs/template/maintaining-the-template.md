@@ -33,7 +33,7 @@ tests, `verify` and the drift check need them. They are git-ignored here only, b
 both `template.json` and `.template.config/TemplatePackage.csproj` exclude them, so a project
 generated from this checkout or from its package starts without them; `TemplatePackagingTests` holds
 the three. After a model change, delete each context's `Migrations` folder and run the task again. The
-CI, Sonar and release workflows run it before building, under `templateMaintenance` blocks.
+CI and release workflows run it before building, under `templateMaintenance` blocks.
 
 ## The acceptance matrix
 
@@ -41,7 +41,7 @@ CI, Sonar and release workflows run it before building, under `templateMaintenan
 change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, checks
 its `cleanarch.json` against the leg's options with `.template.config/acceptance/CheckProjectFile.cs`, bootstraps
 (the formatting, then `migration-initial` after asserting no migration was generated, and once more to
-prove it creates nothing), builds with warnings as errors, runs the Docker-free tests, checks every generated context for
+prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
 run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then
@@ -72,7 +72,9 @@ package and presentation project a leg adds with an item template is recorded by
 last addition. Every leg
 runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
-compiles it and its tests run with the others. The three web legs that pass `--presentation
+compiles it and its tests run with the others. After the build, every leg checks that bootstrap left
+whitespace and encoding unchanged; the `defaults` leg alone runs the `format` task, whose rules need a
+compilation, as `ci.yml` runs it on the template. The three web legs that pass `--presentation
 blazor-server`, one per authentication mode, create the presentation project, build and test it, and
 ask it in the stack for its page and `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
@@ -169,9 +171,26 @@ runs every leg reaches it. The two WPF legs carry the WPF starter's tag, as the 
 the app with `cleanarch-presentation` does: a change to the starter builds the app and runs its
 `.Core` tests on Linux, and builds, tests and checks it on Windows under both kinds of sign-in.
 
-Every leg runs on a push to `develop` or `main`, on a manual run, under the `full-acceptance` label,
-on an empty or unreadable diff, and on a change to the selector, its rules, the matrix or the
-workflow. Labelling a pull request starts a run, so `full-acceptance` applies without a push.
+Every leg runs on a push to `main`, on a manual run, on the nightly run of `develop`, under the
+`full-acceptance` label, on an empty or unreadable diff, and on a change to the selector, its rules,
+the matrix or the workflow. A push to `develop` starts no acceptance run: its pull request ran the
+legs its change could affect, and the nightly run proves the merged tree whole.
+
+The nightly run starts at 02:17 UTC, off the top of the hour when GitHub delays scheduled runs, and
+runs only when `develop` has moved: the `Has develop moved since the last scheduled run` step
+compares the commit with the one of the last scheduled run that finished green or red, a cancelled
+one not counting, and passes `--moved false` to the selector when they are the same; a list it
+cannot read counts as a move. A red night is announced by GitHub alone: it emails the person who
+last changed the cron line, if their
+notification settings send workflow failures, and shows the run under the Actions tab of
+`develop`; look there after a merge when no mail came. GitHub disables a scheduled workflow after 60
+days without repository activity, which a `develop` that moves rarely can reach.
+
+Labelling a pull request starts a run, so `full-acceptance` applies without a push. Any other label
+starts a run that chooses no leg and reports none, in a concurrency group of its own, so it cancels
+no run in progress; only `Pack the template package` and `Template refuses unsupported options` run
+again, on the same tree. The jobs it skips report under the name `Template acceptance
+(${{ matrix.name }})`, which no ruleset requires, so no required leg turns green unproved.
 
 `AcceptanceSelectionTests`, a template-only rule, keeps the two files honest: the legs are the
 checks the ruleset requires plus the every-starter leg, which it does not; every folder under
@@ -567,10 +586,11 @@ Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v
 and the other types stay out of it. A working branch is kept after its merge.
 
 The checks run on the pull request, which must be up to date with `develop`, so the merged tree is
-the one they passed. A push to `develop` runs CodeQL, SonarQube, the release workflow, and the
-acceptance matrix in full, as its pull request ran only the legs its change could affect. SonarQube analyses a push to the default branch only, as SonarCloud's free
-plan analyses one branch, so the SonarCloud project names `develop` as its main branch; it skips a
-Dependabot pull request, which gets no repository secret. Dependabot reads its configuration on the
+the one they passed. A push to `develop` runs CI, CodeQL and the release workflow; the acceptance
+matrix runs in full each night `develop` has moved, as its pull request ran only the legs its change
+could affect. The SonarQube steps of `ci.yml` analyse a push to the default branch only, as
+SonarCloud's free plan analyses one branch, so the SonarCloud project names `develop` as its main
+branch; they skip a Dependabot pull request, which gets no repository secret. Dependabot reads its configuration on the
 default branch, and `.github/dependabot.yml` names `develop` for each ecosystem in this repository
 only.
 

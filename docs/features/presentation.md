@@ -218,6 +218,9 @@ resolves every use case it composes in an operation's scope, proves that scope c
 and that a use case resolved outside one refuses to name it, and that the host runs no background
 service of its own.
 <!--#if (localAuth)-->
+Its test host keeps the data-protection key ring in memory: the host loads the ring as it starts,
+and from the database it composes, which a unit test does not run, the execution strategy's retries
+would hold each host for some twenty seconds.
 `CookieSessionTests` and `ActiveSessionProviderTests` hold the sign-in, the sign-out and the
 revalidation.
 <!--#endif-->
@@ -474,6 +477,11 @@ and what it passes.
 `McpOptionsValidatorTests` holds the server's address.
 <!--#endif-->
 `NoHost_ReferencesAnotherHost` keeps the server from reaching the jobs and migrations of another host.
+<!--#if (localAuth)-->
+Its test host keeps the data-protection key ring in memory: the host loads the ring as it starts,
+and from the database it composes, which a unit test does not run, the execution strategy's retries
+would hold each host for some twenty seconds.
+<!--#endif-->
 <!--#endif-->
 
 ## Decisions

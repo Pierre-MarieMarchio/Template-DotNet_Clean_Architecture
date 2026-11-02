@@ -2,7 +2,7 @@
   "descriptionHash": "23DE33A120FCD382056F04C3CC7DB4F6DC4E220C0CCF3ADABDC452DBD57DB0AD3B45EDC2FFCA700F146044AD12CB828FA8BF08CC8D59B3B62EA1673E46BA6339",
   "descriptionLocation": "../../../../Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/v1.json",
   "lockFileVersion": "1.0.0",
-  "kiotaVersion": "1.36.1",
+  "kiotaVersion": "1.37.0",
   "clientClassName": "ApiClient",
   "typeAccessModifier": "Public",
   "clientNamespaceName": "AppTemplate.Client.Generated",

@@ -60,21 +60,21 @@ internal static class WorkflowGate
         workflow, which proves nothing.
         """;
 
-    private static readonly string[] WorkflowSuffixes = [".yml", ".yaml"];
+    private static readonly string[] _workflowSuffixes = [".yml", ".yaml"];
 
-    private static readonly Regex ShaPin = new(@"^[\w\-./]+@[0-9a-f]{40}$", RegexOptions.Compiled);
+    private static readonly Regex _shaPin = new(@"^[\w\-./]+@[0-9a-f]{40}$", RegexOptions.Compiled);
 
-    private static readonly Regex DigestPin = new(
+    private static readonly Regex _digestPin = new(
         @"^[a-z0-9][a-z0-9._/:-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$",
         RegexOptions.Compiled);
 
-    private static readonly Regex DriverImage = new(@"(?:^|[\s,])image=(?<ref>[^\s,]+)", RegexOptions.Compiled);
+    private static readonly Regex _driverImage = new(@"(?:^|[\s,])image=(?<ref>[^\s,]+)", RegexOptions.Compiled);
 
-    private static readonly Regex EnvRef = new(
+    private static readonly Regex _envRef = new(
         @"\$\{?\{?\s*env\.([A-Za-z_][A-Za-z0-9_]*)|\$([A-Z_][A-Z0-9_]*)|\$\{([A-Z_][A-Z0-9_]*)\}",
         RegexOptions.Compiled);
 
-    private static readonly Regex FileRef = new(
+    private static readonly Regex _fileRef = new(
         @"(?:\./)?("
         + @"(?:\.github/scripts/|Src/|Tests/|Tools/)[\w\-./]+\.(?:py|csproj|cs|xml)"
         + @"|coverage\.(?:runsettings|minimum)"
@@ -82,7 +82,7 @@ internal static class WorkflowGate
         + @")",
         RegexOptions.Compiled);
 
-    private static readonly string[] PathInputs =
+    private static readonly string[] _pathInputs =
     [
         "context",
         "file",
@@ -93,13 +93,13 @@ internal static class WorkflowGate
         "cache-dependency-path",
     ];
 
-    private static readonly string[] PathFilters = ["paths", "paths-ignore"];
+    private static readonly string[] _pathFilters = ["paths", "paths-ignore"];
 
-    private static readonly string[] PullRequestTriggers = ["pull_request", "pull_request_target"];
+    private static readonly string[] _pullRequestTriggers = ["pull_request", "pull_request_target"];
 
-    private static readonly Regex GoTemplate = new(@"\{\{.*?\}\}", RegexOptions.Singleline | RegexOptions.Compiled);
+    private static readonly Regex _goTemplate = new(@"\{\{.*?\}\}", RegexOptions.Singleline | RegexOptions.Compiled);
 
-    private static readonly HashSet<string> ShellBuiltins = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _shellBuiltins = new(StringComparer.Ordinal)
     {
         "GITHUB_STEP_SUMMARY", "GITHUB_OUTPUT", "GITHUB_ENV", "GITHUB_PATH",
         "GITHUB_REPOSITORY", "GITHUB_REF", "GITHUB_SHA", "GITHUB_WORKSPACE",
@@ -107,7 +107,7 @@ internal static class WorkflowGate
         "IFS", "PY", "REGISTRY",
     };
 
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+    private static readonly UTF8Encoding _utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     public static List<string> Discover(string repo)
     {
@@ -119,7 +119,7 @@ internal static class WorkflowGate
         }
 
         return Directory.EnumerateFiles(directory)
-            .Where(path => WorkflowSuffixes.Contains(Path.GetExtension(path), StringComparer.Ordinal))
+            .Where(path => _workflowSuffixes.Contains(Path.GetExtension(path), StringComparer.Ordinal))
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToList();
     }
@@ -159,7 +159,7 @@ internal static class WorkflowGate
 
         foreach (var trigger in Keys(triggers))
         {
-            foreach (var filter in PathFilters)
+            foreach (var filter in _pathFilters)
             {
                 if (!IsNull(Get(Get(triggers, trigger), filter)))
                 {
@@ -169,7 +169,7 @@ internal static class WorkflowGate
             }
         }
 
-        var pullRequestTriggered = TriggerNames(triggers).Any(PullRequestTriggers.Contains);
+        var pullRequestTriggered = TriggerNames(triggers).Any(_pullRequestTriggers.Contains);
 
         var workflowEnv = new HashSet<string>(Keys(Get(root, "env")), StringComparer.Ordinal);
 
@@ -219,7 +219,7 @@ internal static class WorkflowGate
 
             var knownEnv = new HashSet<string>(workflowEnv, StringComparer.Ordinal);
             knownEnv.UnionWith(Keys(Get(job, "env")));
-            knownEnv.UnionWith(ShellBuiltins);
+            knownEnv.UnionWith(_shellBuiltins);
 
             foreach (var problem in MissingPath(repo, "a default working-directory", Get(Get(Get(job, "defaults"), "run"), "working-directory")))
             {
@@ -228,7 +228,7 @@ internal static class WorkflowGate
 
             foreach (var (where, image) in JobImages(job))
             {
-                if (!DigestPin.IsMatch(image))
+                if (!_digestPin.IsMatch(image))
                 {
                     problems.Add($"{name}: job '{jobName}' runs {where} '{image}' without a digest pin");
                 }
@@ -237,7 +237,7 @@ internal static class WorkflowGate
             foreach (var step in Steps(job))
             {
                 var uses = Get(step, "uses") as YamlScalarNode;
-                if (!string.IsNullOrEmpty(uses?.Value) && !ShaPin.IsMatch(uses.Value.Trim()))
+                if (!string.IsNullOrEmpty(uses?.Value) && !_shaPin.IsMatch(uses.Value.Trim()))
                 {
                     problems.Add($"{name}: job '{jobName}' uses '{uses.Value}' without a 40-char SHA pin");
                 }
@@ -248,7 +248,7 @@ internal static class WorkflowGate
                 }
 
                 var pathProblems = MissingPath(repo, "a working-directory", Get(step, "working-directory"))
-                    .Concat(PathInputs.SelectMany(input => MissingPath(repo, $"the input '{input}'", Get(Get(step, "with"), input))));
+                    .Concat(_pathInputs.SelectMany(input => MissingPath(repo, $"the input '{input}'", Get(Get(step, "with"), input))));
 
                 foreach (var problem in pathProblems)
                 {
@@ -265,9 +265,9 @@ internal static class WorkflowGate
                 var run = runScalar.Value ?? "";
                 var stepName = StepName(step);
 
-                var runShell = GoTemplate.Replace(run, "");
+                var runShell = _goTemplate.Replace(run, "");
 
-                foreach (Match match in EnvRef.Matches(runShell))
+                foreach (Match match in _envRef.Matches(runShell))
                 {
                     var variable =
                         match.Groups[1].Success ? match.Groups[1].Value
@@ -302,7 +302,7 @@ internal static class WorkflowGate
                         + $"references ${variable}, defined in no env block");
                 }
 
-                foreach (Match match in FileRef.Matches(run))
+                foreach (Match match in _fileRef.Matches(run))
                 {
                     var reference = match.Groups[1].Value;
                     if (reference.Contains('*') || reference.Contains('$'))
@@ -377,7 +377,7 @@ internal static class WorkflowGate
         return 0;
     }
 
-    private const string CleanFixture = """
+    private const string _cleanFixture = """
         name: Clean
         on:
           push:
@@ -404,7 +404,7 @@ internal static class WorkflowGate
 
         """;
 
-    private const string SelectedLegsFixture = """
+    private const string _selectedLegsFixture = """
         name: Selected
         on:
           pull_request:
@@ -443,114 +443,114 @@ internal static class WorkflowGate
 
         """;
 
-    private const string InlineMatrixWithIf =
+    private const string _inlineMatrixWithIf =
         "    if: github.actor != 'bot'\n    strategy:\n      matrix:\n        leg: [a, b]\n    runs-on: ubuntu-latest";
 
-    private static readonly (string Label, string Text)[] MustFire =
+    private static readonly (string Label, string Text)[] _mustFire =
     [
         (
             "a pull_request trigger filtered by paths",
-            CleanFixture.Replace("  push:\n", "  push:\n  pull_request:\n    paths: [Src/**]\n")
+            _cleanFixture.Replace("  push:\n", "  push:\n  pull_request:\n    paths: [Src/**]\n")
         ),
         (
             "a push trigger filtered by paths-ignore",
-            CleanFixture.Replace("  push:\n", "  push:\n    paths-ignore: [docs/**]\n")
+            _cleanFixture.Replace("  push:\n", "  push:\n    paths-ignore: [docs/**]\n")
         ),
         (
             "an inline matrix skipped whole on a pull request",
-            CleanFixture
+            _cleanFixture
                 .Replace("  push:\n", "  push:\n  pull_request:\n")
-                .Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)
+                .Replace("    runs-on: ubuntu-latest", _inlineMatrixWithIf)
         ),
         (
             "an inline matrix skipped whole, the triggers listed",
-            CleanFixture
+            _cleanFixture
                 .Replace("  push:\n", "  [push, pull_request]\n")
                 .Replace("on:\n  [", "on: [")
-                .Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)
+                .Replace("    runs-on: ubuntu-latest", _inlineMatrixWithIf)
         ),
         (
             "a computed matrix skipped whole with no job reporting the legs it leaves out",
-            SelectedLegsFixture.Replace("    name: Leg (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.skip", "    name: Skipped (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.skip")
+            _selectedLegsFixture.Replace("    name: Leg (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.skip", "    name: Skipped (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.skip")
         ),
         (
             "needs: naming a job that does not exist",
-            CleanFixture.Replace("    runs-on: ubuntu-latest", "    needs: absent\n    runs-on: ubuntu-latest")
+            _cleanFixture.Replace("    runs-on: ubuntu-latest", "    needs: absent\n    runs-on: ubuntu-latest")
         ),
         (
             "an action without a SHA pin",
-            CleanFixture.Replace("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "actions/checkout@v5")
+            _cleanFixture.Replace("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "actions/checkout@v5")
         ),
         (
             "a BuildKit image left to the action's floating default",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "        with:\n          driver-opts: image=moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea\n",
                 "")
         ),
         (
             "a BuildKit image named by tag alone",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea",
                 "moby/buildkit:v0.33.1")
         ),
         (
             "a job container without a digest",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "    runs-on: ubuntu-latest",
                 "    runs-on: ubuntu-latest\n    container: node:22")
         ),
         (
             "a service image without a digest",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "    runs-on: ubuntu-latest",
                 "    runs-on: ubuntu-latest\n    services:\n      db:\n        image: postgres:18")
         ),
         (
             "an SBOM from the scanner's floating default",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "      - name: Build\n",
                 "      - name: Push\n        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a\n"
                 + "        with:\n          sbom: true\n      - name: Build\n")
         ),
         (
             "no permissions at either level",
-            CleanFixture.Replace("permissions:\n  contents: read\n", "")
+            _cleanFixture.Replace("permissions:\n  contents: read\n", "")
         ),
         (
             "a $VAR defined in no env block",
-            CleanFixture.Replace("echo \"$SOLUTION\"", "echo \"$UNDECLARED_TARGET\"")
+            _cleanFixture.Replace("echo \"$SOLUTION\"", "echo \"$UNDECLARED_TARGET\"")
         ),
         (
             "a local script absent from disk",
-            CleanFixture.Replace("Tools/Present.cs", "Tools/Absent.cs")
+            _cleanFixture.Replace("Tools/Present.cs", "Tools/Absent.cs")
         ),
         (
             "a Dockerfile input absent from disk",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "      - name: Build\n",
                 "      - name: Image\n        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a\n"
                 + "        with:\n          context: Web\n          file: Web/apps/Absent/Dockerfile\n      - name: Build\n")
         ),
         (
             "a lockfile input absent from disk",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "      - name: Build\n",
                 "      - name: Package manager\n        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413\n"
                 + "        with:\n          cache_dependency_path: Web/absent-lock.yaml\n      - name: Build\n")
         ),
         (
             "a step working-directory absent from disk",
-            CleanFixture.Replace("      - name: Build\n", "      - name: Build\n        working-directory: Absent\n")
+            _cleanFixture.Replace("      - name: Build\n", "      - name: Build\n        working-directory: Absent\n")
         ),
         (
             "a job default working-directory absent from disk",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "    timeout-minutes: 10\n",
                 "    timeout-minutes: 10\n    defaults:\n      run:\n        working-directory: Absent\n")
         ),
         (
             "no runs-on",
-            CleanFixture.Replace("    runs-on: ubuntu-latest\n", "")
+            _cleanFixture.Replace("    runs-on: ubuntu-latest\n", "")
         ),
         (
             "no jobs",
@@ -570,35 +570,35 @@ internal static class WorkflowGate
         ),
     ];
 
-    private static readonly (string Label, string Text)[] MustStaySilent =
+    private static readonly (string Label, string Text)[] _mustStaySilent =
     [
-        ("a workflow with nothing wrong with it", CleanFixture),
-        ("a computed matrix skipped whole beside the job that reports the legs it leaves out", SelectedLegsFixture),
+        ("a workflow with nothing wrong with it", _cleanFixture),
+        ("a computed matrix skipped whole beside the job that reports the legs it leaves out", _selectedLegsFixture),
         (
             "a computed matrix per runner, beside the job that reports the legs both leave out",
-            SelectedLegsFixture.Replace(
+            _selectedLegsFixture.Replace(
                 "  skipped:\n",
                 "  windows:\n    name: Leg (${{ matrix.name }})\n    needs: changes\n    if: needs.changes.outputs.run_windows != '[]'\n"
                 + "    runs-on: windows-latest\n    timeout-minutes: 5\n    strategy:\n      matrix: ${{ fromJSON(needs.changes.outputs.run_windows) }}\n"
                 + "    steps:\n      - run: echo leg\n  skipped:\n")
         ),
-        ("an inline matrix with a job-level if: on push alone", CleanFixture.Replace("    runs-on: ubuntu-latest", InlineMatrixWithIf)),
+        ("an inline matrix with a job-level if: on push alone", _cleanFixture.Replace("    runs-on: ubuntu-latest", _inlineMatrixWithIf)),
         (
             "a job-level if: on a pull request job without a matrix",
-            CleanFixture
+            _cleanFixture
                 .Replace("  push:\n", "  push:\n  pull_request:\n")
                 .Replace("    runs-on: ubuntu-latest", "    if: github.actor != 'bot'\n    runs-on: ubuntu-latest")
         ),
         (
             "a service image pinned by digest",
-            CleanFixture.Replace(
+            _cleanFixture.Replace(
                 "    runs-on: ubuntu-latest",
                 "    runs-on: ubuntu-latest\n    services:\n      db:\n        image: "
                 + "postgres:18.6-alpine3.23@sha256:1a0c23d53c1ad77468c8653fa6eed4f4105cfbef9e6f027bc1dfeb16949a8c29")
         ),
         (
             "path inputs that exist, and one built from the matrix",
-            CleanFixture
+            _cleanFixture
                 .Replace("    timeout-minutes: 10\n", "    timeout-minutes: 10\n    defaults:\n      run:\n        working-directory: Web\n")
                 .Replace(
                     "      - name: Build\n",
@@ -609,7 +609,7 @@ internal static class WorkflowGate
         ),
         (
             "permissions declared on the job rather than the workflow",
-            CleanFixture
+            _cleanFixture
                 .Replace("permissions:\n  contents: read\n", "")
                 .Replace(
                     "    runs-on: ubuntu-latest",
@@ -617,16 +617,16 @@ internal static class WorkflowGate
         ),
     ];
 
-    private static readonly (string Name, string Text) UnreadSpelling =
-        ("release.yaml", CleanFixture.Replace("    runs-on:", "    needs: absent\n    runs-on:"));
+    private static readonly (string Name, string Text) _unreadSpelling =
+        ("release.yaml", _cleanFixture.Replace("    runs-on:", "    needs: absent\n    runs-on:"));
 
     private static void FixtureRepo(string root)
     {
         var tools = Path.Combine(root, "Tools");
         Directory.CreateDirectory(tools);
-        File.WriteAllText(Path.Combine(tools, "Present.cs"), "", Utf8NoBom);
+        File.WriteAllText(Path.Combine(tools, "Present.cs"), "", _utf8NoBom);
         Directory.CreateDirectory(Path.Combine(root, "Web"));
-        File.WriteAllText(Path.Combine(root, "Web", "pnpm-lock.yaml"), "", Utf8NoBom);
+        File.WriteAllText(Path.Combine(root, "Web", "pnpm-lock.yaml"), "", _utf8NoBom);
         Directory.CreateDirectory(Path.Combine(root, ".github", "workflows"));
     }
 
@@ -653,7 +653,7 @@ internal static class WorkflowGate
         {
             FixtureRepo(fixtures);
 
-            foreach (var (label, text) in MustFire)
+            foreach (var (label, text) in _mustFire)
             {
                 var (problems, _) = Validate(fixtures, "fixture.yml", text);
                 if (problems.Count == 0)
@@ -662,7 +662,7 @@ internal static class WorkflowGate
                 }
             }
 
-            foreach (var (label, text) in MustStaySilent)
+            foreach (var (label, text) in _mustStaySilent)
             {
                 var (problems, _) = Validate(fixtures, "fixture.yml", text);
                 if (problems.Count > 0)
@@ -686,16 +686,16 @@ internal static class WorkflowGate
                 failures.Add("passed over a workflow directory with no workflow in it");
             }
 
-            var (name, text) = UnreadSpelling;
+            var (name, text) = _unreadSpelling;
             var target = Path.Combine(discovery, ".github", "workflows", name);
-            File.WriteAllText(target, text, Utf8NoBom);
+            File.WriteAllText(target, text, _utf8NoBom);
 
             if (SilentRun(discovery) == 0)
             {
                 failures.Add($"never read '{name}', so its dangling needs: went unreported");
             }
 
-            File.WriteAllText(target, CleanFixture, Utf8NoBom);
+            File.WriteAllText(target, _cleanFixture, _utf8NoBom);
 
             if (SilentRun(discovery) != 0)
             {
@@ -707,9 +707,9 @@ internal static class WorkflowGate
             Directory.Delete(discovery, recursive: true);
         }
 
-        var total = MustFire.Length + MustStaySilent.Length + 3;
+        var total = _mustFire.Length + _mustStaySilent.Length + 3;
         Console.WriteLine(
-            $"Self-test: {MustFire.Length} faulted workflow(s), {MustStaySilent.Length} sound one(s), "
+            $"Self-test: {_mustFire.Length} faulted workflow(s), {_mustStaySilent.Length} sound one(s), "
             + "3 discovery claim(s).");
         Console.WriteLine();
 
@@ -806,7 +806,7 @@ internal static class WorkflowGate
         switch (action)
         {
             case "docker/setup-qemu-action":
-                if (!DigestPin.IsMatch(Input("image")))
+                if (!_digestPin.IsMatch(Input("image")))
                 {
                     yield return "leaves the binfmt `image` input unpinned (the default is tonistiigi/binfmt:latest)";
                 }
@@ -814,8 +814,8 @@ internal static class WorkflowGate
                 break;
 
             case "docker/setup-buildx-action":
-                var driver = DriverImage.Match(Input("driver-opts"));
-                if (Input("driver") is "" or "docker-container" && (!driver.Success || !DigestPin.IsMatch(driver.Groups["ref"].Value)))
+                var driver = _driverImage.Match(Input("driver-opts"));
+                if (Input("driver") is "" or "docker-container" && (!driver.Success || !_digestPin.IsMatch(driver.Groups["ref"].Value)))
                 {
                     yield return "leaves the BuildKit image unpinned; set `driver-opts: image=name:tag@sha256:...`";
                 }
@@ -827,7 +827,7 @@ internal static class WorkflowGate
                 if (sbom.Length > 0 && sbom != "false")
                 {
                     var generator = Regex.Match(sbom, @"generator=(?<ref>[^\s,]+)");
-                    if (!generator.Success || !DigestPin.IsMatch(generator.Groups["ref"].Value))
+                    if (!generator.Success || !_digestPin.IsMatch(generator.Groups["ref"].Value))
                     {
                         yield return "asks for an SBOM from an unpinned scanner; set `sbom: generator=name:tag@sha256:...`";
                     }

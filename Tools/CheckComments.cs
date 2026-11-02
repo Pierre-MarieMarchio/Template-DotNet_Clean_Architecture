@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 internal static class CheckComments
 {
-    private const string Help =
+    private const string _help =
         """
         Usage: dotnet run Tools/CheckComments.cs [<root>]
                dotnet run Tools/CheckComments.cs --self-test
@@ -56,7 +56,7 @@ internal static class CheckComments
         Exit code 0 when nothing is refused; 1 when something is, or when no file was examined.
         """;
 
-    private static readonly string[] NarrativePatterns =
+    private static readonly string[] _narrativePatterns =
     [
         @"\bthis used to\b",
         @"\bthere used to be\b",
@@ -100,22 +100,22 @@ internal static class CheckComments
         @"\bstopped seeing it\b",
     ];
 
-    private static readonly Regex[] NarrativeRules =
-        [.. NarrativePatterns.Select(pattern =>
+    private static readonly Regex[] _narrativeRules =
+        [.. _narrativePatterns.Select(pattern =>
             new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))];
 
-    private static readonly Regex NarrativeMarker = new(@"narrative-ok:\s*\S");
+    private static readonly Regex _narrativeMarker = new(@"narrative-ok:\s*\S");
 
-    private static readonly Regex HashMarker = new(@"^#(?:if|elseif|else|endif)\b");
+    private static readonly Regex _hashMarker = new(@"^#(?:if|elseif|else|endif)\b");
 
-    private static readonly Regex DockerParserDirective = new(@"^#\s*(?:syntax|escape|check)\s*=", RegexOptions.IgnoreCase);
+    private static readonly Regex _dockerParserDirective = new(@"^#\s*(?:syntax|escape|check)\s*=", RegexOptions.IgnoreCase);
 
-    private static readonly Regex XmlElement = new(@"</?([A-Za-z][A-Za-z0-9]*)");
+    private static readonly Regex _xmlElement = new(@"</?([A-Za-z][A-Za-z0-9]*)");
 
-    private static readonly HashSet<string> DocumentationElements =
+    private static readonly HashSet<string> _documentationElements =
         new(["summary", "param", "response", "c", "see", "paramref", "typeparamref"], StringComparer.Ordinal);
 
-    private static readonly HashSet<string> SkippedDirectoryNames =
+    private static readonly HashSet<string> _skippedDirectoryNames =
         new(["bin", "obj", ".git", ".vs", "node_modules", "TestResults"], StringComparer.Ordinal);
 
     private enum Kind
@@ -151,7 +151,7 @@ internal static class CheckComments
     {
         if (args is ["--help"] or ["-h"])
         {
-            Console.WriteLine(Help);
+            Console.WriteLine(_help);
             return 0;
         }
 
@@ -286,9 +286,9 @@ internal static class CheckComments
                 continue;
             }
 
-            var element = XmlElement.Matches(body)
+            var element = _xmlElement.Matches(body)
                 .Select(match => match.Groups[1].Value)
-                .FirstOrDefault(name => !DocumentationElements.Contains(name));
+                .FirstOrDefault(name => !_documentationElements.Contains(name));
 
             if (element is not null)
             {
@@ -471,12 +471,12 @@ internal static class CheckComments
 
             if (line.StartsWith('#'))
             {
-                if (HashMarker.IsMatch(line))
+                if (_hashMarker.IsMatch(line))
                 {
                     return LineRole.Marker;
                 }
 
-                return dockerfile && !contentSeen && DockerParserDirective.IsMatch(line)
+                return dockerfile && !contentSeen && _dockerParserDirective.IsMatch(line)
                     ? LineRole.Content
                     : LineRole.Comment;
             }
@@ -566,7 +566,7 @@ internal static class CheckComments
             {
                 exempt = false;
             }
-            else if (NarrativeMarker.IsMatch(line))
+            else if (_narrativeMarker.IsMatch(line))
             {
                 exempt = true;
             }
@@ -590,7 +590,7 @@ internal static class CheckComments
     }
 
     private static string? Narrative(string line) =>
-        NarrativeRules.FirstOrDefault(rule => rule.IsMatch(line))?.ToString();
+        _narrativeRules.FirstOrDefault(rule => rule.IsMatch(line))?.ToString();
 
     private sealed class CSharpLexer(string text)
     {
@@ -1009,7 +1009,7 @@ internal static class CheckComments
         {
             if (entry is DirectoryInfo subdirectory)
             {
-                if (entry.LinkTarget is null && !SkippedDirectoryNames.Contains(entry.Name))
+                if (entry.LinkTarget is null && !_skippedDirectoryNames.Contains(entry.Name))
                 {
                     Walk(subdirectory, collected);
                 }
@@ -1077,16 +1077,16 @@ internal static class CheckComments
 
     private sealed record Fixture(string Label, string Path, string Text, int Findings);
 
-    private const string Service = "Src/Application/AppTemplate.Application/Features/Notes/Services/NoteService.cs";
+    private const string _service = "Src/Application/AppTemplate.Application/Features/Notes/Services/NoteService.cs";
 
-    private const string Controller = "Src/Presentation/AppTemplate.Api/Features/Notes/Controllers/NotesController.cs";
+    private const string _controller = "Src/Presentation/AppTemplate.Api/Features/Notes/Controllers/NotesController.cs";
 
-    private static readonly Fixture[] Fixtures =
+    private static readonly Fixture[] _fixtures =
     [
-        new("a line comment in a service", Service, "var x = 1;\n// explains x\nvar y = x;\n", 1),
-        new("a comment after code", Service, "var x = 1; // explains x\n", 1),
-        new("a block comment over two lines", Service, "/* one\n   two */\nvar x = 1;\n", 1),
-        new("XML documentation outside the API", Service, "/// <summary>Does it.</summary>\npublic void Do() { }\n", 1),
+        new("a line comment in a service", _service, "var x = 1;\n// explains x\nvar y = x;\n", 1),
+        new("a comment after code", _service, "var x = 1; // explains x\n", 1),
+        new("a block comment over two lines", _service, "/* one\n   two */\nvar x = 1;\n", 1),
+        new("XML documentation outside the API", _service, "/// <summary>Does it.</summary>\npublic void Do() { }\n", 1),
         new(
             "XML documentation on a contract mapper",
             "Src/Presentation/AppTemplate.Api/Features/Notes/Contracts/Mapping/NoteMapping.cs",
@@ -1097,15 +1097,15 @@ internal static class CheckComments
             "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Notes/Controllers/NotesControllerTests.cs",
             "/// <summary>Tests.</summary>\npublic sealed class NotesControllerTests;\n",
             1),
-        new("<remarks> on a controller action", Controller, "/// <summary>Gets one.</summary>\n/// <remarks>Why.</remarks>\npublic void Get() { }\n", 1),
-        new("a /** */ block on a controller", Controller, "/** <summary>Gets one.</summary> */\npublic void Get() { }\n", 1),
-        new("#region and #endregion", Service, "#region Helpers\nint x;\n#endregion\n", 2),
-        new("a comment after a directive", Service, "#pragma warning disable CA1000 // the reason\n", 1),
-        new("a comment inside a /*#else region", Service, "/*#if (files)*/\nint a;\n/*#else\n// emitted without files\nint b;\n#endif*/\n", 1),
-        new("a comment after an interpolated string with braces", Service, "var s = $\"{a} {{b}} {(c ? \"}\" : \"{\")}\"; // after\n", 1),
+        new("<remarks> on a controller action", _controller, "/// <summary>Gets one.</summary>\n/// <remarks>Why.</remarks>\npublic void Get() { }\n", 1),
+        new("a /** */ block on a controller", _controller, "/** <summary>Gets one.</summary> */\npublic void Get() { }\n", 1),
+        new("#region and #endregion", _service, "#region Helpers\nint x;\n#endregion\n", 2),
+        new("a comment after a directive", _service, "#pragma warning disable CA1000 // the reason\n", 1),
+        new("a comment inside a /*#else region", _service, "/*#if (files)*/\nint a;\n/*#else\n// emitted without files\nint b;\n#endif*/\n", 1),
+        new("a comment after an interpolated string with braces", _service, "var s = $\"{a} {{b}} {(c ? \"}\" : \"{\")}\"; // after\n", 1),
         new(
             "a comment after a raw string holding //",
-            Service,
+            _service,
             """"
             var s = """
                 // inside
@@ -1113,16 +1113,16 @@ internal static class CheckComments
 
             """",
             1),
-        new("a comment after a verbatim string ending in a backslash", Service, "var p = @\"C:\\temp\\\"; // after\n", 1),
-        new("a comment after a char literal holding a quote", Service, "var q = '\"'; // after\n", 1),
-        new("a narrating summary on a controller", Controller, "/// <summary>This used to be the algorithm name.</summary>\n", 1),
+        new("a comment after a verbatim string ending in a backslash", _service, "var p = @\"C:\\temp\\\"; // after\n", 1),
+        new("a comment after a char literal holding a quote", _service, "var q = '\"'; // after\n", 1),
+        new("a narrating summary on a controller", _controller, "/// <summary>This used to be the algorithm name.</summary>\n", 1),
         new(
             "template markers",
-            Service,
+            _service,
             "//#if (localAuth)\nint a;\n//#else\nint b;\n//#endif\n/*#if (files)*/\nint c;\n/*#else\nint d;\n#endif*/\n"
             + "/*#if (todoLists)*/\nint e;\n/*#elseif (notes)\nint f;\n#elseif (files)\nint g;\n#else\nint h;\n#endif*/\n",
             0),
-        new("an auto-generated header", Service, "\uFEFF// <auto-generated />\n// generated by a tool\nint a;\n", 0),
+        new("an auto-generated header", _service, "\uFEFF// <auto-generated />\n// generated by a tool\nint a;\n", 0),
         new(
             "a migration",
             "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/20260101000000_Initial.cs",
@@ -1130,7 +1130,7 @@ internal static class CheckComments
             0),
         new(
             "a controller action's OpenAPI documentation",
-            Controller,
+            _controller,
             "/// <summary>Gets one <see cref=\"Note\"/>.</summary>\n/// <param name=\"id\">The <c>id</c> of <paramref name=\"id\"/>.</param>\n"
             + "/// <response code=\"200\">Found.</response>\npublic void Get(int id) { }\n",
             0),
@@ -1151,14 +1151,14 @@ internal static class CheckComments
             0),
         new(
             "URLs in regular, interpolated and verbatim strings",
-            Service,
+            _service,
             "var a = \"https://example.com\";\nvar b = $\"otpauth://totp/{issuer}:{account}?secret={key}\";\nvar c = @\"\\\\server\\share\" + \"//\";\n",
             0),
-        new("an interpolation hole holding a string with //", Service, "var s = $\"{(flag ? \"a//b\" : \"c\")}//\";\n", 0),
-        new("an escaped quote before //", Service, "var s = \"say \\\"//\\\" twice\";\n", 0),
+        new("an interpolation hole holding a string with //", _service, "var s = $\"{(flag ? \"a//b\" : \"c\")}//\";\n", 0),
+        new("an escaped quote before //", _service, "var s = \"say \\\"//\\\" twice\";\n", 0),
         new(
             "a raw string holding comment-shaped lines",
-            Service,
+            _service,
             """"
             var s = """
                 // not a comment
@@ -1169,15 +1169,15 @@ internal static class CheckComments
             0),
         new(
             "an interpolated raw string",
-            Service,
+            _service,
             """"
             var json = $$"""{"url": "http://{{host}}/x", "a": {{Fn("//")}} }""";
 
             """",
             0),
-        new("a char literal holding a quote before a URL", Service, "var q = '\"'; var url = \"http://x\";\nvar e = '\\''; var s = \"//\";\n", 0),
+        new("a char literal holding a quote before a URL", _service, "var q = '\"'; var url = \"http://x\";\nvar e = '\\''; var s = \"//\";\n", 0),
         new("file-based app directives", "Tools/Example.cs", "#!/usr/bin/env dotnet\n#:package Foo@1.0.0\n#:property UseAppHost=false\n", 0),
-        new("a directive without a comment", Service, "#pragma warning disable CA1000\n#nullable enable\n", 0),
+        new("a directive without a comment", _service, "#pragma warning disable CA1000\n#nullable enable\n", 0),
         new("a comment in a project file", "Src/App/App.csproj", "<Project>\n  <!-- why this package -->\n</Project>\n", 1),
         new("a two-line comment in a project file", "Src/App/App.csproj", "<Project>\n  <!-- why\n       this -->\n</Project>\n", 1),
         new("template conditionals in a project file", "Src/App/App.csproj", "<Project>\n<!--#if (files)-->\n<ItemGroup />\n<!--#endif-->\n</Project>\n", 0),
@@ -1211,7 +1211,7 @@ internal static class CheckComments
         new("narration in a changelog", "CHANGELOG.md", "This used to be the algorithm name.\n", 0),
     ];
 
-    private static readonly string[] MarkdownOffenders =
+    private static readonly string[] _markdownOffenders =
     [
         "/// The value, not the algorithm. This used to be the algorithm name.",
         "/// <b>Every header, and no others.</b> There used to be a parameter here for headers.",
@@ -1230,7 +1230,7 @@ internal static class CheckComments
         "/// The version this replaces ran on every start in every environment.",
     ];
 
-    private static readonly string[] MarkdownInnocents =
+    private static readonly string[] _markdownInnocents =
     [
         "// captures every action regardless of its group, so a v2 added later would show up.",
         "/// route added later, and an unknown provider becomes a 404 where a configured one is.",
@@ -1253,7 +1253,7 @@ internal static class CheckComments
         """own history ("this used to…"). <!-- narrative-ok: the rule must quote what it bans -->""",
     ];
 
-    private const string MarkerSpansItsParagraph =
+    private const string _markerSpansItsParagraph =
         """
         <!-- narrative-ok: stating this rule requires quoting the phrases it bans -->
         Specifically banned: comments that paraphrase the code, and comments that narrate the repository's
@@ -1270,11 +1270,11 @@ internal static class CheckComments
 
         IEnumerable<Fixture> markdown =
         [
-            .. MarkdownOffenders.Select((line, index) => new Fixture($"narration #{index + 1}", "NOTES.md", line, 1)),
-            .. MarkdownInnocents.Select((line, index) => new Fixture($"look-alike #{index + 1}", "NOTES.md", line, 0)),
+            .. _markdownOffenders.Select((line, index) => new Fixture($"narration #{index + 1}", "NOTES.md", line, 1)),
+            .. _markdownInnocents.Select((line, index) => new Fixture($"look-alike #{index + 1}", "NOTES.md", line, 0)),
         ];
 
-        foreach (var fixture in Fixtures.Concat(markdown))
+        foreach (var fixture in _fixtures.Concat(markdown))
         {
             var found = ScanFile(fixture.Path, fixture.Text).Findings;
             var verdict = fixture.Findings > 0 ? "fires " : "silent";
@@ -1291,7 +1291,7 @@ internal static class CheckComments
             }
         }
 
-        var spanned = MarkdownFindings(MarkerSpansItsParagraph);
+        var spanned = MarkdownFindings(_markerSpansItsParagraph);
         var lines = spanned.Findings.Select(finding => finding.Line).ToList();
 
         if (spanned.Exemptions != 1 || lines is not [5])
@@ -1305,8 +1305,8 @@ internal static class CheckComments
             results.Add("  ok    fires   a narrative-ok marker excuses its paragraph and stops at the blank line");
         }
 
-        var offenders = Fixtures.Count(fixture => fixture.Findings > 0) + MarkdownOffenders.Length;
-        var innocents = Fixtures.Count(fixture => fixture.Findings == 0) + MarkdownInnocents.Length;
+        var offenders = _fixtures.Count(fixture => fixture.Findings > 0) + _markdownOffenders.Length;
+        var innocents = _fixtures.Count(fixture => fixture.Findings == 0) + _markdownInnocents.Length;
 
         Console.WriteLine($"Self-test: {offenders} offender(s), {innocents} innocent(s), 1 marker paragraph.");
         Console.WriteLine();

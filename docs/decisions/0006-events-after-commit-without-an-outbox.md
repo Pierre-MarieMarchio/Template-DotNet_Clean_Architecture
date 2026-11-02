@@ -32,6 +32,14 @@ What makes this safe is the shape every consumer must have:
 <!--#endif-->
 - **Every event is consumed or listed** as unconsumed with its reason.
 
+Events keep their own dispatcher and `IDomainEventConsumer<TEvent>`, while requests go through
+Mediator ([ADR 0003](0003-use-cases-and-ports-are-explicit.md)). The domain declares its events
+without Mediator, so delivering them as notifications needs an application-side envelope such as
+`DomainEventNotification<TEvent>`, and Mediator's source generator, 3.0.2 and 3.1.0-rc.1 alike,
+emits code that does not compile for a generic notification. One hand-written notification per event
+would double every event for no gain, so the dispatcher stays, and the pipeline behaviours do not
+reach consumers.
+
 ## Consequences
 
 - A lost event costs an interval, never correctness, and there is no relay, outbox table or
@@ -53,4 +61,5 @@ describes publication and the consumer contract.
 ## Revisit when
 
 A consumer's effect cannot be re-derived by a sweep, such as a message to another system that must
-leave exactly once, or the events are needed outside this process.
+leave exactly once, or the events are needed outside this process. Revisit the dispatcher when a stable
+Mediator generates handlers for a generic notification.

@@ -45,8 +45,8 @@ switches and `isRequired` alike.
   `new-use-case` and `remove-feature` write and remove every layer of a feature but the HTTP one:
   no controller, contract or API test, and the edits and rows they print name the hosts'
   `Program.cs`, never the API; they tell the shape from whether `Src/Presentation/<Project>.Api`
-  exists. The acceptance leg `no api, blazor server, mcp and worker, external auth` generates,
-  builds and tests that shape.
+  exists. The acceptance leg `no api, blazor server, mcp and worker, external auth, no agent files`
+  generates, builds and tests that shape.
 - **The worker is added for the jobs.** A project holding neither the API nor the worker would run
   no job: `needsWorker` is true for it, and `jobsWorker` is `presentation == "worker" ||
   needsWorker`, so the worker comes as the API comes for its callers. The launcher shows the worker
@@ -86,8 +86,8 @@ switches and `isRequired` alike.
 - A project without the API has no HTTP contract to test end to end and no host that migrates in
   Development: its first-run page applies the migrations with `dotnet ef database update`.
 - Two server hosts share one compose environment block and each keeps its own service and port.
-  The `several hosts, local auth, notes` leg starts the API, the portal, the MCP server and the
-  worker together.
+  The `several hosts, local auth, notes, no files, no ci, no sonar` leg starts the API, the portal,
+  the MCP server and the worker together.
 - [0012](0012-where-the-jobs-run-is-an-option.md) keeps how the jobs move and loses its option;
   [0015](0015-an-mcp-server-is-a-presentation-project-written-whole.md) loses its one presentation
   project per project and its generated default name.

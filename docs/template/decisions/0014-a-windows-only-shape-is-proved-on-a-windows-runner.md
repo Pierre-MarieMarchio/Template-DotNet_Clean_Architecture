@@ -22,10 +22,14 @@ only run on Windows.
   installs the package, generates, asserts the template's name leaked nowhere, runs `bootstrap`, the
   `build` task with warnings as errors, `test --no-integration`, `hygiene` and the citation check. It
   starts no container, since a Windows runner runs no Linux image, and sets up no web workspace.
-- **The default shape has a Windows leg, and it is required.** `windows, defaults` carries no tag,
-  so every change that runs every leg, one under `Src`, `Tests` or `Tools` among them, runs it too.
+- **The default shape runs on Windows with WPF, and it is required.** `windows, wpf, local auth`
+  generates with `--presentation wpf` alone, which keeps every other default and adds the desktop
+  app, so one leg proves the default project's tasks and the Windows-only shape; every change that
+  runs every leg, one under `Src`, `Tests` or `Tools` among them, runs it too, and so does a change
+  to the WPF starter. `windows, wpf, external auth, notes` proves the app under the other sign-in.
 - **Tests hold it.** `AcceptanceSelectionTests` holds that each leg's runner is one a job serves and
-  that a Windows leg sets only the fields the Windows job reads and generates no web app;
+  that a Windows leg sets only the fields the Windows job reads and generates no web app, and that
+  one Windows leg passes `--presentation wpf` and nothing else;
   `Tools/CheckWorkflows.cs` holds the new job to the complement rule of
   [0010](0010-a-pull-request-runs-the-legs-its-change-can-affect.md).
 
@@ -37,16 +41,20 @@ only run on Windows.
   PowerShell; each step being one `dotnet` command, PowerShell costs nothing.
 - **No Windows leg until a Windows-only shape arrives.** That shape's pull request would also be the
   first to run the tasks on Windows, and would carry their fixes.
+- **A Windows leg for the default shape apart from the WPF one.** It runs the same tasks on a project
+  the WPF leg holds whole, for some nine more Windows minutes a run.
 - **A nightly Windows run.** A break would be found after the merge, by someone else, as
   [0010](0010-a-pull-request-runs-the-legs-its-change-can-affect.md) turned down.
 
 ## Consequences
 
 - Windows runner minutes on every pull request whose change runs every leg.
-- The Windows leg proves the default shape only; a Windows-only shape brings its own leg, on the same
-  job.
-- `Template acceptance (windows, defaults)` joins the required checks of the `develop` ruleset once
-  the pull request that adds it merges.
+- A Windows-only shape brings its own leg, on the same job, or joins the default shape's when it
+  keeps every other default.
+- A failure of the default project's tasks on Windows and a failure of the WPF app turn the same
+  check red; the leg's log names the step.
+- `Template acceptance (windows, wpf, local auth)` and `Template acceptance (windows, wpf, external
+  auth, notes)` are the Windows checks the `develop` ruleset requires.
 
 ## Revisit when
 

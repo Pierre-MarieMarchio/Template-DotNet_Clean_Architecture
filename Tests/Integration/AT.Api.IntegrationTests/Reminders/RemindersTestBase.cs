@@ -7,6 +7,7 @@ using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Infrastructure.InMemory.Features.Reminders;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -140,8 +141,8 @@ public abstract class RemindersTestBase(ApiFixture fixture) : IntegrationTestBas
     protected async Task<int> FireDueRemindersAsync()
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var useCase = scope.ServiceProvider.GetRequiredService<IFireDueRemindersUseCase>();
+        var sender = scope.ServiceProvider.GetRequiredService<ISender>();
 
-        return (await useCase.ExecuteAsync(TestToken)).Value;
+        return (await sender.Send(new FireDueRemindersCommand(), TestToken)).Value;
     }
 }

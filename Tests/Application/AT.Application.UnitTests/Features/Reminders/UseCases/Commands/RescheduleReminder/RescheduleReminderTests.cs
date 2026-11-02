@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.Reminders.Model.Dtos;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -14,7 +15,7 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands.RescheduleReminder;
 
-public sealed class RescheduleReminderUseCaseTests
+public sealed class RescheduleReminderTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
@@ -29,7 +30,7 @@ public sealed class RescheduleReminderUseCaseTests
     public async Task AnAnonymousCaller_IsRefused()
     {
         var result = await UseCaseFor(StubCurrentUser.Anonymous)
-            .ExecuteAsync(new RescheduleReminderCommand(Guid.CreateVersion7(), _now.AddDays(1)), TestToken);
+            .Handle(new RescheduleReminderCommand(Guid.CreateVersion7(), _now.AddDays(1)), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
@@ -38,7 +39,7 @@ public sealed class RescheduleReminderUseCaseTests
     [Fact]
     public async Task AnEmptyReminderId_IsRejected()
     {
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new RescheduleReminderCommand(Guid.Empty, _now.AddDays(1)), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -50,7 +51,7 @@ public sealed class RescheduleReminderUseCaseTests
         var missingId = Guid.CreateVersion7();
         _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new RescheduleReminderCommand(missingId, _now.AddDays(1)), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -62,7 +63,7 @@ public sealed class RescheduleReminderUseCaseTests
     {
         var reminder = GivenTheCallerOwnsAReminder();
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new RescheduleReminderCommand(reminder.Id, _now.AddHours(-1)), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -77,7 +78,7 @@ public sealed class RescheduleReminderUseCaseTests
             _callerId, _now, ReminderState.Fired, notifiedAt: _now);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new RescheduleReminderCommand(reminder.Id, _now.AddDays(1)), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -90,7 +91,7 @@ public sealed class RescheduleReminderUseCaseTests
         var reminder = GivenTheCallerOwnsAReminder();
         var precondition = new VersionPrecondition([reminder.Version + 1]);
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new RescheduleReminderCommand(reminder.Id, _now.AddDays(1), precondition), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -103,7 +104,7 @@ public sealed class RescheduleReminderUseCaseTests
         var reminder = GivenTheCallerOwnsAReminder();
         var newDueAt = _now.AddDays(2);
 
-        var result = await UseCase().ExecuteAsync(new RescheduleReminderCommand(reminder.Id, newDueAt), TestToken);
+        var result = await UseCase().Handle(new RescheduleReminderCommand(reminder.Id, newDueAt), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Value.DueAt.ShouldBe(newDueAt);
@@ -111,13 +112,11 @@ public sealed class RescheduleReminderUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    private RescheduleReminderUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        new ReminderService(_repository, currentUser),
+    private ValidatedHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCaseFor(ICurrentUser currentUser) => new(new RescheduleReminderCommandHandler(new ReminderService(_repository, currentUser),
         _unitOfWork,
-        new StubDateTimeProvider(),
-        _validator);
+        new StubDateTimeProvider()).Handle, _validator);
 
-    private RescheduleReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private ValidatedHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private Reminder GivenTheCallerOwnsAReminder()
     {

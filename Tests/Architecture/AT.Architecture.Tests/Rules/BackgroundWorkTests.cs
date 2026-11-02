@@ -53,7 +53,7 @@ public sealed class BackgroundWorkTests
 
         offenders.ShouldBeEmpty(
             "Exclusivity between hosts is a property of the operation, not of the timer that starts " +
-            "it. Move the lease into the use case, the way FireDueRemindersUseCase does, so that a " +
+            "it. Move the lease into the use case, the way FireDueRemindersCommandHandler does, so that a " +
             "second caller of the same operation is covered too.");
     }
 
@@ -100,7 +100,8 @@ public sealed class BackgroundWorkTests
             .ProjectsInLayer("Application")
             .Select(project => Path.Combine(ProjectReferenceGraph.RootOf(project), "Features"))
             .Where(Directory.Exists)
-            .SelectMany(features => Directory.EnumerateFiles(features, "*UseCase.cs", SearchOption.AllDirectories))
+            .SelectMany(features => Directory.EnumerateFiles(features, "*.cs", SearchOption.AllDirectories))
+            .Where(file => file.Contains($"{Path.DirectorySeparatorChar}UseCases{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Where(IsProductionSource)
             .Where(useCase => _leaseDependency.IsMatch(CodeOf(useCase)))
             .Select(Relative)

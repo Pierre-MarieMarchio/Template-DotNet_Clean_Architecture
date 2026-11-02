@@ -14,7 +14,7 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands.CancelReminder;
 
-public sealed class CancelReminderUseCaseTests
+public sealed class CancelReminderTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
 
@@ -28,7 +28,7 @@ public sealed class CancelReminderUseCaseTests
     public async Task AnAnonymousCaller_IsRefused()
     {
         var result = await UseCaseFor(StubCurrentUser.Anonymous)
-            .ExecuteAsync(new CancelReminderCommand(Guid.CreateVersion7()), TestToken);
+            .Handle(new CancelReminderCommand(Guid.CreateVersion7()), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
@@ -37,7 +37,7 @@ public sealed class CancelReminderUseCaseTests
     [Fact]
     public async Task AnEmptyReminderId_IsRejected()
     {
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(Guid.Empty), TestToken);
+        var result = await UseCase().Handle(new CancelReminderCommand(Guid.Empty), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
@@ -48,7 +48,7 @@ public sealed class CancelReminderUseCaseTests
         var missingId = Guid.CreateVersion7();
         _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
 
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(missingId), TestToken);
+        var result = await UseCase().Handle(new CancelReminderCommand(missingId), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.NotFound);
@@ -61,7 +61,7 @@ public sealed class CancelReminderUseCaseTests
         var reminder = GivenTheCallerOwnsAReminder();
         var precondition = new VersionPrecondition([reminder.Version + 1]);
 
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(reminder.Id, precondition), TestToken);
+        var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id, precondition), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
@@ -75,7 +75,7 @@ public sealed class CancelReminderUseCaseTests
             _callerId, StubDateTimeProvider.DefaultInstant, ReminderState.Fired, notifiedAt: StubDateTimeProvider.DefaultInstant);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(reminder.Id), TestToken);
+        var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Conflict);
@@ -89,7 +89,7 @@ public sealed class CancelReminderUseCaseTests
             _callerId, StubDateTimeProvider.DefaultInstant, ReminderState.Cancelled);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(reminder.Id), TestToken);
+        var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         reminder.State.ShouldBe(ReminderState.Cancelled);
@@ -100,17 +100,17 @@ public sealed class CancelReminderUseCaseTests
     {
         var reminder = GivenTheCallerOwnsAReminder();
 
-        var result = await UseCase().ExecuteAsync(new CancelReminderCommand(reminder.Id), TestToken);
+        var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         reminder.State.ShouldBe(ReminderState.Cancelled);
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    private CancelReminderUseCase UseCaseFor(ICurrentUser currentUser) =>
-        new(new ReminderService(_repository, currentUser), _unitOfWork, _validator);
+    private ValidatedHandler<CancelReminderCommand, Result> UseCaseFor(ICurrentUser currentUser) =>
+        new(new CancelReminderCommandHandler(new ReminderService(_repository, currentUser), _unitOfWork).Handle, _validator);
 
-    private CancelReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private ValidatedHandler<CancelReminderCommand, Result> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private Reminder GivenTheCallerOwnsAReminder()
     {

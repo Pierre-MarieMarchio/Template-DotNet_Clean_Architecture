@@ -7,6 +7,7 @@ using AppTemplate.Application.Features.Reminders.UseCases.Commands.CancelReminde
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
+using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Reminders.Controllers;
@@ -15,10 +16,7 @@ namespace AppTemplate.Api.Features.Reminders.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 public sealed class RemindersController(
-    IGetRemindersUseCase getReminders,
-    IScheduleReminderUseCase scheduleReminder,
-    IRescheduleReminderUseCase rescheduleReminder,
-    ICancelReminderUseCase cancelReminder) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Gets every reminder scheduled for one item.</summary>
     [HttpGet("todo-lists/{todoListId:guid}/items/{todoItemId:guid}/reminders", Name = nameof(GetForItem))]
@@ -31,7 +29,7 @@ public sealed class RemindersController(
     {
         var query = new GetRemindersQuery(todoListId, todoItemId);
 
-        return OkOrProblem(ReminderResponseMapping.ToRemindersResponse(await getReminders.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(ReminderResponseMapping.ToRemindersResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Schedules a reminder for one item.</summary>
@@ -50,7 +48,7 @@ public sealed class RemindersController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new ScheduleReminderCommand(todoListId, todoItemId, request.DueAt);
-        var result = ReminderResponseMapping.ToReminderResponse(await scheduleReminder.ExecuteAsync(command, cancellationToken));
+        var result = ReminderResponseMapping.ToReminderResponse(await sender.Send(command, cancellationToken));
 
         return CreatedOrProblem(result, nameof(GetForItem), _ => new { todoListId, todoItemId });
     }
@@ -78,7 +76,7 @@ public sealed class RemindersController(
         var command = new RescheduleReminderCommand(reminderId, request.DueAt, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await rescheduleReminder.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(ReminderResponseMapping.ToReminderResponse(result));
     }
@@ -99,7 +97,7 @@ public sealed class RemindersController(
         }
 
         var command = new CancelReminderCommand(reminderId, precondition);
-        var result = RequiringExistence(requiresExistence, await cancelReminder.ExecuteAsync(command, cancellationToken));
+        var result = RequiringExistence(requiresExistence, await sender.Send(command, cancellationToken));
 
         return NoContentOrProblem(result);
     }

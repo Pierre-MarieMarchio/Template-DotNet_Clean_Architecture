@@ -134,7 +134,7 @@ public sealed class BackgroundJobsModuleTests
         var securityEvents = Substitute.For<ICommandHandler<PurgeExpiredSecurityEventsCommand, Result<int>>>();
         //#endif
         //#if (reminders)
-        var reminders = Substitute.For<IFireDueRemindersUseCase>();
+        var reminders = Substitute.For<ICommandHandler<FireDueRemindersCommand, Result<int>>>();
         //#endif
         //#if (files)
         var abandoned = Substitute.For<IPurgeAbandonedRegistrationsUseCase>();
@@ -148,7 +148,7 @@ public sealed class BackgroundJobsModuleTests
         securityEvents.Handle(Arg.Any<PurgeExpiredSecurityEventsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (reminders)
-        reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        reminders.Handle(Arg.Any<FireDueRemindersCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (files)
         abandoned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));

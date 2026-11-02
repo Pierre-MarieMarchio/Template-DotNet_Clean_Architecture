@@ -18,7 +18,7 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands.FireDueReminders;
 
-public sealed class FireDueRemindersUseCaseTests
+public sealed class FireDueRemindersTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
@@ -32,7 +32,7 @@ public sealed class FireDueRemindersUseCaseTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ILeaderLease _lease = Substitute.For<ILeaderLease>();
 
-    public FireDueRemindersUseCaseTests()
+    public FireDueRemindersTests()
     {
         GivenTheLeaseIsGranted();
         _recipients.FindAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>()).Returns(_recipient);
@@ -46,7 +46,7 @@ public sealed class FireDueRemindersUseCaseTests
         _repository.GetDueAsync(_now, Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<Reminder>)[]);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(0);
         await _todoItems.DidNotReceive().GetCompletionStatesAsync(
@@ -62,7 +62,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(reminder);
         GivenCompletionStates((reminder.TodoItemId, false));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(1);
         reminder.State.ShouldBe(ReminderState.Fired);
@@ -81,7 +81,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenCompletionStates((reminder.TodoItemId, false));
         _recipients.FindAsync(reminder.OwnerId, Arg.Any<CancellationToken>()).Returns((ReminderRecipient?)null);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(0);
         reminder.State.ShouldBe(ReminderState.Cancelled);
@@ -97,7 +97,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(reminder);
         GivenCompletionStates((reminder.TodoItemId, true));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(0);
         reminder.State.ShouldBe(ReminderState.Cancelled);
@@ -111,7 +111,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(reminder);
         GivenCompletionStates((reminder.TodoItemId, true));
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         _diagnostics.Received(1).RecordMissedCancellation();
     }
@@ -123,7 +123,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(reminder);
         GivenCompletionStates();
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(0);
         reminder.State.ShouldBe(ReminderState.Cancelled);
@@ -142,7 +142,7 @@ public sealed class FireDueRemindersUseCaseTests
                 Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("the relay is down"));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(1);
         failing.State.ShouldBe(ReminderState.Pending);
@@ -158,7 +158,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(reminders);
         GivenCompletionStates([.. reminders.Select(reminder => (reminder.TodoItemId, false))]);
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         await _unitOfWork.Received(5).SaveChangesAsync(TestToken);
     }
@@ -171,7 +171,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(completed, outstanding);
         GivenCompletionStates((completed.TodoItemId, true), (outstanding.TodoItemId, false));
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         await _unitOfWork.Received(2).SaveChangesAsync(TestToken);
     }
@@ -185,7 +185,7 @@ public sealed class FireDueRemindersUseCaseTests
         _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
             .ThrowsAsync(new ConcurrencyConflictException("moved"));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         _diagnostics.DidNotReceive().RecordMissedCancellation();
@@ -201,7 +201,7 @@ public sealed class FireDueRemindersUseCaseTests
         _unitOfWork.SaveChangesAsync(Arg.Any<CancellationToken>())
             .ThrowsAsync(new ConcurrencyConflictException("moved"));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(0, "a notification whose commit lost is not counted as delivered");
         await _notifier.DidNotReceive().NotifyAsync(
@@ -218,7 +218,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(a, b);
         GivenCompletionStates((a.TodoItemId, false), (b.TodoItemId, false));
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         await _todoItems.Received(1).GetCompletionStatesAsync(
             Arg.Is<IReadOnlyList<Guid>>(ids => ids!.Count == 2 && ids.Contains(a.TodoItemId) && ids.Contains(b.TodoItemId)),
@@ -233,7 +233,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenCompletionStates((reminder.TodoItemId, false));
         GivenTheLeaseIsHeldElsewhere();
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.IsFailure.ShouldBeFalse();
         result.Value.ShouldBe(0);
@@ -251,7 +251,7 @@ public sealed class FireDueRemindersUseCaseTests
         GivenDueReminders(reminder);
         GivenCompletionStates((reminder.TodoItemId, false));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new FireDueRemindersCommand(), TestToken);
 
         result.Value.ShouldBe(1);
         await _lease.Received(1).TryRunExclusivelyAsync(
@@ -267,12 +267,12 @@ public sealed class FireDueRemindersUseCaseTests
             .ThrowsAsync(new InvalidOperationException("the due query is broken"));
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(
-            async () => await UseCase().ExecuteAsync(TestToken));
+            async () => await UseCase().Handle(new FireDueRemindersCommand(), TestToken));
 
         exception.Message.ShouldBe("the due query is broken");
     }
 
-    private FireDueRemindersUseCase UseCase() => new(
+    private FireDueRemindersCommandHandler UseCase() => new(
         _repository,
         _todoItems,
         _notifier,
@@ -281,7 +281,7 @@ public sealed class FireDueRemindersUseCaseTests
         _unitOfWork,
         new StubDateTimeProvider(_now),
         _lease,
-        NullLogger<FireDueRemindersUseCase>.Instance);
+        NullLogger<FireDueRemindersCommandHandler>.Instance);
 
     private void GivenTheLeaseIsGranted() =>
         _lease.TryRunExclusivelyAsync(

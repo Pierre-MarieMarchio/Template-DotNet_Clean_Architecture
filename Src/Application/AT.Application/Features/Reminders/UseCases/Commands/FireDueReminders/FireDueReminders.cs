@@ -7,11 +7,14 @@ using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
+using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 
-public sealed class FireDueRemindersUseCase(
+public sealed record FireDueRemindersCommand : ICommand<Result<int>>;
+
+public sealed class FireDueRemindersCommandHandler(
     IReminderRepository reminders,
     ITodoItemQueries todoItems,
     IReminderNotifier notifier,
@@ -20,13 +23,13 @@ public sealed class FireDueRemindersUseCase(
     IUnitOfWork unitOfWork,
     IDateTimeProvider dateTimeProvider,
     ILeaderLease lease,
-    ILogger<FireDueRemindersUseCase> logger) : IFireDueRemindersUseCase
+    ILogger<FireDueRemindersCommandHandler> logger) : ICommandHandler<FireDueRemindersCommand, Result<int>>
 {
     private const int _batchSize = 200;
 
     private const string _leaseName = "apptemplate.reminders.fire-due";
 
-    public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<int>> Handle(FireDueRemindersCommand command, CancellationToken cancellationToken)
     {
         int notified = 0;
 

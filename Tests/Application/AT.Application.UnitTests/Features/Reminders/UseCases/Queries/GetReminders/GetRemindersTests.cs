@@ -12,7 +12,7 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Queries.GetReminders;
 
-public sealed class GetRemindersUseCaseTests
+public sealed class GetRemindersTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private static readonly Guid _todoListId = Guid.CreateVersion7();
@@ -27,7 +27,7 @@ public sealed class GetRemindersUseCaseTests
     public async Task AnAnonymousCaller_IsRefused()
     {
         var result = await UseCaseFor(StubCurrentUser.Anonymous)
-            .ExecuteAsync(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
+            .Handle(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
@@ -36,7 +36,7 @@ public sealed class GetRemindersUseCaseTests
     [Fact]
     public async Task AnEmptyItemId_IsRejected()
     {
-        var result = await UseCase().ExecuteAsync(new GetRemindersQuery(_todoListId, Guid.Empty), TestToken);
+        var result = await UseCase().Handle(new GetRemindersQuery(_todoListId, Guid.Empty), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
     }
@@ -47,7 +47,7 @@ public sealed class GetRemindersUseCaseTests
         _queries.GetForTodoItemAsync(_callerId, _todoListId, _todoItemId, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<ReminderDto>)[]);
 
-        await UseCase().ExecuteAsync(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
+        await UseCase().Handle(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
 
         await _queries.Received(1).GetForTodoItemAsync(_callerId, _todoListId, _todoItemId, TestToken);
     }
@@ -60,7 +60,7 @@ public sealed class GetRemindersUseCaseTests
         _queries.GetForTodoItemAsync(_callerId, _todoListId, _todoItemId, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<ReminderDto>)[sooner, later]);
 
-        var result = await UseCase().ExecuteAsync(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
+        var result = await UseCase().Handle(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe([sooner, later]);
@@ -72,7 +72,7 @@ public sealed class GetRemindersUseCaseTests
         _queries.GetForTodoItemAsync(_callerId, _todoListId, _todoItemId, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<ReminderDto>)[]);
 
-        var result = await UseCase().ExecuteAsync(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
+        var result = await UseCase().Handle(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBeEmpty();
@@ -82,7 +82,7 @@ public sealed class GetRemindersUseCaseTests
     public async Task AnAnonymousCaller_ReadsNothing()
     {
         await UseCaseFor(StubCurrentUser.Anonymous)
-            .ExecuteAsync(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
+            .Handle(new GetRemindersQuery(_todoListId, _todoItemId), TestToken);
 
         await _queries.DidNotReceive().GetForTodoItemAsync(
             Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
@@ -91,7 +91,7 @@ public sealed class GetRemindersUseCaseTests
     private static ReminderDto ADto(DateTimeOffset dueAt) =>
         ReminderDtoMapping.ToDto(AReminder.OwnedBy(_callerId, dueAt, _todoListId, _todoItemId));
 
-    private GetRemindersUseCase UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser, _validator);
+    private ValidatedHandler<GetRemindersQuery, Result<IReadOnlyList<ReminderDto>>> UseCaseFor(ICurrentUser currentUser) => new(new GetRemindersQueryHandler(_queries, currentUser).Handle, _validator);
 
-    private GetRemindersUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private ValidatedHandler<GetRemindersQuery, Result<IReadOnlyList<ReminderDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

@@ -1,5 +1,7 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.Reminders.Model.Dtos;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
@@ -12,7 +14,7 @@ using Xunit;
 
 namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands.ScheduleReminder;
 
-public sealed class ScheduleReminderUseCaseTests
+public sealed class ScheduleReminderTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
     private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
@@ -27,7 +29,7 @@ public sealed class ScheduleReminderUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_IsRefused()
     {
-        var result = await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(
+        var result = await UseCaseFor(StubCurrentUser.Anonymous).Handle(
             new ScheduleReminderCommand(Guid.CreateVersion7(), Guid.CreateVersion7(), _now.AddHours(1)),
             TestToken);
 
@@ -39,7 +41,7 @@ public sealed class ScheduleReminderUseCaseTests
     [Fact]
     public async Task AnAnonymousCaller_ReadsAndWritesNothing()
     {
-        await UseCaseFor(StubCurrentUser.Anonymous).ExecuteAsync(
+        await UseCaseFor(StubCurrentUser.Anonymous).Handle(
             new ScheduleReminderCommand(Guid.CreateVersion7(), Guid.CreateVersion7(), _now.AddHours(1)),
             TestToken);
 
@@ -52,7 +54,7 @@ public sealed class ScheduleReminderUseCaseTests
     [Fact]
     public async Task AnEmptyListId_IsRejected()
     {
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new ScheduleReminderCommand(Guid.Empty, Guid.CreateVersion7(), _now.AddHours(1)), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -62,7 +64,7 @@ public sealed class ScheduleReminderUseCaseTests
     [Fact]
     public async Task AnEmptyItemId_IsRejected()
     {
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new ScheduleReminderCommand(Guid.CreateVersion7(), Guid.Empty, _now.AddHours(1)), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.Validation);
@@ -77,7 +79,7 @@ public sealed class ScheduleReminderUseCaseTests
         _todoItems.ExistsForOwnerAsync(listId, itemId, _callerId, Arg.Any<CancellationToken>())
             .Returns(false);
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -93,7 +95,7 @@ public sealed class ScheduleReminderUseCaseTests
         _todoItems.ExistsForOwnerAsync(listId, itemId, _callerId, Arg.Any<CancellationToken>())
             .Returns(false);
 
-        await UseCase().ExecuteAsync(new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
+        await UseCase().Handle(new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
 
         _reminders.DidNotReceive().Add(Arg.Any<Reminder>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -106,7 +108,7 @@ public sealed class ScheduleReminderUseCaseTests
         var itemId = Guid.CreateVersion7();
         GivenTheListHasTheItem(listId, itemId);
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new ScheduleReminderCommand(listId, itemId, _now.AddHours(-1)), TestToken);
 
         result.IsFailure.ShouldBeTrue();
@@ -122,7 +124,7 @@ public sealed class ScheduleReminderUseCaseTests
         var itemId = Guid.CreateVersion7();
         GivenTheListHasTheItem(listId, itemId);
 
-        var result = await UseCase().ExecuteAsync(
+        var result = await UseCase().Handle(
             new ScheduleReminderCommand(listId, itemId, _now.AddHours(1)), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
@@ -133,15 +135,13 @@ public sealed class ScheduleReminderUseCaseTests
         await _unitOfWork.Received(1).SaveChangesAsync(TestToken);
     }
 
-    private ScheduleReminderUseCase UseCaseFor(ICurrentUser currentUser) => new(
-        _todoItems,
+    private ValidatedHandler<ScheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCaseFor(ICurrentUser currentUser) => new(new ScheduleReminderCommandHandler(_todoItems,
         _reminders,
         _unitOfWork,
         currentUser,
-        new StubDateTimeProvider(),
-        _validator);
+        new StubDateTimeProvider()).Handle, _validator);
 
-    private ScheduleReminderUseCase UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+    private ValidatedHandler<ScheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 
     private void GivenTheListHasTheItem(Guid listId, Guid itemId) =>
         _todoItems.ExistsForOwnerAsync(listId, itemId, _callerId, Arg.Any<CancellationToken>())

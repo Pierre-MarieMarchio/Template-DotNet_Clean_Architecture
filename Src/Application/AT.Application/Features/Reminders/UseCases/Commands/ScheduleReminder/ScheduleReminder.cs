@@ -8,30 +8,24 @@ using AppTemplate.Application.Features.Reminders.Model.Mapping;
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Repositories;
-using FluentValidation;
+using Mediator;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 
-public sealed class ScheduleReminderUseCase(
+public sealed record ScheduleReminderCommand(Guid TodoListId, Guid TodoItemId, DateTimeOffset DueAt) : ICommand<Result<Versioned<ReminderDto>>>;
+
+public sealed class ScheduleReminderCommandHandler(
     ITodoItemQueries todoItems,
     IReminderRepository reminders,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider,
-    IValidator<ScheduleReminderCommand> validator) : IScheduleReminderUseCase
+    IDateTimeProvider dateTimeProvider) : ICommandHandler<ScheduleReminderCommand, Result<Versioned<ReminderDto>>>
 {
-    public async Task<Result<Versioned<ReminderDto>>> ExecuteAsync(
+    public async ValueTask<Result<Versioned<ReminderDto>>> Handle(
         ScheduleReminderCommand command,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
-
-        var validation = await validator.EnsureValidAsync(command, cancellationToken);
-
-        if (validation.IsFailure)
-        {
-            return validation.To<Versioned<ReminderDto>>();
-        }
 
         var userId = currentUser.RequireUserId();
 

@@ -158,7 +158,7 @@ public sealed class FireDueRemindersDeliveryTests
     {
         _store.StartNewScope();
 
-        var useCase = new FireDueRemindersUseCase(
+        var useCase = new FireDueRemindersCommandHandler(
             _store,
             _todoItems,
             _notifier,
@@ -167,9 +167,9 @@ public sealed class FireDueRemindersDeliveryTests
             _store,
             new StubDateTimeProvider(now),
             _lease,
-            NullLogger<FireDueRemindersUseCase>.Instance);
+            NullLogger<FireDueRemindersCommandHandler>.Instance);
 
-        await useCase.ExecuteAsync(TestToken);
+        await useCase.Handle(new FireDueRemindersCommand(), TestToken);
     }
 
     private static IReminderRecipientDirectory Recipients()

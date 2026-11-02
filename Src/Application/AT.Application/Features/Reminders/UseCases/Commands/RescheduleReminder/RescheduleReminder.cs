@@ -5,28 +5,25 @@ using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Model.Dtos;
 using AppTemplate.Application.Features.Reminders.Model.Mapping;
 using AppTemplate.Application.Features.Reminders.Services;
-using FluentValidation;
+using Mediator;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.RescheduleReminder;
 
-public sealed class RescheduleReminderUseCase(
+public sealed record RescheduleReminderCommand(
+    Guid ReminderId,
+    DateTimeOffset DueAt,
+    VersionPrecondition? Precondition = null) : ICommand<Result<Versioned<ReminderDto>>>;
+
+public sealed class RescheduleReminderCommandHandler(
     IReminderService reminders,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider,
-    IValidator<RescheduleReminderCommand> validator) : IRescheduleReminderUseCase
+    IDateTimeProvider dateTimeProvider) : ICommandHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>>
 {
-    public async Task<Result<Versioned<ReminderDto>>> ExecuteAsync(
+    public async ValueTask<Result<Versioned<ReminderDto>>> Handle(
         RescheduleReminderCommand command,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
-
-        var validation = await validator.EnsureValidAsync(command, cancellationToken);
-
-        if (validation.IsFailure)
-        {
-            return validation.To<Versioned<ReminderDto>>();
-        }
 
         var access = await reminders.LoadOwnedAsync(command.ReminderId, command.Precondition, cancellationToken);
 

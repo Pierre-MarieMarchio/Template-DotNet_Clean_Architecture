@@ -1,9 +1,10 @@
 ﻿using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
+using Mediator;
 
 namespace AppTemplate.Api.UnitTests.Features.Reminders.Jobs;
 
-internal sealed class FakeFireDueRemindersUseCase : IFireDueRemindersUseCase
+internal sealed class FakeFireDueRemindersUseCase : ICommandHandler<FireDueRemindersCommand, Result<int>>
 {
     private readonly Exception? _failure;
     private readonly int _count;
@@ -16,26 +17,26 @@ internal sealed class FakeFireDueRemindersUseCase : IFireDueRemindersUseCase
 
     public int CallCount { get; private set; }
 
-    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public ValueTask<Result<int>> Handle(FireDueRemindersCommand command, CancellationToken cancellationToken)
     {
         CallCount++;
 
         if (_failure is not null)
         {
-            return Task.FromException<Result<int>>(_failure);
+            return ValueTask.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(_count));
+        return ValueTask.FromResult(Result.Success(_count));
     }
 }
 
-internal sealed class HangingFireDueRemindersUseCase : IFireDueRemindersUseCase
+internal sealed class HangingFireDueRemindersUseCase : ICommandHandler<FireDueRemindersCommand, Result<int>>
 {
     private volatile bool _hasEntered;
 
     public bool HasEntered => _hasEntered;
 
-    public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<int>> Handle(FireDueRemindersCommand command, CancellationToken cancellationToken)
     {
         _hasEntered = true;
 

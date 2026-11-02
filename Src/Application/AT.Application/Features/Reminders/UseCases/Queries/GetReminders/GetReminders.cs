@@ -1,29 +1,22 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Model.Dtos;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderQueries;
-using FluentValidation;
+using Mediator;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 
-public sealed class GetRemindersUseCase(
+public sealed record GetRemindersQuery(Guid TodoListId, Guid TodoItemId) : IQuery<Result<IReadOnlyList<ReminderDto>>>;
+
+public sealed class GetRemindersQueryHandler(
     IReminderQueries queries,
-    ICurrentUser currentUser,
-    IValidator<GetRemindersQuery> validator) : IGetRemindersUseCase
+    ICurrentUser currentUser) : IQueryHandler<GetRemindersQuery, Result<IReadOnlyList<ReminderDto>>>
 {
-    public async Task<Result<IReadOnlyList<ReminderDto>>> ExecuteAsync(
+    public async ValueTask<Result<IReadOnlyList<ReminderDto>>> Handle(
         GetRemindersQuery query,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
-
-        var validation = await validator.EnsureValidAsync(query, cancellationToken);
-
-        if (validation.IsFailure)
-        {
-            return validation.To<IReadOnlyList<ReminderDto>>();
-        }
 
         var userId = currentUser.RequireUserId();
 

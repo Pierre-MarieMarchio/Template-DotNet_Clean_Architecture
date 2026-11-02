@@ -1,26 +1,21 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Application.Features.Reminders.Services;
-using FluentValidation;
+using Mediator;
 
 namespace AppTemplate.Application.Features.Reminders.UseCases.Commands.CancelReminder;
 
-public sealed class CancelReminderUseCase(
+public sealed record CancelReminderCommand(Guid ReminderId, VersionPrecondition? Precondition = null) : ICommand<Result>;
+
+public sealed class CancelReminderCommandHandler(
     IReminderService reminders,
-    IUnitOfWork unitOfWork,
-    IValidator<CancelReminderCommand> validator) : ICancelReminderUseCase
+    IUnitOfWork unitOfWork) : ICommandHandler<CancelReminderCommand, Result>
 {
-    public async Task<Result> ExecuteAsync(CancelReminderCommand command, CancellationToken cancellationToken = default)
+    public async ValueTask<Result> Handle(CancelReminderCommand command, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
-
-        var validation = await validator.EnsureValidAsync(command, cancellationToken);
-
-        if (validation.IsFailure)
-        {
-            return validation;
-        }
 
         var access = await reminders.LoadOwnedAsync(command.ReminderId, command.Precondition, cancellationToken);
 

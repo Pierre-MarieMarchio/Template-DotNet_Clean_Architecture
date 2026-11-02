@@ -105,7 +105,7 @@ task stops:
         "rollForward": false
       },
       "microsoft.openapi.kiota": {
-        "version": "1.36.1",
+        "version": "1.37.0",
         "commands": [
           "kiota"
         ],

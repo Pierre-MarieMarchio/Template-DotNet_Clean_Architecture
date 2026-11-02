@@ -7,19 +7,19 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 
-public sealed class PurgeExpiredSecurityEventsUseCaseTests
+public sealed class PurgeExpiredSecurityEventsTests
 {
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    private PurgeExpiredSecurityEventsUseCase UseCase() => new(_securityEventLog, _clock);
+    private PurgeExpiredSecurityEventsCommandHandler UseCase() => new(_securityEventLog, _clock);
 
     [Fact]
     public async Task ExecuteAsync_PassesTheClocksInstant_ToTheTrailPort()
     {
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new PurgeExpiredSecurityEventsCommand(), TestToken);
 
         await _securityEventLog.Received(1)
             .PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
@@ -30,7 +30,7 @@ public sealed class PurgeExpiredSecurityEventsUseCaseTests
     {
         _securityEventLog.PurgeExpiredAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(4);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new PurgeExpiredSecurityEventsCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(4);

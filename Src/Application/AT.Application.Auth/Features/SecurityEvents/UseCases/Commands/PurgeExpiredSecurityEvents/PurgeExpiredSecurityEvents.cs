@@ -1,13 +1,16 @@
 ﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 
 namespace AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 
-public sealed class PurgeExpiredSecurityEventsUseCase(
+public sealed record PurgeExpiredSecurityEventsCommand : ICommand<Result<int>>;
+
+public sealed class PurgeExpiredSecurityEventsCommandHandler(
     ISecurityEventLog securityEventLog,
-    IDateTimeProvider dateTimeProvider) : IPurgeExpiredSecurityEventsUseCase
+    IDateTimeProvider dateTimeProvider) : ICommandHandler<PurgeExpiredSecurityEventsCommand, Result<int>>
 {
-    public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default) =>
+    public async ValueTask<Result<int>> Handle(PurgeExpiredSecurityEventsCommand command, CancellationToken cancellationToken) =>
         await securityEventLog.PurgeExpiredAsync(dateTimeProvider.UtcNow, cancellationToken);
 }

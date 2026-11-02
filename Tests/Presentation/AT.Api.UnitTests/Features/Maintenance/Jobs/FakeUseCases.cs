@@ -4,10 +4,11 @@ using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpi
 //#endif
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using Mediator;
 
 namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 
-internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
+internal sealed class FakeIdempotencyPurge : ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>>
 {
     private readonly Exception? _failure;
     private readonly int _count;
@@ -20,21 +21,21 @@ internal sealed class FakeIdempotencyPurge : IPurgeExpiredIdempotencyKeysUseCase
 
     public int CallCount { get; private set; }
 
-    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public ValueTask<Result<int>> Handle(PurgeExpiredIdempotencyKeysCommand command, CancellationToken cancellationToken)
     {
         CallCount++;
 
         if (_failure is not null)
         {
-            return Task.FromException<Result<int>>(_failure);
+            return ValueTask.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(_count));
+        return ValueTask.FromResult(Result.Success(_count));
     }
 }
 
 //#if (localAuth)
-internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
+internal sealed class FakeRefreshTokenPurge : ICommandHandler<PurgeExpiredRefreshTokensCommand, Result<int>>
 {
     private readonly Exception? _failure;
     private readonly int _count;
@@ -47,27 +48,27 @@ internal sealed class FakeRefreshTokenPurge : IPurgeExpiredRefreshTokensUseCase
 
     public int CallCount { get; private set; }
 
-    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public ValueTask<Result<int>> Handle(PurgeExpiredRefreshTokensCommand command, CancellationToken cancellationToken)
     {
         CallCount++;
 
         if (_failure is not null)
         {
-            return Task.FromException<Result<int>>(_failure);
+            return ValueTask.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(_count));
+        return ValueTask.FromResult(Result.Success(_count));
     }
 }
 
 //#endif
-internal sealed class HangingUseCase : IPurgeExpiredIdempotencyKeysUseCase
+internal sealed class HangingIdempotencyPurge : ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>>
 {
     private volatile bool _hasEntered;
 
     public bool HasEntered => _hasEntered;
 
-    public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<int>> Handle(PurgeExpiredIdempotencyKeysCommand command, CancellationToken cancellationToken)
     {
         _hasEntered = true;
 
@@ -80,7 +81,7 @@ internal sealed class HangingUseCase : IPurgeExpiredIdempotencyKeysUseCase
 }
 
 //#if (localAuth)
-internal sealed class FakeSecurityEventPurge : IPurgeExpiredSecurityEventsUseCase
+internal sealed class FakeSecurityEventPurge : ICommandHandler<PurgeExpiredSecurityEventsCommand, Result<int>>
 {
     private readonly Exception? _failure;
     private readonly int _count;
@@ -93,16 +94,16 @@ internal sealed class FakeSecurityEventPurge : IPurgeExpiredSecurityEventsUseCas
 
     public int CallCount { get; private set; }
 
-    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public ValueTask<Result<int>> Handle(PurgeExpiredSecurityEventsCommand command, CancellationToken cancellationToken)
     {
         CallCount++;
 
         if (_failure is not null)
         {
-            return Task.FromException<Result<int>>(_failure);
+            return ValueTask.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(_count));
+        return ValueTask.FromResult(Result.Success(_count));
     }
 }
 //#endif

@@ -7,19 +7,19 @@ using Xunit;
 
 namespace AppTemplate.Application.Auth.UnitTests.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 
-public sealed class PurgeExpiredRefreshTokensUseCaseTests
+public sealed class PurgeExpiredRefreshTokensTests
 {
     private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
     private readonly StubDateTimeProvider _clock = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
-    private PurgeExpiredRefreshTokensUseCase UseCase() => new(_sessionTokens, _clock);
+    private PurgeExpiredRefreshTokensCommandHandler UseCase() => new(_sessionTokens, _clock);
 
     [Fact]
     public async Task ExecuteAsync_PassesTheClocksInstant_ToTheMaintenancePort()
     {
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new PurgeExpiredRefreshTokensCommand(), TestToken);
 
         await _sessionTokens.Received(1)
             .PurgeExpiredRefreshTokensAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
@@ -30,7 +30,7 @@ public sealed class PurgeExpiredRefreshTokensUseCaseTests
     {
         _sessionTokens.PurgeExpiredRefreshTokensAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(3);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new PurgeExpiredRefreshTokensCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(3);

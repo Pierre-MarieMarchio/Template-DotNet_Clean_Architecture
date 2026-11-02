@@ -7,7 +7,7 @@ using Xunit;
 
 namespace AppTemplate.Application.Core.UnitTests.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 
-public sealed class PurgeExpiredIdempotencyKeysUseCaseTests
+public sealed class PurgeExpiredIdempotencyKeysTests
 {
     private readonly IIdempotencyStore _store = Substitute.For<IIdempotencyStore>();
     private readonly StubDateTimeProvider _clock = new();
@@ -21,12 +21,12 @@ public sealed class PurgeExpiredIdempotencyKeysUseCaseTests
         public DateTimeOffset UtcNow => DefaultInstant;
     }
 
-    private PurgeExpiredIdempotencyKeysUseCase UseCase() => new(_store, _clock);
+    private PurgeExpiredIdempotencyKeysCommandHandler UseCase() => new(_store, _clock);
 
     [Fact]
     public async Task ExecuteAsync_PassesTheClocksInstant_ToTheStore()
     {
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new PurgeExpiredIdempotencyKeysCommand(), TestToken);
 
         await _store.Received(1).PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
     }
@@ -36,7 +36,7 @@ public sealed class PurgeExpiredIdempotencyKeysUseCaseTests
     {
         _store.PurgeExpiredAsync(Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(7);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new PurgeExpiredIdempotencyKeysCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(7);

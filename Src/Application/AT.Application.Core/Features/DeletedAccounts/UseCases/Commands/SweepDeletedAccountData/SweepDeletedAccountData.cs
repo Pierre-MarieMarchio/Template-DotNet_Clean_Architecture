@@ -1,17 +1,20 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 using Microsoft.Extensions.Logging;
 
 namespace AppTemplate.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
-public sealed class SweepDeletedAccountDataUseCase(
+public sealed record SweepDeletedAccountDataCommand : ICommand<Result<int>>;
+
+public sealed class SweepDeletedAccountDataCommandHandler(
     IEnumerable<IDeletedAccountDataPolicy> policies,
     ILeaderLease lease,
-    ILogger<SweepDeletedAccountDataUseCase> logger) : ISweepDeletedAccountDataUseCase
+    ILogger<SweepDeletedAccountDataCommandHandler> logger) : ICommandHandler<SweepDeletedAccountDataCommand, Result<int>>
 {
     private const string _leaseName = "apptemplate.accounts.sweep-deleted-data";
 
-    public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<int>> Handle(SweepDeletedAccountDataCommand command, CancellationToken cancellationToken)
     {
         int swept = 0;
 

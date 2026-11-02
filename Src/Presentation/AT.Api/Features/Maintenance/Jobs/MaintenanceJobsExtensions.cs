@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using Mediator;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Maintenance.Jobs;
@@ -20,7 +20,7 @@ internal static class MaintenanceJobsExtensions
 
         services.AddSingleton<IValidateOptions<JobsMaintenanceOptions>, JobsMaintenanceOptionsValidator>();
 
-        services.AddMaintenanceTask<IPurgeExpiredIdempotencyKeysUseCase>(
+        services.AddMaintenanceTask<PurgeExpiredIdempotencyKeysCommand>(
             "expired idempotency keys",
             "Claimed keys will accumulate: nothing else removes an expired claim.",
             provider => provider.GetRequiredService<IOptions<JobsMaintenanceOptions>>()
@@ -31,12 +31,12 @@ internal static class MaintenanceJobsExtensions
         return services;
     }
 
-    internal static IServiceCollection AddMaintenanceTask<TUseCase>(
+    internal static IServiceCollection AddMaintenanceTask<TCommand>(
         this IServiceCollection services,
         string label,
         string disabledConsequence,
         Func<IServiceProvider, bool> isEnabled)
-        where TUseCase : IUseCase<Result<int>>
+        where TCommand : ICommand<Result<int>>, new()
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(label);
@@ -44,7 +44,7 @@ internal static class MaintenanceJobsExtensions
         ArgumentNullException.ThrowIfNull(isEnabled);
 
         services.AddSingleton<IMaintenanceTask>(provider =>
-            new MaintenanceTask<TUseCase>(label, disabledConsequence, () => isEnabled(provider)));
+            new MaintenanceTask<TCommand>(label, disabledConsequence, () => isEnabled(provider)));
 
         return services;
     }

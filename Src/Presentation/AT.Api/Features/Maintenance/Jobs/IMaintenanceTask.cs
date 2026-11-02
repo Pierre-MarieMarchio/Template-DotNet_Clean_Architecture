@@ -1,5 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Core.Common.UseCases;
+using Mediator;
 
 namespace AppTemplate.Api.Features.Maintenance.Jobs;
 
@@ -14,11 +14,11 @@ internal interface IMaintenanceTask
     Task<Result<int>> RunAsync(IServiceProvider scopedServices, CancellationToken cancellationToken);
 }
 
-internal sealed class MaintenanceTask<TUseCase>(
+internal sealed class MaintenanceTask<TCommand>(
     string label,
     string disabledConsequence,
     Func<bool> isEnabled) : IMaintenanceTask
-    where TUseCase : IUseCase<Result<int>>
+    where TCommand : ICommand<Result<int>>, new()
 {
     public string Label => label;
 
@@ -26,6 +26,6 @@ internal sealed class MaintenanceTask<TUseCase>(
 
     public bool Enabled => isEnabled();
 
-    public Task<Result<int>> RunAsync(IServiceProvider scopedServices, CancellationToken cancellationToken) =>
-        scopedServices.GetRequiredService<TUseCase>().ExecuteAsync(cancellationToken);
+    public async Task<Result<int>> RunAsync(IServiceProvider scopedServices, CancellationToken cancellationToken) =>
+        await scopedServices.GetRequiredService<ISender>().Send(new TCommand(), cancellationToken);
 }

@@ -3,6 +3,7 @@ using AppTemplate.Api.Features.Maintenance.Contracts.Mapping;
 using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Presentation.Core.Common.Security;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,12 +16,12 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
 public sealed class RefreshTokenMaintenanceController(
-    IPurgeExpiredRefreshTokensUseCase purgeExpiredRefreshTokens) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Deletes every refresh-token grant whose retention window has passed.</summary>
     [HttpDelete("refresh-tokens/expired")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PurgeResponse))]
     public async Task<ActionResult<PurgeResponse>> PurgeExpiredRefreshTokens(CancellationToken cancellationToken) =>
         OkOrProblem(
-            MaintenanceResponseMapping.ToPurgeResponse(await purgeExpiredRefreshTokens.ExecuteAsync(cancellationToken)));
+            MaintenanceResponseMapping.ToPurgeResponse(await sender.Send(new PurgeExpiredRefreshTokensCommand(), cancellationToken)));
 }

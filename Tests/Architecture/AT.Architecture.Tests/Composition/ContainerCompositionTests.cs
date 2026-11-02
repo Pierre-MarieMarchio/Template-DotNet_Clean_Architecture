@@ -394,26 +394,6 @@ public sealed class ContainerCompositionTests
     }
 }
 
-internal static class UseCaseTypes
-{
-    internal static IReadOnlyList<Type> InTheApplicationLayer { get; } =
-        [.. ArchitectureAssemblies.ApplicationLayer
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => type is { IsClass: true, IsAbstract: false }
-                && typeof(IUseCase).IsAssignableFrom(type))
-            .OrderBy(type => type.FullName, StringComparer.Ordinal)];
-
-    internal static Type ContractOf(Type implementation) =>
-        implementation.GetInterfaces()
-            .Where(candidate => candidate != typeof(IUseCase)
-                && !candidate.IsGenericType
-                && typeof(IUseCase).IsAssignableFrom(candidate))
-            .ToArray() is [var contract]
-            ? contract
-            : throw new InvalidOperationException(
-                $"'{implementation.FullName}' must declare exactly one named use-case interface.");
-}
-
 internal sealed class UseCaseWithNoContract : IUseCase<Guid, Result>
 {
     public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>

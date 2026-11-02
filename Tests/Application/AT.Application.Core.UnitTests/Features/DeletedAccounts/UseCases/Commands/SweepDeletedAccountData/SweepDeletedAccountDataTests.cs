@@ -9,7 +9,7 @@ using Xunit;
 
 namespace AppTemplate.Application.Core.UnitTests.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
-public sealed class SweepDeletedAccountDataUseCaseTests
+public sealed class SweepDeletedAccountDataTests
 {
     private static readonly UserId _firstOwner = UserId.Create(Guid.CreateVersion7());
     private static readonly UserId _secondOwner = UserId.Create(Guid.CreateVersion7());
@@ -26,7 +26,7 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         GivenThePolicyLists(_firstOwner, _secondOwner);
         GivenThePolicyApplies();
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new SweepDeletedAccountDataCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(2);
@@ -41,7 +41,7 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         _policy.ApplyAsync(_firstOwner, Arg.Any<CancellationToken>()).Returns(true);
         _policy.ApplyAsync(_secondOwner, Arg.Any<CancellationToken>()).Returns(false);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new SweepDeletedAccountDataCommand(), TestToken);
 
         result.Value.ShouldBe(1);
     }
@@ -54,7 +54,7 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         _policy.ApplyAsync(_secondOwner, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("the poisoned owner"));
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new SweepDeletedAccountDataCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(2);
@@ -67,7 +67,7 @@ public sealed class SweepDeletedAccountDataUseCaseTests
         _lease.HoldsTheLease = false;
         GivenThePolicyLists(_firstOwner);
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new SweepDeletedAccountDataCommand(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(0);
@@ -79,7 +79,7 @@ public sealed class SweepDeletedAccountDataUseCaseTests
     {
         GivenThePolicyLists();
 
-        var result = await UseCase().ExecuteAsync(TestToken);
+        var result = await UseCase().Handle(new SweepDeletedAccountDataCommand(), TestToken);
 
         result.Value.ShouldBe(0);
         await _policy.DidNotReceive().ApplyAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>());
@@ -92,8 +92,8 @@ public sealed class SweepDeletedAccountDataUseCaseTests
     private void GivenThePolicyApplies() =>
         _policy.ApplyAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>()).Returns(true);
 
-    private SweepDeletedAccountDataUseCase UseCase() =>
-        new([_policy], _lease, NullLogger<SweepDeletedAccountDataUseCase>.Instance);
+    private SweepDeletedAccountDataCommandHandler UseCase() =>
+        new([_policy], _lease, NullLogger<SweepDeletedAccountDataCommandHandler>.Instance);
 
     private sealed class StubLeaderLease : ILeaderLease
     {

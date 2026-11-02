@@ -75,7 +75,7 @@ public sealed class MaintenanceBackgroundServiceTests
     [Fact]
     public async Task StopAsync_ReturnsPromptly_InsteadOfWaitingOutTheInterval()
     {
-        var idempotencyPurge = new HangingUseCase();
+        var idempotencyPurge = new HangingIdempotencyPurge();
 
         var options = EnabledOptions();
         options.Interval = TimeSpan.FromMinutes(10);
@@ -134,7 +134,7 @@ public sealed class MaintenanceBackgroundServiceTests
     [Fact]
     public async Task Stopping_IsLogged_EvenWhenTheStopLandsMidIteration()
     {
-        var idempotencyPurge = new HangingUseCase();
+        var idempotencyPurge = new HangingIdempotencyPurge();
 
         var options = EnabledOptions();
         options.Interval = TimeSpan.FromMinutes(10);

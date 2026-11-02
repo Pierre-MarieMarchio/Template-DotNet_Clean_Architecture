@@ -9,6 +9,7 @@ using AppTemplate.Api.Features.Maintenance.Jobs;
 //#if (reminders)
 using AppTemplate.Api.Features.Reminders.Jobs;
 //#endif
+using AppTemplate.Api.UnitTests.TestSupport;
 //#if (localAuth)
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
@@ -23,6 +24,7 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedCo
 //#if (reminders)
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 //#endif
+using Mediator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -126,10 +128,10 @@ public sealed class BackgroundJobsModuleTests
     public async Task Enabled_RunsOnePassOfEveryJob()
     #endif*/
     {
-        var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
+        var idempotency = Substitute.For<ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>>>();
         //#if (localAuth)
-        var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
-        var securityEvents = Substitute.For<IPurgeExpiredSecurityEventsUseCase>();
+        var refreshTokens = Substitute.For<ICommandHandler<PurgeExpiredRefreshTokensCommand, Result<int>>>();
+        var securityEvents = Substitute.For<ICommandHandler<PurgeExpiredSecurityEventsCommand, Result<int>>>();
         //#endif
         //#if (reminders)
         var reminders = Substitute.For<IFireDueRemindersUseCase>();
@@ -140,10 +142,10 @@ public sealed class BackgroundJobsModuleTests
         var inspection = Substitute.For<IInspectDepositedFilesUseCase>();
         //#endif
 
-        idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        idempotency.Handle(Arg.Any<PurgeExpiredIdempotencyKeysCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#if (localAuth)
-        refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
-        securityEvents.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        refreshTokens.Handle(Arg.Any<PurgeExpiredRefreshTokensCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        securityEvents.Handle(Arg.Any<PurgeExpiredSecurityEventsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (reminders)
         reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
@@ -158,6 +160,7 @@ public sealed class BackgroundJobsModuleTests
             new Dictionary<string, string?>(),
             services =>
             {
+                services.AddScoped<ISender, RoutingSender>();
                 services.AddScoped(_ => idempotency);
                 //#if (localAuth)
                 services.AddScoped(_ => refreshTokens);

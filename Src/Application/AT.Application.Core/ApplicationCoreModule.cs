@@ -1,10 +1,6 @@
 ﻿using System.Reflection;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.UseCases;
-//#if (anyFeature)
-using AppTemplate.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
-//#endif
-using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Domain.Core.Common.Events;
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,9 +14,7 @@ public static class ApplicationCoreModule
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddUseCasePipeline();
-
-        return services.AddUseCases([typeof(PurgeExpiredIdempotencyKeysUseCase)]);
+        return services.AddUseCasePipeline();
     }
     //#if (anyFeature)
 
@@ -28,9 +22,7 @@ public static class ApplicationCoreModule
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.AddUseCasePipeline();
-
-        return services.AddUseCases([typeof(SweepDeletedAccountDataUseCase)]);
+        return services.AddUseCasePipeline();
     }
     //#endif
 

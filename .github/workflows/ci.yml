@@ -117,10 +117,9 @@ jobs:
         run: dotnet run Tools/Tasks.cs format
 
       #if (sonarWorkflow)
-      # Sonar never gates this job: a service that is down must not block a pull request, and SonarCloud reports its quality gate on the pull request itself. The mail templates are excluded from duplication only; the report pattern matches the extension, as Tools/CoverageGate.cs does.
+      # The quality gate is a required check through this job: a red gate, or a SonarCloud that cannot be reached, fails it. The mail templates are excluded from duplication only; the report pattern matches the extension, as Tools/CoverageGate.cs does.
       - name: Begin Sonar analysis
         if: env.SONAR_ENABLED == 'true'
-        continue-on-error: true
         run: |
           dotnet tool restore
           dotnet sonarscanner begin \
@@ -184,16 +183,10 @@ jobs:
             ${floor_option}
 
       #if (sonarWorkflow)
-      # Waits on the quality gate, which judges new code only; a red gate or an unreachable service is a warning here.
+      # Waits on the quality gate, which judges new code only.
       - name: End Sonar analysis
-        id: sonar-end
         if: always() && env.SONAR_ENABLED == 'true'
-        continue-on-error: true
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
-
-      - name: Report a Sonar analysis that did not pass
-        if: always() && steps.sonar-end.outcome == 'failure'
-        run: echo "::warning title=Sonar::The analysis or its quality gate did not pass; the details are on SonarCloud."
 
       #endif
       # The totals read from the TRX files; a run that produced none fails.

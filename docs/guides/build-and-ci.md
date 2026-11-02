@@ -124,9 +124,9 @@ Sonar is not one of the gates: it needs a server and a token, which a clone does
 <!--#if (sonarWorkflow)-->
 In CI it can still fail a pull request: the quality gate judges new code only, so the code already
 there blocks nobody. It runs inside the `Build & test` job of `.github/workflows/ci.yml`, around the
-build and the tests that job already runs, so the code is not built a second time; the job never
-fails on Sonar, and the quality gate's verdict is a warning there and the status SonarCloud itself
-posts on the pull request. The steps are skipped until the repository variables
+build and the tests that job already runs, so the code is not built a second time. The job waits on
+the quality gate and fails when it is red or when SonarCloud cannot be reached, which makes the gate
+a required check wherever `Build & test` is one. The steps are skipped until the repository variables
 `SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are set, and for a fork's or Dependabot's pull request;
 they read the secret `SONAR_TOKEN`. The first analysis of the default branch can come back red,
 since everything is new code until a baseline exists.

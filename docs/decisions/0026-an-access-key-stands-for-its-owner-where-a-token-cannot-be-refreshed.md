@@ -25,7 +25,7 @@ less than the theft of the password.
   ([ADR 0015](0015-passkeys-stand-on-their-own.md)). A stolen 15-minute token cannot mint a
   long-lived credential.
 - **This API never accepts one.** Its bearer scheme reads JWTs only. The MCP server, whose callers
-  cannot refresh a token, validates a key through `IAuthenticateAccessKeyUseCase` and acts as the
+  cannot refresh a token, validates a key by sending `AuthenticateAccessKeyCommand` and acts as the
   owner it names
   ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)), so the owner stays in every query
   ([ADR 0009](0009-ownership-is-in-the-query.md)). A malformed, unknown, revoked or expired key, and
@@ -56,8 +56,8 @@ less than the theft of the password.
 - A password change, a reset or a stamp rotation leaves keys alive: revoking them is the owner's
   act, from the list. Locking or deleting the account refuses or deletes them.
 - The count limit is checked before the insert, so two simultaneous creations may pass it by one.
-- `CreateAccessKeyUseCaseTests` holds the re-authentication, the limit and the shown-once outcome;
-  `AuthenticateAccessKeyUseCaseTests` the single refusal and the throttle;
+- `CreateAccessKeyTests` holds the re-authentication, the limit and the shown-once outcome;
+  `AuthenticateAccessKeyTests` the single refusal and the throttle;
   `AccessKeysServicePersistenceTests` the stored hash, the owner's isolation and liveness on a real
   database; `AccessKeyManagementTests` the routes, another caller's key answering `404`, and this
   API refusing a key as a bearer token.

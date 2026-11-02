@@ -221,6 +221,7 @@ internal static class HostComposition
         var services = new ServiceCollection();
 
         AddHostSuppliedServices(services, configuration);
+        RemoveTheHandlersOfAuthentication(services);
 
         //#if (todoLists)
         services.AddTodoLists();
@@ -299,6 +300,7 @@ internal static class HostComposition
         var services = new ServiceCollection();
 
         AddHostSuppliedServices(services, configuration);
+        RemoveTheHandlersOfAuthentication(services);
 
         //#if (todoLists)
         services.AddTodoLists();
@@ -328,12 +330,27 @@ internal static class HostComposition
         return services;
     }
 
+    private static void RemoveTheHandlersOfAuthentication(ServiceCollection services)
+    {
+        var authentication = typeof(ApplicationAuthModule).Assembly;
+
+        foreach (var descriptor in services.Where(descriptor => descriptor.ImplementationType?.Assembly == authentication).ToList())
+        {
+            services.Remove(descriptor);
+        }
+    }
+
     //#endif
     private static void AddHostSuppliedServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(configuration);
         services.AddSingleton<IHostEnvironment>(new ArchitectureTestHostEnvironment());
         services.AddLogging();
+        services.AddMediator(options =>
+        {
+            options.ServiceLifetime = ServiceLifetime.Scoped;
+            options.GenerateTypesAsInternal = true;
+        });
     }
 
     private static void AddHostSuppliedAdapters(IServiceCollection services)

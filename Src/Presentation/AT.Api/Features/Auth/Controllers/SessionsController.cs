@@ -23,6 +23,7 @@ using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessio
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.VerifyTwoFactor;
 //#if (browserSessions)
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 //#endif
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,14 +37,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class SessionsController(
-    ILoginUseCase login,
-    IVerifyTwoFactorUseCase verifyTwoFactor,
-    ISignInWithExternalProviderUseCase signInWithExternalProvider,
-    IRefreshAccessTokenUseCase refreshAccessToken,
-    ILogoutUseCase logout,
-    ILogoutEverywhereUseCase logoutEverywhere,
-    IListSessionsUseCase listSessions,
-    IRevokeSessionUseCase revokeSession) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Exchanges credentials for an access token and a refresh token.</summary>
     [HttpPost("login")]
@@ -64,7 +58,7 @@ public sealed class SessionsController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new LoginCommand(request.Email, request.Password);
-        var response = AuthResponseMapping.ToLoginResponse(await login.ExecuteAsync(command, cancellationToken));
+        var response = AuthResponseMapping.ToLoginResponse(await sender.Send(command, cancellationToken));
         //#if (browserSessions)
 
         response = BrowserSession.Deliver(HttpContext, refreshTokenMode, response);
@@ -95,7 +89,7 @@ public sealed class SessionsController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new VerifyTwoFactorCommand(request.ChallengeToken, request.Code);
-        var response = AuthResponseMapping.ToLoginResponse(await verifyTwoFactor.ExecuteAsync(command, cancellationToken));
+        var response = AuthResponseMapping.ToLoginResponse(await sender.Send(command, cancellationToken));
         //#if (browserSessions)
 
         response = BrowserSession.Deliver(HttpContext, refreshTokenMode, response);
@@ -127,7 +121,7 @@ public sealed class SessionsController(
 
         var command = new SignInWithExternalProviderCommand(request.Provider, request.IdToken);
         var response = AuthResponseMapping.ToExternalLoginResponse(
-            await signInWithExternalProvider.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
         //#if (browserSessions)
 
         response = BrowserSession.Deliver(HttpContext, refreshTokenMode, response);
@@ -168,7 +162,7 @@ public sealed class SessionsController(
         #endif*/
 
         return OkOrProblem(
-            AuthResponseMapping.ToTokenResponse(await refreshAccessToken.ExecuteAsync(command, cancellationToken)));
+            AuthResponseMapping.ToTokenResponse(await sender.Send(command, cancellationToken)));
     }
 
     /// <summary>Revokes a refresh token, ending the session it belongs to.</summary>
@@ -200,7 +194,7 @@ public sealed class SessionsController(
         var command = new LogoutCommand(request.RefreshToken);
         #endif*/
 
-        return NoContentOrProblem(await logout.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>
@@ -211,7 +205,7 @@ public sealed class SessionsController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> LogoutEverywhere(CancellationToken cancellationToken) =>
-        NoContentOrProblem(await logoutEverywhere.ExecuteAsync(cancellationToken));
+        NoContentOrProblem(await sender.Send(new LogoutEverywhereCommand(), cancellationToken));
 
     /// <summary>
     /// Lists the caller's live sessions, most recently used first, marking the one making this
@@ -222,7 +216,7 @@ public sealed class SessionsController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SessionsResponse))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<SessionsResponse>> ListSessions(CancellationToken cancellationToken) =>
-        OkOrProblem(AuthResponseMapping.ToSessionsResponse(await listSessions.ExecuteAsync(cancellationToken)));
+        OkOrProblem(AuthResponseMapping.ToSessionsResponse(await sender.Send(new ListSessionsQuery(), cancellationToken)));
 
     /// <summary>Ends one of the caller's sessions by the id the session list names.</summary>
     [HttpDelete("sessions/{sessionId:guid}")]
@@ -232,7 +226,7 @@ public sealed class SessionsController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> RevokeSession(Guid sessionId, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await revokeSession.ExecuteAsync(new RevokeSessionCommand(sessionId), cancellationToken));
+        NoContentOrProblem(await sender.Send(new RevokeSessionCommand(sessionId), cancellationToken));
     //#if (browserSessions)
 
     private async Task<Result<TokenResponse>> RefreshFromCookieAsync(CancellationToken cancellationToken)
@@ -246,7 +240,7 @@ public sealed class SessionsController(
 
         return BrowserSession.Rotate(
             HttpContext,
-            AuthResponseMapping.ToTokenResponse(await refreshAccessToken.ExecuteAsync(command, cancellationToken)));
+            AuthResponseMapping.ToTokenResponse(await sender.Send(command, cancellationToken)));
     }
 
     private async Task<Result> LogoutFromCookieAsync(CancellationToken cancellationToken)
@@ -257,7 +251,7 @@ public sealed class SessionsController(
 
         return presented is null
             ? Result.Success()
-            : await logout.ExecuteAsync(new LogoutCommand(presented), cancellationToken);
+            : await sender.Send(new LogoutCommand(presented), cancellationToken);
     }
     //#endif
 }

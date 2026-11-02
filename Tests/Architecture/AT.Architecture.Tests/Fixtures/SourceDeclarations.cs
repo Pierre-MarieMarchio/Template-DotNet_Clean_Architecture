@@ -5,7 +5,7 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 internal static class SourceDeclarations
 {
     private static readonly Regex _useCaseClassDeclaration = new(
-        @"^[\t ]*(?:public|internal)?[\t ]*(?:sealed[\t ]+)?(?:partial[\t ]+)?class[\t ]+([A-Za-z0-9_]+UseCase)\b",
+        @"^[\t ]*(?:public|internal)?[\t ]*(?:sealed[\t ]+)?(?:partial[\t ]+)?class[\t ]+([A-Za-z0-9_]+(?:CommandHandler|QueryHandler))\b",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 

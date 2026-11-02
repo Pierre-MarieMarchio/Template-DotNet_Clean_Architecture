@@ -21,8 +21,8 @@ work twice.
 | Files | inspects deposited files, purges abandoned registrations, reclaims orphaned objects ([Files](files.md#background-passes)) | 1 minute, 1 hour, 12 hours |
 <!--#endif-->
 
-Every pass calls an application use case, exactly as a controller would; a job adds a trigger, not
-logic.
+Every pass sends an application use case's message through `ISender`, exactly as a controller does;
+a job adds a trigger, not logic.
 <!--#if ((presentationBlazorServer || presentationMcp) && !jobsWorker)-->
 The jobs run in the API alone: the other hosts compose the same use cases and run none of them on
 a timer.
@@ -78,8 +78,8 @@ migrations are applied with `dotnet ef database update`, as [first run](../getti
 shows, and at release the migration bundles run before the hosts.
 <!--#endif-->
 Its tests are in `Tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
-worker from its own `Program.cs` with every registration validated and resolves each use case it
-composes in a background scope.
+worker from its own `Program.cs` with every registration validated and resolves each use case's
+handler it composes in a background scope.
 <!--#endif-->
 
 A pass opens its own scope with `CreateBackgroundScope()`. In that scope `ICurrentUser.UserId`
@@ -178,12 +178,13 @@ stopped.
 
 ## Add a job
 
-**A purge or a sweep joins the maintenance timer**: a use case returning the count it removed,
-registered with `AddMaintenanceTask`, internal to the host that runs the jobs, from the feature's own
-`Features/<Feature>/Jobs/` folder, with its own switch:
+**A purge or a sweep joins the maintenance timer**: a command, taking no input, whose handler returns
+the count it removed, registered with `AddMaintenanceTask`, which sends it on each pass, internal to
+the host that runs the jobs, from the feature's own `Features/<Feature>/Jobs/` folder, with its own
+switch:
 
 ```csharp
-services.AddMaintenanceTask<IPurgeExpiredExportsUseCase>(
+services.AddMaintenanceTask<PurgeExpiredExportsCommand>(
     "expired exports",
     "Expired exports will accumulate: nothing else removes them.",
     provider => provider.GetRequiredService<IOptions<JobsExportsOptions>>().Value.PurgeEnabled);

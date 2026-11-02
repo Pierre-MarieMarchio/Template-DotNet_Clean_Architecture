@@ -10,6 +10,7 @@ using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.DeleteMyA
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RequestEmailChange;
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Queries.GetMySecurityEvents;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.GetCurrentUser;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -19,12 +20,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class AccountController(
-    IGetCurrentUserUseCase getCurrentUser,
-    IGetMySecurityEventsUseCase getMySecurityEvents,
-    IChangePasswordUseCase changePassword,
-    IRequestEmailChangeUseCase requestEmailChange,
-    IConfirmEmailChangeUseCase confirmEmailChange,
-    IDeleteMyAccountUseCase deleteMyAccount) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>The authenticated caller's own profile.</summary>
     [HttpGet("me")]
@@ -33,7 +29,7 @@ public sealed class AccountController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(CurrentUserResponse))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<CurrentUserResponse>> GetCurrentUser(CancellationToken cancellationToken) =>
-        OkOrProblem(AuthResponseMapping.ToCurrentUserResponse(await getCurrentUser.ExecuteAsync(cancellationToken)));
+        OkOrProblem(AuthResponseMapping.ToCurrentUserResponse(await sender.Send(new GetCurrentUserQuery(), cancellationToken)));
 
     /// <summary>Replaces the caller's password.</summary>
     [HttpPost("change-password")]
@@ -50,7 +46,7 @@ public sealed class AccountController(
 
         var command = new ChangePasswordCommand(request.CurrentPassword, request.NewPassword);
 
-        return NoContentOrProblem(await changePassword.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>
@@ -70,7 +66,7 @@ public sealed class AccountController(
 
         var command = new RequestEmailChangeCommand(request.CurrentPassword, request.NewEmail);
 
-        return NoContentOrProblem(await requestEmailChange.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>Confirms a pending email change from the token mailed to the new address.</summary>
@@ -88,7 +84,7 @@ public sealed class AccountController(
 
         var command = new ConfirmEmailChangeCommand(request.NewEmail, request.Token);
 
-        return NoContentOrProblem(await confirmEmailChange.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>Deletes the caller's own account and ends every one of its sessions.</summary>
@@ -107,7 +103,7 @@ public sealed class AccountController(
 
         var command = new DeleteMyAccountCommand(request.CurrentPassword, request.TwoFactorCode);
 
-        return NoContentOrProblem(await deleteMyAccount.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>Lists the caller's own security trail, newest first.</summary>
@@ -125,6 +121,6 @@ public sealed class AccountController(
         var query = new GetMySecurityEventsQuery(request.Page, request.PageSize);
 
         return OkOrProblem(
-            AuthResponseMapping.ToSecurityEventPageResponse(await getMySecurityEvents.ExecuteAsync(query, cancellationToken)));
+            AuthResponseMapping.ToSecurityEventPageResponse(await sender.Send(query, cancellationToken)));
     }
 }

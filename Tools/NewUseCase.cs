@@ -32,7 +32,7 @@ internal static class NewUseCase
         "Persistence", "Policies", "Ports", "Presentation", "Queries", "Rows", "Services", "UseCases",
     ];
 
-    private static readonly string[] _reservedSuffixes = ["UseCase", "Command", "Query", "Validator", "Dto"];
+    private static readonly string[] _reservedSuffixes = ["UseCase", "Command", "Query", "Handler", "Validator", "Dto"];
 
     private static readonly string[] _keywords =
     [
@@ -483,12 +483,21 @@ internal static class NewUseCase
             ["D"] = spec.Dto ?? string.Empty,
             ["Dtos"] = spec.IsCommand ? string.Empty : $"{spec.Prefix}.Application.Features.{spec.Features}.Model.Dtos",
             ["Out"] = result,
-            ["Contract"] = spec.HasInput ? $"IUseCase<{spec.Input}, {result}>" : $"IUseCase<{result}>",
-            ["Refusal"] = spec.IsCommand ? "validation" : $"validation.To<{spec.Dto}>()",
+            ["Kind"] = spec.IsCommand ? "Command" : "Query",
+            ["Concurrency"] = spec.IsCommand && spec.HasInput ? $"{spec.Prefix}.Application.Core.Common.Concurrency" : string.Empty,
+            ["Message"] = Message(spec, result),
             ["Subject"] = spoken.Length == 0 ? string.Empty : (IsVowel(spoken[0]) ? "An " : "A ") + spoken,
             ["Unwritten"] = Unwritten(spec),
         };
     }
+
+    private static string Message(Spec spec, string result) => (spec.IsCommand, spec.HasInput) switch
+    {
+        (true, true) => $"public sealed record {spec.Input}(Guid {spec.Aggregate}Id, VersionPrecondition? Precondition = null) : ICommand<{result}>;",
+        (false, true) => $"public sealed record {spec.Input}(Guid {spec.Aggregate}Id) : IQuery<{result}>;",
+        (true, false) => $"public sealed record {spec.Input} : ICommand<{result}>;",
+        _ => $"public sealed record {spec.Input} : IQuery<{result}>;",
+    };
 
     private static string Unwritten(Spec spec) => (spec.IsCommand, spec.HasInput) switch
     {
@@ -526,14 +535,12 @@ internal static class NewUseCase
 
         void Add(string path, string template) => emissions.Add(new Emission(path, Render(template, tokens)));
 
+        Add($"{folder}/{spec.Name}.cs", Templates.UseCase);
+
         if (spec.HasInput)
         {
-            Add($"{folder}/{spec.Input}.cs", spec.IsCommand ? Templates.CommandRequest : Templates.QueryRequest);
             Add($"{folder}/{spec.Input}Validator.cs", Templates.Validator);
         }
-
-        Add($"{folder}/I{spec.Name}UseCase.cs", spec.IsCommand ? Templates.CommandPort : Templates.QueryPort);
-        Add($"{folder}/{spec.Name}UseCase.cs", spec.HasInput ? Templates.UseCaseWithInput : Templates.UseCaseWithoutInput);
 
         if (spec.Dto is not null && !spec.DtoExists)
         {
@@ -548,7 +555,7 @@ internal static class NewUseCase
 
             if (Directory.Exists(Path.Combine(root, tests)))
             {
-                Add($"{tests}/Features/{spec.Features}/UseCases/{spec.Folder}/{spec.Name}/{spec.Name}UseCaseTests.cs", Templates.UseCaseTests);
+                Add($"{tests}/Features/{spec.Features}/UseCases/{spec.Folder}/{spec.Name}/{spec.Input}ValidatorTests.cs", Templates.ValidatorTests);
             }
             else
             {
@@ -665,7 +672,6 @@ internal static class NewUseCase
         string p = spec.Prefix;
         string f = spec.Features;
         string u = spec.Name;
-        string field = Lower(u);
 
         output.WriteLine($"Wrote {plan.Count} files for the {spec.Kind} {u} in {f}:");
 
@@ -691,8 +697,10 @@ internal static class NewUseCase
         }
 
         output.WriteLine();
-        output.WriteLine($"Nothing to register: AddFeature(\"{f}\") in ApplicationModule finds the use case and its validator by folder.");
-        output.WriteLine($"Until its body is written, {u}UseCase answers its validation and then throws NotImplementedException.");
+        output.WriteLine($"Nothing to register: AddFeature(\"{f}\") in ApplicationModule finds its validator by folder, and each host's generated mediator registers its handler.");
+        output.WriteLine(spec.HasInput
+            ? $"Until its body is written, {spec.Input}Handler throws NotImplementedException; the pipeline answers what its validator refuses before the handler is reached."
+            : $"Until its body is written, {spec.Input}Handler throws NotImplementedException.");
         output.WriteLine();
         output.WriteLine("What it decides is yours to write, each with its test (docs/guides/testing.md):");
 
@@ -707,7 +715,7 @@ internal static class NewUseCase
             output.WriteLine("  - the body: ask ICurrentUser for the caller when the feature is owned, then that method");
         }
 
-        output.WriteLine("  - its dependencies, in the primary constructor beside the validator");
+        output.WriteLine("  - its dependencies, in the handler's primary constructor");
         output.WriteLine("  - one unit test per decision the body adds, each refusal with its control");
         string api = $"Src/Presentation/{FolderOf(p, "Api")}";
         bool hasApi = Directory.Exists(Path.Combine(root, api));
@@ -724,7 +732,7 @@ internal static class NewUseCase
         if (!hasApi)
         {
             output.WriteLine();
-            output.WriteLine($"To offer it, inject I{u}UseCase {field} by hand where a host serves {f}, under:");
+            output.WriteLine($"To offer it, send {spec.Input} through ISender by hand where a host serves {f}, under:");
 
             foreach (string host in Hosts(root))
             {
@@ -747,6 +755,7 @@ internal static class NewUseCase
         output.WriteLine();
         output.WriteLine($"To serve it over HTTP, the edit by hand in {where}:");
         output.WriteLine($"  the usings it lacks  {spec.Namespace};");
+        output.WriteLine("                       Mediator;");
 
         if (!spec.IsCommand)
         {
@@ -754,7 +763,7 @@ internal static class NewUseCase
             output.WriteLine($"                       {p}.Api.Features.{f}.Contracts.Responses;");
         }
 
-        output.WriteLine($"  the parameter        I{u}UseCase {field}, in the primary constructor");
+        output.WriteLine("  the parameter        ISender sender, in the primary constructor, unless it has one");
         output.WriteLine("  the action");
 
         foreach (string line in Action(spec))
@@ -798,7 +807,6 @@ internal static class NewUseCase
     private static List<string> Action(Spec spec)
     {
         string u = spec.Name;
-        string field = Lower(u);
         string remainder = spec.Aggregate is { Length: > 0 } aggregate && u.Contains(aggregate, StringComparison.Ordinal) && u.Length > aggregate.Length
             ? u.Replace(aggregate, string.Empty, StringComparison.Ordinal)
             : u;
@@ -834,7 +842,7 @@ internal static class NewUseCase
                     "        return refusal;",
                     "    }",
                     string.Empty,
-                    $"    var outcome = await {field}.ExecuteAsync(new {spec.Input}({id}, precondition), cancellationToken);",
+                    $"    var outcome = await sender.Send(new {spec.Input}({id}, precondition), cancellationToken);",
                     string.Empty,
                     "    return NoContentOrProblem(RequiringExistence(requiresExistence, outcome));",
                     "}",
@@ -845,7 +853,7 @@ internal static class NewUseCase
                 lines.AddRange(
                 [
                     $"public async Task<ActionResult> {method}({parameters}) =>",
-                    $"    NoContentOrProblem(await {field}.ExecuteAsync(cancellationToken));",
+                    $"    NoContentOrProblem(await sender.Send(new {spec.Input}(), cancellationToken));",
                 ]);
             }
 
@@ -853,7 +861,7 @@ internal static class NewUseCase
         }
 
         string response = spec.Dto![..^"Dto".Length] + "Response";
-        string call = spec.HasInput ? $"new {spec.Input}({id}), cancellationToken" : "cancellationToken";
+        string call = spec.HasInput ? $"new {spec.Input}({id}), cancellationToken" : $"new {spec.Input}(), cancellationToken";
 
         lines.Add($"[ProducesResponseType(StatusCodes.Status200OK, Type = typeof({response}))]");
 
@@ -866,7 +874,7 @@ internal static class NewUseCase
         lines.AddRange(
         [
             $"public async Task<ActionResult<{response}>> {method}({parameters}) =>",
-            $"    OkOrProblem((await {field}.ExecuteAsync({call})).Map(_ => new {response}()));",
+            $"    OkOrProblem((await sender.Send({call})).Map(_ => new {response}()));",
         ]);
 
         return lines;
@@ -1061,7 +1069,7 @@ internal static class NewUseCase
 
         string blocked = NewTree(scratch);
         string inTheWay = Path.Combine(blocked, "Src/Application/A.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
-        string test = Path.Combine(blocked, "Tests/Application/A.Application.UnitTests/Features/Invoices/UseCases/Commands/ApproveInvoice/ApproveInvoiceUseCaseTests.cs");
+        string test = Path.Combine(blocked, "Tests/Application/A.Application.UnitTests/Features/Invoices/UseCases/Commands/ApproveInvoice/ApproveInvoiceCommandValidatorTests.cs");
 
         Directory.CreateDirectory(Path.GetDirectoryName(inTheWay)!);
         File.WriteAllText(inTheWay, "somebody's own dto\n");
@@ -1081,18 +1089,15 @@ internal static class NewUseCase
         (string[] Args, string[] Files)[] cases =
         [
             (["ApproveInvoice", "--kind", "command"],
-                [$"{useCases}/Commands/ApproveInvoice/ApproveInvoiceCommand.cs", $"{useCases}/Commands/ApproveInvoice/ApproveInvoiceCommandValidator.cs",
-                 $"{useCases}/Commands/ApproveInvoice/IApproveInvoiceUseCase.cs", $"{useCases}/Commands/ApproveInvoice/ApproveInvoiceUseCase.cs",
-                 $"{tests}/Commands/ApproveInvoice/ApproveInvoiceUseCaseTests.cs"]),
+                [$"{useCases}/Commands/ApproveInvoice/ApproveInvoice.cs", $"{useCases}/Commands/ApproveInvoice/ApproveInvoiceCommandValidator.cs",
+                 $"{tests}/Commands/ApproveInvoice/ApproveInvoiceCommandValidatorTests.cs"]),
             (["CloseOverdueInvoices", "--kind", "command", "--input", "none"],
-                [$"{useCases}/Commands/CloseOverdueInvoices/ICloseOverdueInvoicesUseCase.cs", $"{useCases}/Commands/CloseOverdueInvoices/CloseOverdueInvoicesUseCase.cs"]),
+                [$"{useCases}/Commands/CloseOverdueInvoices/CloseOverdueInvoices.cs"]),
             (["GetInvoiceTotals", "--kind", "query"],
-                [$"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotalsQuery.cs", $"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotalsQueryValidator.cs",
-                 $"{useCases}/Queries/GetInvoiceTotals/IGetInvoiceTotalsUseCase.cs", $"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotalsUseCase.cs",
-                 $"{dtos}/InvoiceTotalsDto.cs", $"{tests}/Queries/GetInvoiceTotals/GetInvoiceTotalsUseCaseTests.cs"]),
+                [$"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotals.cs", $"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotalsQueryValidator.cs",
+                 $"{dtos}/InvoiceTotalsDto.cs", $"{tests}/Queries/GetInvoiceTotals/GetInvoiceTotalsQueryValidatorTests.cs"]),
             (["SummariseRevenue", "--kind", "query", "--input=none"],
-                [$"{useCases}/Queries/SummariseRevenue/ISummariseRevenueUseCase.cs", $"{useCases}/Queries/SummariseRevenue/SummariseRevenueUseCase.cs",
-                 $"{dtos}/SummariseRevenueDto.cs"]),
+                [$"{useCases}/Queries/SummariseRevenue/SummariseRevenue.cs", $"{dtos}/SummariseRevenueDto.cs"]),
         ];
 
         foreach (var (args, files) in cases)
@@ -1140,7 +1145,7 @@ internal static class NewUseCase
         File.WriteAllText(dto, "public sealed record InvoiceDto(Guid Id);\n");
 
         var result = Invoke(root, "Invoices", "GetInvoice", "--kind", "query");
-        string useCase = Path.Combine(root, "Src/Application/A.Application/Features/Invoices/UseCases/Queries/GetInvoice/IGetInvoiceUseCase.cs");
+        string useCase = Path.Combine(root, "Src/Application/A.Application/Features/Invoices/UseCases/Queries/GetInvoice/GetInvoice.cs");
 
         expect(result.Code == 0, $"A query answering an existing DTO was refused: {result.Error}");
         expect(File.ReadAllText(dto) == "public sealed record InvoiceDto(Guid Id);\n", "The existing DTO was overwritten.");
@@ -1167,7 +1172,7 @@ internal static class NewUseCase
     {
         string root = NewTree(scratch);
         string manifest = Path.Combine(root, _manifestFolder, "Invoices.json");
-        const string generated = "Src/Application/A.Application/Features/Invoices/UseCases/Commands/CreateInvoice/CreateInvoiceUseCase.cs";
+        const string generated = "Src/Application/A.Application/Features/Invoices/UseCases/Commands/CreateInvoice/CreateInvoice.cs";
         string page = $"docs/features/{Kebab("Invoices")}.md";
         string original =
             "{\n  \"schemaVersion\": 1,\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Invoices\",\n  \"type\": \"Invoice\",\n"
@@ -1194,7 +1199,7 @@ internal static class NewUseCase
         var after = Snapshot(root);
         string[] created = [.. after.Keys.Except(before.Keys, StringComparer.Ordinal).Where(key => after[key] != "<directory>")];
 
-        expect(created.Length == 11, $"Two use cases wrote {created.Length} files, not 11.");
+        expect(created.Length == 7, $"Two use cases wrote {created.Length} files, not 7.");
         expect(listed.Select(entry => entry.Path).SequenceEqual(listed.Select(entry => entry.Path).Order(StringComparer.Ordinal)), "The manifest's files are not in path order.");
         expect(listed.Count == created.Length + 1 && listed.Any(entry => entry.Path == generated && entry.Sha256 == new string('a', 64)), "The manifest lost the generator's own entry or gained a stranger.");
 
@@ -1298,10 +1303,13 @@ internal static class NewUseCase
         }
 
         string stem = Path.GetFileNameWithoutExtension(relative);
+        string[] declared = segments[^2] == stem
+            ? [$"{stem}{(segments[^3] == "Commands" ? "Command" : "Query")}", $"{stem}{(segments[^3] == "Commands" ? "Command" : "Query")}Handler"]
+            : [stem];
 
-        if (!Regex.IsMatch(text, $@"^public (?:sealed )?(?:class|interface|record) {stem}\b", RegexOptions.Multiline, TimeSpan.FromSeconds(2)))
+        foreach (string type in declared.Where(type => !Regex.IsMatch(text, $@"^public (?:sealed )?(?:class|interface|record) {type}\b", RegexOptions.Multiline, TimeSpan.FromSeconds(2))))
         {
-            yield return $"{relative}: does not declare the public '{stem}' it is named for.";
+            yield return $"{relative}: does not declare the public '{type}' it is named for.";
         }
 
         string[] usings = [.. text.Split('\n').TakeWhile(line => line.StartsWith("using ", StringComparison.Ordinal))];
@@ -1320,20 +1328,6 @@ internal static class NewUseCase
 
 internal static class Templates
 {
-    internal const string CommandRequest = """
-        using %P%.Application.Core.Common.Concurrency;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.%U%;
-
-        public sealed record %U%Command(Guid %A%Id, VersionPrecondition? Precondition = null);
-        """;
-
-    internal const string QueryRequest = """
-        namespace %P%.Application.Features.%F%.UseCases.Queries.%U%;
-
-        public sealed record %U%Query(Guid %A%Id);
-        """;
-
     internal const string Validator = """
         using FluentValidation;
 
@@ -1347,63 +1341,19 @@ internal static class Templates
         }
         """;
 
-    internal const string CommandPort = """
+    internal const string UseCase = """
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.%U%;
-
-        public interface I%U%UseCase : %Contract%;
-        """;
-
-    internal const string QueryPort = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Model.Dtos;
-
-        namespace %P%.Application.Features.%F%.UseCases.Queries.%U%;
-
-        public interface I%U%UseCase : %Contract%;
-        """;
-
-    internal const string UseCaseWithInput = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.Validation;
+        using %Concurrency%;
         using %Dtos%;
-        using FluentValidation;
+        using Mediator;
 
         namespace %P%.Application.Features.%F%.UseCases.%K%.%U%;
 
-        public sealed class %U%UseCase(IValidator<%In%> validator) : I%U%UseCase
+        %Message%
+
+        public sealed class %In%Handler : I%Kind%Handler<%In%, %Out%>
         {
-            public async Task<%Out%> ExecuteAsync(
-                %In% %in%,
-                CancellationToken cancellationToken = default)
-            {
-                ArgumentNullException.ThrowIfNull(%in%);
-
-                var validation = await validator.EnsureValidAsync(%in%, cancellationToken);
-
-                if (validation.IsFailure)
-                {
-                    return %Refusal%;
-                }
-
-                throw new NotImplementedException(
-                    %Unwritten%);
-            }
-        }
-        """;
-
-    internal const string UseCaseWithoutInput = """
-        using %P%.Application.Core.Common.Results;
-        using %Dtos%;
-
-        namespace %P%.Application.Features.%F%.UseCases.%K%.%U%;
-
-        public sealed class %U%UseCase : I%U%UseCase
-        {
-            public Task<%Out%> ExecuteAsync(CancellationToken cancellationToken = default) =>
+            public ValueTask<%Out%> Handle(%In% %in%, CancellationToken cancellationToken) =>
                 throw new NotImplementedException(
                     %Unwritten%);
         }
@@ -1421,27 +1371,21 @@ internal static class Templates
         public sealed record %D%(Guid Id);
         """;
 
-    internal const string UseCaseTests = """
-        using %P%.Application.Core.Common.Results;
+    internal const string ValidatorTests = """
         using %P%.Application.Features.%F%.UseCases.%K%.%U%;
         using Shouldly;
         using Xunit;
 
         namespace %P%.Application.UnitTests.Features.%F%.UseCases.%K%.%U%;
 
-        public sealed class %U%UseCaseTests
+        public sealed class %In%ValidatorTests
         {
             private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
             [Fact]
-            public async Task AnEmpty%A%Id_IsRefusedBeforeTheUseCaseActs()
-            {
-                var result = await new %U%UseCase(new %In%Validator())
-                    .ExecuteAsync(new %In%(Guid.Empty), TestToken);
-
-                result.IsFailure.ShouldBeTrue();
-                result.Error!.Type.ShouldBe(ErrorType.Validation);
-            }
+            public async Task AnEmpty%A%Id_IsRefused() =>
+                (await new %In%Validator().ValidateAsync(new %In%(Guid.Empty), TestToken))
+                    .IsValid.ShouldBeFalse();
 
             [Fact]
             public async Task AReal%A%Id_PassesValidation() =>

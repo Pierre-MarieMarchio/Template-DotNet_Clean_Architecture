@@ -17,6 +17,7 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.UploadFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
+using Mediator;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -26,13 +27,7 @@ namespace AppTemplate.Api.Features.Files.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 public sealed class FilesController(
-    IGetStoredFilesUseCase getStoredFiles,
-    IGetStoredFileUseCase getStoredFile,
-    IIssueFileDownloadUseCase issueFileDownload,
-    IRegisterFileUseCase registerFile,
-    IUploadFileUseCase uploadFile,
-    IConfirmFileUploadUseCase confirmFileUpload,
-    IDeleteStoredFileUseCase deleteStoredFile) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Lists the caller's own files, sorted, filtered and paginated.</summary>
     [HttpGet]
@@ -54,7 +49,7 @@ public sealed class FilesController(
             request.State);
 
         return OkOrProblem(
-            StoredFileResponseMapping.ToPageResponse(await getStoredFiles.ExecuteAsync(query, cancellationToken)));
+            StoredFileResponseMapping.ToPageResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Gets one file's metadata, and the <c>ETag</c> needed to change it.</summary>
@@ -69,7 +64,7 @@ public sealed class FilesController(
         var query = new GetStoredFileQuery(fileId);
 
         return OkOrProblem(
-            StoredFileResponseMapping.ToFileResponse(await getStoredFile.ExecuteAsync(query, cancellationToken)));
+            StoredFileResponseMapping.ToFileResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>The file's content: a redirect to a signed URL, or the bytes themselves.</summary>
@@ -83,7 +78,7 @@ public sealed class FilesController(
     public async Task<ActionResult> GetContent(Guid fileId, CancellationToken cancellationToken)
     {
         var query = new IssueFileDownloadQuery(fileId);
-        var result = await issueFileDownload.ExecuteAsync(query, cancellationToken);
+        var result = await sender.Send(query, cancellationToken);
 
         if (result.IsFailure)
         {
@@ -124,7 +119,7 @@ public sealed class FilesController(
             request.Checksum);
 
         var result = StoredFileResponseMapping.ToRegistrationResponse(
-            await registerFile.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         if (result.IsFailure)
         {
@@ -164,7 +159,7 @@ public sealed class FilesController(
             file.Length,
             content);
 
-        var result = StoredFileResponseMapping.ToFileResponse(await uploadFile.ExecuteAsync(command, cancellationToken));
+        var result = StoredFileResponseMapping.ToFileResponse(await sender.Send(command, cancellationToken));
 
         return CreatedOrProblem(result, nameof(GetFile), uploaded => new { fileId = uploaded.Id });
     }
@@ -187,7 +182,7 @@ public sealed class FilesController(
         var command = new ConfirmFileUploadCommand(fileId, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await confirmFileUpload.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(StoredFileResponseMapping.ToFileResponse(result));
     }
@@ -210,7 +205,7 @@ public sealed class FilesController(
         var command = new DeleteStoredFileCommand(fileId, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await deleteStoredFile.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return NoContentOrProblem(result);
     }

@@ -3,6 +3,7 @@ using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using Mediator;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Reminders.Jobs;
@@ -52,8 +53,8 @@ internal sealed class ReminderBackgroundService(
 
         try
         {
-            var useCase = scope.ServiceProvider.GetRequiredService<IFireDueRemindersUseCase>();
-            Result<int> result = await useCase.ExecuteAsync(stoppingToken);
+            var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+            Result<int> result = await sender.Send(new FireDueRemindersCommand(), stoppingToken);
 
             if (result.IsSuccess)
             {

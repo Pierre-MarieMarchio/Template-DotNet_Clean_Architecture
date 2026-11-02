@@ -1,11 +1,15 @@
 ﻿using System.Collections;
-using AppTemplate.Application.Core;
 //#if (localAuth)
 using AppTemplate.Application.Core.Common.Ports;
 //#endif
-using AppTemplate.Application.Core.Common.Results;
+//#if (aggregates || localAuth)
 using AppTemplate.Application.Core.Common.UseCases;
+//#endif
 using AppTemplate.Architecture.Tests.Fixtures;
+//#if (aggregates || localAuth)
+using FluentValidation;
+using Mediator;
+//#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -74,7 +78,7 @@ public sealed class ContainerCompositionTests
         var divergence = SourceDeclarations.Divergence(
             SourceDeclarations.UseCaseFullNames,
             implementations.Select(SourceDeclarations.WithoutArity),
-            "found by the IUseCase discovery this test resolves through the container");
+            "found as a handler by the discovery this test resolves through the container");
 
         divergence.ShouldBeEmpty(
             "This test promises to resolve every use case, so the population it walks has to be the " +
@@ -110,6 +114,38 @@ public sealed class ContainerCompositionTests
             string.Join($"{Environment.NewLine}  ", failures));
     }
 
+    //#if (aggregates || localAuth)
+    [Fact]
+    public void EveryMessageWithAValidator_PassesThroughTheValidationBehaviour()
+    {
+        var services = HostComposition.ComposeApi(HostComposition.Configuration());
+
+        using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
+        using var scope = provider.CreateScope();
+
+        var validated = UseCaseTypes.InTheApplicationLayer
+            .Select(UseCaseTypes.ContractOf)
+            .Select(contract => (Message: contract.GetGenericArguments()[0], Response: contract.GetGenericArguments()[1]))
+            .Where(pair => scope.ServiceProvider.GetService(typeof(IValidator<>).MakeGenericType(pair.Message)) is not null)
+            .ToList();
+
+        validated.ShouldNotBeEmpty("No message has a validator in the composed container, so this rule reads nothing.");
+
+        validated
+            .Where(pair => !((IEnumerable)scope.ServiceProvider.GetRequiredService(
+                    typeof(IEnumerable<>).MakeGenericType(typeof(IPipelineBehavior<,>).MakeGenericType(pair.Message, pair.Response))))
+                .Cast<object>()
+                .Any(behaviour => behaviour.GetType().IsGenericType
+                    && behaviour.GetType().GetGenericTypeDefinition() == typeof(ValidationBehaviour<,>)))
+            .Select(pair => pair.Message.FullName)
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "A message with a validator reaches its handler only through the validation behaviour. " +
+                "These would reach it unchecked: the behaviour is not composed, or their answer is not a " +
+                "Result the behaviour can fail with.");
+    }
+
+    //#endif
     [Fact]
     public void TheApiContainer_ResolvesEveryApplicationPort()
     {
@@ -246,26 +282,6 @@ public sealed class ContainerCompositionTests
     }
 
     [Fact]
-    public void TheRegistration_RefusesAUseCaseWithNoNamedInterface()
-    {
-        var exception = Should.Throw<InvalidOperationException>(
-            () => new ServiceCollection().AddUseCases([typeof(UseCaseWithNoContract)]));
-
-        exception.Message.ShouldContain(typeof(UseCaseWithNoContract).FullName!);
-    }
-
-    [Fact]
-    public void TheRegistration_RefusesAUseCaseWithTwoNamedInterfaces()
-    {
-        var exception = Should.Throw<InvalidOperationException>(
-            () => new ServiceCollection().AddUseCases([typeof(UseCaseWithTwoContracts)]));
-
-        exception.Message.ShouldContain(typeof(UseCaseWithTwoContracts).FullName!);
-        exception.Message.ShouldContain(nameof(IFirstContract));
-        exception.Message.ShouldContain(nameof(ISecondContract));
-    }
-
-    [Fact]
     public void TheContainer_RefusesToStart_WhenAnOptionsSectionIsInvalid()
     {
         /*#if (localAuth)*/
@@ -392,40 +408,4 @@ public sealed class ContainerCompositionTests
             $"{because}{Environment.NewLine}Could not resolve:{Environment.NewLine}  " +
             string.Join($"{Environment.NewLine}  ", failures));
     }
-}
-
-internal static class UseCaseTypes
-{
-    internal static IReadOnlyList<Type> InTheApplicationLayer { get; } =
-        [.. ArchitectureAssemblies.ApplicationLayer
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => type is { IsClass: true, IsAbstract: false }
-                && typeof(IUseCase).IsAssignableFrom(type))
-            .OrderBy(type => type.FullName, StringComparer.Ordinal)];
-
-    internal static Type ContractOf(Type implementation) =>
-        implementation.GetInterfaces()
-            .Where(candidate => candidate != typeof(IUseCase)
-                && !candidate.IsGenericType
-                && typeof(IUseCase).IsAssignableFrom(candidate))
-            .ToArray() is [var contract]
-            ? contract
-            : throw new InvalidOperationException(
-                $"'{implementation.FullName}' must declare exactly one named use-case interface.");
-}
-
-internal sealed class UseCaseWithNoContract : IUseCase<Guid, Result>
-{
-    public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Success());
-}
-
-internal interface IFirstContract : IUseCase<Guid, Result>;
-
-internal interface ISecondContract : IUseCase<Guid, Result>;
-
-internal sealed class UseCaseWithTwoContracts : IFirstContract, ISecondContract
-{
-    public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Success());
 }

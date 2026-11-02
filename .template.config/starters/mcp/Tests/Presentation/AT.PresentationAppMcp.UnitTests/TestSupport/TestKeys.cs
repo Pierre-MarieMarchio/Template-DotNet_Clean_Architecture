@@ -2,6 +2,7 @@
 using AppTemplate.Application.Auth.Features.AccessKeys.Model.Policies;
 using AppTemplate.Application.Auth.Features.AccessKeys.UseCases.Commands.AuthenticateAccessKey;
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -24,8 +25,8 @@ internal static class TestKeys
 
     internal static void Trust(IServiceCollection services)
     {
-        var accessKeys = Substitute.For<IAuthenticateAccessKeyUseCase>();
-        accessKeys.ExecuteAsync(Arg.Any<AuthenticateAccessKeyCommand>(), Arg.Any<CancellationToken>())
+        var accessKeys = Substitute.For<ICommandHandler<AuthenticateAccessKeyCommand, Result<AccessKeyCaller>>>();
+        accessKeys.Handle(Arg.Any<AuthenticateAccessKeyCommand>(), Arg.Any<CancellationToken>())
             .Returns(call => call.Arg<AuthenticateAccessKeyCommand>().Key switch
             {
                 ReadWrite => Result.Success(new AccessKeyCaller(Owner, Guid.CreateVersion7(), AccessKeyPolicy.Scopes)),
@@ -34,7 +35,7 @@ internal static class TestKeys
                 _ => Result.Failure<AccessKeyCaller>(AccessKeysErrors.InvalidKey),
             });
 
-        services.RemoveAll<IAuthenticateAccessKeyUseCase>();
+        services.RemoveAll<ICommandHandler<AuthenticateAccessKeyCommand, Result<AccessKeyCaller>>>();
         services.AddSingleton(accessKeys);
     }
 }

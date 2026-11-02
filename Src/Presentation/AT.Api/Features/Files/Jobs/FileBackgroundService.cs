@@ -2,11 +2,11 @@
 using System.Diagnostics.Metrics;
 using AppTemplate.Api.Common.Jobs;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Application.Features.Files.UseCases.Commands.InspectDepositedFiles;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using Mediator;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Files.Jobs;
@@ -33,13 +33,13 @@ internal sealed class FileBackgroundService(
                 "reclamation enabled: {ReclaimEnabled}, every {ReclaimInterval}.",
                 settings.PurgeAbandonedRegistrationsEnabled,
                 settings.PurgeAbandonedRegistrationsInterval,
-                PurgeAbandonedRegistrationsUseCase.AbandonedAfter,
+                PurgeAbandonedRegistrationsCommandHandler.AbandonedAfter,
                 settings.ReclaimOrphanedContentEnabled,
                 settings.ReclaimOrphanedContentInterval);
         }
 
         await Task.WhenAll(
-            RunLoopAsync<IPurgeAbandonedRegistrationsUseCase>(
+            RunLoopAsync<PurgeAbandonedRegistrationsCommand>(
                 _abandonedRegistrationsTask,
                 "Registrations whose deposit never arrived will accumulate, each one holding a " +
                 "quota slot its owner never gets back.",
@@ -47,7 +47,7 @@ internal sealed class FileBackgroundService(
                 settings.PurgeAbandonedRegistrationsEnabled,
                 FileInstruments.RegistrationsPurged,
                 stoppingToken),
-            RunLoopAsync<IReclaimOrphanedContentUseCase>(
+            RunLoopAsync<ReclaimOrphanedContentCommand>(
                 _orphanedContentTask,
                 "Nothing else reclaims the bytes of a deleted file — the deletion event is a fast " +
                 "path, not a guarantee — so stored objects will grow without bound.",
@@ -55,7 +55,7 @@ internal sealed class FileBackgroundService(
                 settings.ReclaimOrphanedContentEnabled,
                 FileInstruments.ObjectsReclaimed,
                 stoppingToken),
-            RunLoopAsync<IInspectDepositedFilesUseCase>(
+            RunLoopAsync<InspectDepositedFilesCommand>(
                 _depositedFilesTask,
                 "No upload will ever become readable: inspection is the only thing that moves a " +
                 "file from deposited to available, so this switch stops the feature rather than " +
@@ -68,21 +68,21 @@ internal sealed class FileBackgroundService(
         logger.LogInformation("File job stopping.");
     }
 
-    private Task RunLoopAsync<TUseCase>(
+    private Task RunLoopAsync<TCommand>(
         string label,
         string disabledConsequence,
         TimeSpan interval,
         bool enabled,
         Counter<long> volume,
         CancellationToken stoppingToken)
-        where TUseCase : IUseCase<Result<int>>
+        where TCommand : ICommand<Result<int>>, new()
         => PeriodicJob.RunAsync(
             interval,
             async token =>
             {
                 if (enabled)
                 {
-                    await RunPassAsync<TUseCase>(label, volume, token);
+                    await RunPassAsync<TCommand>(label, volume, token);
                 }
                 else
                 {
@@ -99,8 +99,8 @@ internal sealed class FileBackgroundService(
             },
             stoppingToken);
 
-    private async Task RunPassAsync<TUseCase>(string label, Counter<long> volume, CancellationToken stoppingToken)
-        where TUseCase : IUseCase<Result<int>>
+    private async Task RunPassAsync<TCommand>(string label, Counter<long> volume, CancellationToken stoppingToken)
+        where TCommand : ICommand<Result<int>>, new()
     {
         using Activity? activity = FileInstruments.ActivitySource.StartActivity("files.sweep");
         activity?.SetTag("files.task", label);
@@ -111,8 +111,8 @@ internal sealed class FileBackgroundService(
         {
             await using AsyncServiceScope scope = scopeFactory.CreateBackgroundScope();
 
-            var useCase = scope.ServiceProvider.GetRequiredService<TUseCase>();
-            Result<int> result = await useCase.ExecuteAsync(stoppingToken);
+            var sender = scope.ServiceProvider.GetRequiredService<ISender>();
+            Result<int> result = await sender.Send(new TCommand(), stoppingToken);
 
             if (result.IsSuccess)
             {

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.PresentationAppPortal.Common.Security;
+using Mediator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -26,7 +27,7 @@ internal sealed class ActiveSessionProvider(IServiceScopeFactory scopes, IDateTi
         await using var scope = scopes.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<CallerPrincipal>().Principal = principal;
 
-        var listed = await scope.ServiceProvider.GetRequiredService<IListSessionsUseCase>().ExecuteAsync(cancellationToken);
+        var listed = await scope.ServiceProvider.GetRequiredService<ISender>().Send(new ListSessionsQuery(), cancellationToken);
 
         return listed.IsSuccess && listed.Value.Any(item => item.Id == session);
     }

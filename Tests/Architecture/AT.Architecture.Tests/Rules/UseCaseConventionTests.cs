@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
-using NetArchTest.Rules;
 using Shouldly;
 using Xunit;
 
@@ -9,11 +8,6 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed class UseCaseConventionTests
 {
-    private const string _useCaseSuffix = "UseCase";
-
-    private const string _useCaseNamespaceSuffixPattern =
-        @"\.Features\.[^.]+\.UseCases(\.[^.]+)*$";
-
     private const string _useCaseFolderNamespaceSuffixPattern =
         @"\.Features\.[^.]+\.UseCases\.(Commands|Queries)\.[^.]+$";
 
@@ -22,13 +16,9 @@ public sealed class UseCaseConventionTests
     [Fact]
     public void UseCases_LiveUnderTheirVerticalsUseCasesFolder()
     {
-        var useCases = Types.InAssemblies(ArchitectureAssemblies.ApplicationLayer)
-            .That()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith(_useCaseSuffix);
+        var matched = UseCaseTypes.InTheApplicationLayer;
 
-        var matched = RuleAssertions.RequireTypes(useCases, "a class whose name ends with 'UseCase'");
+        matched.ShouldNotBeEmpty("No use case was found in the application layer.");
 
         SourceDeclarations.WalkComplaints.ShouldBeEmpty(
             "The source-tree walk this rule measures its candidate set against did not read the " +
@@ -38,7 +28,7 @@ public sealed class UseCaseConventionTests
         var divergence = SourceDeclarations.Divergence(
             SourceDeclarations.UseCaseFullNames,
             matched.Select(SourceDeclarations.WithoutArity),
-            "matched by this rule's suffix filter");
+            "found as a handler of a message by this rule");
 
         divergence.ShouldBeEmpty(
             "The candidate set is measured against the declarations on disk rather than floored at a " +
@@ -49,14 +39,32 @@ public sealed class UseCaseConventionTests
             string.Join($"{Environment.NewLine}  ", divergence));
 
         matched
-            .Where(useCase => !IsUnderAUseCasesFolder(useCase))
+            .Where(useCase => !IsInAUseCaseFolder(useCase))
             .Select(useCase => useCase.FullName ?? useCase.Name)
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "A use case belongs in Features/<Vertical>/UseCases/ of the project that declares " +
-                "it. The folder layout is the only index of what the application can do, because " +
-                "registration is explicit rather than scanned. Expected namespace shape: " +
-                $"<Project>{_useCaseNamespaceSuffixPattern}");
+                "A use case belongs in Features/<Vertical>/UseCases/<Commands|Queries>/<UseCase>/ of " +
+                "the project that declares it. The folder layout is the only index of what the " +
+                "application can do. Expected namespace shape: " +
+                $"<Project>{_useCaseFolderNamespaceSuffixPattern}");
+    }
+
+    [Fact]
+    public void UseCases_AreSealedAndPublic()
+    {
+        var useCases = UseCaseTypes.InTheApplicationLayer;
+
+        useCases.ShouldNotBeEmpty("No use case was found in the application layer.");
+
+        useCases
+            .Where(useCase => !useCase.IsSealed || !useCase.IsPublic)
+            .Select(useCase => useCase.FullName ?? useCase.Name)
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "A use case is one operation with one implementation, so it is sealed: an open one " +
+                "invites a subclass, and a caller that depends on the subclass instead of the " +
+                "operation. It is public, as its message is, because a host's generated mediator " +
+                "names it.");
     }
 
     private static string RootOf(Type type) =>
@@ -72,49 +80,8 @@ public sealed class UseCaseConventionTests
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
-    private static bool IsUnderAUseCasesFolder(Type type) =>
-        MatchesInItsOwnProject(type, _useCaseNamespaceSuffixPattern);
-
     private static bool IsInAUseCaseFolder(Type type) =>
         MatchesInItsOwnProject(type, _useCaseFolderNamespaceSuffixPattern);
-
-    [Fact]
-    public void UseCases_AreSealed()
-    {
-        var useCases = Types.InAssemblies(ArchitectureAssemblies.ApplicationLayer)
-            .That()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith(_useCaseSuffix);
-
-        RuleAssertions.RequireTypes(useCases, "a class whose name ends with 'UseCase'");
-
-        useCases.Should()
-            .BeSealed()
-            .GetResult()
-            .ShouldHold(
-                "A use case is one operation with one implementation. Leaving it open invites a " +
-                "subclass, and a caller that depends on the subclass instead of the operation.");
-    }
-
-    [Fact]
-    public void UseCases_ArePublic()
-    {
-        var useCases = Types.InAssemblies(ArchitectureAssemblies.ApplicationLayer)
-            .That()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith(_useCaseSuffix);
-
-        RuleAssertions.RequireTypes(useCases, "a class whose name ends with 'UseCase'");
-
-        useCases.Should()
-            .BePublic()
-            .GetResult()
-            .ShouldHold(
-                "The API resolves use cases from the container by concrete type, so a use case that " +
-                "is not public cannot be reached by a controller.");
-    }
 
     [Fact]
     public void EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt()
@@ -150,11 +117,9 @@ public sealed class UseCaseConventionTests
         foreach (var folder in folders)
         {
             string operation = folder.Key[(folder.Key.LastIndexOf('.') + 1)..];
+            string nature = folder.Key.Contains(".UseCases.Commands.", StringComparison.Ordinal) ? "Command" : "Query";
 
-            var useCases = folder
-                .Where(type => type is { IsClass: true, IsAbstract: false })
-                .Where(type => type.Name.EndsWith(_useCaseSuffix, StringComparison.Ordinal))
-                .ToList();
+            var useCases = folder.Where(UseCaseTypes.IsUseCase).ToList();
 
             if (useCases.Count != 1)
             {
@@ -166,20 +131,12 @@ public sealed class UseCaseConventionTests
                 continue;
             }
 
-            if (!string.Equals(useCases[0].Name, operation + _useCaseSuffix, StringComparison.Ordinal))
-            {
-                failures.Add(
-                    $"{folder.Key} is named '{operation}' but holds '{useCases[0].Name}'. A folder " +
-                    $"named for an operation must hold '{operation}{_useCaseSuffix}'.");
-            }
-
-            if (!folder.Any(type => type.IsInterface
-                && string.Equals(type.Name, "I" + operation + _useCaseSuffix, StringComparison.Ordinal)))
-            {
-                failures.Add(
-                    $"{folder.Key} declares no 'I{operation}{_useCaseSuffix}'. Callers resolve a use " +
-                    "case by its named interface, so one that has none cannot be reached.");
-            }
+            failures.AddRange(HandlerFailures(
+                folder.Key,
+                operation,
+                nature,
+                useCases[0],
+                UseCaseTypes.ContractOf(useCases[0])));
 
             failures.AddRange(folder
                 .Where(TypeFacts.IsRecord)
@@ -193,8 +150,39 @@ public sealed class UseCaseConventionTests
         }
 
         failures.Order(StringComparer.Ordinal).ShouldBeEmpty(
-            "The folder layout is the only index of what the application can do, because registration " +
-            "is explicit rather than scanned. A folder that does not say what is in it, or holds more " +
-            "than one operation, breaks that index.");
+            "The folder layout is the only index of what the application can do. A folder that does " +
+            "not say what is in it, or holds more than one operation, breaks that index.");
+    }
+
+    private static IEnumerable<string> HandlerFailures(
+        string folder,
+        string operation,
+        string nature,
+        Type handler,
+        Type contract)
+    {
+        string message = operation + nature;
+
+        if (!string.Equals(handler.Name, message + "Handler", StringComparison.Ordinal))
+        {
+            yield return
+                $"{folder} is named '{operation}' and sits under {nature} use cases, but holds " +
+                $"'{handler.Name}'. Its handler is '{message}Handler'.";
+        }
+
+        var handled = contract.GetGenericArguments()[0];
+
+        if (!string.Equals(handled.Name, message, StringComparison.Ordinal)
+            || !string.Equals(handled.Namespace, folder, StringComparison.Ordinal))
+        {
+            yield return
+                $"{folder} holds a handler of '{handled.FullName}'. A use case's handler handles the " +
+                $"message '{message}' declared beside it.";
+        }
+
+        if (!TypeFacts.IsRecord(handled) || !handled.IsSealed || !handled.IsPublic)
+        {
+            yield return $"{folder}: '{handled.Name}' is a message, and a message is a public sealed record.";
+        }
     }
 }

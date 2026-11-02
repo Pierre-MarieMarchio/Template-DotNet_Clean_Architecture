@@ -33,6 +33,12 @@ builder.Logging.AddJsonConsole(options => options.IncludeScopes = true);
 
 builder.Services.AddOutboundHttp();
 
+builder.Services.AddMediator(options =>
+{
+    options.ServiceLifetime = ServiceLifetime.Scoped;
+    options.GenerateTypesAsInternal = true;
+});
+
 //#if (todoLists)
 builder.Services.AddTodoLists();
 //#endif

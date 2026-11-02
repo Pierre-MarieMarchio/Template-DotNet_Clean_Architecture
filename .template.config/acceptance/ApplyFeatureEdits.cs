@@ -9,13 +9,15 @@ internal static class FeatureEdits
 {
     private const string _usage =
         """
-        Usage: dotnet run .template.config/acceptance/ApplyFeatureEdits.cs <new-feature output> <root>
+        Usage: dotnet run .template.config/acceptance/ApplyFeatureEdits.cs <new-feature or new-use-case output> <root>
 
         Applies the hand edits a new-feature run printed to the generated project at <root>: the
         lines each edit prints, placed beside the neighbours a person would choose, with the usings
         they need, then the feature's rows in docs/README.md and docs/reference/api.md. It reads the
         output and nothing else, so an edit the output no longer prints in its usual form fails here
-        before it misleads a reader.
+        before it misleads a reader. Given a new-use-case run, it makes the HTTP edit that run printed:
+        the usings, the ISender the controller lacks, the action before the controller's closing brace,
+        and a query's response record.
 
         Exit code 0 once every edit is applied; 2, writing nothing, when the output holds an edit
         given as prose only (the first owner feature of a project generated without one); 1 on any
@@ -36,6 +38,12 @@ internal static class FeatureEdits
         _timeout);
 
     private static readonly Regex _fileNamespace = new(@"^namespace\s+([A-Za-z0-9_.]+);", RegexOptions.Multiline, _timeout);
+
+    private static readonly Regex _useCaseHeader = new(@"^Wrote \d+ files for the (?:command|query) ", RegexOptions.None, _timeout);
+
+    private const string _httpEditHeader = "To serve it over HTTP, the edit by hand in ";
+
+    private const string _usingContinuation = "                       ";
 
     private static readonly HashSet<string> _skippedFolders = new(StringComparer.Ordinal) { "bin", "obj", ".git", "TestResults" };
 
@@ -62,6 +70,11 @@ internal static class FeatureEdits
 
     private static int Apply(string[] output, string root)
     {
+        if (output.Any(_useCaseHeader.IsMatch))
+        {
+            return ApplyUseCase(output, root);
+        }
+
         List<Edit> edits = Edits(output);
 
         if (edits.Count == 0)
@@ -91,6 +104,96 @@ internal static class FeatureEdits
         DocumentRow(root, output, "docs/reference/api.md", "### Resources", "And the row of its refusal under ### Resources in docs/reference/api.md", required: false);
 
         return 0;
+    }
+
+    private static int ApplyUseCase(string[] output, string root)
+    {
+        int header = Array.FindIndex(output, line => line.StartsWith(_httpEditHeader, StringComparison.Ordinal));
+
+        if (header < 0)
+        {
+            Console.WriteLine("The use case is served by no HTTP host here, so there is no edit to apply.");
+            return 0;
+        }
+
+        string controller = output[header][_httpEditHeader.Length..].TrimEnd(':');
+        int usingsStart = Expect(output, header + 1, "  the usings it lacks  ");
+        var usings = new List<string> { output[usingsStart]["  the usings it lacks  ".Length..].TrimEnd(';') };
+        int index = usingsStart + 1;
+
+        for (; index < output.Length && output[index].StartsWith(_usingContinuation, StringComparison.Ordinal); index++)
+        {
+            usings.Add(output[index].Trim().TrimEnd(';'));
+        }
+
+        Expect(output, index, "  the parameter        ISender sender");
+        int actionStart = Expect(output, index + 1, "  the action") + 1;
+        int actionEnd = Array.FindIndex(output, actionStart, line => line.StartsWith("  and ", StringComparison.Ordinal) || line.StartsWith("Then ", StringComparison.Ordinal));
+        string[] action = [.. Indented(output[actionStart..(actionEnd < 0 ? output.Length : actionEnd)], "      ").Reverse().SkipWhile(line => line.Length == 0).Reverse()];
+
+        if (action.Length == 0)
+        {
+            throw new InvalidOperationException("new-use-case printed no action under 'the action'.");
+        }
+
+        List<string> lines = Read(root, controller);
+        foreach (string space in usings)
+        {
+            WithUsings(lines, [], [], space);
+        }
+
+        WithSender(lines, controller);
+        int closing = lines.FindLastIndex(line => line == "}");
+
+        if (closing < 0)
+        {
+            throw new InvalidOperationException($"{controller} has no closing brace at the start of a line to place the action before.");
+        }
+
+        lines.InsertRange(closing, ["", .. action.Select(line => line.Length == 0 ? line : "    " + line)]);
+        Write(root, controller, lines);
+        Console.WriteLine($"Applied the action: {controller}");
+
+        if (actionEnd >= 0 && output[actionEnd].StartsWith("  and ", StringComparison.Ordinal))
+        {
+            string response = output[actionEnd]["  and ".Length..].Split(',')[0];
+            int responseEnd = Array.FindIndex(output, actionEnd + 1, line => line.StartsWith("Then ", StringComparison.Ordinal));
+            string[] body = [.. Indented(output[(actionEnd + 1)..(responseEnd < 0 ? output.Length : responseEnd)], "      ").Reverse().SkipWhile(line => line.Length == 0).Reverse()];
+
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(root, response))!);
+            Write(root, response, [.. body]);
+            Console.WriteLine($"Wrote the response: {response}");
+        }
+
+        return 0;
+    }
+
+    private static int Expect(string[] output, int index, string prefix) =>
+        index < output.Length && output[index].StartsWith(prefix, StringComparison.Ordinal)
+            ? index
+            : throw new InvalidOperationException($"new-use-case no longer prints '{prefix.Trim()}' where this reads it, at line {index + 1} of its output.");
+
+    private static IEnumerable<string> Indented(IEnumerable<string> lines, string indent) =>
+        lines.Select(line => line.Length == 0
+            ? line
+            : line.StartsWith(indent, StringComparison.Ordinal)
+                ? line[indent.Length..]
+                : throw new InvalidOperationException($"'{line}' is not indented as new-use-case prints the code it gives."));
+
+    private static void WithSender(List<string> lines, string controller)
+    {
+        int declaration = lines.FindIndex(line => line.Contains("Controller(", StringComparison.Ordinal) && line.Contains(" class ", StringComparison.Ordinal));
+        int end = lines.FindIndex(declaration < 0 ? 0 : declaration, line => line.Contains(") :", StringComparison.Ordinal));
+
+        if (declaration < 0 || end < 0)
+        {
+            throw new InvalidOperationException($"{controller} declares no controller with a primary constructor to give the ISender to.");
+        }
+
+        if (!lines.Skip(declaration).Take(end - declaration + 1).Any(line => line.Contains("ISender", StringComparison.Ordinal)))
+        {
+            lines.Insert(declaration + 1, "    ISender sender,");
+        }
     }
 
     private static List<Edit> Edits(string[] output)

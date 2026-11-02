@@ -5,6 +5,7 @@ using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleRemin
 using AppTemplate.Application.Features.Reminders.UseCases.Queries.GetReminders;
 using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 using AppTemplate.PresentationAppMcp.Features.Reminders.Tools;
+using Mediator;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -21,18 +22,16 @@ public sealed class ReminderToolsTests
         ReminderState.Pending,
         null);
 
-    private readonly IGetRemindersUseCase _getReminders = Substitute.For<IGetRemindersUseCase>();
-
-    private readonly IScheduleReminderUseCase _scheduleReminder = Substitute.For<IScheduleReminderUseCase>();
+    private readonly ISender _sender = Substitute.For<ISender>();
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    private ReminderTools Tools => new(_getReminders, _scheduleReminder);
+    private ReminderTools Tools => new(_sender);
 
     [Fact]
     public async Task ListReminders_AnswersTheItemsReminders_InAnObject()
     {
-        _getReminders.ExecuteAsync(new GetRemindersQuery(_reminder.TodoListId, _reminder.TodoItemId), Arg.Any<CancellationToken>())
+        _sender.Send(new GetRemindersQuery(_reminder.TodoListId, _reminder.TodoItemId), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<ReminderDto>>([_reminder]));
 
         var answer = await Tools.ListRemindersAsync(_reminder.TodoListId, _reminder.TodoItemId, Cancellation);
@@ -46,7 +45,7 @@ public sealed class ReminderToolsTests
     public async Task ScheduleReminder_SchedulesTheReminderItWasGiven()
     {
         var command = new ScheduleReminderCommand(_reminder.TodoListId, _reminder.TodoItemId, _reminder.DueAt);
-        _scheduleReminder.ExecuteAsync(command, Arg.Any<CancellationToken>())
+        _sender.Send(command, Arg.Any<CancellationToken>())
             .Returns(Result.Success(new Versioned<ReminderDto>(_reminder, 1)));
 
         var answer = await Tools.ScheduleReminderAsync(command.TodoListId, command.TodoItemId, command.DueAt, Cancellation);

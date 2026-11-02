@@ -1,0 +1,164 @@
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RemoveTodoItem;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.RemoveTodoItem;
+
+public sealed class RemoveTodoItemTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new RemoveTodoItemCommand(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+        result.Error.Code.ShouldBe("auth.required");
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_ReadsAndWritesNothing()
+    {
+        await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new RemoveTodoItemCommand(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
+
+        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
+    {
+        var missingId = Guid.CreateVersion7();
+        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+
+        var result = await UseCase().Handle(new RemoveTodoItemCommand(missingId, Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("todoList.notFound");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new RemoveTodoItemCommand(list.Id, Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("todoItem.notFound");
+    }
+
+    [Fact]
+    public async Task AnUnknownItemId_LeavesTheListIntactAndDoesNotCommit()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new RemoveTodoItemCommand(list.Id, Guid.CreateVersion7()), TestToken);
+
+        list.Items.ShouldHaveSingleItem().Id.ShouldBe(itemId);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnItemIdFromAnotherList_IsReportedAsAMissingItem()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        var otherList = ATodoList.OwnedByWithItem(_callerId, out var otherItemId, "Elsewhere");
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new RemoveTodoItemCommand(list.Id, otherItemId), TestToken);
+
+        result.Error!.Code.ShouldBe("todoItem.notFound");
+        otherList.Items.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheRequestedItem_IsRemoved()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new RemoveTodoItemCommand(list.Id, itemId), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        list.Items.ShouldBeEmpty();
+
+        result.Value.Value.Id.ShouldBe(list.Id);
+        result.Value.Value.Items.ShouldBeEmpty();
+        result.Value.Version.ShouldBe(list.Version);
+    }
+
+    [Fact]
+    public async Task OnlyTheRequestedItem_IsRemoved()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        var keptId = list.AddItem("Keep me", null);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new RemoveTodoItemCommand(list.Id, itemId), TestToken);
+
+        list.Items.ShouldHaveSingleItem().Id.ShouldBe(keptId);
+    }
+
+    [Fact]
+    public async Task ASuccessfulRemoval_CommitsExactlyOnce()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new RemoveTodoItemCommand(list.Id, itemId), TestToken);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARemovalDoesNotDeleteTheList()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new RemoveTodoItemCommand(list.Id, itemId), TestToken);
+
+        _repository.DidNotReceive().Remove(Arg.Any<TodoList>());
+    }
+
+    [Fact]
+    public async Task ARemoval_RaisesNoDomainEvent()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new RemoveTodoItemCommand(list.Id, itemId), TestToken);
+
+        list.DomainEvents.ShouldBeEmpty();
+    }
+
+    private ValidatedHandler<RemoveTodoItemCommand, Result<Versioned<TodoListDetailDto>>> UseCaseFor(ICurrentUser currentUser) =>
+        new(new RemoveTodoItemCommandHandler(new TodoListService(_repository, currentUser), _unitOfWork).Handle, new RemoveTodoItemCommandValidator());
+
+    private ValidatedHandler<RemoveTodoItemCommand, Result<Versioned<TodoListDetailDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+}

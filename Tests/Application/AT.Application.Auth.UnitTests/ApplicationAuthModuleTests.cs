@@ -8,26 +8,6 @@ namespace AppTemplate.Application.Auth.UnitTests;
 public sealed class ApplicationAuthModuleTests
 {
     [Fact]
-    public void EveryUseCase_IsBoundOnceAndScopedThroughItsOwnInterface()
-    {
-        var services = new ServiceCollection();
-        services.AddAuthApplication();
-
-        UseCaseDiscovery.Implementations.ShouldNotBeEmpty();
-
-        string[] offenders =
-        [
-            .. UseCaseDiscovery.Implementations
-                .Where(implementation => !IsBoundOnceThroughItsInterface(services, implementation))
-                .Select(implementation => implementation.FullName!),
-        ];
-
-        offenders.ShouldBeEmpty(
-            "A use case reaches a controller through its own interface, scoped, from one registration; " +
-            "these do not.");
-    }
-
-    [Fact]
     public void EveryValidator_IsRegisteredOnceAndScoped()
     {
         var services = new ServiceCollection();
@@ -48,12 +28,6 @@ public sealed class ApplicationAuthModuleTests
         offenders.ShouldBeEmpty(
             "A validator the module does not register once is a rule the request is never held to.");
     }
-
-    private static bool IsBoundOnceThroughItsInterface(ServiceCollection services, Type implementation) =>
-        services.Where(descriptor => descriptor.ServiceType == UseCaseDiscovery.ContractOf(implementation)).ToList()
-            is [{ Lifetime: ServiceLifetime.Scoped } descriptor]
-        && descriptor.ImplementationType == implementation
-        && !services.Any(other => other.ServiceType == implementation);
 
     private static IEnumerable<Type> ValidatorContracts() =>
         typeof(ApplicationAuthModule).Assembly

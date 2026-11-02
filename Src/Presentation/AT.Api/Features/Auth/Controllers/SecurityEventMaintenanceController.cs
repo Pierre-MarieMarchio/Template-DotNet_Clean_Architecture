@@ -3,6 +3,7 @@ using AppTemplate.Api.Features.Maintenance.Contracts.Mapping;
 using AppTemplate.Api.Features.Maintenance.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 using AppTemplate.Presentation.Core.Common.Security;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,12 +16,12 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
 public sealed class SecurityEventMaintenanceController(
-    IPurgeExpiredSecurityEventsUseCase purgeExpiredSecurityEvents) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Deletes every security event older than the retention period, for every account.</summary>
     [HttpDelete("security-events/expired")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PurgeResponse))]
     public async Task<ActionResult<PurgeResponse>> PurgeExpiredSecurityEvents(CancellationToken cancellationToken) =>
         OkOrProblem(
-            MaintenanceResponseMapping.ToPurgeResponse(await purgeExpiredSecurityEvents.ExecuteAsync(cancellationToken)));
+            MaintenanceResponseMapping.ToPurgeResponse(await sender.Send(new PurgeExpiredSecurityEventsCommand(), cancellationToken)));
 }

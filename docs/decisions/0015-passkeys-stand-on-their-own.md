@@ -32,7 +32,7 @@ or removing one does to open sessions, have to be decided.
 - A stolen session cannot register its thief's passkey.
 - `PasskeyCeremonyStateTests` refuses tampered, foreign, wrong-kind and spent states with a
   verifier that accepts everything, so only the state can be what refuses;
-  `CompletePasskeySignInUseCaseTests` holds the sign-in rule.
+  `CompletePasskeySignInTests` holds the sign-in rule.
 
 [Passkeys](../features/authentication.md#passkeys) describes the endpoints and settings.
 

@@ -2,9 +2,11 @@
 using System.Diagnostics.Metrics;
 using AppTemplate.Api.Features.Files.Jobs;
 using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -58,8 +60,9 @@ public sealed class FileInstrumentsTests
 
         var services = new ServiceCollection();
         services.AddBackgroundScope();
-        services.AddScoped<IPurgeAbandonedRegistrationsUseCase>(_ => purge);
-        services.AddScoped<IReclaimOrphanedContentUseCase>(_ => sweep);
+        services.AddScoped<ISender, RoutingSender>();
+        services.AddScoped<ICommandHandler<PurgeAbandonedRegistrationsCommand, Result<int>>>(_ => purge);
+        services.AddScoped<ICommandHandler<ReclaimOrphanedContentCommand, Result<int>>>(_ => sweep);
         using var provider = services.BuildServiceProvider();
 
         var options = new JobsFilesOptions
@@ -115,8 +118,9 @@ public sealed class FileInstrumentsTests
 
         var services = new ServiceCollection();
         services.AddBackgroundScope();
-        services.AddScoped<IPurgeAbandonedRegistrationsUseCase>(_ => purge);
-        services.AddScoped<IReclaimOrphanedContentUseCase>(_ => sweep);
+        services.AddScoped<ISender, RoutingSender>();
+        services.AddScoped<ICommandHandler<PurgeAbandonedRegistrationsCommand, Result<int>>>(_ => purge);
+        services.AddScoped<ICommandHandler<ReclaimOrphanedContentCommand, Result<int>>>(_ => sweep);
         using var provider = services.BuildServiceProvider();
 
         var options = new JobsFilesOptions

@@ -16,7 +16,7 @@ internal static class DeletedAccountSweepJobsExtensions
         services.AddOptions<DeletedAccountSweepOptions>()
             .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName));
 
-        services.AddMaintenanceTask<ISweepDeletedAccountDataUseCase>(
+        services.AddMaintenanceTask<SweepDeletedAccountDataCommand>(
             "data of deleted accounts",
             "Rows owned by an id that names no account stay where they are: the deletion event is "
             + "the fast path, and this sweep is what makes it certain.",

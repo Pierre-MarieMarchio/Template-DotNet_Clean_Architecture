@@ -7,6 +7,7 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.AccessKeys.UseCases.Commands.CreateAccessKey;
 using AppTemplate.Application.Auth.Features.AccessKeys.UseCases.Commands.RevokeAccessKey;
 using AppTemplate.Application.Auth.Features.AccessKeys.UseCases.Queries.ListAccessKeys;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,9 +18,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 [Authorize]
 public sealed class AccessKeysController(
-    ICreateAccessKeyUseCase createAccessKey,
-    IListAccessKeysUseCase listAccessKeys,
-    IRevokeAccessKeyUseCase revokeAccessKey) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>
     /// Creates an access key for a host whose callers cannot refresh a token, re-authenticating the
@@ -46,7 +45,7 @@ public sealed class AccessKeysController(
             request.CurrentPassword);
 
         return CreatedOrProblem(
-            AccessKeyResponseMapping.ToCreatedAccessKeyResponse(await createAccessKey.ExecuteAsync(command, cancellationToken)),
+            AccessKeyResponseMapping.ToCreatedAccessKeyResponse(await sender.Send(command, cancellationToken)),
             nameof(ListAccessKeys),
             new { });
     }
@@ -56,7 +55,7 @@ public sealed class AccessKeysController(
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AccessKeysResponse))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<AccessKeysResponse>> ListAccessKeys(CancellationToken cancellationToken) =>
-        OkOrProblem(AccessKeyResponseMapping.ToAccessKeysResponse(await listAccessKeys.ExecuteAsync(cancellationToken)));
+        OkOrProblem(AccessKeyResponseMapping.ToAccessKeysResponse(await sender.Send(new ListAccessKeysQuery(), cancellationToken)));
 
     /// <summary>Revokes one of the caller's access keys by the id the access key list names.</summary>
     [HttpDelete("{accessKeyId:guid}")]
@@ -65,5 +64,5 @@ public sealed class AccessKeysController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> RevokeAccessKey(Guid accessKeyId, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await revokeAccessKey.ExecuteAsync(new RevokeAccessKeyCommand(accessKeyId), cancellationToken));
+        NoContentOrProblem(await sender.Send(new RevokeAccessKeyCommand(accessKeyId), cancellationToken));
 }

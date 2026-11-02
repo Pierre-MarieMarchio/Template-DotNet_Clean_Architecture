@@ -4,6 +4,11 @@
     <!--#if (externalAuth)-->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!--#endif-->
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Mediator.SourceGenerator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />

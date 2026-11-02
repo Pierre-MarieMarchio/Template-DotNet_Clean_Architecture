@@ -9,6 +9,7 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.DeleteTodoLis
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.RenameTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoList;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoLists;
+using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.TodoLists.Controllers;
@@ -17,11 +18,7 @@ namespace AppTemplate.Api.Features.TodoLists.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 public sealed class TodoListsController(
-    IGetTodoListsUseCase getTodoLists,
-    IGetTodoListUseCase getTodoList,
-    ICreateTodoListUseCase createTodoList,
-    IRenameTodoListUseCase renameTodoList,
-    IDeleteTodoListUseCase deleteTodoList) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Lists the caller's own todo lists, sorted, filtered and paginated.</summary>
     [HttpGet]
@@ -43,7 +40,7 @@ public sealed class TodoListsController(
             request.CreatedAfter,
             request.CreatedBefore);
 
-        return OkOrProblem(TodoListResponseMapping.ToPageResponse(await getTodoLists.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToPageResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Gets one todo list with its items, and the <c>ETag</c> needed to change it.</summary>
@@ -58,7 +55,7 @@ public sealed class TodoListsController(
     {
         var query = new GetTodoListQuery(todoListId);
 
-        return OkOrProblem(TodoListResponseMapping.ToListResponse(await getTodoList.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToListResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Creates a todo list owned by the caller.</summary>
@@ -74,7 +71,7 @@ public sealed class TodoListsController(
         ArgumentNullException.ThrowIfNull(request);
 
         var command = new CreateTodoListCommand(request.Name);
-        var result = TodoListResponseMapping.ToListResponse(await createTodoList.ExecuteAsync(command, cancellationToken));
+        var result = TodoListResponseMapping.ToListResponse(await sender.Send(command, cancellationToken));
 
         return CreatedOrProblem(result, nameof(GetTodoList), list => new { todoListId = list.Id });
     }
@@ -102,7 +99,7 @@ public sealed class TodoListsController(
         var command = new RenameTodoListCommand(todoListId, request.Name, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await renameTodoList.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(TodoListResponseMapping.ToListResponse(result));
     }
@@ -125,7 +122,7 @@ public sealed class TodoListsController(
         var command = new DeleteTodoListCommand(todoListId, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await deleteTodoList.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return NoContentOrProblem(result);
     }

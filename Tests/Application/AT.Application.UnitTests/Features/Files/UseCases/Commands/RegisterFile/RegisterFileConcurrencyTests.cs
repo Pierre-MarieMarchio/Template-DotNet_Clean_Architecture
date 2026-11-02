@@ -130,7 +130,7 @@ public sealed class RegisterFileConcurrencyTests
                     new Dictionary<string, string>(StringComparer.Ordinal),
                     StubDateTimeProvider.DefaultInstant.AddMinutes(30)));
 
-            var useCase = new RegisterFileUseCase(
+            var useCase = new RegisterFileCommandHandler(
                 new StoredFileRegistrationService(
                     repository,
                     queries,
@@ -140,10 +140,9 @@ public sealed class RegisterFileConcurrencyTests
                     _files.AsOptions()),
                 transfer,
                 StubCurrentUser.WithId(_callerId),
-                _files.AsOptions(),
-                new RegisterFileCommandValidator(_files.AsOptions()));
+                _files.AsOptions());
 
-            return await useCase.ExecuteAsync(
+            return await useCase.Handle(
                 new RegisterFileCommand(
                     FilesSettings.Image,
                     "holiday.png",

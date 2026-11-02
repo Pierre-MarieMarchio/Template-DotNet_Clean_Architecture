@@ -21,7 +21,7 @@ flowchart TB
         Modules["Persistence, Auth, Email, Storage, InMemory<br/>one module per capability"]
     end
     subgraph Application
-        AppCore["AppTemplate.Application.Core<br/>Result, IUseCase, paging, idempotency, cross-cutting ports"]
+        AppCore["AppTemplate.Application.Core<br/>Result, the use-case pipeline, paging, idempotency, cross-cutting ports"]
         App["AppTemplate.Application<br/>business use cases, feature ports, DTOs"]
         AppAuth["AppTemplate.Application.Auth<br/>accounts and sessions as use cases"]
     end
@@ -48,10 +48,11 @@ projects that hold the business. [Layers and projects](layers-and-projects.md) n
 ## How a request travels
 
 A request first crosses the HTTP pipeline that `UseHttpPipeline()` installs, then authentication and
-authorisation. A controller binds it and calls one use case through that use case's interface.
+authorisation. A controller binds it and sends one use case's message through `ISender`.
 
-The use case validates its input, loads what it needs through a port, asks the aggregate to change
-or stages a row through a store, and commits once through `IUnitOfWork`. Save interceptors flush the
+The use-case pipeline traces the message and refuses it when its validator does; its handler then
+loads what it needs through a port, asks the aggregate to change or stages a row through a store, and
+commits once through `IUnitOfWork`. Save interceptors flush the
 aggregate onto its rows, stamp the audit columns and collect the domain events; once the commit
 succeeds, the events reach their consumers in the same process.
 
@@ -82,7 +83,7 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 
 | Not here | Instead | See |
 |---|---|---|
-| MediatR, a dispatcher, pipeline behaviours | a controller calls a use case through its interface | [ADR 0003](../decisions/0003-use-cases-and-ports-are-explicit.md) |
+| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0003](../decisions/0003-use-cases-and-ports-are-explicit.md) |
 | A generic repository, `IQueryable` in a port | four words for four ways to reach storage | [Ports and adapters](ports-and-adapters.md#repository-queries-store-table) |
 | EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0005](../decisions/0005-the-domain-is-not-mapped-by-ef.md) |
 | Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |

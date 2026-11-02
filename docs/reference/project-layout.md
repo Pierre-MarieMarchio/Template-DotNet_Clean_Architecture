@@ -236,8 +236,8 @@ accounts.
 A rich feature's application folder, `Src/Application/AT.Application/Features/TodoLists/`:
 
 ```
-UseCases/Commands/CreateTodoList/   CreateTodoListCommand, ICreateTodoListUseCase,
-                                    CreateTodoListUseCase, CreateTodoListCommandValidator
+UseCases/Commands/CreateTodoList/   CreateTodoList.cs: CreateTodoListCommand and its
+                                    CreateTodoListCommandHandler; CreateTodoListCommandValidator
 UseCases/Queries/GetTodoList/       the same shape on the read side
 Ports/TodoListQueries/              ITodoListQueries, and TodoListFilter that crosses it
 Model/Dtos/                         the read models several operations return
@@ -253,7 +253,7 @@ Helpers/                            TodoListItemExtensions
 A rich feature's application folder, `AT.Application/Features/<Feature>/`:
 
 ```
-UseCases/Commands/<Operation>/      the command, its named interface, the use case, its validator
+UseCases/Commands/<Operation>/      <Operation>.cs, the command and its handler; its validator
 UseCases/Queries/<Operation>/       the same shape on the read side
 Ports/<Aggregate>Queries/           the queries port, and the filter that crosses it
 Model/Dtos/                         the read models several operations return
@@ -292,7 +292,7 @@ A type's suffix names its nature, and the nature names its folder:
 
 | Suffix | Folder |
 |---|---|
-| `…UseCase`, `…Command`, `…Query`, an operation's `…Validator` | `UseCases/{Commands,Queries}/<Operation>/` |
+| `…Command` and `…CommandHandler`, `…Query` and `…QueryHandler`, an operation's `…Validator` | `UseCases/{Commands,Queries}/<Operation>/`, the message and its handler together in `<Operation>.cs` |
 | a port's interface and the messages that cross it, `…Outcome`, `…Status` | `Ports/<Port>/` |
 | `…Repository` | `Repositories/` in the domain, `Access/Repositories/` for the adapter |
 | `…Event` | `Model/Events/` |
@@ -345,12 +345,13 @@ references. Its folder takes the initials, as [the folder map](#the-folder-map) 
 | A folder even for a single file; a project root holds only its composition file | `LayoutConventionTests.NoProjectRoot_HoldsAnythingButItsModule` |
 | No empty folder | `LayoutConventionTests.NoFolderInTheSourceTree_IsEmpty` |
 | Namespaces follow folders, without exception | `LayoutConventionTests.EverySourceFile_DeclaresTheNamespaceOfItsFolder` |
-| One public type per file, named for the file | `LayoutConventionTests.EverySourceFile_DeclaresOnePublicType_NamedForTheFile` |
+| One public type per file, named for the file; a use case's own file holds its message and that message's handler | `LayoutConventionTests.EverySourceFile_DeclaresOnePublicType_NamedForTheFile` |
 | The `Common/` and `Features/` words are closed per project | `LayoutConventionTests.EveryCommonFolder_IsNamedFromItsProjectsVocabulary`, `EveryFeatureFolder_IsNamedFromItsLayersVocabulary` |
 | Every project has a vocabulary | `LayoutConventionTests.EveryProjectOnDisk_HasAVocabularyOfItsOwn` |
 | A project sits in its layer's folder, in `<Initials>.<rest of its name>` | `ProjectFolderTests.EveryProject_SitsInTheFolderItsNameGives` |
 | A file carries its folder's suffix; every exemption names a file | `FeatureFolderVocabularyTests.EveryFileUnderAFeature_CarriesItsFoldersNatureWord`, `EveryExemption_StillNamesAFile` |
 | Every type under `Helpers/` is a static class | `FeatureFolderVocabularyTests.EveryTypeUnderAHelpersFolder_IsAStaticClass` |
 | One use case per operation folder, named for it | `UseCaseConventionTests.EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt` |
+| Every message has one handler | `MessageRoutingTests.EveryMessage_HasExactlyOneHandler` |
 | A repository contract lives in the domain | `StorageVocabularyTests.EveryRepositoryContract_IsDeclaredInTheDomain` |
 | No `Common/` names a feature | `ModuleDependencyTests.EveryModuleCommon_KnowsNoFeature`, `HttpCommonBoundaryTests.TheCommonHttpCode_NamesNoFeature` |

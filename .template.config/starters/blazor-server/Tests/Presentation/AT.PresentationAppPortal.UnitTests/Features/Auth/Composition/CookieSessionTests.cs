@@ -4,6 +4,7 @@ using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Logout;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.PresentationAppPortal.Features.Auth.Composition;
+using Mediator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -31,7 +32,7 @@ public sealed class CookieSessionTests
     private static readonly DateTimeOffset _refreshExpiry = new(2099, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
     private readonly IAuthenticationService _authentication = Substitute.For<IAuthenticationService>();
-    private readonly ILogoutUseCase _logout = Substitute.For<ILogoutUseCase>();
+    private readonly ISender _sender = Substitute.For<ISender>();
 
     [Fact]
     public async Task AnAccessTokenThisAppIssued_SignsTheCookieInWithItsCallerSessionAndRoles()
@@ -71,11 +72,11 @@ public sealed class CookieSessionTests
         properties.StoreTokens([new AuthenticationToken { Name = CookieSession.RefreshTokenName, Value = "refresh-token" }]);
         _authentication.AuthenticateAsync(context, CookieAuthenticationDefaults.AuthenticationScheme).Returns(
             AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(), properties, CookieAuthenticationDefaults.AuthenticationScheme)));
-        _logout.ExecuteAsync(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
+        _sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
 
         await SignIn().SignOutAsync(context);
 
-        await _logout.Received(1).ExecuteAsync(new LogoutCommand("refresh-token"), Arg.Any<CancellationToken>());
+        await _sender.Received(1).Send(new LogoutCommand("refresh-token"), Arg.Any<CancellationToken>());
         await _authentication.Received(1).SignOutAsync(context, CookieAuthenticationDefaults.AuthenticationScheme, Arg.Any<AuthenticationProperties?>());
     }
 
@@ -94,7 +95,7 @@ public sealed class CookieSessionTests
         var monitor = Substitute.For<IOptionsMonitor<JwtBearerOptions>>();
         monitor.Get(JwtBearerDefaults.AuthenticationScheme).Returns(bearer);
 
-        return new CookieSession(monitor, _logout);
+        return new CookieSession(monitor, _sender);
     }
 
     private DefaultHttpContext Context() =>

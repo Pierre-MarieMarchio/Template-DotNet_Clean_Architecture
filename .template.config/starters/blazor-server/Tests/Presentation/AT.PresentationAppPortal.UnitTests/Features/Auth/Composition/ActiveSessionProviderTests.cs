@@ -5,6 +5,7 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.PresentationAppPortal.Common.Security;
 using AppTemplate.PresentationAppPortal.Features.Auth.Composition;
+using Mediator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
@@ -20,7 +21,7 @@ public sealed class ActiveSessionProviderTests
     private static readonly Guid _session = Guid.CreateVersion7();
     private static readonly DateTimeOffset _now = new(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
 
-    private readonly IListSessionsUseCase _listSessions = Substitute.For<IListSessionsUseCase>();
+    private readonly ISender _sender = Substitute.For<ISender>();
     private readonly IAuthenticationService _authentication = Substitute.For<IAuthenticationService>();
     private ClaimsPrincipal? _askedAs;
 
@@ -48,7 +49,7 @@ public sealed class ActiveSessionProviderTests
         Listing(_session);
 
         (await Sessions().IsActiveAsync(new ClaimsPrincipal(new ClaimsIdentity()), TestToken)).ShouldBeFalse();
-        await _listSessions.DidNotReceiveWithAnyArgs().ExecuteAsync(TestContext.Current.CancellationToken);
+        await _sender.DidNotReceiveWithAnyArgs().Send(Arg.Any<ListSessionsQuery>(), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -69,7 +70,7 @@ public sealed class ActiveSessionProviderTests
         await Sessions().ValidateCookieAsync(context);
 
         context.Principal.ShouldNotBeNull();
-        await _listSessions.DidNotReceiveWithAnyArgs().ExecuteAsync(TestContext.Current.CancellationToken);
+        await _sender.DidNotReceiveWithAnyArgs().Send(Arg.Any<ListSessionsQuery>(), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -107,11 +108,11 @@ public sealed class ActiveSessionProviderTests
         var provider = new ServiceCollection()
             .AddSingleton<IHttpContextAccessor, HttpContextAccessor>()
             .AddScoped<CallerPrincipal>()
-            .AddScoped<IListSessionsUseCase>(scope =>
+            .AddScoped<ISender>(scope =>
             {
                 _askedAs = scope.GetRequiredService<CallerPrincipal>().Principal;
 
-                return _listSessions;
+                return _sender;
             })
             .BuildServiceProvider();
 
@@ -140,7 +141,7 @@ public sealed class ActiveSessionProviderTests
     }
 
     private void Listing(params Guid[] sessions) =>
-        _listSessions.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success<IReadOnlyList<ListSessionsItem>>(
+        _sender.Send(Arg.Any<ListSessionsQuery>(), Arg.Any<CancellationToken>()).Returns(Result.Success<IReadOnlyList<ListSessionsItem>>(
             [.. sessions.Select(id => new ListSessionsItem(id, _now, _now, null, false))]));
 
     private static ClaimsPrincipal Principal() =>

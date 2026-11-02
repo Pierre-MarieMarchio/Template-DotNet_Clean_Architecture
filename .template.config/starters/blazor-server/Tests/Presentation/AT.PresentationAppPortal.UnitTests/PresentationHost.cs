@@ -5,7 +5,6 @@ using System.Security.Claims;
 //#if (localAuth)
 using System.Xml.Linq;
 //#endif
-using AppTemplate.Application.Core.Common.UseCases;
 using Microsoft.AspNetCore.Components.Authorization;
 //#if (localAuth)
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
@@ -16,6 +15,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Mediator;
 
 namespace AppTemplate.PresentationAppPortal.UnitTests;
 
@@ -66,7 +66,9 @@ internal sealed class PresentationHost : WebApplicationFactory<Program>
         {
             _useCases.AddRange(services
                 .Select(descriptor => descriptor.ServiceType)
-                .Where(type => typeof(IUseCase).IsAssignableFrom(type))
+                .Where(type => type.IsGenericType
+                    && (type.GetGenericTypeDefinition() == typeof(ICommandHandler<,>)
+                        || type.GetGenericTypeDefinition() == typeof(IQueryHandler<,>)))
                 .Distinct());
 
             services.RemoveAll<AuthenticationStateProvider>();

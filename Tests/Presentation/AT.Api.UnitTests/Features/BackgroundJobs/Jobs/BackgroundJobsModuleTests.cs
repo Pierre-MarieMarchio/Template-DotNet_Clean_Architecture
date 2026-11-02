@@ -23,6 +23,7 @@ using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedCo
 //#if (reminders)
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 //#endif
+using Mediator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -126,38 +127,39 @@ public sealed class BackgroundJobsModuleTests
     public async Task Enabled_RunsOnePassOfEveryJob()
     #endif*/
     {
-        var idempotency = Substitute.For<IPurgeExpiredIdempotencyKeysUseCase>();
+        var idempotency = Substitute.For<ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>>>();
         //#if (localAuth)
-        var refreshTokens = Substitute.For<IPurgeExpiredRefreshTokensUseCase>();
-        var securityEvents = Substitute.For<IPurgeExpiredSecurityEventsUseCase>();
+        var refreshTokens = Substitute.For<ICommandHandler<PurgeExpiredRefreshTokensCommand, Result<int>>>();
+        var securityEvents = Substitute.For<ICommandHandler<PurgeExpiredSecurityEventsCommand, Result<int>>>();
         //#endif
         //#if (reminders)
-        var reminders = Substitute.For<IFireDueRemindersUseCase>();
+        var reminders = Substitute.For<ICommandHandler<FireDueRemindersCommand, Result<int>>>();
         //#endif
         //#if (files)
-        var abandoned = Substitute.For<IPurgeAbandonedRegistrationsUseCase>();
-        var orphaned = Substitute.For<IReclaimOrphanedContentUseCase>();
-        var inspection = Substitute.For<IInspectDepositedFilesUseCase>();
+        var abandoned = Substitute.For<ICommandHandler<PurgeAbandonedRegistrationsCommand, Result<int>>>();
+        var orphaned = Substitute.For<ICommandHandler<ReclaimOrphanedContentCommand, Result<int>>>();
+        var inspection = Substitute.For<ICommandHandler<InspectDepositedFilesCommand, Result<int>>>();
         //#endif
 
-        idempotency.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        idempotency.Handle(Arg.Any<PurgeExpiredIdempotencyKeysCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#if (localAuth)
-        refreshTokens.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
-        securityEvents.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        refreshTokens.Handle(Arg.Any<PurgeExpiredRefreshTokensCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        securityEvents.Handle(Arg.Any<PurgeExpiredSecurityEventsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (reminders)
-        reminders.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        reminders.Handle(Arg.Any<FireDueRemindersCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (files)
-        abandoned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
-        orphaned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
-        inspection.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        abandoned.Handle(Arg.Any<PurgeAbandonedRegistrationsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        orphaned.Handle(Arg.Any<ReclaimOrphanedContentCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        inspection.Handle(Arg.Any<InspectDepositedFilesCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
 
         using var host = BuildHost(
             new Dictionary<string, string?>(),
             services =>
             {
+                services.AddScoped<ISender, RoutingSender>();
                 services.AddScoped(_ => idempotency);
                 //#if (localAuth)
                 services.AddScoped(_ => refreshTokens);

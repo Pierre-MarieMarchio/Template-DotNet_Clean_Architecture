@@ -7,6 +7,7 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.ConfirmTwoFactorSetup;
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.DisableTwoFactor;
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.SetUpTwoFactor;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -16,9 +17,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class TwoFactorController(
-    ISetUpTwoFactorUseCase setUpTwoFactor,
-    IConfirmTwoFactorSetupUseCase confirmTwoFactorSetup,
-    IDisableTwoFactorUseCase disableTwoFactor) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>
     /// Begins two-factor enrollment and returns the shared key, raw and as an <c>otpauth://</c>
@@ -33,7 +32,7 @@ public sealed class TwoFactorController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<SetUpTwoFactorResponse>> SetUpTwoFactor(CancellationToken cancellationToken) =>
-        OkOrProblem(AuthResponseMapping.ToSetUpTwoFactorResponse(await setUpTwoFactor.ExecuteAsync(cancellationToken)));
+        OkOrProblem(AuthResponseMapping.ToSetUpTwoFactorResponse(await sender.Send(new SetUpTwoFactorCommand(), cancellationToken)));
 
     /// <summary>Confirms enrollment with a first code and turns two-factor sign-in on.</summary>
     [HttpPost("two-factor/confirm")]
@@ -53,7 +52,7 @@ public sealed class TwoFactorController(
         var command = new ConfirmTwoFactorSetupCommand(request.CurrentPassword, request.Code);
 
         return OkOrProblem(
-            AuthResponseMapping.ToConfirmTwoFactorSetupResponse(await confirmTwoFactorSetup.ExecuteAsync(command, cancellationToken)));
+            AuthResponseMapping.ToConfirmTwoFactorSetupResponse(await sender.Send(command, cancellationToken)));
     }
 
     /// <summary>Turns two-factor sign-in back off.</summary>
@@ -71,6 +70,6 @@ public sealed class TwoFactorController(
 
         var command = new DisableTwoFactorCommand(request.CurrentPassword);
 
-        return NoContentOrProblem(await disableTwoFactor.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 }

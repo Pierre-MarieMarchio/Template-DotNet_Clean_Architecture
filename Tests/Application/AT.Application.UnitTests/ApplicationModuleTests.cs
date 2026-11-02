@@ -23,27 +23,6 @@ namespace AppTemplate.Application.UnitTests;
 
 public sealed class ApplicationModuleTests
 {
-    //#if (todoLists || files)
-    [Fact]
-    public void EveryUseCase_IsBoundOnceAndScopedThroughItsOwnInterface()
-    {
-        var services = ComposeEveryFeature();
-
-        UseCaseDiscovery.Implementations.ShouldNotBeEmpty();
-
-        string[] offenders =
-        [
-            .. UseCaseDiscovery.Implementations
-                .Where(implementation => !IsBoundOnceThroughItsInterface(services, implementation))
-                .Select(implementation => implementation.FullName!),
-        ];
-
-        offenders.ShouldBeEmpty(
-            "A use case reaches a controller through its own interface, scoped, from one registration; " +
-            "these do not.");
-    }
-
-    //#endif
     [Fact]
     public void EveryValidator_IsRegisteredOnceAndScoped()
     {
@@ -72,12 +51,12 @@ public sealed class ApplicationModuleTests
         var services = new ServiceCollection();
         services.AddTodoLists();
 
-        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(ICreateTodoListUseCase));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IValidator<CreateTodoListCommand>));
         //#if (reminders)
-        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IScheduleReminderUseCase));
+        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IValidator<ScheduleReminderCommand>));
         //#endif
         //#if (files)
-        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IRegisterFileUseCase));
+        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IValidator<RegisterFileCommand>));
         //#endif
     }
     //#endif
@@ -110,14 +89,6 @@ public sealed class ApplicationModuleTests
         category.UploadModes.ShouldBe(["Direct"]);
         category.Quota.MaxFiles.ShouldBe(1_000);
     }
-    //#endif
-    //#if (todoLists || files)
-
-    private static bool IsBoundOnceThroughItsInterface(ServiceCollection services, Type implementation) =>
-        services.Where(descriptor => descriptor.ServiceType == UseCaseDiscovery.ContractOf(implementation)).ToList()
-            is [{ Lifetime: ServiceLifetime.Scoped } descriptor]
-        && descriptor.ImplementationType == implementation
-        && !services.Any(other => other.ServiceType == implementation);
     //#endif
 
     private static IEnumerable<Type> ValidatorContracts() =>

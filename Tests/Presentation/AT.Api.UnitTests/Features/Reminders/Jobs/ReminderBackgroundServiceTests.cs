@@ -1,7 +1,9 @@
 ﻿using AppTemplate.Api.Features.Reminders.Jobs;
 using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -52,7 +54,8 @@ public sealed class ReminderBackgroundServiceTests
         var useCase = new HangingFireDueRemindersUseCase();
         var services = new ServiceCollection();
         services.AddBackgroundScope();
-        services.AddScoped<IFireDueRemindersUseCase>(_ => useCase);
+        services.AddScoped<ISender, RoutingSender>();
+        services.AddScoped<ICommandHandler<FireDueRemindersCommand, Result<int>>>(_ => useCase);
         using var provider = services.BuildServiceProvider();
 
         var options = EnabledOptions();
@@ -83,7 +86,8 @@ public sealed class ReminderBackgroundServiceTests
         var useCase = new HangingFireDueRemindersUseCase();
         var services = new ServiceCollection();
         services.AddBackgroundScope();
-        services.AddScoped<IFireDueRemindersUseCase>(_ => useCase);
+        services.AddScoped<ISender, RoutingSender>();
+        services.AddScoped<ICommandHandler<FireDueRemindersCommand, Result<int>>>(_ => useCase);
         using var provider = services.BuildServiceProvider();
 
         var options = EnabledOptions();
@@ -119,7 +123,8 @@ public sealed class ReminderBackgroundServiceTests
     {
         var services = new ServiceCollection();
         services.AddBackgroundScope();
-        services.AddScoped<IFireDueRemindersUseCase>(_ => useCase);
+        services.AddScoped<ISender, RoutingSender>();
+        services.AddScoped<ICommandHandler<FireDueRemindersCommand, Result<int>>>(_ => useCase);
         var provider = services.BuildServiceProvider();
 
         return new ReminderBackgroundService(

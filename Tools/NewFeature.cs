@@ -658,8 +658,7 @@ internal static class NewFeature
         {
             Add(applicationCore, "Common/Ports/IDeletedAccountDataPolicy.cs", Templates.DeletedAccountDataPolicy);
             Add(applicationCore, "Common/Ports/IUserAccountDirectory.cs", Templates.UserAccountDirectory);
-            Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs", Templates.SweepUseCasePort);
-            Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs", Templates.SweepUseCase);
+            Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData.cs", Templates.SweepUseCase);
             string jobsHost = JobsHost(root, spec.Prefix);
             var jobs = new Dictionary<string, string>(StringComparer.Ordinal) { ["J"] = ProjectInFolder(spec.Prefix, jobsHost) };
 
@@ -706,25 +705,15 @@ internal static class NewFeature
         string queries = $"{feature}/UseCases/Queries";
         string commands = $"{feature}/UseCases/Commands";
 
-        Add(application, $"{queries}/Get%A%/Get%A%Query.cs", Templates.GetQuery, "agg&get");
+        Add(application, $"{queries}/Get%A%/Get%A%.cs", Templates.GetUseCase, "agg&get");
         Add(application, $"{queries}/Get%A%/Get%A%QueryValidator.cs", Templates.GetQueryValidator, "agg&get");
-        Add(application, $"{queries}/Get%A%/IGet%A%UseCase.cs", Templates.GetUseCasePort, "agg&get");
-        Add(application, $"{queries}/Get%A%/Get%A%UseCase.cs", Templates.GetUseCase, "agg&get");
-        Add(application, $"{queries}/Get%F%/Get%F%Query.cs", Templates.ListQuery, "agg&list");
-        Add(application, $"{queries}/Get%F%/IGet%F%UseCase.cs", Templates.ListUseCasePort, "agg&list");
-        Add(application, $"{queries}/Get%F%/Get%F%UseCase.cs", Templates.ListUseCase, "agg&list");
-        Add(application, $"{commands}/Create%A%/Create%A%Command.cs", Templates.CreateCommand, "agg&create");
+        Add(application, $"{queries}/Get%F%/Get%F%.cs", Templates.ListUseCase, "agg&list");
+        Add(application, $"{commands}/Create%A%/Create%A%.cs", Templates.CreateUseCase, "agg&create");
         Add(application, $"{commands}/Create%A%/Create%A%CommandValidator.cs", Templates.CreateCommandValidator, "agg&create");
-        Add(application, $"{commands}/Create%A%/ICreate%A%UseCase.cs", Templates.CreateUseCasePort, "agg&create");
-        Add(application, $"{commands}/Create%A%/Create%A%UseCase.cs", Templates.CreateUseCase, "agg&create");
-        Add(application, $"{commands}/Update%A%/Update%A%Command.cs", Templates.UpdateCommand, "agg&update");
+        Add(application, $"{commands}/Update%A%/Update%A%.cs", Templates.UpdateUseCase, "agg&update");
         Add(application, $"{commands}/Update%A%/Update%A%CommandValidator.cs", Templates.UpdateCommandValidator, "agg&update");
-        Add(application, $"{commands}/Update%A%/IUpdate%A%UseCase.cs", Templates.UpdateUseCasePort, "agg&update");
-        Add(application, $"{commands}/Update%A%/Update%A%UseCase.cs", Templates.UpdateUseCase, "agg&update");
-        Add(application, $"{commands}/Delete%A%/Delete%A%Command.cs", Templates.DeleteCommand, "agg&delete");
+        Add(application, $"{commands}/Delete%A%/Delete%A%.cs", Templates.DeleteUseCase, "agg&delete");
         Add(application, $"{commands}/Delete%A%/Delete%A%CommandValidator.cs", Templates.DeleteCommandValidator, "agg&delete");
-        Add(application, $"{commands}/Delete%A%/IDelete%A%UseCase.cs", Templates.DeleteUseCasePort, "agg&delete");
-        Add(application, $"{commands}/Delete%A%/Delete%A%UseCase.cs", Templates.DeleteUseCase, "agg&delete");
 
         Add(application, $"{feature}/Services/Consumers/%Verb%%A%OnAccountDeletedConsumer.cs", Templates.AccountDeletedConsumer, "owner");
 
@@ -874,39 +863,26 @@ internal static class NewFeature
 
         tokens["ServiceArgs"] = string.Join(", ", serviceArguments);
 
-        string[] fields = [$"get{a}", $"get{f}", $"create{a}", $"update{a}", $"delete{a}"];
-
-        string Use(string operation) => operation switch
-        {
-            "get" => $"IGet{a}UseCase get{a}",
-            "list" => $"IGet{f}UseCase get{f}",
-            "create" => $"ICreate{a}UseCase create{a}",
-            "update" => $"IUpdate{a}UseCase update{a}",
-            _ => $"IDelete{a}UseCase delete{a}",
-        };
-
-        tokens["CtorParams"] = record
-            ? $"I{a}Service service"
-            : string.Join(",\n    ", spec.Operations.Select(Use));
+        tokens["CtorParams"] = record ? $"I{a}Service service" : "ISender sender";
 
         string pre = etag ? ", precondition" : string.Empty;
         string content = $"request.Name, request.Description";
 
         tokens["CallList"] = record
             ? "service.ListAsync(query, cancellationToken)"
-            : $"{fields[1]}.ExecuteAsync(query, cancellationToken)";
+            : "sender.Send(query, cancellationToken)";
         tokens["CallGet"] = record
             ? $"service.GetAsync({l}Id, cancellationToken)"
-            : $"{fields[0]}.ExecuteAsync(new Get{a}Query({l}Id), cancellationToken)";
+            : $"sender.Send(new Get{a}Query({l}Id), cancellationToken)";
         tokens["CallCreate"] = record
             ? $"service.CreateAsync(new {a}ContentDto({content}), cancellationToken)"
-            : $"{fields[2]}.ExecuteAsync(new Create{a}Command({content}), cancellationToken)";
+            : $"sender.Send(new Create{a}Command({content}), cancellationToken)";
         tokens["CallUpdate"] = record
             ? $"service.UpdateAsync({l}Id, new {a}ContentDto({content}){pre}, cancellationToken)"
-            : $"{fields[3]}.ExecuteAsync(new Update{a}Command({l}Id, {content}{pre}), cancellationToken)";
+            : $"sender.Send(new Update{a}Command({l}Id, {content}{pre}), cancellationToken)";
         tokens["CallDelete"] = record
             ? $"service.DeleteAsync({l}Id{pre}, cancellationToken)"
-            : $"{fields[4]}.ExecuteAsync(new Delete{a}Command({l}Id{pre}), cancellationToken)";
+            : $"sender.Send(new Delete{a}Command({l}Id{pre}), cancellationToken)";
 
         return tokens;
     }
@@ -1255,12 +1231,12 @@ internal static class NewFeature
 
         if (record || flags.Contains("change"))
         {
-            output.WriteLine($"       services.AddFeature(\"{f}\");   // its validators and use cases, found by folder");
+            output.WriteLine($"       services.AddFeature(\"{f}\");   // its validators, found by folder, and the use-case pipeline");
             output.WriteLine($"       services.AddScoped<I{a}Service, {a}Service>();");
         }
         else
         {
-            output.WriteLine($"       services.AddFeature(\"{f}\");   // its validators and use cases, found by folder");
+            output.WriteLine($"       services.AddFeature(\"{f}\");   // its validators, found by folder, and the use-case pipeline");
         }
 
         if (owner)
@@ -1338,8 +1314,7 @@ internal static class NewFeature
 
             output.WriteLine();
             output.WriteLine($"  7. {ProjectOf(spec, "Src/Application", "Application.Core")}/ApplicationCoreModule.cs: the AddDeletedAccountSweep()");
-            output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, with using");
-            output.WriteLine($"     {p}.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;");
+            output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, composing the use-case pipeline as it does");
             output.WriteLine();
             output.WriteLine($"  8. Src/Presentation/{jobsHost}/Program.cs: builder.Services.AddDeletedAccountSweep(); beside");
             output.WriteLine("     builder.Services.AddPurgeExpiredIdempotencyKeys();");
@@ -1793,7 +1768,7 @@ internal static class NewFeature
             expect(Wrote(suffix) == should, $"[{label}] {suffix} should {(should ? "exist" : "be absent")}.");
         }
 
-        string use(string operation, string name) => $"UseCases/{operation}/{name}/{name}UseCase.cs";
+        string use(string operation, string name) => $"UseCases/{operation}/{name}/{name}.cs";
 
         string verb = deletion == "anonymise" ? "Anonymise" : "Delete";
 
@@ -2047,8 +2022,7 @@ internal static class NewFeature
         [
             "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
             "Src/Application/A.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-            "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
-            "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+            "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData.cs",
             "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
             "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
             "Src/Presentation/A.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
@@ -2085,7 +2059,7 @@ internal static class NewFeature
             hostLines.All(text => hostEdit.Contains(text, StringComparison.Ordinal)),
             "The eleventh edit does not name both adapter methods, the double's registration and its declaration.");
         expect(first.Output.Contains(_removalRefusal, StringComparison.Ordinal), "The first owner feature did not say that remove-feature holds it back while another one uses the shared files.");
-        ExpectRemovable(bare, bareTree, "Widgets", 7, expect);
+        ExpectRemovable(bare, bareTree, "Widgets", 6, expect);
 
         var second = Invoke(bare, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise");
 
@@ -2113,7 +2087,7 @@ internal static class NewFeature
         var externalTree = Snapshot(external);
         var mapped = Invoke(external, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
-        ExpectRemovable(external, externalTree, "Widgets", 7, expect);
+        ExpectRemovable(external, externalTree, "Widgets", 6, expect);
 
         expect(mapped.Code == 0, $"An owner feature into an externally authenticated bare tree was refused: {mapped.Error.Split('\n')[0]}");
         expect(
@@ -2143,7 +2117,7 @@ internal static class NewFeature
         expect(
             hosted.Output.Contains("Src/Presentation/A.Portal/Features/Auth/Composition/CookieSessionComposition.cs", StringComparison.Ordinal),
             "The directory's registration was not printed for the presentation host's composition.");
-        ExpectRemovable(presented, presentedTree, "Widgets", 8, expect);
+        ExpectRemovable(presented, presentedTree, "Widgets", 7, expect);
 
         string desktop = System.IO.Path.Combine(presented, "Src/Presentation/A.Desk");
 
@@ -2191,7 +2165,7 @@ internal static class NewFeature
             swept.Output.Contains("Src/Presentation/A.Worker/Program.cs the same", StringComparison.Ordinal)
                 && swept.Output.Contains("Src/Presentation/A.Worker/Features/Auth/Composition/WorkerAuthComposition.cs", StringComparison.Ordinal),
             "The worker, which composes the features its passes call, was not given the feature's registration and the directory's.");
-        ExpectRemovable(working, workingTree, "Widgets", 8, expect);
+        ExpectRemovable(working, workingTree, "Widgets", 7, expect);
 
         string publicApi = NewTree(scratch, reaction: false);
 
@@ -2412,7 +2386,7 @@ internal static class NewFeature
     private static readonly Regex[] _removableSharedPaths =
     [
         new(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
-        new(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
+        new(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+/Features/Auth/Composition/AccountUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
@@ -2484,27 +2458,20 @@ internal static class NewFeature
         }
 
         string stem = System.IO.Path.GetFileNameWithoutExtension(relative);
-        var declaration = Regex.Match(
-            text,
-            @"^\s*(?:public |internal |private )?(?:sealed |static |abstract )*(?:class|interface|record|enum)\s+([A-Za-z0-9_]+)",
-            RegexOptions.Multiline,
-            TimeSpan.FromSeconds(2));
+        bool useCaseFile = segments.Length >= 3 && segments[^2] == stem && segments[^3] is "Commands" or "Queries";
+        string message = stem + (segments.Length >= 3 && segments[^3] == "Commands" ? "Command" : "Query");
+        string[] expectedTypes = useCaseFile ? [message, message + "Handler"] : [stem];
+        string[] declared = [.. Regex.Matches(
+                text,
+                @"^(?:public |internal )(?:sealed |static |abstract )*(?:class|interface|record|enum)\s+([A-Za-z0-9_]+)",
+                RegexOptions.Multiline,
+                TimeSpan.FromSeconds(2))
+            .Select(match => match.Groups[1].Value)];
 
-        if (!declaration.Success || !string.Equals(declaration.Groups[1].Value, stem, StringComparison.Ordinal))
+        if (!declared.SequenceEqual(expectedTypes, StringComparer.Ordinal))
         {
-            yield return $"{relative}: declares '{(declaration.Success ? declaration.Groups[1].Value : "nothing")}' "
-                + $"where the file is named '{stem}'.";
-        }
-
-        int declarations = Regex.Count(
-            text,
-            @"^(?:public |internal )(?:sealed |static |abstract )*(?:class|interface|record|enum)\s",
-            RegexOptions.Multiline,
-            TimeSpan.FromSeconds(2));
-
-        if (declarations != 1)
-        {
-            yield return $"{relative}: declares {declarations} top-level types, where a file holds one.";
+            yield return $"{relative}: declares {(declared.Length == 0 ? "nothing" : string.Join(", ", declared))} "
+                + $"where the file is named for {string.Join(" and ", expectedTypes)}.";
         }
 
         foreach (string problem in CommentProblems(relative, text))
@@ -3686,12 +3653,6 @@ internal static class Templates
         }
         """;
 
-    internal const string GetQuery = """
-        namespace %P%.Application.Features.%F%.UseCases.Queries.Get%A%;
-
-        public sealed record Get%A%Query(Guid %A%Id);
-        """;
-
     internal const string GetQueryValidator = """
         using FluentValidation;
 
@@ -3705,46 +3666,28 @@ internal static class Templates
         }
         """;
 
-    internal const string GetUseCasePort = """
-        using %P%.Application.Core.Common.Concurrency;
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Model.Dtos;
-
-        namespace %P%.Application.Features.%F%.UseCases.Queries.Get%A%;
-
-        public interface IGet%A%UseCase : IUseCase<Get%A%Query, Result<Versioned<%A%Dto>>>;
-        """;
-
     internal const string GetUseCase = """
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.Validation;
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Errors;
         using %P%.Application.Features.%F%.Ports.%A%Queries;
-        using FluentValidation;
+        using Mediator;
 
         namespace %P%.Application.Features.%F%.UseCases.Queries.Get%A%;
 
-        public sealed class Get%A%UseCase(
+        public sealed record Get%A%Query(Guid %A%Id) : IQuery<Result<Versioned<%A%Dto>>>;
+
+        public sealed class Get%A%QueryHandler(
             I%A%Queries queries,
-            ICurrentUser currentUser,
-            IValidator<Get%A%Query> validator) : IGet%A%UseCase
+            ICurrentUser currentUser) : IQueryHandler<Get%A%Query, Result<Versioned<%A%Dto>>>
         {
-            public async Task<Result<Versioned<%A%Dto>>> ExecuteAsync(
+            public async ValueTask<Result<Versioned<%A%Dto>>> Handle(
                 Get%A%Query query,
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken)
             {
                 ArgumentNullException.ThrowIfNull(query);
-
-                var validation = await validator.EnsureValidAsync(query, cancellationToken);
-
-                if (validation.IsFailure)
-                {
-                    return validation.To<Versioned<%A%Dto>>();
-                }
 
                 var userId = currentUser.RequireUserId();
 
@@ -3762,16 +3705,6 @@ internal static class Templates
         }
         """;
 
-    internal const string ListUseCasePort = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Model.Dtos;
-
-        namespace %P%.Application.Features.%F%.UseCases.Queries.Get%F%;
-
-        public interface IGet%F%UseCase : IUseCase<Get%F%Query, Result<PagedResult<%A%SummaryDto>>>;
-        """;
-
     internal const string ListUseCase = """
         using %P%.Application.Core.Common.Collections;
         using %P%.Application.Core.Common.Ports;
@@ -3779,14 +3712,26 @@ internal static class Templates
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Policies;
         using %P%.Application.Features.%F%.Ports.%A%Queries;
+        using Mediator;
 
         namespace %P%.Application.Features.%F%.UseCases.Queries.Get%F%;
 
-        public sealed class Get%F%UseCase(I%A%Queries queries, ICurrentUser currentUser) : IGet%F%UseCase
+        public sealed record Get%F%Query(
+            string? Paging,
+            int? Page,
+            int? PageSize,
+            string? Cursor,
+            string? Sort) : ICollectionQuery, IQuery<Result<PagedResult<%A%SummaryDto>>>
         {
-            public async Task<Result<PagedResult<%A%SummaryDto>>> ExecuteAsync(
+            public static Get%F%Query Offset(int? page, int? pageSize) => new(null, page, pageSize, null, null);
+        }
+
+        public sealed class Get%F%QueryHandler(I%A%Queries queries, ICurrentUser currentUser)
+            : IQueryHandler<Get%F%Query, Result<PagedResult<%A%SummaryDto>>>
+        {
+            public async ValueTask<Result<PagedResult<%A%SummaryDto>>> Handle(
                 Get%F%Query query,
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken)
             {
                 ArgumentNullException.ThrowIfNull(query);
 
@@ -3811,12 +3756,6 @@ internal static class Templates
                 return await queries.%ListQuery%(%SvcOwner%bound.Value, cancellationToken);
             }
         }
-        """;
-
-    internal const string CreateCommand = """
-        namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
-
-        public sealed record Create%A%Command(string Name, string Description);
         """;
 
     internal const string CreateCommandValidator = """
@@ -3844,39 +3783,28 @@ internal static class Templates
         }
         """;
 
-    internal const string CreateUseCasePort = """
-        using %P%.Application.Core.Common.Concurrency;
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Model.Dtos;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
-
-        public interface ICreate%A%UseCase : IUseCase<Create%A%Command, Result<Versioned<%A%Dto>>>;
-        """;
-
     internal const string CreateUseCase = """
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.Validation;
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Mapping;
         using %P%.Domain.Features.%F%.Model.Entities;
         using %P%.Domain.Features.%F%.Repositories;
-        using FluentValidation;
+        using Mediator;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
 
-        public sealed class Create%A%UseCase(
+        public sealed record Create%A%Command(string Name, string Description) : ICommand<Result<Versioned<%A%Dto>>>;
+
+        public sealed class Create%A%CommandHandler(
             I%A%Repository repository,
             IUnitOfWork unitOfWork,
-            ICurrentUser currentUser,
-            IValidator<Create%A%Command> validator) : ICreate%A%UseCase
+            ICurrentUser currentUser) : ICommandHandler<Create%A%Command, Result<Versioned<%A%Dto>>>
         {
-            public async Task<Result<Versioned<%A%Dto>>> ExecuteAsync(
+            public async ValueTask<Result<Versioned<%A%Dto>>> Handle(
                 Create%A%Command command,
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken)
             {
                 ArgumentNullException.ThrowIfNull(command);
 
@@ -3887,13 +3815,6 @@ internal static class Templates
                     return userId.To<Versioned<%A%Dto>>();
                 }
 
-                var validation = await validator.EnsureValidAsync(command, cancellationToken);
-
-                if (validation.IsFailure)
-                {
-                    return validation.To<Versioned<%A%Dto>>();
-                }
-
                 var %L% = %A%.Create(%SvcOwner%command.Name, command.Description);
 
                 repository.Add(%L%);
@@ -3902,18 +3823,6 @@ internal static class Templates
                 return %A%DtoMapping.Detail(%L%);
             }
         }
-        """;
-
-    internal const string UpdateCommand = """
-        using %P%.Application.Core.Common.Concurrency;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
-
-        public sealed record Update%A%Command(
-            Guid %A%Id,
-            string Name,
-            string Description,
-            VersionPrecondition? Precondition = null);
         """;
 
     internal const string UpdateCommandValidator = """
@@ -3944,46 +3853,32 @@ internal static class Templates
         }
         """;
 
-    internal const string UpdateUseCasePort = """
-        using %P%.Application.Core.Common.Concurrency;
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-        using %P%.Application.Features.%F%.Model.Dtos;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
-
-        public interface IUpdate%A%UseCase : IUseCase<Update%A%Command, Result<Versioned<%A%Dto>>>;
-        """;
-
     internal const string UpdateUseCase = """
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.Validation;
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Mapping;
         using %P%.Application.Features.%F%.Services;
-        using FluentValidation;
+        using Mediator;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
 
-        public sealed class Update%A%UseCase(
+        public sealed record Update%A%Command(
+            Guid %A%Id,
+            string Name,
+            string Description,
+            VersionPrecondition? Precondition = null) : ICommand<Result<Versioned<%A%Dto>>>;
+
+        public sealed class Update%A%CommandHandler(
             I%A%Service service,
-            IUnitOfWork unitOfWork,
-            IValidator<Update%A%Command> validator) : IUpdate%A%UseCase
+            IUnitOfWork unitOfWork) : ICommandHandler<Update%A%Command, Result<Versioned<%A%Dto>>>
         {
-            public async Task<Result<Versioned<%A%Dto>>> ExecuteAsync(
+            public async ValueTask<Result<Versioned<%A%Dto>>> Handle(
                 Update%A%Command command,
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken)
             {
                 ArgumentNullException.ThrowIfNull(command);
-
-                var validation = await validator.EnsureValidAsync(command, cancellationToken);
-
-                if (validation.IsFailure)
-                {
-                    return validation.To<Versioned<%A%Dto>>();
-                }
 
                 var loaded = await service.%Load%(command.%A%Id, command.Precondition, cancellationToken);
 
@@ -4003,14 +3898,6 @@ internal static class Templates
         }
         """;
 
-    internal const string DeleteCommand = """
-        using %P%.Application.Core.Common.Concurrency;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.Delete%A%;
-
-        public sealed record Delete%A%Command(Guid %A%Id, VersionPrecondition? Precondition = null);
-        """;
-
     internal const string DeleteCommandValidator = """
         using FluentValidation;
 
@@ -4024,43 +3911,28 @@ internal static class Templates
         }
         """;
 
-    internal const string DeleteUseCasePort = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-
-        namespace %P%.Application.Features.%F%.UseCases.Commands.Delete%A%;
-
-        public interface IDelete%A%UseCase : IUseCase<Delete%A%Command, Result>;
-        """;
-
     internal const string DeleteUseCase = """
+        using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.Validation;
         using %P%.Application.Features.%F%.Services;
         using %P%.Domain.Features.%F%.Repositories;
-        using FluentValidation;
+        using Mediator;
 
         namespace %P%.Application.Features.%F%.UseCases.Commands.Delete%A%;
 
-        public sealed class Delete%A%UseCase(
+        public sealed record Delete%A%Command(Guid %A%Id, VersionPrecondition? Precondition = null) : ICommand<Result>;
+
+        public sealed class Delete%A%CommandHandler(
             I%A%Service service,
             I%A%Repository repository,
-            IUnitOfWork unitOfWork,
-            IValidator<Delete%A%Command> validator) : IDelete%A%UseCase
+            IUnitOfWork unitOfWork) : ICommandHandler<Delete%A%Command, Result>
         {
-            public async Task<Result> ExecuteAsync(
+            public async ValueTask<Result> Handle(
                 Delete%A%Command command,
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken)
             {
                 ArgumentNullException.ThrowIfNull(command);
-
-                var validation = await validator.EnsureValidAsync(command, cancellationToken);
-
-                if (validation.IsFailure)
-                {
-                    return validation;
-                }
 
                 var loaded = await service.%Load%(command.%A%Id, command.Precondition, cancellationToken);
 
@@ -4753,32 +4625,24 @@ internal static class Templates
         }
         """;
 
-    internal const string SweepUseCasePort = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Core.Common.UseCases;
-
-        namespace %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
-
-        public interface ISweepDeletedAccountDataUseCase : IUseCase<Result<int>>
-        {
-        }
-        """;
-
     internal const string SweepUseCase = """
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
+        using Mediator;
         using Microsoft.Extensions.Logging;
 
         namespace %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
 
-        public sealed class SweepDeletedAccountDataUseCase(
+        public sealed record SweepDeletedAccountDataCommand : ICommand<Result<int>>;
+
+        public sealed class SweepDeletedAccountDataCommandHandler(
             IEnumerable<IDeletedAccountDataPolicy> policies,
             ILeaderLease lease,
-            ILogger<SweepDeletedAccountDataUseCase> logger) : ISweepDeletedAccountDataUseCase
+            ILogger<SweepDeletedAccountDataCommandHandler> logger) : ICommandHandler<SweepDeletedAccountDataCommand, Result<int>>
         {
             private const string _leaseName = "apptemplate.accounts.sweep-deleted-data";
 
-            public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<Result<int>> Handle(SweepDeletedAccountDataCommand command, CancellationToken cancellationToken)
             {
                 int swept = 0;
 
@@ -4854,7 +4718,7 @@ internal static class Templates
                 services.AddOptions<DeletedAccountSweepOptions>()
                     .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName));
 
-                services.AddMaintenanceTask<ISweepDeletedAccountDataUseCase>(
+                services.AddMaintenanceTask<SweepDeletedAccountDataCommand>(
                     "data of deleted accounts",
                     "Rows owned by an id that names no account stay where they are: the deletion event is "
                     + "the fast path, and this sweep is what makes it certain.",
@@ -5313,6 +5177,7 @@ internal static class Templates
         %if list%
         using %P%.Application.Features.%F%.UseCases.Queries.Get%F%;
         %end%
+        using Mediator;
         %end%
         using Microsoft.AspNetCore.Mvc;
 

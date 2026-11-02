@@ -342,8 +342,8 @@ task stops:
 - in `docs/features/background-jobs.md`, after the lines:
 
   ```markdown
-  Every pass calls an application use case, exactly as a controller would; a job adds a trigger, not
-  logic.
+  Every pass sends an application use case's message through `ISender`, exactly as a controller does;
+  a job adds a trigger, not logic.
   ```
 
   add:

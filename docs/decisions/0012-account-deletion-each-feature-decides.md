@@ -35,7 +35,7 @@ owner. Some data should go; some must stay, without the person it named.
 - The account module knows no feature, and a feature added later joins by writing one consumer and
   one sweep query.
 - Every feature this project ships deletes its rows.
-- `SweepDeletedAccountDataUseCaseTests` holds the sweep, and each feature's consumer has its own
+- `SweepDeletedAccountDataTests` holds the sweep, and each feature's consumer has its own
   test.
 
 [Deleting an account](../features/accounts.md#deleting-an-account) is the account holder's view.

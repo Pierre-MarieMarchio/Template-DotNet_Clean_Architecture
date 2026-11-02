@@ -20,6 +20,7 @@ using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
+using Mediator;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -38,22 +39,13 @@ public sealed class FilesControllerTests
 {
     private static readonly DateTimeOffset _registeredAt = new(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
 
-    private readonly IGetStoredFilesUseCase _getStoredFiles = Substitute.For<IGetStoredFilesUseCase>();
-    private readonly IGetStoredFileUseCase _getStoredFile = Substitute.For<IGetStoredFileUseCase>();
-    private readonly IIssueFileDownloadUseCase _issueFileDownload = Substitute.For<IIssueFileDownloadUseCase>();
-    private readonly IRegisterFileUseCase _registerFile = Substitute.For<IRegisterFileUseCase>();
-    private readonly IUploadFileUseCase _uploadFile = Substitute.For<IUploadFileUseCase>();
-    private readonly IConfirmFileUploadUseCase _confirmFileUpload = Substitute.For<IConfirmFileUploadUseCase>();
-
-    private readonly IDeleteStoredFileUseCase _deleteStoredFile = Substitute.For<IDeleteStoredFileUseCase>();
-
+    private readonly ISender _sender = Substitute.For<ISender>();
     [Fact]
     public async Task GetAll_HandsEveryQueryStringParameter_ToTheUseCase()
     {
         GetStoredFilesQuery? captured = null;
 
-        _getStoredFiles
-            .ExecuteAsync(Arg.Do<GetStoredFilesQuery>(query => captured = query), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Do<GetStoredFilesQuery>(query => captured = query), Arg.Any<CancellationToken>())
             .Returns(PagedResult.Offset<StoredFileDto>([], page: 1, pageSize: 20, totalCount: 0));
 
         var request = new GetStoredFilesRequest(
@@ -83,7 +75,7 @@ public sealed class FilesControllerTests
         const string url = "https://store.example/bucket/t0/2026/03/abcdef?sig=deadbeef";
         var httpContext = AContext();
 
-        _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
             .Returns(FileDownload.RedirectTo(
                 new IssuedDownloadGrant(url, _registeredAt.AddMinutes(5)),
                 "report.pdf",
@@ -104,7 +96,7 @@ public sealed class FilesControllerTests
         var httpContext = AContext();
         var content = new MemoryStream([1, 2, 3]);
 
-        _issueFileDownload.ExecuteAsync(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<IssueFileDownloadQuery>(), Arg.Any<CancellationToken>())
             .Returns(FileDownload.Streamed(content, "rapport été.pdf", "application/pdf", 3));
 
         var action = await AController(httpContext).GetContent(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
@@ -138,8 +130,7 @@ public sealed class FilesControllerTests
 
         ConfirmFileUploadCommand? captured = null;
 
-        _confirmFileUpload
-            .ExecuteAsync(Arg.Do<ConfirmFileUploadCommand>(command => captured = command), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Do<ConfirmFileUploadCommand>(command => captured = command), Arg.Any<CancellationToken>())
             .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Available), 78u));
 
         var fileId = Guid.CreateVersion7();
@@ -159,7 +150,7 @@ public sealed class FilesControllerTests
 
         var fileId = Guid.CreateVersion7();
 
-        _confirmFileUpload.ExecuteAsync(Arg.Any<ConfirmFileUploadCommand>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<ConfirmFileUploadCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<Versioned<StoredFileDto>>(StoredFileErrors.FileNotFound(fileId)));
 
         var action = await AController(httpContext).Confirm(fileId, TestContext.Current.CancellationToken);
@@ -176,8 +167,7 @@ public sealed class FilesControllerTests
         var action = await AController(httpContext).Confirm(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
 
         StatusOf(action.Result!).ShouldBe(StatusCodes.Status400BadRequest);
-        await _confirmFileUpload.DidNotReceive()
-            .ExecuteAsync(Arg.Any<ConfirmFileUploadCommand>(), Arg.Any<CancellationToken>());
+        await _sender.DidNotReceive().Send(Arg.Any<ConfirmFileUploadCommand>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -198,8 +188,7 @@ public sealed class FilesControllerTests
 
         DeleteStoredFileCommand? captured = null;
 
-        _deleteStoredFile
-            .ExecuteAsync(Arg.Do<DeleteStoredFileCommand>(command => captured = command), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Do<DeleteStoredFileCommand>(command => captured = command), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         var action = await AController(httpContext).Delete(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
@@ -217,7 +206,7 @@ public sealed class FilesControllerTests
     {
         var storedFileId = Guid.CreateVersion7();
 
-        _registerFile.ExecuteAsync(Arg.Any<RegisterFileCommand>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<RegisterFileCommand>(), Arg.Any<CancellationToken>())
             .Returns(new RegisterFileOutcome(storedFileId, AGrant()));
 
         var action = await AController().Register(ARequest(), TestContext.Current.CancellationToken);
@@ -236,7 +225,7 @@ public sealed class FilesControllerTests
     {
         var httpContext = AContext(IfMatchRequirement.Required);
 
-        _registerFile.ExecuteAsync(Arg.Any<RegisterFileCommand>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<RegisterFileCommand>(), Arg.Any<CancellationToken>())
             .Returns(new RegisterFileOutcome(Guid.CreateVersion7(), AGrant()));
 
         var action = await AController(httpContext).Register(ARequest(), TestContext.Current.CancellationToken);
@@ -249,8 +238,7 @@ public sealed class FilesControllerTests
     {
         RegisterFileCommand? captured = null;
 
-        _registerFile
-            .ExecuteAsync(Arg.Do<RegisterFileCommand>(command => captured = command), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Do<RegisterFileCommand>(command => captured = command), Arg.Any<CancellationToken>())
             .Returns(new RegisterFileOutcome(Guid.CreateVersion7(), AGrant()));
 
         await AController().Register(ARequest(), TestContext.Current.CancellationToken);
@@ -273,7 +261,7 @@ public sealed class FilesControllerTests
             TestContext.Current.CancellationToken);
 
         ShouldBeRefusedOnTheFile(action.Result!);
-        await _uploadFile.DidNotReceive().ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>());
+        await _sender.DidNotReceive().Send(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -286,14 +274,14 @@ public sealed class FilesControllerTests
             TestContext.Current.CancellationToken);
 
         ShouldBeRefusedOnTheFile(action.Result!);
-        await _uploadFile.DidNotReceive().ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>());
+        await _sender.DidNotReceive().Send(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Upload_MapsACategoryWithoutApiUploads_To409()
     {
         var httpContext = AContext();
-        _uploadFile.ExecuteAsync(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<UploadFileCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<Versioned<StoredFileDto>>(StoredFileErrors.ApiUploadNotAllowed("document")));
 
         var action = await AController(httpContext).Upload(
@@ -409,7 +397,7 @@ public sealed class FilesControllerTests
     {
         var httpContext = AContext();
 
-        _getStoredFile.ExecuteAsync(Arg.Any<GetStoredFileQuery>(), Arg.Any<CancellationToken>())
+        _sender.Send(Arg.Any<GetStoredFileQuery>(), Arg.Any<CancellationToken>())
             .Returns(new Versioned<StoredFileDto>(AFile(StoredFileState.Available), version));
 
         await AController(httpContext).GetFile(Guid.CreateVersion7(), TestContext.Current.CancellationToken);
@@ -419,13 +407,7 @@ public sealed class FilesControllerTests
 
     private FilesController AController(HttpContext? httpContext = null) =>
         new(
-            _getStoredFiles,
-            _getStoredFile,
-            _issueFileDownload,
-            _registerFile,
-            _uploadFile,
-            _confirmFileUpload,
-            _deleteStoredFile)
+            _sender)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };

@@ -106,7 +106,7 @@ public sealed class TodoListVersionPreconditionTests
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    private static async Task<Result> Widened<TValue>(Task<Result<TValue>> execution) where TValue : notnull =>
+    private static async ValueTask<Result> Widened<TValue>(ValueTask<Result<TValue>> execution) where TValue : notnull =>
         await execution;
 
     private TodoList GivenTheCallerOwnsAListAtTheStoredVersion(out Guid itemId)
@@ -117,7 +117,7 @@ public sealed class TodoListVersionPreconditionTests
         return list;
     }
 
-    private Task<Result> ExecuteAsync(
+    private ValueTask<Result> ExecuteAsync(
         string operation,
         TodoList list,
         Guid itemId,
@@ -129,33 +129,31 @@ public sealed class TodoListVersionPreconditionTests
         return operation switch
         {
             _rename => Widened(
-                new RenameTodoListUseCase(access, _unitOfWork, new RenameTodoListCommandValidator())
-                    .ExecuteAsync(new RenameTodoListCommand(list.Id, "Renamed", precondition), TestToken)),
+                new RenameTodoListCommandHandler(access, _unitOfWork)
+                    .Handle(new RenameTodoListCommand(list.Id, "Renamed", precondition), TestToken)),
 
-            _delete => new DeleteTodoListUseCase(
+            _delete => new DeleteTodoListCommandHandler(
                     access,
                     _repository,
-                    _unitOfWork,
-                    new DeleteTodoListCommandValidator())
-                .ExecuteAsync(new DeleteTodoListCommand(list.Id, precondition), TestToken),
+                    _unitOfWork)
+                .Handle(new DeleteTodoListCommand(list.Id, precondition), TestToken),
 
             _addItem => Widened(
-                new AddTodoItemUseCase(access, _unitOfWork, new AddTodoItemCommandValidator())
-                    .ExecuteAsync(
+                new AddTodoItemCommandHandler(access, _unitOfWork)
+                    .Handle(
                         new AddTodoItemCommand(list.Id, "A second item", null, null, precondition),
                         TestToken)),
 
             _completeItem => Widened(
-                new CompleteTodoItemUseCase(
+                new CompleteTodoItemCommandHandler(
                         access,
                         _unitOfWork,
-                        new StubDateTimeProvider(),
-                        new CompleteTodoItemCommandValidator())
-                    .ExecuteAsync(new CompleteTodoItemCommand(list.Id, itemId, precondition), TestToken)),
+                        new StubDateTimeProvider())
+                    .Handle(new CompleteTodoItemCommand(list.Id, itemId, precondition), TestToken)),
 
             _removeItem => Widened(
-                new RemoveTodoItemUseCase(access, _unitOfWork, new RemoveTodoItemCommandValidator())
-                    .ExecuteAsync(new RemoveTodoItemCommand(list.Id, itemId, precondition), TestToken)),
+                new RemoveTodoItemCommandHandler(access, _unitOfWork)
+                    .Handle(new RemoveTodoItemCommand(list.Id, itemId, precondition), TestToken)),
 
             _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, "Unknown operation."),
         };

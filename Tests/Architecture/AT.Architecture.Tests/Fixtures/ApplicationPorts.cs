@@ -2,7 +2,7 @@
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Policies;
-using AppTemplate.Application.Core.Common.UseCases;
+using AppTemplate.Application.Core.Common.Results;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
 
@@ -12,13 +12,11 @@ internal static class ApplicationPorts
 
     private static readonly Type[] _notPorts =
     [
-        typeof(IUseCase),
-        typeof(IUseCase<>),
-        typeof(IUseCase<,>),
         typeof(IDomainEventConsumer),
         typeof(IDomainEventConsumer<>),
         typeof(ICollectionPolicy),
         typeof(ICollectionQuery),
+        typeof(IFailable<>),
     ];
 
     internal static IReadOnlyList<Type> NotPorts => _notPorts;

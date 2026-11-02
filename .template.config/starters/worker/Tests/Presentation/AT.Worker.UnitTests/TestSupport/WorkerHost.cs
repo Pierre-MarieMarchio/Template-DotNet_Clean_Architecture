@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
-using Microsoft.Extensions.Hosting;
-using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Worker.Common.Security;
+using Mediator;
+using Microsoft.Extensions.Hosting;
 
 namespace AppTemplate.Worker.UnitTests.TestSupport;
 
@@ -100,7 +100,9 @@ internal sealed class WorkerHost : IDisposable
             {
                 builder.ConfigureServices(services => UseCases.AddRange(services
                     .Select(descriptor => descriptor.ServiceType)
-                    .Where(type => typeof(IUseCase).IsAssignableFrom(type))
+                    .Where(type => type.IsGenericType
+                        && (type.GetGenericTypeDefinition() == typeof(ICommandHandler<,>)
+                            || type.GetGenericTypeDefinition() == typeof(IQueryHandler<,>)))
                     .Distinct()));
             }
 

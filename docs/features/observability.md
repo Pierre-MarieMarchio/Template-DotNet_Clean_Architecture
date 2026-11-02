@@ -13,7 +13,8 @@ POST /api/v1/notes responded 201 in 12.4ms (traceIdentifier 0HN…:00000001, tra
 
 The line is a fixed list of fields. It never reads headers, cookies, the query string or the
 body, so a credential cannot reach the log through it; logging you add yourself carries no such
-guarantee. A refusal's problem document carries the same `traceId` as `traceIdentifier`, so a
+guarantee. A use case that fails writes one more line, under the `AppTemplate.UseCases` category at
+`Information`: its message's name, its error code and its duration, never the message itself. A refusal's problem document carries the same `traceId` as `traceIdentifier`, so a
 client's report joins the log line, and the line joins the trace.
 
 ## Metrics
@@ -41,6 +42,10 @@ On an instance that runs jobs, the loops add `AppTemplate.Jobs.Maintenance` and
 <!--#if (!files && !reminders)-->
 On an instance that runs jobs, the maintenance loop adds `AppTemplate.Jobs.Maintenance`.
 <!--#endif-->
+Every use case, in every host, records its duration on the `AppTemplate.UseCases` meter, in the
+`apptemplate.use_cases.duration` histogram tagged with its `use_case`, the message's name, and its
+`outcome` (`success`, `failure` or `exception`).
+
 Each pass adds one to an
 `apptemplate.jobs.<loop>.iterations` counter tagged with its `task` and its `outcome`
 (`success`, `failure`, `exception` or `disabled`), whether or not it found work. Alert on a flat
@@ -60,6 +65,8 @@ commands.
 Traces cover incoming requests (health probes excluded) and outgoing `HttpClient` calls; SQLite
 commands are not traced.
 <!--#endif-->
+Every use case adds a span named after its message, from the `AppTemplate.UseCases` source, tagged
+with its `outcome` and, on a failure, its `error_code`.
 Every trace is sampled unless `OpenTelemetry:TracesSamplingRatio` says otherwise. The
 service name and version are read from the `AppTemplate.Api` assembly; `OpenTelemetry:ServiceName`
 overrides the name when several deployments share a collector.

@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Xml.Linq;
 //#endif
-using AppTemplate.Application.Core.Common.UseCases;
 //#if (localAuth)
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
@@ -12,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
+using Mediator;
 
 namespace AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
 
@@ -75,7 +75,9 @@ internal sealed class McpHost(Action<IServiceCollection>? replace = null) : WebA
         {
             _useCases.AddRange(services
                 .Select(descriptor => descriptor.ServiceType)
-                .Where(type => typeof(IUseCase).IsAssignableFrom(type))
+                .Where(type => type.IsGenericType
+                    && (type.GetGenericTypeDefinition() == typeof(ICommandHandler<,>)
+                        || type.GetGenericTypeDefinition() == typeof(IQueryHandler<,>)))
                 .Distinct());
 
             //#if (localAuth)

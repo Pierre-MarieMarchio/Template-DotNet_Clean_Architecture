@@ -74,38 +74,52 @@ A use case catches only what its caller could not have avoided. The validator is
 a `DomainException` for something the validator already refused means the two disagree: a bug to
 surface, not an outcome to map.
 
-## Use cases, not a dispatcher
+## Use cases are messages
 
-A use case is a sealed class with one `ExecuteAsync` method, behind one named interface, registered
-by its feature's `Add<Feature>()` call and injected into the controller that calls it. There is no
-handler type, no dispatcher and no pipeline behaviour: validation runs in the use case, logging is
-`ILogger`, and the transaction boundary is `IUnitOfWork`. `LayerDependencyTests` forbids MediatR by
-name.
+A use case is a message and its handler: a sealed `<UseCase>Command` or `<UseCase>Query` record and
+the sealed class that handles it, in one file, with the message's validator beside it. A host sends
+the message through `ISender`; each host's generated mediator dispatches it, and the build stops when
+a message has no handler or two. MediatR is refused by `LayerDependencyTests`.
 
-A command reads the caller, validates, loads or creates, changes the aggregate, commits and maps:
+Every message crosses the same pipeline, which `AddUseCasePipeline` registers once, in this order:
+
+| Behaviour | Does |
+|---|---|
+| `TracingBehaviour` | opens an activity named after the message on `UseCaseInstruments` and records `apptemplate.use_cases.duration`, tagged by use case and outcome |
+| `LoggingBehaviour` | logs a failed use case with its error code, never its message |
+| `ValidationBehaviour` | runs the message's validators and answers `request.validationFailed` without reaching the handler |
+
+The validation behaviour answers a failure of the handler's own `Result` type through
+`IFailable<TSelf>`, so a handler starts from a message its validators accepted. Logging inside the
+handler is `ILogger`, and the transaction boundary is `IUnitOfWork`.
+
+A command handler reads the caller, loads or creates, changes the aggregate, commits and maps:
 
 ```csharp
-public async Task<Result<Versioned<WidgetDto>>> ExecuteAsync(
-    CreateWidgetCommand command,
-    CancellationToken cancellationToken = default)
+public sealed record CreateWidgetCommand(string Name) : ICommand<Result<Versioned<WidgetDto>>>;
+
+public sealed class CreateWidgetCommandHandler(
+    IWidgetRepository repository,
+    IUnitOfWork unitOfWork,
+    ICurrentUser currentUser,
+    IDateTimeProvider clock) : ICommandHandler<CreateWidgetCommand, Result<Versioned<WidgetDto>>>
 {
-    var userId = currentUser.RequireUserId();
-    if (userId.IsFailure)
+    public async ValueTask<Result<Versioned<WidgetDto>>> Handle(
+        CreateWidgetCommand command,
+        CancellationToken cancellationToken)
     {
-        return userId.To<Versioned<WidgetDto>>();
+        var userId = currentUser.RequireUserId();
+        if (userId.IsFailure)
+        {
+            return userId.To<Versioned<WidgetDto>>();
+        }
+
+        var widget = Widget.Create(userId.Value, command.Name, clock.UtcNow);
+        repository.Add(widget);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return WidgetDtoMapping.Detail(widget);
     }
-
-    var validation = await validator.EnsureValidAsync(command, cancellationToken);
-    if (validation.IsFailure)
-    {
-        return validation.To<Versioned<WidgetDto>>();
-    }
-
-    var widget = Widget.Create(userId.Value, command.Name, clock.UtcNow);
-    repository.Add(widget);
-    await unitOfWork.SaveChangesAsync(cancellationToken);
-
-    return WidgetDtoMapping.Detail(widget);
 }
 ```
 

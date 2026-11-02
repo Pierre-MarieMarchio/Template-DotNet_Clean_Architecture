@@ -1,0 +1,76 @@
+﻿using AppTemplate.Application.Auth.Features.Accounts.Model.Errors;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountEmails;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
+using AppTemplate.Application.Auth.Features.Accounts.Ports.EmailTokens;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using Mediator;
+using Microsoft.Extensions.Logging;
+
+namespace AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
+
+public sealed record RegisterCommand(string Email, string Password) : ICommand<Result>;
+
+public sealed class RegisterCommandHandler(
+    IAccountsService accounts,
+    IEmailTokensService emailTokens,
+    IAccountEmailFactory emailFactory,
+    IEmailSender emailSender,
+    ISecurityEventLog securityEventLog,
+    ILogger<RegisterCommandHandler> logger) : ICommandHandler<RegisterCommand, Result>
+{
+    public async ValueTask<Result> Handle(
+        RegisterCommand request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var registration = await accounts.RegisterAsync(request.Email, request.Password, cancellationToken);
+
+        if (registration.Status is AccountRegistrationStatus.Rejected)
+        {
+            return Result.Failure(AccountsErrors.RegistrationRejected(
+                registration.EmailRejection,
+                registration.PasswordRejection));
+        }
+
+        if (registration.Status is AccountRegistrationStatus.Created)
+        {
+            securityEventLog.Record(SecurityEvent.Registered(registration.UserId));
+        }
+
+        await TrySendAsync(request.Email, registration, cancellationToken);
+
+        return Result.Success();
+    }
+
+    private async Task TrySendAsync(
+        string email,
+        AccountRegistrationOutcome registration,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var message = registration is { Status: AccountRegistrationStatus.AlreadyRegistered, EmailConfirmed: true }
+                ? await emailFactory.CreateAlreadyRegisteredAsync(email, cancellationToken)
+                : await CreateConfirmationAsync(email, cancellationToken);
+
+            if (message is not null)
+            {
+                await emailSender.SendAsync(email, message.Subject, message.HtmlBody, cancellationToken);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Failed to send a registration email.");
+        }
+    }
+
+    private async Task<AccountEmail?> CreateConfirmationAsync(string email, CancellationToken cancellationToken)
+    {
+        string? token = await emailTokens.IssueEmailConfirmationAsync(email, cancellationToken);
+
+        return token is null ? null : await emailFactory.CreateConfirmationAsync(email, token, cancellationToken);
+    }
+}

@@ -2,12 +2,15 @@
 using AppTemplate.Api.Features.Auth.Jobs;
 //#endif
 using AppTemplate.Api.Features.Maintenance.Jobs;
+using AppTemplate.Api.UnitTests.Features.BackgroundJobs.Jobs;
 //#if (localAuth)
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 //#endif
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Presentation.Core.Common.Jobs;
+using Mediator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,10 +23,10 @@ namespace AppTemplate.Api.UnitTests.Features.Maintenance.Jobs;
 internal static class MaintenanceJobsHarness
 {
     internal static MaintenanceBackgroundService Create(
-        IPurgeExpiredIdempotencyKeysUseCase idempotency,
+        ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>> idempotency,
         //#if (localAuth)
-        IPurgeExpiredRefreshTokensUseCase refreshTokens,
-        IPurgeExpiredSecurityEventsUseCase securityEvents,
+        ICommandHandler<PurgeExpiredRefreshTokensCommand, Result<int>> refreshTokens,
+        ICommandHandler<PurgeExpiredSecurityEventsCommand, Result<int>> securityEvents,
         //#endif
         JobsMaintenanceOptions options,
         //#if (localAuth)
@@ -36,6 +39,7 @@ internal static class MaintenanceJobsHarness
 
         var services = new ServiceCollection();
         services.AddBackgroundScope();
+        services.AddScoped<ISender, RoutingSender>();
         services.AddScoped(_ => idempotency);
         //#if (localAuth)
         services.AddScoped(_ => refreshTokens);

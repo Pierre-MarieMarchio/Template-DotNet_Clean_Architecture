@@ -26,6 +26,11 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!--#endif-->
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+    <PackageReference Include="Mediator.Abstractions" />
+    <PackageReference Include="Mediator.SourceGenerator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
       <PrivateAssets>all</PrivateAssets>

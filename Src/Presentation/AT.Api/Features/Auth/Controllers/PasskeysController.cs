@@ -19,6 +19,7 @@ using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.CompleteP
 using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Commands.RemovePasskey;
 using AppTemplate.Application.Auth.Features.Passkeys.UseCases.Queries.ListPasskeys;
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -28,12 +29,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class PasskeysController(
-    IBeginPasskeyRegistrationUseCase beginPasskeyRegistration,
-    ICompletePasskeyRegistrationUseCase completePasskeyRegistration,
-    IListPasskeysUseCase listPasskeys,
-    IRemovePasskeyUseCase removePasskey,
-    IBeginPasskeySignInUseCase beginPasskeySignIn,
-    ICompletePasskeySignInUseCase completePasskeySignIn) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>
     /// Starts a passkey registration: options for <c>navigator.credentials.create()</c> and the
@@ -48,7 +44,7 @@ public sealed class PasskeysController(
     public async Task<ActionResult<PasskeyRegistrationOptionsResponse>> BeginPasskeyRegistration(
         CancellationToken cancellationToken) =>
         OkOrProblem(AuthResponseMapping.ToRegistrationOptionsResponse(
-            await beginPasskeyRegistration.ExecuteAsync(cancellationToken)));
+            await sender.Send(new BeginPasskeyRegistrationCommand(), cancellationToken)));
 
     /// <summary>
     /// Completes a passkey registration with the created credential, its state, an optional label
@@ -74,7 +70,7 @@ public sealed class PasskeysController(
             request.CurrentPassword);
 
         return OkOrProblem(AuthResponseMapping.ToPasskeyResponse(
-            await completePasskeyRegistration.ExecuteAsync(command, cancellationToken)));
+            await sender.Send(command, cancellationToken)));
     }
 
     /// <summary>Lists the passkeys registered on the caller's account, newest first.</summary>
@@ -84,7 +80,7 @@ public sealed class PasskeysController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<PasskeysResponse>> ListPasskeys(CancellationToken cancellationToken) =>
         OkOrProblem(AuthResponseMapping.ToPasskeysResponse(
-            await listPasskeys.ExecuteAsync(cancellationToken)));
+            await sender.Send(new ListPasskeysQuery(), cancellationToken)));
 
     /// <summary>Removes one of the caller's passkeys by the id the passkey list names.</summary>
     [HttpDelete("passkeys/{credentialId}")]
@@ -107,7 +103,7 @@ public sealed class PasskeysController(
 
         var command = new RemovePasskeyCommand(credentialIdBytes);
 
-        return NoContentOrProblem(await removePasskey.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>
@@ -122,7 +118,7 @@ public sealed class PasskeysController(
     public async Task<ActionResult<PasskeySignInOptionsResponse>> BeginPasskeySignIn(
         CancellationToken cancellationToken) =>
         OkOrProblem(AuthResponseMapping.ToSignInOptionsResponse(
-            await beginPasskeySignIn.ExecuteAsync(cancellationToken)));
+            await sender.Send(new BeginPasskeySignInCommand(), cancellationToken)));
 
     /// <summary>Completes a passkey sign-in, exchanging the assertion for a token pair.</summary>
     [HttpPost("passkeys/sign-in")]
@@ -144,7 +140,7 @@ public sealed class PasskeysController(
 
         var command = new CompletePasskeySignInCommand(request.Credential, request.AuthenticationState);
         var response = AuthResponseMapping.ToLoginResponse(
-            await completePasskeySignIn.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
         //#if (browserSessions)
 
         response = BrowserSession.Deliver(HttpContext, refreshTokenMode, response);

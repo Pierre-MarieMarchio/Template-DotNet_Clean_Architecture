@@ -75,7 +75,7 @@ internal static class RemoveFeature
     private static readonly Regex[] _sharedPaths =
     [
         Rx(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$"),
-        Rx(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$"),
+        Rx(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData\.cs$"),
         Rx(@"^Src/Presentation/[^/]+/Features/BackgroundJobs/Jobs/DeletedAccountSweep(JobsExtensions|Options)\.cs$"),
         Rx(@"^Src/Presentation/[^/]+/Features/Auth/Composition/AccountUserAccountDirectory\.cs$"),
         Rx(@"^Src/Presentation/[^/]+/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$"),
@@ -84,7 +84,7 @@ internal static class RemoveFeature
     private static readonly Regex _sharedFolder = Rx(@"^(Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts)/");
 
     private static readonly Regex _sharedUse = Rx(
-        @"\b(IDeletedAccountDataPolicy|IUserAccountDirectory|I?SweepDeletedAccountDataUseCase|AddDeletedAccountSweep(Jobs)?|DeletedAccountSweepOptions|AccountUserAccountDirectory|ExternalIdentityUserAccountDirectory)\b|\.Features\.DeletedAccounts\b");
+        @"\b(IDeletedAccountDataPolicy|IUserAccountDirectory|SweepDeletedAccountDataCommand(Handler)?|AddDeletedAccountSweep(Jobs)?|DeletedAccountSweepOptions|AccountUserAccountDirectory|ExternalIdentityUserAccountDirectory)\b|\.Features\.DeletedAccounts\b");
 
     private static readonly HashSet<string> _sharedHosts = new(StringComparer.Ordinal)
     {
@@ -1088,7 +1088,7 @@ internal static class RemoveFeature
     [
         "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Widget.cs",
         "Src/Application/A.Application/Features/Widgets/Services/WidgetService.cs",
-        "Src/Application/A.Application/Features/Widgets/UseCases/Queries/GetWidget/GetWidgetQuery.cs",
+        "Src/Application/A.Application/Features/Widgets/UseCases/Queries/GetWidget/GetWidget.cs",
         "Tests/Application/A.Application.UnitTests/Features/Widgets/WidgetServiceTests.cs",
     ];
 
@@ -1096,7 +1096,7 @@ internal static class RemoveFeature
     {
         "Widget" => "public sealed record Widget;\n",
         "WidgetService" => "public interface IWidgetService;\npublic interface IWidgetStore;\npublic sealed class WidgetService;\npublic sealed class WidgetStore;\n",
-        "GetWidgetQuery" => "public sealed record GetWidgetQuery;\n",
+        "GetWidget" => "public sealed record GetWidgetQuery;\npublic sealed class GetWidgetQueryHandler;\n",
         _ => "public sealed class WidgetServiceTests;\n",
     };
 
@@ -1304,8 +1304,7 @@ internal static class RemoveFeature
     [
         "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
         "Src/Application/A.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-        "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
-        "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+        "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData.cs",
         "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
         "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
         "Src/Presentation/A.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",

@@ -5,6 +5,7 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ConfirmEmail;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.Register;
 using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.ResendConfirmationEmail;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -14,9 +15,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [Route("api/v{version:apiVersion}/auth")]
 [Asp.Versioning.ApiVersion("1.0")]
 public sealed class RegistrationController(
-    IRegisterUseCase register,
-    IConfirmEmailUseCase confirmEmail,
-    IResendConfirmationEmailUseCase resendConfirmationEmail) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Requests an account for an address and mails the address what happened.</summary>
     [HttpPost("register")]
@@ -32,7 +31,7 @@ public sealed class RegistrationController(
 
         var command = new RegisterCommand(request.Email, request.Password);
 
-        return AcceptedOrProblem(await register.ExecuteAsync(command, cancellationToken), RegisterResponse.Pending);
+        return AcceptedOrProblem(await sender.Send(command, cancellationToken), RegisterResponse.Pending);
     }
 
     /// <summary>Confirms an email address.</summary>
@@ -49,7 +48,7 @@ public sealed class RegistrationController(
 
         var command = new ConfirmEmailCommand(request.Email, request.Token);
 
-        return NoContentOrProblem(await confirmEmail.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 
     /// <summary>Re-sends the confirmation email.</summary>
@@ -66,6 +65,6 @@ public sealed class RegistrationController(
 
         var command = new ResendConfirmationEmailCommand(request.Email);
 
-        return NoContentOrProblem(await resendConfirmationEmail.ExecuteAsync(command, cancellationToken));
+        return NoContentOrProblem(await sender.Send(command, cancellationToken));
     }
 }

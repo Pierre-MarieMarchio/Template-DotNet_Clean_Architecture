@@ -516,9 +516,11 @@ jobs:
               fi
               return
             fi
+            local log
             for usecase in "Approve${type} --kind command" "Get${type}Totals --kind query" "CloseOverdue${feature} --kind command --input none"; do
+              log="${{ runner.temp }}/new-use-case-$feature-${usecase%% *}.log"
               # shellcheck disable=SC2086
-              dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "${{ runner.temp }}/new-use-case.log" 2>&1 || { cat "${{ runner.temp }}/new-use-case.log"; fail "new-use-case $feature $usecase failed."; }
+              dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "$log" 2>&1 || { cat "$log"; fail "new-use-case $feature $usecase failed."; }
             done
           }
           compose() {
@@ -531,10 +533,18 @@ jobs:
                 2) git checkout --quiet -- . && return 1 ;;
                 *) fail "the edits new-feature printed for $feature could not be applied." ;;
               esac
+              for log in "${{ runner.temp }}/new-use-case-$feature-"*.log; do
+                [ -e "$log" ] || continue
+                dotnet run "${{ github.workspace }}/.template.config/acceptance/ApplyFeatureEdits.cs" "$log" . || fail "the HTTP edit new-use-case printed in $(basename "$log") could not be applied."
+              done
             done
           }
+          # The edits land in the features' own files too, which remove-feature must find as new-feature wrote them, so the tree is restored from a snapshot.
           prove() {
-            local projects feature home
+            local projects feature home snapshot
+            git add -A
+            snapshot=$(git write-tree)
+            git reset --quiet
             if compose "$@"; then
               dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once the edits new-feature printed for $* are made."
               dotnet test "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once the edits new-feature printed for $* are made."
@@ -553,7 +563,9 @@ jobs:
                 dotnet test "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
               done
             done
-            git checkout --quiet -- .
+            git read-tree -u --reset "$snapshot"
+            git clean -fdq
+            git reset --quiet
           }
           remove() {
             for feature in "$@"; do

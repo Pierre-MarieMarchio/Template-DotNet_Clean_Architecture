@@ -34,8 +34,9 @@ may omit its domain folder only while it is a service over its storage ports, wi
 ## The rich shape
 
 The aggregate lives in `AppTemplate.Domain`, with its value objects, its events and its repository
-contract. The application holds one use case per operation, each in its own folder with its command
-or query, its named interface and its validator, plus a queries port for the reads. Persistence maps
+contract. The application holds one use case per operation, each in its own folder: one file holding
+its command or query and that message's handler, and its validator beside it, plus a queries port for
+the reads. Persistence maps
 the aggregate onto row records through a mapper and a tracker, so the domain never sees EF Core.
 
 <!--#if (todoLists)-->
@@ -54,10 +55,10 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 | | Simple | Rich |
 |---|---|---|
 | Domain | nothing | aggregate, value objects, events, repository contract |
-| Application | one service, one method per operation | one use case per operation, behind its own interface |
+| Application | one service, one method per operation | one message and its handler per operation, sent through `ISender` |
 | Ports | a store for writes, queries for reads | the repository (domain), queries for reads |
 | Persistence | the record is the model; the store stages it | record, mapper, tracker |
-| Validation | FluentValidation | FluentValidation, then the aggregate's invariants |
+| Validation | FluentValidation, called by the service | FluentValidation in the use-case pipeline, then the aggregate's invariants |
 | Commit | `IUnitOfWork` | `IUnitOfWork`, the same boundary |
 <!--#if (postgreSql)-->
 | Concurrency | the row's `xmin` | the root's `xmin` |
@@ -83,7 +84,7 @@ between the shapes, and it changes the inside of the feature, not its surface:
    half of the store moves into the repository, and the queries port stays.
 3. Split the service into use cases, one folder per operation. Keep a service only when the
    operations share a gate, such as loading an owned aggregate.
-4. Point the controller at the use cases.
+4. Point the controller at the messages, sent through `ISender`.
 
 Routes, contracts and responses do not change, nor do `ETag`, `If-Match`, `Idempotency-Key` and the
 owner scoping: none of them belonged to the aggregate. The migration is empty unless the new rule

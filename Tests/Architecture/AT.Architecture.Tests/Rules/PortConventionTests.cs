@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using System.Text.RegularExpressions;
-using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -24,7 +23,7 @@ public sealed class PortConventionTests
 
     private static IReadOnlyList<UseCaseDependencies> UseCases { get; } =
         [.. ApplicationLayerTypes
-            .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IUseCase).IsAssignableFrom(type))
+            .Where(UseCaseTypes.IsUseCase)
             .Select(type => new UseCaseDependencies(type, DependenciesOf(type)))
             .OrderBy(useCase => useCase.Type.FullName, StringComparer.Ordinal)];
 

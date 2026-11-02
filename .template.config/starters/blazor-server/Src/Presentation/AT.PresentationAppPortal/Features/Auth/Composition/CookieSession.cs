@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Logout;
+using Mediator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -8,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
-public sealed class CookieSession(IOptionsMonitor<JwtBearerOptions> bearer, ILogoutUseCase logout)
+public sealed class CookieSession(IOptionsMonitor<JwtBearerOptions> bearer, ISender sender)
 {
     internal const string RefreshTokenName = "refresh_token";
 
@@ -51,7 +52,7 @@ public sealed class CookieSession(IOptionsMonitor<JwtBearerOptions> bearer, ILog
 
         if (!string.IsNullOrEmpty(refreshToken))
         {
-            await logout.ExecuteAsync(new LogoutCommand(refreshToken), context.RequestAborted);
+            await sender.Send(new LogoutCommand(refreshToken), context.RequestAborted);
         }
 
         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

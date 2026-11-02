@@ -161,13 +161,8 @@ public static class ApplicationModule
             filter: scan => IsInVertical(scan.ValidatorType, vertical),
             includeInternalTypes: true);
 
-        services.AddUseCases(TypesIn(vertical));
+        services.AddUseCasePipeline();
     }
-
-    private static IEnumerable<Type> TypesIn(string vertical) =>
-        typeof(ApplicationModule).Assembly
-            .GetTypes()
-            .Where(type => IsInVertical(type, vertical));
 
     private static bool IsInVertical(Type type, string vertical) =>
         type.Namespace?.StartsWith(

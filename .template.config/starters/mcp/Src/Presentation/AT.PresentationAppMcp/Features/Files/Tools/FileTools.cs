@@ -3,6 +3,7 @@ using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFile;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
 using AppTemplate.PresentationAppMcp.Common.Security;
 using AppTemplate.PresentationAppMcp.Common.Tools;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -11,8 +12,7 @@ namespace AppTemplate.PresentationAppMcp.Features.Files.Tools;
 
 [McpServerToolType]
 internal sealed class FileTools(
-    IGetStoredFilesUseCase getStoredFiles,
-    IGetStoredFileUseCase getStoredFile)
+    ISender sender)
 {
     [McpServerTool(Name = "list_files", Title = "List files", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Authorize(Policy = ToolPolicies.Read)]
@@ -22,7 +22,7 @@ internal sealed class FileTools(
         [Description("How many files a page holds. The API's default when omitted.")] int? pageSize = null,
         CancellationToken cancellationToken = default) =>
         ToolAnswer.From(
-            await getStoredFiles.ExecuteAsync(GetStoredFilesQuery.Offset(page, pageSize), cancellationToken),
+            await sender.Send(GetStoredFilesQuery.Offset(page, pageSize), cancellationToken),
             files => files);
 
     [McpServerTool(Name = "get_file", Title = "Get a file's details", ReadOnly = true, Idempotent = true, OpenWorld = false)]
@@ -32,6 +32,6 @@ internal sealed class FileTools(
         [Description("The file's id, as list_files gives it.")] Guid storedFileId,
         CancellationToken cancellationToken = default) =>
         ToolAnswer.From(
-            await getStoredFile.ExecuteAsync(new GetStoredFileQuery(storedFileId), cancellationToken),
+            await sender.Send(new GetStoredFileQuery(storedFileId), cancellationToken),
             file => file.Value);
 }

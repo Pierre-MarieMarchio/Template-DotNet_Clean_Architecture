@@ -20,6 +20,8 @@ public sealed class TemplatePackagingTests
 
     private static readonly string[] _recordedAppKeys = ["framework", "audience", "rendering"];
 
+    private static readonly byte[] _utf8Bom = [0xEF, 0xBB, 0xBF];
+
     private static readonly Regex _guid = new(
         "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
         RegexOptions.None,
@@ -349,6 +351,30 @@ public sealed class TemplatePackagingTests
 
         overview.ShouldContain($"version {token} of", Case.Sensitive, "docs/getting-started/overview.md no longer holds the token templateVersion replaces.");
         overview.ShouldContain($"`{packageId}`", Case.Sensitive, "docs/getting-started/overview.md no longer names the PackageId of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
+    public void EveryReleasePleaseFile_IsSavedWithoutABom()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        using var config = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, ".github", "release-please", "config.json")));
+
+        string[] extraFiles = [.. config.RootElement.GetProperty("packages").EnumerateObject()
+            .Where(package => package.Value.TryGetProperty("extra-files", out _))
+            .SelectMany(package => package.Value.GetProperty("extra-files").EnumerateArray())
+            .Select(file => file.GetProperty("path").GetString()!)];
+
+        extraFiles.ShouldNotBeEmpty("release-please's config.json lists no extra-files, so this rule is reading the wrong file.");
+
+        string[] files = [.. extraFiles, ".github/release-please/config.json", ".github/release-please/manifest.json"];
+
+        foreach (string file in files)
+        {
+            byte[] bytes = File.ReadAllBytes(Path.Combine(root, file));
+
+            bytes.Take(_utf8Bom.Length).SequenceEqual(_utf8Bom).ShouldBeFalse(
+                $"'{file}' starts with a UTF-8 byte order mark, which release-please cannot parse: save it as UTF-8 without a BOM.");
+        }
     }
 
     [Theory]

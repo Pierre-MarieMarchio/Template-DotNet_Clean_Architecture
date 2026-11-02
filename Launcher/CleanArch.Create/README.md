@@ -73,9 +73,9 @@ questions, `--setup` runs every step; without it nothing is set up.
 At the root of a generated project, or in any folder under it:
 
 ```bash
-dnx CleanArch.Create web-app
-dnx CleanArch.Create web-package
-dnx CleanArch.Create presentation
+dnx CleanArch.Create -- web-app
+dnx CleanArch.Create -- web-package
+dnx CleanArch.Create -- presentation
 ```
 
 The project's authentication, workflows and package scope are read from its files. The first web app
@@ -111,13 +111,15 @@ given, or the only value the template leaves it, as `--examples none` and `--fil
 `--auth none`. Without `--yes`, a choice with no default takes its only value the same way. Each value
 taken this way is printed with the answer that leaves it. An option with no default, as
 `presentation`'s `--framework` while more than one framework is left, is passed as a flag: `--yes`
-cannot choose it. Without a terminal, every answer is a flag or `--yes` is passed. `--help` lists the options
-with the values the template generates and their defaults.
+cannot choose it. Without a terminal, every answer is a flag or `--yes` is passed. `dnx` takes `--yes`,
+`--help` and `--version` for itself, so every argument of the launcher follows `--`;
+`dnx CleanArch.Create -- --help` lists the options with the values the template generates and their
+defaults.
 
 ```bash
-dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
-dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create presentation -n Portal --framework blazor-server --yes
+dnx CleanArch.Create -- new -n Acme.Shop --auth external --examples notes --yes
+dnx CleanArch.Create -- web-app -n BackOffice --framework vite-react --audience admin --yes
+dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 ```
 
 | Option | Meaning |

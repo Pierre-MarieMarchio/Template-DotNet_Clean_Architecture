@@ -25,6 +25,17 @@ public sealed class ArgumentsTests
     }
 
     [Fact]
+    public void Parse_IgnoresALeadingSeparator_WhichDnxMayPassOn()
+    {
+        Arguments parsed = Arguments.Parse(["--", "new", "-n", "Acme.Shop", "--yes"]);
+
+        parsed.Command.ShouldBe("new");
+        parsed.Name.ShouldBe("Acme.Shop");
+        parsed.Yes.ShouldBeTrue();
+        Arguments.Parse(["--", "--help"]).Help.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Parse_KeepsEveryValueOfARepeatedTemplateOption() =>
         Arguments.Parse(["--presentation", "api", "--presentation=mcp", "--presentation", "worker"]).TemplateOptions["presentation"].ShouldBe("api|mcp|worker");
 

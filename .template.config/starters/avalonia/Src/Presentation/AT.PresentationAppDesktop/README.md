@@ -85,7 +85,7 @@ task makes them all, or none when one of those lines is not found exactly once:
 dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppDesktop
 ```
 
-Then create the project as above and commit it. `dnx CleanArch.Create presentation` runs the three
+Then create the project as above and commit it. `dnx CleanArch.Create -- presentation` runs the three
 commands in turn, reading the options from the project's files. The edits, to make by hand where the
 task stops:
 

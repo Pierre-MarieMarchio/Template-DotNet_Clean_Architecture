@@ -55,19 +55,21 @@ needs the network; a step that fails says why and what to run again. It leaves o
 `dotnet new` ends with, which ask for those two tasks.
 
 ```bash
-dnx CleanArch.Create web-app
-dnx CleanArch.Create web-package
-dnx CleanArch.Create presentation
+dnx CleanArch.Create -- web-app
+dnx CleanArch.Create -- web-package
+dnx CleanArch.Create -- presentation
 ```
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
 given, or the only value the template leaves it: `--auth none --yes` generates with
-`--examples none --files false`. Without a terminal, every answer is a flag or `--yes` is passed:
+`--examples none --files false`. Without a terminal, every answer is a flag or `--yes` is passed.
+`dnx` takes `--yes`, `--help` and `--version` for itself, so every argument of the launcher follows
+`--`:
 
 ```bash
-dnx CleanArch.Create new -n Acme.Shop --auth external --examples notes --yes
-dnx CleanArch.Create web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create presentation -n Portal --framework blazor-server --yes
+dnx CleanArch.Create -- new -n Acme.Shop --auth external --examples notes --yes
+dnx CleanArch.Create -- web-app -n BackOffice --framework vite-react --audience admin --yes
+dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 ```
 
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the

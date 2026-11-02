@@ -1,4 +1,12 @@
-﻿using AppTemplate.Application.Core.Common.UseCases;
+﻿//#if (localAuth)
+using System.Collections.Concurrent;
+using System.Xml.Linq;
+//#endif
+using AppTemplate.Application.Core.Common.UseCases;
+//#if (localAuth)
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
+//#endif
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -72,6 +80,8 @@ internal sealed class McpHost(Action<IServiceCollection>? replace = null) : WebA
 
             //#if (localAuth)
             TestKeys.Trust(services);
+
+            services.Configure<KeyManagementOptions>(options => options.XmlRepository = new InMemoryKeyRing());
             //#endif
             //#if (externalAuth)
             TestTokens.Trust(services);
@@ -79,4 +89,15 @@ internal sealed class McpHost(Action<IServiceCollection>? replace = null) : WebA
             replace?.Invoke(services);
         });
     }
+    //#if (localAuth)
+
+    private sealed class InMemoryKeyRing : IXmlRepository
+    {
+        private readonly ConcurrentQueue<XElement> _elements = new();
+
+        public IReadOnlyCollection<XElement> GetAllElements() => [.. _elements];
+
+        public void StoreElement(XElement element, string friendlyName) => _elements.Enqueue(element);
+    }
+    //#endif
 }

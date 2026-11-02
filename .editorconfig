@@ -52,6 +52,8 @@ csharp_style_null_propagation = true:warning
 dotnet_style_coalesce_expression = true:warning
 
 dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0055.severity = warning   # the build reads no option's severity for formatting
+dotnet_diagnostic.IDE1006.severity = warning   # the build ignores a naming rule's own severity
 dotnet_diagnostic.CS8618.severity = error      # non-nullable not initialised
 dotnet_diagnostic.CS8602.severity = error      # dereference of possibly null
 dotnet_diagnostic.CA2007.severity = none       # ConfigureAwait: not needed in ASP.NET Core

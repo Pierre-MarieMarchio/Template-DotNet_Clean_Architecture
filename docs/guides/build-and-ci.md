@@ -14,7 +14,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (!anyWeb)-->
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
-| `restore`, `build`, `test`, `format`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker |
+| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder |
+| `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
@@ -42,7 +43,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `verify` | the whole gate, in CI's order |
 
 Everything under `Tools/` is a file-based C# app: the SDK `global.json` pins is all it needs. The
-first run of a file compiles it, which takes a moment.
+first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and
+`.editorconfig` as the solution.
 
 ## The gate
 
@@ -52,10 +54,9 @@ A change is done when this passes, without overrides:
 dotnet run Tools/Tasks.cs verify
 ```
 
-It refuses to start while a context has no migration, then runs `hygiene`, restore,
-`dotnet format --verify-no-changes`, the build, the tests, the migration drift check for every
-context, and the vulnerability listing. The coverage floor is a
-separate task, `coverage`.
+It refuses to start while a context has no migration, then runs `hygiene`, restore, `format`, the
+build, the tests, the migration drift check for every context, and the vulnerability listing. The
+coverage floor is a separate task, `coverage`.
 When the project holds the .NET client, it runs `api-client --check` after `hygiene`, so a contract
 change without its regenerated client fails.
 
@@ -69,35 +70,43 @@ assembly both fail. A rule added to a gate comes with the fixture that fails wit
 
 `TreatWarningsAsErrors` is set in `Directory.Build.props` for every project. Do not silence a
 diagnostic with `#pragma`, `<NoWarn>` or a lowered severity; a diagnostic wrong for one file gets a
-path-scoped `.editorconfig` section with its reason. Every project generates its documentation file,
-which is what makes an unused `using` (IDE0005) fail the build.
+path-scoped `.editorconfig` section with its reason.
 
-`.cs` and `.md` files are UTF-8 with BOM. A file created without one fails the formatting gate;
-`format-fix` adds it.
+The build holds the code style: `EnforceCodeStyleInBuild` runs the `.editorconfig` rules during
+compilation, so a formatting defect (IDE0055), a private field without its underscore (IDE1006) or an
+unused `using` (IDE0005) fails `dotnet build` like any warning. IDE0055 and IDE1006 need their
+`dotnet_diagnostic` severity in `.editorconfig`, and IDE0005 needs the documentation file every
+project generates; `CodeStyleEnforcementTests` fails when either is missing. What the build cannot
+see is left to `format`: the order of using directives, the encoding and line endings, and IDE0003
+and IDE0049, whose analyzers the SDK's build does not carry. `verify` runs it before the build.
+
+`.cs` and `.md` files are UTF-8 with BOM. A file created without one fails `format`; `format-fix`
+adds it.
 
 <!--#if (ci)-->
 ## Workflows
 
 | Workflow | When | Does |
 |---|---|---|
-| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
+| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
 <!--#endif-->
 <!--#if (ci && serverDatabase)-->
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |
 <!--#endif-->
 <!--#if (ci && !anyWeb)-->
-| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# the solution and `Tools/` compile; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
-| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# the solution and `Tools/` compile, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
 | `.github/workflows/web.yml` | push and pull request to `main` | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
 <!--#endif-->
-<!--#if (sonarWorkflow)-->
-| `.github/workflows/sonarqube.yml` | push and pull request to `main` | the SonarQube Cloud analysis, once its variables are set |
-<!--#endif-->
 <!--#if (ci)-->
+
+CodeQL reads the C# without building it, so it neither repeats the build `ci.yml` runs nor sees what
+a build generates: the output of a source generator is not analysed, the committed Kiota client and
+the migrations are.
 
 The load smoke never gates: its thresholds describe a broken system, and a `429` counts as a pass,
 because a hosted runner's timings say nothing about this code. Run it against your own stack with
@@ -114,10 +123,13 @@ Sonar is not one of the gates: it needs a server and a token, which a clone does
 <!--#endif-->
 <!--#if (sonarWorkflow)-->
 In CI it can still fail a pull request: the quality gate judges new code only, so the code already
-there blocks nobody. `.github/workflows/sonarqube.yml` is skipped until the repository variables
-`SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are set, and for a fork's pull request; it reads the
-secret `SONAR_TOKEN`. The first analysis of `main` can come back red, since everything is new code
-until a baseline exists.
+there blocks nobody. It runs inside the `Build & test` job of `.github/workflows/ci.yml`, around the
+build and the tests that job already runs, so the code is not built a second time. The job waits on
+the quality gate and fails when it is red or when SonarCloud cannot be reached, which makes the gate
+a required check wherever `Build & test` is one. The steps are skipped until the repository variables
+`SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are set, and for a fork's or Dependabot's pull request;
+they read the secret `SONAR_TOKEN`. The first analysis of the default branch can come back red,
+since everything is new code until a baseline exists.
 <!--#endif-->
 <!--#if (sonar)-->
 

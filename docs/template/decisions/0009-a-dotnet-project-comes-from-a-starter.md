@@ -43,7 +43,7 @@ pins and refuses an install of another version beside it.
   holds its project under `FrameworkSite/` as the others do, and `web-scaffold` dispatches on the
   kind: the same scaffold as a presentation project, joining the solution, for it, `pnpm dlx` for
   the others.
-- **`bootstrap` creates the presentation project first**, before the formatting it then checks.
+- **`bootstrap` creates the presentation project first**, before the formatting it then applies.
 - **An item template adds one later from the same starter.** `cleanarch-presentation` copies the
   starter by `--framework` and takes the project's options as parameters of the same names, values
   and defaults, since an item template cannot read the project it runs in. What `--presentation`

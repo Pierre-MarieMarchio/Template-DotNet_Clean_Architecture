@@ -22,7 +22,6 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_NOLOGO: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
-  SOLUTION: AppTemplate.sln
 
 jobs:
   analyze:
@@ -40,7 +39,7 @@ jobs:
       matrix:
         include:
           - language: csharp
-            build-mode: manual
+            build-mode: none
           #if (anyWeb)
           - language: javascript-typescript
             build-mode: none
@@ -54,6 +53,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The buildless extractor restores the packages itself, so it needs the SDK global.json names, and no build.
       - name: Set up .NET SDK (from global.json)
         if: matrix.language == 'csharp'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -65,16 +65,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-
-      # The extractor reads what the compiler compiles: the solution, then each file-based tool, which no project holds.
-      - name: Build
-        if: matrix.language == 'csharp'
-        run: |
-          set -euo pipefail
-          dotnet build "$SOLUTION" --configuration Release
-          for tool in Tools/*.cs; do
-            dotnet build "$tool" --configuration Release
-          done
 
       - name: Analyze
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1

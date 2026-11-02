@@ -1,10 +1,7 @@
 ﻿using System.Collections;
-using AppTemplate.Application.Core;
 //#if (localAuth)
 using AppTemplate.Application.Core.Common.Ports;
 //#endif
-using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -74,7 +71,7 @@ public sealed class ContainerCompositionTests
         var divergence = SourceDeclarations.Divergence(
             SourceDeclarations.UseCaseFullNames,
             implementations.Select(SourceDeclarations.WithoutArity),
-            "found by the IUseCase discovery this test resolves through the container");
+            "found as a handler by the discovery this test resolves through the container");
 
         divergence.ShouldBeEmpty(
             "This test promises to resolve every use case, so the population it walks has to be the " +
@@ -246,26 +243,6 @@ public sealed class ContainerCompositionTests
     }
 
     [Fact]
-    public void TheRegistration_RefusesAUseCaseWithNoNamedInterface()
-    {
-        var exception = Should.Throw<InvalidOperationException>(
-            () => new ServiceCollection().AddUseCases([typeof(UseCaseWithNoContract)]));
-
-        exception.Message.ShouldContain(typeof(UseCaseWithNoContract).FullName!);
-    }
-
-    [Fact]
-    public void TheRegistration_RefusesAUseCaseWithTwoNamedInterfaces()
-    {
-        var exception = Should.Throw<InvalidOperationException>(
-            () => new ServiceCollection().AddUseCases([typeof(UseCaseWithTwoContracts)]));
-
-        exception.Message.ShouldContain(typeof(UseCaseWithTwoContracts).FullName!);
-        exception.Message.ShouldContain(nameof(IFirstContract));
-        exception.Message.ShouldContain(nameof(ISecondContract));
-    }
-
-    [Fact]
     public void TheContainer_RefusesToStart_WhenAnOptionsSectionIsInvalid()
     {
         /*#if (localAuth)*/
@@ -392,20 +369,4 @@ public sealed class ContainerCompositionTests
             $"{because}{Environment.NewLine}Could not resolve:{Environment.NewLine}  " +
             string.Join($"{Environment.NewLine}  ", failures));
     }
-}
-
-internal sealed class UseCaseWithNoContract : IUseCase<Guid, Result>
-{
-    public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Success());
-}
-
-internal interface IFirstContract : IUseCase<Guid, Result>;
-
-internal interface ISecondContract : IUseCase<Guid, Result>;
-
-internal sealed class UseCaseWithTwoContracts : IFirstContract, ISecondContract
-{
-    public Task<Result> ExecuteAsync(Guid request, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Success());
 }

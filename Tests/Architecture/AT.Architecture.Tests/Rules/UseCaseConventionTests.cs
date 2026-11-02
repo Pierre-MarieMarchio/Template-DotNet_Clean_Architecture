@@ -8,11 +8,6 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed class UseCaseConventionTests
 {
-    private const string _useCaseSuffix = "UseCase";
-
-    private const string _useCaseNamespaceSuffixPattern =
-        @"\.Features\.[^.]+\.UseCases(\.[^.]+)*$";
-
     private const string _useCaseFolderNamespaceSuffixPattern =
         @"\.Features\.[^.]+\.UseCases\.(Commands|Queries)\.[^.]+$";
 
@@ -85,9 +80,6 @@ public sealed class UseCaseConventionTests
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
-    private static bool IsUnderAUseCasesFolder(Type type) =>
-        MatchesInItsOwnProject(type, _useCaseNamespaceSuffixPattern);
-
     private static bool IsInAUseCaseFolder(Type type) =>
         MatchesInItsOwnProject(type, _useCaseFolderNamespaceSuffixPattern);
 
@@ -139,16 +131,12 @@ public sealed class UseCaseConventionTests
                 continue;
             }
 
-            var useCase = useCases[0];
-
-            if (UseCaseTypes.HandlerContractsOf(useCase) is [var contract])
-            {
-                failures.AddRange(HandlerFailures(folder.Key, operation, nature, useCase, contract));
-            }
-            else
-            {
-                failures.AddRange(UseCaseFailures(folder.Key, operation, useCase, [.. folder]));
-            }
+            failures.AddRange(HandlerFailures(
+                folder.Key,
+                operation,
+                nature,
+                useCases[0],
+                UseCaseTypes.ContractOf(useCases[0])));
 
             failures.AddRange(folder
                 .Where(TypeFacts.IsRecord)
@@ -195,29 +183,6 @@ public sealed class UseCaseConventionTests
         if (!TypeFacts.IsRecord(handled) || !handled.IsSealed || !handled.IsPublic)
         {
             yield return $"{folder}: '{handled.Name}' is a message, and a message is a public sealed record.";
-        }
-    }
-
-    private static IEnumerable<string> UseCaseFailures(string folder, string operation, Type useCase, Type[] types)
-    {
-        if (!string.Equals(useCase.Name, operation + _useCaseSuffix, StringComparison.Ordinal))
-        {
-            yield return
-                $"{folder} is named '{operation}' but holds '{useCase.Name}'. A folder named for an " +
-                $"operation must hold '{operation}{_useCaseSuffix}'.";
-        }
-
-        if (!types.Any(type => type.IsInterface
-            && string.Equals(type.Name, "I" + operation + _useCaseSuffix, StringComparison.Ordinal)))
-        {
-            yield return
-                $"{folder} declares no 'I{operation}{_useCaseSuffix}'. Callers resolve a use case by " +
-                "its named interface, so one that has none cannot be reached.";
-        }
-
-        if (!IsUnderAUseCasesFolder(useCase))
-        {
-            yield return $"{folder}: '{useCase.Name}' is outside a UseCases folder.";
         }
     }
 }

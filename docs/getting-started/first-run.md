@@ -65,12 +65,14 @@ to the solution with its tests.
 <!--#if (api)-->
 It formats the solution, writes the OpenAPI reference
 the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
-restores the local tools (`dotnet-ef` among them), then creates each database context's initial
-migration under its project's `Migrations` folder.
+pins this project's own tool, `dotnet cleanarch`, at the version of the template it came from, restores
+the local tools (`dotnet-ef` among them), then creates each database context's initial migration under
+its project's `Migrations` folder.
 <!--#endif-->
 <!--#if (!api)-->
-It formats the solution, restores the local tools (`dotnet-ef` among them), then creates each
-database context's initial migration under its project's `Migrations` folder.
+It formats the solution, pins this project's own tool, `dotnet cleanarch`, at the version of the
+template it came from, restores the local tools (`dotnet-ef` among them), then creates each database
+context's initial migration under its project's `Migrations` folder.
 <!--#endif-->
 The project ships no migration: the first one is written for this project's own model, and it is
 the project's from the commit on ([migrations](../guides/migrations.md#the-initial-migration)).
@@ -396,6 +398,20 @@ dotnet run Tools/Tasks.cs test --no-integration
 [Adding a feature](../guides/adding-a-feature.md) says what to write next, what each host shows of
 the feature among it.
 <!--#endif-->
+
+## Add a part
+
+<!--#if (!anyWeb)-->
+To add a web app or a presentation project later, run `dnx CleanArch.Create -- web-app` or
+`dnx CleanArch.Create -- presentation` at the project's root.
+<!--#endif-->
+<!--#if (anyWeb)-->
+To add a web app, a shared web package or a presentation project later, run
+`dnx CleanArch.Create -- web-app`, `dnx CleanArch.Create -- web-package` or
+`dnx CleanArch.Create -- presentation` at the project's root.
+<!--#endif-->
+The `--` hands the rest to the tool, as `dnx` keeps `--yes` and `--help` for itself;
+[the overview](overview.md#how-this-project-was-generated) says what each part is.
 
 ## Next
 

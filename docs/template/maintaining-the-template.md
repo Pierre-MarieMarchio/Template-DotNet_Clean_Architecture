@@ -37,10 +37,11 @@ CI and release workflows run it before building, under `templateMaintenance` blo
 
 ## The acceptance matrix
 
-`.github/workflows/template-acceptance.yml` packs the template package once, chooses the legs the
+`.github/workflows/template-acceptance.yml` packs the template package and `CleanArch.Cli` once, chooses the legs the
 change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, checks
 its `cleanarch.json` against the leg's options with `.template.config/acceptance/CheckProjectFile.cs`, bootstraps
-(the formatting, then `migration-initial` after asserting no migration was generated, and once more to
+(the project's tool pinned from that packed `CleanArch.Cli`, which `dotnet cleanarch` then names
+the project with, the formatting, then `migration-initial` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
@@ -603,12 +604,13 @@ only.
 pull request open that raises `templateVersion` and adds the version's `CHANGELOG.md` entry from the
 commits since the last release. Merging that pull request is the release: release-please tags
 `v<version>` and creates the GitHub Release, and the same workflow then checks out the tag, refuses
-it if it does not name `templateVersion`, packs the template package and the launcher, installs the
+it if it does not name `templateVersion`, packs the template package, the launcher and
+`CleanArch.Cli`, which a project's bootstrap pins at its template's version, installs the
 template package alone in a scratch hive, generates and builds the defaults, generates them again
-through the launcher, attests both packages' provenance and attaches them to the release. Its
+through the launcher, attests the packages' provenance and attaches them to the release. Its
 `publish` job waits in the `nuget` environment for a reviewer, exchanges the workflow's identity
 for a short-lived nuget.org key (Trusted Publishing, with `NUGET_USER` the account's name as a
-repository variable) and pushes both packages; a version already on nuget.org fails the push. Its
+repository variable) and pushes the three packages; a version already on nuget.org fails the push. Its
 `mirror` job then pushes the same packages to GitHub Packages, so the repository page lists them
 ([template decision 0007](decisions/0007-github-packages-mirrors-nuget-org.md)). Last,
 `promote` fast-forwards `main` to the release commit, and refuses if `main` is not its ancestor.

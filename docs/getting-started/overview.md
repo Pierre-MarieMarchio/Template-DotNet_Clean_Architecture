@@ -234,6 +234,15 @@ To change a value, remove the part by hand or add it:
 <!--#if (anyWeb)-->
 - `dotnet new cleanarch-webapp` adds another web app; [the web front end](../features/web-frontend.md) says how.
 <!--#endif-->
+<!--#if (!anyWeb)-->
+- `dnx CleanArch.Create -- web-app` and `dnx CleanArch.Create -- presentation`, run at the project's
+  root, ask for the same parts and add them to this project.
+<!--#endif-->
+<!--#if (anyWeb)-->
+- `dnx CleanArch.Create -- web-app`, `dnx CleanArch.Create -- web-package` and
+  `dnx CleanArch.Create -- presentation`, run at the project's root, ask for the same parts and add
+  them to this project.
+<!--#endif-->
 - `dotnet new cleanarch-presentation -n <Name> --framework blazor-server --project-name AppTemplate`
   adds a presentation project (`mcp`, `avalonia` or `wpf` work too). Pass this project's `--auth`,
   `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults; then

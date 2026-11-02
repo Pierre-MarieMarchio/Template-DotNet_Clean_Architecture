@@ -848,7 +848,7 @@ internal static class RemoveFeature
         output.WriteLine("After a removal, run:");
         output.WriteLine("  dotnet build <the solution>                  0 warnings, 0 errors");
         output.WriteLine("  dotnet test Tests/Architecture/<Prefix>.Architecture.Tests");
-        output.WriteLine("  dotnet format <the solution> --verify-no-changes");
+        output.WriteLine("  dotnet run Tools/Tasks.cs format");
         output.WriteLine(HasApi(root)
             ? "  git status                                   review what is left, including docs/ and *.http samples"
             : "  git status                                   review what is left, including docs/");
@@ -948,7 +948,7 @@ internal static class RemoveFeature
 
         PrintHits(output, analysis);
         output.WriteLine();
-        output.WriteLine("Run now: dotnet build the solution, then the architecture tests, then dotnet format --verify-no-changes.");
+        output.WriteLine("Run now: dotnet build the solution, then the architecture tests, then dotnet run Tools/Tasks.cs format.");
         output.WriteLine("It was never composed here, so no migration was written for it; any list above that is not empty is yours to read.");
 
         return 0;

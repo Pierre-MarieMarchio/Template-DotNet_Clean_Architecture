@@ -503,7 +503,7 @@ internal static class Tasks
                 break;
 
             case "format":
-                Step("dotnet", "format", solution, "--verify-no-changes", "--verbosity", "normal");
+                VerifyWhatTheBuildDoesNotCheck(solution, "--verbosity", "normal");
                 break;
 
             case "format-fix":
@@ -625,8 +625,7 @@ internal static class Tasks
 
             case "bootstrap":
                 PresentationScaffold(repoRoot, solution, only: null);
-                Step("dotnet", "format", solution);
-                Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
+                Step("dotnet", "format", solution, "--diagnostics", "IDE0055");
                 //#if (api)
                 OpenApiReference(projectFile, api);
                 //#endif
@@ -638,7 +637,7 @@ internal static class Tasks
                 catch (InvalidOperationException error)
                 {
                     throw new InvalidOperationException(
-                        error.Message + " The formatting is done and stable. The local tools are not restored, so the initial migrations "
+                        error.Message + " The formatting is done. The local tools are not restored, so the initial migrations "
                         + "are not created and the tasks that run dotnet ef cannot work yet: migration-add, database-update, "
                         + "migration-bundle and verify. Fix the restore and run bootstrap again.");
                 }
@@ -659,9 +658,9 @@ internal static class Tasks
 
                 Write(
                     /*#if (api)*/
-                    "Formatting stable, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
+                    "Formatting done, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
                     /*#else
-                    "Formatting stable, tools restored and each context's initial migration in its Migrations folder. "
+                    "Formatting done, tools restored and each context's initial migration in its Migrations folder. "
                     #endif*/
                     + "Commit this before anything else: the migrations are the project's own from now on.",
                     ConsoleColor.Green);
@@ -686,7 +685,7 @@ internal static class Tasks
                 WebLockfiles(repoRoot, check: true);
                 //#endif
                 Step("dotnet", ["restore", solution, .. nodes]);
-                Step("dotnet", "format", solution, "--verify-no-changes", "--no-restore");
+                VerifyWhatTheBuildDoesNotCheck(solution, "--no-restore");
                 Step("dotnet", ["build", solution, "--configuration", configuration, "--no-restore", .. nodes]);
                 Step("dotnet", ["test", solution, "--configuration", configuration, "--no-build", .. modules]);
                 Step(
@@ -958,13 +957,18 @@ internal static class Tasks
         OptionalGate(repoRoot, "CheckComments.cs", repoRoot);
     }
 
+    private static readonly string[] _styleRulesTheBuildLacks = ["IDE0003", "IDE0049"];
+
+    private static void VerifyWhatTheBuildDoesNotCheck(string solution, params string[] options) =>
+        Step("dotnet", ["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", .. options]);
+
     //#if (templateMaintenance)
     private static void LauncherGate(string repoRoot, string configuration)
     {
         string launcher = Path.Combine(repoRoot, "Launcher", "CleanArch.Create.slnx");
 
         Step("dotnet", "restore", launcher);
-        Step("dotnet", "format", launcher, "--verify-no-changes", "--no-restore");
+        VerifyWhatTheBuildDoesNotCheck(launcher, "--no-restore");
         Step("dotnet", "build", launcher, "--configuration", configuration, "--no-restore");
         Step("dotnet", "test", "--solution", launcher, "--configuration", configuration, "--no-build");
     }

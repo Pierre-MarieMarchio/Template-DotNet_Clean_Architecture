@@ -1,6 +1,16 @@
-﻿using System.Security.Claims;
+﻿//#if (localAuth)
+using System.Collections.Concurrent;
+//#endif
+using System.Security.Claims;
+//#if (localAuth)
+using System.Xml.Linq;
+//#endif
 using AppTemplate.Application.Core.Common.UseCases;
 using Microsoft.AspNetCore.Components.Authorization;
+//#if (localAuth)
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
+//#endif
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -61,6 +71,10 @@ internal sealed class PresentationHost : WebApplicationFactory<Program>
 
             services.RemoveAll<AuthenticationStateProvider>();
             services.AddScoped<AuthenticationStateProvider>(_ => new FixedAuthenticationStateProvider(_caller));
+            //#if (localAuth)
+
+            services.Configure<KeyManagementOptions>(options => options.XmlRepository = new InMemoryKeyRing());
+            //#endif
         });
     }
 
@@ -69,4 +83,15 @@ internal sealed class PresentationHost : WebApplicationFactory<Program>
         public override Task<AuthenticationState> GetAuthenticationStateAsync() =>
             Task.FromResult(new AuthenticationState(caller));
     }
+    //#if (localAuth)
+
+    private sealed class InMemoryKeyRing : IXmlRepository
+    {
+        private readonly ConcurrentQueue<XElement> _elements = new();
+
+        public IReadOnlyCollection<XElement> GetAllElements() => [.. _elements];
+
+        public void StoreElement(XElement element, string friendlyName) => _elements.Enqueue(element);
+    }
+    //#endif
 }

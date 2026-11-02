@@ -393,18 +393,7 @@ jobs:
       # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
-        run: |
-          set -euo pipefail
-          mapfile -t projects < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L 'Testcontainers' | sort)
-          if [ "${#projects[@]}" -eq 0 ]; then
-            echo "::error title=No test projects::Discovery found nothing to run in the generated project."
-            exit 1
-          fi
-          for project in "${projects[@]}"; do
-            echo "::group::$project"
-            dotnet test "$project" --configuration Release --no-build --output Detailed
-            echo "::endgroup::"
-          done
+        run: dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release
 
       # The projects the Docker-free step leaves out, against the runner's Docker: the HTTP surface the options change most.
       - name: Run the integration tests (Testcontainers)

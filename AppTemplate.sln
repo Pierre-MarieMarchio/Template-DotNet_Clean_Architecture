@@ -7,106 +7,106 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Src", "Src", "{827E0CD3-B72
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Domain", "Domain", "{8B290487-4C16-E85E-E807-F579CBE9FC4D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain", "Src\Domain\AppTemplate.Domain\AppTemplate.Domain.csproj", "{807423A9-76D4-4990-8E93-3E0305FB8827}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain", "Src\Domain\AT.Domain\AppTemplate.Domain.csproj", "{807423A9-76D4-4990-8E93-3E0305FB8827}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain.Core", "Src\Domain\AppTemplate.Domain.Core\AppTemplate.Domain.Core.csproj", "{45FE9B58-1084-442F-AB79-A10E1DB83004}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain.Core", "Src\Domain\AT.Domain.Core\AppTemplate.Domain.Core.csproj", "{45FE9B58-1084-442F-AB79-A10E1DB83004}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Application", "Application", "{22BAF98C-8415-17C4-B26A-D537657BC863}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application", "Src\Application\AppTemplate.Application\AppTemplate.Application.csproj", "{D5A7470B-89BC-4F46-A21B-A81C03CCA86D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application", "Src\Application\AT.Application\AppTemplate.Application.csproj", "{D5A7470B-89BC-4F46-A21B-A81C03CCA86D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Core", "Src\Application\AppTemplate.Application.Core\AppTemplate.Application.Core.csproj", "{F0306F2F-A40E-4A36-A641-5EE3CC420270}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Core", "Src\Application\AT.Application.Core\AppTemplate.Application.Core.csproj", "{F0306F2F-A40E-4A36-A641-5EE3CC420270}"
 EndProject
 #if (localAuth)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Auth", "Src\Application\AppTemplate.Application.Auth\AppTemplate.Application.Auth.csproj", "{C5C58AF0-FE6E-4860-BD4B-DF158D36594D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Auth", "Src\Application\AT.Application.Auth\AppTemplate.Application.Auth.csproj", "{C5C58AF0-FE6E-4860-BD4B-DF158D36594D}"
 EndProject
 #endif
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{9048EB7F-3875-A59E-E36B-5BD4C6F2A282}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Email", "Src\Infrastructure\AppTemplate.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj", "{4E3A92CC-E179-4BD2-AF0F-5BCAFD37FD54}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Email", "Src\Infrastructure\AT.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj", "{4E3A92CC-E179-4BD2-AF0F-5BCAFD37FD54}"
 EndProject
 #if (localAuth)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth", "Src\Infrastructure\AppTemplate.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj", "{82BE0110-2A7E-42E5-BD85-12D7F94AF01F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth", "Src\Infrastructure\AT.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj", "{82BE0110-2A7E-42E5-BD85-12D7F94AF01F}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Persistence", "Src\Infrastructure\AppTemplate.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj", "{8162CD3D-C8B1-43AC-884C-84B700E5CDEF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Persistence", "Src\Infrastructure\AT.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj", "{8162CD3D-C8B1-43AC-884C-84B700E5CDEF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.InMemory", "Src\Infrastructure\AppTemplate.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj", "{35E6820E-2E42-4330-BCBF-EB5A89E08AEC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.InMemory", "Src\Infrastructure\AT.Infrastructure.InMemory\AppTemplate.Infrastructure.InMemory.csproj", "{35E6820E-2E42-4330-BCBF-EB5A89E08AEC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Presentation", "Presentation", "{6996BBF7-DB31-59BC-C7DD-9A7CCC6138C4}"
 EndProject
 #if (api)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api", "Src\Presentation\AppTemplate.Api\AppTemplate.Api.csproj", "{486E2063-6ACE-43A1-8BDD-46BAB6FEBB95}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api", "Src\Presentation\AT.Api\AppTemplate.Api.csproj", "{486E2063-6ACE-43A1-8BDD-46BAB6FEBB95}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Presentation.Core", "Src\Presentation\AppTemplate.Presentation.Core\AppTemplate.Presentation.Core.csproj", "{94C8988A-429F-40C8-B9EE-6211C4A52FDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Presentation.Core", "Src\Presentation\AT.Presentation.Core\AppTemplate.Presentation.Core.csproj", "{94C8988A-429F-40C8-B9EE-6211C4A52FDF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain.UnitTests", "Tests\Domain\AppTemplate.Domain.UnitTests\AppTemplate.Domain.UnitTests.csproj", "{952D43FC-9FC2-4795-A1FF-03CC6AF61E80}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain.UnitTests", "Tests\Domain\AT.Domain.UnitTests\AppTemplate.Domain.UnitTests.csproj", "{952D43FC-9FC2-4795-A1FF-03CC6AF61E80}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain.Core.UnitTests", "Tests\Domain\AppTemplate.Domain.Core.UnitTests\AppTemplate.Domain.Core.UnitTests.csproj", "{F148EE14-0CFE-42DD-86D8-1932C4C72BB2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Domain.Core.UnitTests", "Tests\Domain\AT.Domain.Core.UnitTests\AppTemplate.Domain.Core.UnitTests.csproj", "{F148EE14-0CFE-42DD-86D8-1932C4C72BB2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.UnitTests", "Tests\Application\AppTemplate.Application.UnitTests\AppTemplate.Application.UnitTests.csproj", "{3D38482F-A87A-436E-B15B-54BA9966486A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.UnitTests", "Tests\Application\AT.Application.UnitTests\AppTemplate.Application.UnitTests.csproj", "{3D38482F-A87A-436E-B15B-54BA9966486A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Core.UnitTests", "Tests\Application\AppTemplate.Application.Core.UnitTests\AppTemplate.Application.Core.UnitTests.csproj", "{B6450A2A-3ABF-45EC-8AF4-89F6DB2831B7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Core.UnitTests", "Tests\Application\AT.Application.Core.UnitTests\AppTemplate.Application.Core.UnitTests.csproj", "{B6450A2A-3ABF-45EC-8AF4-89F6DB2831B7}"
 EndProject
 #if (localAuth)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Auth.UnitTests", "Tests\Application\AppTemplate.Application.Auth.UnitTests\AppTemplate.Application.Auth.UnitTests.csproj", "{5C0BC300-34E0-46FD-B712-E2FE305614AC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Application.Auth.UnitTests", "Tests\Application\AT.Application.Auth.UnitTests\AppTemplate.Application.Auth.UnitTests.csproj", "{5C0BC300-34E0-46FD-B712-E2FE305614AC}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Architecture.Tests", "Tests\Architecture\AppTemplate.Architecture.Tests\AppTemplate.Architecture.Tests.csproj", "{2F4EB9D4-96F0-4174-AC65-457A465613D1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Architecture.Tests", "Tests\Architecture\AT.Architecture.Tests\AppTemplate.Architecture.Tests.csproj", "{2F4EB9D4-96F0-4174-AC65-457A465613D1}"
 EndProject
 #if (api)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api.IntegrationTests", "Tests\Integration\AppTemplate.Api.IntegrationTests\AppTemplate.Api.IntegrationTests.csproj", "{940FD941-1D9C-4451-B84B-A3CF521A1824}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api.IntegrationTests", "Tests\Integration\AT.Api.IntegrationTests\AppTemplate.Api.IntegrationTests.csproj", "{940FD941-1D9C-4451-B84B-A3CF521A1824}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Persistence.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Persistence.UnitTests\AppTemplate.Infrastructure.Persistence.UnitTests.csproj", "{69394BB0-C501-466D-B2BC-05F99D1DC92F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Persistence.UnitTests", "Tests\Infrastructure\AT.Infrastructure.Persistence.UnitTests\AppTemplate.Infrastructure.Persistence.UnitTests.csproj", "{69394BB0-C501-466D-B2BC-05F99D1DC92F}"
 EndProject
 #if (localAuth)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Auth.UnitTests\AppTemplate.Infrastructure.Auth.UnitTests.csproj", "{0EE33EEE-8DDA-4D8C-B30F-6B28A43600FA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth.UnitTests", "Tests\Infrastructure\AT.Infrastructure.Auth.UnitTests\AppTemplate.Infrastructure.Auth.UnitTests.csproj", "{0EE33EEE-8DDA-4D8C-B30F-6B28A43600FA}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Email.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Email.UnitTests\AppTemplate.Infrastructure.Email.UnitTests.csproj", "{FA823C16-564E-4AB3-9645-9DA1BB387CE4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Email.UnitTests", "Tests\Infrastructure\AT.Infrastructure.Email.UnitTests\AppTemplate.Infrastructure.Email.UnitTests.csproj", "{FA823C16-564E-4AB3-9645-9DA1BB387CE4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.InMemory.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.InMemory.UnitTests\AppTemplate.Infrastructure.InMemory.UnitTests.csproj", "{2D3D5062-3FA0-432B-A08C-A2D029B5B4CF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.InMemory.UnitTests", "Tests\Infrastructure\AT.Infrastructure.InMemory.UnitTests\AppTemplate.Infrastructure.InMemory.UnitTests.csproj", "{2D3D5062-3FA0-432B-A08C-A2D029B5B4CF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Presentation", "Presentation", "{A63B96E9-70FC-0FDC-3588-905A57B46513}"
 EndProject
 #if (api)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api.UnitTests", "Tests\Presentation\AppTemplate.Api.UnitTests\AppTemplate.Api.UnitTests.csproj", "{14408293-E279-41AA-8D03-AE489B1EBC94}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Api.UnitTests", "Tests\Presentation\AT.Api.UnitTests\AppTemplate.Api.UnitTests.csproj", "{14408293-E279-41AA-8D03-AE489B1EBC94}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Presentation.Core.UnitTests", "Tests\Presentation\AppTemplate.Presentation.Core.UnitTests\AppTemplate.Presentation.Core.UnitTests.csproj", "{BED911C2-7483-4AFC-893A-380E17C95855}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Presentation.Core.UnitTests", "Tests\Presentation\AT.Presentation.Core.UnitTests\AppTemplate.Presentation.Core.UnitTests.csproj", "{BED911C2-7483-4AFC-893A-380E17C95855}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Integration", "Integration", "{28A6993C-471E-82FE-7D9E-AD3B1EC22BD9}"
 EndProject
 #if (localAuth)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth.IntegrationTests", "Tests\Integration\AppTemplate.Infrastructure.Auth.IntegrationTests\AppTemplate.Infrastructure.Auth.IntegrationTests.csproj", "{6A63B1ED-8153-44F3-9E5C-C0576B0890B0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Auth.IntegrationTests", "Tests\Integration\AT.Infrastructure.Auth.IntegrationTests\AppTemplate.Infrastructure.Auth.IntegrationTests.csproj", "{6A63B1ED-8153-44F3-9E5C-C0576B0890B0}"
 EndProject
 #endif
 #if (files)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Storage", "Src\Infrastructure\AppTemplate.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj", "{B4FE3D28-553C-4B09-B4E6-95E66D33A973}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Storage", "Src\Infrastructure\AT.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj", "{B4FE3D28-553C-4B09-B4E6-95E66D33A973}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Core", "Src\Infrastructure\AppTemplate.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj", "{A1C6E4D2-7F3B-4E58-9C21-6B0D5A8F2E13}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Core", "Src\Infrastructure\AT.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj", "{A1C6E4D2-7F3B-4E58-9C21-6B0D5A8F2E13}"
 EndProject
 #if (files)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Storage.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Storage.UnitTests\AppTemplate.Infrastructure.Storage.UnitTests.csproj", "{D3F03246-17BA-4CCE-BC2F-3C8E85DE2339}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Storage.UnitTests", "Tests\Infrastructure\AT.Infrastructure.Storage.UnitTests\AppTemplate.Infrastructure.Storage.UnitTests.csproj", "{D3F03246-17BA-4CCE-BC2F-3C8E85DE2339}"
 EndProject
 #endif
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Core.UnitTests", "Tests\Infrastructure\AppTemplate.Infrastructure.Core.UnitTests\AppTemplate.Infrastructure.Core.UnitTests.csproj", "{C7B9F150-2D64-4A83-8E17-3F5C90A6D4B2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Infrastructure.Core.UnitTests", "Tests\Infrastructure\AT.Infrastructure.Core.UnitTests\AppTemplate.Infrastructure.Core.UnitTests.csproj", "{C7B9F150-2D64-4A83-8E17-3F5C90A6D4B2}"
 EndProject
 #if (api)
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.EndToEnd.Tests", "Tests\EndToEnd\AppTemplate.EndToEnd.Tests\AppTemplate.EndToEnd.Tests.csproj", "{339042C2-8BA1-408E-8582-E2E94AAD9A1E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.EndToEnd.Tests", "Tests\EndToEnd\AT.EndToEnd.Tests\AppTemplate.EndToEnd.Tests.csproj", "{339042C2-8BA1-408E-8582-E2E94AAD9A1E}"
 EndProject
 #endif
 #if (dotnetClient)
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Clients", "Clients", "{00B920E4-100F-D869-D8B1-04B3A2ED45DA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Client", "Src\Clients\AppTemplate.Client\AppTemplate.Client.csproj", "{A9903934-96DE-4263-BF42-8174043F4C4C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Client", "Src\Clients\AT.Client\AppTemplate.Client.csproj", "{A9903934-96DE-4263-BF42-8174043F4C4C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Client.UnitTests", "Tests\Clients\AppTemplate.Client.UnitTests\AppTemplate.Client.UnitTests.csproj", "{591736B2-E0B8-48A5-9EBE-001F2985BA89}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTemplate.Client.UnitTests", "Tests\Clients\AT.Client.UnitTests\AppTemplate.Client.UnitTests.csproj", "{591736B2-E0B8-48A5-9EBE-001F2985BA89}"
 EndProject
 #endif
 Global

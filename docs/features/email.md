@@ -5,7 +5,7 @@ How this project sends mail, and how it picks the language a mail is written in.
 ## Sending
 
 Every mail goes through one port, `IEmailSender`
-(`Src/Application/AppTemplate.Application.Core/Common/Ports/IEmailSender.cs`), and one adapter
+(`Src/Application/AT.Application.Core/Common/Ports/IEmailSender.cs`), and one adapter
 chosen by `Email:Transport` at start-up:
 
 | `Email:Transport` | Adapter | Settings it reads |
@@ -54,7 +54,7 @@ languages of one mail sharing a subject.
 <!--#if (localAuth)-->
 | Mail | Sent when | Template folder |
 |---|---|---|
-| `Register` | a new or unconfirmed address registers | `Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/Accounts/Resources/Templates/` |
+| `Register` | a new or unconfirmed address registers | `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/` |
 | `AlreadyRegistered` | a confirmed address registers again, or is named by an address change | same |
 | `PasswordReset` | `forgot-password` names an account | same |
 | `EmailChange` | `change-email` names a free address | same |
@@ -63,7 +63,7 @@ languages of one mail sharing a subject.
 
 | Mail | Sent when | Template folder |
 |---|---|---|
-| `Reminder` | a reminder falls due, from the reminder job | `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/Reminders/` |
+| `Reminder` | a reminder falls due, from the reminder job | `Src/Infrastructure/AT.Infrastructure.Email/Features/Reminders/` |
 <!--#endif-->
 <!--#if (externalAuth)-->
 

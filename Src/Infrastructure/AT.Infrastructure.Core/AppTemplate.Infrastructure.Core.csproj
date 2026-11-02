@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsSdkProject>true</IsSdkProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <!--#if (sqlServer)
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    #elseif (sqlite)
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    #elseif (postgreSql)-->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!--#endif-->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AT.Application.Core\AppTemplate.Application.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Core.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

@@ -5,45 +5,45 @@ How each presentation project this project holds is created and composed, and ho
 ## What you get
 
 <!--#if (presentationBlazorServer)-->
-`Src/Presentation/<Project>.Portal` is the portal, a Blazor Web App with server interactivity. It runs on the
+`Src/Presentation/<Initials>.Portal` is the portal, a Blazor Web App with server interactivity. It runs on the
 server and calls the use cases in its own process, with its own composition in its `Program.cs`:
 the same features and modules as the other hosts, its own caller, its own sign-in, and neither jobs nor
 migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-Its tests are in `Tests/Presentation/<Project>.Portal.UnitTests`.
+Its tests are in `Tests/Presentation/<Initials>.Portal.UnitTests`.
 
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-`Src/Presentation/<Project>.Desktop` is the desktop app, an Avalonia app on the MVVM pattern, with
+`Src/Presentation/<Initials>.Desktop` is the desktop app, an Avalonia app on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
-client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI document
+client of `Src/Clients/<Initials>.Client`, generated from the API's OpenAPI document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-Its tests are in `Tests/Presentation/<Project>.Desktop.UnitTests`.
+Its tests are in `Tests/Presentation/<Initials>.Desktop.UnitTests`.
 
 <!--#endif-->
 <!--#if (presentationWpf)-->
-`Src/Presentation/<Project>.Desktop` is the desktop app, a WPF app for Windows on the MVVM pattern, with
+`Src/Presentation/<Initials>.Desktop` is the desktop app, a WPF app for Windows on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
-client of `Src/Clients/<Project>.Client`, generated from the API's OpenAPI document
+client of `Src/Clients/<Initials>.Client`, generated from the API's OpenAPI document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). The app targets
 `net10.0-windows` and holds its windows alone. Its view models, its settings, its host and its
-session are in `Src/Presentation/<Project>.Desktop.Core`, on `net10.0`, which references that client
+session are in `Src/Presentation/<Initials>.Desktop.Core`, on `net10.0`, which references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 The app builds on every system, with `EnableWindowsTargeting`, and runs on Windows. Its tests are in
-`Tests/Presentation/<Project>.Desktop.Core.UnitTests`, against the `.Core` project, and run on every
+`Tests/Presentation/<Initials>.Desktop.Core.UnitTests`, against the `.Core` project, and run on every
 system.
 
 <!--#endif-->
 <!--#if (presentationMcp)-->
-`Src/Presentation/<Project>.Mcp` is the MCP server, which speaks the Model Context Protocol: an agent's client, an
+`Src/Presentation/<Initials>.Mcp` is the MCP server, which speaks the Model Context Protocol: an agent's client, an
 assistant or an editor, connects to it over Streamable HTTP and calls its tools, each of which runs
 one use case in the server's own process. It has its own composition in its `Program.cs`: the same
 features and modules as the other hosts, its own caller, its own authentication, and neither jobs nor
 migrations ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 Every tool acts for the caller its credential names ([ADR 0027](../decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
-Its tests are in `Tests/Presentation/<Project>.Mcp.UnitTests`.
+Its tests are in `Tests/Presentation/<Initials>.Mcp.UnitTests`.
 
 <!--#endif-->
 ## Creating the project
@@ -306,7 +306,7 @@ a window: `Api`, the API's address, and `SignIn`, its client at the provider. Th
 leaves `SignIn:Authority` and `SignIn:ClientId` empty, so the app refuses to start until they are
 set. The [configuration reference](../reference/configuration.md#api) has the rows.
 <!--#endif--> Run the API, with `dotnet run Tools/Tasks.cs compose-up` or from its project, then the
-app with `dotnet run --project Src/Presentation/<Project>.Desktop`.
+app with `dotnet run --project Src/Presentation/<Initials>.Desktop`.
 <!--#if (presentationWpf)-->
 The app runs on Windows alone; elsewhere the solution still builds it and runs the `.Core` tests.
 <!--#endif-->

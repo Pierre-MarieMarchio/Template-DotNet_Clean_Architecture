@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+  <!--#if (reminders)-->
+  <ItemGroup>
+    <EmbeddedResource Include="Features/Reminders/*.html" WithCulture="false" />
+  </ItemGroup>
+  <!--#endif-->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AT.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AT.Application.Core\AppTemplate.Application.Core.csproj" />
+    <ProjectReference Include="..\AT.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Infrastructure.Email.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

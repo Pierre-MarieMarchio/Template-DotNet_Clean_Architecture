@@ -654,14 +654,15 @@ public sealed partial class Launcher
             detected,
             $"Add it to {project.Name}");
         string name = asked.Name!;
-        string folder = $"{project.Name}.{name}";
+        string presentation = $"{project.Name}.{name}";
+        string folder = project.FolderOf(name);
 
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
         Install(session, project.Root);
         session.Conversation.Perform($"Adding {name}", $"Added {name}", () => session.Dotnet.Run(project.Root, [manifest.ShortName, "-n", name, .. options], [PresentationJoinTask, PresentationScaffoldTask]));
 
-        string[] join = ["run", "Tools/Tasks.cs", PresentationJoinTask, folder];
-        string[] scaffold = ["run", "Tools/Tasks.cs", PresentationScaffoldTask, folder];
+        string[] join = ["run", "Tools/Tasks.cs", PresentationJoinTask, presentation];
+        string[] scaffold = ["run", "Tools/Tasks.cs", PresentationScaffoldTask, presentation];
         string joinLine = TemplateEngine.CommandLine("dotnet", join);
         string scaffoldLine = TemplateEngine.CommandLine("dotnet", scaffold);
         bool joined = RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folders", join);
@@ -714,7 +715,7 @@ public sealed partial class Launcher
     {
         if (!AppName().IsMatch(name))
         {
-            return $"use PascalCase, like Portal. {project.Name}.<name> becomes the project's name, folder and service.";
+            return $"use PascalCase, like Portal. {project.Name}.<name> becomes the project's name and service, in Src/Presentation/{project.FolderOf("<name>")}.";
         }
 
         var named = new Dictionary<string, string>(answers, StringComparer.Ordinal) { [_itemNameSymbol] = name };
@@ -723,7 +724,7 @@ public sealed partial class Launcher
             return refused.Explanation;
         }
 
-        string folder = Path.Combine(project.PresentationFolder, $"{project.Name}.{name}");
+        string folder = Path.Combine(project.PresentationFolder, project.FolderOf(name));
         return Directory.Exists(folder) ? "there's already a presentation project with that name." : null;
     }
 

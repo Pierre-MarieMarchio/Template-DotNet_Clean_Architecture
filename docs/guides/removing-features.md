@@ -52,14 +52,14 @@ Delete `Features/<Feature>/` in every layer that has one, and its mirror under `
 
 - TodoLists and Reminders in the domain, application, persistence and API; the API folders carry the
   jobs.
-- `Src/Infrastructure/AppTemplate.Infrastructure.Email/Features/` and
-  `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/Reminders/` with Reminders.
-- `Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
+- `Src/Infrastructure/AT.Infrastructure.Email/Features/` and
+  `Src/Infrastructure/AT.Infrastructure.InMemory/Features/Reminders/` with Reminders.
+- `Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
   and the integration folders `TodoLists/` and `Reminders/`.
 <!--#endif-->
 <!--#if (notes && api)-->
 - Notes in the application, persistence and API, and
-  `Tests/Presentation/AppTemplate.Api.UnitTests/Composition/NotesSavingTests.cs`.
+  `Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs`.
 <!--#endif-->
 <!--#if (notes && !api)-->
 - Notes in the application, persistence and each host.
@@ -75,9 +75,9 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 
 | File | Change |
 |---|---|
-| `Src/Application/AppTemplate.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
+| `Src/Application/AT.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
+| `Src/Infrastructure/AT.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
+| `Src/Infrastructure/AT.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
 <!--#if (presentationBlazorServer)-->
 | the portal's `Program.cs` | the `Add<Features>()` line |
 <!--#endif-->
@@ -86,28 +86,28 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | the MCP server's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
 <!--#endif-->
 <!--#if (api)-->
-| `Src/Presentation/AppTemplate.Api/Program.cs` | the `Add<Features>()` line |
+| `Src/Presentation/AT.Api/Program.cs` | the `Add<Features>()` line |
 <!--#endif-->
 <!--#if (jobsWorker)-->
-| `Src/Presentation/<Project>.Worker/Program.cs` | the same line |
+| `Src/Presentation/<Initials>.Worker/Program.cs` | the same line |
 <!--#endif-->
-| `Tests/Architecture/AppTemplate.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
-| `Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
+| `Tests/Architecture/AT.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
+| `Tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
 <!--#if (api)-->
-| `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
+| `Tests/Integration/AT.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
 <!--#endif-->
 <!--#endif-->
 <!--#if (todoLists)-->
 <!--#if (!jobsWorker)-->
-| `Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
-| `Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
+| `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
+| `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
 <!--#endif-->
 <!--#if (jobsWorker)-->
-| `Src/Presentation/<Project>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
-| `Src/Presentation/<Project>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
+| `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
+| `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
 <!--#endif-->
-| `Src/Infrastructure/AppTemplate.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
-| `Src/Infrastructure/AppTemplate.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
+| `Src/Infrastructure/AT.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
+| `Src/Infrastructure/AT.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
 <!--#endif-->
 <!--#if (todoLists || notes)-->
 
@@ -151,8 +151,8 @@ With Notes goes the only example of the simple shape.
 
 Files is a working capability: a product that stores files re-points it at its own bucket. To remove
 it, delete `Features/Files/` in every layer with its test mirrors, the integration folders `Files/` and
-`Storage/`, and the projects `Src/Infrastructure/AppTemplate.Infrastructure.Storage` and
-`Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests` with their solution entries. Then
+`Storage/`, and the projects `Src/Infrastructure/AT.Infrastructure.Storage` and
+`Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests` with their solution entries. Then
 edit:
 
 - the four registration files above, and `AddStorageModule` in `Program.cs`;
@@ -181,8 +181,8 @@ migration that drops the tables, and review it line by line.
 <!--#if (localAuth)-->
 ## Remove authentication
 
-Delete `Src/Application/AppTemplate.Application.Auth`, `Src/Infrastructure/AppTemplate.Infrastructure.Auth`
-and `Src/Presentation/AppTemplate.Api/Features/Auth` with their tests and solution entries, and the
+Delete `Src/Application/AT.Application.Auth`, `Src/Infrastructure/AT.Infrastructure.Auth`
+and `Src/Presentation/AT.Api/Features/Auth` with their tests and solution entries, and the
 `AddAuthFeature` line in `Program.cs`; the `identity` migration goes with its project. The host then
 owes an authentication scheme of its own and the `Administrator` policy.
 <!--#endif-->
@@ -200,7 +200,7 @@ with a directory over your provider, or remove Reminders too.
 
 ```bash
 dotnet run Tools/Tasks.cs verify
-docker build -f Src/Presentation/AppTemplate.Api/Dockerfile .
+docker build -f Src/Presentation/AT.Api/Dockerfile .
 ```
 
 The build catches the unused usings, the tests the counts, lists and migration, and the image build

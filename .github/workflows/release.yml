@@ -115,8 +115,8 @@ jobs:
       - name: Build the identity bundle
         run: |
           dotnet ef migrations bundle \
-            --project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
-            --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
+            --project Src/Infrastructure/AT.Infrastructure.Auth \
+            --startup-project Src/Infrastructure/AT.Infrastructure.Auth \
             --configuration "$CONFIGURATION" \
             --self-contained \
             --target-runtime linux-x64 \
@@ -127,8 +127,8 @@ jobs:
       - name: Build the business bundle
         run: |
           dotnet ef migrations bundle \
-            --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
-            --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
+            --project Src/Infrastructure/AT.Infrastructure.Persistence \
+            --startup-project Src/Infrastructure/AT.Infrastructure.Persistence \
             --configuration "$CONFIGURATION" \
             --self-contained \
             --target-runtime linux-x64 \
@@ -183,11 +183,11 @@ jobs:
         include:
           #if (api)
           - component: api
-            dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
+            dockerfile: Src/Presentation/AT.Api/Dockerfile
           #endif
           #if (jobsWorker)
           - component: worker
-            dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
+            dockerfile: Src/Presentation/AT.Worker/Dockerfile
           #endif
     permissions:
       contents: read

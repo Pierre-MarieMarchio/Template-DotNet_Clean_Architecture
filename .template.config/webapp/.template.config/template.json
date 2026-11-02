@@ -115,6 +115,41 @@
         ]
       }
     },
+    "projectFolderPrefixAnyCase": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "projectName",
+        "steps": [
+          {
+            "regex": "(?<=^|\\.)[^A-Za-z.]*([a-z])[^A-Z.]*(?=\\.|$)",
+            "replacement": "$1"
+          },
+          {
+            "regex": "[^A-Z.](?<=[A-Z][^.]*)|[^A-Z.](?=[^.]*[A-Z])",
+            "replacement": ""
+          },
+          {
+            "regex": "[^A-Za-z]",
+            "replacement": ""
+          },
+          {
+            "regex": "$",
+            "replacement": "."
+          }
+        ]
+      }
+    },
+    "projectFolderPrefix": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "projectFolderPrefixAnyCase",
+        "toLower": false
+      },
+      "replaces": "AT.",
+      "fileRename": "AT."
+    },
     "examples": {
       "type": "parameter",
       "displayName": "Project example features",
@@ -153,7 +188,7 @@
       "displayName": "Project holds the .NET client",
       "datatype": "bool",
       "defaultValue": "false",
-      "description": "The project holds Src/Clients/<project>.Client already, generated with --presentation avalonia, --presentation wpf or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia or wpf: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
+      "description": "The project holds Src/Clients/<initials>.Client already, generated with --presentation avalonia, --presentation wpf or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia or wpf: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
     },
     "auth": {
       "type": "parameter",
@@ -438,19 +473,19 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AppTemplate.Client/Common/Sessions/ApiSession.cs",
-            "AppTemplate.Client/Common/Sessions/ApiSessionHandler.cs",
-            "AppTemplate.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "AppTemplate.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "AppTemplate.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "AppTemplate.Client/Common/Sessions/RefreshTokenMode.cs"
+            "AT.Client/Common/Sessions/ApiSession.cs",
+            "AT.Client/Common/Sessions/ApiSessionHandler.cs",
+            "AT.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "AT.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "AT.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "AT.Client/Common/Sessions/RefreshTokenMode.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AppTemplate.Client/Common/Sessions/AccessTokenHandler.cs",
-            "AppTemplate.Client/Common/Sessions/IAccessTokenSource.cs"
+            "AT.Client/Common/Sessions/AccessTokenHandler.cs",
+            "AT.Client/Common/Sessions/IAccessTokenSource.cs"
           ]
         }
       ]
@@ -467,14 +502,14 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AppTemplate.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "AT.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AppTemplate.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "AppTemplate.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "AT.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "AT.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         }
       ]

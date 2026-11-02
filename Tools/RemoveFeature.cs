@@ -25,8 +25,6 @@ internal static class RemoveFeature
 
     private static readonly Regex _declaration = new(@"\b(?:(?:record\s+)?(?:class|struct)|interface|record|enum)\s+([A-Z]\w*)", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    private static readonly Regex _productPrefix = new(@"^(?:Src|Tests)/[^/]+/(.+?)\.(?:Domain|Application|Infrastructure|Presentation|Api)\b", RegexOptions.None, TimeSpan.FromSeconds(1));
-
     private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private static readonly HashSet<string> _skippedFolders = new(StringComparer.Ordinal)
@@ -282,7 +280,7 @@ internal static class RemoveFeature
         extra.Sort(StringComparer.Ordinal);
 
         var declared = manifest is null ? [] : DeclaredTypes(root, manifest, manifest.Type);
-        string? product = manifest?.Files.Select(entry => _productPrefix.Match(entry.Path)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
+        string? product = manifest is null ? null : ProductName(root);
         var hits = Scan(root, features, manifest?.Type, declared, product, folders, listed, manifestPath);
 
         if (modified.Count > 0)
@@ -847,12 +845,28 @@ internal static class RemoveFeature
         output.WriteLine();
         output.WriteLine("After a removal, run:");
         output.WriteLine("  dotnet build <the solution>                  0 warnings, 0 errors");
-        output.WriteLine("  dotnet test Tests/Architecture/<Prefix>.Architecture.Tests");
+        output.WriteLine("  dotnet test Tests/Architecture/<Initials>.Architecture.Tests");
         output.WriteLine("  dotnet run Tools/Tasks.cs format");
         output.WriteLine(HasApi(root)
             ? "  git status                                   review what is left, including docs/ and *.http samples"
             : "  git status                                   review what is left, including docs/");
         output.WriteLine("  a migration that drops the feature's tables, if a database applied one; never rewrite an applied migration");
+    }
+
+    private static string? ProductName(string root)
+    {
+        string projectFile = Path.Combine(root, "cleanarch.json");
+
+        if (!File.Exists(projectFile))
+        {
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(File.ReadAllBytes(projectFile));
+
+        return document.RootElement.TryGetProperty("name", out JsonElement name) && name.GetString() is { Length: > 0 } product
+            ? product
+            : null;
     }
 
     private static bool HasApi(string root)
@@ -1072,10 +1086,10 @@ internal static class RemoveFeature
 
     private static readonly string[] _skeletonFiles =
     [
-        "Src/Domain/Acme.Domain/Features/Widgets/Model/Entities/Widget.cs",
-        "Src/Application/Acme.Application/Features/Widgets/Services/WidgetService.cs",
-        "Src/Application/Acme.Application/Features/Widgets/UseCases/Queries/GetWidget/GetWidgetQuery.cs",
-        "Tests/Application/Acme.Application.UnitTests/Features/Widgets/WidgetServiceTests.cs",
+        "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Widget.cs",
+        "Src/Application/A.Application/Features/Widgets/Services/WidgetService.cs",
+        "Src/Application/A.Application/Features/Widgets/UseCases/Queries/GetWidget/GetWidgetQuery.cs",
+        "Tests/Application/A.Application.UnitTests/Features/Widgets/WidgetServiceTests.cs",
     ];
 
     private static string Declarations(string name) => name switch
@@ -1095,9 +1109,9 @@ internal static class RemoveFeature
             Put(root, file, "namespace Acme;\n// " + file + "\n" + Declarations(Path.GetFileNameWithoutExtension(file)));
         }
 
-        Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
-        Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "public const string TodoListsSchema = \"todo_lists\";\n");
-        Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/20240101_InitialCreate.cs", "schema: \"todo_lists\"\n");
+        Put(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddTodoLists();\n");
+        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "public const string TodoListsSchema = \"todo_lists\";\n");
+        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/20240101_InitialCreate.cs", "schema: \"todo_lists\"\n");
         Put(root, "README.md", "A template.\n");
 
         var json = new StringBuilder("{\n  \"schemaVersion\": 1,\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Widgets\",\n  \"type\": \"Widget\",\n  \"files\": [\n");
@@ -1125,7 +1139,7 @@ internal static class RemoveFeature
         expect(_skeletonFiles.All(file => !File.Exists(Path.Combine(root, file))), "A generated file was left behind.");
         expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), "The manifest or its folder was left behind.");
         expect(!after.Keys.Any(key => key.Contains("Widgets", StringComparison.Ordinal)), "A folder of the feature was left behind.");
-        expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/Acme.Api/Program.cs")), "A file the feature did not own was deleted.");
+        expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/A.Api/Program.cs")), "A file the feature did not own was deleted.");
 
         var again = Invoke(root, "Widgets", "--apply");
 
@@ -1147,27 +1161,27 @@ internal static class RemoveFeature
 
         Refused("modified file", tree => File.AppendAllText(Path.Combine(tree, _skeletonFiles[1]), "// edited\n"), "edited since");
         Refused("missing file", tree => File.Delete(Path.Combine(tree, _skeletonFiles[0])), "are gone");
-        Refused("extra file", tree => Put(tree, "Src/Domain/Acme.Domain/Features/Widgets/Model/Entities/Extra.cs", "x\n"), "added to the feature's generated folders");
-        Refused("extra file in a new subfolder", tree => Put(tree, "Tests/Application/Acme.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "added to the feature's generated folders");
-        Refused("outside reference", tree => Put(tree, "Tests/Other/Acme.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;\n"), "use(s) of the feature's types");
+        Refused("extra file", tree => Put(tree, "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Extra.cs", "x\n"), "added to the feature's generated folders");
+        Refused("extra file in a new subfolder", tree => Put(tree, "Tests/Application/A.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "added to the feature's generated folders");
+        Refused("outside reference", tree => Put(tree, "Tests/Other/A.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;\n"), "use(s) of the feature's types");
         Refused("outside use of a type", tree => Put(tree, "Src/Other/Uses.cs", "var s = new WidgetService();\n"), "use(s) of the feature's types");
-        Refused("a migration mentions it", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "b.ToTable(\"widgets\", \"widgets\");\nusing Acme.Persistence.Features.Widgets.Rows.Models;\n"), "migration or snapshot");
-        Refused("a snapshot mentions its record", tree => Put(tree, "Src/Infrastructure/Acme.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "modelBuilder.Entity(\"Acme.WidgetRecord\", b => { });\n"), "migration or snapshot");
-        Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(_skeletonFiles[0], "Src/Domain/Acme.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
+        Refused("a migration mentions it", tree => Put(tree, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "b.ToTable(\"widgets\", \"widgets\");\nusing Acme.Persistence.Features.Widgets.Rows.Models;\n"), "migration or snapshot");
+        Refused("a snapshot mentions its record", tree => Put(tree, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "modelBuilder.Entity(\"Acme.WidgetRecord\", b => { });\n"), "migration or snapshot");
+        Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(_skeletonFiles[0], "Src/Domain/A.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
 
         string[] edits =
         [
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|public const string WidgetsSchema = \"widgets\";",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|internal DbSet<WidgetRecord> Widgets => Set<WidgetRecord>();",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|modelBuilder.ApplyConfiguration(new WidgetRecordConfiguration());",
-            "Src/Application/Acme.Application/ApplicationModule.cs|services.AddWidgets();",
-            "Src/Application/Acme.Application/ApplicationModule.cs|services.AddFeature(\"Widgets\");",
-            "Src/Application/Acme.Application/ApplicationModule.cs|services.AddScoped<IWidgetService, WidgetService>();",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/PersistenceModule.cs|AddWidgetsFeature(services);",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/PersistenceModule.cs|services.TryAddScoped<IWidgetStore, WidgetStore>();",
-            "Src/Presentation/Acme.Api/Program.cs|builder.Services.AddWidgets();",
-            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|services.AddWidgets();",
-            "Tests/Application/Acme.Application.UnitTests/ApplicationModuleTests.cs|services.AddWidgets();",
+            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|public const string WidgetsSchema = \"widgets\";",
+            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|internal DbSet<WidgetRecord> Widgets => Set<WidgetRecord>();",
+            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|modelBuilder.ApplyConfiguration(new WidgetRecordConfiguration());",
+            "Src/Application/A.Application/ApplicationModule.cs|services.AddWidgets();",
+            "Src/Application/A.Application/ApplicationModule.cs|services.AddFeature(\"Widgets\");",
+            "Src/Application/A.Application/ApplicationModule.cs|services.AddScoped<IWidgetService, WidgetService>();",
+            "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs|AddWidgetsFeature(services);",
+            "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs|services.TryAddScoped<IWidgetStore, WidgetStore>();",
+            "Src/Presentation/A.Api/Program.cs|builder.Services.AddWidgets();",
+            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|services.AddWidgets();",
+            "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs|services.AddWidgets();",
         ];
 
         foreach (string edit in edits)
@@ -1252,12 +1266,12 @@ internal static class RemoveFeature
     {
         foreach (string project in new[]
         {
-            "Src/Domain/Acme.Domain", "Src/Application/Acme.Application", "Src/Infrastructure/Acme.Infrastructure.Persistence",
-            "Src/Presentation/Acme.Api", "Tests/Application/Acme.Application.UnitTests", "Tests/Domain/Acme.Domain.UnitTests",
-            "Tests/Infrastructure/Acme.Infrastructure.Persistence.UnitTests", "Tests/Presentation/Acme.Api.UnitTests",
+            "Src/Domain/A.Domain", "Src/Application/A.Application", "Src/Infrastructure/A.Infrastructure.Persistence",
+            "Src/Presentation/A.Api", "Tests/Application/A.Application.UnitTests", "Tests/Domain/A.Domain.UnitTests",
+            "Tests/Infrastructure/A.Infrastructure.Persistence.UnitTests", "Tests/Presentation/A.Api.UnitTests",
         })
         {
-            Put(root, $"{project}/{Path.GetFileName(project)}.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
+            Put(root, $"{project}/Acme{Path.GetFileName(project)[1..]}.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
         }
 
         Put(root, "cleanarch.json", "{\n  \"name\": \"Acme\"\n}\n");
@@ -1269,18 +1283,18 @@ internal static class RemoveFeature
 
         Projects(root);
 
-        Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
-        Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
-        Put(root, "Src/Application/Acme.Application.Core/Common/Ports/ICurrentUser.cs", "public interface ICurrentUser;\n");
-        Put(root, "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
-        Put(root, "Src/Application/Acme.Application.Core/Common/Events/UserAccountDeleted.cs", "/// rather than trusting delivery, see <c>IDeletedAccountDataPolicy</c>;\npublic sealed record UserAccountDeleted;\n");
-        Put(root, "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "services.AddMaintenanceJobs(configuration);\n");
-        Put(root, "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
+        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+        Put(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
+        Put(root, "Src/Application/A.Application.Core/Common/Ports/ICurrentUser.cs", "public interface ICurrentUser;\n");
+        Put(root, "Src/Application/A.Application.Core/ApplicationCoreModule.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
+        Put(root, "Src/Application/A.Application.Core/Common/Events/UserAccountDeleted.cs", "/// rather than trusting delivery, see <c>IDeletedAccountDataPolicy</c>;\npublic sealed record UserAccountDeleted;\n");
+        Put(root, "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "services.AddMaintenanceJobs(configuration);\n");
+        Put(root, "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "services.AddPurgeExpiredIdempotencyKeys();\n");
         Put(
             root,
             adapter == "Auth"
-                ? "Src/Presentation/Acme.Api/Features/Auth/Composition/AuthComposition.cs"
-                : "Src/Presentation/Acme.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs",
+                ? "Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs"
+                : "Src/Presentation/A.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs",
             "services.AddScoped<ICurrentUser, CurrentUser>();\n");
 
         return root;
@@ -1288,13 +1302,13 @@ internal static class RemoveFeature
 
     private static readonly string[] _sharedFiles =
     [
-        "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
-        "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-        "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
-        "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
-        "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
-        "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
-        "Src/Presentation/Acme.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
+        "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+        "Src/Application/A.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+        "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
+        "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+        "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+        "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+        "Src/Presentation/A.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
     ];
 
     private static void SharedFilesCases(string scratch, Action<bool, string> expect)
@@ -1368,19 +1382,19 @@ internal static class RemoveFeature
 
         Put(
             journal,
-            "Src/Application/Acme.Application/Features/Journal/Services/Consumers/DeleteJournalOnAccountDeletedConsumer.cs",
+            "Src/Application/A.Application/Features/Journal/Services/Consumers/DeleteJournalOnAccountDeletedConsumer.cs",
             "// Deletes a journal when its account is.\ninternal sealed class DeleteJournalOnAccountDeletedConsumer(IUserAccountDirectory accounts) : IDeletedAccountDataPolicy;\n");
         Refused("(d) a hand-made owner feature", journal, "Widgets", "Journal (no manifest)");
 
         string[] registrations =
         [
-            "Src/Application/Acme.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
-            "Src/Presentation/Acme.Api/Program.cs|builder.Services.AddDeletedAccountSweep();",
-            "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs|services.AddDeletedAccountSweepJobs(configuration);",
-            "Src/Presentation/Acme.Api/Features/Auth/Composition/AuthComposition.cs|services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();",
-            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|services.AddDeletedAccountSweep();",
-            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();",
-            "Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs|internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory",
+            "Src/Application/A.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
+            "Src/Presentation/A.Api/Program.cs|builder.Services.AddDeletedAccountSweep();",
+            "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs|services.AddDeletedAccountSweepJobs(configuration);",
+            "Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs|services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();",
+            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|services.AddDeletedAccountSweep();",
+            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();",
+            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory",
         ];
 
         foreach (string registration in registrations)
@@ -1399,14 +1413,14 @@ internal static class RemoveFeature
 
         string added = WithWidgets();
 
-        Put(added, "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", "x\n");
+        Put(added, "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", "x\n");
         Refused("(g) a file added beside the sweep", added, "Widgets", "added to the feature's generated folders");
 
         string external = BareTree(scratch, "ExternalIdentity");
         var beforeExternal = Snapshot(external);
 
         expect(Generate(external, widgets) == 0, "(h) the generator refused Widgets in an externally authenticated bare tree.");
-        expect(File.Exists(Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")), "(h) the external account directory was not written.");
+        expect(File.Exists(Path.Combine(external, "Src/Presentation/A.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")), "(h) the external account directory was not written.");
         expect(Invoke(external, "Widgets", "--apply").Code == 0, "(h) the only owner feature of an externally authenticated tree was refused.");
         expect(Same(beforeExternal, Snapshot(external)), "(h) after removing it the tree is not the bare one.");
 
@@ -1495,9 +1509,9 @@ internal static class RemoveFeature
 
     private static void Ground(string root)
     {
-        Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
-        Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
-        Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+        Put(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddTodoLists();\n");
+        Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
     }
 
     private static void NameCollisionCases(string scratch, Action<bool, string> expect)
@@ -1519,8 +1533,8 @@ internal static class RemoveFeature
 
                 Projects(root);
                 Ground(root);
-                Put(root, "Src/Presentation/Acme.Api/Noise.cs", Noise);
-                Put(root, "Tests/Presentation/Acme.Api.UnitTests/ControllerContractTests.cs", Noise);
+                Put(root, "Src/Presentation/A.Api/Noise.cs", Noise);
+                Put(root, "Tests/Presentation/A.Api.UnitTests/ControllerContractTests.cs", Noise);
 
                 string label = $"{row[0]} ({model})";
 
@@ -1543,7 +1557,7 @@ internal static class RemoveFeature
         Projects(used);
         Ground(used);
         expect(Generate(used, "Notes", "Note", "--access", "shared") == 0, "The generator refused Notes for the use case.");
-        Put(used, "Src/Application/Acme.Application/Features/Reminders/Services/ReminderService.cs", "public sealed class ReminderService(INoteService notes);\n");
+        Put(used, "Src/Application/A.Application/Features/Reminders/Services/ReminderService.cs", "public sealed class ReminderService(INoteService notes);\n");
 
         var injected = Invoke(used, "Notes", "--apply");
 
@@ -1557,7 +1571,7 @@ internal static class RemoveFeature
 
         string consumer = Directory.EnumerateFiles(registered, "*OnAccountDeleted*.cs", SearchOption.AllDirectories).Select(Path.GetFileNameWithoutExtension).FirstOrDefault() ?? "none";
 
-        Put(registered, "Src/Presentation/Acme.Api/Wiring.cs", $"services.AddScoped<{consumer}>();\n");
+        Put(registered, "Src/Presentation/A.Api/Wiring.cs", $"services.AddScoped<{consumer}>();\n");
 
         var wired = Invoke(registered, "Widgets", "--apply");
 
@@ -1580,10 +1594,10 @@ internal static class RemoveFeature
 
             Projects(root);
 
-            Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
-            Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
+            Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+            Put(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddTodoLists();\n");
 
-            Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+            Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
 
             var original = Snapshot(root);
 
@@ -1597,14 +1611,14 @@ internal static class RemoveFeature
 
             expect(report.Code == 0 && Same(generated, Snapshot(root)) && report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The report on a fresh {features} changed the tree or found a blocker: {report.Output}");
 
-            File.AppendAllText(Path.Combine(root, "Src/Presentation/Acme.Api/Program.cs"), $"builder.Services.Add{features}();\n");
+            File.AppendAllText(Path.Combine(root, "Src/Presentation/A.Api/Program.cs"), $"builder.Services.Add{features}();\n");
 
             var composedSnapshot = Snapshot(root);
             var composed = Invoke(root, features, "--apply");
 
             expect(composed.Code == 1 && Same(composedSnapshot, Snapshot(root)), $"{features} was removed although its registration was in Program.cs.");
 
-            Put(root, "Src/Presentation/Acme.Api/Program.cs", "builder.Services.AddTodoLists();\n");
+            Put(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddTodoLists();\n");
 
             var applied = Invoke(root, features, "--apply");
 
@@ -1632,12 +1646,12 @@ internal static class RemoveFeature
             string features = combination[0];
 
             Projects(root);
-            Directory.Delete(Path.Combine(root, "Src/Presentation/Acme.Api"), recursive: true);
-            Directory.Delete(Path.Combine(root, "Tests/Presentation/Acme.Api.UnitTests"), recursive: true);
+            Directory.Delete(Path.Combine(root, "Src/Presentation/A.Api"), recursive: true);
+            Directory.Delete(Path.Combine(root, "Tests/Presentation/A.Api.UnitTests"), recursive: true);
 
-            Put(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
-            Put(root, "Src/Presentation/Acme.Portal/Program.cs", "builder.Services.AddTodoLists();\n");
-            Put(root, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+            Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "// the context a person edits\n");
+            Put(root, "Src/Presentation/A.Portal/Program.cs", "builder.Services.AddTodoLists();\n");
+            Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
 
             var original = Snapshot(root);
 
@@ -1654,14 +1668,14 @@ internal static class RemoveFeature
                 $"The report on a fresh {features} without the API changed the tree or found a blocker: {report.Output}");
             expect(!report.Output.Contains(".http", StringComparison.Ordinal), $"The report on {features} without the API pointed at HTTP samples it cannot hold.");
 
-            File.AppendAllText(Path.Combine(root, "Src/Presentation/Acme.Portal/Program.cs"), $"builder.Services.Add{features}();\n");
+            File.AppendAllText(Path.Combine(root, "Src/Presentation/A.Portal/Program.cs"), $"builder.Services.Add{features}();\n");
 
             var composedSnapshot = Snapshot(root);
             var composed = Invoke(root, features, "--apply");
 
             expect(composed.Code == 1 && Same(composedSnapshot, Snapshot(root)), $"{features} was removed although its registration was in the portal's Program.cs.");
 
-            Put(root, "Src/Presentation/Acme.Portal/Program.cs", "builder.Services.AddTodoLists();\n");
+            Put(root, "Src/Presentation/A.Portal/Program.cs", "builder.Services.AddTodoLists();\n");
 
             var applied = Invoke(root, features, "--apply");
 

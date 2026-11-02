@@ -25,16 +25,16 @@
 # and any appsettings.Production.json a developer drops in locally.
 **/appsettings*.json
 #if (presentationMcp)
-!Src/Presentation/AppTemplate.PresentationAppMcp/appsettings.json
+!Src/Presentation/AT.PresentationAppMcp/appsettings.json
 #endif
 #if (presentationBlazorServer)
-!Src/Presentation/AppTemplate.PresentationAppPortal/appsettings.json
+!Src/Presentation/AT.PresentationAppPortal/appsettings.json
 #endif
 #if (api)
-!Src/Presentation/AppTemplate.Api/appsettings.json
+!Src/Presentation/AT.Api/appsettings.json
 #endif
 #if (jobsWorker)
-!Src/Presentation/AppTemplate.Worker/appsettings.json
+!Src/Presentation/AT.Worker/appsettings.json
 #endif
 
 **/*.pfx

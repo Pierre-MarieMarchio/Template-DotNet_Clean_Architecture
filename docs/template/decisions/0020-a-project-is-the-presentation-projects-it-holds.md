@@ -44,7 +44,7 @@ switches and `isRequired` alike.
   their shared settings from `x-host-environment` in `docker-compose.yml`, and `new-feature`,
   `new-use-case` and `remove-feature` write and remove every layer of a feature but the HTTP one:
   no controller, contract or API test, and the edits and rows they print name the hosts'
-  `Program.cs`, never the API; they tell the shape from whether `Src/Presentation/<Project>.Api`
+  `Program.cs`, never the API; they tell the shape from whether `Src/Presentation/<Initials>.Api`
   exists. The acceptance leg `no api, blazor server, mcp and worker, external auth, no agent files`
   generates, builds and tests that shape.
 - **The worker is added for the jobs.** A project holding neither the API nor the worker would run
@@ -56,7 +56,7 @@ switches and `isRequired` alike.
   `presentationNeedsTheApi` refuses a desktop client, or the MCP server under local accounts, in a
   project without it.
 - **Every refusal keeps its shape**, a hidden parameter with a conditional `isRequired`, mirrored in
-  `refusedOptions` and in the `#error` variant, now under `Src/Presentation/<Project>.Presentation.Core`,
+  `refusedOptions` and in the `#error` variant, now under `Src/Presentation/<Initials>.Presentation.Core`,
   which every project holds.
 
 ## Alternatives considered

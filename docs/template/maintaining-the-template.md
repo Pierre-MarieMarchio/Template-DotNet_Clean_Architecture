@@ -14,7 +14,7 @@ still holds.
 | `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
-| `api-client --check` | `Src/Clients/AppTemplate.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
+| `api-client --check` | `Src/Clients/AT.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
 
 Each gate runs its `--self-test` first, against fixtures that must make it fire and fixtures that
 must leave it silent, and fails when it examined nothing. A rule added to a gate comes with the fixture
@@ -232,13 +232,13 @@ and the application never name a provider.
 
 | Overlaid file | Supplies |
 |---|---|
-| `Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs` | `DesignTimeConnectionString`, `VersionColumnName`, both `UseDatabase` overloads (design time, and run time with `DatabaseOptions` and `ContextMigrations`), `ApplyDatabaseConventions`, `IsVersion`, `IncludingColumns`, `WhereColumnEquals`, `IsUniqueViolation`, `DedicatedConnectionString` |
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/LeaderLease.cs` | `LeaderLease`, the `ILeaderLease` adapter, constructed from `IConfiguration` and a logger |
-| `Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs` | `OwnerQuotaLock`, constructed from the connection string and a logger, throwing `OwnerQuotaLockTimeoutException` after `WaitLimit` |
-| `Src/Presentation/AppTemplate.Api/Common/Observability/DatabaseInstrumentation.cs` | the provider's tracing and metrics, or none |
+| `Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs` | `DesignTimeConnectionString`, `VersionColumnName`, both `UseDatabase` overloads (design time, and run time with `DatabaseOptions` and `ContextMigrations`), `ApplyDatabaseConventions`, `IsVersion`, `IncludingColumns`, `WhereColumnEquals`, `IsUniqueViolation`, `DedicatedConnectionString` |
+| `Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/LeaderLease.cs` | `LeaderLease`, the `ILeaderLease` adapter, constructed from `IConfiguration` and a logger |
+| `Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs` | `OwnerQuotaLock`, constructed from the connection string and a logger, throwing `OwnerQuotaLockTimeoutException` after `WaitLimit` |
+| `Src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs` | the provider's tracing and metrics, or none |
 | `docker-compose.database.yml` | the `db` service and the `database-client` service whose environment gives the api `ConnectionStrings__Default`; SQLite declares only `database-client`, which mounts the `db-data` volume |
-| `Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`, and `Table(schema, table)`, the name a test's raw SQL uses; the API one adds `TablesSql`, `ResetSql`, `SchemasSql`, `HistorySchemasSql(table)`, and `Value` and `Literal` for a `Guid` or a `DateTimeOffset` as the provider stores it; the Auth one adds `TransientFault` |
-| `Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs`, `Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs` | the provider's own unit tests and faults; an overlay may leave one out by a `template.json` exclusion |
+| `Tests/Integration/AT.Api.IntegrationTests/Infrastructure/DatabaseServer.cs`, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs` | the test server: `Image` (one `docker-compose.database.yml` runs), `ConnectionString`, `StartAsync`, `DisposeAsync`, and `Table(schema, table)`, the name a test's raw SQL uses; the API one adds `TablesSql`, `ResetSql`, `SchemasSql`, `HistorySchemasSql(table)`, and `Value` and `Literal` for a `Guid` or a `DateTimeOffset` as the provider stores it; the Auth one adds `TransientFault` |
+| `Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs`, `Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs`, `Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs`, `Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs` | the provider's own unit tests and faults; an overlay may leave one out by a `template.json` exclusion |
 
 A provider without `xmin` registers `VersionStampingSaveChangesInterceptor` from its run-time
 `UseDatabase`, which the modules call after the saving interceptors; `IsVersion` makes `Version` a
@@ -247,7 +247,7 @@ plain concurrency token. A provider without schemas adds `SchemaAsTablePrefixCon
 tested on SQLite here, and shipped only under `versionCounter` and `tablePrefixes`.
 
 The shared files carry every provider's lines already: the package references of
-`Src/Infrastructure/AppTemplate.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
+`Src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
 two integration projects, the versions in `Directory.Packages.props`, the variables of `.env.example`,
 and the `developmentConnectionString` switch that rewrites `appsettings.Development.json`. An overlay's
 compose file uses the variable names `.env.example` gives it.
@@ -408,7 +408,7 @@ surface. `needsWorker` brings the worker to a project whose hosts hold neither t
 worker, so that some host runs the jobs; `workerNeedsServerDatabase` refuses the worker, chosen or
 brought, with SQLite, and `desktopIsOneFramework` Avalonia and WPF together.
 `.template.config/starters/blazor-server` holds the project's own files at their paths in a project:
-`.template.config/starters/blazor-server/Src/Presentation/AppTemplate.PresentationAppPortal` (its `scaffold.json`, project file,
+`.template.config/starters/blazor-server/Src/Presentation/AT.PresentationAppPortal` (its `scaffold.json`, project file,
 `Program.cs`, settings, `Dockerfile` and wiring), and its test project beside them under `Tests/`; the
 project template copies the folder into the project's root under `presentationBlazorServer`.
 `.template.config/starters/avalonia` holds a desktop client's the same way, copied under
@@ -457,7 +457,8 @@ desktop client, or the MCP server under local accounts, in a project without it.
 in, so it declares what the starter's markers read as parameters and computed symbols of the same
 names, values, defaults and refusals as `template.json`; `-n` replaces the starter's token and
 `--project-name` replaces `AppTemplate` in the two spellings the source name gives it, the name and
-its lower-case namespace. `ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem`
+its lower-case namespace, and its initials replace the folders' token, as [project folders](#project-folders)
+says. `ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem`
 fails when a symbol the starters read is missing or differs, or when the two templates leave out
 different files. What `--presentation` writes outside the project's folders, an item template
 cannot edit: the starter's `README.md` lists each of those lines under "Joining a project generated
@@ -526,7 +527,7 @@ included; `--check` fails until you do.
 
 ## The .NET client
 
-`Src/Clients/AppTemplate.Client` and its tests are built and tested in this checkout, and reach a
+`Src/Clients/AT.Client` and its tests are built and tested in this checkout, and reach a
 generated project only when `dotnetClient` is true, which `--presentation avalonia` and
 `--presentation wpf` set, or through `cleanarch-presentation --framework avalonia` or `wpf`. Its session is written under `localAuth`, its
 validation problem under `localAuth || anyFeature`, the two shapes whose document holds them.
@@ -562,6 +563,24 @@ shapes the defaults leave out, so `ProjectFileTests` reads them as absent, in a 
 block. A new option that is not a part gets its key in `cleanarch.json` and in the three variants,
 a generated symbol that replaces it, its place in the list of `.template.config/acceptance/CheckProjectFile.cs`, and a check in
 `ProjectFileTests` when the tree shows it.
+
+## Project folders
+
+A project's folder carries the project's initials in place of its name
+([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md)), so
+this checkout's folders start with `AT.` and its project files with `AppTemplate.`. The two
+generated symbols `projectFolderPrefixAnyCase` and `projectFolderPrefix` compute the initials from the
+name and replace `AT.` in every path and file; `cleanarch-presentation` and `cleanarch-webapp`
+declare the same two from `--project-name`. The tasks, the generators, the launcher and the
+architecture tests each compute a folder with a `SegmentInitials` of their own, since a file-based
+program shares no code.
+
+| Rule | Test |
+|---|---|
+| The three templates compute the same initials as the tools, for names with and without capitals | `TemplatePackagingTests.TheFolderSymbol_GivesTheProductsInitials_AsTheToolsComputeThem` |
+| Every `SegmentInitials` reads as the architecture tests' own | `TemplatePackagingTests.EveryCopyOfTheInitials_ReadsAsTheArchitectureTestsOwn` |
+| The token stands only before a project's folder, at the start of a word, in every path and file a template writes | `TemplatePackagingTests.TheFolderToken_NamesNothingButAProjectFolder` |
+| No path under `Src` and `Tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
 
 ## The package
 
@@ -654,7 +673,7 @@ its files rather than asking them; `GeneratedProjectTests` holds each reading on
 | `--files` | the `Infrastructure.Storage` project |
 | `--database` | the provider package `Infrastructure.Core` references: SQL Server, SQLite, PostgreSQL otherwise |
 | `--ci`, `--agent-files` | `.github/workflows/ci.yml`, `AGENTS.md` |
-| `--has-api` | the `Src/Presentation/<Name>.Api` folder |
+| `--has-api` | the `Src/Presentation/<Initials>.Api` folder |
 | `--scope`, `--workspace` | the name in `Src/Web/package.json`, the project's name in kebab case without one; `Src/Web` |
 
 `presentation` runs `cleanarch-presentation`, then the project's `presentation-join` and

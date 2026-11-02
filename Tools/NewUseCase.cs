@@ -264,7 +264,7 @@ internal static class NewUseCase
             return null;
         }
 
-        string applicationFeatures = Path.Combine(root, "Src", "Application", $"{prefix}.Application", "Features");
+        string applicationFeatures = Path.Combine(root, "Src", "Application", FolderOf(prefix, "Application"), "Features");
         string application = Path.Combine(applicationFeatures, features);
 
         if (!Directory.Exists(application))
@@ -274,7 +274,7 @@ internal static class NewUseCase
                 : [];
 
             problems.Add(
-                $"No feature called {features}: 'Src/Application/{prefix}.Application/Features/{features}' does not exist. "
+                $"No feature called {features}: 'Src/Application/{FolderOf(prefix, "Application")}/Features/{features}' does not exist. "
                 + (known.Length == 0
                     ? "This tree has no feature yet; write one first, as docs/guides/adding-a-feature.md says."
                     : $"The features here are {string.Join(", ", known)}."));
@@ -282,7 +282,7 @@ internal static class NewUseCase
             return null;
         }
 
-        string domain = Path.Combine(root, "Src", "Domain", $"{prefix}.Domain", "Features", features);
+        string domain = Path.Combine(root, "Src", "Domain", FolderOf(prefix, "Domain"), "Features", features);
 
         if (!Directory.Exists(domain))
         {
@@ -446,6 +446,14 @@ internal static class NewUseCase
             : throw new InvalidOperationException($"'{projectFile}' records no name.");
     }
 
+    private static string FolderOf(string prefix, string project) =>
+        string.Concat(prefix.Split('.').Select(SegmentInitials)) + "." + project;
+
+    private static string SegmentInitials(string segment) =>
+        segment.Any(char.IsAsciiLetterUpper)
+            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
+            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
+
     private static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 
     private static bool IsVowel(char letter) => "aeiou".Contains(char.ToLowerInvariant(letter), StringComparison.Ordinal);
@@ -513,7 +521,7 @@ internal static class NewUseCase
         var tokens = Tokens(spec);
         var emissions = new List<Emission>();
 
-        string application = $"Src/Application/{spec.Prefix}.Application/Features/{spec.Features}";
+        string application = $"Src/Application/{FolderOf(spec.Prefix, "Application")}/Features/{spec.Features}";
         string folder = $"{application}/UseCases/{spec.Folder}/{spec.Name}";
 
         void Add(string path, string template) => emissions.Add(new Emission(path, Render(template, tokens)));
@@ -536,7 +544,7 @@ internal static class NewUseCase
 
         if (spec.HasInput)
         {
-            string tests = $"Tests/Application/{spec.Prefix}.Application.UnitTests";
+            string tests = $"Tests/Application/{FolderOf(spec.Prefix, "Application.UnitTests")}";
 
             if (Directory.Exists(Path.Combine(root, tests)))
             {
@@ -701,7 +709,8 @@ internal static class NewUseCase
 
         output.WriteLine("  - its dependencies, in the primary constructor beside the validator");
         output.WriteLine("  - one unit test per decision the body adds, each refusal with its control");
-        bool hasApi = Directory.Exists(Path.Combine(root, "Src", "Presentation", $"{p}.Api"));
+        string api = $"Src/Presentation/{FolderOf(p, "Api")}";
+        bool hasApi = Directory.Exists(Path.Combine(root, api));
 
         //#if (api)
         if (hasApi)
@@ -730,10 +739,10 @@ internal static class NewUseCase
             return;
         }
 
-        string controller = $"Src/Presentation/{p}.Api/Features/{f}/Controllers/{f}Controller.cs";
+        string controller = $"{api}/Features/{f}/Controllers/{f}Controller.cs";
         string where = File.Exists(Path.Combine(root, controller))
             ? controller
-            : $"a controller under Src/Presentation/{p}.Api/Features/{f}/Controllers/";
+            : $"a controller under {api}/Features/{f}/Controllers/";
 
         output.WriteLine();
         output.WriteLine($"To serve it over HTTP, the edit by hand in {where}:");
@@ -757,7 +766,7 @@ internal static class NewUseCase
         {
             string response = spec.Dto![..^"Dto".Length] + "Response";
 
-            output.WriteLine($"  and Src/Presentation/{p}.Api/Features/{f}/Contracts/Responses/{response}.cs, with the members a client reads:");
+            output.WriteLine($"  and {api}/Features/{f}/Contracts/Responses/{response}.cs, with the members a client reads:");
             output.WriteLine($"      namespace {p}.Api.Features.{f}.Contracts.Responses;");
             output.WriteLine(string.Empty);
             output.WriteLine($"      /// <summary>The wire shape of {Separated(response[..^"Response".Length], ' ')}.</summary>");
@@ -922,11 +931,11 @@ internal static class NewUseCase
 
         string[] directories =
         [
-            "Src/Domain/Acme.Domain/Features/Invoices/Repositories",
-            "Src/Application/Acme.Application/Features/Invoices/UseCases/Commands/CreateInvoice",
-            "Src/Application/Acme.Application/Features/Notes/Services",
-            "Src/Presentation/Acme.Api/Features/Invoices/Controllers",
-            "Tests/Application/Acme.Application.UnitTests",
+            "Src/Domain/A.Domain/Features/Invoices/Repositories",
+            "Src/Application/A.Application/Features/Invoices/UseCases/Commands/CreateInvoice",
+            "Src/Application/A.Application/Features/Notes/Services",
+            "Src/Presentation/A.Api/Features/Invoices/Controllers",
+            "Tests/Application/A.Application.UnitTests",
         ];
 
         foreach (string directory in directories)
@@ -939,11 +948,11 @@ internal static class NewUseCase
         foreach (string repository in repositories.Length == 0 ? ["Invoice"] : repositories)
         {
             File.WriteAllText(
-                Path.Combine(root, $"Src/Domain/Acme.Domain/Features/Invoices/Repositories/I{repository}Repository.cs"),
+                Path.Combine(root, $"Src/Domain/A.Domain/Features/Invoices/Repositories/I{repository}Repository.cs"),
                 $"public interface I{repository}Repository;\n");
         }
 
-        File.WriteAllText(Path.Combine(root, "Src/Presentation/Acme.Api/Features/Invoices/Controllers/InvoicesController.cs"), "the controller a person edits\n");
+        File.WriteAllText(Path.Combine(root, "Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs"), "the controller a person edits\n");
 
         return root;
     }
@@ -1036,7 +1045,7 @@ internal static class NewUseCase
         ExpectRefusal(root, ["Invoices", "Invoice", "--kind", "query"], "the aggregate's own name", expect);
 
         string none = NewTree(scratch, "Unused");
-        File.Delete(Path.Combine(none, "Src/Domain/Acme.Domain/Features/Invoices/Repositories/IUnusedRepository.cs"));
+        File.Delete(Path.Combine(none, "Src/Domain/A.Domain/Features/Invoices/Repositories/IUnusedRepository.cs"));
 
         ExpectRefusal(none, ["Invoices", "ApproveInvoice", "--kind", "command"], "declares no repository", expect);
         expect(Invoke(none, "Invoices", "ApproveInvoice", "--kind", "command", "--input", "none").Code == 0, "--input none was refused where no repository names the aggregate.");
@@ -1046,13 +1055,13 @@ internal static class NewUseCase
         ExpectRefusal(two, ["Invoices", "ApproveInvoice", "--kind", "command"], "several (CreditNote, Invoice)", expect);
 
         string bare = NewTree(scratch);
-        Directory.Delete(Path.Combine(bare, "Src/Application/Acme.Application/Features"), recursive: true);
+        Directory.Delete(Path.Combine(bare, "Src/Application/A.Application/Features"), recursive: true);
 
         ExpectRefusal(bare, ["Invoices", "ApproveInvoice", "--kind", "command"], "This tree has no feature yet", expect);
 
         string blocked = NewTree(scratch);
-        string inTheWay = Path.Combine(blocked, "Src/Application/Acme.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
-        string test = Path.Combine(blocked, "Tests/Application/Acme.Application.UnitTests/Features/Invoices/UseCases/Commands/ApproveInvoice/ApproveInvoiceUseCaseTests.cs");
+        string inTheWay = Path.Combine(blocked, "Src/Application/A.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
+        string test = Path.Combine(blocked, "Tests/Application/A.Application.UnitTests/Features/Invoices/UseCases/Commands/ApproveInvoice/ApproveInvoiceUseCaseTests.cs");
 
         Directory.CreateDirectory(Path.GetDirectoryName(inTheWay)!);
         File.WriteAllText(inTheWay, "somebody's own dto\n");
@@ -1065,9 +1074,9 @@ internal static class NewUseCase
 
     private static void ShapeCases(string scratch, Action<bool, string> expect)
     {
-        string useCases = "Src/Application/Acme.Application/Features/Invoices/UseCases";
-        string tests = "Tests/Application/Acme.Application.UnitTests/Features/Invoices/UseCases";
-        string dtos = "Src/Application/Acme.Application/Features/Invoices/Model/Dtos";
+        string useCases = "Src/Application/A.Application/Features/Invoices/UseCases";
+        string tests = "Tests/Application/A.Application.UnitTests/Features/Invoices/UseCases";
+        string dtos = "Src/Application/A.Application/Features/Invoices/Model/Dtos";
 
         (string[] Args, string[] Files)[] cases =
         [
@@ -1102,7 +1111,7 @@ internal static class NewUseCase
             expect(before.All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value), $"[{label}] changed a file it does not own.");
             expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), $"[{label}] wrote a manifest where the feature had none.");
             expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
-            expect(result.Output.Contains("Src/Presentation/Acme.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal), $"[{label}] did not name the feature's controller.");
+            expect(result.Output.Contains("Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal), $"[{label}] did not name the feature's controller.");
 
             foreach (string file in created)
             {
@@ -1114,24 +1123,24 @@ internal static class NewUseCase
         }
 
         string untested = NewTree(scratch);
-        Directory.Delete(Path.Combine(untested, "Tests/Application/Acme.Application.UnitTests"), recursive: true);
+        Directory.Delete(Path.Combine(untested, "Tests/Application/A.Application.UnitTests"), recursive: true);
 
         var skipped = Invoke(untested, "Invoices", "ApproveInvoice", "--kind", "command");
 
         expect(skipped.Code == 0 && skipped.Output.Contains("tests were skipped", StringComparison.Ordinal), "A tree without the application tests was not told its tests were skipped.");
-        expect(!Directory.Exists(Path.Combine(untested, "Tests/Application/Acme.Application.UnitTests")), "Tests were written into a project that does not exist.");
+        expect(!Directory.Exists(Path.Combine(untested, "Tests/Application/A.Application.UnitTests")), "Tests were written into a project that does not exist.");
     }
 
     private static void DtoCases(string scratch, Action<bool, string> expect)
     {
         string root = NewTree(scratch);
-        string dto = Path.Combine(root, "Src/Application/Acme.Application/Features/Invoices/Model/Dtos/InvoiceDto.cs");
+        string dto = Path.Combine(root, "Src/Application/A.Application/Features/Invoices/Model/Dtos/InvoiceDto.cs");
 
         Directory.CreateDirectory(Path.GetDirectoryName(dto)!);
         File.WriteAllText(dto, "public sealed record InvoiceDto(Guid Id);\n");
 
         var result = Invoke(root, "Invoices", "GetInvoice", "--kind", "query");
-        string useCase = Path.Combine(root, "Src/Application/Acme.Application/Features/Invoices/UseCases/Queries/GetInvoice/IGetInvoiceUseCase.cs");
+        string useCase = Path.Combine(root, "Src/Application/A.Application/Features/Invoices/UseCases/Queries/GetInvoice/IGetInvoiceUseCase.cs");
 
         expect(result.Code == 0, $"A query answering an existing DTO was refused: {result.Error}");
         expect(File.ReadAllText(dto) == "public sealed record InvoiceDto(Guid Id);\n", "The existing DTO was overwritten.");
@@ -1139,14 +1148,14 @@ internal static class NewUseCase
         expect(result.Output.Contains("already declares", StringComparison.Ordinal), "The reuse of an existing DTO was not reported.");
 
         string fresh = NewTree(scratch);
-        string freshDto = Path.Combine(fresh, "Src/Application/Acme.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
+        string freshDto = Path.Combine(fresh, "Src/Application/A.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
 
         expect(Invoke(fresh, "Invoices", "GetInvoiceTotals", "--kind", "query").Code == 0, "A query on a feature with a repository was refused.");
         expect(File.Exists(freshDto) && File.ReadAllText(freshDto).Contains("InvoiceTotalsDto(Guid Id);", StringComparison.Ordinal), "The generated DTO does not carry the aggregate's id.");
 
         string bare = NewTree(scratch, "Unused");
-        File.Delete(Path.Combine(bare, "Src/Domain/Acme.Domain/Features/Invoices/Repositories/IUnusedRepository.cs"));
-        string bareDto = Path.Combine(bare, "Src/Application/Acme.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
+        File.Delete(Path.Combine(bare, "Src/Domain/A.Domain/Features/Invoices/Repositories/IUnusedRepository.cs"));
+        string bareDto = Path.Combine(bare, "Src/Application/A.Application/Features/Invoices/Model/Dtos/InvoiceTotalsDto.cs");
 
         var bareResult = Invoke(bare, "Invoices", "GetInvoiceTotals", "--kind", "query", "--input", "none");
 
@@ -1158,7 +1167,7 @@ internal static class NewUseCase
     {
         string root = NewTree(scratch);
         string manifest = Path.Combine(root, _manifestFolder, "Invoices.json");
-        const string generated = "Src/Application/Acme.Application/Features/Invoices/UseCases/Commands/CreateInvoice/CreateInvoiceUseCase.cs";
+        const string generated = "Src/Application/A.Application/Features/Invoices/UseCases/Commands/CreateInvoice/CreateInvoiceUseCase.cs";
         string page = $"docs/features/{Kebab("Invoices")}.md";
         string original =
             "{\n  \"schemaVersion\": 1,\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Invoices\",\n  \"type\": \"Invoice\",\n"
@@ -1222,9 +1231,9 @@ internal static class NewUseCase
             string root = NewTree(scratch);
             string label = string.Join(' ', args);
 
-            Directory.Delete(Path.Combine(root, "Src/Presentation/Acme.Api"), recursive: true);
-            Directory.CreateDirectory(Path.Combine(root, "Src/Presentation/Acme.Portal"));
-            File.WriteAllText(Path.Combine(root, "Src/Presentation/Acme.Portal/Program.cs"), "builder.Services.AddInvoices();\n");
+            Directory.Delete(Path.Combine(root, "Src/Presentation/A.Api"), recursive: true);
+            Directory.CreateDirectory(Path.Combine(root, "Src/Presentation/A.Portal"));
+            File.WriteAllText(Path.Combine(root, "Src/Presentation/A.Portal/Program.cs"), "builder.Services.AddInvoices();\n");
 
             var result = Invoke(root, ["Invoices", .. args]);
 
@@ -1233,9 +1242,9 @@ internal static class NewUseCase
                 !Regex.IsMatch(result.Output, @"\bApi\b|api\.md|OpenAPI|openapi|HTTP|Controller", RegexOptions.None, TimeSpan.FromSeconds(2)),
                 $"[{label}] without the API printed an instruction about it: {result.Output}");
             expect(
-                result.Output.Contains("Src/Presentation/Acme.Portal/", StringComparison.Ordinal),
+                result.Output.Contains("Src/Presentation/A.Portal/", StringComparison.Ordinal),
                 $"[{label}] without the API did not name the host that serves the feature.");
-            expect(!Directory.Exists(Path.Combine(root, "Src/Presentation/Acme.Api")), $"[{label}] without the API wrote into it.");
+            expect(!Directory.Exists(Path.Combine(root, "Src/Presentation/A.Api")), $"[{label}] without the API wrote into it.");
         }
     }
 
@@ -1243,7 +1252,7 @@ internal static class NewUseCase
     {
         string root = NewTree(scratch);
 
-        File.WriteAllText(Path.Combine(root, "Tests/Application/Acme.Application.UnitTests/Features"), "not a folder\n");
+        File.WriteAllText(Path.Combine(root, "Tests/Application/A.Application.UnitTests/Features"), "not a folder\n");
 
         var before = Snapshot(root);
         var result = Invoke(root, "Invoices", "ApproveInvoice", "--kind", "command");
@@ -1280,6 +1289,8 @@ internal static class NewUseCase
 
         string[] segments = relative.Split('/');
         int project = Array.FindIndex(segments, segment => segment.Contains('.', StringComparison.Ordinal));
+        string prefix = ProductPrefix(root);
+        segments[project] = prefix + "." + segments[project][FolderOf(prefix, string.Empty).Length..];
 
         if (!text.Contains($"namespace {string.Join('.', segments[project..^1])};", StringComparison.Ordinal))
         {

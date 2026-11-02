@@ -126,7 +126,7 @@ services:
     image: app-template-presentation-app-portal:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AppTemplate.PresentationAppPortal/Dockerfile
+      dockerfile: Src/Presentation/AT.PresentationAppPortal/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -177,7 +177,7 @@ services:
     image: app-template-presentation-app-mcp:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AppTemplate.PresentationAppMcp/Dockerfile
+      dockerfile: Src/Presentation/AT.PresentationAppMcp/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -220,7 +220,7 @@ services:
     image: app-template-api:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AppTemplate.Api/Dockerfile
+      dockerfile: Src/Presentation/AT.Api/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment
@@ -281,7 +281,7 @@ services:
     image: app-template-worker:dev
     build:
       context: .
-      dockerfile: Src/Presentation/AppTemplate.Worker/Dockerfile
+      dockerfile: Src/Presentation/AT.Worker/Dockerfile
     restart: unless-stopped
     environment:
       <<: *host-environment

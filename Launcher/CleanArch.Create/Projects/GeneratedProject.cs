@@ -22,6 +22,8 @@ public sealed partial record GeneratedProject(
 
     public string PresentationFolder => Path.Combine(Root, "Src", "Presentation");
 
+    public string FolderOf(string part) => FolderOf(Name, part);
+
     public string? BlazorWebAssemblyApp => Directory.Exists(Path.Combine(WebFolder, "apps"))
         ? Directory.EnumerateDirectories(Path.Combine(WebFolder, "apps"))
             .Where(app => Directory.EnumerateFiles(app, "*.csproj").Any())
@@ -56,13 +58,20 @@ public sealed partial record GeneratedProject(
             (hasWorkspace ? WorkspaceScope(Path.Combine(web, "package.json")) : null) ?? KebabName(name),
             Authentication(root, name),
             ExampleFeatures(root, name),
-            Directory.Exists(Path.Combine(root, "Src", "Infrastructure", name + ".Infrastructure.Storage")),
-            File.Exists(Path.Combine(root, "Src", "Clients", name + ".Client", name + ".Client.csproj")),
+            Directory.Exists(Path.Combine(root, "Src", "Infrastructure", FolderOf(name, "Infrastructure.Storage"))),
+            File.Exists(Path.Combine(root, "Src", "Clients", FolderOf(name, "Client"), name + ".Client.csproj")),
             DatabaseProvider(root, name),
             File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")),
             File.Exists(Path.Combine(root, "AGENTS.md")),
-            Directory.Exists(Path.Combine(root, "Src", "Presentation", name + ".Api")));
+            Directory.Exists(Path.Combine(root, "Src", "Presentation", FolderOf(name, "Api"))));
     }
+
+    private static string FolderOf(string name, string part) => $"{string.Concat(name.Split('.').Select(SegmentInitials))}.{part}";
+
+    private static string SegmentInitials(string segment) =>
+        segment.Any(char.IsAsciiLetterUpper)
+            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
+            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 
     private static string? WorkspaceScope(string packageJson)
     {
@@ -83,7 +92,7 @@ public sealed partial record GeneratedProject(
 
     private static string Authentication(string root, string name)
     {
-        if (Directory.Exists(Path.Combine(root, "Src", "Application", name + ".Application.Auth")))
+        if (Directory.Exists(Path.Combine(root, "Src", "Application", FolderOf(name, "Application.Auth"))))
         {
             return "local";
         }
@@ -96,7 +105,7 @@ public sealed partial record GeneratedProject(
 
     private static string ExampleFeatures(string root, string name)
     {
-        string features = Path.Combine(root, "Src", "Application", name + ".Application", "Features");
+        string features = Path.Combine(root, "Src", "Application", FolderOf(name, "Application"), "Features");
         if (Directory.Exists(Path.Combine(features, "TodoLists")))
         {
             return "all";
@@ -107,7 +116,7 @@ public sealed partial record GeneratedProject(
 
     private static string DatabaseProvider(string root, string name)
     {
-        string project = Path.Combine(root, "Src", "Infrastructure", name + ".Infrastructure.Core", name + ".Infrastructure.Core.csproj");
+        string project = Path.Combine(root, "Src", "Infrastructure", FolderOf(name, "Infrastructure.Core"), name + ".Infrastructure.Core.csproj");
         string[] packages = File.Exists(project)
             ? [.. XDocument.Load(project).Descendants("PackageReference").Select(reference => (string?)reference.Attribute("Include") ?? string.Empty)]
             : [];

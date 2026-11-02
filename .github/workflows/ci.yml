@@ -362,7 +362,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: Src/Presentation/AppTemplate.Api/Dockerfile
+          file: Src/Presentation/AT.Api/Dockerfile
           platforms: linux/amd64
           push: false
           load: true
@@ -511,7 +511,7 @@ jobs:
             exit 1
           fi
           #if (api)
-          if ! grep -q 'http://127.0.0.1:8080/health ' Src/Presentation/AppTemplate.Api/Dockerfile; then
+          if ! grep -q 'http://127.0.0.1:8080/health ' Src/Presentation/AT.Api/Dockerfile; then
             echo "::error title=Dockerfile HEALTHCHECK::The image HEALTHCHECK must probe /health (liveness), not /health/ready."
             exit 1
           fi

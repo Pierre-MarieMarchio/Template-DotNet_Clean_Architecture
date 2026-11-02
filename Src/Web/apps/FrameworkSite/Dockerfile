@@ -7,7 +7,7 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403-noble@sha25
 WORKDIR /source
 
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
-COPY Src/Clients/AppTemplate.Client/ Src/Clients/AppTemplate.Client/
+COPY Src/Clients/AT.Client/ Src/Clients/AT.Client/
 COPY Src/Web/apps/FrameworkSite/ Src/Web/apps/FrameworkSite/
 RUN dotnet publish Src/Web/apps/FrameworkSite/AppTemplate.FrameworkSite.csproj --configuration Release --output /publish
 

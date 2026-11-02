@@ -8,19 +8,19 @@ project holds exactly one context, so naming the project names the context.
 | Context | Project | History table |
 |---|---|---|
 <!--#if (postgreSql)-->
-| `AppDbContext`, the business schemas and `platform` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | `public.__EFMigrationsHistory` |
+| `AppDbContext`, the business schemas and `platform` | `Src/Infrastructure/AT.Infrastructure.Persistence` | `public.__EFMigrationsHistory` |
 <!--#endif-->
 <!--#if (sqlServer)-->
-| `AppDbContext`, the business schemas and `platform` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | `dbo.__EFMigrationsHistory` |
+| `AppDbContext`, the business schemas and `platform` | `Src/Infrastructure/AT.Infrastructure.Persistence` | `dbo.__EFMigrationsHistory` |
 <!--#endif-->
 <!--#if (sqlite)-->
-| `AppDbContext`, the business tables and `platform` | `Src/Infrastructure/AppTemplate.Infrastructure.Persistence` | `__EFMigrationsHistory` |
+| `AppDbContext`, the business tables and `platform` | `Src/Infrastructure/AT.Infrastructure.Persistence` | `__EFMigrationsHistory` |
 <!--#endif-->
 <!--#if (localAuth && serverDatabase)-->
-| `AuthDbContext`, the `identity` schema | `Src/Infrastructure/AppTemplate.Infrastructure.Auth` | `identity.__EFMigrationsHistory` |
+| `AuthDbContext`, the `identity` schema | `Src/Infrastructure/AT.Infrastructure.Auth` | `identity.__EFMigrationsHistory` |
 <!--#endif-->
 <!--#if (localAuth && sqlite)-->
-| `AuthDbContext`, the `identity` tables | `Src/Infrastructure/AppTemplate.Infrastructure.Auth` | `identity___EFMigrationsHistory` |
+| `AuthDbContext`, the `identity` tables | `Src/Infrastructure/AT.Infrastructure.Auth` | `identity___EFMigrationsHistory` |
 <!--#endif-->
 
 [The persistence model](../architecture/persistence-model.md) says why the data is split this way.
@@ -70,8 +70,8 @@ For authentication, name its project:
 
 ```bash
 dotnet ef migrations add <Name> \
-  --project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
-  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
+  --project Src/Infrastructure/AT.Infrastructure.Auth \
+  --startup-project Src/Infrastructure/AT.Infrastructure.Auth \
   --output-dir Migrations
 ```
 <!--#endif-->
@@ -84,18 +84,18 @@ set and its `ApplyConfiguration` call in the context.
 <!--#if (localAuth)-->
 ```bash
 dotnet ef migrations has-pending-model-changes \
-  --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
-  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+  --project Src/Infrastructure/AT.Infrastructure.Persistence \
+  --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 dotnet ef migrations has-pending-model-changes \
-  --project Src/Infrastructure/AppTemplate.Infrastructure.Auth \
-  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth
+  --project Src/Infrastructure/AT.Infrastructure.Auth \
+  --startup-project Src/Infrastructure/AT.Infrastructure.Auth
 ```
 <!--#endif-->
 <!--#if (!localAuth)-->
 ```bash
 dotnet ef migrations has-pending-model-changes \
-  --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence \
-  --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+  --project Src/Infrastructure/AT.Infrastructure.Persistence \
+  --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 ```
 <!--#endif-->
 
@@ -140,19 +140,19 @@ Supply the connection string through user secrets; `AppTemplate.Api.csproj` alre
 
 <!--#if (postgreSql)-->
 ```bash
-cd Src/Presentation/AppTemplate.Api
+cd Src/Presentation/AT.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Host=…;Database=…;Username=…;Password=…"
 ```
 <!--#endif-->
 <!--#if (sqlServer)-->
 ```bash
-cd Src/Presentation/AppTemplate.Api
+cd Src/Presentation/AT.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Server=…;Database=…;User Id=…;Password=…;TrustServerCertificate=True"
 ```
 <!--#endif-->
 <!--#if (sqlite)-->
 ```bash
-cd Src/Presentation/AppTemplate.Api
+cd Src/Presentation/AT.Api
 dotnet user-secrets set "ConnectionStrings:Default" "Data Source=…"
 ```
 <!--#endif-->

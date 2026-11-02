@@ -1,20 +1,21 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import openapiTS, { astToString } from 'openapi-typescript';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const presentation = join(packageRoot, '..', '..', '..', 'Presentation');
-const apiName = readdirSync(presentation).find(
-  (entry) => entry.endsWith('.Api') && existsSync(join(presentation, entry, `${entry}.csproj`)),
-);
+const apiFolder = readdirSync(presentation).find((entry) => entry.endsWith('.Api'));
+const apiProjectFile =
+  apiFolder === undefined ? undefined : readdirSync(join(presentation, apiFolder)).find((entry) => entry.endsWith('.Api.csproj'));
 
-if (apiName === undefined) {
-  throw new Error(`${presentation} holds no <Name>.Api folder with its <Name>.Api.csproj, the API the client describes.`);
+if (apiProjectFile === undefined) {
+  throw new Error(`${presentation} holds no <Initials>.Api folder with its <Name>.Api.csproj, the API the client describes.`);
 }
 
-const apiProject = join(presentation, apiName);
+const apiName = apiProjectFile.slice(0, -'.csproj'.length);
+const apiProject = join(presentation, apiFolder);
 const document = join(packageRoot, 'openapi', 'document.json');
 const schema = join(packageRoot, 'src', 'generated', 'schema.ts');
 

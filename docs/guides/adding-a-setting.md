@@ -15,7 +15,7 @@ past it answers `400`; one that shapes the work is read by the use case.
 `<Section>` is the section's name, `<Features>` the feature's folder.
 
 1. Write `<Section>Options` in
-   `Src/Application/AppTemplate.Application/Features/<Features>/Configuration/Options/`, with
+   `Src/Application/AT.Application/Features/<Features>/Configuration/Options/`, with
    `public const string SectionName = "<Section>";` and one `{ get; set; }` property per key, its
    default the value a deployment gets. `ExternalKeyTests` refuses a section name that is not the
    type name without `Options`; if `LayoutConventionTests` refuses the folder, add
@@ -44,7 +44,7 @@ past it answers `400`; one that shapes the work is read by the use case.
    what the key changes. `ConfigurationSurfaceTests` fails until every bound key has its row, and
    while a row names a key no options class binds.
 <!--#if (api)-->
-6. Give the key its deployment value in `Src/Presentation/AppTemplate.Api/appsettings.json` when an
+6. Give the key its deployment value in `Src/Presentation/AT.Api/appsettings.json` when an
    operator is expected to change it. For the Compose stack, map `<Section>__<Key>` to a variable in
    the API's `environment` in `docker-compose.yml`, and add that variable to `.env.example` under one
    `#` line saying what it governs.
@@ -62,12 +62,12 @@ past it answers `400`; one that shapes the work is read by the use case.
 ## Check
 
 <!--#if (api)-->
-`dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` passes, and the API started
+`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and the API started
 with the key out of range, `<Section>__<Key>=0 dotnet run Tools/Tasks.cs run`, stops before serving
 and names `<Section>:<Key>`.
 <!--#endif-->
 <!--#if (!api)-->
-`dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` passes, and a host started
+`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and a host started
 with the key out of range, `<Section>__<Key>=0` set in its environment, stops before serving and
 names `<Section>:<Key>`.
 <!--#endif-->

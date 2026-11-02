@@ -26,6 +26,13 @@ Run every command from the repository root.
 dotnet --version
 ```
 
+On Windows, a path longer than 260 characters fails (`Filename too long` from git, a missing file
+from a build) unless long paths are on. The deepest file of this project is about 170 characters
+below its root, so clone it in a folder shorter than about 90 characters, such as `C:\src\`, or turn
+long paths on once per machine: set `LongPathsEnabled` in the registry, as
+[Microsoft's page on the path limit](https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation)
+says, and run `git config --global core.longpaths true`.
+
 <!--#if (anyWeb)-->
 Run `corepack enable` once per machine so the pinned pnpm is the one that runs.
 
@@ -277,12 +284,12 @@ This project has no API, which is the host that applies the migrations at start 
 no other host migrates. Once the database is up, apply each context's migrations from the host:
 
 ```bash
-dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 ```
 
 <!--#if (localAuth)-->
 ```bash
-dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Auth --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth
+dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
 ```
 
 <!--#endif-->
@@ -391,7 +398,7 @@ run did, then run the tests:
 
 ```bash
 dotnet run Tools/Tasks.cs migration-add AddWidgets
-dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 dotnet run Tools/Tasks.cs test --no-integration
 ```
 

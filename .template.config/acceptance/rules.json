@@ -21,8 +21,8 @@
         "Launcher/**",
         "Tools/CheckWorkflows.cs",
         "Tools/CheckComments.cs",
-        "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs",
-        "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
+        "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
+        "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
         ".github/workflows/template-release.yml",
         ".github/release-please/**",
         ".github/ISSUE_TEMPLATE/**"

@@ -185,7 +185,7 @@ jobs:
         run: |
           set -euo pipefail
           content=$(grep -rIil --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -e 'AppTemplate' -e 'app-template' . || true)
-          paths=$(find . \( -name .git -o -name bin -o -name obj \) -prune -o \( -iname '*AppTemplate*' -o -iname '*app-template*' \) -print)
+          paths=$(find . \( -name .git -o -name bin -o -name obj \) -prune -o \( -iname '*AppTemplate*' -o -iname '*app-template*' -o -name 'A[T].*' \) -print)
           if [ -n "$content$paths" ]; then
             echo "::error title=Template name leaked::The generated project still names the template."
             printf '%s\n' "$content" "$paths"
@@ -402,7 +402,7 @@ jobs:
           if [ ! -d Src/Clients ]; then
             exit 0
           fi
-          if [ ! -f Tests/Integration/Sample.Generated.Project.Api.IntegrationTests/OpenApi/v1.json ]; then
+          if [ ! -f Tests/Integration/SGP.Api.IntegrationTests/OpenApi/v1.json ]; then
             dotnet run Tools/Tasks.cs openapi
           fi
           dotnet run Tools/Tasks.cs api-client
@@ -697,7 +697,7 @@ jobs:
       - name: Assert cleanarch.json records every part added
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet test --project Tests/Architecture/Sample.Generated.Project.Architecture.Tests --configuration Release --no-build -- --filter-class '*ProjectFileTests'
+        run: dotnet test --project Tests/Architecture/SGP.Architecture.Tests --configuration Release --no-build -- --filter-class '*ProjectFileTests'
 
       # A second run creates nothing and changes nothing: the client is reproducible and created apps are left alone.
       - name: Assert web-scaffold is idempotent
@@ -976,7 +976,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           $content = Get-ChildItem -Recurse -File -Force | Select-String -Pattern 'AppTemplate', 'app-template' -SimpleMatch -List | ForEach-Object Path
-          $paths = Get-ChildItem -Recurse -Force | Where-Object Name -Match 'AppTemplate|app-template' | ForEach-Object FullName
+          $paths = Get-ChildItem -Recurse -Force | Where-Object Name -Match 'AppTemplate|app-template|^AT\.' | ForEach-Object FullName
           if ($content -or $paths) {
             Write-Output "::error title=Template name leaked::The generated project still names the template."
             @($content) + @($paths) | Write-Output

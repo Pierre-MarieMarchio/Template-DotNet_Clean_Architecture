@@ -17,7 +17,7 @@ to the application layer:
 | Option | Where it lives | Wired to |
 |---|---|---|
 | `--web` | `Src/Web/apps/<Name>`, served by nginx or, rendered on the server, by its own Node server | the API, through the generated client and the `/api` relay |
-| `--presentation` | `Src/Presentation/<Project>.<Name>` | the application layer in process for a server host, the API for a client |
+| `--presentation` | `Src/Presentation/<Initials>.<Name>` | the application layer in process for a server host, the API for a client |
 
 A value names its generator and never changes meaning: `vite-react` is `create-vite` with its React
 template, and `blazor-server` is `dotnet new blazor` with server interactivity.

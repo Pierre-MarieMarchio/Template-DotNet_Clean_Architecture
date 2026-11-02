@@ -119,7 +119,7 @@ public sealed class ProjectSetupTests : IDisposable
     [Fact]
     public void AFailedFirstCommit_AfterASuccessfulInit_LeavesNoInit_AndItsCommitTakesWhatBootstrapWrote()
     {
-        _add = new ProcessResult(128, "error: open(\"Src/Application/Acme.Shop.Application.Auth/Features/Accounts/Model/Errors/AccountsErrors.cs\"): Filename too long\nfatal: adding files failed\n");
+        _add = new ProcessResult(128, "error: open(\"Src/Application/AS.Application.Auth/Features/Accounts/Model/Errors/AccountsErrors.cs\"): Filename too long\nfatal: adding files failed\n");
 
         List<SetupOutcome> outcomes = RunAll();
 

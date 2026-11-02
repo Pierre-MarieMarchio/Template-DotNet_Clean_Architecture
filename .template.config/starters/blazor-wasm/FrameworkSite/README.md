@@ -302,11 +302,11 @@ task stops:
   ```
 
 <!--#endif-->
-- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+- in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 
   ```csharp
-          ["Src/Infrastructure/AppTemplate.Infrastructure.Core"] = null,
+          ["Src/Infrastructure/AT.Infrastructure.Core"] = null,
   ```
 
   add:
@@ -314,11 +314,11 @@ task stops:
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
 <!--#if (!hasClient)-->
-          ["Src/Clients/AppTemplate.Client"] = null,
+          ["Src/Clients/AT.Client"] = null,
 <!--#endif-->
   ```
 
-- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+- in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   line:
 
   ```csharp
@@ -334,11 +334,11 @@ task stops:
           ["Src/Web/apps/FrameworkSite"] = null,
 <!--#endif-->
 <!--#if (!hasClient)-->
-          ["Src/Clients/AppTemplate.Client"] = ["Composition", "Errors", "Sessions"],
+          ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
 <!--#endif-->
   ```
 
-- in `Tests/Architecture/AppTemplate.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
+- in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
   lines:
 
   ```csharp
@@ -366,7 +366,7 @@ task stops:
   add:
 
   ```markdown
-  The .NET client of `Src/Clients/AppTemplate.Client` is generated from the reference itself:
+  The .NET client of `Src/Clients/AT.Client` is generated from the reference itself:
   `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
   manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
@@ -408,7 +408,7 @@ task stops:
 
   ```text
   Src/Clients/
-    AppTemplate.Client                    Common/{Composition,Errors,Sessions}
+    AT.Client                             Common/{Composition,Errors,Sessions}
                                           no Features/
                                           Generated/: Kiota's, from the OpenAPI reference
   ```

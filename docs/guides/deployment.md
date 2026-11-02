@@ -20,7 +20,7 @@ how to move to a server database. The rest of this page applies once the move is
 ## The image
 
 ```bash
-docker build -f Src/Presentation/AppTemplate.Api/Dockerfile -t app-template-api:local .
+docker build -f Src/Presentation/AT.Api/Dockerfile -t app-template-api:local .
 ```
 
 The build context is the repository root, because restore needs `Directory.Build.props`,
@@ -34,7 +34,7 @@ The `Dockerfile` copies each project file by name before restoring, so a project
 needs its `COPY` line there too; the build passes locally without it, and only the image fails.
 
 <!--#if (jobsWorker)-->
-The worker's image is built the same way, from `Src/Presentation/<Project>.Worker/Dockerfile`, on the
+The worker's image is built the same way, from `Src/Presentation/<Initials>.Worker/Dockerfile`, on the
 same runtime and user. It serves no port and carries no `HEALTHCHECK`: its log and its loops'
 `iterations` counter say it runs ([Background jobs](../features/background-jobs.md#several-instances)).
 Release both images together, so a pass and the route that shares its lease spell the lease's name

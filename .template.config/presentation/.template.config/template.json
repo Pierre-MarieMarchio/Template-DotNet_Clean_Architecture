@@ -297,14 +297,14 @@
       "displayName": "Project holds the .NET client",
       "datatype": "bool",
       "defaultValue": "false",
-      "description": "The project holds Src/Clients/<project>.Client already, generated with --web blazor-wasm, --presentation avalonia or --presentation wpf, or added by cleanarch-webapp --framework blazor-wasm: an Avalonia or a WPF app uses it, and the item template writes neither the client nor its tests nor its decision."
+      "description": "The project holds Src/Clients/<initials>.Client already, generated with --web blazor-wasm, --presentation avalonia or --presentation wpf, or added by cleanarch-webapp --framework blazor-wasm: an Avalonia or a WPF app uses it, and the item template writes neither the client nor its tests nor its decision."
     },
     "hasApi": {
       "type": "parameter",
       "displayName": "Project holds the API",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "The project holds Src/Presentation/<project>.Api, generated with --presentation api or brought by what calls it: a desktop client calls it, and the MCP server under local accounts takes the access keys it issues. The lines to add name the API only where the project has it."
+      "description": "The project holds Src/Presentation/<initials>.Api, generated with --presentation api or brought by what calls it: a desktop client calls it, and the MCP server under local accounts takes the access keys it issues. The lines to add name the API only where the project has it."
     },
     "api": {
       "type": "computed",
@@ -359,6 +359,41 @@
         ]
       },
       "replaces": "app-template"
+    },
+    "projectFolderPrefixAnyCase": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "projectName",
+        "steps": [
+          {
+            "regex": "(?<=^|\\.)[^A-Za-z.]*([a-z])[^A-Z.]*(?=\\.|$)",
+            "replacement": "$1"
+          },
+          {
+            "regex": "[^A-Z.](?<=[A-Z][^.]*)|[^A-Z.](?=[^.]*[A-Z])",
+            "replacement": ""
+          },
+          {
+            "regex": "[^A-Za-z]",
+            "replacement": ""
+          },
+          {
+            "regex": "$",
+            "replacement": "."
+          }
+        ]
+      }
+    },
+    "projectFolderPrefix": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "projectFolderPrefixAnyCase",
+        "toLower": false
+      },
+      "replaces": "AT.",
+      "fileRename": "AT."
     },
     "presentationNameWords": {
       "type": "generated",
@@ -686,14 +721,14 @@
       "target": "./Src/",
       "condition": "(accessKeys)",
       "include": [
-        "Application/AppTemplate.Application.Auth/Features/AccessKeys/**",
-        "Infrastructure/AppTemplate.Infrastructure.Auth/Features/AccessKeys/**",
-        "Presentation/AppTemplate.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
-        "Presentation/AppTemplate.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
-        "Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
-        "Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
-        "Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
-        "Presentation/AppTemplate.Api/Features/Auth/Controllers/AccessKeysController.cs"
+        "Application/AT.Application.Auth/Features/AccessKeys/**",
+        "Infrastructure/AT.Infrastructure.Auth/Features/AccessKeys/**",
+        "Presentation/AT.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
+        "Presentation/AT.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
+        "Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
+        "Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
+        "Presentation/AT.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
+        "Presentation/AT.Api/Features/Auth/Controllers/AccessKeysController.cs"
       ]
     },
     {
@@ -701,9 +736,9 @@
       "target": "./Tests/",
       "condition": "(accessKeys)",
       "include": [
-        "Application/AppTemplate.Application.Auth.UnitTests/Features/AccessKeys/**",
-        "Integration/AppTemplate.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
-        "Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**"
+        "Application/AT.Application.Auth.UnitTests/Features/AccessKeys/**",
+        "Integration/AT.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
+        "Integration/AT.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**"
       ]
     },
     {
@@ -726,19 +761,19 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AppTemplate.Client/Common/Sessions/ApiSession.cs",
-            "AppTemplate.Client/Common/Sessions/ApiSessionHandler.cs",
-            "AppTemplate.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "AppTemplate.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "AppTemplate.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "AppTemplate.Client/Common/Sessions/RefreshTokenMode.cs"
+            "AT.Client/Common/Sessions/ApiSession.cs",
+            "AT.Client/Common/Sessions/ApiSessionHandler.cs",
+            "AT.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "AT.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "AT.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "AT.Client/Common/Sessions/RefreshTokenMode.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AppTemplate.Client/Common/Sessions/AccessTokenHandler.cs",
-            "AppTemplate.Client/Common/Sessions/IAccessTokenSource.cs"
+            "AT.Client/Common/Sessions/AccessTokenHandler.cs",
+            "AT.Client/Common/Sessions/IAccessTokenSource.cs"
           ]
         }
       ]
@@ -755,14 +790,14 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AppTemplate.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "AT.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AppTemplate.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "AppTemplate.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "AT.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "AT.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         }
       ]
@@ -797,7 +832,7 @@
       "description": "Join the presentation project to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<project>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates it as its scaffold.json describes, adds it with its tests to the solution and writes the .NET client where the project calls the API through it; creating it from its framework's template needs the network, and a project written whole, the MCP server, needs none. Commit the project."
+          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<initials>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates it as its scaffold.json describes, adds it with its tests to the solution and writes the .NET client where the project calls the API through it; creating it from its framework's template needs the network, and a project written whole, the MCP server, needs none. Commit the project."
         }
       ],
       "continueOnError": true
@@ -808,7 +843,7 @@
       "description": "Add the access keys' migration where the project has migrations.",
       "manualInstructions": [
         {
-          "text": "The access keys the MCP server's callers present come with it and change the authentication context's model: in a project whose migrations exist already, run dotnet ef migrations add AddAccessKeys --project Src/Infrastructure/<project>.Infrastructure.Auth --startup-project Src/Infrastructure/<project>.Infrastructure.Auth --output-dir Migrations, and commit it."
+          "text": "The access keys the MCP server's callers present come with it and change the authentication context's model: in a project whose migrations exist already, run dotnet ef migrations add AddAccessKeys --project Src/Infrastructure/<initials>.Infrastructure.Auth --startup-project Src/Infrastructure/<initials>.Infrastructure.Auth --output-dir Migrations, and commit it."
         }
       ],
       "continueOnError": true

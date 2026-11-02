@@ -366,7 +366,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldContain("◊  Framework\n│  blazor-server · the only option when Project authentication is none");
         Order(output, "◊  Presentation name\n│  Portal", "Summary", "◊  Added Portal", "◊  Join done", "◊  Scaffold done", "Next time, skip the questions with", "└  All set.");
         output.ShouldNotContain("Now run:");
-        Closing(output).ShouldContain("Commit Src/Presentation/Acme.Shop.Portal and its tests");
+        Closing(output).ShouldContain("Commit Src/Presentation/AS.Portal and its tests");
         _processes.CommandLines.Where(line => !line.StartsWith("dotnet new uninstall", StringComparison.Ordinal) && !line.StartsWith("dotnet new install", StringComparison.Ordinal)).ShouldBe(
         [
             "dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --auth none --examples none --files false --agent-files false",
@@ -386,7 +386,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "presentation");
 
         string output = Plain(console);
-        Order(output, "▲  Join failed", "occur 2 times", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "▲  Scaffold skipped", "Skipped because the join step didn't go through.", "└  Almost there. A few things to do by hand, from Src/Presentation/Acme.Shop.Portal/README.md:");
+        Order(output, "▲  Join failed", "occur 2 times", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "▲  Scaffold skipped", "Skipped because the join step didn't go through.", "└  Almost there. A few things to do by hand, from Src/Presentation/AS.Portal/README.md:");
         Closing(output).ShouldContain("- in .dockerignore, after the line:");
         _processes.CommandLines.ShouldNotContain(line => line.Contains("presentation-scaffold", StringComparison.Ordinal) && line.StartsWith("dotnet run", StringComparison.Ordinal));
     }
@@ -402,7 +402,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "presentation");
 
         string output = Plain(console);
-        Order(output, "◊  Join done", "▲  Scaffold failed", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal", "└  Almost there. A few things to do by hand, from Src/Presentation/Acme.Shop.Portal/README.md:");
+        Order(output, "◊  Join done", "▲  Scaffold failed", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal", "└  Almost there. A few things to do by hand, from Src/Presentation/AS.Portal/README.md:");
         Closing(output).ShouldContain("Commit the project");
     }
 
@@ -413,7 +413,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     public void APresentationName_TheProjectCannotTake_IsRefusedBeforeAnythingIsInstalled(string name, string refusal)
     {
         AGeneratedProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Portal"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Portal"));
         var console = new TestConsole();
         console.Profile.Width = 240;
 
@@ -427,7 +427,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     public void APresentationProject_IsProposedItsFrameworksName()
     {
         AGeneratedProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
         TestConsole console = Terminal();
         console.Profile.Width = 240;
 
@@ -441,8 +441,8 @@ public sealed partial class GuidedFlowTests : IDisposable
     public void AProjectWithoutTheApi_IsOfferedOnlyThePresentationThatDoesNotCallIt()
     {
         AGeneratedProject();
-        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
         TestConsole console = Terminal();
         console.Profile.Width = 240;
 
@@ -456,8 +456,8 @@ public sealed partial class GuidedFlowTests : IDisposable
     public void AClientOfTheApi_IsRefused_InAProjectWithoutIt_BeforeAnythingIsInstalled()
     {
         AGeneratedProject();
-        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
         var console = new TestConsole();
         console.Profile.Width = 240;
 
@@ -666,12 +666,12 @@ public sealed partial class GuidedFlowTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "Acme.Shop.sln"), string.Empty);
         Directory.CreateDirectory(Path.Combine(_root, "Tools"));
         File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
     }
 
     private static void APresentationReadme(ProcessCall call)
     {
-        string folder = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Presentation", $"Acme.Shop.{call.Arguments[3]}")).FullName;
+        string folder = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Presentation", $"AS.{call.Arguments[3]}")).FullName;
         File.WriteAllText(
             Path.Combine(folder, "README.md"),
             """
@@ -690,7 +690,7 @@ public sealed partial class GuidedFlowTests : IDisposable
             - in `.dockerignore`, after the line:
 
               ```text
-              !Src/Presentation/Acme.Shop.Api/appsettings.json
+              !Src/Presentation/AS.Api/appsettings.json
               ```
             """);
     }

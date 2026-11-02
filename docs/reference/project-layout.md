@@ -1,10 +1,17 @@
 ﻿# Project layout
 
 Where a file goes and what it is called. Every rule on this page is held by a test in
-`Tests/Architecture/AppTemplate.Architecture.Tests`, so a misplaced file fails the build. Why the
+`Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails the build. Why the
 layers are drawn this way is [the architecture](../architecture/README.md).
 
 ## The folder map
+
+A project's folder is its name with this project's name replaced by its initials, `<Initials>` in
+the pages: the capital letters of the name in order, or a part's first letter where the part has
+none, so a product named Acme.Shop keeps its project Acme.Shop.Application.Auth in
+Src/Application/AS.Application.Auth. A module promoted to a project of its own follows the rule, and
+a second product goes in a root folder of its own, since the tasks find a project by its
+`cleanarch.json` ([ADR 0029](../decisions/0029-a-project-folder-carries-the-products-initials-not-its-name.md)).
 
 Every project has the same shape: `Common/` for what knows no feature, `Features/<Feature>/` for the
 rest, and a root that holds only the `.csproj`, one composition file (`Program.cs` or the project's
@@ -37,24 +44,24 @@ content for.
 
 ```
 Src/Domain/
-  AppTemplate.Domain.Core               Common/{Abstractions,Events,Exceptions,Primitives}
+  AT.Domain.Core                        Common/{Abstractions,Events,Exceptions,Primitives}
                                         no Features/
 <!--#if (tagging)-->
-  AppTemplate.Domain                    Common/{Tagging}
+  AT.Domain                             Common/{Tagging}
 <!--#endif-->
 <!--#if (!tagging)-->
-  AppTemplate.Domain                    no Common/
+  AT.Domain                             no Common/
 <!--#endif-->
                                         Features/<F>/{Model/{Entities,Events,ValueObjects},Repositories}
 Src/Application/
-  AppTemplate.Application.Core          Common/{Collections,Concurrency,Events,Idempotency,Localization,
+  AT.Application.Core                   Common/{Collections,Concurrency,Events,Idempotency,Localization,
                                                 Ownership,Policies,Ports,Results,UseCases,Validation}
                                         Features/<F>/UseCases/Commands/<Operation>
 <!--#if (tagging)-->
-  AppTemplate.Application               Common/{Tagging}
+  AT.Application                        Common/{Tagging}
 <!--#endif-->
 <!--#if (!tagging)-->
-  AppTemplate.Application               no Common/
+  AT.Application                        no Common/
 <!--#endif-->
                                         Features/<F>/{UseCases/{Commands,Queries}/<Operation>,
                                                       Ports/<Port>,
@@ -65,14 +72,14 @@ Src/Application/
 <!--#endif-->
                                                       Helpers}
 <!--#if (localAuth)-->
-  AppTemplate.Application.Auth          no Common/
+  AT.Application.Auth                   no Common/
                                         Features/{Accounts,Sessions,TwoFactor,Passkeys,ExternalLogins,
                                                   SecurityEvents}/{UseCases,Ports,Model/{Errors,Policies}}
 <!--#endif-->
 Src/Infrastructure/
-  AppTemplate.Infrastructure.Core       Common/{Caching,Contexts,Options,Saving,Templating,Time}
+  AT.Infrastructure.Core                Common/{Caching,Contexts,Options,Saving,Templating,Time}
                                         no Features/
-  AppTemplate.Infrastructure.Persistence
+  AT.Infrastructure.Persistence
                                         Common/{Contexts,Idempotency,Leases}
                                         Features/<F>/{Access/{Queries,Repositories,Stores},
                                                       Rows/{Configurations,Mapping,Models,Tracking},
@@ -84,7 +91,7 @@ Src/Infrastructure/
 <!--#endif-->
                                         Migrations/
 <!--#if (localAuth)-->
-  AppTemplate.Infrastructure.Auth       Common/{Contexts,Options}
+  AT.Infrastructure.Auth                Common/{Contexts,Options}
                                         Features/<F>/{Access/{Queries,Tables},
                                                       Adapters/{Directories,Providers,Services},
                                                       Configuration/{Options,Seeding},
@@ -92,19 +99,19 @@ Src/Infrastructure/
                                                       Rows/{Configurations,Models}}
                                         Migrations/
 <!--#endif-->
-  AppTemplate.Infrastructure.Email      Common/{Http,Smtp}       Features/<F>/, files side by side
+  AT.Infrastructure.Email               Common/{Http,Smtp}       Features/<F>/, files side by side
 <!--#if (files)-->
-  AppTemplate.Infrastructure.Storage    Common/{Budgets,Factories,Options}
+  AT.Infrastructure.Storage             Common/{Budgets,Factories,Options}
                                         Features/Files/{Access/Stores,
                                                         Adapters/{Inventories,Scanners,Transfers},
                                                         Configuration/Options}
 <!--#endif-->
-  AppTemplate.Infrastructure.InMemory   Common/{Email,Time}      Features/<F>/, files side by side
+  AT.Infrastructure.InMemory            Common/{Email,Time}      Features/<F>/, files side by side
 Src/Presentation/
-  AppTemplate.Presentation.Core         Common/{Jobs,Localization,Observability,Outbound,Security}
+  AT.Presentation.Core                  Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
 <!--#if (api && !jobsWorker)-->
-  AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+  AT.Api                                Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Jobs,Localization,Observability,OpenApi,
                                                 Security}
                                         Features/<F>/{Composition,
@@ -115,7 +122,7 @@ Src/Presentation/
                                                       Controllers,Jobs}
 <!--#endif-->
 <!--#if (api && jobsWorker)-->
-  AppTemplate.Api                       Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
+  AT.Api                                Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Localization,Observability,OpenApi,
                                                 Security}
                                         Features/<F>/{Composition,
@@ -126,59 +133,59 @@ Src/Presentation/
                                                       Controllers}
 <!--#endif-->
 <!--#if (presentationBlazorServer && localAuth)-->
-  <Project>.Portal                      Common/{Hosting,Security}
+  <Initials>.Portal                     Common/{Hosting,Security}
                                         Features/<F>/Composition
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (presentationBlazorServer && externalAuth)-->
-  <Project>.Portal                      Common/{Hosting,Security}
+  <Initials>.Portal                     Common/{Hosting,Security}
                                         Features/<F>/{Composition,Configuration/Options}
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (presentationBlazorServer && publicApi)-->
-  <Project>.Portal                      Common/{Hosting,Security}
+  <Initials>.Portal                     Common/{Hosting,Security}
                                         no Features/
                                         Components/, wwwroot/: dotnet new blazor's, at bootstrap
 <!--#endif-->
 <!--#if (presentationAvalonia && localAuth)-->
-  <Project>.Desktop                     Common/{Hosting}
+  <Initials>.Desktop                    Common/{Hosting}
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
 <!--#if (presentationAvalonia && externalAuth)-->
-  <Project>.Desktop                     Common/{Hosting,Sessions}
+  <Initials>.Desktop                    Common/{Hosting,Sessions}
                                         no Features/
                                         Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
 <!--#endif-->
 <!--#if (presentationMcp && localAuth)-->
-  <Project>.Mcp                         Common/{Hosting,Security,Tools}
+  <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                         Features/<F>/{Composition,Tools}
 <!--#endif-->
 <!--#if (presentationMcp && externalAuth)-->
-  <Project>.Mcp                         Common/{Hosting,Security,Tools}
+  <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                         Features/<F>/{Composition,Configuration/Options,Tools}
 <!--#endif-->
 <!--#if (presentationWpf)-->
-  <Project>.Desktop                     no Common/, no Features/
+  <Initials>.Desktop                    no Common/, no Features/
                                         App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#endif-->
 <!--#if (presentationWpf && localAuth)-->
-  <Project>.Desktop.Core                Common/{Hosting}
+  <Initials>.Desktop.Core               Common/{Hosting}
                                         no Features/
                                         ViewModels/
 <!--#endif-->
 <!--#if (presentationWpf && externalAuth)-->
-  <Project>.Desktop.Core                Common/{Hosting,Sessions}
+  <Initials>.Desktop.Core               Common/{Hosting,Sessions}
                                         no Features/
                                         ViewModels/
 <!--#endif-->
 <!--#if (jobsWorker)-->
-  <Project>.Worker                      Common/{Jobs,Security}
+  <Initials>.Worker                     Common/{Jobs,Security}
                                         Features/<F>/{Composition,Jobs}
 <!--#endif-->
 <!--#if (dotnetClient)-->
 Src/Clients/
-  AppTemplate.Client                    Common/{Composition,Errors,Sessions}
+  AT.Client                             Common/{Composition,Errors,Sessions}
                                         no Features/
                                         Generated/: Kiota's, from the OpenAPI reference
 <!--#endif-->
@@ -209,7 +216,7 @@ since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options th
 | `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `ci`, `sonar`, `agentFiles` |
 | `client` | `true` when the project holds the .NET client of the API |
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience` and `rendering` each was added with, and the `packages` added to it |
-| `presentation` | every presentation project under `Src/Presentation`, the API and the worker among them: its `name`, the folder's suffix after the project's name, and its `framework` |
+| `presentation` | every presentation project under `Src/Presentation`, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
 
 The options are a fact about the day of generation, and no task rewrites them: removing an example
 feature leaves `examples` as it was. A part added later is recorded by the task that joins it,
@@ -226,7 +233,7 @@ accounts.
 ## The worked example
 
 <!--#if (todoLists)-->
-A rich feature's application folder, `Src/Application/AppTemplate.Application/Features/TodoLists/`:
+A rich feature's application folder, `Src/Application/AT.Application/Features/TodoLists/`:
 
 ```
 UseCases/Commands/CreateTodoList/   CreateTodoListCommand, ICreateTodoListUseCase,
@@ -243,7 +250,7 @@ Helpers/                            TodoListItemExtensions
 ```
 <!--#endif-->
 <!--#if (!todoLists)-->
-A rich feature's application folder, `AppTemplate.Application/Features/<Feature>/`:
+A rich feature's application folder, `AT.Application/Features/<Feature>/`:
 
 ```
 UseCases/Commands/<Operation>/      the command, its named interface, the use case, its validator
@@ -262,14 +269,14 @@ Services/Consumers/<Event>/         one folder per event the feature answers
 A simple feature has no operation folders, so an input DTO's validator sits beside the DTO:
 
 ```
-Src/Application/AppTemplate.Application/Features/Notes/
+Src/Application/AT.Application/Features/Notes/
   Model/Dtos/            NoteDto, NoteContentDto, NoteContentDtoValidator, …
   Model/Policies/        NoteInputPolicy, NoteCollectionPolicy
   Ports/NoteQueries/     INoteQueries, NoteFilter
   Ports/NoteStore/       INoteStore, NoteChangeStatus
   Services/              INoteService, NoteService
   Services/Consumers/    DeleteNotesOnAccountDeletedConsumer
-Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Notes/
+Src/Infrastructure/AT.Infrastructure.Persistence/Features/Notes/
   Rows/Models/           NoteRecord, the only model
   Access/Queries/        NoteQueries, NoteSortMap
   Access/Stores/         NoteStore
@@ -327,7 +334,8 @@ An entry is `null` when the project has no such folder, checked in both directio
 list when its features hold their files side by side.
 
 A `.Core` project is marked `IsSdkProject`; an infrastructure project is a module only a host
-references.
+references. Its folder takes the initials, as [the folder map](#the-folder-map) says, and
+`ProjectFolderTests` names the folder a misplaced project belongs in.
 
 ## The rules the tests hold
 
@@ -340,6 +348,7 @@ references.
 | One public type per file, named for the file | `LayoutConventionTests.EverySourceFile_DeclaresOnePublicType_NamedForTheFile` |
 | The `Common/` and `Features/` words are closed per project | `LayoutConventionTests.EveryCommonFolder_IsNamedFromItsProjectsVocabulary`, `EveryFeatureFolder_IsNamedFromItsLayersVocabulary` |
 | Every project has a vocabulary | `LayoutConventionTests.EveryProjectOnDisk_HasAVocabularyOfItsOwn` |
+| A project sits in its layer's folder, in `<Initials>.<rest of its name>` | `ProjectFolderTests.EveryProject_SitsInTheFolderItsNameGives` |
 | A file carries its folder's suffix; every exemption names a file | `FeatureFolderVocabularyTests.EveryFileUnderAFeature_CarriesItsFoldersNatureWord`, `EveryExemption_StillNamesAFile` |
 | Every type under `Helpers/` is a static class | `FeatureFolderVocabularyTests.EveryTypeUnderAHelpersFolder_IsAStaticClass` |
 | One use case per operation folder, named for it | `UseCaseConventionTests.EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt` |

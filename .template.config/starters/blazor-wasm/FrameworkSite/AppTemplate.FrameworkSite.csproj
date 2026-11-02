@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Clients\AppTemplate.Client\AppTemplate.Client.csproj" />
+    <ProjectReference Include="..\..\..\Clients\AT.Client\AppTemplate.Client.csproj" />
   </ItemGroup>
   <!--#if (externalAuth)-->
 

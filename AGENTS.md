@@ -54,7 +54,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 |---|---|---|
 | Once, right after generating | `dotnet run Tools/Tasks.cs bootstrap` | the network |
 | While you work | `dotnet run Tools/Tasks.cs test --no-integration` | nothing |
-| The structural rules alone | `dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` | nothing |
+| The structural rules alone | `dotnet test --project Tests/Architecture/AT.Architecture.Tests` | nothing |
 | After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` (commit apart what it rewrites in files you did not touch) | nothing |
 | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
 <!--#if (dotnetClient)-->

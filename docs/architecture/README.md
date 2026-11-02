@@ -1,7 +1,7 @@
 ﻿# Architecture
 
 This project is a .NET HTTP API built in four layers. Source dependencies point inward, and the
-tests in `Tests/Architecture/AppTemplate.Architecture.Tests` fail the build when one points the
+tests in `Tests/Architecture/AT.Architecture.Tests` fail the build when one points the
 other way. The pages in this section state the rules every layer, feature and endpoint follows;
 none of them can be switched off.
 

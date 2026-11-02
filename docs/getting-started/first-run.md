@@ -275,12 +275,12 @@ This project has no API, which is the host that applies the migrations at start 
 no other host migrates. Once the database is up, apply each context's migrations from the host:
 
 ```bash
-dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 ```
 
 <!--#if (localAuth)-->
 ```bash
-dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Auth --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Auth
+dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Auth --startup-project Src/Infrastructure/AT.Infrastructure.Auth
 ```
 
 <!--#endif-->
@@ -389,7 +389,7 @@ run did, then run the tests:
 
 ```bash
 dotnet run Tools/Tasks.cs migration-add AddWidgets
-dotnet ef database update --project Src/Infrastructure/AppTemplate.Infrastructure.Persistence --startup-project Src/Infrastructure/AppTemplate.Infrastructure.Persistence
+dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 dotnet run Tools/Tasks.cs test --no-integration
 ```
 

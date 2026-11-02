@@ -46,16 +46,16 @@ behind the `Administrator` policy.
 ## One process: HTTP and jobs
 
 `AppTemplate.Api` serves HTTP and runs the jobs, composed by the one call `AddBackgroundJobs` in
-`Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`. Each loop
+`Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`. Each loop
 runs on `PeriodicJob.RunAsync`
-(`Src/Presentation/AppTemplate.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
+(`Src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
 <!--#endif-->
 <!--#if (jobsWorker)-->
 ## The worker
 
-`Src/Presentation/<Project>.Worker` is a generic host that runs the jobs and serves no HTTP
+`Src/Presentation/<Initials>.Worker` is a generic host that runs the jobs and serves no HTTP
 ([ADR 0025](../decisions/0025-jobs-run-in-a-worker-under-a-lease.md)). Its `Program.cs` composes the
 features and the modules the passes call, as the API's does, gives every scope no caller, and calls
 `AddBackgroundJobs` from `Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs`; each feature's jobs
@@ -64,7 +64,7 @@ are under its own `Features/<Feature>/Jobs/`.
 The API composes no job and binds no `Jobs` section, and keeps the maintenance routes.
 <!--#endif-->
 Each loop runs on `PeriodicJob.RunAsync`
-(`Src/Presentation/AppTemplate.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
+(`Src/Presentation/AT.Presentation.Core/Common/Jobs/PeriodicJob.cs`): one pass at once,
 then one per interval, ticks that elapse during a slow pass coalesced, and an immediate return on
 shutdown.
 
@@ -77,7 +77,7 @@ The worker migrates nothing, and neither does any other host of this project: in
 migrations are applied with `dotnet ef database update`, as [first run](../getting-started/first-run.md#run-with-compose)
 shows, and at release the migration bundles run before the hosts.
 <!--#endif-->
-Its tests are in `Tests/Presentation/<Project>.Worker.UnitTests`: `WorkerCompositionTests` builds the
+Its tests are in `Tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
 worker from its own `Program.cs` with every registration validated and resolves each use case it
 composes in a background scope.
 <!--#endif-->
@@ -190,11 +190,11 @@ services.AddMaintenanceTask<IPurgeExpiredExportsUseCase>(
 ```
 
 <!--#if (!jobsWorker)-->
-`Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
+`Src/Presentation/AT.Api/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
 the idempotency purge this way.
 <!--#endif-->
 <!--#if (jobsWorker)-->
-`Src/Presentation/<Project>.Worker/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
+`Src/Presentation/<Initials>.Worker/Features/Maintenance/Jobs/MaintenanceJobsExtensions.cs` registers
 the idempotency purge this way.
 <!--#endif-->
 
@@ -203,19 +203,19 @@ each pass with `CreateBackgroundScope()`, with options under `Jobs:<Feature>` bo
 only when `Jobs:Enabled` is true, a meter counting `iterations`, and one call from
 `AddBackgroundJobs`.
 <!--#if (reminders && !jobsWorker)-->
-`Src/Presentation/AppTemplate.Api/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
+`Src/Presentation/AT.Api/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
 `ReminderBackgroundService` beside it are the model.
 <!--#endif-->
 <!--#if (!reminders && !jobsWorker)-->
-`MaintenanceBackgroundService`, in `Src/Presentation/AppTemplate.Api/Features/Maintenance/Jobs/`, is
+`MaintenanceBackgroundService`, in `Src/Presentation/AT.Api/Features/Maintenance/Jobs/`, is
 the model.
 <!--#endif-->
 <!--#if (reminders && jobsWorker)-->
-`Src/Presentation/<Project>.Worker/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
+`Src/Presentation/<Initials>.Worker/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
 `ReminderBackgroundService` beside it are the model.
 <!--#endif-->
 <!--#if (!reminders && jobsWorker)-->
-`MaintenanceBackgroundService`, in `Src/Presentation/<Project>.Worker/Features/Maintenance/Jobs/`, is
+`MaintenanceBackgroundService`, in `Src/Presentation/<Initials>.Worker/Features/Maintenance/Jobs/`, is
 the model.
 <!--#endif-->
 

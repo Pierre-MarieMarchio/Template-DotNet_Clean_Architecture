@@ -105,10 +105,10 @@ updates:
     #endif
     directories:
       #if (api)
-      - /Src/Presentation/AppTemplate.Api
+      - /Src/Presentation/AT.Api
       #endif
       #if (jobsWorker)
-      - /Src/Presentation/AppTemplate.Worker
+      - /Src/Presentation/AT.Worker
       #endif
       #if (anyWeb)
       # Every web app's image, nginx or Node, by directory glob.

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <UserSecretsId>31e7f540-0654-40db-a23e-4ea43d88972b</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..\..</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AT.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AT.Application.Core\AppTemplate.Application.Core.csproj" />
+    <!--#if (localAuth)-->
+    <ProjectReference Include="..\..\Application\AT.Application.Auth\AppTemplate.Application.Auth.csproj" />
+    <!--#endif-->
+    <ProjectReference Include="..\AT.Presentation.Core\AppTemplate.Presentation.Core.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AT.Infrastructure.Email\AppTemplate.Infrastructure.Email.csproj" />
+    <!--#if (files)-->
+    <ProjectReference Include="..\..\Infrastructure\AT.Infrastructure.Storage\AppTemplate.Infrastructure.Storage.csproj" />
+    <!--#endif-->
+    <!--#if (localAuth)-->
+    <ProjectReference Include="..\..\Infrastructure\AT.Infrastructure.Auth\AppTemplate.Infrastructure.Auth.csproj" />
+    <!--#endif-->
+    <ProjectReference Include="..\..\Infrastructure\AT.Infrastructure.Core\AppTemplate.Infrastructure.Core.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\AT.Infrastructure.Persistence\AppTemplate.Infrastructure.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>AppTemplate.Worker.UnitTests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

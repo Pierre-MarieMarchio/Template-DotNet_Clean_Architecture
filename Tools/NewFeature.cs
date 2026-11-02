@@ -341,16 +341,16 @@ internal static class NewFeature
         }
 
         string? reaction = null;
-        bool hasApi = Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", $"{prefix}.Api"));
+        bool hasApi = Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", FolderOf(prefix, "Api")));
 
         if (access == "owner")
         {
             string policyPort = System.IO.Path.Combine(
-                root, "Src", "Application", $"{prefix}.Application.Core", "Common", "Ports", "IDeletedAccountDataPolicy.cs");
+                root, "Src", "Application", FolderOf(prefix, "Application.Core"), "Common", "Ports", "IDeletedAccountDataPolicy.cs");
 
             if (!File.Exists(policyPort))
             {
-                string[] identityHosts = hasApi ? [$"{prefix}.Api"] : [.. PresentationHosts(root, prefix)];
+                string[] identityHosts = hasApi ? [FolderOf(prefix, "Api")] : [.. PresentationHosts(root, prefix)];
 
                 reaction = identityHosts.Select(host => IdentityFeature(root, host)).FirstOrDefault(found => found is not null);
 
@@ -551,14 +551,14 @@ internal static class NewFeature
                 .Where(folder => !IsClientPresentation(folder))
                 .Select(System.IO.Path.GetFileName)
                 .OfType<string>()
-                .Where(host => host != $"{prefix}.Api")
+                .Where(host => host != FolderOf(prefix, "Api"))
                 .Order(StringComparer.Ordinal)
             : [];
     }
 
     private static string[] ComposingHosts(string root, Spec spec) =>
         spec.HasApi
-            ? [.. PresentationHosts(root, spec.Prefix).Prepend($"{spec.Prefix}.Api")]
+            ? [.. PresentationHosts(root, spec.Prefix).Prepend(FolderOf(spec.Prefix, "Api"))]
             : [.. PresentationHosts(root, spec.Prefix)];
 
     private static string JobsHost(string root, string prefix)
@@ -572,7 +572,7 @@ internal static class NewFeature
                 .OfType<string>()
                 .Order(StringComparer.Ordinal)
                 .FirstOrDefault()
-            : null) ?? $"{prefix}.Api";
+            : null) ?? FolderOf(prefix, "Api");
     }
 
     private static bool IsClientPresentation(string folder) =>
@@ -593,7 +593,18 @@ internal static class NewFeature
     }
 
     private static string ProjectOf(Spec spec, string layer, string project) =>
-        $"{layer}/{spec.Prefix}.{project}";
+        $"{layer}/{FolderOf(spec.Prefix, project)}";
+
+    private static string FolderOf(string prefix, string project) => $"{Initials(prefix)}.{project}";
+
+    private static string ProjectInFolder(string prefix, string folder) => prefix + folder[Initials(prefix).Length..];
+
+    private static string Initials(string prefix) => string.Concat(prefix.Split('.').Select(SegmentInitials));
+
+    private static string SegmentInitials(string segment) =>
+        segment.Any(char.IsAsciiLetterUpper)
+            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
+            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 
     private static List<Emission> Plan(Spec spec, string root, out List<string> skippedTestProjects)
     {
@@ -650,14 +661,14 @@ internal static class NewFeature
             Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs", Templates.SweepUseCasePort);
             Add(applicationCore, "Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs", Templates.SweepUseCase);
             string jobsHost = JobsHost(root, spec.Prefix);
-            var jobs = new Dictionary<string, string>(StringComparer.Ordinal) { ["J"] = jobsHost };
+            var jobs = new Dictionary<string, string>(StringComparer.Ordinal) { ["J"] = ProjectInFolder(spec.Prefix, jobsHost) };
 
             Add($"Src/Presentation/{jobsHost}", "Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs", Templates.DeletedAccountSweepJobs, extra: jobs);
             Add($"Src/Presentation/{jobsHost}", "Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs", Templates.DeletedAccountSweepOptions, extra: jobs);
 
             foreach (string host in ComposingHosts(root, spec))
             {
-                var named = new Dictionary<string, string>(StringComparer.Ordinal) { ["H"] = host };
+                var named = new Dictionary<string, string>(StringComparer.Ordinal) { ["H"] = ProjectInFolder(spec.Prefix, host) };
 
                 if (adapter == "Auth")
                 {
@@ -1234,13 +1245,13 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine($"  1. Src/Infrastructure/{p}.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs");
+        output.WriteLine($"  1. {ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence")}/Common/Contexts/AppDbContext.cs");
         output.WriteLine($"       public const string {f}Schema = \"{Snake(f)}\";");
         output.WriteLine($"       internal DbSet<{a}Record> {f} => Set<{a}Record>();");
         output.WriteLine($"       modelBuilder.ApplyConfiguration(new {a}RecordConfiguration());");
         output.WriteLine($"     with the usings of {p}.Infrastructure.Persistence.Features.{f}.Rows.Configurations and .Rows.Models");
         output.WriteLine();
-        output.WriteLine($"  2. Src/Application/{p}.Application/ApplicationModule.cs: an Add{f}() beside the others");
+        output.WriteLine($"  2. {ProjectOf(spec, "Src/Application", "Application")}/ApplicationModule.cs: an Add{f}() beside the others");
 
         if (record || flags.Contains("change"))
         {
@@ -1261,7 +1272,7 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine($"  3. Src/Infrastructure/{p}.Infrastructure.Persistence/PersistenceModule.cs: an Add{f}Feature(services),");
+        output.WriteLine($"  3. {ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence")}/PersistenceModule.cs: an Add{f}Feature(services),");
         output.WriteLine("     called from AddPersistenceModule, registering the adapters of this feature's ports:");
 
         if (record)
@@ -1297,12 +1308,12 @@ internal static class NewFeature
             output.WriteLine($"     and Src/Presentation/{host}/Program.cs the same, since that host composes the features itself");
         }
         output.WriteLine();
-        output.WriteLine($"  5. Tests/Architecture/{p}.Architecture.Tests/Composition/HostComposition.cs: services.Add{f}(); in each");
+        output.WriteLine($"  5. {ProjectOf(spec, "Tests/Architecture", "Architecture.Tests")}/Composition/HostComposition.cs: services.Add{f}(); in each");
         output.WriteLine("     composition that offers the feature, so the container tests resolve what it registers,");
         output.WriteLine($"     with using {p}.Application; if the file has none yet");
         output.WriteLine();
 
-        string moduleTests = $"Tests/Application/{p}.Application.UnitTests/ApplicationModuleTests.cs";
+        string moduleTests = $"{ProjectOf(spec, "Tests/Application", "Application.UnitTests")}/ApplicationModuleTests.cs";
 
         if (File.Exists(Path.Combine(root, moduleTests)))
         {
@@ -1322,11 +1333,11 @@ internal static class NewFeature
             string composition = !spec.HasApi
                 ? HostComposition(root, hosts[0], adapter)
                 : adapter == "Auth"
-                    ? $"Src/Presentation/{p}.Api/Features/Auth/Composition/AuthComposition.cs"
-                    : $"Src/Presentation/{p}.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs";
+                    ? $"{ProjectOf(spec, "Src/Presentation", "Api")}/Features/Auth/Composition/AuthComposition.cs"
+                    : $"{ProjectOf(spec, "Src/Presentation", "Api")}/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs";
 
             output.WriteLine();
-            output.WriteLine($"  7. Src/Application/{p}.Application.Core/ApplicationCoreModule.cs: the AddDeletedAccountSweep()");
+            output.WriteLine($"  7. {ProjectOf(spec, "Src/Application", "Application.Core")}/ApplicationCoreModule.cs: the AddDeletedAccountSweep()");
             output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, with using");
             output.WriteLine($"     {p}.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;");
             output.WriteLine();
@@ -1344,7 +1355,7 @@ internal static class NewFeature
                 output.WriteLine($"     and in {HostComposition(root, host, adapter)}, beside the directory written for that host");
             }
             output.WriteLine();
-            output.WriteLine($" 11. Tests/Architecture/{p}.Architecture.Tests/Composition/HostComposition.cs: services.AddDeletedAccountSweep();");
+            output.WriteLine($" 11. {ProjectOf(spec, "Tests/Architecture", "Architecture.Tests")}/Composition/HostComposition.cs: services.AddDeletedAccountSweep();");
             output.WriteLine("     after services.AddPurgeExpiredIdempotencyKeys(); in each composition, and in AddHostSuppliedAdapters");
             output.WriteLine(spec.HasApi
                 ? "     and AddBackgroundOnlyAdapters the double that stands in for the directory the API composes:"
@@ -1369,7 +1380,7 @@ internal static class NewFeature
         output.WriteLine("Then the schema, which this does not run. The model changed, so the business context needs a migration:");
         output.WriteLine($"  dotnet run Tools/Tasks.cs migration-add Add{f}");
         output.WriteLine("Before bootstrap has run, there is nothing to add to: the initial migration bootstrap creates takes the feature in.");
-        output.WriteLine($"While no database has applied that one, delete Src/Infrastructure/{p}.Infrastructure.Persistence/Migrations and run migration-initial.");
+        output.WriteLine($"While no database has applied that one, delete {ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence")}/Migrations and run migration-initial.");
         output.WriteLine();
 
         if (!record)
@@ -1486,14 +1497,14 @@ internal static class NewFeature
 
         string[] directories =
         [
-            "Src/Domain/Acme.Domain",
-            "Src/Application/Acme.Application",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts",
-            "Src/Presentation/Acme.Api",
-            "Tests/Application/Acme.Application.UnitTests",
-            "Tests/Domain/Acme.Domain.UnitTests",
-            "Tests/Infrastructure/Acme.Infrastructure.Persistence.UnitTests",
-            "Tests/Presentation/Acme.Api.UnitTests",
+            "Src/Domain/A.Domain",
+            "Src/Application/A.Application",
+            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts",
+            "Src/Presentation/A.Api",
+            "Tests/Application/A.Application.UnitTests",
+            "Tests/Domain/A.Domain.UnitTests",
+            "Tests/Infrastructure/A.Infrastructure.Persistence.UnitTests",
+            "Tests/Presentation/A.Api.UnitTests",
         ];
 
         foreach (string directory in directories)
@@ -1504,12 +1515,12 @@ internal static class NewFeature
         File.WriteAllText(System.IO.Path.Combine(root, "cleanarch.json"), "{\n  \"name\": \"Acme\"\n}\n");
 
         File.WriteAllText(
-            System.IO.Path.Combine(root, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs"),
+            System.IO.Path.Combine(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs"),
             "// the context a person edits\n");
 
         if (reaction)
         {
-            string ports = System.IO.Path.Combine(root, "Src/Application/Acme.Application.Core/Common/Ports");
+            string ports = System.IO.Path.Combine(root, "Src/Application/A.Application.Core/Common/Ports");
 
             Directory.CreateDirectory(ports);
             File.WriteAllText(
@@ -1518,7 +1529,7 @@ internal static class NewFeature
         }
         else
         {
-            Directory.CreateDirectory(System.IO.Path.Combine(root, "Src/Presentation/Acme.Api/Features/Auth"));
+            Directory.CreateDirectory(System.IO.Path.Combine(root, "Src/Presentation/A.Api/Features/Auth"));
         }
 
         return root;
@@ -1641,12 +1652,12 @@ internal static class NewFeature
 
         string[] expected =
         [
-            "Src/Application/Acme.Application/Features/TodoLists/Services/ITodoListService.cs",
-            "Src/Application/Acme.Application/Features/TodoLists/Ports/TodoListStore/ITodoListStore.cs",
-            "Src/Application/Acme.Application/Features/TodoLists/Ports/TodoListQueries/ITodoListQueries.cs",
-            "Src/Infrastructure/Acme.Infrastructure.Persistence/Features/TodoLists/Rows/Models/TodoListRecord.cs",
-            "Src/Presentation/Acme.Api/Features/TodoLists/Controllers/TodoListsController.cs",
-            "Tests/Application/Acme.Application.UnitTests/Features/TodoLists/Services/TodoListServiceTests.cs",
+            "Src/Application/A.Application/Features/TodoLists/Services/ITodoListService.cs",
+            "Src/Application/A.Application/Features/TodoLists/Ports/TodoListStore/ITodoListStore.cs",
+            "Src/Application/A.Application/Features/TodoLists/Ports/TodoListQueries/ITodoListQueries.cs",
+            "Src/Infrastructure/A.Infrastructure.Persistence/Features/TodoLists/Rows/Models/TodoListRecord.cs",
+            "Src/Presentation/A.Api/Features/TodoLists/Controllers/TodoListsController.cs",
+            "Tests/Application/A.Application.UnitTests/Features/TodoLists/Services/TodoListServiceTests.cs",
             ".feature-manifest/TodoLists.json",
         ];
 
@@ -1674,7 +1685,7 @@ internal static class NewFeature
         string vowelRoot = NewTree(scratch);
         var vowel = Invoke(vowelRoot, "Invoices", "Invoice", "--access", "shared");
         string vowelTests = File.ReadAllText(System.IO.Path.Combine(
-            vowelRoot, "Tests/Application/Acme.Application.UnitTests/Features/Invoices/Services/InvoiceServiceTests.cs"));
+            vowelRoot, "Tests/Application/A.Application.UnitTests/Features/Invoices/Services/InvoiceServiceTests.cs"));
 
         expect(vowel.Code == 0, $"A feature named with a vowel was refused: {vowel.Error}");
         expect(
@@ -1924,7 +1935,7 @@ internal static class NewFeature
         expect(Same(afterFirst, Snapshot(root)), "The refused second generation changed the tree.");
 
         string other = NewTree(scratch);
-        string inTheWay = System.IO.Path.Combine(other, "Src/Application/Acme.Application/Features/Widgets/Model/Errors/WidgetErrors.cs");
+        string inTheWay = System.IO.Path.Combine(other, "Src/Application/A.Application/Features/Widgets/Model/Errors/WidgetErrors.cs");
 
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(inTheWay)!);
         File.WriteAllText(inTheWay, "// somebody's own test\n");
@@ -1939,7 +1950,7 @@ internal static class NewFeature
         string named = NewTree(scratch);
 
         File.WriteAllText(
-            System.IO.Path.Combine(named, "Src/Infrastructure/Acme.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs"),
+            System.IO.Path.Combine(named, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs"),
             "public const string WidgetsSchema = \"widgets\";\n");
 
         var snapshot = Snapshot(named);
@@ -2003,7 +2014,7 @@ internal static class NewFeature
     {
         string root = NewTree(scratch);
 
-        File.WriteAllText(System.IO.Path.Combine(root, "Src/Presentation/Acme.Api/Features"), "not a folder\n");
+        File.WriteAllText(System.IO.Path.Combine(root, "Src/Presentation/A.Api/Features"), "not a folder\n");
 
         var before = Snapshot(root);
         var result = Invoke(root, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -2020,7 +2031,7 @@ internal static class NewFeature
 
         expect(present.Code == 0, $"An owner feature into a tree with the reaction was refused: {present.Error.Split('\n')[0]}");
         expect(
-            !File.Exists(System.IO.Path.Combine(shipped, "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs")),
+            !File.Exists(System.IO.Path.Combine(shipped, "Src/Application/A.Application.Core/Common/Ports/IUserAccountDirectory.cs")),
             "A tree that ships the reaction had its account directory re-emitted.");
         expect(present.Output.Contains("Six edits", StringComparison.Ordinal), "A tree that ships the reaction was told to edit more than six places.");
         expect(!present.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "A tree that ships the reaction was told to register its sweep again.");
@@ -2034,13 +2045,13 @@ internal static class NewFeature
 
         string[] reaction =
         [
-            "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
-            "Src/Application/Acme.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-            "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
-            "Src/Application/Acme.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
-            "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
-            "Src/Presentation/Acme.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
-            "Src/Presentation/Acme.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
+            "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+            "Src/Application/A.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+            "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/ISweepDeletedAccountDataUseCase.cs",
+            "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountDataUseCase.cs",
+            "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+            "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+            "Src/Presentation/A.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
         ];
 
         foreach (string path in reaction)
@@ -2060,7 +2071,7 @@ internal static class NewFeature
         string hostEdit = eleventh < 0 ? string.Empty : first.Output[eleventh..];
 
         expect(
-            first.Output.Contains(" 11. Tests/Architecture/Acme.Architecture.Tests/Composition/HostComposition.cs: services.AddDeletedAccountSweep();", StringComparison.Ordinal),
+            first.Output.Contains(" 11. Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs: services.AddDeletedAccountSweep();", StringComparison.Ordinal),
             "The architecture tests' composition was not printed as the eleventh edit.");
         string[] hostLines =
         [
@@ -2080,7 +2091,7 @@ internal static class NewFeature
 
         expect(second.Code == 0, $"The second owner feature was refused: {second.Error.Split('\n')[0]}");
         expect(
-            !File.ReadAllText(System.IO.Path.Combine(bare, "Src/Application/Acme.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs"))
+            !File.ReadAllText(System.IO.Path.Combine(bare, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs"))
                 .Contains("Sprockets", StringComparison.Ordinal),
             "The second owner feature rewrote a file the first one had created.");
         expect(second.Output.Contains("Six edits", StringComparison.Ordinal), "The second owner feature was told to edit more than six places.");
@@ -2091,13 +2102,13 @@ internal static class NewFeature
         var shared = Invoke(other, "Widgets", "Widget", "--access", "shared");
 
         expect(shared.Code == 0, $"A shared feature into a bare tree was refused: {shared.Error.Split('\n')[0]}");
-        expect(!Directory.Exists(System.IO.Path.Combine(other, "Src/Application/Acme.Application.Core")), "A shared feature brought the reaction with it.");
+        expect(!Directory.Exists(System.IO.Path.Combine(other, "Src/Application/A.Application.Core")), "A shared feature brought the reaction with it.");
         expect(shared.Output.Contains("Six edits", StringComparison.Ordinal), "A shared feature was told to edit more than six places.");
 
         string external = NewTree(scratch, reaction: false);
 
-        Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/Auth"));
-        Directory.CreateDirectory(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity"));
+        Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/A.Api/Features/Auth"));
+        Directory.CreateDirectory(System.IO.Path.Combine(external, "Src/Presentation/A.Api/Features/ExternalIdentity"));
 
         var externalTree = Snapshot(external);
         var mapped = Invoke(external, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -2106,12 +2117,12 @@ internal static class NewFeature
 
         expect(mapped.Code == 0, $"An owner feature into an externally authenticated bare tree was refused: {mapped.Error.Split('\n')[0]}");
         expect(
-            File.Exists(System.IO.Path.Combine(external, "Src/Presentation/Acme.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")),
+            File.Exists(System.IO.Path.Combine(external, "Src/Presentation/A.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")),
             "The external-identity account directory was not written.");
         expect(mapped.Output.Contains("ExternalAuthenticationComposition", StringComparison.Ordinal), "The external composition was not named for the registration.");
 
         string presented = NewTree(scratch, reaction: false);
-        string portal = System.IO.Path.Combine(presented, "Src/Presentation/Acme.Portal");
+        string portal = System.IO.Path.Combine(presented, "Src/Presentation/A.Portal");
 
         Directory.CreateDirectory(System.IO.Path.Combine(portal, "Features/Auth/Composition"));
         File.WriteAllText(System.IO.Path.Combine(portal, "Program.cs"), "builder.Services.AddCookieSessions(builder.Configuration);\n");
@@ -2127,31 +2138,31 @@ internal static class NewFeature
                 && File.ReadAllText(portalDirectory).Contains("namespace Acme.Portal.Features.Auth.Composition;", StringComparison.Ordinal),
             "The presentation host did not get an account directory in its own namespace.");
         expect(
-            hosted.Output.Contains("Src/Presentation/Acme.Portal/Program.cs the same", StringComparison.Ordinal),
+            hosted.Output.Contains("Src/Presentation/A.Portal/Program.cs the same", StringComparison.Ordinal),
             "The feature's registration was not printed for the presentation host, which composes the features itself.");
         expect(
-            hosted.Output.Contains("Src/Presentation/Acme.Portal/Features/Auth/Composition/CookieSessionComposition.cs", StringComparison.Ordinal),
+            hosted.Output.Contains("Src/Presentation/A.Portal/Features/Auth/Composition/CookieSessionComposition.cs", StringComparison.Ordinal),
             "The directory's registration was not printed for the presentation host's composition.");
         ExpectRemovable(presented, presentedTree, "Widgets", 8, expect);
 
-        string desktop = System.IO.Path.Combine(presented, "Src/Presentation/Acme.Desk");
+        string desktop = System.IO.Path.Combine(presented, "Src/Presentation/A.Desk");
 
         Directory.CreateDirectory(desktop);
         File.WriteAllText(System.IO.Path.Combine(desktop, "Program.cs"), "return 0;\n");
         File.WriteAllText(
             System.IO.Path.Combine(desktop, "Acme.Desk.csproj"),
-            "<Project><ItemGroup><ProjectReference Include=\"..\\..\\Clients\\Acme.Client\\Acme.Client.csproj\" /></ItemGroup></Project>\n");
+            "<Project><ItemGroup><ProjectReference Include=\"..\\..\\Clients\\A.Client\\Acme.Client.csproj\" /></ItemGroup></Project>\n");
 
         var withClient = Invoke(presented, "Gadgets", "Gadget", "--access", "owner", "--deletion", "delete");
 
         expect(withClient.Code == 0, $"An owner feature into a tree with a client presentation was refused: {withClient.Error.Split('\n')[0]}");
         expect(
-            !withClient.Output.Contains("Acme.Desk", StringComparison.Ordinal)
+            !withClient.Output.Contains("A.Desk", StringComparison.Ordinal)
                 && !Directory.Exists(System.IO.Path.Combine(desktop, "Features")),
             "A presentation that calls the API through the .NET client was given the feature's registration or an adapter, as if it composed features.");
 
         string working = NewTree(scratch, reaction: false);
-        string worker = System.IO.Path.Combine(working, "Src/Presentation/Acme.Worker");
+        string worker = System.IO.Path.Combine(working, "Src/Presentation/A.Worker");
 
         Directory.CreateDirectory(System.IO.Path.Combine(worker, "Features/BackgroundJobs/Jobs"));
         Directory.CreateDirectory(System.IO.Path.Combine(worker, "Features/Auth/Composition"));
@@ -2170,21 +2181,21 @@ internal static class NewFeature
                 && File.ReadAllText(sweepJobs).Contains("using Acme.Worker.Features.Maintenance.Jobs;", StringComparison.Ordinal),
             "The deleted-account sweep's jobs were not written into the host that runs the jobs, in its namespace.");
         expect(
-            !Directory.Exists(System.IO.Path.Combine(working, "Src/Presentation/Acme.Api/Features/BackgroundJobs")),
+            !Directory.Exists(System.IO.Path.Combine(working, "Src/Presentation/A.Api/Features/BackgroundJobs")),
             "The deleted-account sweep's jobs were written into the API, which runs no job in this tree.");
         expect(
-            swept.Output.Contains("  8. Src/Presentation/Acme.Worker/Program.cs: builder.Services.AddDeletedAccountSweep();", StringComparison.Ordinal)
-                && swept.Output.Contains("  9. Src/Presentation/Acme.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs:", StringComparison.Ordinal),
+            swept.Output.Contains("  8. Src/Presentation/A.Worker/Program.cs: builder.Services.AddDeletedAccountSweep();", StringComparison.Ordinal)
+                && swept.Output.Contains("  9. Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs:", StringComparison.Ordinal),
             "The sweep's registrations were not printed for the host that runs the jobs.");
         expect(
-            swept.Output.Contains("Src/Presentation/Acme.Worker/Program.cs the same", StringComparison.Ordinal)
-                && swept.Output.Contains("Src/Presentation/Acme.Worker/Features/Auth/Composition/WorkerAuthComposition.cs", StringComparison.Ordinal),
+            swept.Output.Contains("Src/Presentation/A.Worker/Program.cs the same", StringComparison.Ordinal)
+                && swept.Output.Contains("Src/Presentation/A.Worker/Features/Auth/Composition/WorkerAuthComposition.cs", StringComparison.Ordinal),
             "The worker, which composes the features its passes call, was not given the feature's registration and the directory's.");
         ExpectRemovable(working, workingTree, "Widgets", 8, expect);
 
         string publicApi = NewTree(scratch, reaction: false);
 
-        Directory.Delete(System.IO.Path.Combine(publicApi, "Src/Presentation/Acme.Api/Features/Auth"), recursive: true);
+        Directory.Delete(System.IO.Path.Combine(publicApi, "Src/Presentation/A.Api/Features/Auth"), recursive: true);
 
         var before = Snapshot(publicApi);
         var refused = Invoke(publicApi, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -2209,8 +2220,8 @@ internal static class NewFeature
 
     private static string WithoutTheApi(string root, params string[] hosts)
     {
-        Directory.Delete(System.IO.Path.Combine(root, "Src/Presentation/Acme.Api"), recursive: true);
-        Directory.Delete(System.IO.Path.Combine(root, "Tests/Presentation/Acme.Api.UnitTests"), recursive: true);
+        Directory.Delete(System.IO.Path.Combine(root, "Src/Presentation/A.Api"), recursive: true);
+        Directory.Delete(System.IO.Path.Combine(root, "Tests/Presentation/A.Api.UnitTests"), recursive: true);
 
         foreach (string host in hosts)
         {
@@ -2235,7 +2246,7 @@ internal static class NewFeature
         foreach (string[] combination in combinations)
         {
             string label = string.Join(' ', combination);
-            string root = WithPageTemplate(WithoutTheApi(NewTree(scratch), "Acme.Portal", "Acme.Worker"));
+            string root = WithPageTemplate(WithoutTheApi(NewTree(scratch), "A.Portal", "A.Worker"));
             var before = Snapshot(root);
             var result = Invoke(root, combination);
 
@@ -2245,19 +2256,19 @@ internal static class NewFeature
             string[] written = [.. after.Keys.Except(before.Keys, StringComparer.Ordinal).Where(key => after[key] != "<directory>")];
 
             expect(
-                written.Any(path => path.StartsWith($"Src/Application/Acme.Application/Features/{combination[0]}/", StringComparison.Ordinal))
-                    && written.Any(path => path.StartsWith($"Src/Infrastructure/Acme.Infrastructure.Persistence/Features/{combination[0]}/", StringComparison.Ordinal))
+                written.Any(path => path.StartsWith($"Src/Application/A.Application/Features/{combination[0]}/", StringComparison.Ordinal))
+                    && written.Any(path => path.StartsWith($"Src/Infrastructure/A.Infrastructure.Persistence/Features/{combination[0]}/", StringComparison.Ordinal))
                     && written.Any(path => path.StartsWith("Tests/", StringComparison.Ordinal))
                     && written.Contains($"{_manifestFolder}/{combination[0]}.json", StringComparer.Ordinal)
                     && written.Contains(PagePath(combination[0]), StringComparer.Ordinal),
                 $"[{label}] without the API did not write its application, persistence, tests, manifest and page.");
             expect(
-                !written.Any(path => path.Contains("Acme.Api", StringComparison.Ordinal) || path.Contains("/Contracts/", StringComparison.Ordinal)),
-                $"[{label}] without the API wrote an HTTP layer: {string.Join(", ", written.Where(path => path.Contains("Acme.Api", StringComparison.Ordinal)))}");
+                !written.Any(path => path.Contains("/A.Api/", StringComparison.Ordinal) || path.Contains("/Contracts/", StringComparison.Ordinal)),
+                $"[{label}] without the API wrote an HTTP layer: {string.Join(", ", written.Where(path => path.Contains("/A.Api/", StringComparison.Ordinal)))}");
             expect(!apiWords.IsMatch(result.Output), $"[{label}] without the API printed an edit or a row about it: {apiWords.Match(result.Output).Value}");
             expect(
-                result.Output.Contains($"  4. Src/Presentation/Acme.Portal/Program.cs: builder.Services.Add{combination[0]}();", StringComparison.Ordinal)
-                    && result.Output.Contains("     and Src/Presentation/Acme.Worker/Program.cs the same", StringComparison.Ordinal),
+                result.Output.Contains($"  4. Src/Presentation/A.Portal/Program.cs: builder.Services.Add{combination[0]}();", StringComparison.Ordinal)
+                    && result.Output.Contains("     and Src/Presentation/A.Worker/Program.cs the same", StringComparison.Ordinal),
                 $"[{label}] without the API did not send the composition to the hosts that hold the feature.");
 
             string page = System.IO.Path.Combine(root, PagePath(combination[0]));
@@ -2267,21 +2278,21 @@ internal static class NewFeature
                 $"[{label}] without the API wrote a page about endpoints.");
         }
 
-        string bare = WithPageTemplate(WithoutTheApi(NewTree(scratch, reaction: false), "Acme.Portal", "Acme.Worker"));
-        string composition = "Src/Presentation/Acme.Portal/Features/ExternalIdentity/Composition/ExternalSignInComposition.cs";
+        string bare = WithPageTemplate(WithoutTheApi(NewTree(scratch, reaction: false), "A.Portal", "A.Worker"));
+        string composition = "Src/Presentation/A.Portal/Features/ExternalIdentity/Composition/ExternalSignInComposition.cs";
 
-        Directory.CreateDirectory(System.IO.Path.Combine(bare, "Src/Presentation/Acme.Portal/Features/ExternalIdentity/Composition"));
+        Directory.CreateDirectory(System.IO.Path.Combine(bare, "Src/Presentation/A.Portal/Features/ExternalIdentity/Composition"));
         File.WriteAllText(System.IO.Path.Combine(bare, composition), "services.AddExternalIdentityPersistence(configuration);\n");
-        Directory.CreateDirectory(System.IO.Path.Combine(bare, "Src/Presentation/Acme.Worker/Features/BackgroundJobs/Jobs"));
-        File.WriteAllText(System.IO.Path.Combine(bare, "Src/Presentation/Acme.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs"), "services.AddMaintenanceJobs(configuration);\n");
+        Directory.CreateDirectory(System.IO.Path.Combine(bare, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs"));
+        File.WriteAllText(System.IO.Path.Combine(bare, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs"), "services.AddMaintenanceJobs(configuration);\n");
 
         var reacted = Invoke(bare, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
         expect(reacted.Code == 0, $"A first owner feature without the API was refused: {reacted.Error.Split('\n')[0]}");
         expect(
-            File.Exists(System.IO.Path.Combine(bare, "Src/Presentation/Acme.Portal/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs"))
-                && File.Exists(System.IO.Path.Combine(bare, "Src/Presentation/Acme.Worker/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs"))
-                && !Directory.Exists(System.IO.Path.Combine(bare, "Src/Presentation/Acme.Api")),
+            File.Exists(System.IO.Path.Combine(bare, "Src/Presentation/A.Portal/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs"))
+                && File.Exists(System.IO.Path.Combine(bare, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs"))
+                && !Directory.Exists(System.IO.Path.Combine(bare, "Src/Presentation/A.Api")),
             "A first owner feature without the API did not read the identity from the hosts, or wrote into the API.");
         expect(
             reacted.Output.Contains($" 10. {composition}: services.AddScoped<IUserAccountDirectory, ExternalIdentityUserAccountDirectory>();", StringComparison.Ordinal)
@@ -2339,7 +2350,7 @@ internal static class NewFeature
             "on their own todo lists only",
             "are anonymised",
             "If-Match",
-            "`Tests/Application/Acme.Application.UnitTests/Features/TodoLists`",
+            "`Tests/Application/A.Application.UnitTests/Features/TodoLists`",
         ];
 
         foreach (string needle in present)
@@ -2464,6 +2475,7 @@ internal static class NewFeature
 
         string[] segments = relative.Replace('\\', '/').Split('/');
         int projectIndex = Array.FindIndex(segments, segment => segment.Contains('.', StringComparison.Ordinal));
+        segments[projectIndex] = ProjectInFolder(ProductPrefix(root), segments[projectIndex]);
         string expected = string.Join('.', segments[projectIndex..^1]);
 
         if (!text.Contains($"namespace {expected};", StringComparison.Ordinal))

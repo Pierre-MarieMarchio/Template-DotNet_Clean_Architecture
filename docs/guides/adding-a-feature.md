@@ -66,7 +66,7 @@ as the [presentation projects](../features/presentation.md#declaring-a-tool) sho
 ## What you write by hand
 
 The generator writes the shape; the rules are yours. Each step below has a test that reads it, so run
-`dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests` before you push.
+`dotnet test --project Tests/Architecture/AT.Architecture.Tests` before you push.
 
 ### Domain
 
@@ -102,7 +102,7 @@ default-deny authorisation.
 
 <!--#if (api)-->
 The rules the feature protects, each with a test you have seen fail, and the integration tests against
-the project's database under `Tests/Integration/AppTemplate.Api.IntegrationTests`;
+the project's database under `Tests/Integration/AT.Api.IntegrationTests`;
 [testing](testing.md#where-a-new-features-tests-go) says which type holds what. Add the feature's
 schema to the schemas `TestDatabase` truncates between tests.
 <!--#endif-->

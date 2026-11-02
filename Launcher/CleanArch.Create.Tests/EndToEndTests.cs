@@ -39,7 +39,7 @@ public sealed partial class EndToEndTests : IDisposable
         written.Where(file => file.Value != expected[file.Key]).Select(file => file.Key).ShouldBeEmpty("These files differ from what dotnet new wrote.");
         Directory.Exists(Path.Combine(launched, "Src", "Web", "apps", "BackOffice")).ShouldBeTrue();
         Directory.Exists(Path.Combine(launched, "Src", "Web", "packages", "tokens")).ShouldBeTrue();
-        File.Exists(Path.Combine(launched, "Src", "Presentation", "Acme.Shop.Portal", "Acme.Shop.Portal.csproj")).ShouldBeTrue();
+        File.Exists(Path.Combine(launched, "Src", "Presentation", "AS.Portal", "Acme.Shop.Portal.csproj")).ShouldBeTrue();
     }
 
     private static void Launch(string workingDirectory, string[] arguments)

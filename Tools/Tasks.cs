@@ -148,7 +148,7 @@ internal static class Tasks
                                            scaffold.json of kind written runs no template, the project
                                            being whole already; bootstrap runs it first, and a project
                                            created already is left alone
-          presentation-join <Name>         make the edits the README of Src/Presentation/<Name> lists
+          presentation-join <Name>         make the edits the README of the project <Name> lists
                                            under 'Joining a project generated without one', in the
                                            files outside its folders that cleanarch-presentation
                                            cannot edit: each block placed by lines found exactly
@@ -175,7 +175,7 @@ internal static class Tasks
     private const string _clientUsage =
         """
 
-        .NET client, once the project holds Src/Clients/AppTemplate.Client:
+        .NET client, once the project holds Src/Clients/AT.Client:
           api-client                       regenerate its Generated folder with the Kiota the tool
                                            manifest pins, from the OpenAPI reference openapi writes: a
                                            BOM on each C# file, and kiota-lock.json naming the
@@ -434,11 +434,11 @@ internal static class Tasks
 
         string repoRoot = projectFile.Root;
         string solution = Path.Combine(repoRoot, projectFile.Name + ".sln");
-        string persistence = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Persistence");
-        string auth = Path.Combine(repoRoot, "Src", "Infrastructure", "AppTemplate.Infrastructure.Auth");
+        string persistence = projectFile.ProjectFolder("Src", "Infrastructure", "Infrastructure.Persistence");
+        string auth = projectFile.ProjectFolder("Src", "Infrastructure", "Infrastructure.Auth");
         string[] contexts = projectFile.LocalAuth ? [auth, persistence] : [persistence];
         //#if (api)
-        string api = Path.Combine(repoRoot, "Src", "Presentation", "AppTemplate.Api");
+        string api = projectFile.ProjectFolder("Src", "Presentation", "Api");
         //#endif
         string runsettings = Path.Combine(repoRoot, "coverage.runsettings");
         string[] nodes = maxCpuCount is null ? [] : [$"-maxcpucount:{maxCpuCount}"];
@@ -579,7 +579,7 @@ internal static class Tasks
                 break;
 
             case "api-client":
-                ApiClient(repoRoot, api, check);
+                ApiClient(projectFile, check);
                 break;
 
             case "run":
@@ -613,7 +613,7 @@ internal static class Tasks
                 break;
 
             case "bootstrap":
-                PresentationScaffold(repoRoot, solution, only: null);
+                PresentationScaffold(projectFile, solution, only: null);
                 Step("dotnet", "format", solution, "--diagnostics", "IDE0055", "IDE0005");
                 //#if (api)
                 OpenApiReference(projectFile, api);
@@ -634,15 +634,15 @@ internal static class Tasks
                 InitialMigrations(contexts);
                 //#if (api)
 
-                if (HoldsTheClient(repoRoot))
+                if (HoldsTheClient(projectFile))
                 {
-                    ApiClient(repoRoot, api, check: false);
+                    ApiClient(projectFile, check: false);
                 }
                 //#endif
 
                 if (File.Exists(Path.Combine(repoRoot, "Src", "Web", "package.json")))
                 {
-                    WebScaffold(repoRoot, solution, only: null);
+                    WebScaffold(projectFile, solution, only: null);
                 }
 
                 Write(
@@ -664,9 +664,9 @@ internal static class Tasks
                 Gates(repoRoot);
                 //#if (api)
 
-                if (HoldsTheClient(repoRoot))
+                if (HoldsTheClient(projectFile))
                 {
-                    ApiClient(repoRoot, api, check: true);
+                    ApiClient(projectFile, check: true);
                 }
                 //#endif
 
@@ -699,13 +699,13 @@ internal static class Tasks
 
             case "presentation-scaffold":
                 /*#if (api)*/
-                if (PresentationScaffold(repoRoot, solution, name) && File.Exists(OpenApiReferencePath(repoRoot, api)))
+                if (PresentationScaffold(projectFile, solution, name) && File.Exists(OpenApiReferencePath(projectFile)))
                 {
                     Step("dotnet", "tool", "restore");
-                    ApiClient(repoRoot, api, check: false);
+                    ApiClient(projectFile, check: false);
                 }
                 /*#else
-                PresentationScaffold(repoRoot, solution, name);
+                PresentationScaffold(projectFile, solution, name);
                 #endif*/
 
                 break;
@@ -716,13 +716,13 @@ internal static class Tasks
 
             case "web-scaffold":
                 /*#if (api)*/
-                if (WebScaffold(repoRoot, solution, name) && File.Exists(OpenApiReferencePath(repoRoot, api)))
+                if (WebScaffold(projectFile, solution, name) && File.Exists(OpenApiReferencePath(projectFile)))
                 {
                     Step("dotnet", "tool", "restore");
-                    ApiClient(repoRoot, api, check: false);
+                    ApiClient(projectFile, check: false);
                 }
                 /*#else
-                WebScaffold(repoRoot, solution, name);
+                WebScaffold(projectFile, solution, name);
                 #endif*/
 
                 break;
@@ -748,8 +748,8 @@ internal static class Tasks
     //#if (api)
     private static void OpenApiReference(ProjectFile projectFile, string api)
     {
-        string apiName = Path.GetFileName(api);
-        string reference = Path.Combine(projectFile.Root, "Tests", "Integration", apiName + ".IntegrationTests", "OpenApi");
+        string apiName = projectFile.ProjectName("Api");
+        string reference = Path.GetDirectoryName(OpenApiReferencePath(projectFile))!;
         var defaults = new Dictionary<string, string>(StringComparer.Ordinal) { ["ASPNETCORE_ENVIRONMENT"] = "Development" };
 
         if (projectFile.ExternalAuth)
@@ -769,26 +769,27 @@ internal static class Tasks
             "-p:OpenApiGenerateDocumentsOptions=--file-name v1");
     }
 
-    private static string OpenApiReferencePath(string repoRoot, string api) =>
-        Path.Combine(repoRoot, "Tests", "Integration", Path.GetFileName(api) + ".IntegrationTests", "OpenApi", "v1.json");
+    private static string OpenApiReferencePath(ProjectFile projectFile) =>
+        Path.Combine(projectFile.ProjectFolder("Tests", "Integration", "Api.IntegrationTests"), "OpenApi", "v1.json");
 
     //#endif
-    private static string ClientFolder(string repoRoot) => Path.Combine(repoRoot, "Src", "Clients", "AppTemplate.Client");
+    private static string ClientFolder(ProjectFile projectFile) => projectFile.ProjectFolder("Src", "Clients", "Client");
 
-    private static bool HoldsTheClient(string repoRoot) => Directory.Exists(ClientFolder(repoRoot));
+    private static bool HoldsTheClient(ProjectFile projectFile) => Directory.Exists(ClientFolder(projectFile));
 
     //#if (api)
-    private static void ApiClient(string repoRoot, string api, bool check)
+    private static void ApiClient(ProjectFile projectFile, bool check)
     {
-        string reference = OpenApiReferencePath(repoRoot, api);
-        string generated = Path.Combine(ClientFolder(repoRoot), "Generated");
+        string repoRoot = projectFile.Root;
+        string reference = OpenApiReferencePath(projectFile);
+        string generated = Path.Combine(ClientFolder(projectFile), "Generated");
         string shown = Path.GetRelativePath(repoRoot, generated).Replace('\\', '/');
         string output = check ? Path.Combine(Path.GetTempPath(), "api-client-" + Guid.NewGuid().ToString("N")) : generated;
 
-        if (!HoldsTheClient(repoRoot))
+        if (!HoldsTheClient(projectFile))
         {
             throw new InvalidOperationException(
-                "Src/Clients/AppTemplate.Client does not exist, so there is no client to write: a presentation that calls the API through it brings it.");
+                "Src/Clients/AT.Client does not exist, so there is no client to write: a presentation that calls the API through it brings it.");
         }
 
         if (!File.Exists(reference))
@@ -901,7 +902,7 @@ internal static class Tasks
             Launch(repoRoot, environment, "docker", [.. compose, "up", "--build", "--detach", "--wait", "--wait-timeout", "300"]);
             Step(
                 "dotnet", "run",
-                "--project", Path.Combine(repoRoot, "Tests", "EndToEnd", "AppTemplate.EndToEnd.Tests", "AppTemplate.EndToEnd.Tests.csproj"),
+                "--project", Path.Combine(projectFile.ProjectFolder("Tests", "EndToEnd", "EndToEnd.Tests"), projectFile.ProjectName("EndToEnd.Tests") + ".csproj"),
                 "--configuration", configuration);
             passed = true;
         }
@@ -1085,9 +1086,9 @@ internal static class Tasks
         }
     }
 
-    private static bool WebScaffold(string repoRoot, string solution, string? only)
+    private static bool WebScaffold(ProjectFile projectFile, string solution, string? only)
     {
-        string web = Path.Combine(repoRoot, "Src", "Web");
+        string web = Path.Combine(projectFile.Root, "Src", "Web");
 
         if (!File.Exists(Path.Combine(web, "package.json")))
         {
@@ -1130,7 +1131,7 @@ internal static class Tasks
         {
             if (ReadJson(Path.Combine(folder, _scaffoldDescriptor))["kind"]?.GetValue<string>() is "dotnet")
             {
-                client |= ScaffoldProject(repoRoot, solution, folder);
+                client |= ScaffoldProject(projectFile, solution, folder);
             }
             else
             {
@@ -1138,7 +1139,7 @@ internal static class Tasks
             }
         }
 
-        WebWorkspace(repoRoot, pending.Length > 0 ? ["install", "--no-frozen-lockfile"] : ["install"]);
+        WebWorkspace(projectFile.Root, pending.Length > 0 ? ["install", "--no-frozen-lockfile"] : ["install"]);
 
         string[] created = Directory.Exists(apps)
             ? [.. Directory.GetDirectories(apps).Where(folder => File.Exists(Path.Combine(folder, "package.json")))]
@@ -1147,10 +1148,10 @@ internal static class Tasks
 
         if (pinned.Contains(true))
         {
-            WebWorkspace(repoRoot, "install", "--no-frozen-lockfile");
+            WebWorkspace(projectFile.Root, "install", "--no-frozen-lockfile");
         }
 
-        WebWorkspace(repoRoot, "api");
+        WebWorkspace(projectFile.Root, "api");
 
         if (pending.Length > 0)
         {
@@ -1247,16 +1248,17 @@ internal static class Tasks
 
     private static readonly string[] _generatedPropertiesTheBuildSets = ["TargetFramework", "Nullable", "ImplicitUsings"];
 
-    private static bool PresentationScaffold(string repoRoot, string solution, string? only)
+    private static bool PresentationScaffold(ProjectFile projectFile, string solution, string? only)
     {
-        string presentation = Path.Combine(repoRoot, "Src", "Presentation");
+        string presentation = Path.Combine(projectFile.Root, "Src", "Presentation");
         string[] pending = [.. Directory.GetDirectories(presentation)
             .Where(folder => File.Exists(Path.Combine(folder, _scaffoldDescriptor)))
             .Order(StringComparer.Ordinal)];
 
         if (only is not null)
         {
-            string folder = Path.Combine(presentation, only);
+            string folder = Path.Combine(presentation, projectFile.FolderOfProject(only));
+            string shown = Path.GetRelativePath(projectFile.Root, folder).Replace('\\', '/');
 
             if (pending.Contains(folder, StringComparer.Ordinal))
             {
@@ -1264,12 +1266,12 @@ internal static class Tasks
             }
             else if (File.Exists(Path.Combine(folder, only + ".csproj")))
             {
-                Write($"Src/Presentation/{only} holds no {_scaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
+                Write($"{shown} holds no {_scaffoldDescriptor}: it is created already, and left alone.", ConsoleColor.Green);
                 pending = [];
             }
             else
             {
-                throw new InvalidOperationException($"Src/Presentation/{only} holds no {_scaffoldDescriptor}, so there is nothing to create.");
+                throw new InvalidOperationException($"{shown} holds no {_scaffoldDescriptor}, so there is nothing to create.");
             }
         }
 
@@ -1277,14 +1279,15 @@ internal static class Tasks
 
         foreach (string folder in pending)
         {
-            client |= ScaffoldProject(repoRoot, solution, folder);
+            client |= ScaffoldProject(projectFile, solution, folder);
         }
 
         return client;
     }
 
-    private static bool ScaffoldProject(string repoRoot, string solution, string folder)
+    private static bool ScaffoldProject(ProjectFile projectFile, string solution, string folder)
     {
+        string repoRoot = projectFile.Root;
         string project = Path.GetFileName(folder);
         string shown = Path.GetRelativePath(repoRoot, folder).Replace('\\', '/');
         string task = shown.StartsWith("Src/Web/", StringComparison.Ordinal) ? "web-scaffold" : "presentation-scaffold";
@@ -1302,7 +1305,7 @@ internal static class Tasks
 
         if (kind == "dotnet")
         {
-            Generate(descriptor, folder, project, name, package, shown, task);
+            Generate(descriptor, folder, task == "web-scaffold" ? project : name, name, package, shown, task);
         }
 
         File.Delete(Path.Combine(folder, _scaffoldDescriptor));
@@ -1310,18 +1313,18 @@ internal static class Tasks
         string[] sources =
         [
             Path.Combine(folder, name + ".csproj"),
-            .. new[] { Path.Combine(Path.GetDirectoryName(folder)!, name + ".Core", name + ".Core.csproj") }.Where(File.Exists),
+            .. new[] { Path.Combine(folder + ".Core", name + ".Core.csproj") }.Where(File.Exists),
         ];
-        bool client = HoldsTheClient(repoRoot) && sources.Any(source => File.ReadAllText(source).Contains(@"..\..\Clients\", StringComparison.Ordinal));
+        bool client = HoldsTheClient(projectFile) && sources.Any(source => File.ReadAllText(source).Contains(@"..\..\Clients\", StringComparison.Ordinal));
         string tests = task == "web-scaffold" ? "Web" : "Presentation";
         string[] projects =
         [
             .. sources,
             .. sources
                 .Select(Path.GetFileNameWithoutExtension)
-                .Select(source => Path.Combine(repoRoot, "Tests", tests, source + ".UnitTests", source + ".UnitTests.csproj"))
+                .Select(source => Path.Combine(repoRoot, "Tests", tests, projectFile.FolderOfProject(source + ".UnitTests"), source + ".UnitTests.csproj"))
                 .Where(File.Exists),
-            .. (client ? ClientProjects(repoRoot) : []),
+            .. (client ? ClientProjects(projectFile) : []),
         ];
 
         Step("dotnet", ["sln", solution, "add", .. projects]);
@@ -1402,11 +1405,11 @@ internal static class Tasks
         }
     }
 
-    private static string[] ClientProjects(string repoRoot) =>
+    private static string[] ClientProjects(ProjectFile projectFile) =>
         [.. new[]
         {
-            Path.Combine(ClientFolder(repoRoot), "AppTemplate.Client.csproj"),
-            Path.Combine(repoRoot, "Tests", "Clients", "AppTemplate.Client.UnitTests", "AppTemplate.Client.UnitTests.csproj"),
+            Path.Combine(ClientFolder(projectFile), projectFile.ProjectName("Client") + ".csproj"),
+            Path.Combine(projectFile.ProjectFolder("Tests", "Clients", "Client.UnitTests"), projectFile.ProjectName("Client.UnitTests") + ".csproj"),
         }.Where(File.Exists)];
 
     private const string _joiningSection = "## Joining a project generated without one";
@@ -1414,18 +1417,18 @@ internal static class Tasks
     private static readonly Regex _joiningEdit = new(
         @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
 
-    private static void PresentationJoin(ProjectFile projectFile, string folder)
+    private static void PresentationJoin(ProjectFile projectFile, string project)
     {
-        string relative = "Src/Presentation/" + folder;
         string prefix = projectFile.Name + ".";
-        string descriptor = Path.Combine(projectFile.Root, relative, _scaffoldDescriptor);
 
-        if (!folder.StartsWith(prefix, StringComparison.Ordinal) || folder.Length == prefix.Length)
+        if (!project.StartsWith(prefix, StringComparison.Ordinal) || project.Length == prefix.Length)
         {
-            throw new InvalidOperationException($"'{folder}' is not a presentation project of {projectFile.Name}: its folder is named {prefix}<Name>.");
+            throw new InvalidOperationException($"'{project}' is not a presentation project of {projectFile.Name}: its name is {prefix}<Name>.");
         }
 
-        string name = folder[prefix.Length..];
+        string name = project[prefix.Length..];
+        string relative = "Src/Presentation/" + projectFile.FolderOf(name);
+        string descriptor = Path.Combine(projectFile.Root, relative, _scaffoldDescriptor);
         bool recorded = projectFile.Presentations.Contains(name, StringComparer.Ordinal);
 
         if (!recorded && !File.Exists(descriptor))
@@ -1480,7 +1483,7 @@ internal static class Tasks
 
     private static void RecordClient(ProjectFile projectFile)
     {
-        if (HoldsTheClient(projectFile.Root))
+        if (HoldsTheClient(projectFile))
         {
             projectFile.RecordClient();
         }
@@ -2005,7 +2008,7 @@ internal static class Tasks
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new InvalidOperationException(
-                $"The '{task}' task needs the presentation project's folder name, e.g. dotnet run Tools/Tasks.cs {task} AppTemplate.Portal");
+                $"The '{task}' task needs the presentation project's name, e.g. dotnet run Tools/Tasks.cs {task} AppTemplate.Portal");
         }
 
         return name;
@@ -2292,6 +2295,8 @@ internal sealed class ProjectFile
 
     internal string Name => Text(_json, "name");
 
+    internal string Initials => string.Concat(Name.Split('.').Select(SegmentInitials));
+
     internal bool LocalAuth => Option("auth") == "local";
 
     internal bool ExternalAuth => Option("auth") == "external";
@@ -2308,6 +2313,22 @@ internal sealed class ProjectFile
         && apps.OfType<JsonObject>().Any(app => app["rendering"]?.GetValue<string>() == "ssr");
 
     private string FilePath => System.IO.Path.Combine(Root, FileName);
+
+    internal string ProjectName(string part) => $"{Name}.{part}";
+
+    internal string FolderOf(string part) => $"{Initials}.{part}";
+
+    internal string FolderOfProject(string project) =>
+        project.StartsWith(Name + ".", StringComparison.Ordinal)
+            ? FolderOf(project[(Name.Length + 1)..])
+            : throw new InvalidOperationException($"'{project}' is not a project of {Name}: its name starts with {Name}.");
+
+    internal string ProjectFolder(string tree, string layer, string part) => System.IO.Path.Combine(Root, tree, layer, FolderOf(part));
+
+    private static string SegmentInitials(string segment) =>
+        segment.Any(char.IsAsciiLetterUpper)
+            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
+            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 
     internal static ProjectFile Read(string root)
     {

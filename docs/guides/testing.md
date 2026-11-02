@@ -18,14 +18,14 @@ a SQLite file for the database.
 
 | Type | Proves here | Never used for | Lives in |
 |---|---|---|---|
-| Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `Tests/<Layer>/<Project>.UnitTests/Features/<Feature>/`, mirroring `Src/` |
-| Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AppTemplate.Architecture.Tests` |
+| Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `Tests/<Layer>/<Initials>.<Layer>[.<Module>].UnitTests/Features/<Feature>/`, mirroring `Src/` |
+| Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AT.Architecture.Tests` |
 <!--#if (api || localAuth)-->
 | Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `Tests/Integration/` |
 <!--#endif-->
 <!--#if (api)-->
-| Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
-| End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests`, over HTTP against the Compose stack |
+| Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AT.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
+| End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AT.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
 <!--#endif-->
 
@@ -49,7 +49,7 @@ apart from both.
 | Domain invariants and rehydration | unit | the domain suites, one test per invariant and per refused row |
 | A use case's decisions | unit | the application suites, one test per branch, each refusal with its control |
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
-| Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AppTemplate.Architecture.Tests`, `ContainerCompositionTests` among them |
+| Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
 | The HTTP contract | contract | `OpenApiDocumentTests` against the committed reference; `ErrorCodeTableTests` and `ErrorCodeStatusTests` against [the API reference](../reference/api.md#error-codes) |
 <!--#if (accounts)-->
 | Default deny | integration over every mapped endpoint; architecture for the anonymous list | `DefaultDenyAuthorizationTests`, `HttpSurfaceTests` |
@@ -58,7 +58,7 @@ apart from both.
 | Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row | each feature's ownership tests in the integration suite |
 <!--#endif-->
 <!--#if (localAuth)-->
-| Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests` |
+| Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |
 | Anonymous routes reveal nothing ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
 <!--#endif-->
 | Optimistic concurrency | integration where two writers meet; unit for the precondition decision | each feature's concurrency tests, `ApiControllerBaseTests` |
@@ -70,7 +70,7 @@ apart from both.
 | Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
 <!--#endif-->
 <!--#if (api)-->
-| The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AppTemplate.EndToEnd.Tests` |
+| The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AT.EndToEnd.Tests` |
 <!--#endif-->
 
 A feature that brings a risk of its own adds a row here.
@@ -110,7 +110,7 @@ store. A hand-written double that stands in for an adapter runs the contract tes
 so the double cannot drift from what it replaces.
 <!--#if (files)-->
 The contract bases live under
-`Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/Features/Files/Contracts/` and are
+`Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/Features/Files/Contracts/` and are
 linked into the in-memory and integration suites.
 <!--#endif-->
 
@@ -120,7 +120,7 @@ linked into the in-memory and integration suites.
 ```bash
 dotnet run Tools/Tasks.cs test                                          # the solution
 dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
-dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
+dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architecture rules alone
 dotnet run Tools/Tasks.cs openapi                                       # rewrite the OpenAPI reference after a contract change
 dotnet run Tools/Tasks.cs end-to-end                                    # the end-to-end suite against a stack of its own
 ```
@@ -129,7 +129,7 @@ dotnet run Tools/Tasks.cs end-to-end                                    # the en
 ```bash
 dotnet run Tools/Tasks.cs test                                          # the solution
 dotnet run Tools/Tasks.cs test --no-integration                         # the projects that need no Docker
-dotnet test --project Tests/Architecture/AppTemplate.Architecture.Tests # the architecture rules alone
+dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architecture rules alone
 ```
 <!--#endif-->
 

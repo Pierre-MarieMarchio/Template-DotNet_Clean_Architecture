@@ -400,6 +400,41 @@
       },
       "replaces": "app-template"
     },
+    "projectFolderPrefixAnyCase": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "name",
+        "steps": [
+          {
+            "regex": "(?<=^|\\.)[^A-Za-z.]*([a-z])[^A-Z.]*(?=\\.|$)",
+            "replacement": "$1"
+          },
+          {
+            "regex": "[^A-Z.](?<=[A-Z][^.]*)|[^A-Z.](?=[^.]*[A-Z])",
+            "replacement": ""
+          },
+          {
+            "regex": "[^A-Za-z]",
+            "replacement": ""
+          },
+          {
+            "regex": "$",
+            "replacement": "."
+          }
+        ]
+      }
+    },
+    "projectFolderPrefix": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "projectFolderPrefixAnyCase",
+        "toLower": false
+      },
+      "replaces": "AT.",
+      "fileRename": "AT."
+    },
     "webAudience": {
       "type": "parameter",
       "displayName": "Web app audience",
@@ -1536,7 +1571,7 @@
             "LICENSE",
             "docs/template/**",
             "docs/plans/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/OpenApi/v1.json",
+            "Tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json",
             "docs/guide_architecture_pour_agent.md",
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",
@@ -1552,24 +1587,24 @@
             "Src/Web/**/coverage/**",
             "Src/Web/packages/api-client/openapi/**",
             "Src/Web/pnpm-lock.yaml",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Migrations/**",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Migrations/**"
+            "Src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**",
+            "Src/Infrastructure/AT.Infrastructure.Auth/Migrations/**"
           ]
         },
         {
           "condition": "(!postgreSql)",
           "exclude": [
-            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/LeaderLease.cs",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs",
-            "Src/Presentation/AppTemplate.Api/Common/Observability/DatabaseInstrumentation.cs",
+            "Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DatabaseProvider.cs",
+            "Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/LeaderLease.cs",
+            "Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Adapters/Locks/OwnerQuotaLock.cs",
+            "Src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs",
             "docker-compose.database.yml",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/DatabaseServer.cs",
-            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs"
+            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/DatabaseServer.cs",
+            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/DatabaseServer.cs"
           ]
         },
         {
@@ -1587,52 +1622,52 @@
         {
           "condition": "(sqlite)",
           "exclude": [
-            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
-            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Fixtures/ResourceReaperSwitch.cs"
+            "Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
+            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Fixtures/ResourceReaperSwitch.cs"
           ]
         },
         {
           "condition": "(sqlite && !files)",
           "exclude": [
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ResourceReaperSwitch.cs"
+            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/ResourceReaperSwitch.cs"
           ]
         },
         {
           "condition": "(!versionCounter)",
           "exclude": [
-            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Saving/Versioning/**",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Saving/Versioning/**"
+            "Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Versioning/**",
+            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Saving/Versioning/**"
           ]
         },
         {
           "condition": "(!tablePrefixes)",
           "exclude": [
-            "Src/Infrastructure/AppTemplate.Infrastructure.Core/Common/Contexts/SchemaAsTablePrefixConvention.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Core.UnitTests/Common/Contexts/SchemaAsTablePrefixConventionTests.cs"
+            "Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/SchemaAsTablePrefixConvention.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/SchemaAsTablePrefixConventionTests.cs"
           ]
         },
         {
           "condition": "(sqlServer)",
           "exclude": [
-            "Src/Infrastructure/AppTemplate.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs"
+            "Src/Infrastructure/AT.Infrastructure.Persistence/Common/Leases/AdvisoryLockKey.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs"
           ]
         },
         {
           "condition": "(tablePrefixes)",
           "exclude": [
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Notes/Rows/Configurations/NoteRecordConfigurationTests.cs"
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Rows/Configurations/StoredFileRecordConfigurationTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes/Rows/Configurations/NoteRecordConfigurationTests.cs"
           ]
         },
         {
           "condition": "(sqlite || sqlServer)",
           "exclude": [
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileLikePatternTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileSortMapTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/Notes/Access/Queries/NoteSortMapTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListLikePatternTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListSortMapTests.cs"
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileLikePatternTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Access/Queries/StoredFileSortMapTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Notes/Access/Queries/NoteSortMapTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListLikePatternTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/TodoLists/Access/Queries/TodoListSortMapTests.cs"
           ]
         },
         {
@@ -1643,7 +1678,7 @@
             "docs/features/web-frontend.md",
             "docs/decisions/0019-one-generated-api-client.md",
             "docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/WebAppTests.cs"
+            "Tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs"
           ]
         },
         {
@@ -1655,20 +1690,20 @@
         {
           "condition": "(!api)",
           "exclude": [
-            "Src/Presentation/AppTemplate.Api/**",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/**",
+            "Src/Presentation/AT.Api/**",
+            "Tests/Presentation/AT.Api.UnitTests/**",
+            "Tests/Integration/AT.Api.IntegrationTests/**",
             "Tests/EndToEnd/**",
             "Tests/Load/**",
             "AppTemplate.Api.http",
             "docs/architecture/http-api.md",
             "docs/architecture/request-pipeline.md",
             "docs/reference/api.md",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/ErrorCodeTableTests.cs",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/HttpSurfaceTests.cs",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/IdempotentActionTests.cs",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/RequestPipelineTests.cs"
+            "Tests/Architecture/AT.Architecture.Tests/Rules/ErrorCodeTableTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/HttpSurfaceTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/IdempotentActionTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/RequestPipelineTests.cs"
           ]
         },
         {
@@ -1699,53 +1734,53 @@
         {
           "condition": "(!templateMaintenance)",
           "exclude": [
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/TemplatePackagingTests.cs",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/AcceptanceSelectionTests.cs"
+            "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs"
           ]
         },
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "Src/Application/AppTemplate.Application.Auth/**",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/**",
+            "Src/Application/AT.Application.Auth/**",
+            "Src/Infrastructure/AT.Infrastructure.Auth/**",
             "Src/**/Features/Auth/**",
-            "Src/Infrastructure/AppTemplate.Infrastructure.InMemory/Features/ExternalLogins/**",
-            "Tests/Application/AppTemplate.Application.Auth.UnitTests/**",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Auth.UnitTests/**",
-            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/**",
+            "Src/Infrastructure/AT.Infrastructure.InMemory/Features/ExternalLogins/**",
+            "Tests/Application/AT.Application.Auth.UnitTests/**",
+            "Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/**",
+            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/**",
             "Tests/**/Features/Auth/**",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.InMemory.UnitTests/Features/ExternalLogins/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AccountLockoutTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AdministratorPolicyTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AuthenticationProblemDetailsTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/LoginUniformityTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/PasswordPolicyTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RateLimitingTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RefreshTokenTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
-            "Tests/Architecture/AppTemplate.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.InMemory.UnitTests/Features/ExternalLogins/**",
+            "Tests/Integration/AT.Api.IntegrationTests/Auth/**",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/AccountLockoutTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/AdministratorPolicyTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/AuthenticationProblemDetailsTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/LoginUniformityTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/PasswordPolicyTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/RateLimitingTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/RefreshTokenTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/RequestLogRedactionTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/EmailTemplateCoverageTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/SecurityStampRotationTests.cs",
+            "Src/Presentation/AT.Api/Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/AccountReminderRecipientDirectoryTests.cs",
             "docs/decisions/0013-a-session-is-a-refresh-token-family.md",
             "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
             "docs/decisions/0015-passkeys-stand-on-their-own.md",
             "docs/decisions/0016-browser-refresh-token-in-a-cookie.md",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/Accounts.cs",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/FileTransferTests.cs",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/Mailbox.cs",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/Poll.cs",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/SessionTests.cs"
+            "Tests/EndToEnd/AT.EndToEnd.Tests/Accounts.cs",
+            "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
+            "Tests/EndToEnd/AT.EndToEnd.Tests/Mailbox.cs",
+            "Tests/EndToEnd/AT.EndToEnd.Tests/Poll.cs",
+            "Tests/EndToEnd/AT.EndToEnd.Tests/SessionTests.cs"
           ]
         },
         {
           "condition": "(!browserSessions)",
           "exclude": [
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Composition/BrowserSession.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Composition/BrowserSessionComposition.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Auth/Composition/BrowserSessionTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/RefreshTokenCookieTests.cs"
+            "Src/Presentation/AT.Api/Features/Auth/Composition/BrowserSession.cs",
+            "Src/Presentation/AT.Api/Features/Auth/Composition/BrowserSessionComposition.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Features/Auth/Composition/BrowserSessionTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/RefreshTokenCookieTests.cs"
           ]
         },
         {
@@ -1753,15 +1788,15 @@
           "exclude": [
             "Src/**/Features/ExternalIdentity/**",
             "Tests/**/Features/ExternalIdentity/**",
-            "Src/Presentation/AppTemplate.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
+            "Src/Presentation/AT.Api/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectoryTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/ExternalProvider.cs",
             "docs/decisions/0017-external-subjects-map-to-internal-owners.md",
-            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
-            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
-            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/TokenRoleMapping.cs",
-            "Tests/Presentation/AppTemplate.Presentation.Core.UnitTests/Common/Security/AuthenticationExternalOptionsValidatorTests.cs",
-            "Tests/Presentation/AppTemplate.Presentation.Core.UnitTests/Common/Security/TokenRoleMappingTests.cs"
+            "Src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptions.cs",
+            "Src/Presentation/AT.Presentation.Core/Common/Security/AuthenticationExternalOptionsValidator.cs",
+            "Src/Presentation/AT.Presentation.Core/Common/Security/TokenRoleMapping.cs",
+            "Tests/Presentation/AT.Presentation.Core.UnitTests/Common/Security/AuthenticationExternalOptionsValidatorTests.cs",
+            "Tests/Presentation/AT.Presentation.Core.UnitTests/Common/Security/TokenRoleMappingTests.cs"
           ]
         },
         {
@@ -1780,53 +1815,53 @@
         {
           "condition": "(!anyFeature)",
           "exclude": [
-            "Src/Application/AppTemplate.Application.Core/Common/Ports/IUserAccountDirectory.cs",
-            "Src/Application/AppTemplate.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
-            "Src/Application/AppTemplate.Application.Core/Features/DeletedAccounts/**",
-            "Tests/Application/AppTemplate.Application.Core.UnitTests/Features/DeletedAccounts/**",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
-            "Src/Presentation/AppTemplate.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs",
-            "Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
-            "Src/Presentation/AppTemplate.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Auth/Composition/AccountUserAccountDirectoryTests.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectoryTests.cs"
+            "Src/Application/AT.Application.Core/Common/Ports/IUserAccountDirectory.cs",
+            "Src/Application/AT.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs",
+            "Src/Application/AT.Application.Core/Features/DeletedAccounts/**",
+            "Tests/Application/AT.Application.Core.UnitTests/Features/DeletedAccounts/**",
+            "Src/Presentation/AT.Api/Features/Auth/Composition/AccountUserAccountDirectory.cs",
+            "Src/Presentation/AT.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs",
+            "Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepJobsExtensions.cs",
+            "Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/DeletedAccountSweepOptions.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Features/Auth/Composition/AccountUserAccountDirectoryTests.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectoryTests.cs"
           ]
         },
         {
           "condition": "(!publicApi)",
           "exclude": [
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/AuthorizeWithoutAuthenticationTests.cs"
+            "Tests/Integration/AT.Api.IntegrationTests/Security/AuthorizeWithoutAuthenticationTests.cs"
           ]
         },
         {
           "condition": "(publicApi)",
           "exclude": [
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
-            "Src/Application/AppTemplate.Application.Core/Common/Events/UserAccountDeleted.cs",
-            "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
-            "Src/Presentation/AppTemplate.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
-            "Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthorizationPolicies.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Maintenance/Controllers/**",
-            "Src/Presentation/AppTemplate.Api/Features/Maintenance/Contracts/**",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/Maintenance/Contracts/Mapping/**"
+            "Tests/Integration/AT.Api.IntegrationTests/Security/DefaultDenyAuthorizationTests.cs",
+            "Src/Application/AT.Application.Core/Common/Events/UserAccountDeleted.cs",
+            "Src/Presentation/AT.Api/Common/OpenApi/OpenApiDiscriminatorTransformer.cs",
+            "Src/Presentation/AT.Api/Common/OpenApi/OpenApiSecurityTransformer.cs",
+            "Src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs",
+            "Src/Presentation/AT.Api/Features/Maintenance/Controllers/**",
+            "Src/Presentation/AT.Api/Features/Maintenance/Contracts/**",
+            "Tests/Presentation/AT.Api.UnitTests/Features/Maintenance/Contracts/Mapping/**"
           ]
         },
         {
           "condition": "(!files)",
           "exclude": [
             "Src/**/Features/Files/**",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Storage/**",
+            "Src/Infrastructure/AT.Infrastructure.Storage/**",
             "Tests/**/Features/Files/**",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Storage.UnitTests/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Files/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Storage/**",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryBucket.cs",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Storage.UnitTests/**",
+            "Tests/Integration/AT.Api.IntegrationTests/Files/**",
+            "Tests/Integration/AT.Api.IntegrationTests/Storage/**",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryBucket.cs",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryStoredFileStore.cs",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOrphanSweepCheckpoint.cs",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
             "docs/features/files.md",
             "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md",
-            "Tests/EndToEnd/AppTemplate.EndToEnd.Tests/FileTransferTests.cs"
+            "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs"
           ]
         },
         {
@@ -1834,18 +1869,18 @@
           "exclude": [
             "Src/**/Features/TodoLists/**",
             "Tests/**/Features/TodoLists/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/TodoLists/**",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/ATodoList.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
-            "Tests/Infrastructure/AppTemplate.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/ContextScopedSavingTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Infrastructure/RecordedDomainEvents.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"
+            "Tests/Integration/AT.Api.IntegrationTests/TodoLists/**",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Composition/ContextScopedSavingTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/RecordedDomainEvents.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
+            "Tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"
           ]
         },
         {
@@ -1853,9 +1888,9 @@
           "exclude": [
             "Src/**/Features/Reminders/**",
             "Tests/**/Features/Reminders/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Reminders/**",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/AReminder.cs",
-            "Tests/Application/AppTemplate.Application.UnitTests/TestDoubles/InMemoryReminderStore.cs"
+            "Tests/Integration/AT.Api.IntegrationTests/Reminders/**",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/AReminder.cs",
+            "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryReminderStore.cs"
           ]
         },
         {
@@ -1863,29 +1898,29 @@
           "exclude": [
             "Src/**/Features/Notes/**",
             "Tests/**/Features/Notes/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Notes/**",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/NotesSavingTests.cs"
+            "Tests/Integration/AT.Api.IntegrationTests/Notes/**",
+            "Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs"
           ]
         },
         {
           "condition": "(!tagging)",
           "exclude": [
-            "Src/Domain/AppTemplate.Domain/Common/Tagging/**",
-            "Src/Application/AppTemplate.Application/Common/Tagging/**",
-            "Tests/Domain/AppTemplate.Domain.UnitTests/Common/Tagging/**"
+            "Src/Domain/AT.Domain/Common/Tagging/**",
+            "Src/Application/AT.Application/Common/Tagging/**",
+            "Tests/Domain/AT.Domain.UnitTests/Common/Tagging/**"
           ]
         },
         {
           "condition": "(!todoLists && !notes && !externalAuth)",
           "exclude": [
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/SqliteSavingHost.cs",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Composition/PublishedEvents.cs"
+            "Tests/Presentation/AT.Api.UnitTests/Composition/SqliteSavingHost.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Composition/PublishedEvents.cs"
           ]
         },
         {
           "condition": "(!anyFeature)",
           "exclude": [
-            "Tests/Application/AppTemplate.Application.UnitTests/ApplicationModuleTests.cs"
+            "Tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs"
           ]
         },
         {
@@ -1927,39 +1962,39 @@
         {
           "condition": "(!accessKeys)",
           "exclude": [
-            "Src/Application/AppTemplate.Application.Auth/Features/AccessKeys/**",
-            "Src/Infrastructure/AppTemplate.Infrastructure.Auth/Features/AccessKeys/**",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
-            "Src/Presentation/AppTemplate.Api/Features/Auth/Controllers/AccessKeysController.cs",
-            "Tests/Application/AppTemplate.Application.Auth.UnitTests/Features/AccessKeys/**",
-            "Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
-            "Tests/Integration/AppTemplate.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**",
+            "Src/Application/AT.Application.Auth/Features/AccessKeys/**",
+            "Src/Infrastructure/AT.Infrastructure.Auth/Features/AccessKeys/**",
+            "Src/Presentation/AT.Api/Features/Auth/Contracts/Mapping/AccessKeyResponseMapping.cs",
+            "Src/Presentation/AT.Api/Features/Auth/Contracts/Requests/CreateAccessKeyRequest.cs",
+            "Src/Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeyResponse.cs",
+            "Src/Presentation/AT.Api/Features/Auth/Contracts/Responses/AccessKeysResponse.cs",
+            "Src/Presentation/AT.Api/Features/Auth/Contracts/Responses/CreatedAccessKeyResponse.cs",
+            "Src/Presentation/AT.Api/Features/Auth/Controllers/AccessKeysController.cs",
+            "Tests/Application/AT.Application.Auth.UnitTests/Features/AccessKeys/**",
+            "Tests/Integration/AT.Api.IntegrationTests/Auth/AccessKeyManagementTests.cs",
+            "Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/Features/AccessKeys/**",
             "docs/decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md"
           ]
         },
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "Src/Clients/AppTemplate.Client/Common/Sessions/ApiSession.cs",
-            "Src/Clients/AppTemplate.Client/Common/Sessions/ApiSessionHandler.cs",
-            "Src/Clients/AppTemplate.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "Src/Clients/AppTemplate.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "Src/Clients/AppTemplate.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "Src/Clients/AppTemplate.Client/Common/Sessions/RefreshTokenMode.cs",
-            "Tests/Clients/AppTemplate.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "Src/Clients/AT.Client/Common/Sessions/ApiSession.cs",
+            "Src/Clients/AT.Client/Common/Sessions/ApiSessionHandler.cs",
+            "Src/Clients/AT.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "Src/Clients/AT.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "Src/Clients/AT.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "Src/Clients/AT.Client/Common/Sessions/RefreshTokenMode.cs",
+            "Tests/Clients/AT.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "Src/Clients/AppTemplate.Client/Common/Sessions/AccessTokenHandler.cs",
-            "Src/Clients/AppTemplate.Client/Common/Sessions/IAccessTokenSource.cs",
-            "Tests/Clients/AppTemplate.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "Tests/Clients/AppTemplate.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "Src/Clients/AT.Client/Common/Sessions/AccessTokenHandler.cs",
+            "Src/Clients/AT.Client/Common/Sessions/IAccessTokenSource.cs",
+            "Tests/Clients/AT.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "Tests/Clients/AT.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         },
         {
@@ -1977,9 +2012,9 @@
         {
           "condition": "(jobsWorker)",
           "exclude": [
-            "Src/Presentation/AppTemplate.Api/Common/Jobs/**",
-            "Src/Presentation/AppTemplate.Api/Features/*/Jobs/**",
-            "Tests/Presentation/AppTemplate.Api.UnitTests/Features/*/Jobs/**",
+            "Src/Presentation/AT.Api/Common/Jobs/**",
+            "Src/Presentation/AT.Api/Features/*/Jobs/**",
+            "Tests/Presentation/AT.Api.UnitTests/Features/*/Jobs/**",
             "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md"
           ]
         },
@@ -2265,8 +2300,12 @@
       ]
     },
     {
-      "source": "./Src/Presentation/AppTemplate.Api/",
-      "target": "./Src/Presentation/AppTemplate.Worker/",
+      "source": "./Src/Presentation/AT.Api/",
+      "target": "./Src/Presentation/",
+      "rename": {
+        "Common/": "AT.Worker/Common/",
+        "Features/": "AT.Worker/Features/"
+      },
       "include": [
         "Common/Jobs/**",
         "Features/*/Jobs/**"
@@ -2305,8 +2344,11 @@
       ]
     },
     {
-      "source": "./Tests/Presentation/AppTemplate.Api.UnitTests/",
-      "target": "./Tests/Presentation/AppTemplate.Worker.UnitTests/",
+      "source": "./Tests/Presentation/AT.Api.UnitTests/",
+      "target": "./Tests/Presentation/",
+      "rename": {
+        "Features/": "AT.Worker.UnitTests/Features/"
+      },
       "include": [
         "Features/*/Jobs/**"
       ],

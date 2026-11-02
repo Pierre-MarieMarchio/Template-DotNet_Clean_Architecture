@@ -53,7 +53,7 @@ public sealed class LauncherTests : IDisposable
     [Fact]
     public void ThePresentationReadmeSections_TheLauncherPrints_AreInTheStarter()
     {
-        string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AppTemplate.PresentationAppPortal", "README.md");
+        string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AT.PresentationAppPortal", "README.md");
 
         Launcher.MarkdownSection(readme, Launcher.JoiningSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationJoinTask);
         Launcher.MarkdownSection(readme, Launcher.PresentationCreateSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationScaffoldTask);

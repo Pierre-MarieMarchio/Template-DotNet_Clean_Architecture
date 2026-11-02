@@ -199,7 +199,7 @@ default), read from a claim of the token (`Roles:Source` = `Claim`) or from the
 <!--#endif-->
 
 A new policy is a constant beside `Administrator` in
-`Src/Presentation/AppTemplate.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
+`Src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
 `AddPolicy` call where the module composes its authentication.
 
 <!--#endif-->
@@ -238,15 +238,15 @@ Nothing to configure.
 ## Tests
 
 <!--#if (localAuth)-->
-The flows run against the project's real database in `Tests/Integration/AppTemplate.Api.IntegrationTests/Auth/`
+The flows run against the project's real database in `Tests/Integration/AT.Api.IntegrationTests/Auth/`
 (registration, two-factor, passkeys, password and email changes). The guarantees each have a test in
-`Tests/Integration/AppTemplate.Api.IntegrationTests/Security/`: `LoginUniformityTests` (one answer,
+`Tests/Integration/AT.Api.IntegrationTests/Security/`: `LoginUniformityTests` (one answer,
 one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay, the cookie),
 `SecurityStampRotationTests`, `AccountLockoutTests`, `PasswordPolicyTests`,
 `DefaultDenyAuthorizationTests` and `AdministratorPolicyTests`.
 <!--#endif-->
 <!--#if (externalAuth && api)-->
-`Tests/Presentation/AppTemplate.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
+`Tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
 first-request mapping, role mapping and the settings; the integration suite signs its requests
 with a test provider's keys.
 <!--#endif-->

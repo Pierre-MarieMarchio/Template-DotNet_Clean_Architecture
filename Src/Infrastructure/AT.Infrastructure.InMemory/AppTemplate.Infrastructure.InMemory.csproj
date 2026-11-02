@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Application\AT.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\Application\AT.Application.Core\AppTemplate.Application.Core.csproj" />
+    <!--#if (localAuth)-->
+    <ProjectReference Include="..\..\Application\AT.Application.Auth\AppTemplate.Application.Auth.csproj" />
+    <!--#endif-->
+  </ItemGroup>
+
+</Project>

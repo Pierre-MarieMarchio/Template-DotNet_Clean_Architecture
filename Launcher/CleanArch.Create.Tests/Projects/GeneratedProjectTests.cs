@@ -17,7 +17,7 @@ public sealed class GeneratedProjectTests : IDisposable
         Write("Tools/Tasks.cs", string.Empty);
         Write("Src/Web/package.json", """{ "name": "@acme-store/web", "private": true }""");
         Write(".github/workflows/ci.yml", string.Empty);
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application.Auth"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
         string inside = Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps")).FullName;
 
         GeneratedProject project = GeneratedProject.Find(inside).ShouldNotBeNull();
@@ -57,7 +57,7 @@ public sealed class GeneratedProjectTests : IDisposable
         AProject();
         foreach (string feature in features)
         {
-            Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "Acme.Shop.Application", "Features", feature));
+            Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application", "Features", feature));
         }
 
         GeneratedProject.Find(_root).ShouldNotBeNull().Examples.ShouldBe(examples);
@@ -69,7 +69,7 @@ public sealed class GeneratedProjectTests : IDisposable
         AProject();
         GeneratedProject.Find(_root).ShouldNotBeNull().Files.ShouldBeFalse();
 
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Infrastructure", "Acme.Shop.Infrastructure.Storage"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Infrastructure", "AS.Infrastructure.Storage"));
 
         GeneratedProject.Find(_root).ShouldNotBeNull().Files.ShouldBeTrue();
     }
@@ -78,10 +78,10 @@ public sealed class GeneratedProjectTests : IDisposable
     public void Find_ReadsTheClient_FromItsProject()
     {
         AProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Clients", "Acme.Shop.Client"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Clients", "AS.Client"));
         GeneratedProject.Find(_root).ShouldNotBeNull().HasClient.ShouldBeFalse();
 
-        Write("Src/Clients/Acme.Shop.Client/Acme.Shop.Client.csproj", string.Empty);
+        Write("Src/Clients/AS.Client/Acme.Shop.Client.csproj", string.Empty);
 
         GeneratedProject.Find(_root).ShouldNotBeNull().HasClient.ShouldBeTrue();
     }
@@ -106,7 +106,7 @@ public sealed class GeneratedProjectTests : IDisposable
     {
         AProject();
         Write(
-            "Src/Infrastructure/Acme.Shop.Infrastructure.Core/Acme.Shop.Infrastructure.Core.csproj",
+            "Src/Infrastructure/AS.Infrastructure.Core/Acme.Shop.Infrastructure.Core.csproj",
             $"""
             <Project Sdk="Microsoft.NET.Sdk">
               <ItemGroup>
@@ -135,11 +135,11 @@ public sealed class GeneratedProjectTests : IDisposable
     public void Find_ReadsTheApi_FromItsPresentationProject()
     {
         AProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Worker"));
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Apis"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Worker"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Apis"));
         GeneratedProject.Find(_root).ShouldNotBeNull().HasApi.ShouldBeFalse();
 
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "Acme.Shop.Api"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
 
         GeneratedProject.Find(_root).ShouldNotBeNull().HasApi.ShouldBeTrue();
     }

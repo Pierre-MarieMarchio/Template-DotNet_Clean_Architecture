@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <!--#if (externalAuth)-->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!--#endif-->
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Src\Application\AT.Application\AppTemplate.Application.csproj" />
+    <ProjectReference Include="..\..\..\Src\Presentation\AT.Api\AppTemplate.Api.csproj" />
+  </ItemGroup>
+
+</Project>

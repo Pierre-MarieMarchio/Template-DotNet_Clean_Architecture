@@ -65,7 +65,7 @@ dotnet ef migrations add AddAccessKeys \
   --output-dir Migrations
 ```
 
-<!--#endif--> `dnx CleanArch.Create presentation` runs the three
+<!--#endif--> `dnx CleanArch.Create -- presentation` runs the three
 commands in turn, reading the options from the project's files. The edits, to make by hand where the
 task stops:
 

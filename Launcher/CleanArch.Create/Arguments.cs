@@ -5,6 +5,8 @@ namespace CleanArch.Create;
 
 public sealed class Arguments
 {
+    public const string Separator = "--";
+
     public const string NewCommand = "new";
     public const string WebAppCommand = "web-app";
     public const string WebPackageCommand = "web-package";
@@ -35,6 +37,11 @@ public sealed class Arguments
     public static Arguments Parse(IReadOnlyList<string> arguments)
     {
         var parsed = new Arguments();
+
+        if (arguments.Count > 0 && arguments[0] == Separator)
+        {
+            arguments = [.. arguments.Skip(1)];
+        }
 
         for (int index = 0; index < arguments.Count; index++)
         {

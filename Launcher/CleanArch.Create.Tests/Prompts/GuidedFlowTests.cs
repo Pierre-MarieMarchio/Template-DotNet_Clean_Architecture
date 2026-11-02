@@ -120,9 +120,27 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new", "--hive", "hive");
 
         string output = Plain(console);
-        output.ShouldContain("dnx CleanArch.Create new -n Demo -o ./Demo --yes --setup");
+        output.ShouldContain("dnx CleanArch.Create -- new -n Demo -o ./Demo --yes --setup");
         output.ShouldMatch(@"[^:]--hive\s+(│\s+)?hive");
         output.ShouldContain("--debug:custom-hive hive");
+    }
+
+    [Fact]
+    public void AfterQuestions_TheLaunchersCommand_ReplaysThroughTheArgumentsAfterTheSeparator()
+    {
+        TestConsole console = Terminal();
+        console.Profile.Width = 1000;
+        console.Input.PushTextWithEnter("Demo");
+        PushEnters(console, 12);
+
+        Run(console, "new");
+
+        string printed = Regex.Match(Plain(console), @"^.*(?<command>dnx CleanArch\.Create -- new .*--yes.*)$", RegexOptions.Multiline).Groups["command"].Value.Trim();
+        Arguments replayed = Arguments.Parse(printed[(Launcher.InvocationWithArguments.Length + 1)..].Split(' '));
+
+        replayed.Command.ShouldBe("new");
+        replayed.Name.ShouldBe("Demo");
+        replayed.Yes.ShouldBeTrue();
     }
 
     [Fact]

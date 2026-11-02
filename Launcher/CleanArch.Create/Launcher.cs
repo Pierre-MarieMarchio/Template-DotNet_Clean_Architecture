@@ -11,6 +11,8 @@ public sealed partial class Launcher
 {
     public const string Invocation = "dnx CleanArch.Create";
 
+    public const string InvocationWithArguments = Invocation + " " + Arguments.Separator;
+
     public static readonly IReadOnlyDictionary<string, Condition> ProjectAskedWhen = new Dictionary<string, Condition>(StringComparer.Ordinal)
     {
         ["webName"] = Condition.Parse("(web != \"none\")"),
@@ -34,8 +36,10 @@ public sealed partial class Launcher
     };
 
     private const string _help =
-        """
-        Usage: dnx CleanArch.Create [new|web-app|web-package|presentation] [options] [--<template option> <value>]...
+        $"""
+        Usage: {Invocation} [-- [new|web-app|web-package|presentation] [options] [--<template option> <value>]...]
+
+        dnx takes -y, --yes, --help and --version for itself: put the launcher's own arguments after --.
 
         Commands
           new            create a project (what runs when you're not inside one)
@@ -423,7 +427,7 @@ public sealed partial class Launcher
 
         string engineLine = TemplateEngine.CommandLine("dotnet new", engine);
         session.Conversation.Equivalents(
-            session.Questionnaire.Asks ? [TemplateEngine.CommandLine(Invocation, launcher), engineLine, .. then ?? []] : [engineLine, .. then ?? []],
+            session.Questionnaire.Asks ? [TemplateEngine.CommandLine(InvocationWithArguments, launcher), engineLine, .. then ?? []] : [engineLine, .. then ?? []],
             session.Questionnaire.Asks);
     }
 

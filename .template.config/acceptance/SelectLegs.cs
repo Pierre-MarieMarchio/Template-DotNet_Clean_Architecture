@@ -12,7 +12,8 @@ internal static class LegSelector
     private const string _usage =
         """
         Usage: dotnet run .template.config/acceptance/SelectLegs.cs -- --event <name> [--labels <json>]
-                   [--changed <file>] [--output <file>]
+                   [--changed <file>] [--action <name>] [--label <name>] [--moved <true|false>]
+                   [--output <file>]
                dotnet run .template.config/acceptance/SelectLegs.cs -- --self-test
 
         Chooses the acceptance legs a change can affect. It reads rules.json and matrix.json beside
@@ -23,6 +24,11 @@ internal static class LegSelector
         Every leg runs on an event other than pull_request, under the full-acceptance label, when
         --changed names no file (the diff could not be read) or an empty one, and when one path
         runs them all.
+
+        No leg runs, and none is reported skipped, when a pull request is labelled with anything
+        but full-acceptance (--action labeled, --label the label added), and when a schedule finds
+        --moved false: the branch has not moved since the last scheduled run. Without --moved, a
+        schedule runs every leg.
 
         A leg runs on ubuntu-latest unless its 'runner' says windows-latest. --labels takes the pull
         request's label names as a JSON array. --output appends run and run_windows, the legs to run
@@ -80,7 +86,15 @@ internal static class LegSelector
             string[] labels = Labels(options.GetValueOrDefault("--labels"));
             List<string>? changed = Changed(options.GetValueOrDefault("--changed"));
 
-            Selection selection = Select(rules, legs, eventName, labels, changed);
+            string? idle = Idle(
+                eventName,
+                options.GetValueOrDefault("--action"),
+                options.GetValueOrDefault("--label"),
+                options.GetValueOrDefault("--moved") != "false");
+
+            Selection selection = idle is null
+                ? Select(rules, legs, eventName, labels, changed)
+                : new Selection([], [], [idle]);
             Report(selection);
 
             if (options.GetValueOrDefault("--output") is { } output)
@@ -95,6 +109,21 @@ internal static class LegSelector
             Console.Error.WriteLine(error.Message);
             return 1;
         }
+    }
+
+    private static string? Idle(string eventName, string? action, string? label, bool moved)
+    {
+        if (eventName == "pull_request" && action == "labeled" && !string.IsNullOrEmpty(label) && label != _fullAcceptanceLabel)
+        {
+            return $"Labelling a pull request '{label}' changes no file, so no leg runs again.";
+        }
+
+        if (eventName == "schedule" && !moved)
+        {
+            return "The branch has not moved since the last scheduled run, so no leg runs.";
+        }
+
+        return null;
     }
 
     private static Selection Select(List<Rule> rules, List<Leg> legs, string eventName, string[] labels, List<string>? changed)
@@ -288,7 +317,7 @@ internal static class LegSelector
 
     private static Dictionary<string, string> Options(string[] arguments)
     {
-        string[] known = ["--event", "--labels", "--changed", "--output"];
+        string[] known = ["--event", "--labels", "--changed", "--action", "--label", "--moved", "--output"];
         var options = new Dictionary<string, string>(StringComparer.Ordinal);
 
         for (int i = 0; i < arguments.Length; i++)
@@ -379,6 +408,7 @@ internal static class LegSelector
         new("an unreadable diff", "pull_request", [], null, null),
         new("the full-acceptance label", "pull_request", ["documentation", _fullAcceptanceLabel], ["docs/template/roadmap.md"], null),
         new("a push", "push", [], ["docs/template/roadmap.md"], null),
+        new("a schedule", "schedule", [], null, null),
         new("a manual run", "workflow_dispatch", [], null, null),
     ];
 
@@ -450,7 +480,35 @@ internal static class LegSelector
             failures.Add("the labels of a push, or of a pull request, are misread");
         }
 
-        int total = _cases.Length * 2 + 6;
+        (string Event, string? Action, string? Label, bool Moved, bool Idles)[] idling =
+        [
+            ("pull_request", "labeled", "dependencies", true, true),
+            ("pull_request", "labeled", _fullAcceptanceLabel, true, false),
+            ("pull_request", "labeled", null, true, false),
+            ("pull_request", "opened", null, true, false),
+            ("pull_request", "synchronize", null, true, false),
+            ("schedule", null, null, false, true),
+            ("schedule", null, null, true, false),
+            ("push", null, null, false, false),
+            ("workflow_dispatch", null, null, false, false),
+        ];
+
+        foreach (var (eventName, action, label, moved, idles) in idling)
+        {
+            if ((Idle(eventName, action, label, moved) is not null) != idles)
+            {
+                failures.Add($"{eventName} {action} {label} moved={moved}: the run should {(idles ? "" : "not ")}idle whole");
+            }
+        }
+
+        var nothing = OutputLines(new Selection([], [], ["idle"]));
+
+        if (nothing.GetValueOrDefault("run_count") != "0" || nothing.GetValueOrDefault("run_windows_count") != "0" || nothing.GetValueOrDefault("skip_count") != "0")
+        {
+            failures.Add("a run that idles reports a leg, run or skipped, so a required check would turn green unproved");
+        }
+
+        int total = _cases.Length * 2 + 6 + idling.Length + 1;
         Console.WriteLine($"Self-test: {_cases.Length} change(s) against rules.json and matrix.json, and the outputs they write.");
 
         if (failures.Count > 0)

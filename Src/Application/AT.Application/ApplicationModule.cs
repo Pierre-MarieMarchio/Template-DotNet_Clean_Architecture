@@ -161,6 +161,7 @@ public static class ApplicationModule
             filter: scan => IsInVertical(scan.ValidatorType, vertical),
             includeInternalTypes: true);
 
+        services.AddUseCasePipeline();
         services.AddUseCases(TypesIn(vertical));
     }
 

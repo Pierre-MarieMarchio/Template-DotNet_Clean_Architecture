@@ -15,6 +15,7 @@ public static class ApplicationAuthModule
             lifetime: ServiceLifetime.Scoped,
             includeInternalTypes: true);
 
+        services.AddUseCasePipeline();
         services.AddUseCasesFrom(typeof(ApplicationAuthModule).Assembly);
 
         return services;

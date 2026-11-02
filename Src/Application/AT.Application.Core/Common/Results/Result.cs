@@ -1,6 +1,6 @@
 ﻿namespace AppTemplate.Application.Core.Common.Results;
 
-public class Result
+public class Result : IFailable<Result>
 {
     private protected Result(bool isSuccess, Error? error)
     {
@@ -26,7 +26,7 @@ public class Result
 
     public static Result Success() => new(true, null);
 
-    public static Result Failure(Error error) => new(false, error);
+    public static Result Failure(Error failure) => new(false, failure);
 
     public static Result<TValue> Success<TValue>(TValue value) => Result<TValue>.Success(value);
 
@@ -37,7 +37,7 @@ public class Result
         : throw new InvalidOperationException("A success cannot be converted: it carries no error.");
 }
 
-public sealed class Result<TValue> : Result
+public sealed class Result<TValue> : Result, IFailable<Result<TValue>>
 {
     private readonly TValue? _value;
 
@@ -59,7 +59,7 @@ public sealed class Result<TValue> : Result
         return new(value, true, null);
     }
 
-    public static new Result<TValue> Failure(Error error) => new(default, false, error);
+    public static new Result<TValue> Failure(Error failure) => new(default, false, failure);
 
     public static implicit operator Result<TValue>(TValue value) => Success(value);
 }

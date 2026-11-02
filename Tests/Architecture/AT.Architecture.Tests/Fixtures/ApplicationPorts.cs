@@ -2,6 +2,7 @@
 using AppTemplate.Application.Core.Common.Collections;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Policies;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Common.UseCases;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
@@ -19,6 +20,7 @@ internal static class ApplicationPorts
         typeof(IDomainEventConsumer<>),
         typeof(ICollectionPolicy),
         typeof(ICollectionQuery),
+        typeof(IFailable<>),
     ];
 
     internal static IReadOnlyList<Type> NotPorts => _notPorts;

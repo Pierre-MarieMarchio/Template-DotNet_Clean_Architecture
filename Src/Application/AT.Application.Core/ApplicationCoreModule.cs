@@ -6,7 +6,9 @@ using AppTemplate.Application.Core.Features.DeletedAccounts.UseCases.Commands.Sw
 //#endif
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using AppTemplate.Domain.Core.Common.Events;
+using Mediator;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AppTemplate.Application.Core;
 
@@ -16,6 +18,8 @@ public static class ApplicationCoreModule
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddUseCasePipeline();
+
         return services.AddUseCases([typeof(PurgeExpiredIdempotencyKeysUseCase)]);
     }
     //#if (anyFeature)
@@ -24,9 +28,22 @@ public static class ApplicationCoreModule
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddUseCasePipeline();
+
         return services.AddUseCases([typeof(SweepDeletedAccountDataUseCase)]);
     }
     //#endif
+
+    public static IServiceCollection AddUseCasePipeline(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(IPipelineBehavior<,>), typeof(TracingBehaviour<,>)));
+        services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehaviour<,>)));
+        services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>)));
+
+        return services;
+    }
 
     public static IServiceCollection AddDomainEventConsumer<TEvent, TConsumer>(this IServiceCollection services)
         where TEvent : IDomainEvent

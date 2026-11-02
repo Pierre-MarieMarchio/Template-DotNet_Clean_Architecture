@@ -568,24 +568,61 @@ public sealed class LayoutConventionTests
             }
 
             string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file);
-            string expected = TypeNameOf(file);
+            string[] expected = ExpectedPublicTypesOf(file);
 
-            if (declared.Count > 1)
+            if (!declared.SetEquals(expected))
             {
                 offenders.Add(
-                    $"{relative} declares {declared.Count} public types " +
-                    $"({string.Join(", ", declared.Order(StringComparer.Ordinal))}).");
-            }
-            else if (!declared.Contains(expected))
-            {
-                offenders.Add($"{relative} declares '{declared.First()}'.");
+                    $"{relative} declares ({string.Join(", ", declared.Order(StringComparer.Ordinal))}), " +
+                    $"expected ({string.Join(", ", expected)}).");
             }
         }
 
         offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "A file holds one public type and is named for it. A second one hides behind a name that " +
             "does not mention it, and a mismatched name makes the type unfindable by the only thing a " +
-            "reader knows about it.");
+            "reader knows about it. The one exception is a use case's own file, " +
+            "UseCases/<Commands|Queries>/<UseCase>/<UseCase>.cs, which holds its message and that " +
+            "message's handler and nothing else.");
+    }
+
+    [Fact]
+    public void TheOneTypePerFileRule_ExpectsTheMessageAndItsHandlerInAUseCasesOwnFile()
+    {
+        string folder = Path.Combine("Src", "Application", "AT.Application", "Features", "Widgets", "UseCases");
+
+        ExpectedPublicTypesOf(Path.Combine(folder, "Commands", "RenameWidget", "RenameWidget.cs"))
+            .ShouldBe(["RenameWidgetCommand", "RenameWidgetCommandHandler"]);
+
+        ExpectedPublicTypesOf(Path.Combine(folder, "Queries", "GetWidget", "GetWidget.cs"))
+            .ShouldBe(["GetWidgetQuery", "GetWidgetQueryHandler"]);
+
+        ExpectedPublicTypesOf(Path.Combine(folder, "Commands", "RenameWidget", "RenameWidgetCommandValidator.cs"))
+            .ShouldBe(
+                ["RenameWidgetCommandValidator"],
+                "Beside its own file, a use case's folder keeps one public type per file.");
+
+        ExpectedPublicTypesOf(Path.Combine(folder, "Commands", "RenameWidget", "Other.cs"))
+            .ShouldBe(["Other"], "Only the file named for the folder holds the pair.");
+    }
+
+    private static readonly Regex _useCaseFile = new(
+        @"[/\\]UseCases[/\\](Commands|Queries)[/\\]([^/\\]+)[/\\]([^/\\]+)\.cs$",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static string[] ExpectedPublicTypesOf(string file)
+    {
+        var match = _useCaseFile.Match(file);
+
+        if (!match.Success || !string.Equals(match.Groups[2].Value, match.Groups[3].Value, StringComparison.Ordinal))
+        {
+            return [TypeNameOf(file)];
+        }
+
+        string message = match.Groups[2].Value + (match.Groups[1].Value == "Commands" ? "Command" : "Query");
+
+        return [message, message + "Handler"];
     }
 
     [Fact]

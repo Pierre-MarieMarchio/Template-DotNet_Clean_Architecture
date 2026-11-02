@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using AppTemplate.Application.Core.Common.UseCases;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -49,6 +50,8 @@ public static class ObservabilityExtensions
 
                 builder.AddHttpClientInstrumentation();
 
+                builder.AddSource(UseCaseInstruments.Name);
+
                 tracing?.Invoke(builder);
 
                 builder.AddOtlpExporter(exporter =>
@@ -62,6 +65,8 @@ public static class ObservabilityExtensions
                 builder.AddHttpClientInstrumentation();
 
                 builder.AddMeter("System.Runtime");
+
+                builder.AddMeter(UseCaseInstruments.Name);
 
                 metrics?.Invoke(builder);
 

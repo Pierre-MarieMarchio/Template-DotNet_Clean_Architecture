@@ -334,6 +334,11 @@ internal static class HostComposition
         services.AddSingleton(configuration);
         services.AddSingleton<IHostEnvironment>(new ArchitectureTestHostEnvironment());
         services.AddLogging();
+        services.AddMediator(options =>
+        {
+            options.ServiceLifetime = ServiceLifetime.Scoped;
+            options.GenerateTypesAsInternal = true;
+        });
     }
 
     private static void AddHostSuppliedAdapters(IServiceCollection services)

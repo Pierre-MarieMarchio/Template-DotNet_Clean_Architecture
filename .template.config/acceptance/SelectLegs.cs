@@ -387,19 +387,19 @@ internal static class LegSelector
         new("the Vite Vue starter", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json"], [_everyStarter]),
         new("the Angular starter", "pull_request", [], [".template.config/starters/angular/FrameworkSite/scaffold.json"],
             [_webPlaceholder, _webAngular, _noWeb, _everyStarter]),
-        new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AppTemplate.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
+        new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AT.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
             [_workerMcpWasm, _webReact, _webAngular, _noWeb, _everyStarter]),
-        new("the Avalonia starter", "pull_request", [], [".template.config/starters/avalonia/Src/Presentation/AppTemplate.PresentationApp/Program.cs"],
+        new("the Avalonia starter", "pull_request", [], [".template.config/starters/avalonia/Src/Presentation/AT.PresentationApp/Program.cs"],
             [_sqlServer, _externalNoExamples, _noWeb, _everyStarter]),
-        new("the WPF starter", "pull_request", [], [".template.config/starters/wpf/Src/Presentation/AppTemplate.PresentationApp/App.xaml.cs"],
+        new("the WPF starter", "pull_request", [], [".template.config/starters/wpf/Src/Presentation/AT.PresentationApp/App.xaml.cs"],
             [_sqliteDefaults, "windows, wpf, local auth", "windows, wpf, external auth, notes"]),
         new("the Blazor Server starter", "pull_request", [], [".template.config/starters/blazor-server/Tests/Presentation/x.cs"],
             [_severalHosts, _noApi, _webPlaceholder, _webReact, _webAngular]),
         new("the presentation item template", "pull_request", [], [".template.config/presentation/.template.config/template.json"],
             [_externalNoExamples, _sqliteExternal, _noWeb, _everyStarter, _sqliteDefaults]),
-        new("the MCP server starter", "pull_request", [], [".template.config/starters/mcp/Src/Presentation/AppTemplate.PresentationAppMcp/Program.cs"],
+        new("the MCP server starter", "pull_request", [], [".template.config/starters/mcp/Src/Presentation/AT.PresentationAppMcp/Program.cs"],
             [_severalHosts, _workerMcpWasm, _noApi, _sqliteExternal]),
-        new("the worker starter", "pull_request", [], [".template.config/starters/worker/Src/Presentation/AppTemplate.Worker/Program.cs"],
+        new("the worker starter", "pull_request", [], [".template.config/starters/worker/Src/Presentation/AT.Worker/Program.cs"],
             [_severalHosts, _localNoFiles, _workerMcpWasm, _noApi]),
         new("the SQLite variant", "pull_request", [], [".template.config/variants/database-sqlite/docker-compose.database.yml"],
             [_sqliteExternal, _webPlaceholder, _sqliteDefaults]),
@@ -409,8 +409,8 @@ internal static class LegSelector
             ["defaults", _localNoFiles, _externalNoExamples]),
         new("a template-only page and the Vite Vue starter", "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vite-vue/FrameworkSite/scaffold.json"],
             [_everyStarter]),
-        new("the Vite Vue starter and the domain", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json", "Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
-        new("the domain", "pull_request", [], ["Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
+        new("the Vite Vue starter and the domain", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json", "Src/Domain/AT.Domain/Common/Entity.cs"], null),
+        new("the domain", "pull_request", [], ["Src/Domain/AT.Domain/Common/Entity.cs"], null),
         new("a shared page", "pull_request", [], ["docs/README.md"], null),
         new("a folder named like the launcher's", "pull_request", [], ["LauncherTools/Run.cs"], null),
         new("the central package versions", "pull_request", [], ["Directory.Packages.props"], null),
@@ -474,7 +474,7 @@ internal static class LegSelector
             failures.Add("a Windows leg the change cannot reach is run, or not reported with the legs skipped");
         }
 
-        var everything = OutputLines(Select(rules, legs, "pull_request", [], ["Src/Domain/AppTemplate.Domain/Common/Entity.cs"]));
+        var everything = OutputLines(Select(rules, legs, "pull_request", [], ["Src/Domain/AT.Domain/Common/Entity.cs"]));
         string[] linuxRun = Names(everything.GetValueOrDefault("run", "null"));
         string[] windowsRun = Names(everything.GetValueOrDefault("run_windows", "null"));
 

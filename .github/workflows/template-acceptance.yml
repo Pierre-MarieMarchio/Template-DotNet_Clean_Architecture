@@ -385,10 +385,17 @@ jobs:
           dotnet run Tools/Tasks.cs api-client
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
-      # The build holds the style it can see; one bootstrap run must leave the rest, using order and encoding among it, unchanged.
+      # The build holds the style it can see and bootstrap must leave whitespace and encoding unchanged on every shape; the rules that need a compilation, using order among them, run on the defaults shape, as ci.yml runs them on the template.
       - name: Check the formatting the build does not
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs format
+        env:
+          LEG: ${{ matrix.name }}
+        run: |
+          if [ "$LEG" = defaults ]; then
+            dotnet run Tools/Tasks.cs format
+          else
+            dotnet format whitespace --folder . --verify-no-changes --verbosity normal
+          fi
 
       # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
@@ -951,9 +958,9 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs -- build --configuration Release
 
-      - name: Check the formatting the build does not
+      - name: Check the whitespace and encoding bootstrap left
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs format
+        run: dotnet format whitespace --folder . --verify-no-changes --verbosity normal
 
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated

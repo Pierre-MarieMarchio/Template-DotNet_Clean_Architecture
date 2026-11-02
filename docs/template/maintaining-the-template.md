@@ -72,7 +72,9 @@ package and presentation project a leg adds with an item template is recorded by
 last addition. Every leg
 runs `presentation-scaffold` before the formatting, a step that does nothing without a presentation
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
-compiles it and its tests run with the others. The three web legs that pass `--presentation
+compiles it and its tests run with the others. After the build, every leg checks that bootstrap left
+whitespace and encoding unchanged; the `defaults` leg alone runs the `format` task, whose rules need a
+compilation, as `ci.yml` runs it on the template. The three web legs that pass `--presentation
 blazor-server`, one per authentication mode, create the presentation project, build and test it, and
 ask it in the stack for its page and `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's

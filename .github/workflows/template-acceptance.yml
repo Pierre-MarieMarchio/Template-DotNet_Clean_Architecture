@@ -3,16 +3,19 @@ name: Template acceptance
 # Template repository only: each leg installs the template package packed from this checkout, generates under another name and gates what an adopter would get.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
+  # develop, the default branch, is proved whole once a night when it has moved; its pull requests ran the legs their change reaches.
+  schedule:
+    - cron: "17 2 * * *"
   pull_request:
     branches: [main, develop]
     types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
-# One run per ref: a new push cancels the previous one, except on main.
+# One run per ref: a new push to a pull request cancels the previous one. A label other than full-acceptance runs apart, in a group of its own, so it cancels nothing.
 concurrency:
-  group: template-acceptance-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: template-acceptance-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'full-acceptance' && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege; nothing here writes to the repository.
 permissions:
@@ -50,11 +53,14 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  # The legs a pull request's change can affect, from .template.config/acceptance; any other event runs them all.
+  # The legs a pull request's change can affect, from .template.config/acceptance; any other event runs them all, a night's run only when develop has moved, and a label other than full-acceptance none.
   changes:
     name: Select the acceptance legs
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
     outputs:
       run: ${{ steps.select.outputs.run }}
       run_count: ${{ steps.select.outputs.run_count }}
@@ -78,11 +84,30 @@ jobs:
       - name: The selector can fail
         run: dotnet run .template.config/acceptance/SelectLegs.cs -- --self-test
 
+      # The last scheduled run that proved a tree, passed or failed, not one cancelled; a list that cannot be read counts as a move, so the legs run.
+      - name: Has develop moved since the last scheduled run
+        id: moved
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow template-acceptance.yml --event schedule --branch develop --status completed --limit 30 \
+            --json headSha,conclusion --jq '[.[] | select(.conclusion == "success" or .conclusion == "failure")][0].headSha // ""') || last=""
+          if [ -n "$last" ] && [ "$last" = "$GITHUB_SHA" ]; then
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # --no-renames lists a moved file's old path as well as its new one; a diff that fails leaves no file, which runs every leg.
       - name: Select the legs the change can affect
         id: select
         env:
           EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          MOVED: ${{ steps.moved.outputs.moved }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
@@ -90,7 +115,7 @@ jobs:
           if [ "$EVENT" = pull_request ] && ! git diff --name-only --no-renames HEAD^1 HEAD > "$changed"; then
             rm -f "$changed"
           fi
-          dotnet run .template.config/acceptance/SelectLegs.cs -- --event "$EVENT" --labels "$LABELS" --changed "$changed" --output "$GITHUB_OUTPUT"
+          dotnet run .template.config/acceptance/SelectLegs.cs -- --event "$EVENT" --action "$ACTION" --label "$LABEL" --moved "${MOVED:-true}" --labels "$LABELS" --changed "$changed" --output "$GITHUB_OUTPUT"
 
   # The legs are the shapes the options produce, not their cross product, listed in .template.config/acceptance/matrix.json; auth_context says whether the Auth DbContext exists.
   template:

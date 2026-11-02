@@ -46,8 +46,8 @@ pending model changes, runs the generated project's `hygiene`, and checks every 
 with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
 integration suites, on the runner's Docker through Testcontainers, and the defaults, SQL Server and
 SQLite defaults legs then run the generated project's `dotnet run Tools/Tasks.cs end-to-end` against
-its Compose stack. The defaults leg, the several-hosts leg and the SQLite leg without examples also
-run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
+its Compose stack. The defaults leg, the local-auth leg without examples and the external-auth leg
+without examples also run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
 aggregate one on `get,list,create` in turn, the aggregates after `new-use-case` adds a command, a
 query and a command without input to each while refusing the others.
 `.template.config/acceptance/ApplyFeatureEdits.cs` then makes the hand edits `new-feature` printed,
@@ -91,11 +91,13 @@ builds and tests a portal, an MCP server and a worker with no HTTP API at all.
 | Leg | Options |
 |---|---|
 | defaults | none |
-| several hosts, local auth, notes, no files, no ci, no sonar | `--presentation blazor-server --presentation mcp --presentation worker --examples notes --files false --ci false --sonar false`, the API brought by the MCP server's access keys |
+| several hosts, local auth, notes | `--presentation blazor-server --presentation mcp --presentation worker --examples notes --files false`, the API brought by the MCP server's access keys |
+| local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false --presentation api --presentation worker` |
 | worker, mcp and blazor wasm, external auth, all examples | `--presentation api --presentation mcp --presentation worker --auth external --examples all --files true --web blazor-wasm` |
-| sql server, avalonia, then an mcp server, external auth, all examples | `--database sqlserver --auth external --examples all --files true --presentation avalonia`, then `cleanarch-presentation --framework mcp` |
+| sql server, avalonia, external auth, all examples | `--database sqlserver --auth external --examples all --files true --presentation avalonia` |
 | no api, blazor server, mcp and worker, external auth, no agent files | `--presentation blazor-server --presentation mcp --presentation worker --auth external --examples notes --files false --agent-files false` |
-| sqlite, external auth, no examples, no files, then avalonia | `--database sqlite --auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
+| external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
+| sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
 | sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
 | web placeholder, sqlite, smallest project | `--web placeholder --database sqlite --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
 | web react back office, local auth | `--web vite-react --web-audience admin --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
@@ -107,7 +109,9 @@ builds and tests a portal, an MCP server and a worker with no HTTP API at all.
 
 A leg is one generated shape that carries as many guarantees as its options allow: every value of
 every option, every item template and every check the workflow runs only for some legs is proved by
-at least one leg, and two shapes share a leg unless one turns off a part the other must prove.
+at least one leg, and two shapes share a leg unless one turns off a part the other must prove. An
+item template adds a presentation project only to a project generated without one, since it writes
+`docs/features/presentation.md`.
 A leg stays under about twelve minutes, since the slowest one sets the run's length, and the account
 runs at most twenty jobs at once, which the acceptance legs share with the other workflows.
 

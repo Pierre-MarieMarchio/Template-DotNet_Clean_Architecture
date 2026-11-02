@@ -349,15 +349,19 @@ internal static class LegSelector
 
     private sealed record Case(string Label, string Event, string[] Labels, string[]? Changed, string[]? Expected);
 
-    private const string _severalHosts = "several hosts, local auth, notes, no files, no ci, no sonar";
+    private const string _severalHosts = "several hosts, local auth, notes";
+
+    private const string _localNoFiles = "local auth, no files, no ci, no sonar";
 
     private const string _workerMcpWasm = "worker, mcp and blazor wasm, external auth, all examples";
 
-    private const string _sqlServer = "sql server, avalonia, then an mcp server, external auth, all examples";
+    private const string _sqlServer = "sql server, avalonia, external auth, all examples";
 
     private const string _noApi = "no api, blazor server, mcp and worker, external auth, no agent files";
 
-    private const string _sqliteExternal = "sqlite, external auth, no examples, no files, then avalonia";
+    private const string _externalNoExamples = "external auth, no examples, no files";
+
+    private const string _sqliteExternal = "sqlite, external auth, all examples";
 
     private const string _webPlaceholder = "web placeholder, sqlite, smallest project";
 
@@ -386,23 +390,23 @@ internal static class LegSelector
         new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AppTemplate.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
             [_workerMcpWasm, _webReact, _webAngular, _noWeb, _everyStarter]),
         new("the Avalonia starter", "pull_request", [], [".template.config/starters/avalonia/Src/Presentation/AppTemplate.PresentationApp/Program.cs"],
-            [_sqlServer, _sqliteExternal, _noWeb, _everyStarter]),
+            [_sqlServer, _externalNoExamples, _noWeb, _everyStarter]),
         new("the WPF starter", "pull_request", [], [".template.config/starters/wpf/Src/Presentation/AppTemplate.PresentationApp/App.xaml.cs"],
             [_sqliteDefaults, "windows, wpf, local auth", "windows, wpf, external auth, notes"]),
         new("the Blazor Server starter", "pull_request", [], [".template.config/starters/blazor-server/Tests/Presentation/x.cs"],
             [_severalHosts, _noApi, _webPlaceholder, _webReact, _webAngular]),
         new("the presentation item template", "pull_request", [], [".template.config/presentation/.template.config/template.json"],
-            [_sqlServer, _sqliteExternal, _noWeb, _everyStarter, _sqliteDefaults]),
+            [_externalNoExamples, _sqliteExternal, _noWeb, _everyStarter, _sqliteDefaults]),
         new("the MCP server starter", "pull_request", [], [".template.config/starters/mcp/Src/Presentation/AppTemplate.PresentationAppMcp/Program.cs"],
-            [_severalHosts, _workerMcpWasm, _sqlServer, _noApi]),
+            [_severalHosts, _workerMcpWasm, _noApi, _sqliteExternal]),
         new("the worker starter", "pull_request", [], [".template.config/starters/worker/Src/Presentation/AppTemplate.Worker/Program.cs"],
-            [_severalHosts, _workerMcpWasm, _noApi]),
+            [_severalHosts, _localNoFiles, _workerMcpWasm, _noApi]),
         new("the SQLite variant", "pull_request", [], [".template.config/variants/database-sqlite/docker-compose.database.yml"],
             [_sqliteExternal, _webPlaceholder, _sqliteDefaults]),
         new("the SQL Server variant", "pull_request", [], [".template.config/variants/database-sqlserver/docker-compose.database.yml"],
             [_sqlServer]),
         new("the feature-edit applier", "pull_request", [], [".template.config/acceptance/ApplyFeatureEdits.cs"],
-            ["defaults", _severalHosts, _sqliteExternal]),
+            ["defaults", _localNoFiles, _externalNoExamples]),
         new("a template-only page and the Vite Vue starter", "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vite-vue/FrameworkSite/scaffold.json"],
             [_everyStarter]),
         new("the Vite Vue starter and the domain", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json", "Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),

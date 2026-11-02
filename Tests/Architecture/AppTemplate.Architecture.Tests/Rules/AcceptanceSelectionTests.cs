@@ -16,11 +16,13 @@ public sealed class AcceptanceSelectionTests
     private static readonly string[] _requiredByTheDevelopRuleset =
     [
         "defaults",
-        "several hosts, local auth, notes, no files, no ci, no sonar",
+        "several hosts, local auth, notes",
+        "local auth, no files, no ci, no sonar",
         "worker, mcp and blazor wasm, external auth, all examples",
-        "sql server, avalonia, then an mcp server, external auth, all examples",
+        "sql server, avalonia, external auth, all examples",
         "no api, blazor server, mcp and worker, external auth, no agent files",
-        "sqlite, external auth, no examples, no files, then avalonia",
+        "external auth, no examples, no files",
+        "sqlite, external auth, all examples",
         "web placeholder, sqlite, smallest project",
         "web react back office, local auth",
         "web angular, external auth, notes",

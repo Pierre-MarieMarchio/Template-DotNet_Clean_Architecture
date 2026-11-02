@@ -86,8 +86,8 @@ switches and `isRequired` alike.
 - A project without the API has no HTTP contract to test end to end and no host that migrates in
   Development: its first-run page applies the migrations with `dotnet ef database update`.
 - Two server hosts share one compose environment block and each keeps its own service and port.
-  The `several hosts, local auth, notes, no files, no ci, no sonar` leg starts the API, the portal,
-  the MCP server and the worker together.
+  The `several hosts, local auth, notes` leg starts the API, the portal, the MCP server and the
+  worker together.
 - [0012](0012-where-the-jobs-run-is-an-option.md) keeps how the jobs move and loses its option;
   [0015](0015-an-mcp-server-is-a-presentation-project-written-whole.md) loses its one presentation
   project per project and its generated default name.

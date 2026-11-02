@@ -11,7 +11,7 @@ COPY Src/Clients/AppTemplate.Client/ Src/Clients/AppTemplate.Client/
 COPY Src/Web/apps/FrameworkSite/ Src/Web/apps/FrameworkSite/
 RUN dotnet publish Src/Web/apps/FrameworkSite/AppTemplate.FrameworkSite.csproj --configuration Release --output /publish
 
-FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS build
+FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS build
 
 WORKDIR /workspace
 
@@ -19,7 +19,7 @@ COPY --from=publish /publish/wwwroot/index.html apps/FrameworkSite/dist/client/i
 COPY Src/Web/apps/FrameworkSite/nginx.conf apps/FrameworkSite/nginx.conf
 #else
 # Built from Src/Web once web-scaffold has created the app: docker build -f apps/FrameworkSite/Dockerfile Src/Web
-FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS build
+FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS build
 
 ENV CI=true \
 #if (webAngular)
@@ -63,7 +63,7 @@ HASHES
 #endif
 
 #if (webServerRendering)
-FROM node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS runtime
+FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS runtime
 
 ENV NODE_ENV=production \
     PORT=8080 \

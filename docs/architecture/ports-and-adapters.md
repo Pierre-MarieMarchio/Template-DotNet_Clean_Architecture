@@ -80,18 +80,21 @@ everything a feature needs, whose implementation then owns the sequencing the us
 use case of its feature depends on, and no port the application layer declares but never calls. A
 `Table` is not a port and is not counted.
 
-## Interfaces on every entry point
+## How a host reaches a use case
 
-Every use case sits behind one named interface deriving from `IUseCase<TRequest, TResponse>`, and a
-controller depends on that interface. Registration finds the use cases of a feature and throws at
-start-up if one declares no named interface or several. Every service class has an interface too:
-code depends on it and the container supplies the implementation.
+A use case is reached through its message: a host depends on `ISender` and sends the command or
+query, and the generated mediator hands it to the one handler, through the use-case pipeline. Every
+service class has an interface: code depends on it and the container supplies the implementation.
 
 ```csharp
-public interface ICreateWidgetUseCase
-    : IUseCase<CreateWidgetCommand, Result<Versioned<WidgetDto>>>;
-
-public sealed class WidgetsController(ICreateWidgetUseCase createWidget) : ApiControllerBase;
+public sealed class WidgetsController(ISender sender) : ApiControllerBase
+{
+    public async Task<ActionResult<WidgetResponse>> Create(CreateWidgetRequest request, CancellationToken cancellationToken) =>
+        CreatedOrProblem(
+            WidgetResponseMapping.ToResponse(await sender.Send(new CreateWidgetCommand(request.Name), cancellationToken)),
+            nameof(Get),
+            widget => new { widgetId = widget.Id });
+}
 ```
 
 ## Adapters stay internal

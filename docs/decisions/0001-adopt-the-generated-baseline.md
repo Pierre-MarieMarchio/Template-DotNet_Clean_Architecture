@@ -42,7 +42,7 @@ what changing it costs.
 <!--#if (sqlite)-->
 | SQLite through EF Core, for development | One file, no server to run; a table prefix per feature, in-process locks and a version counter the save stamps | [Persistence model](../architecture/persistence-model.md) | Moving to a server database: [ADR 0021](0021-sqlite-is-a-development-database.md) |
 <!--#endif-->
-| FluentValidation, run by each use case | Validation is a use case's first line, testable without HTTP | [Request pipeline](../architecture/request-pipeline.md#validation) | — |
+| FluentValidation, run by the use-case pipeline before each handler | A message its validator refuses never reaches its handler, and the validator is testable without HTTP | [Request pipeline](../architecture/request-pipeline.md#validation) | — |
 <!--#if (localAuth)-->
 | Local accounts on ASP.NET Core Identity: JWT access tokens, rotating refresh tokens | The API is its own identity provider; the mode decides which modules exist | [Authentication](../features/authentication.md) | — |
 <!--#endif-->

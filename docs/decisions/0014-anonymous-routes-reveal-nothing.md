@@ -26,8 +26,8 @@ the first step of credential stuffing and of targeted phishing.
 - A client cannot say "that address is taken" inline; the mail says it, to the only person entitled
   to know.
 - Support investigates by user id, not by the address a person types.
-- `RegisterUseCaseTests` and `RegistrationFlowTests` hold registration; `LoginUniformityTests` and
-  `LoginUseCaseTests` assert every refusal against a literal and against each other, so a change
+- `RegisterTests` and `RegistrationFlowTests` hold registration; `LoginUniformityTests` and
+  `LoginTests` assert every refusal against a literal and against each other, so a change
   that moves them all and one that splits them both fail.
 - Anonymous routes are rate-limited per client address as well, so the uniform answers are slow to
   probe.

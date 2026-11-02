@@ -49,7 +49,7 @@ as long as the user works, and refreshes nothing it was not told how to.
   issues access keys, so the server names none.
 <!--#endif-->
   The health endpoints answer anyone, as the API's do.
-- **A tool is one use case, declared by hand.** Each tool calls one use case in its request's scope,
+- **A tool is one use case, declared by hand.** Each tool sends one use case's message in its request's scope,
   under a name and a description written for the agent, and says whether it only reads; nothing is
   exposed because it exists, and no tool deletes. A failure is a tool result marked as an error,
   carrying the error's `code` and detail, the codes the [API reference](../reference/api.md) lists,
@@ -93,7 +93,7 @@ as long as the user works, and refreshes nothing it was not told how to.
 - A use case reached by a tool is composed by a second host: a setting it reads is set for this host
   too.
 - Without server-to-client requests, a tool cannot ask the user to confirm anything mid-call.
-- `HostCompositionTests` resolves every use case and every tool type the server composes, and holds
+- `HostCompositionTests` resolves every use case's handler and every tool type the server composes, and holds
   the tools to the catalogue its tests read; `McpAuthorizationTests` holds the anonymous `401`,
 <!--#if (externalAuth)-->
   its metadata, the refusal of a token issued for the API,

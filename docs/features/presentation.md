@@ -101,24 +101,24 @@ and records the project in `cleanarch.json`; `presentation-scaffold` creates it 
 ### Calling a use case
 
 A Blazor Server circuit lives for as long as its browser tab, and so does the dependency-injection
-scope it was opened with. A use case resolved from it would keep its database context, its unit of
+scope it was opened with. A handler resolved from it would keep its database context, its unit of
 work and its tracked aggregates for that long, and two events of the same circuit would share
-them. A component therefore runs each operation in a scope of its own, through `OperationScope`:
+them. A component therefore sends each message in a scope of its own, through `OperationScope`:
 
 ```razor
 @inject OperationScope Operations
 
 @code {
     private async Task SaveAsync() =>
-        _result = await Operations.RunAsync<I<UseCase>UseCase, Result<<Output>>>(
-            useCase => useCase.ExecuteAsync(_command));
+        _result = await Operations.RunAsync<ISender, Result<<Output>>>(
+            sender => sender.Send(_command).AsTask());
 }
 ```
 
 The scope it opens carries the circuit's caller, so `ICurrentUser` names the person signed in and
 ownership stays in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)). A page
-rendered statically, a sign-in form among them, can inject a use case directly: its request is the
-scope, and its user is the caller. A use case resolved anywhere else refuses to answer who calls
+rendered statically, a sign-in form among them, can inject `ISender` directly: its request is the
+scope, and its user is the caller. A use case sent from anywhere else refuses to answer who calls
 it, rather than guess.
 
 ### Portal sign-in
@@ -129,12 +129,12 @@ once the routes component uses `AuthorizeRouteView` in place of `RouteView`.
 
 <!--#if (localAuth)-->
 The sign-in is the application's own use cases, kept in a cookie. A page rendered statically posts
-the form, calls `ILoginUseCase`, then `IVerifyTwoFactorUseCase` with the challenge when two-factor
-is on, and hands the `LoginOutcome.Authenticated` it gets to `CookieSession.SignInAsync`:
+the form, sends `LoginCommand`, then `VerifyTwoFactorCommand` with the challenge when two-factor is
+on, and hands the `LoginOutcome.Authenticated` it gets to `CookieSession.SignInAsync`:
 
 ```razor
 @page "/account/sign-in"
-@inject ILoginUseCase Login
+@inject ISender Sender
 @inject CookieSession Session
 @inject NavigationManager Navigation
 
@@ -151,7 +151,7 @@ is on, and hands the `LoginOutcome.Authenticated` it gets to `CookieSession.Sign
 
     private async Task SignInAsync()
     {
-        var outcome = await Login.ExecuteAsync(new LoginCommand(Input.Email, Input.Password));
+        var outcome = await Sender.Send(new LoginCommand(Input.Email, Input.Password));
 
         if (outcome is { IsSuccess: true, Value: LoginOutcome.Authenticated session }
             && await Session.SignInAsync(HttpContext, session))
@@ -380,12 +380,12 @@ The codes are the ones the [API reference](../reference/api.md) lists.
 ### Declaring a tool
 
 A tool is declared by hand, never because a use case exists. Each feature's tools are one class
-under `Features/<Feature>/Tools`, whose constructor takes the use cases it calls; each method is one
-tool, named and described for the agent, and says whether it only reads:
+under `Features/<Feature>/Tools`, whose constructor takes the `ISender` its tools send their messages
+through; each method is one tool, named and described for the agent, and says whether it only reads:
 
 ```csharp
 [McpServerToolType]
-internal sealed class <Feature>Tools(IGet<Aggregate>UseCase get<Aggregate>)
+internal sealed class <Feature>Tools(ISender sender)
 {
     [McpServerTool(Name = "get_<aggregate>", Title = "Get a <aggregate>", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Authorize(Policy = ToolPolicies.Read)]
@@ -394,7 +394,7 @@ internal sealed class <Feature>Tools(IGet<Aggregate>UseCase get<Aggregate>)
         [Description("The <aggregate>'s id.")] Guid <aggregate>Id,
         CancellationToken cancellationToken = default) =>
         ToolAnswer.From(
-            await get<Aggregate>.ExecuteAsync(new Get<Aggregate>Query(<aggregate>Id), cancellationToken),
+            await sender.Send(new Get<Aggregate>Query(<aggregate>Id), cancellationToken),
             <aggregate> => <aggregate>.Value);
 }
 ```

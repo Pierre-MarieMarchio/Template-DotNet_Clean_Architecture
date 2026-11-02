@@ -67,9 +67,10 @@ and the use case answers `401` `auth.required`.
 ## Validation
 
 A request is refused on its way in at two points, with one code. Model binding refuses a value of
-the wrong type or a body that is not valid JSON; the use case's FluentValidation validator refuses a
-well-formed value that breaks a rule. Both answer `400` `request.validationFailed`, with the
-offending fields under `errors`.
+the wrong type or a body that is not valid JSON; the validation behaviour of the use-case pipeline
+runs the message's FluentValidation validators and refuses a well-formed value that breaks a rule
+before the handler is reached. Both answer `400` `request.validationFailed`, with the offending
+fields under `errors`.
 
 The JSON input formatter's own messages are switched off, so a malformed body never echoes a CLR
 type name to the client. Validators measure strings after trimming, as the domain does.

@@ -95,7 +95,7 @@ live keys with their first characters and when each was last used, to the minute
 a password change leaves them alive, a lockout refuses them and deleting the account deletes them.
 
 This API never accepts an access key: its bearer scheme reads JWTs only. The MCP server validates
-the key through `IAuthenticateAccessKeyUseCase` and acts as its owner. A malformed, unknown,
+the key by sending `AuthenticateAccessKeyCommand` and acts as its owner. A malformed, unknown,
 revoked or expired key, and one whose account may not sign in, all answer `auth.accessKey.invalid`
 ([ADR 0026](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)).
 

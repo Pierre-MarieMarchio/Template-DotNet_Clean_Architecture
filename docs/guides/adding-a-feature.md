@@ -141,29 +141,30 @@ dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 | Option | Default | Meaning |
 |---|---|---|
 | `--kind` | required | `command`: changes state and answers a `Result`, under `UseCases/Commands/`. `query`: reads and answers a `Result` of a DTO named for it, under `UseCases/Queries/` |
-| `--input` | `id` | `id`: a command or query carrying the id of the aggregate the feature's repository names, with its validator and its tests. `none`: no input, no validator, no test |
+| `--input` | `id` | `id`: a command or query carrying the id of the aggregate the feature's repository names, with its validator and its tests. `none`: an empty message, no validator, no test |
 
 The command writes in the application layer and edits nothing:
 
-- the use case's folder: its command or query, its validator, its named interface and the use case;
+- the use case's folder: `<UseCase>.cs`, holding its command or query and that message's handler,
+  and with `--input id` the message's validator;
 - for a query, its DTO under `Model/Dtos/`, holding the aggregate's `Guid Id` and nothing else, unless the feature already declares one of that name;
-- with `--input id`, one unit test that an empty id is refused before the use case acts, with its
-  control.
+- with `--input id`, the validator's tests: an empty id is refused, a real one passes.
 
-Nothing is registered by hand: `AddFeature` in `ApplicationModule` finds the use case and its
-validator by folder. When the feature has a manifest, the files join it, so `remove-feature --apply`
+Nothing is registered by hand: `AddFeature` in `ApplicationModule` finds the validator by folder, and
+each host's generated mediator registers the handler, behind the use-case pipeline that runs the
+validator first. When the feature has a manifest, the files join it, so `remove-feature --apply`
 removes them with the feature while they are untouched.
 
-The use case answers its validation, then throws `NotImplementedException` until its body is written:
-the rule in the aggregate, the load, the call and the commit, each decision with its test.
+The handler throws `NotImplementedException` until its body is written: the rule in the aggregate,
+the load, the call and the commit, each decision with its test. Until a host sends its message,
+`MessageRoutingTests` names it.
 <!--#if (api)-->
-The command prints the action, the using and the constructor parameter that serve it over HTTP, and
-for a query the response contract; then rewrite the OpenAPI reference with
-`dotnet run Tools/Tasks.cs openapi`.
+The command prints the action that sends the message over HTTP and its usings, and for a query the
+response contract; then rewrite the OpenAPI reference with `dotnet run Tools/Tasks.cs openapi`.
 <!--#endif-->
 <!--#if (!api)-->
-The command prints the hosts that may offer it: inject its interface where one of them serves the
-feature.
+The command prints the hosts that may offer it: send its message through `ISender` where one of
+them serves the feature.
 <!--#endif-->
 
 It refuses, writing nothing, a feature that does not exist, a feature of the simple shape, whose
@@ -190,6 +191,9 @@ Some lists change only on purpose, and a test fails until they name what you add
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
 | A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed` |
 | A public interface under `Common/` that is not a port | `ApplicationPorts.NotPorts`, with its reason |
+<!--#if (api)-->
+| A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |
+<!--#endif-->
 | An anonymous endpoint | `_anonymousActions` in `HttpSurfaceTests` |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
@@ -235,12 +239,13 @@ change:
 1. Extract the aggregate, its factory and rehydration, and its repository port.
 2. Replace the store by the repository: keep the record, add the mapper and the tracker; the queries
    port stays.
-3. Split the service into one use case per operation.
+3. Split the service into one use case per operation: a message, its handler and its validator.
 <!--#if (api)-->
-4. Point the controller at the use cases.
+4. Point the controller at the use cases: it sends their messages through `ISender`.
 <!--#endif-->
 <!--#if (!api)-->
-4. Point each host that called the service at the use cases.
+4. Point each host that called the service at the use cases: it sends their messages through
+   `ISender`.
 <!--#endif-->
 
 The migration is empty unless the rule needs a column or an index.

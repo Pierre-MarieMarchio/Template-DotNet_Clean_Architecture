@@ -43,7 +43,11 @@ its `cleanarch.json` against the leg's options with `.template.config/acceptance
 (the formatting, then `migration-initial` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
-with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
+with this checkout's `Tools/CheckDocPaths.cs`.
+The Linux and Windows legs each restore one NuGet cache per runner OS, keyed on `Directory.Packages.props`,
+`global.json` and the tool manifests, into a folder `NUGET_PACKAGES` names inside the workspace; the leg
+that finishes first saves it, a package it lacks still comes from nuget.org, and a leg never shares a
+cache with the generated project's own CI. The defaults leg and the smallest project's leg also
 run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then
 runs the generated project's `dotnet run Tools/Tasks.cs end-to-end` against its Compose stack. The defaults
 leg, the local-auth leg without examples and the external-auth leg without examples also run the

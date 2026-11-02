@@ -22,6 +22,8 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_NOLOGO: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  # Inside the workspace, so actions/cache sees it; the generated project, whatever its name, restores into the same folder.
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 jobs:
   # Packed once; every leg installs this .nupkg, so what is proved is what a user installs.
@@ -112,6 +114,13 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-acceptance-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'global.json', '.config/dotnet-tools.json', '.template.config/variants/*/.config/dotnet-tools.json') }}
+          restore-keys: nuget-acceptance-${{ runner.os }}-
 
       - name: Download the template package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -882,11 +891,12 @@ jobs:
         shell: pwsh
 
     steps:
-      # The root files, Tools and the acceptance checks alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
+      # The root files, the tool manifest, Tools and the acceptance checks alone: the package brings the template, and a starter's deepest test path is longer than Windows' 260 characters.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
+            .config
             Tools
             .template.config/acceptance
 
@@ -894,6 +904,13 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-acceptance-${{ runner.os }}-${{ hashFiles('Directory.Packages.props', 'global.json', '.config/dotnet-tools.json') }}
+          restore-keys: nuget-acceptance-${{ runner.os }}-
 
       - name: Download the template package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2

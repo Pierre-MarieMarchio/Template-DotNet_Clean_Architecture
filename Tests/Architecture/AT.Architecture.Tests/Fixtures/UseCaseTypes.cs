@@ -12,6 +12,12 @@ internal static class UseCaseTypes
             .Where(IsUseCase)
             .OrderBy(type => type.FullName, StringComparer.Ordinal)];
 
+    internal static IReadOnlyList<Type> MessagesInTheApplicationLayer { get; } =
+        [.. ArchitectureAssemblies.ApplicationLayer
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IMessage).IsAssignableFrom(type))
+            .OrderBy(type => type.FullName, StringComparer.Ordinal)];
+
     internal static bool IsUseCase(Type type) =>
         type is { IsClass: true, IsAbstract: false } && HandlerContractsOf(type).Length > 0;
 

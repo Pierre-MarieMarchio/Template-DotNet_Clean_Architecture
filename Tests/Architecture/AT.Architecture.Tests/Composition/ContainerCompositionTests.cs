@@ -2,7 +2,10 @@
 //#if (localAuth)
 using AppTemplate.Application.Core.Common.Ports;
 //#endif
+using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
+using FluentValidation;
+using Mediator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -105,6 +108,36 @@ public sealed class ContainerCompositionTests
         failures.ShouldBeEmpty(
             $"A use case exists that the composed host cannot hand to a controller.{Environment.NewLine}  " +
             string.Join($"{Environment.NewLine}  ", failures));
+    }
+
+    [Fact]
+    public void EveryMessageWithAValidator_PassesThroughTheValidationBehaviour()
+    {
+        var services = HostComposition.ComposeApi(HostComposition.Configuration());
+
+        using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
+        using var scope = provider.CreateScope();
+
+        var validated = UseCaseTypes.InTheApplicationLayer
+            .Select(UseCaseTypes.ContractOf)
+            .Select(contract => (Message: contract.GetGenericArguments()[0], Response: contract.GetGenericArguments()[1]))
+            .Where(pair => scope.ServiceProvider.GetService(typeof(IValidator<>).MakeGenericType(pair.Message)) is not null)
+            .ToList();
+
+        validated.ShouldNotBeEmpty("No message has a validator in the composed container, so this rule reads nothing.");
+
+        validated
+            .Where(pair => !((IEnumerable)scope.ServiceProvider.GetRequiredService(
+                    typeof(IEnumerable<>).MakeGenericType(typeof(IPipelineBehavior<,>).MakeGenericType(pair.Message, pair.Response))))
+                .Cast<object>()
+                .Any(behaviour => behaviour.GetType().IsGenericType
+                    && behaviour.GetType().GetGenericTypeDefinition() == typeof(ValidationBehaviour<,>)))
+            .Select(pair => pair.Message.FullName)
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                "A message with a validator reaches its handler only through the validation behaviour. " +
+                "These would reach it unchecked: the behaviour is not composed, or their answer is not a " +
+                "Result the behaviour can fail with.");
     }
 
     [Fact]

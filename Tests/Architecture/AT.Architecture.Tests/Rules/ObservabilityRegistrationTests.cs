@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using AppTemplate.Application.Core.Common.UseCases;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -113,6 +114,24 @@ public sealed class ObservabilityRegistrationTests
             "working and reports nothing. Name it in the host's Common/Observability/ registration or " +
             "in the *Telemetry.cs beside the feature that owns it — " +
             "AddMeter for a Meter, AddSource for an ActivitySource.");
+    }
+
+    [Fact]
+    public void TheUseCaseInstruments_AreRegisteredByEveryHostsObservability()
+    {
+        string registration = File.ReadAllText(Path.Combine(
+            ProjectReferenceGraph.RootOf(ProjectReferenceGraph.SourceProjects.Values.Single(project => project.Name == "AppTemplate.Presentation.Core")),
+            "Common",
+            "Observability",
+            "ObservabilityExtensions.cs"));
+
+        IsRegistered(registration, "AddSource", nameof(UseCaseInstruments), UseCaseInstruments.Name).ShouldBeTrue(
+            "Every use case opens an activity under UseCaseInstruments; the shared registration every host " +
+            "calls must export it, or the traces stop at the controller.");
+
+        IsRegistered(registration, "AddMeter", nameof(UseCaseInstruments), UseCaseInstruments.Name).ShouldBeTrue(
+            "Every use case records its duration on UseCaseInstruments' meter; the shared registration " +
+            "every host calls must export it.");
     }
 
     [Fact]

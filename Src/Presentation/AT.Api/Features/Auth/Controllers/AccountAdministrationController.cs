@@ -12,6 +12,7 @@ using AppTemplate.Application.Auth.Features.Accounts.UseCases.Queries.ListAccoun
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Queries.GetAccountSecurityEvents;
 using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.DisableAccountTwoFactor;
 using AppTemplate.Presentation.Core.Common.Security;
+using Mediator;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,14 +24,7 @@ namespace AppTemplate.Api.Features.Auth.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
 public sealed class AccountAdministrationController(
-    ILockAccountUseCase lockAccount,
-    IUnlockAccountUseCase unlockAccount,
-    IAddRoleUseCase addRole,
-    IRemoveRoleUseCase removeRole,
-    IDeleteAccountUseCase deleteAccount,
-    IDisableAccountTwoFactorUseCase disableAccountTwoFactor,
-    IGetAccountSecurityEventsUseCase getAccountSecurityEvents,
-    IListAccountsUseCase listAccounts) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Lists the accounts by address, optionally those whose address starts with a prefix.</summary>
     [HttpGet]
@@ -44,7 +38,7 @@ public sealed class AccountAdministrationController(
 
         var query = new ListAccountsQuery(request.Email, request.Page, request.PageSize);
 
-        return OkOrProblem(AuthResponseMapping.ToAccountPageResponse(await listAccounts.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(AuthResponseMapping.ToAccountPageResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Locks the account out indefinitely.</summary>
@@ -53,7 +47,7 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Lock(Guid userId, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await lockAccount.ExecuteAsync(new LockAccountCommand(userId), cancellationToken));
+        NoContentOrProblem(await sender.Send(new LockAccountCommand(userId), cancellationToken));
 
     /// <summary>Lifts an administrative lockout.</summary>
     [HttpDelete("{userId:guid}/lockout")]
@@ -61,7 +55,7 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Unlock(Guid userId, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await unlockAccount.ExecuteAsync(new UnlockAccountCommand(userId), cancellationToken));
+        NoContentOrProblem(await sender.Send(new UnlockAccountCommand(userId), cancellationToken));
 
     /// <summary>Grants a role.</summary>
     [HttpPut("{userId:guid}/roles/{role}")]
@@ -69,7 +63,7 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> AddRole(Guid userId, string role, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await addRole.ExecuteAsync(new AddRoleCommand(userId, role), cancellationToken));
+        NoContentOrProblem(await sender.Send(new AddRoleCommand(userId, role), cancellationToken));
 
     /// <summary>Revokes a role.</summary>
     [HttpDelete("{userId:guid}/roles/{role}")]
@@ -77,7 +71,7 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> RemoveRole(Guid userId, string role, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await removeRole.ExecuteAsync(new RemoveRoleCommand(userId, role), cancellationToken));
+        NoContentOrProblem(await sender.Send(new RemoveRoleCommand(userId, role), cancellationToken));
 
     /// <summary>Deletes the account outright.</summary>
     [HttpDelete("{userId:guid}")]
@@ -85,7 +79,7 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> Delete(Guid userId, CancellationToken cancellationToken) =>
-        NoContentOrProblem(await deleteAccount.ExecuteAsync(new DeleteAccountCommand(userId), cancellationToken));
+        NoContentOrProblem(await sender.Send(new DeleteAccountCommand(userId), cancellationToken));
 
     /// <summary>
     /// Strips the account's second factor, for a holder who has lost both the authenticator and the
@@ -97,7 +91,7 @@ public sealed class AccountAdministrationController(
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     public async Task<ActionResult> DisableTwoFactor(Guid userId, CancellationToken cancellationToken) =>
         NoContentOrProblem(
-            await disableAccountTwoFactor.ExecuteAsync(new DisableAccountTwoFactorCommand(userId), cancellationToken));
+            await sender.Send(new DisableAccountTwoFactorCommand(userId), cancellationToken));
 
     /// <summary>Lists the named account's security trail, newest first.</summary>
     [HttpGet("{userId:guid}/security-events")]
@@ -113,6 +107,6 @@ public sealed class AccountAdministrationController(
         var query = new GetAccountSecurityEventsQuery(userId, request.Page, request.PageSize);
 
         return OkOrProblem(
-            AuthResponseMapping.ToSecurityEventPageResponse(await getAccountSecurityEvents.ExecuteAsync(query, cancellationToken)));
+            AuthResponseMapping.ToSecurityEventPageResponse(await sender.Send(query, cancellationToken)));
     }
 }

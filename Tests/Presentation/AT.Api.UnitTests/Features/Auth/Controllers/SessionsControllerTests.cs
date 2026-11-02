@@ -7,14 +7,8 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.Features.Auth.Controllers;
 using AppTemplate.Application.Auth.Features.ExternalLogins.Model.Errors;
 using AppTemplate.Application.Auth.Features.ExternalLogins.UseCases.Commands.SignInWithExternalProvider;
-using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login;
-using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Logout;
-using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.LogoutEverywhere;
-using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.RefreshAccessToken;
-using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.RevokeSession;
-using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
-using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.VerifyTwoFactor;
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -32,16 +26,15 @@ public sealed class SessionsControllerTests
     private static readonly DateTimeOffset _accessExpiry = new(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
     private static readonly DateTimeOffset _refreshExpiry = new(2026, 1, 9, 3, 4, 5, TimeSpan.Zero);
 
-    private readonly ISignInWithExternalProviderUseCase _signInWithExternalProvider =
-        Substitute.For<ISignInWithExternalProviderUseCase>();
+    private readonly ISender _sender = Substitute.For<ISender>();
 
     [Fact]
     public async Task LoginWithExternalProvider_HandsTheProviderAndTheTokenToTheUseCase()
     {
         SignInWithExternalProviderCommand? captured = null;
 
-        _signInWithExternalProvider
-            .ExecuteAsync(
+        _sender
+            .Send(
                 Arg.Do<SignInWithExternalProviderCommand>(command => captured = command),
                 Arg.Any<CancellationToken>())
             .Returns(Result.Success<SignInWithExternalProviderOutcome>(AnAuthenticatedOutcome()));
@@ -60,8 +53,8 @@ public sealed class SessionsControllerTests
     {
         var httpContext = AContext();
 
-        _signInWithExternalProvider
-            .ExecuteAsync(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
+        _sender
+            .Send(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<SignInWithExternalProviderOutcome>(AnAuthenticatedOutcome(accountCreated: true)));
 
         var action = await SignInAsync(AController(httpContext), ARequest());
@@ -92,8 +85,8 @@ public sealed class SessionsControllerTests
     {
         var httpContext = AContext();
 
-        _signInWithExternalProvider
-            .ExecuteAsync(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
+        _sender
+            .Send(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<SignInWithExternalProviderOutcome>(
                 new SignInWithExternalProviderOutcome.TwoFactorRequired("the-challenge")));
 
@@ -121,8 +114,8 @@ public sealed class SessionsControllerTests
     {
         var httpContext = AContext();
 
-        _signInWithExternalProvider
-            .ExecuteAsync(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
+        _sender
+            .Send(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<SignInWithExternalProviderOutcome>(ExternalLoginsErrors.ExternalSignInRefused));
 
         var action = await SignInAsync(AController(httpContext), ARequest());
@@ -141,8 +134,8 @@ public sealed class SessionsControllerTests
     [Fact]
     public async Task EveryRefusal_LooksTheSame_WhateverWasSent()
     {
-        _signInWithExternalProvider
-            .ExecuteAsync(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
+        _sender
+            .Send(Arg.Any<SignInWithExternalProviderCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<SignInWithExternalProviderOutcome>(ExternalLoginsErrors.ExternalSignInRefused));
 
         string configured = await RefusalBodyAsync(new SignInWithExternalProviderRequest("google", "a.forged.token"));
@@ -236,15 +229,7 @@ public sealed class SessionsControllerTests
     }
 
     private SessionsController AController(HttpContext? httpContext = null) =>
-        new(
-            Substitute.For<ILoginUseCase>(),
-            Substitute.For<IVerifyTwoFactorUseCase>(),
-            _signInWithExternalProvider,
-            Substitute.For<IRefreshAccessTokenUseCase>(),
-            Substitute.For<ILogoutUseCase>(),
-            Substitute.For<ILogoutEverywhereUseCase>(),
-            Substitute.For<IListSessionsUseCase>(),
-            Substitute.For<IRevokeSessionUseCase>())
+        new(_sender)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext ?? AContext() },
         };

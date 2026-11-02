@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using System.Text.Encodings.Web;
 using AppTemplate.Application.Auth.Features.AccessKeys.UseCases.Commands.AuthenticateAccessKey;
+using Mediator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -11,7 +12,7 @@ internal sealed class AccessKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    IAuthenticateAccessKeyUseCase accessKeys)
+    ISender sender)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     internal const string SchemeName = "AccessKey";
@@ -29,7 +30,7 @@ internal sealed class AccessKeyAuthenticationHandler(
             return AuthenticateResult.NoResult();
         }
 
-        var outcome = await accessKeys.ExecuteAsync(
+        var outcome = await sender.Send(
             new AuthenticateAccessKeyCommand(authorization[_bearer.Length..].Trim()),
             Context.RequestAborted);
 

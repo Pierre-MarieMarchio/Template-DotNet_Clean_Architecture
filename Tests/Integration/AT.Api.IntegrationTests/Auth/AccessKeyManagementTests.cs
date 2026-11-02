@@ -6,6 +6,7 @@ using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Auth.Features.AccessKeys.UseCases.Commands.AuthenticateAccessKey;
 using AppTemplate.Application.Core.Common.Results;
+using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Xunit;
@@ -186,8 +187,8 @@ public sealed class AccessKeyManagementTests(ApiFixture fixture) : IntegrationTe
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
-        return await scope.ServiceProvider.GetRequiredService<IAuthenticateAccessKeyUseCase>()
-            .ExecuteAsync(new AuthenticateAccessKeyCommand(key), TestToken);
+        return await scope.ServiceProvider.GetRequiredService<ISender>()
+            .Send(new AuthenticateAccessKeyCommand(key), TestToken);
     }
 
     private static async Task<IReadOnlyList<AccessKeyResponse>> ListAsync(HttpClient client)

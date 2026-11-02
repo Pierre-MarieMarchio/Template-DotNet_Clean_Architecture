@@ -1,0 +1,129 @@
+﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountAdministration;
+using AppTemplate.Application.Auth.Features.Accounts.UseCases.Commands.RemoveRole;
+using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
+using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
+using AppTemplate.Application.Auth.UnitTests.TestDoubles;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.Auth.UnitTests.Features.Accounts.UseCases.Commands.RemoveRole;
+
+public sealed class RemoveRoleTests
+{
+    private const string _role = "Admin";
+    private static readonly Guid _callerId = Guid.CreateVersion7();
+    private static readonly Guid _targetId = Guid.CreateVersion7();
+
+    private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
+    private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
+    private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.required");
+        _administration.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AMalformedRequest_NeverReachesTheStore()
+    {
+        var result = await UseCase().Handle(new RemoveRoleCommand(Guid.Empty, _role), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        _administration.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ACallerTargetingThemselves_IsRefusedRegardlessOfWhichRole()
+    {
+        var result = await UseCaseFor(StubCurrentUser.WithId(_callerId))
+            .Handle(new RemoveRoleCommand(_callerId, "SomeOtherRole"), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("auth.roles.cannotTargetSelf");
+        _administration.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUnknownAccount_IsReportedAsNotFound()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.NoSuchAccount);
+
+        var result = await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+    }
+
+    [Fact]
+    public async Task AKnownAccount_Succeeds()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
+
+        var result = await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ARoleTheAccountDoesNotCarry_ReportsTheStoresMessage()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.RejectedBecause("User is not in role 'Admin'."));
+
+        var result = await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Details!["role"].ShouldContain("User is not in role 'Admin'.");
+    }
+
+    [Fact]
+    public async Task ASuccessfulRevocation_RevokesEveryRefreshTokenForTheTarget()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
+
+        await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        await _sessionTokens.Received(1).RevokeAllRefreshTokensAsync(_targetId, cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ASuccessfulRevocation_RecordsBothTheAdministrativeActionAndTheStampRotation()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.Applied);
+
+        await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        _securityEventLog.Received(1).Record(SecurityEvent.RoleRevoked(_targetId, _role));
+        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_targetId));
+    }
+
+    [Fact]
+    public async Task AStoreRefusal_RevokesNothing()
+    {
+        GivenTheOutcomeIs(AccountAdministrationOutcome.RejectedBecause("not in role"));
+
+        await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
+
+        await _sessionTokens.DidNotReceiveWithAnyArgs().RevokeAllRefreshTokensAsync(default, cancellationToken: Arg.Any<CancellationToken>());
+        _securityEventLog.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    private void GivenTheOutcomeIs(AccountAdministrationOutcome change) =>
+        _administration.RevokeRoleAsync(_targetId, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(change);
+
+    private ValidatedHandler<RemoveRoleCommand, Result> UseCaseFor(ICurrentUser currentUser) =>
+        new(new RemoveRoleCommandHandler(_administration, _sessionTokens, _securityEventLog, currentUser).Handle, new RemoveRoleCommandValidator());
+
+    private ValidatedHandler<RemoveRoleCommand, Result> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+}

@@ -1,10 +1,11 @@
 ﻿using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.UseCases.Commands.PurgeAbandonedRegistrations;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReclaimOrphanedContent;
+using Mediator;
 
 namespace AppTemplate.Api.UnitTests.Features.Files.Jobs;
 
-internal sealed class FakeAbandonedRegistrationPurge : IPurgeAbandonedRegistrationsUseCase
+internal sealed class FakeAbandonedRegistrationPurge : ICommandHandler<PurgeAbandonedRegistrationsCommand, Result<int>>
 {
     private readonly Exception? _failure;
     private readonly int _count;
@@ -17,20 +18,20 @@ internal sealed class FakeAbandonedRegistrationPurge : IPurgeAbandonedRegistrati
 
     public int CallCount { get; private set; }
 
-    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public ValueTask<Result<int>> Handle(PurgeAbandonedRegistrationsCommand command, CancellationToken cancellationToken)
     {
         CallCount++;
 
         if (_failure is not null)
         {
-            return Task.FromException<Result<int>>(_failure);
+            return ValueTask.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(_count));
+        return ValueTask.FromResult(Result.Success(_count));
     }
 }
 
-internal sealed class FakeOrphanedContentSweep : IReclaimOrphanedContentUseCase
+internal sealed class FakeOrphanedContentSweep : ICommandHandler<ReclaimOrphanedContentCommand, Result<int>>
 {
     private readonly Exception? _failure;
     private readonly int _count;
@@ -43,26 +44,26 @@ internal sealed class FakeOrphanedContentSweep : IReclaimOrphanedContentUseCase
 
     public int CallCount { get; private set; }
 
-    public Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public ValueTask<Result<int>> Handle(ReclaimOrphanedContentCommand command, CancellationToken cancellationToken)
     {
         CallCount++;
 
         if (_failure is not null)
         {
-            return Task.FromException<Result<int>>(_failure);
+            return ValueTask.FromException<Result<int>>(_failure);
         }
 
-        return Task.FromResult(Result.Success(_count));
+        return ValueTask.FromResult(Result.Success(_count));
     }
 }
 
-internal sealed class HangingOrphanedContentSweep : IReclaimOrphanedContentUseCase
+internal sealed class HangingOrphanedContentSweep : ICommandHandler<ReclaimOrphanedContentCommand, Result<int>>
 {
     private volatile bool _hasEntered;
 
     public bool HasEntered => _hasEntered;
 
-    public async Task<Result<int>> ExecuteAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<Result<int>> Handle(ReclaimOrphanedContentCommand command, CancellationToken cancellationToken)
     {
         _hasEntered = true;
 

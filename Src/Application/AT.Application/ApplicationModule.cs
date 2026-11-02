@@ -162,13 +162,7 @@ public static class ApplicationModule
             includeInternalTypes: true);
 
         services.AddUseCasePipeline();
-        services.AddUseCases(TypesIn(vertical));
     }
-
-    private static IEnumerable<Type> TypesIn(string vertical) =>
-        typeof(ApplicationModule).Assembly
-            .GetTypes()
-            .Where(type => IsInVertical(type, vertical));
 
     private static bool IsInVertical(Type type, string vertical) =>
         type.Namespace?.StartsWith(

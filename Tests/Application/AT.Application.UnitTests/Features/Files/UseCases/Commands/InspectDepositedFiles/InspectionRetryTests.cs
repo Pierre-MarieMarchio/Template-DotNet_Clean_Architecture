@@ -14,7 +14,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.Ins
 
 public sealed class InspectionRetryTests
 {
-    private const int _batchSize = InspectDepositedFilesUseCase.BatchSize;
+    private const int _batchSize = InspectDepositedFilesCommandHandler.BatchSize;
 
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly byte[] _png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
@@ -182,7 +182,7 @@ public sealed class InspectionRetryTests
     {
         _store.StartNewScope();
 
-        var result = await new InspectDepositedFilesUseCase(
+        var result = await new InspectDepositedFilesCommandHandler(
             _store,
             _content,
             _scanner,
@@ -190,7 +190,7 @@ public sealed class InspectionRetryTests
             new StubDateTimeProvider(now),
             new StubLeaderLease(),
             FilesSettings.Default().AsOptions(),
-            NullLogger<InspectDepositedFilesUseCase>.Instance).ExecuteAsync(TestToken);
+            NullLogger<InspectDepositedFilesCommandHandler>.Instance).Handle(new InspectDepositedFilesCommand(), TestToken);
 
         return result.Value;
     }

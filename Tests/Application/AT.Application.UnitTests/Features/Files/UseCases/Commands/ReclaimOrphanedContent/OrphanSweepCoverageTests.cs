@@ -40,7 +40,7 @@ public sealed class OrphanSweepCoverageTests
 
         for (int pass = 0; pass < 5; pass++)
         {
-            await UseCase().ExecuteAsync(TestToken);
+            await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
         }
 
         _bucket.Keys.ShouldBe(_live, ignoreOrder: true);
@@ -51,10 +51,10 @@ public sealed class OrphanSweepCoverageTests
     {
         _bucket.Put([.. _live, .. _orphans]);
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
         _checkpoint.LastKey.ShouldBe("t0/202608/a4");
 
-        var second = await UseCase().ExecuteAsync(TestToken);
+        var second = await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
 
         second.Value.ShouldBe(_orphans.Length);
         _bucket.Keys.ShouldBe(_live, ignoreOrder: true);
@@ -65,7 +65,7 @@ public sealed class OrphanSweepCoverageTests
     {
         _bucket.Put([.. _live, .. _orphans]);
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
 
         _checkpoint.Saves.ShouldBe(["t0/202608/a2", "t0/202608/a4"]);
     }
@@ -76,7 +76,7 @@ public sealed class OrphanSweepCoverageTests
         _bucket.Put([.. _live, .. _orphans]);
         _checkpoint.LastKey = "t0/202608/a4";
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
 
         _bucket.ListedAfter[0].ShouldBe("t0/202608/a4");
     }
@@ -87,12 +87,12 @@ public sealed class OrphanSweepCoverageTests
         _bucket.Put([.. _live, .. _orphans]);
         _checkpoint.LastKey = "t0/202608/a4";
 
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
 
         _checkpoint.LastKey.ShouldBeNull();
 
         _bucket.Put("t0/202608/a0-orphan");
-        await UseCase().ExecuteAsync(TestToken);
+        await UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken);
 
         _bucket.ListedAfter[^2].ShouldBeNull();
         _bucket.Keys.ShouldNotContain("t0/202608/a0-orphan");
@@ -107,17 +107,17 @@ public sealed class OrphanSweepCoverageTests
                 Arg.Any<CancellationToken>())
             .Returns<Task<IReadOnlyList<string>>>(_ => throw new TimeoutException("database unreachable"));
 
-        await Should.ThrowAsync<TimeoutException>(() => UseCase().ExecuteAsync(TestToken));
+        await Should.ThrowAsync<TimeoutException>(() => UseCase().Handle(new ReclaimOrphanedContentCommand(), TestToken).AsTask());
 
         _checkpoint.LastKey.ShouldBe("t0/202608/a2");
     }
 
-    private ReclaimOrphanedContentUseCase UseCase() => new(
+    private ReclaimOrphanedContentCommandHandler UseCase() => new(
         _bucket,
         _bucket,
         _queries,
         _checkpoint,
         new StubLeaderLease(),
-        NullLogger<ReclaimOrphanedContentUseCase>.Instance,
-        new ReclaimOrphanedContentUseCase.SweepBudget(_pageSize, _maxPagesPerPass));
+        NullLogger<ReclaimOrphanedContentCommandHandler>.Instance,
+        new ReclaimOrphanedContentCommandHandler.SweepBudget(_pageSize, _maxPagesPerPass));
 }

@@ -137,9 +137,9 @@ public sealed class BackgroundJobsModuleTests
         var reminders = Substitute.For<ICommandHandler<FireDueRemindersCommand, Result<int>>>();
         //#endif
         //#if (files)
-        var abandoned = Substitute.For<IPurgeAbandonedRegistrationsUseCase>();
-        var orphaned = Substitute.For<IReclaimOrphanedContentUseCase>();
-        var inspection = Substitute.For<IInspectDepositedFilesUseCase>();
+        var abandoned = Substitute.For<ICommandHandler<PurgeAbandonedRegistrationsCommand, Result<int>>>();
+        var orphaned = Substitute.For<ICommandHandler<ReclaimOrphanedContentCommand, Result<int>>>();
+        var inspection = Substitute.For<ICommandHandler<InspectDepositedFilesCommand, Result<int>>>();
         //#endif
 
         idempotency.Handle(Arg.Any<PurgeExpiredIdempotencyKeysCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
@@ -151,9 +151,9 @@ public sealed class BackgroundJobsModuleTests
         reminders.Handle(Arg.Any<FireDueRemindersCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
         //#if (files)
-        abandoned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
-        orphaned.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
-        inspection.ExecuteAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        abandoned.Handle(Arg.Any<PurgeAbandonedRegistrationsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        orphaned.Handle(Arg.Any<ReclaimOrphanedContentCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
+        inspection.Handle(Arg.Any<InspectDepositedFilesCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success(0));
         //#endif
 
         using var host = BuildHost(

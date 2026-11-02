@@ -4,6 +4,7 @@ using AppTemplate.Api.Features.Files.Contracts.Requests;
 using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Application.Features.Files.UseCases.Commands.ReplaceStoredFileTags;
 using AppTemplate.Application.Features.Files.UseCases.Queries.GetUsedFileTags;
+using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.Files.Controllers;
@@ -12,8 +13,7 @@ namespace AppTemplate.Api.Features.Files.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 public sealed class FileTagsController(
-    IReplaceStoredFileTagsUseCase replaceStoredFileTags,
-    IGetUsedFileTagsUseCase getUsedTags) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Replaces the labels a file carries.</summary>
     [HttpPut("{fileId:guid}/tags")]
@@ -36,7 +36,7 @@ public sealed class FileTagsController(
         var command = new ReplaceStoredFileTagsCommand(fileId, request?.Tags ?? [], precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await replaceStoredFileTags.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(StoredFileResponseMapping.ToFileResponse(result));
     }
@@ -47,5 +47,5 @@ public sealed class FileTagsController(
     public async Task<ActionResult<UsedTagsResponse>> GetUsedTags(
         CancellationToken cancellationToken = default) =>
         OkOrProblem(StoredFileResponseMapping.ToUsedTagsResponse(
-            await getUsedTags.ExecuteAsync(cancellationToken)));
+            await sender.Send(new GetUsedFileTagsQuery(), cancellationToken)));
 }

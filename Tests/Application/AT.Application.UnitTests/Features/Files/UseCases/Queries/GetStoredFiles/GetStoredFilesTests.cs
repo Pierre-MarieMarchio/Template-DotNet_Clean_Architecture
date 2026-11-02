@@ -1,0 +1,176 @@
+﻿using System.Globalization;
+using AppTemplate.Application.Core.Common.Collections;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.Files.Model.Dtos;
+using AppTemplate.Application.Features.Files.Model.Policies;
+using AppTemplate.Application.Features.Files.Ports.StoredFileQueries;
+using AppTemplate.Application.Features.Files.UseCases.Queries.GetStoredFiles;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Queries.GetStoredFiles;
+
+public sealed class GetStoredFilesTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
+
+    public GetStoredFilesTests() =>
+        _queries.GetForOwnerAsync(
+                Arg.Any<UserId>(),
+                Arg.Any<FeaturePageRequest<StoredFileFilter>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(PagedResult.Offset<StoredFileDto>([], 1, 20, 0));
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(GetStoredFilesQuery.Offset(1, 20), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_ReadsNothing()
+    {
+        await UseCaseFor(StubCurrentUser.Anonymous).Handle(GetStoredFilesQuery.Offset(1, 20), TestToken);
+
+        await _queries.DidNotReceive().GetForOwnerAsync(
+            Arg.Any<UserId>(), Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ThePage_IsAlwaysScopedToTheCaller()
+    {
+        await UseCase().Handle(GetStoredFilesQuery.Offset(1, 20), TestToken);
+
+        await _queries.Received(1).GetForOwnerAsync(
+            _callerId, Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnUnwhitelistedSortField_IsRefusedBeforeAnythingIsQueried()
+    {
+        var query = new GetStoredFilesQuery(null, null, null, null, "objectKey:asc", null, null);
+
+        var result = await UseCase().Handle(query, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("sort.invalid");
+        await _queries.DidNotReceive().GetForOwnerAsync(
+            Arg.Any<UserId>(), Arg.Any<FeaturePageRequest<StoredFileFilter>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task APageSizeAboveTheCeiling_IsRefused()
+    {
+        var result = await UseCase().Handle(
+            GetStoredFilesQuery.Offset(1, StoredFileCollectionPolicy.Instance.MaxPageSize + 1),
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("paging.invalid");
+    }
+
+    [Fact]
+    public async Task AnUnrecognisedStateFilter_IsRefused()
+    {
+        var query = new GetStoredFilesQuery(null, null, null, null, null, null, "deleted");
+
+        var result = await UseCase().Handle(query, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("filter.invalid");
+    }
+
+    [Fact]
+    public async Task ARecognisedStateFilter_ReachesThePort()
+    {
+        var query = new GetStoredFilesQuery(null, null, null, null, null, null, "pending");
+
+        await UseCase().Handle(query, TestToken);
+
+        await _queries.Received(1).GetForOwnerAsync(
+            _callerId,
+            Arg.Is<FeaturePageRequest<StoredFileFilter>>(request =>
+                request != null && request.Filter.State == StoredFileState.Pending),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ACursorSentInOffsetMode_IsRefused()
+    {
+        string cursor = Cursor
+            .After(
+                SortOrder.Parse("registeredAt:desc", StoredFileCollectionPolicy.Instance).Value.Terms[0],
+                StubDateTimeProvider.DefaultInstant.ToString("O", CultureInfo.InvariantCulture),
+                Guid.CreateVersion7())
+            .Encode();
+
+        var query = new GetStoredFilesQuery("offset", null, null, cursor, null, null, null);
+
+        var result = await UseCase().Handle(query, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("paging.invalid");
+    }
+
+    [Fact]
+    public async Task ACursorReplayedUnderADifferentSort_IsRefused()
+    {
+        string cursor = Cursor
+            .After(
+                SortOrder.Parse("name:asc", StoredFileCollectionPolicy.Instance).Value.Terms[0],
+                "holiday.png",
+                Guid.CreateVersion7())
+            .Encode();
+
+        var query = new GetStoredFilesQuery("cursor", null, null, cursor, "registeredAt:desc", null, null);
+
+        var result = await UseCase().Handle(query, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("cursor.invalid");
+    }
+
+    [Fact]
+    public async Task ACursorWhoseKeyIsNotADateForADateField_IsRefused()
+    {
+        string cursor = Cursor
+            .After(
+                SortOrder.Parse("registeredAt:desc", StoredFileCollectionPolicy.Instance).Value.Terms[0],
+                "not-a-date",
+                Guid.CreateVersion7())
+            .Encode();
+
+        var query = new GetStoredFilesQuery("cursor", null, null, cursor, "registeredAt:desc", null, null);
+
+        var result = await UseCase().Handle(query, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("cursor.invalid");
+    }
+
+    [Fact]
+    public async Task AWellFormedQuery_ReturnsThePage()
+    {
+        var result = await UseCase().Handle(GetStoredFilesQuery.Offset(1, 20), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.PageSize.ShouldBe(20);
+    }
+
+    private GetStoredFilesQueryHandler UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+
+    private GetStoredFilesQueryHandler UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser);
+}

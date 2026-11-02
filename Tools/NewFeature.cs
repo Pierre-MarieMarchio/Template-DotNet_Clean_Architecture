@@ -7,11 +7,11 @@ using System.Text.RegularExpressions;
 
 internal static class NewFeature
 {
-    private const string ManifestFolder = ".feature-manifest";
+    private const string _manifestFolder = ".feature-manifest";
 
-    private const string PageTemplate = "docs/_page-templates/feature.md";
+    private const string _pageTemplate = "docs/_page-templates/feature.md";
 
-    private const string Usage =
+    private const string _usage =
         "Usage: dotnet run Tools/NewFeature.cs <Features> <Feature> --access owner|shared\n"
         + "           [--deletion delete|anonymise]\n"
         + "           [--operations get,list,create,update,delete]\n"
@@ -34,19 +34,19 @@ internal static class NewFeature
         + "  --root         the tree to write into, default the current directory.\n"
         + "       dotnet run Tools/NewFeature.cs --self-test";
 
-    private static readonly string[] OperationNames = ["get", "list", "create", "update", "delete"];
+    private static readonly string[] _operationNames = ["get", "list", "create", "update", "delete"];
 
-    private static readonly string[] OptionNames =
+    private static readonly string[] _optionNames =
         ["--access", "--deletion", "--operations", "--model", "--concurrency", "--root"];
 
-    private static readonly string[] ReservedNames =
+    private static readonly string[] _reservedNames =
     [
         "Access", "Api", "Application", "Auth", "Common", "Contracts", "Controllers", "Core", "Dtos",
         "Domain", "Entities", "Errors", "Features", "Infrastructure", "Model", "Models", "Persistence",
         "Policies", "Ports", "Presentation", "Rows", "Services", "UseCases",
     ];
 
-    private static readonly string[] Keywords =
+    private static readonly string[] _keywords =
     [
         "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
         "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
@@ -58,7 +58,7 @@ internal static class NewFeature
         "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
     ];
 
-    private static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private sealed record Emission(string Path, string Content);
 
@@ -96,7 +96,7 @@ internal static class NewFeature
 
         if (args is ["--help"] or ["-h"])
         {
-            Console.WriteLine(Usage);
+            Console.WriteLine(_usage);
 
             return 0;
         }
@@ -178,7 +178,7 @@ internal static class NewFeature
         }
 
         error.WriteLine();
-        error.WriteLine(Usage);
+        error.WriteLine(_usage);
         error.WriteLine();
         error.WriteLine("Nothing was written.");
 
@@ -211,9 +211,9 @@ internal static class NewFeature
                 value = argument[(equals + 1)..];
             }
 
-            if (!OptionNames.Contains(name, StringComparer.Ordinal))
+            if (!_optionNames.Contains(name, StringComparer.Ordinal))
             {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", OptionNames[..^1])}.");
+                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])}.");
 
                 continue;
             }
@@ -382,7 +382,7 @@ internal static class NewFeature
     {
         if (text is null)
         {
-            return OperationNames;
+            return _operationNames;
         }
 
         string[] named = [.. text.Split(',', StringSplitOptions.TrimEntries)];
@@ -394,9 +394,9 @@ internal static class NewFeature
             valid = false;
         }
 
-        foreach (string name in named.Where(name => name.Length > 0 && !OperationNames.Contains(name, StringComparer.Ordinal)))
+        foreach (string name in named.Where(name => name.Length > 0 && !_operationNames.Contains(name, StringComparer.Ordinal)))
         {
-            problems.Add($"--operations '{name}' is not an operation. They are {string.Join(", ", OperationNames)}.");
+            problems.Add($"--operations '{name}' is not an operation. They are {string.Join(", ", _operationNames)}.");
             valid = false;
         }
 
@@ -406,7 +406,7 @@ internal static class NewFeature
             valid = false;
         }
 
-        return valid ? [.. OperationNames.Where(name => named.Contains(name, StringComparer.Ordinal))] : null;
+        return valid ? [.. _operationNames.Where(name => named.Contains(name, StringComparer.Ordinal))] : null;
     }
 
     private static List<string> Contradictions(string[] operations, string model, string concurrency)
@@ -462,12 +462,12 @@ internal static class NewFeature
     {
         var problems = new List<string>();
 
-        if (!PascalCase.IsMatch(features))
+        if (!_pascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a folder name: <Features> is PascalCase and plural, e.g. Widgets.");
         }
 
-        if (!PascalCase.IsMatch(type))
+        if (!_pascalCase.IsMatch(type))
         {
             problems.Add($"'{type}' is not a type name: <Feature> is PascalCase and singular, e.g. Widget.");
         }
@@ -491,15 +491,15 @@ internal static class NewFeature
 
         foreach (string name in new[] { features, type }.Distinct(StringComparer.Ordinal))
         {
-            if (ReservedNames.Contains(name, StringComparer.Ordinal))
+            if (_reservedNames.Contains(name, StringComparer.Ordinal))
             {
                 problems.Add(
                     $"'{name}' is already a segment of every namespace in this tree "
-                    + $"({string.Join(", ", ReservedNames.Take(6))}, ...). Choose a name that is not one.");
+                    + $"({string.Join(", ", _reservedNames.Take(6))}, ...). Choose a name that is not one.");
             }
         }
 
-        if (Keywords.Contains(Lower(type), StringComparer.Ordinal))
+        if (_keywords.Contains(Lower(type), StringComparer.Ordinal))
         {
             problems.Add(
                 $"'{type}' becomes the C# keyword '{Lower(type)}' once its first letter is lowered, which is "
@@ -985,14 +985,14 @@ internal static class NewFeature
         return problems;
     }
 
-    private static string ManifestPath(Spec spec) => $"{ManifestFolder}/{spec.Features}.json";
+    private static string ManifestPath(Spec spec) => $"{_manifestFolder}/{spec.Features}.json";
 
     private static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
     private static Emission? PageOf(string root, Spec spec, List<Emission> plan, out string? unwritten)
     {
         string path = PagePath(spec.Features);
-        string template = System.IO.Path.Combine(root, PageTemplate);
+        string template = System.IO.Path.Combine(root, _pageTemplate);
 
         if (File.Exists(System.IO.Path.Combine(root, path)))
         {
@@ -1003,7 +1003,7 @@ internal static class NewFeature
 
         if (!File.Exists(template))
         {
-            unwritten = $"'{PageTemplate}' is not in this tree, so '{path}' was not written; write it by hand.";
+            unwritten = $"'{_pageTemplate}' is not in this tree, so '{path}' was not written; write it by hand.";
 
             return null;
         }
@@ -1230,7 +1230,7 @@ internal static class NewFeature
 
         if (spec.Reaction is not null)
         {
-            output.WriteLine(RemovalRefusal);
+            output.WriteLine(_removalRefusal);
         }
 
         output.WriteLine();
@@ -1414,7 +1414,7 @@ internal static class NewFeature
         }
         else
         {
-            output.WriteLine($"Feature page: {path}, from {PageTemplate}. The manifest records it, so remove-feature deletes it, edited or not.");
+            output.WriteLine($"Feature page: {path}, from {_pageTemplate}. The manifest records it, so remove-feature deletes it, edited or not.");
             output.WriteLine("Each heading says what its section holds; replace those lines with what this feature does.");
         }
 
@@ -1697,9 +1697,9 @@ internal static class NewFeature
 
         int sequence = 0;
 
-        for (int mask = 1; mask < 1 << OperationNames.Length; mask++)
+        for (int mask = 1; mask < 1 << _operationNames.Length; mask++)
         {
-            string[] operations = [.. OperationNames.Where((_, index) => (mask & (1 << index)) != 0)];
+            string[] operations = [.. _operationNames.Where((_, index) => (mask & (1 << index)) != 0)];
 
             foreach (var (model, access, concurrency, deletion) in shapes)
             {
@@ -2073,7 +2073,7 @@ internal static class NewFeature
         expect(
             hostLines.All(text => hostEdit.Contains(text, StringComparison.Ordinal)),
             "The eleventh edit does not name both adapter methods, the double's registration and its declaration.");
-        expect(first.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "The first owner feature did not say that remove-feature holds it back while another one uses the shared files.");
+        expect(first.Output.Contains(_removalRefusal, StringComparison.Ordinal), "The first owner feature did not say that remove-feature holds it back while another one uses the shared files.");
         ExpectRemovable(bare, bareTree, "Widgets", 7, expect);
 
         var second = Invoke(bare, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise");
@@ -2084,7 +2084,7 @@ internal static class NewFeature
                 .Contains("Sprockets", StringComparison.Ordinal),
             "The second owner feature rewrote a file the first one had created.");
         expect(second.Output.Contains("Six edits", StringComparison.Ordinal), "The second owner feature was told to edit more than six places.");
-        expect(!second.Output.Contains(RemovalRefusal, StringComparison.Ordinal), "A feature that brought no shared file was told that remove-feature holds it back.");
+        expect(!second.Output.Contains(_removalRefusal, StringComparison.Ordinal), "A feature that brought no shared file was told that remove-feature holds it back.");
 
         string other = NewTree(scratch, reaction: false);
 
@@ -2198,8 +2198,8 @@ internal static class NewFeature
 
     private static string WithPageTemplate(string root)
     {
-        string shipped = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(SourceFile())!)!, PageTemplate);
-        string copy = System.IO.Path.Combine(root, PageTemplate);
+        string shipped = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(SourceFile())!)!, _pageTemplate);
+        string copy = System.IO.Path.Combine(root, _pageTemplate);
 
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(copy)!);
         File.Copy(shipped, copy);
@@ -2248,7 +2248,7 @@ internal static class NewFeature
                 written.Any(path => path.StartsWith($"Src/Application/Acme.Application/Features/{combination[0]}/", StringComparison.Ordinal))
                     && written.Any(path => path.StartsWith($"Src/Infrastructure/Acme.Infrastructure.Persistence/Features/{combination[0]}/", StringComparison.Ordinal))
                     && written.Any(path => path.StartsWith("Tests/", StringComparison.Ordinal))
-                    && written.Contains($"{ManifestFolder}/{combination[0]}.json", StringComparer.Ordinal)
+                    && written.Contains($"{_manifestFolder}/{combination[0]}.json", StringComparer.Ordinal)
                     && written.Contains(PagePath(combination[0]), StringComparer.Ordinal),
                 $"[{label}] without the API did not write its application, persistence, tests, manifest and page.");
             expect(
@@ -2309,7 +2309,7 @@ internal static class NewFeature
 
         string full = System.IO.Path.Combine(root, pagePath);
 
-        expect(File.Exists(full), $"{pagePath} was not written from {PageTemplate}.");
+        expect(File.Exists(full), $"{pagePath} was not written from {_pageTemplate}.");
 
         if (!File.Exists(full))
         {
@@ -2318,7 +2318,7 @@ internal static class NewFeature
 
         byte[] bytes = File.ReadAllBytes(full);
         string text = Encoding.UTF8.GetString(bytes);
-        string template = File.ReadAllText(System.IO.Path.Combine(root, PageTemplate));
+        string template = File.ReadAllText(System.IO.Path.Combine(root, _pageTemplate));
 
         expect(bytes.Length > 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, "The page has no UTF-8 BOM, which every Markdown file of the tree has.");
         expect(!text.Contains('\r', StringComparison.Ordinal) && text.EndsWith('\n') && !text.EndsWith("\n\n", StringComparison.Ordinal), "The page is not LF only, ending in one newline.");
@@ -2393,12 +2393,12 @@ internal static class NewFeature
 
         expect(none.Code == 0, $"A tree without the page template was refused: {none.Error}");
         expect(!Directory.Exists(System.IO.Path.Combine(bare, "docs")), "A page was written without a page template.");
-        expect(none.Output.Contains($"'{PageTemplate}' is not in this tree", StringComparison.Ordinal), "A missing page template is not reported.");
+        expect(none.Output.Contains($"'{_pageTemplate}' is not in this tree", StringComparison.Ordinal), "A missing page template is not reported.");
     }
 
-    private const string RemovalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";
+    private const string _removalRefusal = "remove-feature refuses to remove this feature while another owner feature still uses these files.";
 
-    private static readonly Regex[] RemovableSharedPaths =
+    private static readonly Regex[] _removableSharedPaths =
     [
         new(@"^Src/Application/[^/]+\.Application\.Core/Common/Ports/(IDeletedAccountDataPolicy|IUserAccountDirectory)\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Application/[^/]+\.Application\.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/I?SweepDeletedAccountDataUseCase\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
@@ -2417,9 +2417,9 @@ internal static class NewFeature
 
         expect(outside.Count == count, $"The reaction wrote {outside.Count} file(s) outside {features}' folders, not {count}.");
 
-        foreach (string path in outside.Where(path => !RemovableSharedPaths.Any(pattern => pattern.IsMatch(path))))
+        foreach (string path in outside.Where(path => !_removableSharedPaths.Any(pattern => pattern.IsMatch(path))))
         {
-            expect(false, $"{path} is written with the first owner feature but RemoveFeature.cs's SharedPaths would refuse it.");
+            expect(false, $"{path} is written with the first owner feature but RemoveFeature.cs's _sharedPaths would refuse it.");
         }
     }
 
@@ -2506,25 +2506,25 @@ internal static class NewFeature
         }
     }
 
-    private static readonly Regex PrivateMethodDeclaration = new(
+    private static readonly Regex _privateMethodDeclaration = new(
         @"^\s*private\s+(?:static\s+)?(?:async\s+)?[^=;()]+?\s([A-Z][A-Za-z0-9]*)\(",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(2));
 
-    private static readonly Lazy<HashSet<string>> TemplatePrivateMethods = new(() =>
+    private static readonly Lazy<HashSet<string>> _templatePrivateMethods = new(() =>
         [.. typeof(Templates)
             .GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
             .Where(field => field.IsLiteral && field.FieldType == typeof(string))
-            .SelectMany(field => PrivateMethodDeclaration.Matches((string)field.GetRawConstantValue()!))
+            .SelectMany(field => _privateMethodDeclaration.Matches((string)field.GetRawConstantValue()!))
             .Select(match => match.Groups[1].Value.Replace("%", string.Empty, StringComparison.Ordinal))]);
 
     private static IEnumerable<string> PrivateMethodProblems(string relative, string text)
     {
-        var declared = PrivateMethodDeclaration.Matches(text)
+        var declared = _privateMethodDeclaration.Matches(text)
             .Select(match => match.Groups[1].Value)
             .ToHashSet(StringComparer.Ordinal);
 
-        foreach (string name in TemplatePrivateMethods.Value)
+        foreach (string name in _templatePrivateMethods.Value)
         {
             int calls = Regex.Count(text, $@"(?<![.\w]){name}\b(?!\s*=)", RegexOptions.None, TimeSpan.FromSeconds(2));
 
@@ -2539,7 +2539,7 @@ internal static class NewFeature
         }
     }
 
-    private static readonly HashSet<string> DocumentationElements =
+    private static readonly HashSet<string> _documentationElements =
         new(["summary", "param", "response", "c", "see", "paramref"], StringComparer.Ordinal);
 
     private static IEnumerable<string> CommentProblems(string relative, string text)
@@ -2560,7 +2560,7 @@ internal static class NewFeature
             }
             else if (Regex.Matches(comment, "</?([A-Za-z]+)", RegexOptions.None, TimeSpan.FromSeconds(2))
                          .Select(match => match.Groups[1].Value)
-                         .FirstOrDefault(element => !DocumentationElements.Contains(element)) is { } element)
+                         .FirstOrDefault(element => !_documentationElements.Contains(element)) is { } element)
             {
                 yield return $"{relative}:{line}: <{element}> is not an element of the API's documentation: {comment}";
             }
@@ -2743,21 +2743,21 @@ internal static class NewFeature
 
 internal static class Template
 {
-    private static readonly HashSet<string> KnownFlags = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _knownFlags = new(StringComparer.Ordinal)
     {
         "get", "list", "create", "update", "delete", "owner", "shared", "rec", "agg", "etag",
         "content", "change", "wq", "dto", "single", "rq", "notfound", "clock", "stage",
         "purge", "anon",
     };
 
-    private static readonly Regex TokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
+    private static readonly Regex _tokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
 
-    private static readonly Regex DirectivePattern = new(
+    private static readonly Regex _directivePattern = new(
         @"^\s*%(?:if (?<condition>[^%]+)|(?<else>else)|(?<end>end))%\s*$",
         RegexOptions.None,
         TimeSpan.FromSeconds(2));
 
-    private static readonly Regex MarkedUsing = new(
+    private static readonly Regex _markedUsing = new(
         @"^using (?<namespace>[^;]+);\s*//\?(?<types>.+)$",
         RegexOptions.None,
         TimeSpan.FromSeconds(2));
@@ -2769,7 +2769,7 @@ internal static class Template
             bool negated = trimmed.StartsWith('!');
             string name = negated ? trimmed[1..] : trimmed;
 
-            if (!KnownFlags.Contains(name))
+            if (!_knownFlags.Contains(name))
             {
                 throw new InvalidOperationException($"'{name}' is not a flag a template may name.");
             }
@@ -2781,7 +2781,7 @@ internal static class Template
     {
         for (int pass = 0; pass < 3; pass++)
         {
-            string next = TokenPattern.Replace(
+            string next = _tokenPattern.Replace(
                 text,
                 match => tokens.TryGetValue(match.Groups[1].Value, out string? value) ? value : match.Value);
 
@@ -2804,7 +2804,7 @@ internal static class Template
 
         foreach (string line in template.ReplaceLineEndings("\n").Split('\n'))
         {
-            var directive = DirectivePattern.Match(line);
+            var directive = _directivePattern.Match(line);
 
             if (!directive.Success)
             {
@@ -2858,7 +2858,7 @@ internal static class Template
 
         foreach (string line in lines[..declaration].Where(line => line.StartsWith("using ", StringComparison.Ordinal)))
         {
-            var marked = MarkedUsing.Match(line);
+            var marked = _markedUsing.Match(line);
 
             if (!marked.Success)
             {

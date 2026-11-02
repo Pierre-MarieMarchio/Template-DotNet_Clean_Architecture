@@ -15,15 +15,15 @@ return CoverageGate.Run(args);
 
 internal static class CoverageGate
 {
-    private const string ProgramName = "CoverageGate.cs";
+    private const string _programName = "CoverageGate.cs";
 
-    private const string Usage =
+    private const string _usage =
         "usage: CoverageGate.cs [-h] [--root ROOT] --minimum MINIMUM\n"
         + "                       [--summary SUMMARY] [--json JSON_OUT] [--self-test]";
 
-    private static readonly Regex Condition = new(@"\((\d+)/(\d+)\)", RegexOptions.Compiled);
+    private static readonly Regex _condition = new(@"\((\d+)/(\d+)\)", RegexOptions.Compiled);
 
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+    private static readonly UTF8Encoding _utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     public static List<string> IterReports(string root)
     {
@@ -71,7 +71,7 @@ internal static class CoverageGate
 
                         if (line.Attribute("branch")?.Value == "true")
                         {
-                            var match = Condition.Match(line.Attribute("condition-coverage")?.Value ?? "");
+                            var match = _condition.Match(line.Attribute("condition-coverage")?.Value ?? "");
                             if (match.Success)
                             {
                                 var covered = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
@@ -188,13 +188,13 @@ internal static class CoverageGate
         {
             if (!string.IsNullOrEmpty(destination))
             {
-                File.AppendAllText(destination, rendered, Utf8NoBom);
+                File.AppendAllText(destination, rendered, _utf8NoBom);
             }
         }
 
         if (!string.IsNullOrEmpty(jsonOut))
         {
-            File.WriteAllText(jsonOut, RenderJson(minimum, lineRate, branchRate, totalLinesCovered, totalLinesValid, reports, rows), Utf8NoBom);
+            File.WriteAllText(jsonOut, RenderJson(minimum, lineRate, branchRate, totalLinesCovered, totalLinesValid, reports, rows), _utf8NoBom);
         }
 
         if (lineRate + 1e-9 < minimum)
@@ -287,7 +287,7 @@ internal static class CoverageGate
 
     private static void PrintHelp()
     {
-        Console.WriteLine(Usage);
+        Console.WriteLine(_usage);
         Console.WriteLine();
         Console.WriteLine("options:");
         Console.WriteLine("  -h, --help         show this help message and exit");
@@ -318,7 +318,7 @@ internal static class CoverageGate
             + "</classes></package>";
     }
 
-    private const string EmptyPackage = "<package name=\"App.Ghost\"><classes></classes></package>";
+    private const string _emptyPackage = "<package name=\"App.Ghost\"><classes></classes></package>";
 
     private static (string Label, (string Path, string Content)[] Files, double Minimum, int Expected)[] MustFail()
     =>
@@ -332,7 +332,7 @@ internal static class CoverageGate
         ),
         (
             "a report whose only assembly has no measurable line",
-            [("a/coverage.cobertura.xml", Report(EmptyPackage))],
+            [("a/coverage.cobertura.xml", Report(_emptyPackage))],
             85.0,
             2
         ),
@@ -376,7 +376,7 @@ internal static class CoverageGate
             [
                 (
                     "a/coverage.cobertura.xml",
-                    Report(Package("App.Domain", "A.cs", (1, 1), (2, 1)), EmptyPackage)
+                    Report(Package("App.Domain", "A.cs", (1, 1), (2, 1)), _emptyPackage)
                 ),
             ],
             85.0
@@ -389,7 +389,7 @@ internal static class CoverageGate
         {
             var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, content, Utf8NoBom);
+            File.WriteAllText(path, content, _utf8NoBom);
         }
     }
 
@@ -514,8 +514,8 @@ internal static class CoverageGate
 
     private static int UsageError(string message)
     {
-        Console.Error.WriteLine(Usage);
-        Console.Error.WriteLine($"{ProgramName}: error: {message}");
+        Console.Error.WriteLine(_usage);
+        Console.Error.WriteLine($"{_programName}: error: {message}");
         return 2;
     }
 

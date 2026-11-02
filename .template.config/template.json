@@ -1905,12 +1905,6 @@
           ]
         },
         {
-          "condition": "(!sonarWorkflow)",
-          "exclude": [
-            ".github/workflows/sonarqube.yml"
-          ]
-        },
-        {
           "condition": "(!sonar)",
           "exclude": [
             "Tools/sonar-scanner.Dockerfile"

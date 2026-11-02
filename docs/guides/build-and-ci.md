@@ -88,24 +88,25 @@ adds it.
 
 | Workflow | When | Does |
 |---|---|---|
-| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
+| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
 <!--#endif-->
 <!--#if (ci && serverDatabase)-->
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |
 <!--#endif-->
 <!--#if (ci && !anyWeb)-->
-| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# the solution and `Tools/` compile; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
-| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# the solution and `Tools/` compile, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
 | `.github/workflows/web.yml` | push and pull request to `main` | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
 <!--#endif-->
-<!--#if (sonarWorkflow)-->
-| `.github/workflows/sonarqube.yml` | push and pull request to `main` | the SonarQube Cloud analysis, once its variables are set |
-<!--#endif-->
 <!--#if (ci)-->
+
+CodeQL reads the C# without building it, so it neither repeats the build `ci.yml` runs nor sees what
+a build generates: the output of a source generator is not analysed, the committed Kiota client and
+the migrations are.
 
 The load smoke never gates: its thresholds describe a broken system, and a `429` counts as a pass,
 because a hosted runner's timings say nothing about this code. Run it against your own stack with
@@ -122,10 +123,13 @@ Sonar is not one of the gates: it needs a server and a token, which a clone does
 <!--#endif-->
 <!--#if (sonarWorkflow)-->
 In CI it can still fail a pull request: the quality gate judges new code only, so the code already
-there blocks nobody. `.github/workflows/sonarqube.yml` is skipped until the repository variables
-`SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are set, and for a fork's pull request; it reads the
-secret `SONAR_TOKEN`. The first analysis of `main` can come back red, since everything is new code
-until a baseline exists.
+there blocks nobody. It runs inside the `Build & test` job of `.github/workflows/ci.yml`, around the
+build and the tests that job already runs, so the code is not built a second time. The job waits on
+the quality gate and fails when it is red or when SonarCloud cannot be reached, which makes the gate
+a required check wherever `Build & test` is one. The steps are skipped until the repository variables
+`SONAR_ORGANIZATION` and `SONAR_PROJECT_KEY` are set, and for a fork's or Dependabot's pull request;
+they read the secret `SONAR_TOKEN`. The first analysis of the default branch can come back red,
+since everything is new code until a baseline exists.
 <!--#endif-->
 <!--#if (sonar)-->
 

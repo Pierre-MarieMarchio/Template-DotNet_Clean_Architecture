@@ -165,7 +165,7 @@ error under warnings as errors. Pick a name with no such segment.
 | `--examples` | `all`, `notes`, `none` | `all` | TodoLists, Reminders and Notes; Notes alone; no example. Reminders needs TodoLists, so they come together |
 | `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
-| `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and `sonarqube.yml` when `--ci` is true |
+| `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and its steps in `ci.yml` when `--ci` is true |
 | `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that

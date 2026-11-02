@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
 
-# One run per ref: a new push cancels the previous one, except on main.
+# One run per ref: a new push cancels the previous one, except on main and develop.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
 
 # Least privilege; a job that needs more opts in locally.
 permissions:
@@ -31,15 +31,59 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    #if (sonarWorkflow)
+    # The analysis rides on this job's build and tests. It is off while the SONAR_ORGANIZATION and SONAR_PROJECT_KEY repository variables are unset, for a fork's or Dependabot's pull request, which gets no repository secret, and for a push to a branch other than the default one, which SonarCloud's free plan does not analyse.
+    env:
+      SONAR_ENABLED: >-
+        ${{ vars.SONAR_ORGANIZATION != ''
+        && vars.SONAR_PROJECT_KEY != ''
+        && (github.event_name != 'pull_request'
+            || (github.event.pull_request.head.repo.full_name == github.repository
+                && github.event.pull_request.user.login != 'dependabot[bot]'))
+        && (github.event_name != 'push'
+            || github.ref_name == github.event.repository.default_branch) }}
+      SONAR_HOST_URL: https://sonarcloud.io
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    #endif
     steps:
+      #if (sonarWorkflow)
+      # Full history when Sonar runs: its blame and new-code baseline need it.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: ${{ env.SONAR_ENABLED == 'true' && '0' || '1' }}
+      #else
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      #endif
 
       - name: Set up .NET SDK (from global.json)
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
+      #if (sonarWorkflow)
+      # The scanner shells out to a JRE; 21 is the oldest Java the service supports.
+      - name: Set up JDK 21
+        if: env.SONAR_ENABLED == 'true'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Keyed by the Java version, since another runtime cannot read the cache.
+      - name: Cache SonarQube analysis
+        if: env.SONAR_ENABLED == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.sonar/cache
+          key: sonar-${{ runner.os }}-java21-${{ hashFiles('**/*.csproj') }}
+          restore-keys: sonar-${{ runner.os }}-java21-
+
+      #endif
       - name: Cache NuGet packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -72,7 +116,24 @@ jobs:
       - name: Verify the formatting the build does not
         run: dotnet run Tools/Tasks.cs format
 
-      # TreatWarningsAsErrors lives in Directory.Build.props, and no flag here overrides it.
+      #if (sonarWorkflow)
+      # The quality gate is a required check through this job: a red gate, or a SonarCloud that cannot be reached, fails it. The mail templates are excluded from duplication only; the report pattern matches the extension, as Tools/CoverageGate.cs does.
+      - name: Begin Sonar analysis
+        if: env.SONAR_ENABLED == 'true'
+        run: |
+          dotnet tool restore
+          dotnet sonarscanner begin \
+            /k:"$SONAR_PROJECT_KEY" \
+            /o:"$SONAR_ORGANIZATION" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.host.url="$SONAR_HOST_URL" \
+            /d:sonar.cs.cobertura.reportsPaths="TestResults/**/*.cobertura.xml" \
+            /d:sonar.cpd.exclusions="**/*.html" \
+            /d:sonar.scanner.scanAll=false \
+            /d:sonar.qualitygate.wait=true
+
+      #endif
+      # TreatWarningsAsErrors lives in Directory.Build.props, and no flag here overrides it; under the Sonar scanner, begin relaxes it for Sonar's own rules only.
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 
@@ -121,6 +182,13 @@ jobs:
             --coverage-output-format cobertura \
             ${floor_option}
 
+      #if (sonarWorkflow)
+      # Waits on the quality gate, which judges new code only.
+      - name: End Sonar analysis
+        if: always() && env.SONAR_ENABLED == 'true'
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+      #endif
       # The totals read from the TRX files; a run that produced none fails.
       - name: Summarise test results
         if: always()

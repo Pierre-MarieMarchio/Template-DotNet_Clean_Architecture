@@ -33,7 +33,7 @@ tests, `verify` and the drift check need them. They are git-ignored here only, b
 both `template.json` and `.template.config/TemplatePackage.csproj` exclude them, so a project
 generated from this checkout or from its package starts without them; `TemplatePackagingTests` holds
 the three. After a model change, delete each context's `Migrations` folder and run the task again. The
-CI, Sonar and release workflows run it before building, under `templateMaintenance` blocks.
+CI and release workflows run it before building, under `templateMaintenance` blocks.
 
 ## The acceptance matrix
 
@@ -584,11 +584,11 @@ Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v
 and the other types stay out of it. A working branch is kept after its merge.
 
 The checks run on the pull request, which must be up to date with `develop`, so the merged tree is
-the one they passed. A push to `develop` runs CodeQL, SonarQube and the release workflow; the
-acceptance matrix runs in full each night `develop` has moved, as its pull request ran only the legs
-its change could affect. SonarQube analyses a push to the default branch only, as SonarCloud's free
-plan analyses one branch, so the SonarCloud project names `develop` as its main branch; it skips a
-Dependabot pull request, which gets no repository secret. Dependabot reads its configuration on the
+the one they passed. A push to `develop` runs CI, CodeQL and the release workflow; the acceptance
+matrix runs in full each night `develop` has moved, as its pull request ran only the legs its change
+could affect. The SonarQube steps of `ci.yml` analyse a push to the default branch only, as
+SonarCloud's free plan analyses one branch, so the SonarCloud project names `develop` as its main
+branch; they skip a Dependabot pull request, which gets no repository secret. Dependabot reads its configuration on the
 default branch, and `.github/dependabot.yml` names `develop` for each ecosystem in this repository
 only.
 

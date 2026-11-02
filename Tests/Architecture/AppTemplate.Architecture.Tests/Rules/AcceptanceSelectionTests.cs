@@ -16,27 +16,18 @@ public sealed class AcceptanceSelectionTests
     private static readonly string[] _requiredByTheDevelopRuleset =
     [
         "defaults",
-        "auth none, smallest project",
-        "external auth, notes",
-        "local auth, no files, no ci, no sonar",
-        "external auth, all examples",
-        "external auth, no examples, no files",
-        "web placeholder, smallest project",
-        "web react, local auth",
-        "web angular, external auth, notes",
-        "web react back office, smallest local project",
-        "web react, then an angular back office",
-        "no web, then a react app and its workspace",
-        "sql server, external auth, all examples",
-        "worker, external auth, all examples",
-        "mcp, external auth, all examples",
-        "mcp, local auth, notes",
         "several hosts, local auth, notes",
-        "no api, blazor server, mcp and worker, external auth",
-        "sqlite, defaults",
-        "sqlite, smallest project",
+        "local auth, no files, no ci, no sonar",
+        "worker, mcp and blazor wasm, external auth, all examples",
+        "sql server, avalonia, external auth, all examples",
+        "no api, blazor server, mcp and worker, external auth, no agent files",
+        "external auth, no examples, no files",
         "sqlite, external auth, all examples",
-        "windows, defaults",
+        "web placeholder, sqlite, smallest project",
+        "web react back office, local auth",
+        "web angular, external auth, notes",
+        "no web, then a react app, its workspace and an angular back office",
+        "sqlite, defaults",
         "windows, wpf, local auth",
         "windows, wpf, external auth, notes",
     ];
@@ -48,6 +39,8 @@ public sealed class AcceptanceSelectionTests
     private const string _windows = "windows-latest";
 
     private const string _windowsJob = "template-windows";
+
+    private const string _windowsDefaultShape = "--presentation wpf";
 
     private static readonly string[] _fieldsEveryLegHas = ["name", "tags", "runner"];
 
@@ -85,6 +78,16 @@ public sealed class AcceptanceSelectionTests
     }
 
     [Fact]
+    public void TheDefaultShape_RunsOnWindows_WithWpfItsOnlyOption()
+    {
+        Legs().Where(leg => leg.Runner == _windows)
+            .Select(leg => leg.Entry["options"]?.GetValue<string>()?.Trim())
+            .ShouldContain(_windowsDefaultShape,
+                $"No Windows leg generates the default shape with '{_windowsDefaultShape}' alone, so a change to Src, Tests or Tools no " +
+                "longer runs the default project's tasks on Windows: docs/template/decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md.");
+    }
+
+    [Fact]
     public void AWindowsLeg_SetsOnlyTheFieldsTheWindowsJobReads()
     {
         string[] read = [.. Regex.Matches(JobBlock(File.ReadAllLines(AcceptanceWorkflow), _windowsJob), @"\bmatrix\.([a-z_]+)", RegexOptions.None, TimeSpan.FromSeconds(5))
@@ -119,7 +122,7 @@ public sealed class AcceptanceSelectionTests
         string group = workflow[concurrency..permissions];
 
         Regex.IsMatch(on, @"\n  push:\n    branches: \[main\]\n", RegexOptions.None, TimeSpan.FromSeconds(5)).ShouldBeTrue(
-            "A push runs the whole matrix on main alone: develop is proved by the schedule, so every merge does not queue the open pull requests behind 25 legs.");
+            "A push runs the whole matrix on main alone: develop is proved by the schedule, so every merge does not queue the open pull requests behind every leg.");
         on.ShouldContain("\n  schedule:\n", customMessage: "Without a schedule nothing proves the merged develop whole.");
         on.ShouldContain("labeled", customMessage: "The full-acceptance label starts a run only through the labeled type.");
         group.ShouldContain("github.event.label.name != 'full-acceptance'", customMessage: "Any label restarts the run, and cancels the one in progress, instead of the full-acceptance label alone.");

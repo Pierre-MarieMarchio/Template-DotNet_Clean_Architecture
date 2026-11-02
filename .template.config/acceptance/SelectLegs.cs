@@ -349,17 +349,33 @@ internal static class LegSelector
 
     private sealed record Case(string Label, string Event, string[] Labels, string[]? Changed, string[]? Expected);
 
-    private static readonly string[] _webLegs =
-    [
-        "external auth, all examples",
-        "web placeholder, smallest project",
-        "web react, local auth",
-        "web angular, external auth, notes",
-        "web react back office, smallest local project",
-        "web react, then an angular back office",
-        "no web, then a react app and its workspace",
-        "web, every starter",
-    ];
+    private const string _severalHosts = "several hosts, local auth, notes";
+
+    private const string _localNoFiles = "local auth, no files, no ci, no sonar";
+
+    private const string _workerMcpWasm = "worker, mcp and blazor wasm, external auth, all examples";
+
+    private const string _sqlServer = "sql server, avalonia, external auth, all examples";
+
+    private const string _noApi = "no api, blazor server, mcp and worker, external auth, no agent files";
+
+    private const string _externalNoExamples = "external auth, no examples, no files";
+
+    private const string _sqliteExternal = "sqlite, external auth, all examples";
+
+    private const string _webPlaceholder = "web placeholder, sqlite, smallest project";
+
+    private const string _webReact = "web react back office, local auth";
+
+    private const string _webAngular = "web angular, external auth, notes";
+
+    private const string _noWeb = "no web, then a react app, its workspace and an angular back office";
+
+    private const string _everyStarter = "web, every starter";
+
+    private const string _sqliteDefaults = "sqlite, defaults";
+
+    private static readonly string[] _webLegs = [_workerMcpWasm, _webPlaceholder, _webReact, _webAngular, _noWeb, _everyStarter];
 
     private static readonly Case[] _cases =
     [
@@ -368,31 +384,31 @@ internal static class LegSelector
         new("the repository README, not a web app's", "pull_request", [], ["README.md"], []),
         new("a web app's page", "pull_request", [], ["Src/Web/apps/FrameworkSite/README.md"], _webLegs),
         new("the web workflow and the webapp item", "pull_request", [], [".github/workflows/web.yml", ".template.config/webapp/.template.config/template.json"], _webLegs),
-        new("the Vite Vue starter", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json"], ["web, every starter"]),
+        new("the Vite Vue starter", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json"], [_everyStarter]),
         new("the Angular starter", "pull_request", [], [".template.config/starters/angular/FrameworkSite/scaffold.json"],
-            ["web placeholder, smallest project", "web angular, external auth, notes", "web react, then an angular back office", "web, every starter"]),
+            [_webPlaceholder, _webAngular, _noWeb, _everyStarter]),
         new("the WebAssembly app's sign-in tests", "pull_request", [], [".template.config/variants/blazor-wasm-sign-in/Tests/Web/AppTemplate.FrameworkSite.UnitTests/AppTemplate.FrameworkSite.UnitTests.csproj"],
-            ["external auth, all examples", "web react, local auth", "web angular, external auth, notes", "no web, then a react app and its workspace", "web, every starter"]),
+            [_workerMcpWasm, _webReact, _webAngular, _noWeb, _everyStarter]),
         new("the Avalonia starter", "pull_request", [], [".template.config/starters/avalonia/Src/Presentation/AppTemplate.PresentationApp/Program.cs"],
-            ["external auth, notes", "external auth, no examples, no files", "no web, then a react app and its workspace", "web, every starter"]),
+            [_sqlServer, _externalNoExamples, _noWeb, _everyStarter]),
         new("the WPF starter", "pull_request", [], [".template.config/starters/wpf/Src/Presentation/AppTemplate.PresentationApp/App.xaml.cs"],
-            ["sqlite, defaults", "windows, wpf, local auth", "windows, wpf, external auth, notes"]),
+            [_sqliteDefaults, "windows, wpf, local auth", "windows, wpf, external auth, notes"]),
         new("the Blazor Server starter", "pull_request", [], [".template.config/starters/blazor-server/Tests/Presentation/x.cs"],
-            ["several hosts, local auth, notes", "no api, blazor server, mcp and worker, external auth", "web placeholder, smallest project", "web react, local auth", "web angular, external auth, notes"]),
+            [_severalHosts, _noApi, _webPlaceholder, _webReact, _webAngular]),
         new("the presentation item template", "pull_request", [], [".template.config/presentation/.template.config/template.json"],
-            ["external auth, no examples, no files", "no web, then a react app and its workspace", "web, every starter", "sqlite, defaults", "sqlite, external auth, all examples"]),
+            [_externalNoExamples, _sqliteExternal, _noWeb, _everyStarter, _sqliteDefaults]),
         new("the MCP server starter", "pull_request", [], [".template.config/starters/mcp/Src/Presentation/AppTemplate.PresentationAppMcp/Program.cs"],
-            ["mcp, external auth, all examples", "mcp, local auth, notes", "several hosts, local auth, notes", "no api, blazor server, mcp and worker, external auth", "sqlite, external auth, all examples"]),
+            [_severalHosts, _workerMcpWasm, _noApi, _sqliteExternal]),
         new("the worker starter", "pull_request", [], [".template.config/starters/worker/Src/Presentation/AppTemplate.Worker/Program.cs"],
-            ["local auth, no files, no ci, no sonar", "worker, external auth, all examples", "several hosts, local auth, notes", "no api, blazor server, mcp and worker, external auth"]),
+            [_severalHosts, _localNoFiles, _workerMcpWasm, _noApi]),
         new("the SQLite variant", "pull_request", [], [".template.config/variants/database-sqlite/docker-compose.database.yml"],
-            ["sqlite, defaults", "sqlite, smallest project", "sqlite, external auth, all examples"]),
+            [_sqliteExternal, _webPlaceholder, _sqliteDefaults]),
         new("the SQL Server variant", "pull_request", [], [".template.config/variants/database-sqlserver/docker-compose.database.yml"],
-            ["sql server, external auth, all examples"]),
+            [_sqlServer]),
         new("the feature-edit applier", "pull_request", [], [".template.config/acceptance/ApplyFeatureEdits.cs"],
-            ["defaults", "local auth, no files, no ci, no sonar", "external auth, no examples, no files"]),
+            ["defaults", _localNoFiles, _externalNoExamples]),
         new("a template-only page and the Vite Vue starter", "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vite-vue/FrameworkSite/scaffold.json"],
-            ["web, every starter"]),
+            [_everyStarter]),
         new("the Vite Vue starter and the domain", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json", "Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
         new("the domain", "pull_request", [], ["Src/Domain/AppTemplate.Domain/Common/Entity.cs"], null),
         new("a shared page", "pull_request", [], ["docs/README.md"], null),
@@ -438,7 +454,7 @@ internal static class LegSelector
         JsonNode? runMatrix = JsonNode.Parse(lines.GetValueOrDefault("run", "null"));
         JsonNode? skipMatrix = JsonNode.Parse(lines.GetValueOrDefault("skip", "null"));
 
-        if (runMatrix?["include"]?.AsArray() is not [JsonObject only] || only["name"]?.GetValue<string>() != "web, every starter" || only.ContainsKey("tags")
+        if (runMatrix?["include"]?.AsArray() is not [JsonObject only] || only["name"]?.GetValue<string>() != _everyStarter || only.ContainsKey("tags")
             || only["more_apps"] is null)
         {
             failures.Add("the run output is not the one leg chosen, with its fields and without its tags");

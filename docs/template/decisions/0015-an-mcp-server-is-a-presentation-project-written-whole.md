@@ -52,9 +52,9 @@ the other way to add a host, an option of its own beside `--presentation`. Micro
   port.
 - `TemplatePackagingTests` holds a presentation starter to the kind `dotnet` or `written`, and the
   two templates to the same modifiers for it; `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders`
-  holds its README's join list. The legs `mcp, external auth, all examples` and
-  `mcp, local auth, notes` start the stack and call it; `sqlite, external auth, all examples` adds it
-  with `cleanarch-presentation`.
+  holds its README's join list. The legs `worker, mcp and blazor wasm, external auth, all examples`
+  and `several hosts, local auth, notes` start the stack and call it;
+  `sqlite, external auth, all examples` adds it with `cleanarch-presentation`.
 
 ## Revisit when
 

@@ -43,11 +43,11 @@ its `cleanarch.json` against the leg's options with `.template.config/acceptance
 (the formatting, then `migration-initial` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
-with this checkout's `Tools/CheckDocPaths.cs`. The defaults leg and the smallest project's leg also
-run the integration suites, on the runner's Docker through Testcontainers, and the defaults leg then
-runs the generated project's `dotnet run Tools/Tasks.cs end-to-end` against its Compose stack. The defaults
-leg, the local-auth leg without examples and the external-auth leg without examples also run the
-generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
+with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
+integration suites, on the runner's Docker through Testcontainers, and the defaults, SQL Server and
+SQLite defaults legs then run the generated project's `dotnet run Tools/Tasks.cs end-to-end` against
+its Compose stack. The defaults leg, the local-auth leg without examples and the external-auth leg
+without examples also run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
 aggregate one on `get,list,create` in turn, the aggregates after `new-use-case` adds a command, a
 query and a command without input to each while refusing the others.
 `.template.config/acceptance/ApplyFeatureEdits.cs` then makes the hand edits `new-feature` printed,
@@ -93,30 +93,29 @@ builds and tests a portal, an MCP server and a worker with no HTTP API at all.
 | Leg | Options |
 |---|---|
 | defaults | none |
-| auth none, smallest project | `--auth none --examples none --files false` |
-| external auth, notes | `--auth external --examples notes --presentation avalonia` |
+| several hosts, local auth, notes | `--presentation blazor-server --presentation mcp --presentation worker --examples notes --files false`, the API brought by the MCP server's access keys |
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false --presentation api --presentation worker` |
-| external auth, all examples | `--auth external --examples all --files true --web blazor-wasm` |
+| worker, mcp and blazor wasm, external auth, all examples | `--presentation api --presentation mcp --presentation worker --auth external --examples all --files true --web blazor-wasm` |
+| sql server, avalonia, external auth, all examples | `--database sqlserver --auth external --examples all --files true --presentation avalonia` |
+| no api, blazor server, mcp and worker, external auth, no agent files | `--presentation blazor-server --presentation mcp --presentation worker --auth external --examples notes --files false --agent-files false` |
 | external auth, no examples, no files | `--auth external --examples none --files false`, then `cleanarch-presentation --framework avalonia` |
-| web placeholder, smallest project | `--web placeholder --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
-| sql server, external auth, all examples | `--database sqlserver --auth external --examples all --files true` |
-| worker, external auth, all examples | `--presentation api --presentation worker --auth external --examples all --files true` |
-| mcp, external auth, all examples | `--presentation api --presentation mcp --auth external --examples all --files true` |
-| mcp, local auth, notes | `--presentation mcp --examples notes --files false`, the API brought by the MCP server's access keys |
-| several hosts, local auth, notes | `--presentation api --presentation blazor-server --presentation mcp --presentation worker --examples notes --files false` |
-| no api, blazor server, mcp and worker, external auth | `--presentation blazor-server --presentation mcp --presentation worker --auth external --examples notes --files false` |
-| sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
-| sqlite, smallest project | `--database sqlite --auth none --examples none --files false` |
 | sqlite, external auth, all examples | `--database sqlite --auth external --examples all --files true`, then `cleanarch-presentation --framework mcp` |
-| web react, local auth | `--web vite-react --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
+| sqlite, defaults | `--database sqlite`, then `cleanarch-presentation --framework wpf` |
+| web placeholder, sqlite, smallest project | `--web placeholder --database sqlite --auth none --examples none --files false --presentation blazor-server`, then `cleanarch-webapp --framework angular --rendering ssr` |
+| web react back office, local auth | `--web vite-react --web-audience admin --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm` and `web-join` before the build |
 | web angular, external auth, notes | `--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server`, then `cleanarch-webapp --framework blazor-wasm --auth external` and `web-join` before the build |
-| web react back office, smallest local project | `--web vite-react --web-audience admin --examples none --files false` |
-| web react, then an angular back office | `--web vite-react`, then `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
-| no web, then a react app and its workspace | none, then `cleanarch-webapp --framework vite-react --workspace`, `cleanarch-presentation --framework avalonia` and `cleanarch-webapp --framework blazor-wasm --has-client true`` |
+| no web, then a react app, its workspace and an angular back office | none, then `cleanarch-webapp --framework vite-react --workspace`, `cleanarch-presentation --framework avalonia`, `cleanarch-webapp --framework blazor-wasm --has-client true` and `cleanarch-webapp --framework angular --audience admin --rendering ssr` |
 | web, every starter | `--web blazor-wasm --examples none --files false`, then `cleanarch-presentation --framework avalonia --has-client true` and `cleanarch-webapp` once per pnpm framework starter, each on its own `--port`, and once more for React Router with `--rendering ssr` |
-| windows, defaults | none, on `windows-latest` |
-| windows, wpf, local auth | `--presentation wpf`, on `windows-latest` |
+| windows, wpf, local auth | `--presentation wpf`, every other option at its default, on `windows-latest` |
 | windows, wpf, external auth, notes | `--presentation wpf --auth external --examples notes`, on `windows-latest` |
+
+A leg is one generated shape that carries as many guarantees as its options allow: every value of
+every option, every item template and every check the workflow runs only for some legs is proved by
+at least one leg, and two shapes share a leg unless one turns off a part the other must prove. An
+item template adds a presentation project only to a project generated without one, since it writes
+`docs/features/presentation.md`.
+A leg stays under about twelve minutes, since the slowest one sets the run's length, and the account
+runs at most twenty jobs at once, which the acceptance legs share with the other workflows.
 
 Every leg also greps its project for the other database providers' packages and types, reading its own
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
@@ -158,18 +157,19 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | A change to | Runs |
 |---|---|
 | `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
-| `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the eight web legs |
+| `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--presentation worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
 | `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
-| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows one included |
+| anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows ones included |
 
-The `windows, defaults` leg generates the default shape and carries no tag, so only a change that
-runs every leg reaches it. The two WPF legs carry the WPF starter's tag, as the Linux leg that adds
-the app with `cleanarch-presentation` does: a change to the starter builds the app and runs its
-`.Core` tests on Linux, and builds, tests and checks it on Windows under both kinds of sign-in.
+The `windows, wpf, local auth` leg generates the default shape with the WPF app added and nothing
+else changed, so it proves the default project's tasks on Windows too. The two WPF legs carry the
+WPF starter's tag, as the Linux leg that adds the app with `cleanarch-presentation` does: a change to
+the starter builds the app and runs its `.Core` tests on Linux, and builds, tests and checks it on
+Windows under both kinds of sign-in.
 
 Every leg runs on a push to `main`, on a manual run, on the nightly run of `develop`, under the
 `full-acceptance` label, on an empty or unreadable diff, and on a change to the selector, its rules,
@@ -196,14 +196,18 @@ again, on the same tree. The jobs it skips report under the name `Template accep
 checks the ruleset requires plus the every-starter leg, which it does not; every folder under
 `.template.config/starters` and `.template.config/variants`, and each item template's, has a rule of
 its own; every tag a rule names is a leg's, and every leg's tag a rule's; each leg's tags are the ones
-its options choose; each leg's runner is one a job serves, and a Windows leg sets only the fields
-`template-windows` reads and generates no web app; and every `none` path is left out of the template
+its options choose; each leg's runner is one a job serves, a Windows leg sets only the fields
+`template-windows` reads and generates no web app, and one Windows leg passes `--presentation wpf`
+and nothing else; and every `none` path is left out of the template
 package. `Tools/CheckWorkflows.cs`
 refuses a `paths:` filter, which leaves a required check pending, and a job-level `if:` on a pull
 request's matrix job, which reports none of its legs when it skips them all, unless its matrix is read
 from an earlier job and another job of the same name reports the legs it leaves out.
 
 ### Adding a leg
+
+A new guarantee first looks for a leg whose shape it fits: options that turn off nothing the leg
+proves, and a leg that stays under about twelve minutes. It gets a leg of its own only when none does.
 
 1. Add its entry to `.template.config/acceptance/matrix.json`, with the fields its steps read and
    the tags its options choose, and `"runner": "windows-latest"` for a shape a Windows user must

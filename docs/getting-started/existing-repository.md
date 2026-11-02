@@ -60,10 +60,6 @@ Three facts decide the subdirectory shape:
    Move `web.yml` the same way.
 
 <!--#endif-->
-<!--#if (ci && sonar)-->
-   Move `sonarqube.yml` the same way.
-
-<!--#endif-->
 <!--#if (ci)-->
    A workflow runs from the git root, so prefix every path its steps name (the solution,
    `Tools/Tasks.cs`, `coverage.minimum`, `global.json`) with the subdirectory.

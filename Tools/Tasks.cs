@@ -457,33 +457,22 @@ internal static class Tasks
             case "test":
                 if (noIntegration)
                 {
-                    var failed = new List<string>();
-
-                    foreach (string project in TestProjects(repoRoot, dockerFreeOnly: true))
+                    string filter = DockerFreeSolutionFilter(repoRoot, solution);
+                    try
                     {
-                        try
+                        if (maxCpuCount is null)
                         {
-                            if (maxCpuCount is null)
-                            {
-                                Step("dotnet", "test", project, "--configuration", configuration);
-                            }
-                            else
-                            {
-                                Step("dotnet", ["build", project, "--configuration", configuration, .. nodes]);
-                                Step("dotnet", "test", project, "--configuration", configuration, "--no-build");
-                            }
+                            Step("dotnet", "test", "--solution", filter, "--configuration", configuration);
                         }
-                        catch (InvalidOperationException error)
+                        else
                         {
-                            failed.Add(Path.GetFileNameWithoutExtension(project));
-                            Write(error.Message, ConsoleColor.Red);
+                            Step("dotnet", ["build", filter, "--configuration", configuration, .. nodes]);
+                            Step("dotnet", ["test", "--solution", filter, "--configuration", configuration, "--no-build", .. modules]);
                         }
                     }
-
-                    if (failed.Count > 0)
+                    finally
                     {
-                        throw new InvalidOperationException(
-                            $"{failed.Count} test project(s) failed:" + Environment.NewLine + string.Join(Environment.NewLine, failed.Select(name => "  " + name)));
+                        File.Delete(filter);
                     }
                 }
                 else if (maxCpuCount is null)
@@ -2117,6 +2106,27 @@ internal static class Tasks
         }
 
         return paths;
+    }
+
+    private static string DockerFreeSolutionFilter(string repoRoot, string solution)
+    {
+        string directory = Path.Combine(repoRoot, "artifacts", "test");
+        Directory.CreateDirectory(directory);
+        string filter = Path.Combine(directory, "docker-free.slnf");
+        string solutionDirectory = Path.GetDirectoryName(solution) ?? repoRoot;
+
+        var content = new JsonObject
+        {
+            ["solution"] = new JsonObject
+            {
+                ["path"] = Path.GetRelativePath(directory, solution).Replace('\\', '/'),
+                ["projects"] = new JsonArray([.. TestProjects(repoRoot, dockerFreeOnly: true)
+                    .Select(project => JsonValue.Create(Path.GetRelativePath(solutionDirectory, project).Replace('\\', '/')))]),
+            },
+        };
+        File.WriteAllText(filter, content.ToJsonString(_writtenJson));
+
+        return filter;
     }
 
     private static string ResolveRepoRoot()

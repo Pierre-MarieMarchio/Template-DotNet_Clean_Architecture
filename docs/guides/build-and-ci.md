@@ -14,7 +14,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (!anyWeb)-->
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
-| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker |
+| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder |
 | `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |

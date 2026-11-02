@@ -285,6 +285,14 @@ jobs:
 
       - name: Test
         run: dotnet test --solution Launcher/CleanArch.Create.slnx --configuration "$CONFIGURATION" --no-build
+
+      # dnx keeps --yes and --help for itself: the command the launcher prints must reach it after --, without a terminal.
+      - name: Generate through dnx as the printed command does
+        run: |
+          dotnet pack Launcher/CleanArch.Create/CleanArch.Create.csproj --configuration "$CONFIGURATION" --no-build -p:Version=0.0.0-ci --output "${{ runner.temp }}/launcher"
+          dotnet dnx CleanArch.Create --add-source "${{ runner.temp }}/launcher" --version 0.0.0-ci --yes -- \
+            new -n Acme.Shop -o "${{ runner.temp }}/dnx-project" --yes --template-source . --hive "${{ runner.temp }}/dnx-hive" < /dev/null
+          test -f "${{ runner.temp }}/dnx-project/cleanarch.json"
   #else
   # The gates the tree carries, each after its own self-test, as verify runs them first.
   hygiene:

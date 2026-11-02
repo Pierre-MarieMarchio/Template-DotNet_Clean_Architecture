@@ -625,7 +625,7 @@ internal static class Tasks
 
             case "bootstrap":
                 PresentationScaffold(repoRoot, solution, only: null);
-                Step("dotnet", "format", solution, "--diagnostics", "IDE0055");
+                Step("dotnet", "format", solution, "--diagnostics", "IDE0055", "IDE0005");
                 //#if (api)
                 OpenApiReference(projectFile, api);
                 //#endif

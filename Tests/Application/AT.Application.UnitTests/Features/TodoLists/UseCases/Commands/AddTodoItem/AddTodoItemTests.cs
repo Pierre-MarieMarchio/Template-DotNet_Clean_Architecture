@@ -1,0 +1,304 @@
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.AddTodoItem;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Common.Tagging;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.AddTodoItem;
+
+public sealed class AddTodoItemTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly AddTodoItemCommandValidator _validator = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(ACommandFor(Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+        result.Error.Code.ShouldBe("auth.required");
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_ReadsAndWritesNothing()
+    {
+        await UseCaseFor(StubCurrentUser.Anonymous).Handle(ACommandFor(Guid.CreateVersion7()), TestToken);
+
+        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ABlankTitle_IsRejected(string title)
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        var result = await UseCase().Handle(ACommandFor(list.Id, title), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        result.Error.Code.ShouldBe("request.validationFailed");
+        list.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ATitleLongerThanTheDomainAllows_IsRejected()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        var result = await UseCase().Handle(
+            ACommandFor(list.Id, new string('a', TodoItemTitle.MaxLength + 1)),
+            TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        list.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ADescriptionLongerThanTheDomainAllows_IsRejected()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        var result = await UseCase().Handle(
+            new AddTodoItemCommand(list.Id, "Buy milk", new string('a', TodoItem.MaxDescriptionLength + 1), null),
+            TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        list.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnEmptyListId_IsRejected()
+    {
+        var result = await UseCase().Handle(ACommandFor(Guid.Empty), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        result.Error.Details!["todoListId"].Any(message => message.Contains("list id", StringComparison.Ordinal))
+            .ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ABlankTagIsRejectedBeforeTheDomainSeesIt(string tag)
+    {
+        var list = GivenTheCallerOwnsAList();
+        IReadOnlyList<string> tags = ["urgent", tag];
+
+        var result = await UseCase().Handle(
+            new AddTodoItemCommand(list.Id, "Buy milk", null, tags),
+            TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        list.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ATagLongerThanTheDomainAllows_IsRejected()
+    {
+        var list = GivenTheCallerOwnsAList();
+        IReadOnlyList<string> tags = [new string('a', Tag.MaxLength + 1)];
+
+        var result = await UseCase().Handle(
+            new AddTodoItemCommand(list.Id, "Buy milk", null, tags),
+            TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        list.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnInvalidCommand_DoesNotCommit()
+    {
+        GivenTheCallerOwnsAList();
+
+        await UseCase().Handle(ACommandFor(Guid.Empty, ""), TestToken);
+
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
+    {
+        var missingId = Guid.CreateVersion7();
+        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+
+        var result = await UseCase().Handle(ACommandFor(missingId), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("todoList.notFound");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ADuplicateTitle_BecomesAConflict()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(ACommandFor(list.Id, "BUY MILK"), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Conflict);
+        result.Error.Code.ShouldBe("domain.invariantViolated");
+        list.Items.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ADuplicateTitle_DoesNotCommit()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(ACommandFor(list.Id, "Buy milk"), TestToken);
+
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFullList_BecomesAConflict()
+    {
+        var list = ATodoList.OwnedByAndFull(_callerId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(ACommandFor(list.Id, "one too many"), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Conflict);
+        list.Items.Count.ShouldBe(TodoList.MaxItems);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheConflictMessage_ComesFromTheDomain()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(ACommandFor(list.Id, "Buy milk"), TestToken);
+
+        result.Error!.Message.ShouldContain("Buy milk");
+    }
+
+    [Fact]
+    public async Task AValidCommand_AddsTheItemAndReturnsItsId()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        var result = await UseCase().Handle(
+            new AddTodoItemCommand(list.Id, "Buy milk", "Semi-skimmed", null),
+            TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var item = list.Items.ShouldHaveSingleItem();
+        item.Id.ShouldBe(result.Value.Value.Id);
+        item.Title.Value.ShouldBe("Buy milk");
+        item.Description.ShouldBe("Semi-skimmed");
+        result.Value.Value.Title.ShouldBe("Buy milk");
+        result.Value.Value.Description.ShouldBe("Semi-skimmed");
+        result.Value.Version.ShouldBe(list.Version);
+    }
+
+    [Fact]
+    public async Task ASuccessfulAdd_CommitsExactlyOnce()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        await UseCase().Handle(ACommandFor(list.Id), TestToken);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAddWithSeveralTags_StillCommitsExactlyOnce()
+    {
+        var list = GivenTheCallerOwnsAList();
+        IReadOnlyList<string> tags = ["urgent", "shopping", "weekly"];
+
+        await UseCase().Handle(new AddTodoItemCommand(list.Id, "Buy milk", null, tags), TestToken);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        list.Items.ShouldHaveSingleItem().Tags.Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task TheTags_AreNormalisedAndDeduplicatedByTheDomain()
+    {
+        var list = GivenTheCallerOwnsAList();
+        IReadOnlyList<string> tags = ["  URGENT ", "urgent", "Shopping"];
+
+        await UseCase().Handle(new AddTodoItemCommand(list.Id, "Buy milk", null, tags), TestToken);
+
+        list.Items.ShouldHaveSingleItem().Tags.Select(tag => tag.Value).ShouldBe(["urgent", "shopping"]);
+    }
+
+    [Fact]
+    public async Task AnAbsentTagCollection_IsTreatedAsNoTags()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        var result = await UseCase().Handle(new AddTodoItemCommand(list.Id, "Buy milk", null, null), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        list.Items.ShouldHaveSingleItem().Tags.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnEmptyTagCollection_IsTreatedAsNoTags()
+    {
+        var list = GivenTheCallerOwnsAList();
+        IReadOnlyList<string> tags = [];
+
+        var result = await UseCase().Handle(new AddTodoItemCommand(list.Id, "Buy milk", null, tags), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        list.Items.ShouldHaveSingleItem().Tags.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheNewItem_IsOpenAndBelongsToTheList()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        await UseCase().Handle(ACommandFor(list.Id), TestToken);
+
+        var item = list.Items.ShouldHaveSingleItem();
+        item.IsCompleted.ShouldBeFalse();
+        item.TodoListId.ShouldBe(list.Id);
+    }
+
+    private static AddTodoItemCommand ACommandFor(Guid todoListId, string title = "Buy milk") =>
+        new(todoListId, title, null, null);
+
+    private ValidatedHandler<AddTodoItemCommand, Result<Versioned<TodoItemDto>>> UseCaseFor(ICurrentUser currentUser) =>
+        new(new AddTodoItemCommandHandler(new TodoListService(_repository, currentUser), _unitOfWork).Handle, _validator);
+
+    private ValidatedHandler<AddTodoItemCommand, Result<Versioned<TodoItemDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+
+    private TodoList GivenTheCallerOwnsAList()
+    {
+        var list = ATodoList.OwnedBy(_callerId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        return list;
+    }
+}

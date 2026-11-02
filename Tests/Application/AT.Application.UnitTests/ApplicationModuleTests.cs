@@ -72,12 +72,12 @@ public sealed class ApplicationModuleTests
         var services = new ServiceCollection();
         services.AddTodoLists();
 
-        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(ICreateTodoListUseCase));
+        services.ShouldContain(descriptor => descriptor.ServiceType == typeof(IValidator<CreateTodoListCommand>));
         //#if (reminders)
-        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IScheduleReminderUseCase));
+        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IValidator<ScheduleReminderCommand>));
         //#endif
         //#if (files)
-        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IRegisterFileUseCase));
+        services.ShouldNotContain(descriptor => descriptor.ServiceType == typeof(IValidator<RegisterFileCommand>));
         //#endif
     }
     //#endif

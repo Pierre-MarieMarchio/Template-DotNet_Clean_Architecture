@@ -1,0 +1,102 @@
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReplaceTodoItemTags;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.ReplaceTodoItemTags;
+
+public sealed class ReplaceTodoItemTagsTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly RecordingCacheStore _cache = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous).Handle(
+            new ReplaceTodoItemTagsCommand(Guid.CreateVersion7(), Guid.CreateVersion7(), ["urgent"]),
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+    }
+
+    [Fact]
+    public async Task ANullTagSet_IsRejected()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(
+            new ReplaceTodoItemTagsCommand(list.Id, itemId, null!),
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+    }
+
+    [Fact]
+    public async Task AnUnknownItemId_IsReportedAsNotFound()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(
+            new ReplaceTodoItemTagsCommand(list.Id, Guid.CreateVersion7(), ["urgent"]),
+            TestToken);
+
+        result.Error!.Code.ShouldBe("todoItem.notFound");
+    }
+
+    [Fact]
+    public async Task TheTagSet_IsReplacedWholesale()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        list.AddTagToItem(itemId, "urgent");
+        list.AddTagToItem(itemId, "shopping");
+        list.ClearDomainEvents();
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(
+            new ReplaceTodoItemTagsCommand(list.Id, itemId, ["weekly"]),
+            TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Value.Tags.ShouldBe(["weekly"]);
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnEmptyTagSet_ClearsTheTags()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        list.AddTagToItem(itemId, "urgent");
+        list.ClearDomainEvents();
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(
+            new ReplaceTodoItemTagsCommand(list.Id, itemId, []),
+            TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Value.Tags.ShouldBeEmpty();
+    }
+
+    private ValidatedHandler<ReplaceTodoItemTagsCommand, Result<Versioned<TodoItemDto>>> UseCaseFor(ICurrentUser currentUser) =>
+        new(new ReplaceTodoItemTagsCommandHandler(new TodoListService(_repository, currentUser), _unitOfWork, _cache).Handle, new ReplaceTodoItemTagsCommandValidator());
+
+    private ValidatedHandler<ReplaceTodoItemTagsCommand, Result<Versioned<TodoItemDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+}

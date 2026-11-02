@@ -1,0 +1,115 @@
+﻿using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.DeleteTodoList;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.DeleteTodoList;
+
+public sealed class DeleteTodoListTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new DeleteTodoListCommand(Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+        result.Error.Code.ShouldBe("auth.required");
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_DeletesNothing()
+    {
+        await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new DeleteTodoListCommand(Guid.CreateVersion7()), TestToken);
+
+        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        _repository.DidNotReceive().Remove(Arg.Any<TodoList>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
+    {
+        var missingId = Guid.CreateVersion7();
+        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+
+        var result = await UseCase().Handle(new DeleteTodoListCommand(missingId), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("todoList.notFound");
+    }
+
+    [Fact]
+    public async Task AMissingList_IsNotDeletedAndDoesNotCommit()
+    {
+        var missingId = Guid.CreateVersion7();
+        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+
+        await UseCase().Handle(new DeleteTodoListCommand(missingId), TestToken);
+
+        _repository.DidNotReceive().Remove(Arg.Any<TodoList>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheCallersOwnList_IsStagedForDeletion()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        var result = await UseCase().Handle(new DeleteTodoListCommand(list.Id), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        _repository.Received(1).Remove(list);
+    }
+
+    [Fact]
+    public async Task TheAggregateThatWasLoaded_IsTheOneRemoved()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new DeleteTodoListCommand(list.Id), TestToken);
+
+        _repository.Received(1).Remove(Arg.Is<TodoList>(removed => ReferenceEquals(removed, list)));
+    }
+
+    [Fact]
+    public async Task ASuccessfulDelete_CommitsExactlyOnce()
+    {
+        var list = GivenTheCallerOwnsAList();
+
+        await UseCase().Handle(new DeleteTodoListCommand(list.Id), TestToken);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    private ValidatedHandler<DeleteTodoListCommand, Result> UseCaseFor(ICurrentUser currentUser) =>
+        new(new DeleteTodoListCommandHandler(new TodoListService(_repository, currentUser), _repository, _unitOfWork).Handle, new DeleteTodoListCommandValidator());
+
+    private ValidatedHandler<DeleteTodoListCommand, Result> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+
+    private TodoList GivenTheCallerOwnsAList()
+    {
+        var list = ATodoList.OwnedBy(_callerId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        return list;
+    }
+}

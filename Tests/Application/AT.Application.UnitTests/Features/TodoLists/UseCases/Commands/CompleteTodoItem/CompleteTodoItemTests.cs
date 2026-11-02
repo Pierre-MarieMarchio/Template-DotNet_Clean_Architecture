@@ -1,0 +1,222 @@
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CompleteTodoItem;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.CompleteTodoItem;
+
+public sealed class CompleteTodoItemTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly StubDateTimeProvider _clock = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new CompleteTodoItemCommand(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+        result.Error.Code.ShouldBe("auth.required");
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_ReadsAndWritesNothing()
+    {
+        await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new CompleteTodoItemCommand(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
+
+        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
+    {
+        var missingId = Guid.CreateVersion7();
+        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+
+        var result = await UseCase().Handle(new CompleteTodoItemCommand(missingId, Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("todoList.notFound");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("todoItem.notFound");
+    }
+
+    [Fact]
+    public async Task AnUnknownItemId_DoesNotCommit()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new CompleteTodoItemCommand(list.Id, Guid.CreateVersion7()), TestToken);
+
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AStalePreconditionOnAnUnknownItem_IsReportedAsPreconditionFailedNotAsMissingItem()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        var stalePrecondition = new VersionPrecondition([list.Version + 1]);
+
+        var result = await UseCase().Handle(
+            new CompleteTodoItemCommand(list.Id, Guid.CreateVersion7(), stalePrecondition),
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
+        result.Error.Code.ShouldBe("precondition.failed");
+    }
+
+    [Fact]
+    public async Task AnItemIdFromAnotherList_IsReportedAsAMissingItem()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        var otherList = ATodoList.OwnedByWithItem(_callerId, out var otherItemId, "Elsewhere");
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, otherItemId), TestToken);
+
+        result.Error!.Code.ShouldBe("todoItem.notFound");
+        otherList.Items.ShouldHaveSingleItem().IsCompleted.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AnAlreadyCompletedItem_BecomesAConflict()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        var firstCompletion = StubDateTimeProvider.DefaultInstant.AddDays(-1);
+        list.CompleteItem(itemId, firstCompletion);
+        list.ClearDomainEvents();
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Conflict);
+        result.Error.Code.ShouldBe("domain.invariantViolated");
+    }
+
+    [Fact]
+    public async Task AnAlreadyCompletedItem_KeepsItsOriginalCompletionTimeAndDoesNotCommit()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        var firstCompletion = StubDateTimeProvider.DefaultInstant.AddDays(-1);
+        list.CompleteItem(itemId, firstCompletion);
+        list.ClearDomainEvents();
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        list.Items.ShouldHaveSingleItem().CompletedAt.ShouldBe(firstCompletion);
+        list.DomainEvents.ShouldBeEmpty();
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheItem_IsCompletedAtTheInjectedClocksInstant()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var item = list.Items.ShouldHaveSingleItem();
+        item.IsCompleted.ShouldBeTrue();
+        item.CompletedAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
+    }
+
+    [Fact]
+    public async Task TheCompletionInstant_ComesFromTheProviderAndNotTheSystemClock()
+    {
+        var pinnedInstant = new DateTimeOffset(2001, 2, 3, 4, 5, 6, TimeSpan.Zero);
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var useCase = new CompleteTodoItemCommandHandler(
+            new TodoListService(_repository, StubCurrentUser.WithId(_callerId)),
+            _unitOfWork,
+            new StubDateTimeProvider(pinnedInstant));
+
+        await useCase.Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        list.Items.ShouldHaveSingleItem().CompletedAt.ShouldBe(pinnedInstant);
+    }
+
+    [Fact]
+    public async Task ASuccessfulCompletion_RaisesTheCompletionEvent()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        var domainEvent = list.DomainEvents.ShouldHaveSingleItem()
+            .ShouldBeOfType<TodoItemCompletedDomainEvent>();
+        domainEvent.TodoItemId.ShouldBe(itemId);
+        domainEvent.TodoListId.ShouldBe(list.Id);
+    }
+
+    [Fact]
+    public async Task ASuccessfulCompletion_CommitsExactlyOnce()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnlyTheRequestedItem_IsCompleted()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        var untouchedId = list.AddItem("Leave me alone", null);
+        list.ClearDomainEvents();
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
+
+        list.Items.Single(item => item.Id == itemId).IsCompleted.ShouldBeTrue();
+        list.Items.Single(item => item.Id == untouchedId).IsCompleted.ShouldBeFalse();
+    }
+
+    private ValidatedHandler<CompleteTodoItemCommand, Result<Versioned<TodoItemDto>>> UseCaseFor(ICurrentUser currentUser) =>
+        new(new CompleteTodoItemCommandHandler(new TodoListService(_repository, currentUser), _unitOfWork, _clock).Handle, new CompleteTodoItemCommandValidator());
+
+    private ValidatedHandler<CompleteTodoItemCommand, Result<Versioned<TodoItemDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+}

@@ -1,0 +1,76 @@
+﻿using AppTemplate.Application.Features.TodoLists.Ports.TodoItemTagQueries;
+using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetUsedTodoItemTags;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Queries.GetUsedTodoItemTags;
+
+public sealed class GetUsedTodoItemTagsTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoItemTagQueries _queries = Substitute.For<ITodoItemTagQueries>();
+    private readonly RecordingCacheStore _cache = new();
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var useCase = new GetUsedTodoItemTagsQueryHandler(_queries, _cache, StubCurrentUser.Anonymous);
+
+        var result = await useCase.Handle(new GetUsedTodoItemTagsQuery(), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        await _queries.DidNotReceiveWithAnyArgs().GetUsedTagsForOwnerAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ItAnswersTheTagsTheOwnerHasUsed()
+    {
+        _queries.GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>())
+            .Returns(["home", "urgent"]);
+
+        var result = await UseCase().Handle(new GetUsedTodoItemTagsQuery(), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBe(["home", "urgent"]);
+    }
+
+    [Fact]
+    public async Task ASecondCall_IsServedFromTheCache()
+    {
+        _queries.GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>())
+            .Returns(["home"]);
+
+        await UseCase().Handle(new GetUsedTodoItemTagsQuery(), TestToken);
+        var second = await UseCase().Handle(new GetUsedTodoItemTagsQuery(), TestToken);
+
+        second.Value.ShouldBe(["home"]);
+        _cache.Misses.ShouldBe(1);
+        await _queries.Received(1).GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TwoOwners_DoNotShareAnEntry()
+    {
+        var otherId = UserId.Create(Guid.CreateVersion7());
+
+        _queries.GetUsedTagsForOwnerAsync(_callerId, Arg.Any<CancellationToken>()).Returns(["mine"]);
+        _queries.GetUsedTagsForOwnerAsync(otherId, Arg.Any<CancellationToken>()).Returns(["theirs"]);
+
+        var mine = await UseCase().Handle(new GetUsedTodoItemTagsQuery(), TestToken);
+        var theirs = await UseCaseFor(otherId).Handle(new GetUsedTodoItemTagsQuery(), TestToken);
+
+        mine.Value.ShouldBe(["mine"]);
+        theirs.Value.ShouldBe(["theirs"]);
+    }
+
+    private GetUsedTodoItemTagsQueryHandler UseCase() => UseCaseFor(_callerId);
+
+    private GetUsedTodoItemTagsQueryHandler UseCaseFor(UserId ownerId) =>
+        new(_queries, _cache, StubCurrentUser.WithId(ownerId));
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+}

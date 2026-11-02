@@ -10,6 +10,7 @@ using AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReopenTodoIte
 using AppTemplate.Application.Features.TodoLists.UseCases.Commands.UpdateTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItem;
 using AppTemplate.Application.Features.TodoLists.UseCases.Queries.GetTodoItems;
+using Mediator;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AppTemplate.Api.Features.TodoLists.Controllers;
@@ -18,13 +19,7 @@ namespace AppTemplate.Api.Features.TodoLists.Controllers;
 [Asp.Versioning.ApiVersion("1.0")]
 [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
 public sealed class TodoItemsController(
-    IGetTodoItemsUseCase getTodoItems,
-    IGetTodoItemUseCase getTodoItem,
-    IAddTodoItemUseCase addTodoItem,
-    IUpdateTodoItemUseCase updateTodoItem,
-    ICompleteTodoItemUseCase completeTodoItem,
-    IReopenTodoItemUseCase reopenTodoItem,
-    IRemoveTodoItemUseCase removeTodoItem) : ApiControllerBase
+    ISender sender) : ApiControllerBase
 {
     /// <summary>Gets every item of a todo list.</summary>
     [HttpGet("{todoListId:guid}/items")]
@@ -38,7 +33,7 @@ public sealed class TodoItemsController(
     {
         var query = new GetTodoItemsQuery(todoListId);
 
-        return OkOrProblem(TodoListResponseMapping.ToItemsResponse(await getTodoItems.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToItemsResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Gets one item of a todo list.</summary>
@@ -54,7 +49,7 @@ public sealed class TodoItemsController(
     {
         var query = new GetTodoItemQuery(todoListId, todoItemId);
 
-        return OkOrProblem(TodoListResponseMapping.ToItemResponse(await getTodoItem.ExecuteAsync(query, cancellationToken)));
+        return OkOrProblem(TodoListResponseMapping.ToItemResponse(await sender.Send(query, cancellationToken)));
     }
 
     /// <summary>Adds an item to a todo list.</summary>
@@ -86,7 +81,7 @@ public sealed class TodoItemsController(
             precondition);
 
         var result = TodoListResponseMapping.ToItemResponse(
-            RequiringExistence(requiresExistence, await addTodoItem.ExecuteAsync(command, cancellationToken)));
+            RequiringExistence(requiresExistence, await sender.Send(command, cancellationToken)));
 
         return CreatedOrProblem(result, nameof(GetItemById), item => new { todoListId, todoItemId = item.Id });
     }
@@ -121,7 +116,7 @@ public sealed class TodoItemsController(
 
         var result = RequiringExistence(
             requiresExistence,
-            await updateTodoItem.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
@@ -147,7 +142,7 @@ public sealed class TodoItemsController(
         var command = new CompleteTodoItemCommand(todoListId, todoItemId, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await completeTodoItem.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
@@ -173,7 +168,7 @@ public sealed class TodoItemsController(
         var command = new ReopenTodoItemCommand(todoListId, todoItemId, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await reopenTodoItem.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(TodoListResponseMapping.ToItemResponse(result));
     }
@@ -199,7 +194,7 @@ public sealed class TodoItemsController(
         var command = new RemoveTodoItemCommand(todoListId, todoItemId, precondition);
         var result = RequiringExistence(
             requiresExistence,
-            await removeTodoItem.ExecuteAsync(command, cancellationToken));
+            await sender.Send(command, cancellationToken));
 
         return UpdatedOrProblem(TodoListResponseMapping.ToListResponse(result));
     }

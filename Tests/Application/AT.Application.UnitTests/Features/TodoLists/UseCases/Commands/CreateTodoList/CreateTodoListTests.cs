@@ -1,0 +1,185 @@
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.CreateTodoList;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
+using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using FluentValidation;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.CreateTodoList;
+
+public sealed class CreateTodoListTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly StubDateTimeProvider _clock = new();
+    private readonly CreateTodoListCommandValidator _validator = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+        result.Error.Code.ShouldBe("auth.required");
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_WritesNothing()
+    {
+        await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        _repository.DidNotReceive().Add(Arg.Any<TodoList>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnInvalidInput_IsRefusedBeforeTheCallerIsAsked()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new CreateTodoListCommand(""), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ABlankName_IsRejected(string name)
+    {
+        var result = await UseCase().Handle(new CreateTodoListCommand(name), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        result.Error.Code.ShouldBe("request.validationFailed");
+        result.Error.Details!["name"].Any(message => message.Contains("required", StringComparison.Ordinal))
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ANameLongerThanTheDomainAllows_IsRejected()
+    {
+        var result = await UseCase().Handle(
+            new CreateTodoListCommand(new string('a', TodoListName.MaxLength + 1)),
+            TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        result.Error.Details!["name"].Any(message => message.Contains("exceed", StringComparison.Ordinal))
+            .ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ANameOfExactlyTheMaximumLength_IsAccepted()
+    {
+        var result = await UseCase().Handle(
+            new CreateTodoListCommand(new string('a', TodoListName.MaxLength)),
+            TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task AnInvalidCommand_WritesNothing()
+    {
+        await UseCase().Handle(new CreateTodoListCommand(""), TestToken);
+
+        _repository.DidNotReceive().Add(Arg.Any<TodoList>());
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AValidCommand_StagesAListOwnedByTheCaller()
+    {
+        await UseCase().Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        _repository.Received(1).Add(Arg.Is<TodoList>(list => list != null && list.OwnerId == _callerId));
+    }
+
+    [Fact]
+    public async Task TheOwner_IsAlwaysTheCallerAndNeverComesFromTheRequest()
+    {
+        var otherCallerId = UserId.Create(Guid.CreateVersion7());
+
+        await UseCaseFor(StubCurrentUser.WithId(otherCallerId))
+            .Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        _repository.Received(1).Add(Arg.Is<TodoList>(list => list != null && list.OwnerId == otherCallerId));
+        _repository.DidNotReceive().Add(Arg.Is<TodoList>(list => list != null && list.OwnerId == _callerId));
+    }
+
+    [Fact]
+    public async Task AValidCommand_ReturnsTheDetailOfTheStagedList()
+    {
+        var staged = CaptureStagedLists();
+
+        var result = await UseCase().Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var list = staged.ShouldHaveSingleItem();
+        result.Value.Value.Id.ShouldBe(list.Id);
+        result.Value.Value.Id.ShouldNotBe(Guid.Empty);
+        result.Value.Value.Items.ShouldBeEmpty();
+        result.Value.Version.ShouldBe(list.Version);
+    }
+
+    [Fact]
+    public async Task TheName_IsNormalisedByTheDomain()
+    {
+        var staged = CaptureStagedLists();
+
+        await UseCase().Handle(new CreateTodoListCommand("  Groceries  "), TestToken);
+
+        staged.ShouldHaveSingleItem().Name.Value.ShouldBe("Groceries");
+    }
+
+    [Fact]
+    public async Task ASuccessfulCommand_CommitsExactlyOnce()
+    {
+        await UseCase().Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheStagedList_CarriesACreationEventStampedByTheInjectedClock()
+    {
+        var staged = CaptureStagedLists();
+
+        await UseCase().Handle(new CreateTodoListCommand("Groceries"), TestToken);
+
+        var domainEvent = staged.ShouldHaveSingleItem().DomainEvents.ShouldHaveSingleItem()
+            .ShouldBeOfType<TodoListCreatedDomainEvent>();
+        domainEvent.OwnerId.ShouldBe(_callerId);
+        domainEvent.OccurredOn.ShouldBe(StubDateTimeProvider.DefaultInstant);
+    }
+
+    private ValidatedHandler<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>> UseCaseFor(ICurrentUser currentUser) =>
+        new(new CreateTodoListCommandHandler(_repository, _unitOfWork, currentUser, _clock).Handle, _validator);
+
+    private ValidatedHandler<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+
+    private List<TodoList> CaptureStagedLists()
+    {
+        var staged = new List<TodoList>();
+
+        _repository.When(repository => repository.Add(Arg.Any<TodoList>()))
+            .Do(call => staged.Add(call.Arg<TodoList>()!));
+
+        return staged;
+    }
+}

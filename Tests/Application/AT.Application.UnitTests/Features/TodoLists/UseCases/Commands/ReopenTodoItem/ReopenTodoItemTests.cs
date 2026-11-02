@@ -1,0 +1,83 @@
+﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Ports;
+using AppTemplate.Application.Core.Common.Results;
+using AppTemplate.Application.Features.TodoLists.Model.Dtos;
+using AppTemplate.Application.Features.TodoLists.Services;
+using AppTemplate.Application.Features.TodoLists.UseCases.Commands.ReopenTodoItem;
+using AppTemplate.Application.UnitTests.TestDoubles;
+using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
+using AppTemplate.Domain.Features.TodoLists.Repositories;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace AppTemplate.Application.UnitTests.Features.TodoLists.UseCases.Commands.ReopenTodoItem;
+
+public sealed class ReopenTodoItemTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+    private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly StubDateTimeProvider _clock = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefused()
+    {
+        var result = await UseCaseFor(StubCurrentUser.Anonymous)
+            .Handle(new ReopenTodoItemCommand(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AnUnknownItemId_IsReportedAsNotFound()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out _);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(
+            new ReopenTodoItemCommand(list.Id, Guid.CreateVersion7()),
+            TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("todoItem.notFound");
+    }
+
+    [Fact]
+    public async Task ACompletedItem_IsReopenedAndRaisesTheReopenedEvent()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        list.CompleteItem(itemId, StubDateTimeProvider.DefaultInstant);
+        list.ClearDomainEvents();
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new ReopenTodoItemCommand(list.Id, itemId), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Value.IsCompleted.ShouldBeFalse();
+        list.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<TodoItemReopenedDomainEvent>();
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnAlreadyOpenItem_IsAcceptedAsANoOp()
+    {
+        var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
+        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+
+        var result = await UseCase().Handle(new ReopenTodoItemCommand(list.Id, itemId), TestToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        list.DomainEvents.ShouldBeEmpty();
+    }
+
+    private ValidatedHandler<ReopenTodoItemCommand, Result<Versioned<TodoItemDto>>> UseCaseFor(ICurrentUser currentUser) =>
+        new(new ReopenTodoItemCommandHandler(new TodoListService(_repository, currentUser), _unitOfWork, _clock).Handle, new ReopenTodoItemCommandValidator());
+
+    private ValidatedHandler<ReopenTodoItemCommand, Result<Versioned<TodoItemDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
+}

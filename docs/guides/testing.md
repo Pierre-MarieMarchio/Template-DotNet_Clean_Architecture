@@ -287,7 +287,7 @@ Async calls pass `TestContext.Current.CancellationToken`; NSubstitute placeholde
 <!--#endif-->
 - A unit-test project with no test exits with code 8; the domain and application projects ignore it
   only while they hold no test folder.
-- `.cs` and `.md` files are UTF-8 with BOM, and a file without one fails the formatting gate.
+- `.cs` and `.md` files are UTF-8 with BOM, and a file without one fails `format`.
 - An unused `using` and a stale `<see cref="…"/>` fail the build, since every project generates its
   documentation file.
 

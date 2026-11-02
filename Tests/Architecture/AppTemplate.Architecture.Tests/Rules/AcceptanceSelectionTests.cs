@@ -105,6 +105,30 @@ public sealed class AcceptanceSelectionTests
     }
 
     [Fact]
+    public void TheAcceptanceWorkflow_ProvesDevelopOnASchedule_AndLetsALabelCancelNothing()
+    {
+        string workflow = File.ReadAllText(AcceptanceWorkflow);
+        int triggers = workflow.IndexOf("\non:\n", StringComparison.Ordinal);
+        int concurrency = workflow.IndexOf("\nconcurrency:\n", StringComparison.Ordinal);
+        int permissions = workflow.IndexOf("\npermissions:\n", StringComparison.Ordinal);
+
+        (triggers >= 0 && concurrency > triggers && permissions > concurrency).ShouldBeTrue(
+            "template-acceptance.yml no longer holds on:, concurrency: and permissions: in this order, which this rule reads.");
+
+        string on = workflow[triggers..concurrency];
+        string group = workflow[concurrency..permissions];
+
+        Regex.IsMatch(on, @"\n  push:\n    branches: \[main\]\n", RegexOptions.None, TimeSpan.FromSeconds(5)).ShouldBeTrue(
+            "A push runs the whole matrix on main alone: develop is proved by the schedule, so every merge does not queue the open pull requests behind 25 legs.");
+        on.ShouldContain("\n  schedule:\n", customMessage: "Without a schedule nothing proves the merged develop whole.");
+        on.ShouldContain("labeled", customMessage: "The full-acceptance label starts a run only through the labeled type.");
+        group.ShouldContain("github.event.label.name != 'full-acceptance'", customMessage: "Any label restarts the run, and cancels the one in progress, instead of the full-acceptance label alone.");
+        group.ShouldContain("github.run_id", customMessage: "A label other than full-acceptance shares the pull request's group and cancels its run.");
+        group.ShouldContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", customMessage: "A scheduled or manual run on develop, or a push to main, is cancelled by the next one.");
+        workflow.ShouldContain("--action \"$ACTION\" --label \"$LABEL\" --moved \"${MOVED:-true}\"", customMessage: "The selector is not told the label or whether develop moved, so it cannot run no leg.");
+    }
+
+    [Fact]
     public void EveryFolderTheTemplateCopies_HasARuleOfItsOwn()
     {
         string[] folders =

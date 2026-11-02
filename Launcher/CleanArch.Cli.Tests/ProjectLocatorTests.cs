@@ -12,12 +12,12 @@ public sealed class ProjectLocatorTests
 
         file.Template.ShouldBe(new TemplateReference("CleanArch.WebApi.Templates", "1.2.3"));
         file.Name.ShouldBe("Acme.Shop");
-        file.Options.ShouldBe(new ProjectOptions("local", "postgresql", "all", Files: true, Jobs: "api", Ci: true, Sonar: false, AgentFiles: true));
+        file.Options.ShouldBe(new ProjectOptions("local", "postgresql", "all", Files: true, Ci: true, Sonar: false, AgentFiles: true));
         file.Client.ShouldBeTrue();
         file.Web.ShouldNotBeNull().Scope.ShouldBe("acme-shop");
         file.Web.Apps.ShouldBe([new WebApp("Site", "vite-react", "public", "spa")]);
         file.Web.Packages.ShouldBe([new WebPackage("ui")]);
-        file.Presentation.ShouldBe(new PresentationProject("Portal", "blazor-server"));
+        file.Presentation.ShouldBe([new PresentationProject("Portal", "blazor-server")]);
     }
 
     [Fact]
@@ -102,5 +102,27 @@ public sealed class ProjectLocatorTests
         ProjectFileException error = Should.Throw<ProjectFileException>(() => ProjectLocator.Find(project.Root));
 
         error.Message.ShouldStartWith(Path.Combine(project.Root, ProjectLocator.FileName));
+    }
+
+    [Fact]
+    public void Parse_ReadsTheProjectFileOfTheCheckout()
+    {
+        ProjectFile file = ProjectLocator.Parse(File.ReadAllText(Path.Combine(Repository.Root, ProjectLocator.FileName)));
+
+        file.Name.ShouldBe("AppTemplate");
+        file.Presentation.ShouldNotBeNull().ShouldContain(project => project.Framework == "api");
+    }
+
+    [Fact]
+    public void Parse_ReadsEveryProjectFileTheTemplateWrites()
+    {
+        string[] variants = Directory.GetFiles(Path.Combine(Repository.Root, ".template.config", "variants"), ProjectLocator.FileName, SearchOption.AllDirectories);
+        variants.ShouldNotBeEmpty("No variant under .template.config/variants holds a cleanarch.json, so this test reads only the checkout's.");
+
+        foreach (string path in (string[])[Path.Combine(Repository.Root, ProjectLocator.FileName), .. variants])
+        {
+            ProjectFile file = ProjectLocator.Parse(File.ReadAllText(path));
+            file.Name.ShouldNotBeNullOrWhiteSpace(path);
+        }
     }
 }

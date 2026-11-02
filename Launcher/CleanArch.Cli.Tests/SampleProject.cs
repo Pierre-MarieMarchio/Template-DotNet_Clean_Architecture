@@ -11,7 +11,6 @@ internal sealed class SampleProject : IDisposable
             "database": "postgresql",
             "examples": "all",
             "files": true,
-            "jobs": "api",
             "ci": true,
             "sonar": false,
             "agentFiles": true
@@ -22,7 +21,7 @@ internal sealed class SampleProject : IDisposable
             "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
             "packages": [ { "name": "ui" } ]
           },
-          "presentation": { "name": "Portal", "framework": "blazor-server" }
+          "presentation": [ { "name": "Portal", "framework": "blazor-server" } ]
         }
         """;
 

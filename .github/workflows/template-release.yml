@@ -19,6 +19,7 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   PACKAGE_PROJECT: .template.config/TemplatePackage.csproj
   LAUNCHER_PROJECT: Launcher/CleanArch.Create/CleanArch.Create.csproj
+  PROJECT_TOOL_PROJECT: Launcher/CleanArch.Cli/CleanArch.Cli.csproj
 
 jobs:
   release-please:
@@ -82,6 +83,10 @@ jobs:
       # The launcher installs the templates at its own version, read from the same templateVersion.
       - name: Pack the launcher
         run: dotnet pack "$LAUNCHER_PROJECT" --configuration Release --output "${{ runner.temp }}/package" -p:ContinuousIntegrationBuild=true
+
+      # A generated project's bootstrap pins dotnet cleanarch at the version of the template it came from.
+      - name: Pack the project's tool
+        run: dotnet pack "$PROJECT_TOOL_PROJECT" --configuration Release --output "${{ runner.temp }}/package" -p:ContinuousIntegrationBuild=true
 
       # What a user installs: the package alone, in a hive of its own, generating and building the defaults.
       - name: Install the package and build the default project

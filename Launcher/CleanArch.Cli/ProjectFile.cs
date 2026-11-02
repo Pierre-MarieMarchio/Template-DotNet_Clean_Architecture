@@ -6,7 +6,7 @@ public sealed record ProjectFile(
     ProjectOptions Options,
     bool Client = false,
     WebWorkspace? Web = null,
-    PresentationProject? Presentation = null);
+    IReadOnlyList<PresentationProject>? Presentation = null);
 
 public sealed record TemplateReference(string Package, string Version);
 
@@ -15,7 +15,6 @@ public sealed record ProjectOptions(
     string? Database = null,
     string? Examples = null,
     bool? Files = null,
-    string? Jobs = null,
     bool? Ci = null,
     bool? Sonar = null,
     bool? AgentFiles = null);

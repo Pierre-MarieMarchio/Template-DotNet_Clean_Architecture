@@ -53,6 +53,18 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+      # bootstrap pins dotnet cleanarch at the template's version, which nuget.org holds only once released.
+      - name: Pack the project's tool
+        run: dotnet pack Launcher/CleanArch.Cli/CleanArch.Cli.csproj --configuration Release --output "${{ runner.temp }}/tools"
+
+      - name: Upload the project's tool
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: project-tool
+          path: ${{ runner.temp }}/tools/*.nupkg
+          if-no-files-found: error
+          retention-days: 3
+
   # The legs a pull request's change can affect, from .template.config/acceptance; any other event runs them all, a night's run only when develop has moved, and a label other than full-acceptance none.
   changes:
     name: Select the acceptance legs
@@ -137,6 +149,12 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+
+      - name: Download the project's tool
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: project-tool
+          path: ${{ runner.temp }}/tools
 
       - name: Download the template package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -329,8 +347,13 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
+          dotnet tool install CleanArch.Cli --local --version "$(jq -r .template.version cleanarch.json)" --add-source "${{ runner.temp }}/tools"
           dotnet tool restore
           dotnet format Sample.Generated.Project.sln --diagnostics IDE0055 IDE0005
+
+      - name: The project's tool knows the project
+        working-directory: ${{ runner.temp }}/generated
+        run: dotnet cleanarch | tee /dev/stderr | grep -F "Sample.Generated.Project, generated from CleanArch.WebApi.Templates"
 
       # The project ships no migration: bootstrap's migration-initial creates each context's first one, which every later step reads, and a second run creates none.
       - name: Bootstrap the initial migrations
@@ -929,6 +952,16 @@ jobs:
       - name: Install the template package
         run: dotnet new install (Get-ChildItem "${{ runner.temp }}/package/*.nupkg").FullName
 
+      - name: Download the project's tool
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: project-tool
+          path: ${{ runner.temp }}/tools
+
+      # bootstrap pins dotnet cleanarch from the sources NuGet knows, the packed one among them.
+      - name: Let NuGet find the project's tool
+        run: dotnet nuget add source "${{ runner.temp }}/tools" --name project-tool
+
       - name: Generate a project under a different name
         env:
           OPTIONS: ${{ matrix.options }}
@@ -953,6 +986,13 @@ jobs:
       - name: Bootstrap the project
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs bootstrap
+
+      - name: The project's tool knows the project
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          $identity = dotnet cleanarch
+          Write-Output $identity
+          if (-not ($identity -like 'Sample.Generated.Project, generated from CleanArch.WebApi.Templates*')) { exit 1 }
 
       - name: Build with warnings as errors
         working-directory: ${{ runner.temp }}/generated

@@ -621,6 +621,7 @@ internal static class Tasks
 
                 try
                 {
+                    PinTheProjectsTool(repoRoot, projectFile);
                     Step("dotnet", "tool", "restore");
                 }
                 catch (InvalidOperationException error)
@@ -1812,6 +1813,23 @@ internal static class Tasks
         }
     }
 
+    private static void PinTheProjectsTool(string repoRoot, ProjectFile projectFile)
+    {
+        string manifest = Path.Combine(repoRoot, ".config", "dotnet-tools.json");
+        bool pinned = File.Exists(manifest) && ReadJson(manifest)["tools"]?[_projectToolPackage.ToLowerInvariant()] is not null;
+        if (pinned || IsTheTemplatesCheckout(repoRoot))
+        {
+            return;
+        }
+
+        Step("dotnet", "tool", "install", _projectToolPackage, "--local", "--version", projectFile.TemplateVersion);
+    }
+
+    private const string _projectToolPackage = "CleanArch.Cli";
+
+    private static bool IsTheTemplatesCheckout(string repoRoot) =>
+        File.Exists(Path.Combine(repoRoot, ".template.config", "template.json"));
+
     private static JsonObject ReadJson(string path) =>
         JsonNode.Parse(
             File.ReadAllText(path),
@@ -2296,6 +2314,11 @@ internal sealed class ProjectFile
     internal string Name => Text(_json, "name");
 
     internal string Initials => string.Concat(Name.Split('.').Select(SegmentInitials));
+
+    internal string TemplateVersion =>
+        _json["template"] is JsonObject template
+            ? Text(template, "version")
+            : throw new InvalidOperationException($"{FilePath} records no template.");
 
     internal bool LocalAuth => Option("auth") == "local";
 

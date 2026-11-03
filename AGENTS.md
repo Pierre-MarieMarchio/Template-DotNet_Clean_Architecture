@@ -65,6 +65,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 | After changing a route or a contract, with the web workspace | `pnpm api` in `Src/Web`, after `openapi` | the .NET SDK, Node.js and pnpm |
 <!--#endif-->
 <!--#if (canAddFeature)-->
+| After adding a field to a feature `new-feature --fields` generated | `dotnet run Tools/Tasks.cs new-field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
 | After adding a feature's setting | `dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
 | After adding a domain event | `dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
 <!--#endif-->
@@ -132,8 +133,15 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 <!--#if (canAddFeature)-->
 - `.feature-manifest/`: `remove-feature` compares its hashes to know what is untouched.
 <!--#endif-->
+<!--#if (canAddFeature)-->
+- A migration: `dotnet ef` writes it, bootstrap the first, and `new-field` sets the default of each
+  column it adds in the one it has just added; one a database has applied is never rewritten, as
+  [migrations](docs/guides/migrations.md) says.
+<!--#endif-->
+<!--#if (!canAddFeature)-->
 - A migration: `dotnet ef` writes it, bootstrap the first; one a database has applied is never
   rewritten, as [migrations](docs/guides/migrations.md) says.
+<!--#endif-->
 - `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
   says.
 - `cleanarch.json`: generation writes it and `web-join` or `presentation-join` records a part added
@@ -157,6 +165,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete|anonymise
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared --fields "Title:string(120), Budget:decimal>=0"
+dotnet run Tools/Tasks.cs new-field <Features> "Code:string(20)='none', Notes:text?"
 dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "MaxItems:int(1..100)=10"
 dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>
@@ -192,6 +201,10 @@ feature (a simple one is promoted first) and prints the hosts that may offer it.
 each host's `appsettings.json` and lists it in the configuration reference; `new-event` writes a
 domain event, its consumer or its place on the list of events nobody consumes, and their tests. Each
 writes everything or nothing, and `--dry-run` prints what it would write.
+`new-field` adds fields to a feature `new-feature --fields` generated, in every member `--fields`
+writes them in, found through each file's syntax tree, and refuses a member changed by hand; it adds
+their migration with the default each field that cannot be null gives the rows already stored, and
+says when a required field breaks the callers of the create and update operations.
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->

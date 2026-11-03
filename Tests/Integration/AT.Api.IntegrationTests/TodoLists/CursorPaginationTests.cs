@@ -158,6 +158,29 @@ public sealed class CursorPaginationTests(ApiFixture fixture) : IntegrationTestB
     }
 
     [Fact]
+    public async Task ACursorKey_SentWithANonZeroOffset_ResumesAfterTheSameInstant()
+    {
+        var (client, _, _) = await SignInAsync();
+
+        var first = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        Clock.AdjustTime(first);
+        var firstId = await CreateTodoListAsync(client, "First");
+
+        Clock.AdjustTime(first.AddDays(1));
+        var secondId = await CreateTodoListAsync(client, "Second");
+
+        var term = SortOrder.Parse(TodoListCollectionPolicy.CreatedAtField, TodoListCollectionPolicy.Instance)
+            .Value.Terms[0];
+        string cursor = Cursor.After(term, first.ToOffset(TimeSpan.FromHours(2)).ToString("O"), firstId).Encode();
+
+        var page = await ReadCursorPageAsync(
+            client,
+            $"sort=createdAt:asc&pageSize=5&cursor={Uri.EscapeDataString(cursor)}");
+
+        page.Items.Select(item => item.Id).ShouldBe([secondId]);
+    }
+
+    [Fact]
     public async Task ACursorOverAFieldNotKeysetCapable_Is400CursorInvalid()
     {
         var (client, _, _) = await SignInAsync();

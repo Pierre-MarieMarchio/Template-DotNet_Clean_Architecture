@@ -32,7 +32,7 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         OwnerId = ownerId;
         TodoListId = todoListId;
         TodoItemId = todoItemId;
-        DueAt = dueAt;
+        DueAt = dueAt.ToUniversalTime();
     }
 
     public UserId OwnerId { get; private set; }
@@ -147,7 +147,7 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
             throw new DomainException("A reminder must be due in the future.");
         }
 
-        DueAt = dueAt;
+        DueAt = dueAt.ToUniversalTime();
 
         FailedAttempts = 0;
         NextAttemptAt = null;

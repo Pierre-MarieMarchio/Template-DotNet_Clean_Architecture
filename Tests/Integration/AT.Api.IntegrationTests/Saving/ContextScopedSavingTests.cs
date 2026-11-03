@@ -17,6 +17,8 @@ namespace AppTemplate.Api.IntegrationTests.Saving;
 
 public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTestBase(fixture)
 {
+    private static readonly UserId _owner = UserId.Create(Guid.CreateVersion7());
+
     //#if (localAuth)
     [Fact]
     public async Task SavingTheAuthContext_NeitherFlushesNorPublishesAPendingBusinessWrite()
@@ -63,7 +65,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
     private async Task<(Guid ListId, Guid ItemId)> AListWithOneItemAsync()
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Chores", Clock.GetUtcNow());
+        var list = TodoList.Create(_owner, "Chores", Clock.GetUtcNow());
         var itemId = list.AddItem("Do the thing", description: null);
 
         scope.ServiceProvider.GetRequiredService<ITodoListRepository>().Add(list);
@@ -76,7 +78,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
 
     private async Task CompleteWithoutSavingAsync(IServiceProvider services, Guid listId, Guid itemId)
     {
-        var list = await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, TestToken);
+        var list = await services.GetRequiredService<ITodoListRepository>().GetAsync(_owner, listId, TestToken);
         list.ShouldNotBeNull().CompleteItem(itemId, Clock.GetUtcNow());
     }
 

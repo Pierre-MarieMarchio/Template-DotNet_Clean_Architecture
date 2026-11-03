@@ -46,7 +46,7 @@ public sealed class CancelReminderTests
     public async Task AMissingReminder_IsReportedAsNotFound()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
 
         var result = await UseCase().Handle(new CancelReminderCommand(missingId), TestToken);
 
@@ -73,7 +73,7 @@ public sealed class CancelReminderTests
     {
         var reminder = AReminder.Rehydrated(
             _callerId, TheClock.DefaultInstant, ReminderState.Fired, notifiedAt: TheClock.DefaultInstant);
-        _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
+        _repository.GetAsync(_callerId, reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);
 
@@ -87,7 +87,7 @@ public sealed class CancelReminderTests
     {
         var reminder = AReminder.Rehydrated(
             _callerId, TheClock.DefaultInstant, ReminderState.Cancelled);
-        _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
+        _repository.GetAsync(_callerId, reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);
 
@@ -115,7 +115,7 @@ public sealed class CancelReminderTests
     private Reminder GivenTheCallerOwnsAReminder()
     {
         var reminder = AReminder.OwnedBy(_callerId);
-        _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
+        _repository.GetAsync(_callerId, reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         return reminder;
     }

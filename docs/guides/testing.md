@@ -56,7 +56,7 @@ apart from both.
 | Default deny | integration over every mapped endpoint; architecture for the anonymous list | `DefaultDenyAuthorizationTests`, `HttpSurfaceTests` |
 <!--#endif-->
 <!--#if (anyFeature)-->
-| Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row | each feature's ownership tests in the integration suite |
+| Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row; architecture for the owned load's signature | each feature's ownership tests in the integration suite; `OwnedAggregateLoadTests` |
 <!--#endif-->
 <!--#if (localAuth)-->
 | Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |

@@ -5,7 +5,7 @@ namespace AppTemplate.Domain.Features.Reminders.Repositories;
 
 public interface IReminderRepository
 {
-    Task<Reminder?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<Reminder?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Reminder>> GetForTodoItemAsync(Guid todoItemId, CancellationToken cancellationToken);
 

@@ -24,6 +24,7 @@ using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Services;
 #endif*/
 //#if (todoLists)
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#endif
@@ -355,12 +356,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         return (await ApiJson.ReadAsync<TodoItemResponse>(response, TestToken)).Id;
     }
 
-    protected static async Task<TodoList> LoadTodoListAsync(IServiceProvider services, Guid listId)
+    protected static async Task<TodoList> LoadTodoListAsync(IServiceProvider services, Guid ownerId, Guid listId)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        return await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, TestToken)
-            ?? throw new InvalidOperationException($"No to-do list with id '{listId}' is stored.");
+        return await services.GetRequiredService<ITodoListRepository>().GetAsync(UserId.Create(ownerId), listId, TestToken)
+            ?? throw new InvalidOperationException($"No to-do list with id '{listId}' is stored for '{ownerId}'.");
     }
 
     protected static async Task<string> ReadETagAsync(HttpClient client, Guid todoListId)

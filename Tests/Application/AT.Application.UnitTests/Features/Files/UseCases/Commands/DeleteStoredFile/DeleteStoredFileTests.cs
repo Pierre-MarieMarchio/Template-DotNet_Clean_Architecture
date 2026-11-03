@@ -85,7 +85,7 @@ public sealed class DeleteStoredFileTests
     public async Task APendingFile_IsDeletableToo()
     {
         var storedFile = AStoredFile.PendingOwnedBy(_callerId);
-        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+        _repository.GetAsync(_callerId, storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
 
         var result = await UseCase().Handle(new DeleteStoredFileCommand(storedFile.Id), TestToken);
 
@@ -97,7 +97,7 @@ public sealed class DeleteStoredFileTests
     public async Task AMissingFile_IsReportedAsNotFoundRatherThanThrown()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((StoredFile?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((StoredFile?)null);
 
         var result = await UseCase().Handle(new DeleteStoredFileCommand(missingId), TestToken);
 
@@ -117,7 +117,7 @@ public sealed class DeleteStoredFileTests
     private StoredFile GivenTheCallerOwnsAFile()
     {
         var storedFile = AStoredFile.AvailableOwnedBy(_callerId);
-        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+        _repository.GetAsync(_callerId, storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
 
         return storedFile;
     }

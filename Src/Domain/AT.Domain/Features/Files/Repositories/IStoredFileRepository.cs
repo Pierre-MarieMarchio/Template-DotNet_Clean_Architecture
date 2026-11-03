@@ -1,11 +1,18 @@
 ﻿using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
 namespace AppTemplate.Domain.Features.Files.Repositories;
 
 public interface IStoredFileRepository
 {
-    Task<StoredFile?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<StoredFile?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken);
+
+    Task<StoredFile?> GetReadableAsync(
+        UserId readerId,
+        Guid id,
+        IReadOnlyCollection<FileCategory> categoriesOpenToEverySignedInUser,
+        CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StoredFile>> GetPendingRegisteredBeforeAsync(
         DateTimeOffset registeredBefore,

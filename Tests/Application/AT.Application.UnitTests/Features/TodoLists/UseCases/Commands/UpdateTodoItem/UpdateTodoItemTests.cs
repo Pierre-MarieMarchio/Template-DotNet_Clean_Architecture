@@ -39,7 +39,7 @@ public sealed class UpdateTodoItemTests
     public async Task ABlankTitle_IsRejected(string title)
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new UpdateTodoItemCommand(list.Id, itemId, title, null), TestToken);
 
@@ -51,7 +51,7 @@ public sealed class UpdateTodoItemTests
     public async Task AnUnknownItemId_IsReportedAsNotFound()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new UpdateTodoItemCommand(list.Id, Guid.CreateVersion7(), "Buy bread", null),
@@ -67,7 +67,7 @@ public sealed class UpdateTodoItemTests
         var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
         var itemId = list.AddItem("Buy bread", null);
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new UpdateTodoItemCommand(list.Id, itemId, "Buy milk", null),
@@ -82,7 +82,7 @@ public sealed class UpdateTodoItemTests
     public async Task RenamingAnItemToItsOwnTitle_Succeeds()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId, "Buy milk");
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new UpdateTodoItemCommand(list.Id, itemId, "Buy milk", "Updated description"),
@@ -97,7 +97,7 @@ public sealed class UpdateTodoItemTests
     public async Task AValidUpdate_ReplacesTitleAndDescriptionAndCommitsOnce()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId, "Buy milk");
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new UpdateTodoItemCommand(list.Id, itemId, "Buy bread", "Wholemeal"),

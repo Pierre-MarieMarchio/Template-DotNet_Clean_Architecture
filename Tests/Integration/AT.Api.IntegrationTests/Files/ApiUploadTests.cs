@@ -7,6 +7,7 @@ using AppTemplate.Api.Features.Files.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Application.Features.Files.Configuration.Options;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
+using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -63,7 +64,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
     [Fact]
     public async Task TheBytes_AreInTheStoreUnderTheFilesDigest()
     {
-        var (client, _, _) = await SignInAsync("uploader");
+        var (client, _, session) = await SignInAsync("uploader");
 
         using var response = await client.PostAsync(
             new Uri(_uploadsRoute, UriKind.Relative),
@@ -74,7 +75,8 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
         var file = await ApiJson.ReadAsync<StoredFileResponse>(response, TestToken);
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var stored = await scope.ServiceProvider.GetRequiredService<IStoredFileRepository>().GetAsync(file.Id, TestToken);
+        var stored = await scope.ServiceProvider.GetRequiredService<IStoredFileRepository>()
+            .GetAsync(UserId.Create(session.UserId), file.Id, TestToken);
         var description = await scope.ServiceProvider.GetRequiredService<IFileContentStore>()
             .DescribeAsync(stored!.ObjectKey.Value, TestToken);
 

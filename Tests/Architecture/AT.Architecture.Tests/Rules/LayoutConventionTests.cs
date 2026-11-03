@@ -142,8 +142,8 @@ public sealed class LayoutConventionTests
         #endif*/
 
         ["Src/Application/AT.Application.Core"] =
-            ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Ownership",
-             "Policies", "Ports", "Results", "UseCases", "Validation"],
+            ["Collections", "Concurrency", "Events", "Idempotency", "Localization", "Policies",
+             "Ports", "Results", "UseCases", "Validation"],
 
         /*#if (tagging)*/
         ["Src/Application/AT.Application"] = ["Tagging"],

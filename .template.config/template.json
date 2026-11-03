@@ -1861,7 +1861,8 @@
             "Tests/Application/AT.Application.UnitTests/TestDoubles/RecordingOwnerQuotaLock.cs",
             "docs/features/files.md",
             "docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md",
-            "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs"
+            "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Composition/StoredFileOwnerQueryTests.cs"
           ]
         },
         {
@@ -1874,6 +1875,7 @@
             "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
             "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/DomainEvents/DomainEventDispatchSaveChangesInterceptorTests.cs",
             "Tests/Presentation/AT.Api.UnitTests/Composition/ContextScopedSavingTests.cs",
+            "Tests/Presentation/AT.Api.UnitTests/Composition/TodoListOwnerQueryTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
@@ -1911,7 +1913,7 @@
           ]
         },
         {
-          "condition": "(!todoLists && !notes && !externalAuth)",
+          "condition": "(!todoLists && !notes && !files && !externalAuth)",
           "exclude": [
             "Tests/Presentation/AT.Api.UnitTests/Composition/SqliteSavingHost.cs",
             "Tests/Presentation/AT.Api.UnitTests/Composition/PublishedEvents.cs"

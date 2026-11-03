@@ -87,8 +87,9 @@ internal sealed class InMemoryReminderStore : IReminderRepository, IUnitOfWork
         return Task.FromResult(changed.Count);
     }
 
-    public Task<Reminder?> GetAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<Reminder?>(_committed.TryGetValue(id, out var row) ? Track(row) : null);
+    public Task<Reminder?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<Reminder?>(
+            _committed.TryGetValue(id, out var row) && row.Snapshot.OwnerId == ownerId ? Track(row) : null);
 
     public Task<IReadOnlyList<Reminder>> GetForTodoItemAsync(Guid todoItemId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Reminder>>(

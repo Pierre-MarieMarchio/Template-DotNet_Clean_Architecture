@@ -8,12 +8,17 @@ public sealed class TestProjectMirrorTests
 {
     private const string _unitTestsSuffix = ".UnitTests";
 
-    private static readonly Dictionary<string, string> _withoutAUnitTestProject = new(StringComparer.Ordinal)
-    {
-        [".FrameworkSite"] =
-            "the WebAssembly app is the output of dotnet new blazorwasm and holds no code of ours; " +
-            "the web acceptance legs run it",
-    };
+    private static readonly MirrorException[] _withoutAUnitTestProject =
+    [
+        new(
+            "a project of the web workspace is the output of an official CLI (dotnet new blazorwasm for a " +
+            "WebAssembly app) and the web acceptance legs run it; one that brings its own unit tests keeps them",
+            (project, _) => project.RelativePath.Replace('\\', '/').StartsWith("Src/Web/", StringComparison.Ordinal)),
+        new(
+            "a host written beside its <Name>.Core keeps its logic there, and <Name>.Core.UnitTests tests it; " +
+            "the host itself is views and composition (a WPF host builds on Windows only)",
+            (project, sourceNames) => sourceNames.Contains(project.Name + ".Core")),
+    ];
 
     [Fact]
     public void EverySourceProject_HasItsUnitTestProject_ExceptTheOnesNamedHere()
@@ -24,12 +29,12 @@ public sealed class TestProjectMirrorTests
 
         sources.ShouldNotBeEmpty("No source project was read, so this rule would hold by reading nothing.");
 
-        MissingMirrors(sources, TestProjectPaths(), _withoutAUnitTestProject.Keys)
+        MissingMirrors(sources, TestProjectPaths(), SourceNames())
             .ShouldBeEmpty(
                 "A source project has one unit test project, named for it with .UnitTests and placed " +
                 "under Tests/ in the same layer folder, as the project layout says. Add the project " +
-                "named here; a project that cannot have one goes in the list at the top of this " +
-                "class, with its reason.");
+                "named here; a kind of project that cannot have one goes in the list at the top of " +
+                "this class, with its reason.");
     }
 
     [Fact]
@@ -44,29 +49,22 @@ public sealed class TestProjectMirrorTests
     }
 
     [Fact]
-    public void TheExceptions_NameNoProjectThatHasAUnitTestProject()
-    {
-        var paths = TestProjectPaths();
-
-        ProjectReferenceGraph.SourceProjects.Values
-            .Where(project => _withoutAUnitTestProject.Keys.Any(suffix => project.Name.EndsWith(suffix, StringComparison.Ordinal)))
-            .Where(project => paths.Contains(ExpectedPath(project)))
-            .Select(project => project.Name)
-            .ShouldBeEmpty("A project in the list of exceptions has a unit test project: take it off the list.");
-    }
-
-    [Fact]
-    public void TheMirror_IsSensitive_AndSeesAMissingProjectAnOrphanAndAnException()
+    public void TheMirror_IsSensitive_AndSeesAMissingProjectAnOrphanAndTheExceptions()
     {
         string product = ProjectFolders.ProductName;
         var lonely = Source($"Src/Domain/{ProjectFolders.FolderOf(product + ".Domain.Core")}/{product}.Domain.Core.csproj");
-        var excepted = Source($"Src/Web/apps/FrameworkSite/{product}.FrameworkSite.csproj");
+        var webApp = Source($"Src/Web/apps/AnySite/{product}.AnySite.csproj");
+        var hostWithCore = Source($"Src/Presentation/{ProjectFolders.FolderOf(product + ".Desktop")}/{product}.Desktop.csproj");
         string mirror = ExpectedPath(lonely);
+        HashSet<string> none = new(StringComparer.Ordinal);
 
-        MissingMirrors([lonely, excepted], new HashSet<string>(StringComparer.Ordinal), _withoutAUnitTestProject.Keys)
-            .ShouldBe([mirror], "A source project with no test project is reported, and one on the list is not.");
+        MissingMirrors([lonely, webApp, hostWithCore], none, new HashSet<string>([product + ".Desktop.Core"], StringComparer.Ordinal))
+            .ShouldBe([mirror], "A source project with no test project is reported; a web app and a host beside its .Core are not.");
 
-        MissingMirrors([lonely, excepted], new HashSet<string>([mirror], StringComparer.Ordinal), _withoutAUnitTestProject.Keys)
+        MissingMirrors([hostWithCore], none, none)
+            .ShouldBe([ExpectedPath(hostWithCore)], "A host with no .Core beside it needs its own unit test project.");
+
+        MissingMirrors([lonely], new HashSet<string>([mirror], StringComparer.Ordinal), none)
             .ShouldBeEmpty("A source project whose mirror exists is not reported.");
 
         Orphans(
@@ -78,10 +76,10 @@ public sealed class TestProjectMirrorTests
     private static List<string> MissingMirrors(
         IEnumerable<ProjectNode> sources,
         HashSet<string> testProjectPaths,
-        IEnumerable<string> exceptions) =>
+        HashSet<string> sourceNames) =>
         [
             .. sources
-                .Where(project => !exceptions.Any(suffix => project.Name.EndsWith(suffix, StringComparison.Ordinal)))
+                .Where(project => !Array.Exists(_withoutAUnitTestProject, exception => exception.Applies(project, sourceNames)))
                 .Select(ExpectedPath)
                 .Where(path => !testProjectPaths.Contains(path))
                 .Order(StringComparer.Ordinal),
@@ -114,6 +112,9 @@ public sealed class TestProjectMirrorTests
             new HashSet<string>(),
             new HashSet<string>());
 
+    private static HashSet<string> SourceNames() =>
+        ProjectReferenceGraph.SourceProjects.Keys.ToHashSet(StringComparer.Ordinal);
+
     private static HashSet<string> TestProjectPaths()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
@@ -125,4 +126,6 @@ public sealed class TestProjectMirrorTests
                 .Where(path => !path.Contains("/node_modules/", StringComparison.Ordinal)),
         ];
     }
+
+    private sealed record MirrorException(string Reason, Func<ProjectNode, HashSet<string>, bool> Applies);
 }

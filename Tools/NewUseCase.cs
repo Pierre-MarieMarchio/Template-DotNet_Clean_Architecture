@@ -228,7 +228,7 @@ internal static class NewUseCase
         Report(output, root, spec, plan, skipped, Mode.Applied);
 
         return contracts.Count == 0 && editor.Applied.Count == 0
-            || TextEdits.RunAll(TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client")), run, output, error, "the use case's files, its action, its contracts and its route's row")
+            || TextEdits.RunAll(TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client"), built: false), run, output, error, "the use case's files, its action, its contracts and its route's row")
                 ? 0
                 : 1;
     }
@@ -1252,7 +1252,7 @@ internal static class NewUseCase
                 ? "Then a run without --dry-run rewrites what the contract feeds, in this order:"
                 : "Then rewrite what the contract feeds, once the edit is made:");
 
-            foreach (var step in TextEdits.ContractSteps(root, FolderOf(p, "Client")))
+            foreach (var step in TextEdits.ContractSteps(root, FolderOf(p, "Client"), built: false))
             {
                 output.WriteLine($"  {step.Display}");
             }
@@ -2159,10 +2159,12 @@ internal static class NewUseCase
         var ran = new List<TextEdits.Command>();
         var contract = Invoke(contractRoot, Recording(ran), "Invoices", "ApproveInvoice", "--kind", "command");
 
+        string[] launched = [.. ran.Select(command => string.Join(' ', [Path.GetFileNameWithoutExtension(command.FileName), .. command.Arguments]))];
+
         expect(
             contract.Code == 0
-                && ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs openapi", "dotnet run Tools/Tasks.cs api-client", "cd Src/Web && pnpm api"]),
-            $"The OpenAPI, client and web steps were not all run, in that order, for a project that holds the client and the web workspace: {string.Join(" | ", ran.Select(command => command.Display))}");
+                && launched.SequenceEqual(["dotnet run Tools/Tasks.cs openapi", "dotnet run Tools/Tasks.cs api-client", "pnpm api --no-build"]),
+            $"The OpenAPI reference, which builds the API, then the client and the web schema from that build were not all run, in that order, for a project that holds the client and the web workspace: {string.Join(" | ", launched)}");
 
         string untested = NewTree(scratch);
         Directory.Delete(Path.Combine(untested, "Tests/Application/A.Application.UnitTests"), recursive: true);
@@ -2543,7 +2545,12 @@ internal static class TextEdits
 
     internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
 
-    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments);
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
+    {
+        internal bool FromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
+    }
+
+    private const string _noBuild = "--no-build";
 
     internal sealed class Sheet
     {
@@ -2991,12 +2998,14 @@ internal static class TextEdits
     internal static Command Task(string root, params string[] task) =>
         new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
 
-    internal static List<Command> ContractSteps(string root, string client) =>
+    internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
+
+    internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
-        Task(root, "openapi"),
+        built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
         .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
-            ? [new Command("cd Src/Web && pnpm api", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api"])]
+            ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),
     ];
 
@@ -3047,6 +3056,13 @@ internal static class TextEdits
             foreach (Command remaining in steps.Skip(index))
             {
                 error.WriteLine($"  {remaining.Display}");
+            }
+
+            if (steps.Skip(index).Any(remaining => remaining.FromLastBuild))
+            {
+                error.WriteLine(
+                    $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "
+                    + "`dotnet run Tools/Tasks.cs build` before it.");
             }
 
             return false;

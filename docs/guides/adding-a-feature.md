@@ -301,7 +301,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |
 <!--#endif-->
 | An anonymous endpoint | `_anonymousActions` in `HttpSurfaceTests` |
-| A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; [adding a setting](adding-a-setting.md) gives the steps |
+| A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
 | A new project | `AppTemplate.sln`, a `COPY` line in the API's `Dockerfile`, a mirror under `Tests/`, the floors in `ModuleDependencyTests` |
 | Anything, eventually | `coverage.minimum`, re-measured as [testing](testing.md#coverage) says |

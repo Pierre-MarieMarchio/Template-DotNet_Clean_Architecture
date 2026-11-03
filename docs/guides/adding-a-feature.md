@@ -337,7 +337,7 @@ private ValidatedHandler<<UseCase>Command, Result> UseCase() =>
 Nothing is registered by hand: `AddFeature` in `ApplicationModule` finds the validator by folder, and
 each host's generated mediator registers the handler, behind the use-case pipeline that runs the
 validator first. When the feature has a manifest, the files join it, so `remove-feature --apply`
-removes them with the feature while they are untouched.
+removes them with the feature, edited or not.
 
 The handler throws `NotImplementedException` until its body is written: the rule in the aggregate,
 the load, the call and the commit, each decision with its test. Until a host sends its message,
@@ -493,4 +493,5 @@ shows the call.
 ## Undo
 
 `dotnet run Tools/Tasks.cs remove-feature <Features>` reports what removing it involves;
-[removing features](removing-features.md#remove-a-generated-feature) says when `--apply` deletes it.
+[removing features](removing-features.md#remove-a-generated-feature) says what `--apply` removes and
+when it refuses.

@@ -13,12 +13,14 @@ internal static class RemoveFeature
     private const string _usage =
         "Usage: dotnet run Tools/RemoveFeature.cs <Features> [--apply] [--root <path>]\n"
         + "  <Features>  the folder of the feature, PascalCase and plural, e.g. Widgets\n"
-        + "  --apply     delete the generated files of an untouched, uncomposed feature. Without it,\n"
-        + "              the command only reports and writes nothing.\n"
+        + "  --apply     remove the feature its manifest records, edited or not: delete its files and its page,\n"
+        + "              undo each edit the generators recorded, then build, add the Remove<Features> migration\n"
+        + "              and rewrite the OpenAPI reference and what is written from it. It refuses, writing\n"
+        + "              nothing, while a file it would delete or change is not committed, a model change waits\n"
+        + "              for a migration, or code outside the feature still uses it. Without --apply, the\n"
+        + "              command only reports and writes nothing.\n"
         + "  --root      the tree to read, default the current directory.\n"
         + "       dotnet run Tools/RemoveFeature.cs --self-test";
-
-    private const int _maxPossiblePrinted = 40;
 
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(2);
 
@@ -26,33 +28,47 @@ internal static class RemoveFeature
 
     private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
+    private static readonly Regex _sectionName = new(@"\bconst\s+string\s+SectionName\s*=\s*""([A-Z][A-Za-z0-9]*)""", RegexOptions.None, TimeSpan.FromSeconds(1));
+
     private static readonly HashSet<string> _skippedFolders = new(StringComparer.Ordinal)
     {
-        ".git", ".vs", ".claude", "bin", "obj", "artifacts", "node_modules", "TestResults",
+        ".git", ".vs", ".claude", "bin", "obj", "artifacts", "node_modules", "TestResults", "Generated", "Migrations", FeatureManifest.Folder,
     };
-
-    private static readonly string[] _textExtensions =
-    [
-        ".cs", ".csproj", ".props", ".targets", ".sln", ".slnx", ".json", ".http", ".md", ".yml", ".yaml",
-        ".xml", ".config", ".txt", ".sh", ".editorconfig",
-    ];
 
     private enum Kind
     {
         Composition,
         Model,
-        Migration,
         Reference,
-        Possible,
+    }
+
+    private enum State
+    {
+        Undo,
+        Gone,
+        Displaced,
     }
 
     private sealed record Hit(Kind Kind, string Path, int Line, string Text);
 
+    private sealed record Note(string Group, string Path, int Line, string Text);
+
+    private sealed record Undo(TextEdits.Edit Edit, State State);
+
     private sealed record Entry(string Path, string Sha256);
 
-    private sealed record Manifest(string Type, List<Entry> Files, List<string> Shared, string? Page);
+    private sealed record Manifest(
+        string Type,
+        List<Entry> Files,
+        List<string> Shared,
+        List<string> Consumers,
+        string? Page,
+        IReadOnlyList<TextEdits.Edit> Edits,
+        IReadOnlyList<(string Declaration, string Migration, string[] Paths)> AddedFields);
 
     private sealed record Dependent(string Name, string How);
+
+    private sealed record Migration(string Persistence, string Name, string? Schema);
 
     private sealed record Analysis(
         string Features,
@@ -63,13 +79,25 @@ internal static class RemoveFeature
         List<string> Modified,
         List<string> Missing,
         List<string> Extra,
+        List<Undo> Undos,
+        Dictionary<string, (byte[] Original, byte[] After)> Undone,
         List<Hit> Hits,
+        List<Note> Notes,
         List<string> Blockers,
         List<string> Shared,
         List<Dependent> Dependents,
         List<Hit> SharedUses,
         string? Page,
-        bool PageGone);
+        bool PageGone,
+        Migration? Migration,
+        IReadOnlyList<(string Declaration, string Migration, string[] Paths)> AddedFields)
+    {
+        internal IEnumerable<string> Deleted =>
+            Owned.Except(Missing, StringComparer.Ordinal)
+                .Concat(Extra)
+                .Concat(Page is not null && !PageGone ? new[] { Page } : [])
+                .Concat(HasManifest ? new[] { FeatureManifest.PathOf(Features) } : []);
+    }
 
     private static readonly Regex[] _sharedPaths =
     [
@@ -84,6 +112,9 @@ internal static class RemoveFeature
 
     private static readonly Regex _sharedUse = Rx(
         @"\b(IDeletedAccountDataPolicy|IUserAccountDirectory|SweepDeletedAccountDataCommand(Handler)?|AddDeletedAccountSweep(Jobs)?|DeletedAccountSweepOptions|AccountUserAccountDirectory|ExternalIdentityUserAccountDirectory)\b|\.Features\.DeletedAccounts\b");
+
+    private static readonly Regex _consumer = Rx(
+        @"^(Src|Tests)/[^/]+/[^/]+/Features/[A-Z][A-Za-z0-9]*/Services/Consumers/(?<base>[A-Z][A-Za-z0-9]*)/[A-Z][A-Za-z0-9]*On\k<base>Consumer(Tests)?\.cs$");
 
     private static readonly HashSet<string> _sharedHosts = new(StringComparer.Ordinal)
     {
@@ -104,10 +135,10 @@ internal static class RemoveFeature
             return 0;
         }
 
-        return Run(args, Console.Out, Console.Error);
+        return Run(args, Console.Out, Console.Error, TextEdits.Execute);
     }
 
-    private static int Run(string[] args, TextWriter output, TextWriter error)
+    private static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
     {
         string? features = null;
         string root = Directory.GetCurrentDirectory();
@@ -144,10 +175,10 @@ internal static class RemoveFeature
 
         var analysis = Analyze(root, features);
 
-        if (!analysis.HasManifest && analysis.Folders.Count == 0 && analysis.Hits.All(hit => hit.Kind == Kind.Possible))
+        if (!analysis.HasManifest && analysis.Folders.Count == 0 && analysis.Hits.Count == 0)
         {
             output.WriteLine($"No feature folder called {features} is left under Src or Tests, and no manifest names it.");
-            PrintHits(output, analysis);
+            PrintNotes(output, analysis);
 
             return 0;
         }
@@ -158,7 +189,7 @@ internal static class RemoveFeature
             output.WriteLine();
             output.WriteLine(
                 analysis.Blockers.Count == 0
-                    ? $"Nothing was changed. This feature can be undone with: --apply {features}"
+                    ? $"Nothing was changed. --apply removes what is listed above: dotnet run Tools/Tasks.cs remove-feature {features} --apply"
                     : "Nothing was changed. --apply would refuse, for the reasons listed under Blockers.");
 
             return 0;
@@ -168,7 +199,7 @@ internal static class RemoveFeature
         {
             PrintReport(output, root, analysis);
             error.WriteLine();
-            error.WriteLine($"error: {features} was not removed, and nothing was deleted. Remove it by hand with the report above.");
+            error.WriteLine($"error: {features} was not removed, and nothing was changed: fix what Blockers lists, commit, then run this again.");
 
             if (analysis.Dependents.Count > 0)
             {
@@ -178,7 +209,26 @@ internal static class RemoveFeature
             return 1;
         }
 
-        return Delete(root, analysis, output, error);
+        if (analysis.Migration is not null || HasInitialMigration(root))
+        {
+            var check = TextEdits.Task(root, "migration-check");
+
+            output.WriteLine($"Checking that no model change waits for a migration: {check.Display}");
+            output.Flush();
+
+            if (run(check) != 0)
+            {
+                error.WriteLine(
+                    $"error: `{check.Display}` failed: the business model holds a change no migration holds yet, or it could not be checked. "
+                    + $"The migration that removes {features} would carry that change too, so put it in a migration of its own with "
+                    + "`dotnet run Tools/Tasks.cs migration-add <Name>`, or undo it, then run this again.");
+                error.WriteLine("Nothing was changed.");
+
+                return 1;
+            }
+        }
+
+        return Remove(root, analysis, output, error, run);
     }
 
     private static int Refuse(TextWriter error, string problem)
@@ -203,7 +253,7 @@ internal static class RemoveFeature
         }
         else
         {
-            blockers.Add($"'{manifestPath}' does not exist: the generator did not write {features} here, or the manifest was deleted. Only a manifest says what is safe to delete.");
+            blockers.Add($"'{manifestPath}' does not exist: the generator did not write {features} here, or the manifest was deleted. Only a manifest says what is the feature's to remove.");
         }
 
         var owned = new List<string>();
@@ -220,7 +270,7 @@ internal static class RemoveFeature
                 {
                     missing.Add(entry.Path);
                 }
-                else if (!string.Equals(Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(full))), entry.Sha256, StringComparison.OrdinalIgnoreCase))
+                else if (!string.Equals(FeatureManifest.Sha256(File.ReadAllBytes(full)), entry.Sha256, StringComparison.OrdinalIgnoreCase))
                 {
                     modified.Add(entry.Path);
                 }
@@ -232,7 +282,7 @@ internal static class RemoveFeature
         var shared = manifest?.Shared ?? [];
 
         var folders = manifest is not null
-            ? FeatureFolders([.. owned.Except(shared, StringComparer.Ordinal)], features)
+            ? FeatureFolders([.. owned.Except(shared, StringComparer.Ordinal).Except(manifest.Consumers, StringComparer.Ordinal)], features)
             : DiscoverFolders(root, features);
 
         foreach (string path in shared)
@@ -277,28 +327,49 @@ internal static class RemoveFeature
 
         extra.Sort(StringComparer.Ordinal);
 
+        var undone = new Dictionary<string, (byte[] Original, byte[] After)>(StringComparer.Ordinal);
+        var dropped = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+        var undos = manifest is null ? [] : PlanUndos(root, manifest.Edits, ForeignLines(root, features), undone, dropped);
+
+        foreach (var undo in undos.Where(undo => undo.State == State.Displaced))
+        {
+            blockers.Add(
+                $"{undo.Edit.Path}: the {undo.Edit.Lines.Length} line(s) recorded {undo.Edit.Position} '{undo.Edit.Anchor.Trim()}' are no longer there as they were written, "
+                + "so they cannot be undone exactly. Put them back as the manifest lists them, or remove them by hand and commit, then run this again.");
+        }
+
+        string?[]? Lines(string relative)
+        {
+            string full = Path.Combine(root, relative);
+
+            if (!File.Exists(full))
+            {
+                return null;
+            }
+
+            string?[] lines = Decode(File.ReadAllBytes(full)).Split('\n');
+
+            foreach (int line in dropped.GetValueOrDefault(relative) ?? [])
+            {
+                lines[line] = null;
+            }
+
+            return lines;
+        }
+
         var declared = manifest is null ? [] : DeclaredTypes(root, manifest, manifest.Type);
-        string? product = manifest is null ? null : ProductName(root);
-        var hits = Scan(root, features, manifest?.Type, declared, product, folders, listed, manifestPath);
+        var sections = manifest is null ? [] : Sections(root, manifest);
+        var hits = ScanCode(root, features, manifest?.Type, declared, folders, listed, Lines);
+        var notes = manifest is null ? [] : ScanNotes(root, features, manifest.Type, sections, folders, listed, Lines);
 
-        if (modified.Count > 0)
+        if (hits.Count > 0)
         {
-            blockers.Add($"{modified.Count} generated file(s) were edited since they were written.");
-        }
+            string[] others = [.. hits.Select(hit => FeatureOf(hit.Path)).OfType<string>().Where(other => other != features).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
 
-        if (missing.Count > 0)
-        {
-            blockers.Add($"{missing.Count} file(s) the manifest lists are gone, so the state is not the one the generator left.");
-        }
-
-        if (extra.Count > 0)
-        {
-            blockers.Add($"{extra.Count} file(s) were added to the feature's generated folders.");
-        }
-
-        foreach (var group in hits.Where(hit => hit.Kind != Kind.Possible).GroupBy(hit => hit.Kind))
-        {
-            blockers.Add($"{group.Count()} confirmed {Describe(group.Key)} outside the feature's own files.");
+            blockers.Add(
+                $"{hits.Count} line(s) of code outside the feature, which no manifest records, still use its types, its namespace or its registration"
+                + (others.Length > 0 ? $", in {string.Join(", ", others)}, which depend(s) on it" : string.Empty)
+                + ": the build breaks once the feature is gone. Remove those uses, or remove those features first, and commit.");
         }
 
         if (features == "Auth")
@@ -311,13 +382,316 @@ internal static class RemoveFeature
 
         if (shared.Count > 0)
         {
-            SharedDependents(root, features, listed, dependents, uses, blockers);
+            SharedDependents(root, features, listed, dependents, uses, blockers, Lines);
         }
 
-        return new Analysis(features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, hits, blockers, shared, dependents, uses, page, page is not null && !File.Exists(Path.Combine(root, page)));
+        var analysis = new Analysis(
+            features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, undos, undone, hits, notes, blockers, shared, dependents, uses,
+            page, page is not null && !File.Exists(Path.Combine(root, page)), manifest is null ? null : MigrationOf(root, features, manifest), manifest?.AddedFields ?? []);
+
+        if (manifest is not null && blockers.Count == 0)
+        {
+            blockers.AddRange(GitProblems(root, [.. analysis.Deleted, .. undone.Keys]));
+        }
+
+        return analysis;
     }
 
-    private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers)
+    private static string? FeatureOf(string path)
+    {
+        int at = path.IndexOf("/Features/", StringComparison.Ordinal);
+
+        return at < 0 ? null : path[(at + "/Features/".Length)..].Split('/')[0];
+    }
+
+    private static Dictionary<string, HashSet<string>> ForeignLines(string root, string features)
+    {
+        var foreign = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        string folder = Path.Combine(root, FeatureManifest.Folder);
+
+        foreach (string file in Directory.Exists(folder) ? Directory.EnumerateFiles(folder, "*.json") : [])
+        {
+            string other = Path.GetFileNameWithoutExtension(file);
+
+            if (other == features || FeatureManifest.Read(root, other, out _) is not { } manifest)
+            {
+                continue;
+            }
+
+            foreach (var edit in manifest.Edits)
+            {
+                if (!foreign.TryGetValue(edit.Path, out var lines))
+                {
+                    foreign[edit.Path] = lines = new HashSet<string>(StringComparer.Ordinal);
+                }
+
+                lines.UnionWith(edit.Lines);
+            }
+        }
+
+        return foreign;
+    }
+
+    private static List<Undo> PlanUndos(
+        string root,
+        IReadOnlyList<TextEdits.Edit> edits,
+        Dictionary<string, HashSet<string>> foreign,
+        Dictionary<string, (byte[] Original, byte[] After)> undone,
+        Dictionary<string, HashSet<int>> dropped)
+    {
+        var states = new Dictionary<TextEdits.Edit, State>(ReferenceEqualityComparer.Instance);
+
+        foreach (var group in edits.GroupBy(edit => edit.Path, StringComparer.Ordinal))
+        {
+            string full = Path.Combine(root, group.Key);
+
+            if (!File.Exists(full))
+            {
+                foreach (var edit in group)
+                {
+                    states[edit] = State.Gone;
+                }
+
+                continue;
+            }
+
+            byte[] original = File.ReadAllBytes(full);
+            bool bom = original is [0xEF, 0xBB, 0xBF, ..];
+            string text = Encoding.UTF8.GetString(original, bom ? 3 : 0, original.Length - (bom ? 3 : 0));
+            string newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            bool finalNewline = text.EndsWith('\n');
+            List<string> lines = [.. (finalNewline ? text[..^newline.Length] : text).Split(newline)];
+            List<int> origin = [.. Enumerable.Range(0, lines.Count)];
+            int count = lines.Count;
+            var twins = group.CountBy(Twin, StringComparer.Ordinal).ToDictionary(StringComparer.Ordinal);
+
+            foreach (var edit in group.Reverse())
+            {
+                var (state, positions, at) = Locate(lines, edit, twins[Twin(edit)]--, foreign.GetValueOrDefault(group.Key) ?? []);
+
+                states[edit] = state;
+
+                if (state != State.Undo)
+                {
+                    continue;
+                }
+
+                foreach (int position in Enumerable.Reverse(positions))
+                {
+                    lines.RemoveAt(position);
+                    origin.RemoveAt(position);
+                }
+
+                lines.InsertRange(at, edit.Replaced);
+                origin.InsertRange(at, edit.Replaced.Select(_ => -1));
+            }
+
+            byte[] after = [.. bom ? Encoding.UTF8.Preamble : [], .. Encoding.UTF8.GetBytes(string.Join(newline, lines) + (finalNewline ? newline : string.Empty))];
+
+            if (!after.AsSpan().SequenceEqual(original))
+            {
+                undone[group.Key] = (original, after);
+                dropped[group.Key] = [.. Enumerable.Range(0, count).Except(origin)];
+            }
+        }
+
+        return [.. edits.Select(edit => new Undo(edit, states[edit]))];
+    }
+
+    private static string Twin(TextEdits.Edit edit) =>
+        string.Join('\u0001', [edit.Anchor, edit.Position, .. edit.Lines, "\u0002", .. edit.Replaced]);
+
+    private static (State State, int[] Positions, int At) Locate(List<string> lines, TextEdits.Edit edit, int twins, HashSet<string> foreign)
+    {
+        string[] added = edit.Lines;
+        bool before = edit.Position == "before";
+        int[] anchors = [.. Enumerable.Range(0, lines.Count).Where(index => lines[index] == edit.Anchor)];
+
+        bool Holds(int at, string[] block) =>
+            at >= 0 && at + block.Length <= lines.Count && lines.Skip(at).Take(block.Length).SequenceEqual(block, StringComparer.Ordinal);
+
+        int[] Beside(string[] block) => [.. anchors.Select(index => before ? index - block.Length : index + 1).Where(at => Holds(at, block))];
+
+        int[] Span(int at) => [.. Enumerable.Range(at, added.Length)];
+
+        if (added.Length == 0)
+        {
+            return Beside(edit.Replaced).Length > 0 ? (State.Gone, [], -1)
+                : anchors.Length == 1 || anchors.Length == twins ? (State.Undo, [], before ? anchors[0] : anchors[0] + 1)
+                : (State.Displaced, [], -1);
+        }
+
+        int[] beside = Beside(added);
+
+        if (beside.Length == 1 || (beside.Length > 0 && beside.Length == twins))
+        {
+            return (State.Undo, Span(beside[0]), beside[0]);
+        }
+
+        string[] visible = [.. added.Where(line => line.Trim().Length > 0)];
+
+        if (beside.Length > twins || visible.Length == 0)
+        {
+            return (beside.Length > twins ? State.Displaced : State.Gone, [], -1);
+        }
+
+        int[]? Spread(int start)
+        {
+            var positions = new List<int> { start };
+
+            for (int next = start + 1, index = 1; index < added.Length; next++)
+            {
+                if (next >= lines.Count)
+                {
+                    return null;
+                }
+
+                if (lines[next] == added[index])
+                {
+                    positions.Add(next);
+                    index++;
+                }
+                else if (!foreign.Contains(lines[next]))
+                {
+                    return null;
+                }
+            }
+
+            return [.. positions];
+        }
+
+        int[] contiguous = [.. Enumerable.Range(0, lines.Count).Where(at => Holds(at, added))];
+
+        if (contiguous.Length == 1 || (contiguous.Length > 0 && contiguous.Length == twins))
+        {
+            return (State.Undo, Span(contiguous[0]), contiguous[0]);
+        }
+
+        int[][] spread = [.. Enumerable.Range(0, lines.Count).Where(at => lines[at] == added[0]).Select(Spread).OfType<int[]>()];
+
+        if (contiguous.Length == 0 && (spread.Length == 1 || (spread.Length > 0 && spread.Length == twins)))
+        {
+            return (State.Undo, spread[0], spread[0][0]);
+        }
+
+        return contiguous.Length + spread.Length == 0 && !visible.Any(lines.Contains) ? (State.Gone, [], -1) : (State.Displaced, [], -1);
+    }
+
+    private static string Decode(byte[] bytes)
+    {
+        bool bom = bytes is [0xEF, 0xBB, 0xBF, ..];
+
+        return Encoding.UTF8.GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0)).ReplaceLineEndings("\n");
+    }
+
+    private static IEnumerable<string> GitProblems(string root, List<string> paths)
+    {
+        if (paths.Count == 0)
+        {
+            yield break;
+        }
+
+        if (Git(root, "rev-parse", "--is-inside-work-tree").Code != 0)
+        {
+            yield return "This tree is not a git work tree. --apply deletes and edits files that only git restore gives back, so it runs on a committed tree alone.";
+
+            yield break;
+        }
+
+        string[] specs = [.. paths.Select(path => ":(literal)" + path)];
+        var tracked = Git(root, ["ls-files", "-z", "--", .. specs]).Output.Split('\0', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        var changed = Git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", .. specs]).Output
+            .Split('\0', StringSplitOptions.RemoveEmptyEntries)
+            .Where(entry => entry.Length > 3)
+            .Select(entry => entry[3..])
+            .ToHashSet(StringComparer.Ordinal);
+        string prefix = Git(root, "rev-parse", "--show-prefix").Output.Trim();
+        string[] unsafePaths = [.. paths.Where(path => !tracked.Contains(path) || changed.Contains(prefix + path)).Order(StringComparer.Ordinal)];
+
+        if (unsafePaths.Length > 0)
+        {
+            yield return
+                $"{unsafePaths.Length} file(s) --apply would delete or edit are not committed as they stand, and only git restore gives back what --apply removes: "
+                + "commit them, or restore them, then run this again:\n"
+                + string.Join("\n", unsafePaths.Select(path => $"      {path}"));
+        }
+    }
+
+    private static (int Code, string Output) Git(string root, params string[] arguments)
+    {
+        var start = new ProcessStartInfo("git") { WorkingDirectory = root, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+
+        foreach (string argument in arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = Process.Start(start)!;
+            var errors = process.StandardError.ReadToEndAsync();
+            string text = process.StandardOutput.ReadToEnd();
+
+            process.WaitForExit();
+            errors.Wait();
+
+            return (process.ExitCode, text);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return (127, string.Empty);
+        }
+    }
+
+    private static string? Persistence(string root)
+    {
+        string infrastructure = Path.Combine(root, "Src", "Infrastructure");
+
+        return Directory.Exists(infrastructure)
+            ? Directory.EnumerateDirectories(infrastructure, "*.Infrastructure.Persistence").Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')).FirstOrDefault()
+            : null;
+    }
+
+    private static bool HasInitialMigration(string root) =>
+        Persistence(root) is { } persistence
+        && Directory.Exists(Path.Combine(root, persistence, "Migrations"))
+        && Directory.EnumerateFiles(Path.Combine(root, persistence, "Migrations"), "*ModelSnapshot.cs").Any();
+
+    private static Migration? MigrationOf(string root, string features, Manifest manifest)
+    {
+        if (Persistence(root) is not { } persistence || !Directory.Exists(Path.Combine(root, persistence, "Migrations")))
+        {
+            return null;
+        }
+
+        string folder = Path.Combine(root, persistence, "Migrations");
+        string? added = Directory.EnumerateFiles(folder, $"*_Add{features}.cs").Order(StringComparer.Ordinal).FirstOrDefault();
+
+        if (added is null)
+        {
+            return null;
+        }
+
+        string name = $"Remove{features}";
+
+        for (int again = 2; Directory.EnumerateFiles(folder, $"*_{name}.cs").Any(); again++)
+        {
+            name = $"Remove{features}{again}";
+        }
+
+        var constant = new Regex($@"\bconst\s+string\s+{features}Schema\s*=\s*""([^""]+)""", RegexOptions.None, _timeout);
+        string? schema = manifest.Edits.SelectMany(edit => edit.Lines).Select(line => constant.Match(line)).FirstOrDefault(match => match.Success)?.Groups[1].Value;
+        string migration = File.ReadAllText(added);
+
+        if (schema is not null && !Regex.IsMatch(migration, $@"EnsureSchema\(\s*name:\s*""{Regex.Escape(schema)}""\s*\)", RegexOptions.None, _timeout))
+        {
+            schema = null;
+        }
+
+        return new Migration(persistence, name, schema);
+    }
+
+    private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers, Func<string, string?[]?> read)
     {
         string manifests = Path.Combine(root, FeatureManifest.Folder);
 
@@ -332,8 +706,8 @@ internal static class RemoveFeature
                     continue;
                 }
 
-                var read = FeatureManifest.Read(root, other, out string? problem);
-                string? access = read?.Options?["access"] is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
+                var manifest = FeatureManifest.Read(root, other, out string? problem);
+                string? access = manifest?.Options?["access"] is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
 
                 if (access == "owner")
                 {
@@ -357,28 +731,25 @@ internal static class RemoveFeature
                 continue;
             }
 
-            foreach (string file in Walk(start, "*.cs"))
+            foreach (string file in Walk(root, start, "*.cs"))
             {
                 string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
 
-                if (own.Contains(relative))
+                if (own.Contains(relative) || read(relative) is not { } lines)
                 {
                     continue;
                 }
 
-                string[] lines = File.ReadAllLines(file);
-
                 for (int i = 0; i < lines.Length; i++)
                 {
-                    string text = lines[i].Trim();
+                    string text = lines[i]?.Trim() ?? string.Empty;
 
                     if (text.StartsWith("//", StringComparison.Ordinal) || !_sharedUse.IsMatch(text))
                     {
                         continue;
                     }
 
-                    int at = relative.IndexOf("/Features/", StringComparison.Ordinal);
-                    string? folder = at < 0 ? null : relative[(at + "/Features/".Length)..].Split('/')[0];
+                    string? folder = FeatureOf(relative);
 
                     if (folder is null || _sharedHosts.Contains(folder))
                     {
@@ -404,19 +775,10 @@ internal static class RemoveFeature
         if (uses.Count > 0)
         {
             blockers.Add(
-                $"{uses.Count} line(s) still register the account-deletion files this manifest brought "
+                $"{uses.Count} line(s) no manifest records still register the account-deletion files this manifest brought "
                 + "(AddDeletedAccountSweep, AddDeletedAccountSweepJobs, the IUserAccountDirectory adapter, the architecture tests' double): undo them first.");
         }
     }
-
-    private static string Describe(Kind kind) => kind switch
-    {
-        Kind.Composition => "registration(s)",
-        Kind.Model => "EF model reference(s)",
-        Kind.Migration => "migration or snapshot mention(s)",
-        Kind.Reference => "use(s) of the feature's types or namespace",
-        _ => "possible match(es)",
-    };
 
     private static Manifest? ReadManifest(string root, string features, List<string> blockers)
     {
@@ -437,15 +799,23 @@ internal static class RemoveFeature
         string type = read.Type ?? string.Empty;
         var files = new List<Entry>();
         var shared = new List<string>();
+        var consumers = new List<string>();
         var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, _timeout);
+        var events = read.Files.Keys
+            .Where(path => pattern.IsMatch(path) && path.EndsWith("DomainEvent.cs", StringComparison.Ordinal))
+            .Select(path => Path.GetFileNameWithoutExtension(path)[..^"DomainEvent".Length])
+            .ToHashSet(StringComparer.Ordinal);
 
         foreach (var (entry, digest) in read.Files)
         {
             bool isShared = _sharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
+            bool isConsumer = _consumer.Match(entry) is { Success: true } consumer && events.Contains(consumer.Groups["base"].Value);
 
-            if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared) || digest.Length != 64)
+            if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared || isConsumer) || digest.Length != 64)
             {
-                blockers.Add($"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares.");
+                blockers.Add(
+                    $"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares, "
+                    + $"nor the consumer of an event of {features} that new-event wrote in another feature.");
 
                 return null;
             }
@@ -455,6 +825,10 @@ internal static class RemoveFeature
             if (isShared)
             {
                 shared.Add(entry);
+            }
+            else if (isConsumer)
+            {
+                consumers.Add(entry);
             }
         }
 
@@ -472,7 +846,16 @@ internal static class RemoveFeature
             return null;
         }
 
-        return new Manifest(type, files, shared, read.Page);
+        string[] outside = [.. read.Edits.Select(edit => edit.Path).Where(path => path.Contains("..", StringComparison.Ordinal) || path.Contains('\\', StringComparison.Ordinal) || Path.IsPathRooted(path)).Distinct(StringComparer.Ordinal)];
+
+        if (outside.Length > 0)
+        {
+            blockers.Add($"The manifest records an edit in '{outside[0]}', which is not a path inside the tree.");
+
+            return null;
+        }
+
+        return new Manifest(type, files, shared, consumers, read.Page, read.Edits, read.AddedFields);
     }
 
     private static List<string> FeatureFolders(List<string> files, string features)
@@ -498,7 +881,7 @@ internal static class RemoveFeature
                 continue;
             }
 
-            foreach (string file in Walk(start, "*"))
+            foreach (string file in Walk(root, start, "*"))
             {
                 string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
                 string marker = $"/Features/{features}/";
@@ -514,7 +897,7 @@ internal static class RemoveFeature
         return [.. folders.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
-    private static IEnumerable<string> Walk(string directory, string pattern)
+    private static IEnumerable<string> Walk(string root, string directory, string pattern)
     {
         foreach (string file in Directory.EnumerateFiles(directory, pattern))
         {
@@ -523,17 +906,17 @@ internal static class RemoveFeature
 
         foreach (string child in Directory.EnumerateDirectories(directory))
         {
-            if (!_skippedFolders.Contains(Path.GetFileName(child)))
+            bool tools = Path.GetFileName(child) == "Tools" && Path.GetFullPath(Path.GetDirectoryName(child)!) == Path.GetFullPath(root);
+
+            if (!_skippedFolders.Contains(Path.GetFileName(child)) && !tools)
             {
-                foreach (string file in Walk(child, pattern))
+                foreach (string file in Walk(root, child, pattern))
                 {
                     yield return file;
                 }
             }
         }
     }
-
-    private static string Snake(string pascal) => Separated(pascal, '_');
 
     private static string Kebab(string pascal) => Separated(pascal, '-');
 
@@ -542,6 +925,8 @@ internal static class RemoveFeature
             char.IsUpper(character) && index > 0
                 ? separator + char.ToLowerInvariant(character).ToString()
                 : char.ToLowerInvariant(character).ToString()));
+
+    private static string UpperSnake(string pascal) => Separated(pascal, '_').ToUpperInvariant();
 
     private static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
@@ -567,6 +952,23 @@ internal static class RemoveFeature
         names.Remove(type);
 
         return [.. names.Order(StringComparer.Ordinal)];
+    }
+
+    private static List<string> Sections(string root, Manifest manifest)
+    {
+        var sections = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var entry in manifest.Files.Where(entry => entry.Path.EndsWith("Options.cs", StringComparison.Ordinal) && entry.Path.StartsWith("Src/", StringComparison.Ordinal)))
+        {
+            string full = Path.Combine(root, entry.Path);
+
+            if (File.Exists(full) && _sectionName.Match(File.ReadAllText(full)) is { Success: true } match)
+            {
+                sections.Add(match.Groups[1].Value);
+            }
+        }
+
+        return [.. sections.Order(StringComparer.Ordinal)];
     }
 
     private static string Code(string line)
@@ -669,27 +1071,26 @@ internal static class RemoveFeature
         return code.ToString();
     }
 
-    private static List<Hit> Scan(string root, string features, string? type, List<string> declared, string? product, List<string> folders, HashSet<string> ownFiles, string manifestPath)
+    private static bool Outside(string relative, List<string> folders, HashSet<string> own) =>
+        !own.Contains(relative) && !folders.Any(folder => relative.StartsWith(folder + "/", StringComparison.Ordinal));
+
+    private static List<Hit> ScanCode(string root, string features, string? type, List<string> declared, List<string> folders, HashSet<string> own, Func<string, string?[]?> read)
     {
         var composition = new List<Regex>
         {
             Rx($@"\bAdd{features}(Feature)?\b"),
-            Rx($@"AddFeature\(\s*""{features}"""),
             Rx($@"nameof\(\w+\.Add{features}\)"),
         };
 
+        var named = Rx($@"AddFeature\(\s*""{features}""");
         var model = new List<Regex> { Rx($@"\b{features}Schema\b") };
         var reference = new List<Regex> { Rx($@"\.Features\.{features}\b") };
-        var migration = new List<Regex> { Rx($@"\.Features\.{features}\b"), Rx($@"""{Snake(features)}""") };
         Regex? typedRegistration = null;
-        var possible = new List<Regex> { Rx($@"\b{features}\b") };
         Regex? declaredName = null;
 
         if (type is not null)
         {
             model.Add(Rx($@"\b{type}Record(Configuration)?\b"));
-            migration.Add(Rx($@"\b{type}Record\b"));
-            possible.Add(Rx($@"\b{type}\b"));
 
             if (declared.Count > 0)
             {
@@ -697,55 +1098,47 @@ internal static class RemoveFeature
 
                 declaredName = Rx($@"\b(?:{names})\b");
                 typedRegistration = Rx($@"\b(Try)?Add\w*\s*[<(].*\b(?:{names})\b");
-                possible.Add(declaredName);
             }
         }
 
-        var ownFolders = folders.Select(folder => folder + "/").ToArray();
         var hits = new List<Hit>();
 
-        foreach (string file in Walk(root, "*"))
+        foreach (string top in new[] { "Src", "Tests" })
         {
-            string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+            string start = Path.Combine(root, top);
 
-            if (relative == manifestPath
-                || ownFiles.Contains(relative)
-                || ownFolders.Any(folder => relative.StartsWith(folder, StringComparison.Ordinal))
-                || !_textExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)
-                || relative.StartsWith($"{FeatureManifest.Folder}/", StringComparison.Ordinal))
+            if (!Directory.Exists(start))
             {
                 continue;
             }
 
-            bool source = relative.EndsWith(".cs", StringComparison.Ordinal)
-                && (relative.StartsWith("Src/", StringComparison.Ordinal) || relative.StartsWith("Tests/", StringComparison.Ordinal));
-            bool inMigrations = source && relative.Split('/').Contains("Migrations", StringComparer.Ordinal);
-            string[] lines = File.ReadAllLines(file);
-
-            for (int i = 0; i < lines.Length; i++)
+            foreach (string file in Walk(root, start, "*.cs"))
             {
-                string line = lines[i];
-                string code = source ? Code(line) : line;
-                string unnamed = product is null ? line : line.Replace(product, string.Empty, StringComparison.Ordinal);
-                Kind? kind = null;
+                string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
 
-                if (inMigrations)
+                if (!Outside(relative, folders, own) || read(relative) is not { } lines)
                 {
-                    kind = migration.Any(pattern => pattern.IsMatch(line)) ? Kind.Migration : null;
+                    continue;
                 }
-                else if (source)
+
+                for (int i = 0; i < lines.Length; i++)
                 {
-                    kind = composition.Any(pattern => pattern.IsMatch(line)) || (typedRegistration?.IsMatch(code) ?? false) ? Kind.Composition
-                        : model.Any(pattern => pattern.IsMatch(line)) ? Kind.Model
-                        : reference.Any(pattern => pattern.IsMatch(line)) || (declaredName?.IsMatch(code) ?? false) ? Kind.Reference
+                    if (lines[i] is not { } line)
+                    {
+                        continue;
+                    }
+
+                    string code = Code(line);
+
+                    Kind? kind = composition.Any(pattern => pattern.IsMatch(code)) || named.IsMatch(line) || (typedRegistration?.IsMatch(code) ?? false) ? Kind.Composition
+                        : model.Any(pattern => pattern.IsMatch(code)) ? Kind.Model
+                        : reference.Any(pattern => pattern.IsMatch(code)) || (declaredName?.IsMatch(code) ?? false) ? Kind.Reference
                         : null;
-                }
 
-                kind ??= possible.Any(pattern => pattern.IsMatch(unnamed)) ? Kind.Possible : null;
-
-                if (kind is not null)
-                {
-                    hits.Add(new Hit(kind.Value, relative, i + 1, line.Trim()));
+                    if (kind is not null)
+                    {
+                        hits.Add(new Hit(kind.Value, relative, i + 1, line.Trim()));
+                    }
                 }
             }
         }
@@ -753,69 +1146,242 @@ internal static class RemoveFeature
         return hits;
     }
 
+    private static List<Note> ScanNotes(string root, string features, string type, List<string> sections, List<string> folders, HashSet<string> own, Func<string, string?[]?> read)
+    {
+        const string Configuration = "Configuration";
+        const string Documentation = "Documentation and samples";
+
+        string kebab = Kebab(features);
+        var route = Rx($@"/api/v1/{Regex.Escape(kebab)}(?![\w-])");
+        var link = Rx($@"\]\([^)\s]*\bfeatures/{Regex.Escape(kebab)}\.md(#[^)\s]*)?\)");
+        var code = Rx($@"`{Regex.Escape(char.ToLowerInvariant(type[0]) + type[1..])}\.[A-Za-z]+`");
+        var keys = sections.Select(section => Rx($@"^\s*""{section}""\s*:")).ToList();
+        var variables = sections.Select(section => Rx($@"^\s*#?\s*{UpperSnake(section)}_[A-Z0-9_]*=")).ToList();
+        var mapped = sections.Select(section => Rx($@"\b{section}__")).ToList();
+        var headings = sections.Select(section => $"### `{section}`").ToHashSet(StringComparer.Ordinal);
+        var notes = new List<Note>();
+
+        foreach (string file in Walk(root, root, "*"))
+        {
+            string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+            string name = Path.GetFileName(relative);
+            bool settings = name.StartsWith("appsettings", StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal);
+            bool environment = name.StartsWith(".env", StringComparison.Ordinal);
+            bool compose = (name.StartsWith("docker-compose", StringComparison.Ordinal) || name.StartsWith("compose", StringComparison.Ordinal))
+                && (name.EndsWith(".yml", StringComparison.Ordinal) || name.EndsWith(".yaml", StringComparison.Ordinal));
+            bool markdown = name.EndsWith(".md", StringComparison.Ordinal);
+            bool samples = name.EndsWith(".http", StringComparison.Ordinal);
+
+            if (!(settings || environment || compose || markdown || samples) || !Outside(relative, folders, own) || read(relative) is not { } lines)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (lines[i] is not { } line)
+                {
+                    continue;
+                }
+
+                string? group =
+                    settings && keys.Any(key => key.IsMatch(line)) ? Configuration
+                    : environment && variables.Any(variable => variable.IsMatch(line)) ? Configuration
+                    : compose && mapped.Any(key => key.IsMatch(line)) ? Configuration
+                    : markdown && headings.Contains(line.TrimEnd()) ? Configuration
+                    : markdown && (link.IsMatch(line) || route.IsMatch(line) || code.IsMatch(line)) ? Documentation
+                    : samples && route.IsMatch(line) ? Documentation
+                    : null;
+
+                if (group is not null)
+                {
+                    notes.Add(new Note(group, relative, i + 1, line.Trim()));
+                }
+            }
+        }
+
+        return notes;
+    }
+
     private static Regex Rx(string pattern) => new(pattern, RegexOptions.None, _timeout);
 
     private static void PrintReport(TextWriter output, string root, Analysis analysis)
     {
-        output.WriteLine($"Feature {analysis.Features}" + (analysis.Type is null ? " (no manifest, so its type is unknown)" : $" (type {analysis.Type})"));
-        output.WriteLine();
+        output.WriteLine($"Feature {analysis.Features}" + (analysis.Type is null ? " (no manifest, so its type is unknown)" : $" (type {analysis.Type}), from {FeatureManifest.PathOf(analysis.Features)}"));
 
-        if (analysis.HasManifest)
+        if (!analysis.HasManifest)
         {
-            output.WriteLine($"Owned by the generator: {analysis.Owned.Count} file(s) in {analysis.Folders.Count} folder(s), "
-                + $"{analysis.Modified.Count} edited, {analysis.Missing.Count} missing, {analysis.Extra.Count} added since.");
-            PrintList(output, "Edited", analysis.Modified);
-            PrintList(output, "Missing", analysis.Missing);
-            PrintList(output, "Added", analysis.Extra);
-
-            if (analysis.Shared.Count > 0)
-            {
-                output.WriteLine();
-                output.WriteLine($"Shared by every owner feature (brought by this one into a tree generated with none): {analysis.Shared.Count} file(s)");
-
-                foreach (string file in analysis.Shared)
-                {
-                    output.WriteLine($"  {file}");
-                }
-
-                output.WriteLine(analysis.Dependents.Count + analysis.SharedUses.Count == 0 ? "Still used by: nothing." : "Still used by:");
-
-                foreach (var dependent in analysis.Dependents)
-                {
-                    output.WriteLine($"  {dependent.Name} ({dependent.How})");
-                }
-
-                foreach (var use in analysis.SharedUses)
-                {
-                    output.WriteLine($"  {use.Path}:{use.Line}  {use.Text}");
-                }
-            }
-
-            if (analysis.Page is not null)
-            {
-                output.WriteLine();
-                output.WriteLine(analysis.PageGone
-                    ? $"Feature page: {analysis.Page} is already gone, which blocks nothing."
-                    : $"Feature page: {analysis.Page}, written by the generator; --apply deletes it, edited or not.");
-            }
-        }
-        else
-        {
+            output.WriteLine();
             output.WriteLine($"Feature folders found ({analysis.Folders.Count}), none of them recorded by a manifest:");
 
             foreach (string folder in analysis.Folders)
             {
                 output.WriteLine($"  {folder}");
             }
+
+            output.WriteLine();
+            PrintHits(output, analysis);
+            PrintBlockers(output, analysis);
+
+            return;
+        }
+
+        var unchanged = analysis.Owned.Except(analysis.Modified, StringComparer.Ordinal).Except(analysis.Missing, StringComparer.Ordinal).ToList();
+        var undone = analysis.Undos.Where(undo => undo.State == State.Undo).ToList();
+
+        output.WriteLine();
+        output.WriteLine($"--apply deletes the {unchanged.Count} file(s) the generators wrote, unchanged since, in:");
+
+        foreach (string folder in analysis.Folders)
+        {
+            output.WriteLine($"  {folder}");
+        }
+
+        foreach (string file in unchanged.Where(file => !analysis.Folders.Any(folder => file.StartsWith(folder + "/", StringComparison.Ordinal))))
+        {
+            output.WriteLine($"  {file}");
+        }
+
+        output.WriteLine();
+        output.WriteLine($"--apply undoes the {undone.Count} edit(s) the generators recorded, each exactly as it was made:");
+
+        foreach (var undo in undone)
+        {
+            output.WriteLine($"  {undo.Edit.Path}: {Count(undo.Edit.Lines.Length, "line")} {(undo.Edit.Replaced.Length > 0 ? $"in place of {Count(undo.Edit.Replaced.Length, "line")} " : string.Empty)}{undo.Edit.Position} '{undo.Edit.Anchor.Trim()}'");
+        }
+
+        if (analysis.AddedFields.Count > 0)
+        {
+            output.WriteLine();
+            output.WriteLine("Fields new-field added, which go with the files they changed:");
+
+            foreach (var (declaration, added, paths) in analysis.AddedFields)
+            {
+                output.WriteLine($"  {declaration}, in {Count(paths.Length, "file")}, with its migration {added}");
+            }
+        }
+
+        if (analysis.Page is not null)
+        {
+            output.WriteLine();
+            output.WriteLine(analysis.PageGone
+                ? $"Feature page: {analysis.Page} is already gone."
+                : $"Feature page: {analysis.Page}, written by the generator; --apply deletes it, edited or not.");
+        }
+
+        if (analysis.Modified.Count + analysis.Extra.Count > 0)
+        {
+            output.WriteLine();
+            output.WriteLine("--apply deletes these too, though they changed since the generators wrote them; git log and git show keep what they held:");
+
+            foreach (string file in analysis.Modified)
+            {
+                output.WriteLine($"  Edited: {file}");
+            }
+
+            foreach (string file in analysis.Extra)
+            {
+                output.WriteLine($"  Added: {file}");
+            }
+        }
+
+        var gone = analysis.Undos.Where(undo => undo.State == State.Gone).ToList();
+
+        if (analysis.Missing.Count + gone.Count > 0)
+        {
+            output.WriteLine();
+            output.WriteLine("Already gone, so left as they are:");
+
+            foreach (string file in analysis.Missing)
+            {
+                output.WriteLine($"  Missing: {file}");
+            }
+
+            foreach (var undo in gone)
+            {
+                output.WriteLine($"  Undone: {undo.Edit.Path}: {Count(undo.Edit.Lines.Length, "line")} {undo.Edit.Position} '{undo.Edit.Anchor.Trim()}'");
+            }
+        }
+
+        if (analysis.Shared.Count > 0)
+        {
+            output.WriteLine();
+            output.WriteLine($"Shared by every owner feature (brought by this one into a tree generated with none): {analysis.Shared.Count} file(s)");
+
+            foreach (string file in analysis.Shared)
+            {
+                output.WriteLine($"  {file}");
+            }
+
+            output.WriteLine(analysis.Dependents.Count + analysis.SharedUses.Count == 0 ? "Still used by: nothing." : "Still used by:");
+
+            foreach (var dependent in analysis.Dependents)
+            {
+                output.WriteLine($"  {dependent.Name} ({dependent.How})");
+            }
+
+            foreach (var use in analysis.SharedUses)
+            {
+                output.WriteLine($"  {use.Path}:{use.Line}  {use.Text}");
+            }
+        }
+
+        output.WriteLine();
+        output.WriteLine("Then --apply runs, from one build:");
+
+        foreach (var step in Steps(root, analysis).Concat(ContractSteps(root)))
+        {
+            output.WriteLine($"  {step.Display}");
+        }
+
+        if (analysis.Migration is { } migration)
+        {
+            output.WriteLine(
+                $"  {migration.Name} drops the tables of {analysis.Features}"
+                + (migration.Schema is null ? string.Empty : $" and its schema \"{migration.Schema}\"")
+                + $"; {string.Join(", ", [$"Add{analysis.Features}", .. analysis.AddedFields.Select(added => added.Migration)])}, which a database may have applied, "
+                + (analysis.AddedFields.Count == 0 ? "stays as it is." : "stay as they are."));
         }
 
         output.WriteLine();
         PrintHits(output, analysis);
+        PrintNotes(output, analysis);
+        PrintBlockers(output, analysis);
+    }
 
-        output.WriteLine();
-        output.WriteLine("Known relationships between the shipped features:");
-        output.WriteLine("  Reminders consumes TodoLists operations, events and records; TodoLists and Files share tagging;");
-        output.WriteLine("  Auth has its own projects and database context and is removed through its own procedure.");
+    private static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";
+
+    private static void PrintHits(TextWriter output, Analysis analysis)
+    {
+        output.WriteLine(analysis.Hits.Count == 0
+            ? "Code outside the feature that still uses it, recorded nowhere: none."
+            : $"Code outside the feature that still uses it, recorded nowhere, which --apply refuses while it is there: {analysis.Hits.Count} line(s)");
+
+        foreach (var hit in analysis.Hits)
+        {
+            output.WriteLine($"  {hit.Path}:{hit.Line}  {hit.Text}");
+        }
+    }
+
+    private static void PrintNotes(TextWriter output, Analysis analysis)
+    {
+        foreach (string group in new[] { "Configuration", "Documentation and samples" })
+        {
+            var notes = analysis.Notes.Where(note => note.Group == group).ToList();
+
+            output.WriteLine(notes.Count == 0
+                ? $"{group} outside the feature that still names it, recorded nowhere: none."
+                : $"{group} outside the feature that still names it, recorded nowhere, left to you: {notes.Count} line(s)");
+
+            foreach (var note in notes)
+            {
+                output.WriteLine($"  {note.Path}:{note.Line}  {note.Text}");
+            }
+        }
+    }
+
+    private static void PrintBlockers(TextWriter output, Analysis analysis)
+    {
         output.WriteLine();
         output.WriteLine(analysis.Blockers.Count == 0 ? "Blockers: none." : "Blockers:");
 
@@ -823,131 +1389,125 @@ internal static class RemoveFeature
         {
             output.WriteLine($"  - {blocker}");
         }
-
-        output.WriteLine();
-        output.WriteLine("After a removal, run:");
-        output.WriteLine("  dotnet build <the solution>                  0 warnings, 0 errors");
-        output.WriteLine("  dotnet test Tests/Architecture/<Initials>.Architecture.Tests");
-        output.WriteLine("  dotnet run Tools/Tasks.cs format");
-        output.WriteLine(HasApi(root)
-            ? "  git status                                   review what is left, including docs/ and *.http samples"
-            : "  git status                                   review what is left, including docs/");
-        output.WriteLine("  a migration that drops the feature's tables, if a database applied one; never rewrite an applied migration");
     }
 
-    private static string? ProductName(string root)
-    {
-        string projectFile = Path.Combine(root, "cleanarch.json");
+    private static List<TextEdits.Command> Steps(string root, Analysis analysis) =>
+    [
+        TextEdits.Task(root, "build"),
+        .. analysis.Migration is { } migration ? [TextEdits.FromLastBuild(root, "migration-add", migration.Name)] : Array.Empty<TextEdits.Command>(),
+    ];
 
-        if (!File.Exists(projectFile))
-        {
-            return null;
-        }
-
-        using var document = JsonDocument.Parse(File.ReadAllBytes(projectFile));
-
-        return document.RootElement.TryGetProperty("name", out JsonElement name) && name.GetString() is { Length: > 0 } product
-            ? product
-            : null;
-    }
-
-    private static bool HasApi(string root)
+    private static List<TextEdits.Command> ContractSteps(string root)
     {
         string presentation = Path.Combine(root, "Src", "Presentation");
+        string clients = Path.Combine(root, "Src", "Clients");
 
-        return Directory.Exists(presentation) && Directory.EnumerateDirectories(presentation, "*.Api").Any();
+        if (!Directory.Exists(presentation) || !Directory.EnumerateDirectories(presentation, "*.Api").Any())
+        {
+            return [];
+        }
+
+        string client = Directory.Exists(clients) ? Directory.EnumerateDirectories(clients).Select(Path.GetFileName).OfType<string>().FirstOrDefault() ?? string.Empty : string.Empty;
+
+        return TextEdits.ContractSteps(root, client, built: true);
     }
 
-    private static void PrintHits(TextWriter output, Analysis analysis)
+    private static int Remove(string root, Analysis analysis, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
     {
-        foreach (var group in new[] { Kind.Composition, Kind.Model, Kind.Migration, Kind.Reference })
-        {
-            var hits = analysis.Hits.Where(hit => hit.Kind == group).ToList();
+        string[] deleted = [.. analysis.Deleted];
 
-            output.WriteLine($"Confirmed {Describe(group)}: {hits.Count}");
-
-            foreach (var hit in hits)
-            {
-                output.WriteLine($"  {hit.Path}:{hit.Line}  {hit.Text}");
-            }
-        }
-
-        var possible = analysis.Hits.Where(hit => hit.Kind == Kind.Possible).ToList();
-
-        output.WriteLine($"Possible matches, the name as text, to read and judge: {possible.Count}");
-
-        foreach (var hit in possible.Take(_maxPossiblePrinted))
-        {
-            output.WriteLine($"  {hit.Path}:{hit.Line}  {hit.Text}");
-        }
-
-        if (possible.Count > _maxPossiblePrinted)
-        {
-            output.WriteLine($"  ... and {possible.Count - _maxPossiblePrinted} more, not printed");
-        }
-    }
-
-    private static void PrintList(TextWriter output, string title, List<string> items)
-    {
-        foreach (string item in items)
-        {
-            output.WriteLine($"  {title}: {item}");
-        }
-    }
-
-    private static int Delete(string root, Analysis analysis, TextWriter output, TextWriter error)
-    {
         try
         {
-            foreach (string file in analysis.Owned)
-            {
-                File.Delete(Path.Combine(root, file));
-            }
-
-            foreach (string folder in analysis.Folders)
-            {
-                RemoveEmpty(Path.Combine(root, folder));
-                RemoveEmptyAncestors(root, folder);
-            }
-
-            foreach (string file in analysis.Shared)
-            {
-                RemoveEmptyAncestors(root, file);
-            }
-
-            if (analysis.Page is not null)
-            {
-                File.Delete(Path.Combine(root, analysis.Page));
-                RemoveEmpty(Path.Combine(root, Path.GetDirectoryName(analysis.Page)!));
-            }
-
-            File.Delete(Path.Combine(root, FeatureManifest.Folder, $"{analysis.Features}.json"));
-            RemoveEmpty(Path.Combine(root, FeatureManifest.Folder));
+            TextEdits.Commit(root, [], [.. analysis.Undone.Select(pair => (pair.Key, pair.Value.Original, pair.Value.After))], deleted);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            error.WriteLine($"error: the deletion stopped part way: {exception.Message}");
-            error.WriteLine("git status shows what is left; the manifest is still there if the stop came before its turn.");
+            error.WriteLine($"error: nothing was left behind, but the removal failed: {exception.Message}");
 
             return 1;
         }
 
-        output.WriteLine($"Removed {analysis.Owned.Count} generated file(s) of {analysis.Features}, its manifest and the folders left empty.");
-
-        if (analysis.Page is not null)
+        foreach (string folder in analysis.Folders)
         {
-            output.WriteLine(analysis.PageGone
-                ? $"Its page, {analysis.Page}, was already gone."
-                : $"Removed its page, {analysis.Page}.");
-            output.WriteLine($"Remove its row from docs/README.md, and any link to {analysis.Page["docs/".Length..]} from the other pages.");
+            RemoveEmpty(Path.Combine(root, folder));
+            RemoveEmptyAncestors(root, folder);
         }
 
-        PrintHits(output, analysis);
-        output.WriteLine();
-        output.WriteLine("Run now: dotnet build the solution, then the architecture tests, then dotnet run Tools/Tasks.cs format.");
-        output.WriteLine("It was never composed here, so no migration was written for it; any list above that is not empty is yours to read.");
+        foreach (string file in deleted)
+        {
+            RemoveEmptyAncestors(root, file);
+        }
+
+        output.WriteLine(
+            $"Removed {analysis.Features}: {Count(deleted.Length, "file")} deleted, its manifest and page among them, "
+            + $"{Count(analysis.Undos.Count(undo => undo.State == State.Undo), "edit")} undone in {Count(analysis.Undone.Count, "file")}, and the folders left empty.");
+
+        if (!TextEdits.RunAll(Steps(root, analysis), run, output, error, $"{analysis.Features} removed, its edits undone"))
+        {
+            foreach (var step in ContractSteps(root))
+            {
+                error.WriteLine($"  {step.Display}");
+            }
+
+            return 1;
+        }
+
+        if (analysis.Migration is { Schema: { } schema } migration && !DropSchema(root, migration, schema))
+        {
+            output.WriteLine($"{migration.Name} was not found to add DropSchema(\"{schema}\") to its Up and EnsureSchema(\"{schema}\") to its Down: add them by hand.");
+        }
+
+        var contract = ContractSteps(root);
+
+        if (contract.Count > 0 && !TextEdits.RunAll(contract, run, output, error, $"{analysis.Features} removed and its migration added"))
+        {
+            return 1;
+        }
+
+        if (analysis.Notes.Count > 0)
+        {
+            output.WriteLine();
+            PrintNotes(output, analysis);
+        }
 
         return 0;
+    }
+
+    private static bool DropSchema(string root, Migration migration, string schema)
+    {
+        string folder = Path.Combine(root, migration.Persistence, "Migrations");
+        string? file = Directory.EnumerateFiles(folder, $"*_{migration.Name}.cs").Order(StringComparer.Ordinal).LastOrDefault();
+
+        if (file is null)
+        {
+            return false;
+        }
+
+        byte[] bytes = File.ReadAllBytes(file);
+        bool bom = bytes is [0xEF, 0xBB, 0xBF, ..];
+        string text = Decode(bytes);
+        const string Up = "protected override void Up(MigrationBuilder migrationBuilder)\n        {\n";
+        const string Down = "protected override void Down(MigrationBuilder migrationBuilder)\n        {\n";
+        int up = text.IndexOf(Up, StringComparison.Ordinal);
+        int upEnd = up < 0 ? -1 : text.IndexOf("\n        }\n", up, StringComparison.Ordinal);
+
+        if (upEnd < 0 || text.IndexOf(Down, StringComparison.Ordinal) < 0)
+        {
+            return false;
+        }
+
+        string ensure = $"            migrationBuilder.EnsureSchema(\n                name: \"{schema}\");\n";
+        int down = text.IndexOf(Down, StringComparison.Ordinal) + Down.Length;
+
+        if (!text[down..].Contains(ensure, StringComparison.Ordinal))
+        {
+            text = text.Insert(down, ensure + "\n");
+        }
+
+        text = text.Insert(upEnd, $"\n\n            migrationBuilder.DropSchema(\n                name: \"{schema}\");");
+        File.WriteAllBytes(file, [.. bom ? Encoding.UTF8.Preamble : [], .. Encoding.UTF8.GetBytes(text)]);
+
+        return true;
     }
 
     private static void RemoveEmpty(string directory)
@@ -972,7 +1532,7 @@ internal static class RemoveFeature
     {
         string? folder = Path.GetDirectoryName(relative)?.Replace('\\', '/');
 
-        while (!string.IsNullOrEmpty(folder) && folder is not ("Src" or "Tests"))
+        while (!string.IsNullOrEmpty(folder) && folder is not ("Src" or "Tests" or "docs"))
         {
             string full = Path.Combine(root, folder);
 
@@ -1011,7 +1571,11 @@ internal static class RemoveFeature
             Directory.CreateDirectory(scratch);
 
             HandWrittenCases(scratch, Expect);
+            ReportCases(scratch, Expect);
+            UndoCases(scratch, Expect);
             GeneratorCases(scratch, Expect);
+            MigrationCases(scratch, Expect);
+            OrderCases(scratch, Expect);
             NameCollisionCases(scratch, Expect);
             SharedFilesCases(scratch, Expect);
             PageCases(scratch, Expect);
@@ -1035,25 +1599,71 @@ internal static class RemoveFeature
         return problems.Count == 0 ? 0 : 1;
     }
 
-    private static (int Code, string Output, string Error) Invoke(string root, params string[] args)
+    private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, Recording([]), args);
+
+    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args)
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = Run([.. args, "--root", root], output, error);
+        int code = Run([.. args, "--root", root], output, error, run);
 
         return (code, output.ToString(), error.ToString());
     }
 
+    private const string _removeMigration =
+        "namespace Acme.Infrastructure.Persistence.Migrations\n{\n    public partial class {0} : Migration\n    {\n"
+        + "        protected override void Up(MigrationBuilder migrationBuilder)\n        {\n            migrationBuilder.DropTable(\n                name: \"widgets\",\n                schema: \"widgets\");\n        }\n\n"
+        + "        protected override void Down(MigrationBuilder migrationBuilder)\n        {\n            migrationBuilder.CreateTable(\n                name: \"widgets\",\n                schema: \"widgets\");\n        }\n    }\n}\n";
+
+    private static Func<TextEdits.Command, int> Recording(List<TextEdits.Command> ran, string? failing = null, bool ensured = false) => command =>
+    {
+        ran.Add(command);
+
+        int at = Array.IndexOf(command.Arguments, "migration-add");
+
+        if (at >= 0 && command.Display != failing)
+        {
+            string name = command.Arguments[at + 1];
+
+            string migration = _removeMigration.Replace("{0}", name, StringComparison.Ordinal);
+
+            Put(
+                command.WorkingDirectory,
+                $"Src/Infrastructure/A.Infrastructure.Persistence/Migrations/20990101000000_{name}.cs",
+                ensured ? migration.Replace("        {\n            migrationBuilder.CreateTable(", "        {\n            migrationBuilder.EnsureSchema(\n                name: \"widgets\");\n\n            migrationBuilder.CreateTable(", StringComparison.Ordinal) : migration);
+        }
+
+        return command.Display == failing ? 1 : 0;
+    };
+
+    private static string[] Launched(List<TextEdits.Command> ran) => [.. ran.Select(command => command.Display)];
+
+    private static void Commit(string root)
+    {
+        if (!Directory.Exists(Path.Combine(root, ".git")))
+        {
+            Git(root, "init", "--quiet");
+        }
+
+        Git(root, "add", "-A");
+        Git(root, "-c", "user.name=self-test", "-c", "user.email=self-test@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "self-test");
+    }
+
     private static Dictionary<string, string> Snapshot(string root) =>
         Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories)
+            .Select(path => (Path: path, Relative: Path.GetRelativePath(root, path).Replace('\\', '/')))
+            .Where(entry => entry.Relative != ".git" && !entry.Relative.StartsWith(".git/", StringComparison.Ordinal))
             .ToDictionary(
-                path => Path.GetRelativePath(root, path).Replace('\\', '/'),
-                path => File.Exists(path) ? Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path))) : "<directory>",
+                entry => entry.Relative,
+                entry => File.Exists(entry.Path) ? Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(entry.Path))) : "<directory>",
                 StringComparer.Ordinal);
 
     private static bool Same(Dictionary<string, string> before, Dictionary<string, string> after) =>
         before.Count == after.Count && before.All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value);
+
+    private static string Differences(Dictionary<string, string> before, Dictionary<string, string> after) =>
+        string.Join(", ", before.Keys.Union(after.Keys).Where(key => !before.TryGetValue(key, out string? hash) || !after.TryGetValue(key, out string? other) || hash != other).Order(StringComparer.Ordinal).Take(8));
 
     private static void Put(string root, string relative, string content)
     {
@@ -1071,6 +1681,7 @@ internal static class RemoveFeature
         "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Widget.cs",
         "Src/Application/A.Application/Features/Widgets/Services/WidgetService.cs",
         "Src/Application/A.Application/Features/Widgets/UseCases/Queries/GetWidget/GetWidget.cs",
+        "Src/Application/A.Application/Features/Widgets/Configuration/Options/WidgetLimitsOptions.cs",
         "Tests/Application/A.Application.UnitTests/Features/Widgets/WidgetServiceTests.cs",
     ];
 
@@ -1079,10 +1690,13 @@ internal static class RemoveFeature
         "Widget" => "public sealed record Widget;\n",
         "WidgetService" => "public interface IWidgetService;\npublic interface IWidgetStore;\npublic sealed class WidgetService;\npublic sealed class WidgetStore;\n",
         "GetWidget" => "public sealed record GetWidgetQuery;\npublic sealed class GetWidgetQueryHandler;\n",
+        "WidgetLimitsOptions" => "public sealed class WidgetLimitsOptions\n{\n    public const string SectionName = \"WidgetLimits\";\n}\n",
         _ => "public sealed class WidgetServiceTests;\n",
     };
 
-    private static string Skeleton(string scratch)
+    private const string _program = "builder.Services.AddTodoLists();\n\nbuilder.Services.AddCacheStore();\n";
+
+    private static string Skeleton(string scratch, string edits = "")
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
 
@@ -1096,13 +1710,30 @@ internal static class RemoveFeature
         Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/20240101_InitialCreate.cs", "schema: \"todo_lists\"\n");
         Put(root, "README.md", "A template.\n");
 
-        var json = new StringBuilder("{\n  \"schemaVersion\": 1,\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Widgets\",\n  \"type\": \"Widget\",\n  \"files\": [\n");
+        var json = new StringBuilder($"{{\n  \"schemaVersion\": {(edits.Length > 0 ? 2 : 1)},\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Widgets\",\n  \"type\": \"Widget\",\n  \"files\": [\n");
 
         json.Append(string.Join(",\n", _skeletonFiles.Order(StringComparer.Ordinal).Select(file => $"    {{ \"path\": \"{file}\", \"sha256\": \"{Sha(root, file)}\" }}")));
-        json.Append("\n  ]\n}\n");
+        json.Append(edits.Length > 0 ? $"\n  ],\n  \"edits\": [{edits}]\n}}\n" : "\n  ]\n}\n");
         Put(root, ".feature-manifest/Widgets.json", json.ToString());
+        Commit(root);
 
         return root;
+    }
+
+    private static void Refused(Action<bool, string> expect, string name, string tree, string features, params string[] expected)
+    {
+        var snapshot = Snapshot(tree);
+        var ran = new List<TextEdits.Command>();
+        var result = Invoke(tree, Recording(ran), features, "--apply");
+
+        expect(result.Code == 1, $"{name}: --apply did not refuse: {result.Output}");
+        expect(Same(snapshot, Snapshot(tree)), $"{name}: a refusal changed the tree: {Differences(snapshot, Snapshot(tree))}");
+        expect(ran.All(command => command.Display.EndsWith("migration-check", StringComparison.Ordinal)), $"{name}: a refusal ran {string.Join(", ", Launched(ran))}.");
+
+        foreach (string text in expected)
+        {
+            expect((result.Output + result.Error).Contains(text, StringComparison.Ordinal), $"{name}: the report does not say '{text}': {result.Output}{result.Error}");
+        }
     }
 
     private static void HandWrittenCases(string scratch, Action<bool, string> expect)
@@ -1112,9 +1743,10 @@ internal static class RemoveFeature
         var report = Invoke(root, "Widgets");
 
         expect(report.Code == 0 && Same(before, Snapshot(root)), "The report changed the tree, or failed on a clean skeleton.");
-        expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), "The report named a blocker on a clean skeleton.");
+        expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The report named a blocker on a clean skeleton: {report.Output}");
 
-        var applied = Invoke(root, "Widgets", "--apply");
+        var ran = new List<TextEdits.Command>();
+        var applied = Invoke(root, Recording(ran), "Widgets", "--apply");
         var after = Snapshot(root);
 
         expect(applied.Code == 0, $"An untouched skeleton was refused: {applied.Error}{applied.Output}");
@@ -1122,147 +1754,260 @@ internal static class RemoveFeature
         expect(!Directory.Exists(Path.Combine(root, FeatureManifest.Folder)), "The manifest or its folder was left behind.");
         expect(!after.Keys.Any(key => key.Contains("Widgets", StringComparison.Ordinal)), "A folder of the feature was left behind.");
         expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/A.Api/Program.cs")), "A file the feature did not own was deleted.");
+        expect(
+            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            $"A feature without a migration did not build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
 
         var again = Invoke(root, "Widgets", "--apply");
 
         expect(again.Code == 0 && again.Output.Contains("No feature folder", StringComparison.Ordinal), "A second --apply did not say that nothing is left.");
 
-        void Refused(string name, Action<string> change, string expected)
+        void Removed(string name, Action<string> change, string listed)
         {
             string tree = Skeleton(scratch);
+            var original = Snapshot(tree);
 
             change(tree);
+            Commit(tree);
 
-            var snapshot = Snapshot(tree);
-            var result = Invoke(tree, "Widgets", "--apply");
+            var result = Invoke(tree, "Widgets");
 
-            expect(result.Code == 1, $"{name}: --apply did not refuse.");
-            expect(Same(snapshot, Snapshot(tree)), $"{name}: a refusal changed the tree.");
-            expect(result.Output.Contains(expected, StringComparison.Ordinal), $"{name}: the report does not say '{expected}'.");
+            expect(result.Output.Contains(listed, StringComparison.Ordinal), $"{name}: the report does not list '{listed}': {result.Output}");
+            expect(result.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"{name}: the report took it for a blocker: {result.Output}");
+
+            var removed = Invoke(tree, "Widgets", "--apply");
+            var left = Snapshot(tree);
+
+            expect(removed.Code == 0, $"{name}: --apply refused a feature whose files changed since: {removed.Output}{removed.Error}");
+            expect(
+                left.Keys.All(key => original.ContainsKey(key)) && !left.Keys.Any(key => key.Contains("/Features/Widgets", StringComparison.Ordinal) || key.StartsWith(FeatureManifest.Folder, StringComparison.Ordinal)),
+                $"{name}: --apply left a file of the feature: {Differences(original, left)}");
         }
 
-        Refused("modified file", tree => File.AppendAllText(Path.Combine(tree, _skeletonFiles[1]), "// edited\n"), "edited since");
-        Refused("missing file", tree => File.Delete(Path.Combine(tree, _skeletonFiles[0])), "are gone");
-        Refused("extra file", tree => Put(tree, "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Extra.cs", "x\n"), "added to the feature's generated folders");
-        Refused("extra file in a new subfolder", tree => Put(tree, "Tests/Application/A.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "added to the feature's generated folders");
-        Refused("outside reference", tree => Put(tree, "Tests/Other/A.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;\n"), "use(s) of the feature's types");
-        Refused("outside use of a type", tree => Put(tree, "Src/Other/Uses.cs", "var s = new WidgetService();\n"), "use(s) of the feature's types");
-        Refused("a migration mentions it", tree => Put(tree, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "b.ToTable(\"widgets\", \"widgets\");\nusing Acme.Persistence.Features.Widgets.Rows.Models;\n"), "migration or snapshot");
-        Refused("a snapshot mentions its record", tree => Put(tree, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "modelBuilder.Entity(\"Acme.WidgetRecord\", b => { });\n"), "migration or snapshot");
-        Refused(
-            "a manifest of a schema this command does not read",
-            tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace("\"schemaVersion\": 1", "\"schemaVersion\": 3", StringComparison.Ordinal)),
-            "a schema version this command does not read");
-        static void SecondSchema(string tree)
-        {
-            string manifest = Path.Combine(tree, ".feature-manifest/Widgets.json");
-
-            File.WriteAllText(
-                manifest,
-                File.ReadAllText(manifest)
-                    .Replace("\"schemaVersion\": 1", "\"schemaVersion\": 2", StringComparison.Ordinal)
-                    .Replace(
-                        "\n  ]\n}",
-                        "\n  ],\n  \"edits\": [{ \"path\": \"Src/Presentation/A.Api/Program.cs\", \"anchor\": \"builder.Services.AddCacheStore();\", \"position\": \"before\", \"lines\": [\"builder.Services.AddWidgets();\", \"\"] }]\n}",
-                        StringComparison.Ordinal));
-        }
-
-        Refused(
-            "a version 2 manifest whose edits are still in place",
-            tree =>
-            {
-                SecondSchema(tree);
-                File.AppendAllText(Path.Combine(tree, "Src/Presentation/A.Api/Program.cs"), "builder.Services.AddWidgets();\n");
-            },
-            "confirmed registration");
-
-        string second = Skeleton(scratch);
-
-        SecondSchema(second);
-        expect(
-            File.ReadAllText(Path.Combine(second, ".feature-manifest/Widgets.json")) is var written
-                && written.Contains("\"schemaVersion\": 2", StringComparison.Ordinal)
-                && written.Contains("\"edits\"", StringComparison.Ordinal),
-            "The version 2 manifest of the case was not written as one.");
-
-        var secondApplied = Invoke(second, "Widgets", "--apply");
-
-        expect(
-            secondApplied.Code == 0 && !Directory.Exists(Path.Combine(second, FeatureManifest.Folder)),
-            $"A version 2 manifest, whose edits are undone, was not read or not removed: {secondApplied.Output}{secondApplied.Error}");
-
-        Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(_skeletonFiles[0], "Src/Domain/A.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
-
-        string[] edits =
-        [
-            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|public const string WidgetsSchema = \"widgets\";",
-            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|internal DbSet<WidgetRecord> Widgets => Set<WidgetRecord>();",
-            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs|modelBuilder.ApplyConfiguration(new WidgetRecordConfiguration());",
-            "Src/Application/A.Application/ApplicationModule.cs|services.AddWidgets();",
-            "Src/Application/A.Application/ApplicationModule.cs|services.AddFeature(\"Widgets\");",
-            "Src/Application/A.Application/ApplicationModule.cs|services.AddScoped<IWidgetService, WidgetService>();",
-            "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs|AddWidgetsFeature(services);",
-            "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs|services.TryAddScoped<IWidgetStore, WidgetStore>();",
-            "Src/Presentation/A.Api/Program.cs|builder.Services.AddWidgets();",
-            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|services.AddWidgets();",
-            "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs|services.AddWidgets();",
-        ];
-
-        foreach (string edit in edits)
-        {
-            string[] parts = edit.Split('|');
-            string expected = parts[1].Contains("Schema", StringComparison.Ordinal) || parts[1].Contains("Record", StringComparison.Ordinal)
-                ? "EF model"
-                : "registration";
-
-            Refused(
-                $"composed ({parts[1]})",
-                tree =>
-                {
-                    string full = Path.Combine(tree, parts[0]);
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-                    File.AppendAllText(full, parts[1] + "\n");
-                },
-                $"confirmed {expected}");
-        }
-
-        string bare = Skeleton(scratch);
-
-        File.Delete(Path.Combine(bare, FeatureManifest.Folder, "Widgets.json"));
-
-        var bareBefore = Snapshot(bare);
-        var bareReport = Invoke(bare, "Widgets");
-        var bareApply = Invoke(bare, "Widgets", "--apply");
-
-        expect(bareReport.Code == 0 && bareReport.Output.Contains("no manifest", StringComparison.Ordinal), "A feature without a manifest was not reported as such.");
-        expect(bareApply.Code == 1 && Same(bareBefore, Snapshot(bare)), "A feature without a manifest was deleted, or --apply did not refuse.");
-
-        string prose = Skeleton(scratch);
-
-        Put(prose, "Sketches/Idea.md", "The Widgets feature is a sketch.\n");
-        Put(prose, "Tools/Sample.cs", "var service = new WidgetService(); // Widgets\n");
-
-        var proseApply = Invoke(prose, "Widgets", "--apply");
-
-        expect(proseApply.Code == 0 && proseApply.Output.Contains("Sketches/Idea.md:1", StringComparison.Ordinal), "A text-only mention blocked the undo, or was not listed.");
+        Removed("edited file", tree => File.AppendAllText(Path.Combine(tree, _skeletonFiles[1]), "// edited\n"), "Edited: " + _skeletonFiles[1]);
+        Removed("added file", tree => Put(tree, "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Extra.cs", "x\n"), "Added: Src/Domain/A.Domain/Features/Widgets/Model/Entities/Extra.cs");
+        Removed("added file in a new subfolder", tree => Put(tree, "Tests/Application/A.Application.UnitTests/Features/Widgets/Sub/Extra.cs", "x\n"), "Added: Tests/Application/A.Application.UnitTests/Features/Widgets/Sub/Extra.cs");
+        Removed("missing file", tree => File.Delete(Path.Combine(tree, _skeletonFiles[0])), "Missing: " + _skeletonFiles[0]);
 
         string dirty = Skeleton(scratch);
 
-        File.AppendAllText(Path.Combine(dirty, _skeletonFiles[0]), "// edited\n");
+        File.AppendAllText(Path.Combine(dirty, _skeletonFiles[1]), "// not committed\n");
+        Refused(expect, "an edit not committed", dirty, "Widgets", "not committed as they stand", _skeletonFiles[1]);
 
-        var dirtySnapshot = Snapshot(dirty);
-        var dirtyReport = Invoke(dirty, "Widgets");
+        string untracked = Skeleton(scratch);
 
-        expect(dirtyReport.Code == 0 && Same(dirtySnapshot, Snapshot(dirty)) && dirtyReport.Output.Contains("Edited: " + _skeletonFiles[0], StringComparison.Ordinal), "The report on an edited skeleton changed it or missed the edit.");
+        Put(untracked, "Src/Domain/A.Domain/Features/Widgets/Model/Entities/Draft.cs", "x\n");
+        Refused(expect, "a file git does not track", untracked, "Widgets", "not committed as they stand", "Draft.cs");
+
+        string loose = Skeleton(scratch);
+
+        Directory.Delete(Path.Combine(loose, ".git"), recursive: true);
+        Refused(expect, "a tree git does not hold", loose, "Widgets", "not a git work tree");
+
+        void Composed(string name, string path, string line, params string[] expected)
+        {
+            string tree = Skeleton(scratch);
+
+            Put(tree, path, line + "\n");
+            Commit(tree);
+            Refused(expect, name, tree, "Widgets", ["still use its types", $"{path}:1", .. expected]);
+        }
+
+        Composed("an outside test uses the namespace", "Tests/Other/A.Other.Tests/UsesIt.cs", "using Acme.Application.Features.Widgets.Services;");
+        Composed("another feature injects a type", "Src/Application/A.Application/Features/Reminders/Services/ReminderService.cs", "public sealed class ReminderService(IWidgetService widgets);", "in Reminders, which depend(s) on it");
+        Composed("a registration by hand", "Src/Presentation/A.Api/Wiring.cs", "builder.Services.AddWidgets();");
+        Composed("a set by hand", "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/Sets.cs", "internal DbSet<WidgetRecord> Widgets => Set<WidgetRecord>();");
+        Composed("a named feature by hand", "Src/Application/A.Application/Named.cs", "services.AddFeature(\"Widgets\");");
+
+        string manifestPath = $"{FeatureManifest.Folder}/Widgets.json";
+
+        void Rewritten(string name, Func<string, string> change, string expected)
+        {
+            string tree = Skeleton(scratch);
+
+            Put(tree, manifestPath, change(File.ReadAllText(Path.Combine(tree, manifestPath))));
+            Commit(tree);
+            Refused(expect, name, tree, "Widgets", expected);
+        }
+
+        Rewritten("a schema this command does not read", text => text.Replace("\"schemaVersion\": 1", "\"schemaVersion\": 3", StringComparison.Ordinal), "a schema version this command does not read");
+        Rewritten("a path leaving the feature", text => text.Replace(_skeletonFiles[0], "Src/Domain/A.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal), "not a file under a Features/Widgets folder");
+        Rewritten("another feature's manifest", text => text.Replace("\"feature\": \"Widgets\"", "\"feature\": \"Gadgets\"", StringComparison.Ordinal), "does not read as the manifest of Widgets");
+        Rewritten("a consumer of an event the feature does not hold", text => text.Replace(_skeletonFiles[2], "Src/Application/A.Application/Features/Orders/Services/Consumers/WidgetPaid/ShipOnWidgetPaidConsumer.cs", StringComparison.Ordinal), "nor the consumer of an event of Widgets");
+
+        string bare = Skeleton(scratch);
+
+        File.Delete(Path.Combine(bare, manifestPath));
+        Commit(bare);
+
+        var bareReport = Invoke(bare, "Widgets");
+
+        expect(bareReport.Code == 0 && bareReport.Output.Contains("no manifest", StringComparison.Ordinal), "A feature without a manifest was not reported as such.");
+        Refused(expect, "a feature without a manifest", bare, "Widgets", "Only a manifest says");
+
+        string checkedTree = Skeleton(scratch);
+
+        Put(checkedTree, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "// the initial migration's snapshot\n");
+        Commit(checkedTree);
+
+        var pending = Snapshot(checkedTree);
+        var checks = new List<TextEdits.Command>();
+        var waiting = Invoke(checkedTree, Recording(checks, "dotnet run Tools/Tasks.cs migration-check"), "Widgets", "--apply");
+
+        expect(waiting.Code == 1 && Same(pending, Snapshot(checkedTree)), "A model change waiting for a migration did not stop --apply before it changed anything.");
+        expect(waiting.Error.Contains("migration-check` failed", StringComparison.Ordinal) && Launched(checks).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check"]), $"The refusal for a waiting model change does not say why, or ran more: {waiting.Error}");
 
         var auth = Invoke(Skeleton(scratch), "Auth", "--apply");
 
-        expect(auth.Code == 0 || !auth.Output.Contains("Removed", StringComparison.Ordinal), "Auth was removed.");
+        expect(!auth.Output.Contains("Removed", StringComparison.Ordinal), "Auth was removed.");
 
         var badName = Invoke(Skeleton(scratch), "widgets", "--apply");
 
         expect(badName.Code == 1, "A name that is not PascalCase was accepted.");
+    }
+
+    private static void ReportCases(string scratch, Action<bool, string> expect)
+    {
+        string root = Skeleton(scratch);
+        (string Path, string Text, bool Listed)[] lines =
+        [
+            ("Src/Presentation/A.Api/appsettings.Development.json", "  \"WidgetLimits\": {", true),
+            ("Src/Presentation/A.Api/appsettings.json", "  \"WidgetLimitsArchive\": 1,", false),
+            (".env.example", "WIDGET_LIMITS_MAX_ITEMS=3", true),
+            (".env.example", "OTHER_WIDGET_LIMITS_MAX=3", false),
+            ("docker-compose.yml", "  WidgetLimits__MaxItems: 3", true),
+            ("docs/reference/configuration.md", "### `WidgetLimits`", true),
+            ("docs/reference/configuration.md", "The Widgets feature bounds what a widget holds.", false),
+            ("docs/reference/api.md", "Under `/api/v1/widgets`.", true),
+            ("docs/reference/api.md", "| `widget.notFound` | 404 | Missing, or another caller's |", true),
+            ("docs/reference/api.md", "Under `/api/v1/widgets-archive`, which Widgets feeds.", false),
+            ("docs/guides/adding-a-feature.md", "Read [the Widgets page](../features/widgets.md#fields) first.", true),
+            ("docs/guides/adding-a-feature.md", "Widgets, WidgetService and IWidgetStore are words in a sentence.", false),
+            ("A.Api.http", "GET {{host}}/api/v1/widgets/{{widgetId}}", true),
+            ("A.Api.http", "GET {{host}}/api/v1/widgets-archive", false),
+            ("A.sln", "Project(\"Widgets\") = \"Widgets\"", false),
+            ("Directory.Build.props", "<Widgets>true</Widgets>", false),
+            ("Directory.Build.targets", "<WidgetService />", false),
+            ("Tools/Sample.cs", "var service = new WidgetService();", false),
+            ("Src/Clients/A.Client/Generated/WidgetsClient.cs", "public sealed class WidgetsClient(IWidgetService widgets);", false),
+            ("Src/Web/packages/api-client/src/schema.ts", "\"/api/v1/widgets\": {", false),
+            ("Tests/Integration/A.Api.IntegrationTests/OpenApi/v1.json", "\"/api/v1/widgets\": {", false),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Migrations/20240102_AddWidgets.cs", "using Acme.Persistence.Features.Widgets.Rows.Models;", false),
+            ("Src/Presentation/A.Api/Noise.cs", "// Widgets come from WidgetService; var label = \"WidgetService\";", false),
+        ];
+
+        foreach (var group in lines.GroupBy(line => line.Path))
+        {
+            Put(root, group.Key, string.Join("\n", group.Select(line => line.Text)) + "\n");
+        }
+
+        Commit(root);
+
+        var report = Invoke(root, "Widgets");
+
+        foreach (var (path, text, listed) in lines)
+        {
+            string[] all = File.ReadAllLines(Path.Combine(root, path));
+            string cited = $"{path}:{Array.IndexOf(all, text) + 1}  {text.Trim()}";
+
+            expect(
+                report.Output.Contains(cited, StringComparison.Ordinal) == listed,
+                listed ? $"The report does not list what still names the feature: {cited}" : $"The report lists what does not name the feature, or what is regenerated: {cited}");
+        }
+
+        expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"A line of configuration or documentation blocked the removal: {report.Output}");
+
+        var applied = Invoke(root, "Widgets", "--apply");
+
+        expect(
+            applied.Code == 0 && applied.Output.Contains("left to you: 4 line(s)", StringComparison.Ordinal),
+            $"--apply did not remove the feature, or did not print what is left to do by hand: {applied.Output}{applied.Error}");
+    }
+
+    private static string Json(string[] lines) => new JsonArray([.. lines.Select(line => (JsonNode)JsonValue.Create(line)!)]).ToJsonString();
+
+    private static string Edit(string path, string anchor, string position, string[] lines, string[]? replaced = null) =>
+        $"{{ \"path\": \"{path}\", \"anchor\": {JsonValue.Create(anchor)!.ToJsonString()}, \"position\": \"{position}\", \"lines\": {Json(lines)}"
+        + (replaced is null ? " }" : $", \"replaced\": {Json(replaced)} }}");
+
+    private static void UndoCases(string scratch, Action<bool, string> expect)
+    {
+        const string Settings = "Src/Presentation/A.Api/appsettings.json";
+        const string Program = "Src/Presentation/A.Api/Program.cs";
+        string edits = string.Join(
+            ", ",
+            Edit(Program, "builder.Services.AddCacheStore();", "before", ["builder.Services.AddWidgets();", string.Empty]),
+            Edit(Settings, "  },", "after", ["  \"WidgetLimits\": {", "    \"MaxItems\": 3", "  },"]),
+            Edit(Settings, "}", "before", ["  \"Seed\": 1"], ["  \"Seed\": 0"]));
+
+        string root = Skeleton(scratch, edits);
+        string program = Path.Combine(root, Program);
+        string settings = Path.Combine(root, Settings);
+
+        Put(root, Settings, "{\n  \"Logging\": {\n    \"Level\": 1\n  },\n  \"WidgetLimits\": {\n    \"MaxItems\": 3\n  },\n  \"Seed\": 1\n}\n");
+        File.WriteAllText(program, "builder.Services.AddTodoLists();\n\nbuilder.Services.AddWidgets();\n\nbuilder.Services.AddCacheStore();\n");
+        Commit(root);
+
+        var report = Invoke(root, "Widgets");
+
+        expect(report.Output.Contains($"{Settings}: 1 line in place of 1 line before '}}'", StringComparison.Ordinal), $"The report does not show an edit that replaced a line: {report.Output}");
+
+        var applied = Invoke(root, "Widgets", "--apply");
+
+        expect(applied.Code == 0, $"Recorded edits were not undone: {applied.Output}{applied.Error}");
+        expect(File.ReadAllText(program) == _program, $"Undoing an insertion does not give back the file: {File.ReadAllText(program)}");
+        expect(
+            File.ReadAllText(settings) == "{\n  \"Logging\": {\n    \"Level\": 1\n  },\n  \"Seed\": 0\n}\n",
+            $"Undoing an edit that replaced a line, then the one made before it, does not give back the file: {File.ReadAllText(settings)}");
+
+        const string Composition = "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs";
+        string twin = Edit(Composition, "        services.AddPurgeExpiredIdempotencyKeys();", "before", ["        services.AddWidgets();"]);
+        string twins = Skeleton(scratch, $"{twin}, {twin}");
+        const string Composed = "    {\n        services.AddWidgets();\n        services.AddGadgets();\n        services.AddPurgeExpiredIdempotencyKeys();\n    }\n";
+
+        Put(twins, Composition, Composed + Composed);
+        Commit(twins);
+
+        var twinsApplied = Invoke(twins, "Widgets", "--apply");
+        const string Left = "    {\n        services.AddGadgets();\n        services.AddPurgeExpiredIdempotencyKeys();\n    }\n";
+
+        expect(twinsApplied.Code == 0, $"The same edit, made beside each of two equal lines, was not undone: {twinsApplied.Output}{twinsApplied.Error}");
+        expect(File.ReadAllText(Path.Combine(twins, Composition)) == Left + Left, $"Undoing the same edit made twice does not give back the file: {File.ReadAllText(Path.Combine(twins, Composition))}");
+
+        string moved = Skeleton(scratch, Edit(Program, "builder.Services.AddCacheStore();", "before", ["builder.Services.AddWidgets();", string.Empty]));
+
+        File.WriteAllText(Path.Combine(moved, Program), "builder.Services.AddWidgets();\n\nbuilder.Services.AddTodoLists();\n\nbuilder.Services.AddGadgets();\n\nbuilder.Services.AddCacheStore();\n");
+        Commit(moved);
+
+        expect(Invoke(moved, "Widgets", "--apply").Code == 0, "A recorded block found once, though no longer beside its line, was not undone.");
+        expect(
+            File.ReadAllText(Path.Combine(moved, Program)) == "builder.Services.AddTodoLists();\n\nbuilder.Services.AddGadgets();\n\nbuilder.Services.AddCacheStore();\n",
+            $"A recorded block found once was not the one removed: {File.ReadAllText(Path.Combine(moved, Program))}");
+
+        string changed = Skeleton(scratch, Edit(Program, "builder.Services.AddCacheStore();", "before", ["builder.Services.AddWidgets();", string.Empty]));
+
+        File.WriteAllText(Path.Combine(changed, Program), "builder.Services.AddTodoLists();\n\nbuilder.Services.AddWidgets(options => options.Strict = true);\n\nbuilder.Services.AddCacheStore();\n");
+        Commit(changed);
+        Refused(expect, "a recorded line changed by hand", changed, "Widgets", "still use its types", $"{Program}:3");
+
+        string squeezed = Skeleton(scratch, Edit(Program, "builder.Services.AddCacheStore();", "before", ["builder.Services.AddWidgets();", string.Empty]));
+
+        File.WriteAllText(Path.Combine(squeezed, Program), "builder.Services.AddTodoLists();\n\nbuilder.Services.AddWidgets();\nbuilder.Services.AddCacheStore();\n");
+        Commit(squeezed);
+        Refused(expect, "a recorded block whose blank line was removed", squeezed, "Widgets", "no longer there as they were written");
+
+        string twice = Skeleton(scratch, Edit(Program, "builder.Services.AddCacheStore();", "before", ["builder.Services.AddWidgets();", string.Empty]));
+
+        File.WriteAllText(Path.Combine(twice, Program), "builder.Services.AddWidgets();\n\nbuilder.Services.AddCacheStore();\n\nbuilder.Services.AddWidgets();\n\nbuilder.Services.AddCacheStore();\n");
+        Commit(twice);
+        Refused(expect, "a recorded block beside two copies of its line", twice, "Widgets", "no longer there as they were written");
+
+        string gone = Skeleton(scratch, Edit(Program, "builder.Services.AddCacheStore();", "before", ["builder.Services.AddWidgets();", string.Empty]));
+        var goneReport = Invoke(gone, "Widgets");
+        var goneApplied = Invoke(gone, "Widgets", "--apply");
+
+        expect(goneReport.Output.Contains($"Undone: {Program}", StringComparison.Ordinal), $"An edit someone had undone was not reported as gone: {goneReport.Output}");
+        expect(goneApplied.Code == 0 && File.ReadAllText(Path.Combine(gone, Program)) == _program, "An edit someone had undone failed the removal, or changed the file.");
     }
 
     private static string SourceFile([CallerFilePath] string path = "") => path;
@@ -1270,7 +2015,6 @@ internal static class RemoveFeature
     private static int Generate(string root, params string[] args)
     {
         string generator = Path.Combine(Path.GetDirectoryName(SourceFile())!, "NewFeature.cs");
-        var composed = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToDictionary(path => path, File.ReadAllBytes, StringComparer.Ordinal);
         var start = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
 
         foreach (string argument in (string[])["run", generator, .. args, "--root", root])
@@ -1279,15 +2023,11 @@ internal static class RemoveFeature
         }
 
         using var process = Process.Start(start)!;
+        var errors = process.StandardError.ReadToEndAsync();
 
         process.StandardOutput.ReadToEnd();
-        process.StandardError.ReadToEnd();
         process.WaitForExit();
-
-        foreach (var (path, bytes) in composed.Where(pair => !File.ReadAllBytes(pair.Key).AsSpan().SequenceEqual(pair.Value)))
-        {
-            File.WriteAllBytes(path, bytes);
-        }
+        errors.Wait();
 
         return process.ExitCode;
     }
@@ -1320,12 +2060,212 @@ internal static class RemoveFeature
         + "    internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();\n"
         + "        modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());\n";
 
-    private const string _program = "builder.Services.AddTodoLists();\n\nbuilder.Services.AddCacheStore();\n";
-
     private const string _hostComposition =
         "        services.AddPurgeExpiredIdempotencyKeys();\n"
         + "        services.AddScoped<ICurrentAccessToken, ArchitectureTestCurrentAccessToken>();\n"
         + "internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor;\n";
+
+    private static string Tree(string scratch, Action<string>? ground = null)
+    {
+        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+
+        Projects(root);
+        Put(root, "Src/Presentation/A.Api/Program.cs", _program);
+        Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+        ground?.Invoke(root);
+        Commit(root);
+
+        return root;
+    }
+
+    private static void GeneratorCases(string scratch, Action<bool, string> expect)
+    {
+        string[][] combinations =
+        [
+            ["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag"],
+            ["Notes", "Note", "--access", "shared", "--operations", "get,list", "--concurrency", "none"],
+            ["Gadgets", "Gadget", "--access", "owner", "--deletion", "anonymise", "--model", "record", "--concurrency", "etag", "--operations", "get,list,create,update"],
+        ];
+
+        foreach (string[] combination in combinations)
+        {
+            string root = Tree(scratch);
+            string features = combination[0];
+            var original = Snapshot(root);
+
+            expect(Generate(root, combination) == 0, $"The generator refused {features}.");
+            Commit(root);
+
+            var generated = Snapshot(root);
+            var report = Invoke(root, features);
+
+            expect(report.Code == 0 && Same(generated, Snapshot(root)) && report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The report on a fresh {features} changed the tree or found a blocker: {report.Output}");
+            expect(!report.Output.Contains("undoes the 0 edit(s)", StringComparison.Ordinal), $"The report on a composed {features} lists no edit to undo: {report.Output}");
+
+            string program = Path.Combine(root, "Src/Presentation/A.Api/Program.cs");
+            string registered = File.ReadAllText(program);
+
+            File.AppendAllText(program, $"builder.Services.Add{features}();\n");
+            Commit(root);
+            Refused(expect, $"{features} registered a second time by hand", root, features, "still use its types", "Src/Presentation/A.Api/Program.cs:");
+            File.WriteAllText(program, registered);
+
+            string edited = Directory.EnumerateFiles(Path.Combine(root, "Src/Application/A.Application/Features", features), "*.cs", SearchOption.AllDirectories).Order(StringComparer.Ordinal).First();
+
+            File.AppendAllText(edited, "// what the team changed\n");
+            Commit(root);
+
+            var ran = new List<TextEdits.Command>();
+            var applied = Invoke(root, Recording(ran), features, "--apply");
+            var after = Snapshot(root);
+
+            expect(applied.Code == 0, $"A composed {features}, one of its files edited, was refused: {applied.Output}{applied.Error}");
+            expect(Same(original, after), $"After removing {features} the tree is not the one that was there before it was generated: {Differences(original, after)}");
+            expect(
+                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+                $"Removing {features} did not check the model, then build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
+
+            foreach (string empty in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Where(folder => !folder.Contains($"{Path.DirectorySeparatorChar}.git", StringComparison.Ordinal) && !Directory.EnumerateFileSystemEntries(folder).Any()))
+            {
+                expect(false, $"After removing {features}, its last feature, '{Path.GetRelativePath(root, empty)}' was left empty.");
+            }
+        }
+    }
+
+    private static void MigrationCases(string scratch, Action<bool, string> expect)
+    {
+        const string Migrations = "Src/Infrastructure/A.Infrastructure.Persistence/Migrations";
+        const string Added = $"{Migrations}/20260101000000_AddWidgets.cs";
+        string root = Tree(scratch);
+
+        expect(Generate(root, "Widgets", "Widget", "--access", "shared") == 0, "The generator refused Widgets for the migration case.");
+        Put(root, Added, "            migrationBuilder.EnsureSchema(\n                name: \"widgets\");\n");
+        Commit(root);
+
+        var report = Invoke(root, "Widgets");
+
+        expect(report.Output.Contains("RemoveWidgets drops the tables of Widgets and its schema \"widgets\"; AddWidgets, which a database may have applied, stays as it is.", StringComparison.Ordinal), $"The report does not say which migration --apply adds: {report.Output}");
+
+        var ran = new List<TextEdits.Command>();
+        string addedBefore = Sha(root, Added);
+        var applied = Invoke(root, Recording(ran), "Widgets", "--apply");
+        string removal = Path.Combine(root, Migrations, "20990101000000_RemoveWidgets.cs");
+
+        expect(applied.Code == 0, $"A feature with its migration was refused: {applied.Output}{applied.Error}");
+        expect(
+            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add RemoveWidgets --no-build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            $"--apply did not check, build once, then add RemoveWidgets and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
+        expect(File.Exists(Path.Combine(root, Added)) && Sha(root, Added) == addedBefore, "The migration that added the feature, which a database may have applied, was deleted or rewritten.");
+
+        string written = File.Exists(removal) ? File.ReadAllText(removal) : string.Empty;
+
+        expect(
+            written.Contains("                schema: \"widgets\");\n\n            migrationBuilder.DropSchema(\n                name: \"widgets\");\n        }\n", StringComparison.Ordinal),
+            $"RemoveWidgets does not drop the schema after its tables: {written}");
+        expect(
+            written.Contains("        {\n            migrationBuilder.EnsureSchema(\n                name: \"widgets\");\n\n            migrationBuilder.CreateTable(", StringComparison.Ordinal),
+            $"The Down of RemoveWidgets does not ensure the schema before it creates the tables again: {written}");
+
+        string again = Tree(scratch);
+
+        expect(Generate(again, "Widgets", "Widget", "--access", "shared") == 0, "The generator refused Widgets for the second removal.");
+        Put(again, Added, "// no schema of its own\n");
+        Put(again, $"{Migrations}/20250101000000_RemoveWidgets.cs", "// an earlier removal\n");
+        Commit(again);
+
+        var second = new List<TextEdits.Command>();
+
+        expect(Invoke(again, Recording(second), "Widgets", "--apply").Code == 0, "A feature removed once before was refused.");
+        expect(Launched(second).Contains("dotnet run Tools/Tasks.cs -- migration-add RemoveWidgets2 --no-build"), $"A second removal did not name its migration apart from the first: {string.Join(" | ", Launched(second))}");
+        expect(!File.ReadAllText(Path.Combine(again, Migrations, "20990101000000_RemoveWidgets2.cs")).Contains("DropSchema", StringComparison.Ordinal), "A schema the feature's migration did not create was dropped.");
+
+        string widened = Skeleton(scratch);
+        string manifestFile = Path.Combine(widened, FeatureManifest.Folder, "Widgets.json");
+        string changed = _skeletonFiles[1];
+
+        File.WriteAllText(
+            manifestFile,
+            File.ReadAllText(manifestFile).Replace(
+                "\n  ]\n}\n",
+                $"\n  ],\n  \"addedFields\": [{{ \"declaration\": \"Code:string(20)='none'\", \"migration\": \"AddCodeToWidgets\", \"files\": [{{ \"path\": \"{changed}\", \"before\": \"{new string('a', 64)}\", \"after\": \"{Sha(widened, changed)}\", \"changes\": [\"Code\"] }}] }}]\n}}\n",
+                StringComparison.Ordinal));
+        Put(widened, $"{Migrations}/20260101000000_AddWidgets.cs", "// the feature's migration\n");
+        Put(widened, $"{Migrations}/20260102000000_AddCodeToWidgets.cs", "// the field's migration\n");
+        Commit(widened);
+
+        var widenedReport = Invoke(widened, "Widgets");
+
+        expect(
+            widenedReport.Output.Contains("Code:string(20)='none', in 1 file, with its migration AddCodeToWidgets", StringComparison.Ordinal)
+                && widenedReport.Output.Contains("AddWidgets, AddCodeToWidgets, which a database may have applied, stay as they are.", StringComparison.Ordinal),
+            $"The report does not show the field new-field added, or says its migration goes: {widenedReport.Output}");
+        expect(Invoke(widened, "Widgets", "--apply").Code == 0 && !File.Exists(Path.Combine(widened, changed)), "A feature that took a field from new-field was refused, or the file the field changed was left.");
+        expect(File.Exists(Path.Combine(widened, $"{Migrations}/20260102000000_AddCodeToWidgets.cs")), "The migration new-field added, which a database may have applied, was deleted.");
+
+        string ensured = Tree(scratch);
+
+        expect(Generate(ensured, "Widgets", "Widget", "--access", "shared") == 0, "The generator refused Widgets for the ensured schema.");
+        Put(ensured, Added, "            migrationBuilder.EnsureSchema(\n                name: \"widgets\");\n");
+        Commit(ensured);
+        expect(Invoke(ensured, Recording([], ensured: true), "Widgets", "--apply").Code == 0, "A feature whose removal migration already ensures its schema was refused.");
+
+        string kept = File.ReadAllText(Path.Combine(ensured, Migrations, "20990101000000_RemoveWidgets.cs"));
+
+        expect(
+            Regex.Count(kept, "EnsureSchema", RegexOptions.None) == 1 && kept.Contains("DropSchema", StringComparison.Ordinal),
+            $"A Down that already ensures the schema was given a second EnsureSchema, or the Up lost its DropSchema: {kept}");
+
+        string failed = Tree(scratch);
+
+        expect(Generate(failed, "Widgets", "Widget", "--access", "shared") == 0, "The generator refused Widgets for the failed build.");
+        Commit(failed);
+
+        var stopped = Invoke(failed, Recording([], "dotnet run Tools/Tasks.cs build"), "Widgets", "--apply");
+
+        expect(
+            stopped.Code == 1 && stopped.Error.Contains("What remains", StringComparison.Ordinal) && stopped.Error.Contains("openapi --no-build", StringComparison.Ordinal),
+            $"A failed build did not name what remains, the OpenAPI reference among it: {stopped.Error}");
+    }
+
+    private static void OrderCases(string scratch, Action<bool, string> expect)
+    {
+        string[] widgets = ["Widgets", "Widget", "--access", "shared", "--model", "aggregate", "--concurrency", "etag"];
+        string[] gadgets = ["Gadgets", "Gadget", "--access", "shared"];
+
+        static void Usings(string root)
+        {
+            foreach (string file in new[]
+            {
+                "Src/Presentation/A.Api/Program.cs", "Src/Application/A.Application/ApplicationModule.cs",
+                "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs",
+                "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs",
+            })
+            {
+                Put(root, file, "using Acme.Application;\nusing System;\n\n" + File.ReadAllText(Path.Combine(root, file)));
+            }
+        }
+
+        string alone = Tree(scratch, Usings);
+
+        expect(Generate(alone, gadgets) == 0, "The generator refused Gadgets alone.");
+
+        string both = Tree(scratch, Usings);
+        var original = Snapshot(both);
+
+        expect(Generate(both, widgets) == 0 && Generate(both, gadgets) == 0, "The generator refused Widgets then Gadgets.");
+        Commit(both);
+        expect(Invoke(both, "Widgets", "--apply").Code == 0, "The first of two features was refused.");
+
+        static Dictionary<string, string> WithoutManifests(Dictionary<string, string> tree) =>
+            tree.Where(pair => !pair.Key.StartsWith(FeatureManifest.Folder, StringComparison.Ordinal)).ToDictionary(StringComparer.Ordinal);
+
+        expect(
+            Same(WithoutManifests(Snapshot(alone)), WithoutManifests(Snapshot(both))),
+            $"Removing the first of two features does not leave the tree the second alone writes: {Differences(WithoutManifests(Snapshot(alone)), WithoutManifests(Snapshot(both)))}");
+
+        Commit(both);
+        expect(Invoke(both, "Gadgets", "--apply").Code == 0 && Same(original, Snapshot(both)), "After removing both, first in first out, the tree is not the one they were written in.");
+    }
 
     private static string BareTree(string scratch, string adapter = "Auth")
     {
@@ -1333,7 +2273,6 @@ internal static class RemoveFeature
 
         Projects(root);
 
-        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", _appDbContext);
         Put(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
         Put(root, "Src/Application/A.Application.Core/Common/Ports/ICurrentUser.cs", "public interface ICurrentUser;\n");
         Put(root, "Src/Application/A.Application.Core/ApplicationCoreModule.cs", "    public static IServiceCollection AddUseCasePipeline(this IServiceCollection services) => services;\n");
@@ -1345,6 +2284,7 @@ internal static class RemoveFeature
                 ? "Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs"
                 : "Src/Presentation/A.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs",
             adapter == "Auth" ? "        services.AddAuthModule(configuration);\n" : "        services.AddExternalIdentityPersistence(configuration);\n");
+        Commit(root);
 
         return root;
     }
@@ -1368,6 +2308,7 @@ internal static class RemoveFeature
 
         expect(Generate(alone, widgets) == 0, "The generator refused Widgets in a bare tree.");
         expect(_sharedFiles.All(file => File.Exists(Path.Combine(alone, file))), "The first owner feature did not bring the shared files.");
+        Commit(alone);
 
         var report = Invoke(alone, "Widgets");
 
@@ -1377,27 +2318,14 @@ internal static class RemoveFeature
         var applied = Invoke(alone, "Widgets", "--apply");
 
         expect(applied.Code == 0, $"(a) the only owner feature was refused: {applied.Output}{applied.Error}");
-        expect(Same(original, Snapshot(alone)), "(a) after removing the only owner feature the tree is not the bare one, or a folder was left empty.");
-
-        void Refused(string name, string tree, string features, params string[] expected)
-        {
-            var snapshot = Snapshot(tree);
-            var result = Invoke(tree, features, "--apply");
-
-            expect(result.Code == 1, $"{name}: --apply did not refuse.");
-            expect(Same(snapshot, Snapshot(tree)), $"{name}: a refusal changed the tree.");
-
-            foreach (string text in expected)
-            {
-                expect((result.Output + result.Error).Contains(text, StringComparison.Ordinal), $"{name}: the report does not say '{text}'.");
-            }
-        }
+        expect(Same(original, Snapshot(alone)), $"(a) after removing the only owner feature the tree is not the bare one: {Differences(original, Snapshot(alone))}");
 
         string WithWidgets(string adapter = "Auth")
         {
             string tree = BareTree(scratch, adapter);
 
             expect(Generate(tree, widgets) == 0, "The generator refused Widgets in a bare tree.");
+            Commit(tree);
 
             return tree;
         }
@@ -1406,25 +2334,29 @@ internal static class RemoveFeature
         var bare = Snapshot(two);
 
         expect(Generate(two, widgets) == 0 && Generate(two, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise") == 0, "(b) the generator refused a feature.");
-        Refused("(b) a second owner feature", two, "Widgets", "Sprockets (generated, --access owner)", "error: Widgets holds the shared account-deletion files that Sprockets still depend on.");
+        Commit(two);
+        Refused(expect, "(b) a second owner feature", two, "Widgets", "Sprockets (generated, --access owner)", "error: Widgets holds the shared account-deletion files that Sprockets still depend on.");
         expect(Invoke(two, "Sprockets", "--apply").Code == 0, "(b) the second owner feature was refused.");
+        Commit(two);
         expect(Invoke(two, "Widgets", "--apply").Code == 0, "(b) the first owner feature was refused once it was the only one.");
-        expect(Same(bare, Snapshot(two)), "(b) after removing both owner features the tree is not the bare one.");
+        expect(Same(bare, Snapshot(two)), $"(b) after removing both owner features the tree is not the bare one: {Differences(bare, Snapshot(two))}");
 
         string notes = BareTree(scratch);
         var beforeNotes = Snapshot(notes);
 
         expect(Generate(notes, widgets) == 0 && Generate(notes, "Notes", "Note", "--access", "shared") == 0, "(c) the generator refused a feature.");
+        Commit(notes);
 
         var withNotes = Snapshot(notes);
 
         expect(Invoke(notes, "Widgets", "--apply").Code == 0, "(c) a shared feature held the owner feature back.");
         expect(
-            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal) || pair.Key == $"{FeatureManifest.Folder}/Notes.json")
+            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal))
                 .All(pair => Snapshot(notes).TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
-            "(c) removing Widgets touched Notes.");
+            "(c) removing Widgets touched the files of Notes.");
+        Commit(notes);
         expect(Invoke(notes, "Notes", "--apply").Code == 0, "(c) Notes was refused.");
-        expect(Same(beforeNotes, Snapshot(notes)), "(c) after removing both features the tree is not the bare one.");
+        expect(Same(beforeNotes, Snapshot(notes)), $"(c) after removing both features the tree is not the bare one: {Differences(beforeNotes, Snapshot(notes))}");
 
         string journal = WithWidgets();
 
@@ -1432,17 +2364,14 @@ internal static class RemoveFeature
             journal,
             "Src/Application/A.Application/Features/Journal/Services/Consumers/DeleteJournalOnAccountDeletedConsumer.cs",
             "// Deletes a journal when its account is.\ninternal sealed class DeleteJournalOnAccountDeletedConsumer(IUserAccountDirectory accounts) : IDeletedAccountDataPolicy;\n");
-        Refused("(d) a hand-made owner feature", journal, "Widgets", "Journal (no manifest)");
+        Commit(journal);
+        Refused(expect, "(d) a hand-made owner feature", journal, "Widgets", "Journal (no manifest)");
 
         string[] registrations =
         [
-            "Src/Application/A.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
-            "Src/Presentation/A.Api/Program.cs|builder.Services.AddDeletedAccountSweep();",
-            "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs|services.AddDeletedAccountSweepJobs(configuration);",
-            "Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs|services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();",
-            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|services.AddDeletedAccountSweep();",
-            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();",
-            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory",
+            "Src/Application/A.Application.Core/ApplicationCoreModule.cs|public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services, int again)",
+            "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs|services.AddDeletedAccountSweepJobs(configuration, again: true);",
+            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs|internal sealed class SecondUserAccountDirectory : IUserAccountDirectory",
         ];
 
         foreach (string registration in registrations)
@@ -1451,49 +2380,56 @@ internal static class RemoveFeature
             string tree = WithWidgets();
 
             File.AppendAllText(Path.Combine(tree, parts[0]), parts[1] + "\n");
-            Refused($"(e) {parts[1]}", tree, "Widgets", "still register", $"{parts[0]}:{File.ReadAllLines(Path.Combine(tree, parts[0])).Length}");
+            Commit(tree);
+            Refused(expect, $"(e) {parts[1]}", tree, "Widgets", "still register", $"{parts[0]}:{File.ReadAllLines(Path.Combine(tree, parts[0])).Length}");
         }
 
         string edited = WithWidgets();
+        var bareEdited = Snapshot(BareTree(scratch));
 
         File.AppendAllText(Path.Combine(edited, _sharedFiles[1]), "// edited\n");
-        Refused("(f) a shared file edited", edited, "Widgets", "edited since");
+        Put(edited, "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", "x\n");
+        Commit(edited);
 
-        string added = WithWidgets();
+        var editedReport = Invoke(edited, "Widgets");
 
-        Put(added, "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", "x\n");
-        Refused("(g) a file added beside the sweep", added, "Widgets", "added to the feature's generated folders");
+        expect(
+            editedReport.Output.Contains($"Edited: {_sharedFiles[1]}", StringComparison.Ordinal) && editedReport.Output.Contains("Added: Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/Extra.cs", StringComparison.Ordinal),
+            $"(f) a shared file edited or added beside the sweep was not listed: {editedReport.Output}");
+        expect(Invoke(edited, "Widgets", "--apply").Code == 0, "(f) an edited shared file held the only owner feature back.");
+        expect(bareEdited.Keys.Where(key => !key.EndsWith("Tasks.cs", StringComparison.Ordinal)).All(key => Snapshot(edited).ContainsKey(key)) && !_sharedFiles.Any(file => File.Exists(Path.Combine(edited, file))), "(f) the shared files, edited or added to, were not removed with the only owner feature.");
 
         string external = BareTree(scratch, "ExternalIdentity");
         var beforeExternal = Snapshot(external);
 
         expect(Generate(external, widgets) == 0, "(h) the generator refused Widgets in an externally authenticated bare tree.");
         expect(File.Exists(Path.Combine(external, "Src/Presentation/A.Api/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs")), "(h) the external account directory was not written.");
+        Commit(external);
         expect(Invoke(external, "Widgets", "--apply").Code == 0, "(h) the only owner feature of an externally authenticated tree was refused.");
-        expect(Same(beforeExternal, Snapshot(external)), "(h) after removing it the tree is not the bare one.");
+        expect(Same(beforeExternal, Snapshot(external)), $"(h) after removing it the tree is not the bare one: {Differences(beforeExternal, Snapshot(external))}");
 
         string stale = WithWidgets();
 
         Put(stale, $"{FeatureManifest.Folder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
-        Refused("(i) a stale owner manifest", stale, "Widgets", "Gizmos (generated, --access owner)");
+        Commit(stale);
+        Refused(expect, "(i) a stale owner manifest", stale, "Widgets", "Gizmos (generated, --access owner)");
 
         string unreadable = WithWidgets();
 
         Put(unreadable, $"{FeatureManifest.Folder}/Gizmos.json", "{ not json\n");
-        Refused("an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
+        Commit(unreadable);
+        Refused(expect, "an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
     }
 
-    private static string PagedTree(string scratch)
+    private static string PagedTree(string scratch, Action<string>? ground = null)
     {
-        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
         string template = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(SourceFile())!)!, "docs", "_page-templates", "feature.md");
 
-        Projects(root);
-        Ground(root);
-        Put(root, "docs/_page-templates/feature.md", File.ReadAllText(template));
-        Put(root, "docs/README.md", "| [Widgets](features/widgets.md) | what a caller can do with it |\n");
-
-        return root;
+        return Tree(scratch, root =>
+        {
+            Put(root, "docs/_page-templates/feature.md", File.ReadAllText(template));
+            ground?.Invoke(root);
+        });
     }
 
     private static void PageCases(string scratch, Action<bool, string> expect)
@@ -1505,38 +2441,40 @@ internal static class RemoveFeature
         var original = Snapshot(fresh);
 
         expect(Generate(fresh, widgets) == 0 && File.Exists(Path.Combine(fresh, pagePath)), "The generator did not write the feature page.");
+        Commit(fresh);
 
         var report = Invoke(fresh, "Widgets");
 
         expect(report.Output.Contains($"Feature page: {pagePath}, written by the generator", StringComparison.Ordinal), $"The report does not name the page: {report.Output}");
-        expect(report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The page was taken for a blocker: {report.Output}");
+        expect(report.Output.Contains("docs/README.md: 1 line after", StringComparison.Ordinal), $"The report does not list the row of docs/README.md among the edits it undoes: {report.Output}");
         expect(!report.Output.Contains($"{pagePath}:", StringComparison.Ordinal), "The page's own lines were listed as matches.");
 
         var applied = Invoke(fresh, "Widgets", "--apply");
 
         expect(applied.Code == 0, $"A feature with its page was refused: {applied.Output}{applied.Error}");
-        expect(applied.Output.Contains("Remove its row from docs/README.md", StringComparison.Ordinal), "The index row to remove was not printed.");
-        expect(Same(original, Snapshot(fresh)), "After removing the feature, its page or the folder of pages was left behind, or the template went with it.");
+        expect(Same(original, Snapshot(fresh)), $"After removing the feature, its page, its row or the folder of pages was left behind, or the template went with it: {Differences(original, Snapshot(fresh))}");
 
         string edited = PagedTree(scratch);
 
         expect(Generate(edited, widgets) == 0, "The generator refused Widgets for the edited page.");
         File.AppendAllText(Path.Combine(edited, pagePath), "\nWidgets are what the warehouse ships.\n");
+        Commit(edited);
         expect(Invoke(edited, "Widgets", "--apply").Code == 0 && !File.Exists(Path.Combine(edited, pagePath)), "An edited page held the removal back, or was left behind.");
 
         string gone = PagedTree(scratch);
 
         expect(Generate(gone, widgets) == 0, "The generator refused Widgets for the deleted page.");
         File.Delete(Path.Combine(gone, pagePath));
+        Commit(gone);
 
         var goneApplied = Invoke(gone, "Widgets", "--apply");
 
-        expect(goneApplied.Code == 0 && goneApplied.Output.Contains("was already gone", StringComparison.Ordinal), $"A page the team had deleted failed the removal: {goneApplied.Output}{goneApplied.Error}");
+        expect(goneApplied.Code == 0, $"A page the team had deleted failed the removal: {goneApplied.Output}{goneApplied.Error}");
 
-        string own = PagedTree(scratch);
+        string own = PagedTree(scratch, root => Put(root, pagePath, "# Widgets, as the team wrote them\n"));
 
-        Put(own, pagePath, "# Widgets, as the team wrote them\n");
         expect(Generate(own, widgets) == 0, "The generator refused Widgets beside a page the team wrote.");
+        Commit(own);
         expect(Invoke(own, "Widgets", "--apply").Code == 0, "Widgets beside a page the team wrote was refused.");
         expect(File.Exists(Path.Combine(own, pagePath)), "A page the generator did not write was deleted.");
 
@@ -1547,19 +2485,8 @@ internal static class RemoveFeature
         string manifest = Path.Combine(forged, FeatureManifest.Folder, "Widgets.json");
 
         File.WriteAllText(manifest, File.ReadAllText(manifest).Replace(pagePath, "docs/README.md", StringComparison.Ordinal));
-
-        var snapshot = Snapshot(forged);
-        var refused = Invoke(forged, "Widgets", "--apply");
-
-        expect(refused.Code == 1 && Same(snapshot, Snapshot(forged)), "A manifest naming another page than the feature's was not refused cleanly.");
-        expect(refused.Output.Contains($"where the generator writes '{pagePath}'", StringComparison.Ordinal), "The refusal of a forged page does not say why.");
-    }
-
-    private static void Ground(string root)
-    {
-        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", _appDbContext);
-        Put(root, "Src/Presentation/A.Api/Program.cs", _program);
-        Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
+        Commit(forged);
+        Refused(expect, "a manifest naming another page", forged, "Widgets", $"where the generator writes '{pagePath}'");
     }
 
     private static void NameCollisionCases(string scratch, Action<bool, string> expect)
@@ -1577,107 +2504,36 @@ internal static class RemoveFeature
         {
             foreach (string model in new[] { "record", "aggregate" })
             {
-                string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
-
-                Projects(root);
-                Ground(root);
-                Put(root, "Src/Presentation/A.Api/Noise.cs", Noise);
-                Put(root, "Tests/Presentation/A.Api.UnitTests/ControllerContractTests.cs", Noise);
+                string root = Tree(scratch, tree =>
+                {
+                    Put(tree, "Src/Presentation/A.Api/Noise.cs", Noise);
+                    Put(tree, "Tests/Presentation/A.Api.UnitTests/ControllerContractTests.cs", Noise);
+                });
 
                 string label = $"{row[0]} ({model})";
 
                 expect(Generate(root, row[0], row[1], "--access", "shared", "--model", model, "--concurrency", model == "aggregate" ? "etag" : "none") == 0, $"The generator refused {label}.");
+                Commit(root);
 
                 var report = Invoke(root, row[0]);
 
                 expect(
-                    report.Output.Contains("Confirmed use(s) of the feature's types or namespace: 0", StringComparison.Ordinal),
-                    $"{label}: a word that merely starts like the type, or the type in a string or comment, was a confirmed use: {report.Output}");
-
-                var applied = Invoke(root, row[0], "--apply");
-
-                expect(applied.Code == 0, $"{label}: an untouched skeleton was refused: {applied.Output}{applied.Error}");
+                    report.Output.Contains("Code outside the feature that still uses it, recorded nowhere: none.", StringComparison.Ordinal),
+                    $"{label}: a word that merely starts like the type, or the type in a string or comment, was taken for a use: {report.Output}");
+                expect(Invoke(root, row[0], "--apply").Code == 0, $"{label}: a fresh feature was refused.");
             }
         }
 
-        string used = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+        string registered = Tree(scratch);
 
-        Projects(used);
-        Ground(used);
-        expect(Generate(used, "Notes", "Note", "--access", "shared") == 0, "The generator refused Notes for the use case.");
-        Put(used, "Src/Application/A.Application/Features/Reminders/Services/ReminderService.cs", "public sealed class ReminderService(INoteService notes);\n");
-
-        var injected = Invoke(used, "Notes", "--apply");
-
-        expect(injected.Code == 1 && injected.Output.Contains("confirmed use(s)", StringComparison.Ordinal), $"An injected INoteService did not block the removal: {injected.Output}");
-
-        string registered = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
-
-        Projects(registered);
-        Ground(registered);
         expect(Generate(registered, "Widgets", "Widget", "--access", "owner", "--deletion", "delete") == 0, "The generator refused Widgets for the use case.");
 
         string consumer = Directory.EnumerateFiles(registered, "*OnAccountDeleted*.cs", SearchOption.AllDirectories).Select(Path.GetFileNameWithoutExtension).FirstOrDefault() ?? "none";
 
         Put(registered, "Src/Presentation/A.Api/Wiring.cs", $"services.AddScoped<{consumer}>();\n");
-
-        var wired = Invoke(registered, "Widgets", "--apply");
-
-        expect(consumer != "none" && wired.Code == 1 && wired.Output.Contains("confirmed registration(s)", StringComparison.Ordinal), $"A consumer registered elsewhere ({consumer}) did not block the removal: {wired.Output}");
-    }
-
-    private static void GeneratorCases(string scratch, Action<bool, string> expect)
-    {
-        string[][] combinations =
-        [
-            ["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag"],
-            ["Notes", "Note", "--access", "shared", "--operations", "get,list", "--concurrency", "none"],
-            ["Gadgets", "Gadget", "--access", "owner", "--deletion", "anonymise", "--model", "record", "--concurrency", "etag", "--operations", "get,list,create,update"],
-        ];
-
-        foreach (string[] combination in combinations)
-        {
-            string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
-            string features = combination[0];
-
-            Projects(root);
-
-            Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", _appDbContext);
-            Put(root, "Src/Presentation/A.Api/Program.cs", _program);
-
-            Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
-
-            var original = Snapshot(root);
-
-            expect(Generate(root, combination) == 0, $"The generator refused {features}.");
-
-            var generated = Snapshot(root);
-
-            expect(generated.Count > original.Count, $"The generator wrote nothing for {features}.");
-
-            var report = Invoke(root, features);
-
-            expect(report.Code == 0 && Same(generated, Snapshot(root)) && report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The report on a fresh {features} changed the tree or found a blocker: {report.Output}");
-
-            File.AppendAllText(Path.Combine(root, "Src/Presentation/A.Api/Program.cs"), $"builder.Services.Add{features}();\n");
-
-            var composedSnapshot = Snapshot(root);
-            var composed = Invoke(root, features, "--apply");
-
-            expect(composed.Code == 1 && Same(composedSnapshot, Snapshot(root)), $"{features} was removed although its registration was in Program.cs.");
-
-            Put(root, "Src/Presentation/A.Api/Program.cs", _program);
-
-            var applied = Invoke(root, features, "--apply");
-
-            expect(applied.Code == 0, $"A fresh {features} was refused: {applied.Output}{applied.Error}");
-            expect(Same(original, Snapshot(root)), $"After removing {features} the tree is not the one that was there before it was generated.");
-
-            foreach (string empty in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Where(folder => !Directory.EnumerateFileSystemEntries(folder).Any()))
-            {
-                expect(false, $"After removing {features}, its last feature, '{Path.GetRelativePath(root, empty)}' was left empty.");
-            }
-        }
+        Commit(registered);
+        expect(consumer != "none", "No consumer of the account deletion was written.");
+        Refused(expect, $"a consumer registered elsewhere ({consumer})", registered, "Widgets", "still use its types", "Src/Presentation/A.Api/Wiring.cs:1");
     }
 
     private static void WithoutTheApiCases(string scratch, Action<bool, string> expect)
@@ -1690,45 +2546,31 @@ internal static class RemoveFeature
 
         foreach (string[] combination in combinations)
         {
-            string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+            string root = Tree(scratch, tree =>
+            {
+                Directory.Delete(Path.Combine(tree, "Src/Presentation/A.Api"), recursive: true);
+                Directory.Delete(Path.Combine(tree, "Tests/Presentation/A.Api.UnitTests"), recursive: true);
+                Put(tree, "Src/Presentation/A.Portal/Program.cs", _program);
+            });
             string features = combination[0];
-
-            Projects(root);
-            Directory.Delete(Path.Combine(root, "Src/Presentation/A.Api"), recursive: true);
-            Directory.Delete(Path.Combine(root, "Tests/Presentation/A.Api.UnitTests"), recursive: true);
-
-            Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", _appDbContext);
-            Put(root, "Src/Presentation/A.Portal/Program.cs", _program);
-            Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
-
             var original = Snapshot(root);
 
             expect(Generate(root, combination) == 0, $"The generator refused {features} in a tree without the API.");
-
-            var generated = Snapshot(root);
-
-            expect(generated.Count > original.Count, $"The generator wrote nothing for {features} in a tree without the API.");
+            Commit(root);
 
             var report = Invoke(root, features);
 
-            expect(
-                report.Code == 0 && Same(generated, Snapshot(root)) && report.Output.Contains("Blockers: none.", StringComparison.Ordinal),
-                $"The report on a fresh {features} without the API changed the tree or found a blocker: {report.Output}");
-            expect(!report.Output.Contains(".http", StringComparison.Ordinal), $"The report on {features} without the API pointed at HTTP samples it cannot hold.");
+            expect(report.Code == 0 && report.Output.Contains("Blockers: none.", StringComparison.Ordinal), $"The report on a fresh {features} without the API found a blocker: {report.Output}");
+            expect(!report.Output.Contains("openapi", StringComparison.Ordinal), $"The report on {features} without the API plans an OpenAPI reference it cannot hold: {report.Output}");
 
-            File.AppendAllText(Path.Combine(root, "Src/Presentation/A.Portal/Program.cs"), $"builder.Services.Add{features}();\n");
-
-            var composedSnapshot = Snapshot(root);
-            var composed = Invoke(root, features, "--apply");
-
-            expect(composed.Code == 1 && Same(composedSnapshot, Snapshot(root)), $"{features} was removed although its registration was in the portal's Program.cs.");
-
-            Put(root, "Src/Presentation/A.Portal/Program.cs", _program);
-
-            var applied = Invoke(root, features, "--apply");
+            var ran = new List<TextEdits.Command>();
+            var applied = Invoke(root, Recording(ran), features, "--apply");
 
             expect(applied.Code == 0, $"A fresh {features} without the API was refused: {applied.Output}{applied.Error}");
-            expect(Same(original, Snapshot(root)), $"After removing {features} without the API the tree is not the one that was there before it was generated.");
+            expect(Same(original, Snapshot(root)), $"After removing {features} without the API the tree is not the one that was there before it was generated: {Differences(original, Snapshot(root))}");
+            expect(
+                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build"]),
+                $"Removing {features} without the API ran more than the check and the build: {string.Join(" | ", Launched(ran))}");
         }
     }
 }
@@ -1737,7 +2579,7 @@ internal static class TextEdits
 {
     private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
-    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines, string[] Replaced);
 
     internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
     {
@@ -1754,7 +2596,11 @@ internal static class TextEdits
 
         private readonly List<string> _lines;
 
-        private readonly List<bool> _inserted;
+        private readonly string[] _source;
+
+        private readonly List<int> _origin;
+
+        private readonly bool _sourceFinalNewline;
 
         internal Sheet(string path, byte[] original)
         {
@@ -1767,7 +2613,9 @@ internal static class TextEdits
             _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
             FinalNewline = text.EndsWith('\n');
             _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
-            _inserted = [.. _lines.Select(_ => false)];
+            _source = [.. _lines];
+            _origin = [.. Enumerable.Range(0, _lines.Count)];
+            _sourceFinalNewline = FinalNewline;
         }
 
         internal string Path { get; }
@@ -1778,7 +2626,7 @@ internal static class TextEdits
 
         internal bool FinalNewline { get; private set; }
 
-        internal bool Rewritten { get; private set; }
+        internal bool EndingChanged => FinalNewline != _sourceFinalNewline;
 
         internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
 
@@ -1802,9 +2650,8 @@ internal static class TextEdits
 
             int removed = _lines.Count - head - tail;
 
-            Rewritten |= removed > 0 || finalNewline != FinalNewline;
             _lines.RemoveRange(head, removed);
-            _inserted.RemoveRange(head, removed);
+            _origin.RemoveRange(head, removed);
             Insert(head, next[head..^tail]);
             FinalNewline = finalNewline;
         }
@@ -1812,32 +2659,35 @@ internal static class TextEdits
         internal void Insert(int index, string[] lines)
         {
             _lines.InsertRange(index, lines);
-            _inserted.InsertRange(index, lines.Select(_ => true));
+            _origin.InsertRange(index, lines.Select(_ => -1));
         }
 
         internal IEnumerable<Edit> Edits()
         {
-            for (int start = 0; start < _lines.Count; start++)
+            int previous = -1;
+            int previousSource = -1;
+
+            for (int index = 0; index <= _lines.Count; index++)
             {
-                if (!_inserted[start])
+                if (index < _lines.Count && _origin[index] < 0)
                 {
                     continue;
                 }
 
-                int end = start;
+                int nextSource = index < _lines.Count ? _origin[index] : _source.Length;
+                string[] added = [.. _lines.Skip(previous + 1).Take(index - previous - 1)];
+                string[] replaced = _source[(previousSource + 1)..nextSource];
 
-                while (end + 1 < _lines.Count && _inserted[end + 1])
+                if (added.Length > 0 || replaced.Length > 0)
                 {
-                    end++;
+                    int next = index < _lines.Count ? index : -1;
+                    bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                    yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", added, replaced);
                 }
 
-                int next = end + 1 < _lines.Count ? end + 1 : -1;
-                int previous = start - 1;
-                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
-
-                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
-
-                start = end;
+                previous = index;
+                previousSource = nextSource;
             }
         }
 
@@ -1856,8 +2706,8 @@ internal static class TextEdits
         internal string Step { get; set; } = string.Empty;
 
         internal IReadOnlyList<Edit> Applied =>
-            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
-                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.EndingChanged)
+                ? throw new InvalidOperationException("An edit that adds or removes the newline that ends a file cannot be recorded to be undone.")
                 : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
 
         internal List<string> Kept { get; } = [];
@@ -2154,11 +3004,12 @@ internal static class TextEdits
         }
     }
 
-    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced, IReadOnlyList<string>? deleted = null)
     {
         var written = new List<string>();
         var directories = new List<string>();
         var overwritten = new List<(string Full, byte[] Original)>();
+        var setAside = new List<(string Full, string Aside)>();
         string? staged = null;
 
         try
@@ -2202,9 +3053,23 @@ internal static class TextEdits
                 staged = null;
                 overwritten.Add((full, original));
             }
+
+            foreach (string path in deleted ?? [])
+            {
+                string full = System.IO.Path.Combine(root, path);
+                string aside = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                File.Move(full, aside);
+                setAside.Add((full, aside));
+            }
         }
         catch
         {
+            foreach (var (full, aside) in Enumerable.Reverse(setAside))
+            {
+                File.Move(aside, full);
+            }
+
             if (staged is not null && File.Exists(staged))
             {
                 File.Delete(staged);
@@ -2229,6 +3094,11 @@ internal static class TextEdits
             }
 
             throw;
+        }
+
+        foreach (var (_, aside) in setAside)
+        {
+            File.Delete(aside);
         }
     }
 
@@ -2466,14 +3336,20 @@ internal sealed class FeatureManifest
                     || Text(edit["path"]) is not { } editPath
                     || Text(edit["anchor"]) is not { } anchor
                     || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
-                    || lines.Any(line => Text(line) is null))
+                    || lines.Any(line => Text(line) is null)
+                    || (edit["replaced"] is { } replacedNode && (replacedNode is not JsonArray replacedLines || replacedLines.Any(line => Text(line) is null))))
                 {
                     problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
 
                     return null;
                 }
 
-                read.Add(new TextEdits.Edit(editPath, anchor, Text(edit["position"])!, [.. lines.Select(line => Text(line)!)]));
+                read.Add(new TextEdits.Edit(
+                    editPath,
+                    anchor,
+                    Text(edit["position"])!,
+                    [.. lines.Select(line => Text(line)!)],
+                    [.. (edit["replaced"] as JsonArray ?? []).Select(line => Text(line)!)]));
             }
 
             return new FeatureManifest(path, top, original, read);
@@ -2535,13 +3411,20 @@ internal sealed class FeatureManifest
 
         foreach (var edit in _edits)
         {
-            edits.Add((JsonNode)new JsonObject
+            var written = new JsonObject
             {
                 ["path"] = edit.Path,
                 ["anchor"] = edit.Anchor,
                 ["position"] = edit.Position,
                 ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
-            });
+            };
+
+            if (edit.Replaced.Length > 0)
+            {
+                written["replaced"] = new JsonArray([.. edit.Replaced.Select(line => (JsonNode)JsonValue.Create(line)!)]);
+            }
+
+            edits.Add((JsonNode)written);
         }
 
         if (_edits.Count > _editsRead)

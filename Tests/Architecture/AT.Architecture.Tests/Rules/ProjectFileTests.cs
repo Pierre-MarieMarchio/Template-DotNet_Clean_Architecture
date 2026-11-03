@@ -8,7 +8,7 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed class ProjectFileTests
 {
-    private static readonly string[] _workspacePackages = ["api-client", "eslint-config", "tsconfig"];
+    private static readonly string[] _workspacePackages = ["api-client", "browser-smoke", "eslint-config", "tsconfig"];
 
     private static readonly Regex _composePort = new(@"_HOST_PORT:-(?<port>\d+)\}", RegexOptions.None, TimeSpan.FromSeconds(5));
 

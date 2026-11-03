@@ -18,6 +18,7 @@ From `Src/Web`, after `corepack enable` once per machine:
 <!--#endif-->
 | After a change to the API's routes or bodies | `pnpm api` |
 | Before calling a change done | `pnpm lint`, `pnpm test`, `pnpm build` |
+| After a change to an app's page, headers or relay | `dotnet run Tools/Tasks.cs end-to-end`, which ends with `pnpm --filter "*browser-smoke" smoke` |
 
 `pnpm api` builds the API, so it needs the .NET SDK as well as Node; `pnpm api --no-build` reads the
 API's last build instead.
@@ -48,6 +49,8 @@ API's last build instead.
 - The placeholder app is a static page under `public/`, served by nginx; replace those files with the
   build output of the front end this project grows into.
 <!--#endif-->
+- `packages/browser-smoke` finds the apps in `cleanarch.json` and their ports in the stack's environment:
+  an app is never listed in it by hand, and `smoke` stays apart from `pnpm test`, which needs no stack.
 - An app calls the API through `@app-template/api-client`, typed from the API's document, and never
   imports another app.
 <!--#if (localAuth)-->
@@ -72,7 +75,9 @@ API's last build instead.
 ## Done means
 
 `pnpm lint`, `pnpm test` and `pnpm build` pass here, and the root gate passes too: `verify` runs the
-three after a frozen install, and stops, saying how to install pnpm, on a machine without it.
+three after a frozen install, and stops, saying how to install pnpm, on a machine without it. A change
+to what an app serves or relays is done once `end-to-end` passes, since only the browser smoke runs the
+page.
 <!--#if (ci)-->
 `.github/workflows/web.yml` runs the same three and fails when the committed client differs from what
 `pnpm api` writes.

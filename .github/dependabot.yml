@@ -169,6 +169,7 @@ updates:
         patterns:
           - typescript
           - vitest
+          - "@playwright/*"
 
   #endif
   #if (templateMaintenance && anyWeb)

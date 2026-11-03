@@ -636,9 +636,9 @@ public sealed partial class Launcher
         bool joined = RunTask(session, project.Root, "Join", "Making the edits its README lists outside its folder and recording it in cleanarch.json", join);
 
         Equivalents(session, Arguments.WebAppCommand, [manifest.ShortName, "-n", name, .. options], then: [TemplateEngine.CommandLine("dotnet", join)]);
-        string readme = workspace ? Path.Combine(project.WebFolder, "README.md") : appReadme;
-        string heading = workspace ? "## The first app of a project generated without one" : joined ? "## Join the stack" : JoiningSection;
-        session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme).Replace(Path.DirectorySeparatorChar, '/'), [], MarkdownSection(readme, heading) ?? $"Read {readme}.", StepsLeft: !workspace && !joined));
+        string readme = workspace && !joined ? Path.Combine(project.WebFolder, "README.md") : appReadme;
+        string heading = joined ? "## Join the stack" : JoiningSection;
+        session.Conversation.Close(new Closing(Path.GetRelativePath(project.Root, readme).Replace(Path.DirectorySeparatorChar, '/'), [], MarkdownSection(readme, heading) ?? $"Read {readme}.", StepsLeft: !joined));
     }
 
     private void WebPackage(Session session, GeneratedProject project)

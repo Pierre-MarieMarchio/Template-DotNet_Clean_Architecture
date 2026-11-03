@@ -104,8 +104,8 @@
       "displayName": "Project name",
       "datatype": "text",
       "defaultValue": "",
-      "isRequired": "(framework == \"blazor-wasm\")",
-      "description": "The project's name, as -n gave it to cleanarch-webapi and as its solution file is named (for example Acme.Shop): a Blazor WebAssembly app is the .NET project <project>.<name>, beside the client <project>.Client.",
+      "isRequired": "(framework == \"blazor-wasm\" || workspace)",
+      "description": "The project's name, as -n gave it to cleanarch-webapi and as its solution file is named (for example Acme.Shop): a Blazor WebAssembly app is the .NET project <project>.<name>, beside the client <project>.Client, and with --workspace the web apps' end-to-end tests join <project>.EndToEnd.Tests.",
       "replaces": "AppTemplate",
       "fileRename": "AppTemplate",
       "forms": {
@@ -564,8 +564,34 @@
       "condition": "(workspace)",
       "include": [
         "features/web-frontend.md",
-        "decisions/0019-one-generated-api-client.md",
+        "decisions/0019-one-generated-api-client.md"
+      ]
+    },
+    {
+      "source": "../../docs/",
+      "target": "./docs/",
+      "condition": "(workspace && webServerRendering)",
+      "include": [
         "decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
+      ]
+    },
+    {
+      "source": "../../docs/decisions/",
+      "target": "./Src/Web/apps/",
+      "condition": "(webServerRendering && !workspace)",
+      "include": [
+        "0024-a-server-rendered-web-app-runs-on-its-own-server.md"
+      ],
+      "rename": {
+        "0024-a-server-rendered-web-app-runs-on-its-own-server.md": "FrameworkSite/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
+      }
+    },
+    {
+      "source": "../../Tests/EndToEnd/",
+      "target": "./Tests/EndToEnd/",
+      "condition": "(workspace)",
+      "include": [
+        "AT.EndToEnd.Tests/WebAppTests.cs"
       ]
     }
   ],
@@ -575,17 +601,7 @@
       "description": "Join the app to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name> --web <framework>, with --web-audience and --web-rendering when --audience and --rendering were not public and spa. It records the app in cleanarch.json and, for a Blazor WebAssembly app, first makes the lines --web blazor-wasm writes outside the app's folder and the client's, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one'."
-        }
-      ],
-      "continueOnError": true
-    },
-    {
-      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
-      "description": "Start the app with the rest of the stack.",
-      "manualInstructions": [
-        {
-          "text": "In docker-compose.yml, add '  - path: Src/Web/apps/<name>/compose.yml' under include:, and add WEB_<NAME>_HOST_PORT to .env.example; Src/Web/apps/<name>/README.md gives both lines."
+          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name> --web <framework>, with --web-audience and --web-rendering when --audience and --rendering were not public and spa. It makes the lines --web writes outside the app's folder, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one' (its include: line in docker-compose.yml, its port in .env.example and what its framework adds), with those Src/Web/README.md lists for a first app and its workspace, leaves those in place already, then records the app in cleanarch.json."
         }
       ],
       "continueOnError": true
@@ -618,18 +634,7 @@
       "description": "Sign people in at the provider from the app's server.",
       "manualInstructions": [
         {
-          "text": "Add WEB_<NAME>_ORIGIN to .env.example, and EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID and EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET where it names neither; Src/Web/apps/<name>/README.md gives the lines, and the client to register at the provider, under 'Calling the API and signing in'."
-        }
-      ],
-      "continueOnError": true
-    },
-    {
-      "condition": "(workspace)",
-      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
-      "description": "Wire the new workspace into the project.",
-      "manualInstructions": [
-        {
-          "text": "Src/Web/README.md, under 'The first app of a project generated without one', gives the lines --web writes outside Src/Web: the include block in docker-compose.yml, the port in .env.example, Src/Web/ in .dockerignore, the two web entries of .github/dependabot.yml, and the web rows of the documentation index, the decision index and ADR 0001 (with --auth local, ADR 0016's web paragraph)."
+          "text": "Register the app's client at the provider and set it in .env, as Src/Web/apps/<name>/README.md says under 'Calling the API and signing in'."
         }
       ],
       "continueOnError": true

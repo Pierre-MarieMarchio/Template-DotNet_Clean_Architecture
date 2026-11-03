@@ -151,7 +151,8 @@ Every leg also greps its project for the other database providers' packages and 
 `database`; the SQLite legs run their integration suites on a file and start no database container, and
 the SQL Server leg starts one large image, so it has the longest timeout. A leg without a web app asserts no workflow, Dependabot entry, Compose file or ignore file names a
 workspace. The leg that adds a first app runs that assertion, then `cleanarch-webapp --workspace` and
-the lines `Src/Web/README.md` lists, and is a web leg from there. `--workspace` only adds files, and
+`web-join`, which makes the lines `Src/Web/README.md` and the app's `README.md` list, and is a web leg
+from there. `--workspace` only adds files, and
 the engine refuses to overwrite one, so everything a web app needs from the API ships with every
 project and the web jobs are `web.yml`, not jobs of `ci.yml`. A separate job asserts each refused combination exits non-zero and writes no file. The legs
 are the shapes the options produce, not their cross product, and run with `fail-fast: false`.
@@ -524,13 +525,23 @@ fails when a symbol the starters read is missing or differs, or when the two tem
 different files. What `--presentation` writes outside the project's folders, an item template
 cannot edit: the starter's `README.md` lists each of those lines under "Joining a project generated
 without one", as an edit placed after or before the lines around it, or in their place, and
-`ThePresentationReadme_ListsEveryLineThePresentationWritesOutsideItsFolders` fails, for each
+`TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders` fails, for each
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
 Avalonia, `presentationWpf`, `dotnetClient` or `anyPresentation` for WPF, `presentationMcp` or `anyPresentation` for the MCP server, outside the files the item template brings whole and the solution, which
 `presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
-rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task; the overview and
-the web front end page stay as they are, since they describe the app the project was generated with.
+rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task, and
+`TheWebReadme_ListsEveryLineItsAppOrItsWorkspaceWritesOutsideItsFolders` holds it for
+`Src/Web/apps/FrameworkSite/README.md` (the framework symbols and `webServerRendering`),
+`Src/Web/apps/PlaceholderSite/README.md` (`webPlaceholder`) and `Src/Web/README.md` (`anyWeb`, the
+lines of a first app's workspace, which `web-join` makes before the app's while `cleanarch.json`
+records no workspace), each leaving to the others the lines their symbols write. For an app added to
+a workspace, the overview, the first run and the web front end page stay as they are, since they
+describe the app the project was generated with; a first app's workspace brings the web front end
+page and the end-to-end tests of the web apps whole. A server-rendered app brings ADR 0024 into its own
+folder, since the engine refuses to overwrite the copy an earlier one placed, and `web-join` moves it
+to `docs/decisions` or drops it when the project holds it already; the app's `README.md` lists the
+lines citing it.
 Under `externalAuth` the WebAssembly app has code of its own, and its unit tests come from
 `.template.config/variants/blazor-wasm-sign-in/`, which both templates copy to the project's root,
 since the starter's folder lands in `Src/Web/apps/`; `web-scaffold` adds them to the solution with
@@ -783,7 +794,8 @@ its files rather than asking them; `GeneratedProjectTests` holds each reading on
 `presentation` runs `cleanarch-presentation`, then the project's `presentation-join` and
 `presentation-scaffold` tasks, and stops before the second when the first fails. `web-app` and
 `web-package` run the project's `web-join` after the item template, with the framework, audience
-and rendering asked, so `cleanarch.json` records every part the launcher adds.
+and rendering asked, so the lines a web app's `README.md` lists are made and `cleanarch.json`
+records every part the launcher adds.
 
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
 some combination, the launcher refuses exactly where `refusedOptions` does, and answering only what
@@ -794,7 +806,14 @@ presentation project, and compares the tree with what `dotnet new` writes from t
 `--presentation api --presentation blazor-server`: the lines `presentation-join` places by the
 anchors of the starter's `README.md` land where the project template writes them, so an anchor
 moved, or a block of the project template moved away from its anchor, fails it. It stops before
-`presentation-scaffold`, which fetches Microsoft's template package from NuGet.
+`presentation-scaffold`, which fetches Microsoft's template package from NuGet. Another generates a
+project with `--web`, once as a React single-page app and once as an Angular app rendered on the
+server under an external provider, and the same project without it, to which `cleanarch-webapp
+--workspace` and `web-join` add the app: the two trees must match but for the options the overview
+records, so an edit of `Src/Web/README.md` or of the app's `README.md` that is missing, wrong or
+placed elsewhere than the project template writes its lines fails it. A third adds two
+server-rendered apps to a project generated with a single-page app and requires ADR 0024, its index
+row and the lines citing it as `--web-rendering ssr` writes them, once.
 
 A multi-valued option, `--presentation`, is one multi-select that keeps at least one value and
 reaches `dotnet new` as the option repeated once per value; the launcher's conditions read `==` as

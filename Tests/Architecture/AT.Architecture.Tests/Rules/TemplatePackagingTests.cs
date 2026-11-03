@@ -228,7 +228,7 @@ public sealed class TemplatePackagingTests
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
         var written = ConditionedBlocks(File.ReadAllLines(Path.Combine(root, ".github", "dependabot.yml")), "anyWeb");
-        var listed = FencedBlocksUnder(File.ReadAllLines(Path.Combine(root, "Src", "Web", "README.md")), "- in `.github/dependabot.yml`");
+        var listed = AddedBlocksUnder(File.ReadAllLines(Path.Combine(root, "Src", "Web", "README.md")), "- in `.github/dependabot.yml`");
 
         written.Count.ShouldBe(2, "dependabot.yml was expected to hold two blocks conditioned on anyWeb: the apps' images and the workspace's packages.");
 
@@ -1112,22 +1112,59 @@ public sealed class TemplatePackagingTests
             "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln",
             "docs/getting-started/overview.md", "docs/features/web-frontend.md",
         })]
-    public void TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders(string readme, string symbols, int files, string[] notListed)
+    public void TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders(string readme, string symbols, int files, string[] notListed) =>
+        ReadmeListsEveryLineWrittenFor(Path.Combine(StartersFolder, readme), readme, symbols, elsewhere: null, files, notListed);
+
+    [Theory]
+    [InlineData(
+        "Src/Web/README.md",
+        "anyWeb",
+        _appSymbols,
+        20,
+        new[]
+        {
+            "Src/Web/", ".github/workflows/web.yml", "docs/features/web-frontend.md", "docs/decisions/0019-one-generated-api-client.md",
+            "Tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs", "docs/getting-started/overview.md",
+        })]
+    [InlineData(
+        "Src/Web/apps/FrameworkSite/README.md",
+        "webFramework|webNodeFramework|webVite|webAngular|webReactRouter|webViteReact|webViteVue|webViteSvelte|webServerRendering|adminAudience",
+        "webBlazorWasm|webPlaceholder|dotnetClient",
+        2,
+        new[]
+        {
+            "Src/Web/", "docs/features/web-frontend.md", "Tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs", "docs/getting-started/overview.md",
+            "docs/getting-started/first-run.md",
+        })]
+    [InlineData(
+        "Src/Web/apps/PlaceholderSite/README.md",
+        "webPlaceholder",
+        null,
+        2,
+        new[] { "Src/Web/", "docs/features/web-frontend.md", "docs/getting-started/overview.md", "docs/getting-started/first-run.md" })]
+    public void TheWebReadme_ListsEveryLineItsAppOrItsWorkspaceWritesOutsideItsFolders(string readme, string symbols, string? elsewhere, int files, string[] notListed) =>
+        ReadmeListsEveryLineWrittenFor(Path.Combine(ProjectReferenceGraph.RepositoryRoot, readme), readme, symbols, elsewhere, files, notListed);
+
+    private const string _appSymbols =
+        "webPlaceholder|webFramework|webNodeFramework|webVite|webAngular|webReactRouter|webViteReact|webViteVue|webViteSvelte|webBlazorWasm|webServerRendering|dotnetClient";
+
+    private static void ReadmeListsEveryLineWrittenFor(string path, string readme, string symbols, string? elsewhere, int files, string[] notListed)
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
-        var listed = File.ReadLines(Path.Combine(StartersFolder, readme))
+        var listed = File.ReadLines(path)
             .Select(line => line.Trim())
             .ToHashSet(StringComparer.Ordinal);
         var starterSymbol = new Regex($@"(!?)\b(?:{symbols})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+        Regex? listedElsewhere = elsewhere is null ? null : new Regex($@"(?<!!)\b(?:{elsewhere})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
         var written = new List<(string File, string Line)>();
 
-        foreach (string path in ProjectFiles(root))
+        foreach (string file in ProjectFiles(root))
         {
-            string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
-            string text = File.ReadAllText(path);
+            string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+            string text = File.ReadAllText(file);
             if (!text.Contains('\0', StringComparison.Ordinal) && !notListed.Any(whole => relative.StartsWith(whole, StringComparison.Ordinal)))
             {
-                written.AddRange(StarterLines(text.Split('\n'), starterSymbol).Select(line => (relative, line)));
+                written.AddRange(StarterLines(text.Split('\n'), starterSymbol, listedElsewhere).Select(line => (relative, line)));
             }
         }
 
@@ -1137,6 +1174,8 @@ public sealed class TemplatePackagingTests
             $"The project template writes these lines outside the starter's folders, and {readme} does not give them to a project " +
             "that adds it with an item template: add each to the edits under 'Joining a project generated without one'.");
     }
+
+    private static readonly Regex _templateOnly = new(@"(?<!!)\btemplateMaintenance\b", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     private static readonly Regex _condition = new(@"#(?:if|elseif)\s*(\(.*\))", RegexOptions.None, TimeSpan.FromSeconds(5));
 
@@ -1159,7 +1198,7 @@ public sealed class TemplatePackagingTests
             .Where(folder => !_outsideTheProject.Contains(Path.GetFileName(folder), StringComparer.Ordinal))
             .SelectMany(ProjectFiles));
 
-    private static List<string> StarterLines(string[] lines, Regex starterSymbol)
+    private static List<string> StarterLines(string[] lines, Regex starterSymbol, Regex? listedElsewhere = null)
     {
         var branches = new Stack<(string Condition, bool Otherwise)>();
         var written = new List<string>();
@@ -1170,7 +1209,9 @@ public sealed class TemplatePackagingTests
 
             if (!marker.Success)
             {
-                if (line.Trim().Length > 0 && branches.Any(branch => IsStarterBranch(starterSymbol, branch.Condition, branch.Otherwise)))
+                if (line.Trim().Length > 0
+                    && branches.Any(branch => IsStarterBranch(starterSymbol, branch.Condition, branch.Otherwise))
+                    && !branches.Any(branch => !branch.Otherwise && (_templateOnly.IsMatch(branch.Condition) || listedElsewhere?.IsMatch(branch.Condition) == true)))
                 {
                     written.Add(line.Trim());
                 }
@@ -1429,10 +1470,16 @@ public sealed class TemplatePackagingTests
         return blocks;
     }
 
-    private static List<string> FencedBlocksUnder(string[] lines, string bullet)
+    private static List<string> AddedBlocksUnder(string[] lines, string bullet)
     {
-        int start = Array.FindIndex(lines, line => line.StartsWith(bullet, StringComparison.Ordinal));
-        start.ShouldBeGreaterThanOrEqualTo(0, $"Src/Web/README.md has no bullet starting '{bullet}'.");
+        int[] starts = [.. Enumerable.Range(0, lines.Length).Where(index => lines[index].StartsWith(bullet, StringComparison.Ordinal))];
+        starts.ShouldNotBeEmpty($"Src/Web/README.md has no bullet starting '{bullet}'.");
+
+        return [.. starts.Select(start => FencedBlocksUnder(lines, start).Last())];
+    }
+
+    private static List<string> FencedBlocksUnder(string[] lines, int start)
+    {
 
         var blocks = new List<string>();
         List<string>? block = null;

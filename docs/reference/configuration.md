@@ -277,23 +277,6 @@ the same places as `Api` (`SignIn__ClientId`, `--SignIn:ClientId=<id>`); the API
 | `MaxScannableBytes` | long | `26214400` | At most the daemon's `StreamMaxLength`; larger content is refused. |
 
 <!--#endif-->
-<!--#if (webBlazorWasm && externalAuth)-->
-## The WebAssembly app
-
-### `SignIn`
-
-Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
-signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
-downloads: public values only, never a secret. The API never reads it.
-
-| Key | Type | Default | Notes |
-|---|---|---|---|
-| `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
-| `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. |
-| `Scope` | string | `openid profile email` | Must include `openid`. No `offline_access`: the provider renews the access token in a hidden frame while its own session lasts. The API's own scope goes here when the provider issues its audience that way. |
-| `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only, as `wwwroot/appsettings.Development.json` sets it for `dotnet watch`. |
-
-<!--#endif-->
 <!--#if (anyWeb && externalAuth)-->
 ## A server-rendered web app
 
@@ -312,6 +295,23 @@ build, which loads the server, needs none of them.
 | `EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET` | — | Its secret, for a confidential client; a public client sends none and relies on PKCE. |
 | `EXTERNAL_AUTH_INTERACTIVE_SCOPE` | `openid profile email offline_access` | Must include `openid`. `offline_access` asks for the refresh token that keeps the session past the first access token; the API's own scope goes here when the provider issues its audience that way. |
 | `PUBLIC_ORIGIN` | — | **Required.** The origin browsers reach the app at, such as `https://app.example.com`: `https`, or `http` on `localhost`, since the session cookie is `Secure`. The redirect URI is `<origin>/session/callback`. Compose sets it from `WEB_<NAME>_ORIGIN`, `http://localhost` on the app's port by default. |
+
+<!--#endif-->
+<!--#if (webBlazorWasm && externalAuth)-->
+## The WebAssembly app
+
+### `SignIn`
+
+Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
+signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
+downloads: public values only, never a secret. The API never reads it.
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
+| `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. |
+| `Scope` | string | `openid profile email` | Must include `openid`. No `offline_access`: the provider renews the access token in a hidden frame while its own session lasts. The API's own scope goes here when the provider issues its audience that way. |
+| `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only, as `wwwroot/appsettings.Development.json` sets it for `dotnet watch`. |
 
 <!--#endif-->
 ## Mail

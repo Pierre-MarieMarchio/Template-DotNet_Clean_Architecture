@@ -223,11 +223,6 @@ public sealed class AcceptanceSelectionTests
             tags.Add("web");
         }
 
-        if (Field("generator") == "true")
-        {
-            tags.Add("generator");
-        }
-
         if (Field("database") is { } database)
         {
             tags.Add($"database-{database}");

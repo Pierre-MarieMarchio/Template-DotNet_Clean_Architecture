@@ -942,6 +942,18 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn()
+    {
+        string own = SharedFileEdits(Path.Combine("Tools", "NewFeature.cs"));
+
+        own.ShouldNotBeEmpty("NewFeature.cs declares no TextEdits, so this rule compares nothing.");
+        SharedFileEdits(Path.Combine("Tools", "NewUseCase.cs")).ShouldBe(
+            own,
+            "NewFeature.cs and NewUseCase.cs are file-based programs, which share no code, so each closes on its own copy of TextEdits, "
+            + "the edits both make in files a feature does not own and the commands both run after: make NewUseCase.cs's copy read as NewFeature.cs's.");
+    }
+
+    [Fact]
     public void TheFolderToken_NamesNothingButAProjectFolder()
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
@@ -1214,6 +1226,14 @@ public sealed class TemplatePackagingTests
                 yield return $"{relative}:{line}: {text[Math.Max(0, at - 12)..Math.Min(text.Length, at + token.Length + 16)].ReplaceLineEndings(" ")}";
             }
         }
+    }
+
+    private static string SharedFileEdits(string relative)
+    {
+        string text = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, relative)).ReplaceLineEndings("\n");
+        int start = text.IndexOf("\ninternal static class TextEdits\n", StringComparison.Ordinal);
+
+        return start < 0 ? string.Empty : text[start..];
     }
 
     private static string SegmentInitials(string relative) =>

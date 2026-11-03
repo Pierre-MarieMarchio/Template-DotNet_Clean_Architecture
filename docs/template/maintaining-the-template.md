@@ -72,14 +72,15 @@ seven and a half. The defaults leg, the local-auth leg without examples and the 
 without examples also run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
 aggregate one on `get,list,create` in turn, the aggregates after `new-use-case` adds a command, a
 query, a command without input, a query with typed inputs and a command with the id and a body to
-each while refusing the others.
-`.template.config/acceptance/ApplyFeatureEdits.cs` then makes the hand edits `new-feature` printed,
-read from its output; the whole solution builds with warnings as errors, the architecture tests pass,
-and the feature's own tests pass in every Docker-free test project. The edits are undone and
-`remove-feature --apply` leaves `git status` empty. Then all four are written together, proved the
-same way, `hygiene` passes, and they are removed last in first out. In a project generated without an
-owner feature, the first one prints edits as prose, its account-deletion wiring among them, so there
-only the domain and application layers are built and tested. A web leg also checks its
+each while refusing the others. Each command makes its own edits, the account-deletion wiring of a
+project's first owner feature among them, adds the feature's migration and rewrites the OpenAPI
+reference and the client; the leg fails when a manifest records no edit or no migration was added.
+The whole solution then builds with warnings as errors, the architecture tests pass, the feature's own
+tests pass in every Docker-free test project, and the business context has no pending model change.
+Every file no manifest lists then goes back to the commit, the edits, the migration and the
+rewritten references among them, untracked files included, since `remove-feature` refuses a feature
+still composed; `remove-feature --apply` then leaves `git status` empty. Then all four are written
+together, proved the same way, `hygiene` passes, and they are removed last in first out. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
 install, lint, test and build, fails when an app with a build script has no built page, checks a
 second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its
@@ -188,7 +189,6 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--presentation worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
-| `.template.config/acceptance/ApplyFeatureEdits.cs` | the three generator legs |
 | anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows ones included |
 
 The `windows, wpf, local auth` leg generates the default shape with the WPF app added and nothing

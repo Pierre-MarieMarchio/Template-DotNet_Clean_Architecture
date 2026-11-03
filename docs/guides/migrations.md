@@ -102,6 +102,15 @@ dotnet ef migrations has-pending-model-changes \
 
 It compares the snapshot with the model and needs no database. `verify` runs it for every context,
 and `PendingModelChangesTests` proves the same inside the suite, which is how CI catches drift.
+<!--#if (localAuth)-->
+`dotnet run Tools/Tasks.cs migration-check` runs it for the business context, or for the
+authentication context with `--context auth`; `new-feature` runs it before it writes, so the
+feature's migration carries the feature alone.
+<!--#endif-->
+<!--#if (!localAuth)-->
+`dotnet run Tools/Tasks.cs migration-check` runs it for the business context; `new-feature` runs it
+before it writes, so the feature's migration carries the feature alone.
+<!--#endif-->
 
 ## Apply them
 

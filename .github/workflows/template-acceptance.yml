@@ -504,7 +504,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
 
-      # A generated feature builds in the layers that need no hand edit and passes its own tests there; the container and architecture tests wait for the edits new-feature prints. The aggregate one takes five more use cases from new-use-case, two with typed inputs, which refuses the record ones. The hygiene gates pass with three features present, and remove-feature --apply leaves the tree as it was.
+      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference; the solution then builds with warnings as errors and the architecture and feature tests pass. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. The hygiene gates pass with four features present, and remove-feature --apply leaves the tree as it was.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -520,16 +520,16 @@ jobs:
             "Invoices Invoice --access owner --deletion anonymise --model aggregate --concurrency etag"
             "Receipts Receipt --access owner --deletion delete --model aggregate --concurrency etag --operations get,list,create"
           )
-          mapfile -t layers < <(find Src/Domain Src/Application Tests/Domain Tests/Application -name '*.csproj' | sort)
           mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L 'Testcontainers' | sort)
           mapfile -t architecture < <(find Tests/Architecture -name '*.csproj')
           write() {
             local log="${{ runner.temp }}/new-feature-${1%% *}.log"
             # shellcheck disable=SC2086
             dotnet run Tools/Tasks.cs new-feature $1 > "$log" 2>&1 || { cat "$log"; fail "new-feature $1 failed."; }
-            [ -n "$(git status --porcelain)" ] || fail "new-feature $1 wrote nothing."
             grep -q 'Feature page: docs/features/' "$log" || fail "new-feature $1 named no feature page."
-            [ -d .feature-manifest ] || fail "new-feature $1 left no manifest."
+            [ -f ".feature-manifest/${1%% *}.json" ] || fail "new-feature $1 left no manifest."
+            jq -e '.edits | length > 0' ".feature-manifest/${1%% *}.json" > /dev/null || fail "new-feature $1 recorded no edit in its manifest."
+            compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_Add${1%% *}.cs" > /dev/null || fail "new-feature $1 added no migration."
           }
           extend() {
             local feature type
@@ -547,49 +547,33 @@ jobs:
               dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "$log" 2>&1 || { cat "$log"; fail "new-use-case $feature $usecase failed."; }
             done
           }
-          compose() {
-            local feature status
-            for feature in "$@"; do
-              status=0
-              dotnet run "${{ github.workspace }}/.template.config/acceptance/ApplyFeatureEdits.cs" "${{ runner.temp }}/new-feature-$feature.log" . || status=$?
-              case "$status" in
-                0) ;;
-                2) git checkout --quiet -- . && return 1 ;;
-                *) fail "the edits new-feature printed for $feature could not be applied." ;;
-              esac
-              for log in "${{ runner.temp }}/new-use-case-$feature-"*.log; do
-                [ -e "$log" ] || continue
-                dotnet run "${{ github.workspace }}/.template.config/acceptance/ApplyFeatureEdits.cs" "$log" . || fail "the HTTP edit new-use-case printed in $(basename "$log") could not be applied."
-              done
-            done
-          }
-          # The edits land in the features' own files too, which remove-feature must find as new-feature wrote them, so the tree is restored from a snapshot.
           prove() {
-            local projects feature home snapshot
-            git add -A
-            snapshot=$(git write-tree)
-            git reset --quiet
-            if compose "$@"; then
-              dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once the edits new-feature printed for $* are made."
-              dotnet test "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once the edits new-feature printed for $* are made."
-              projects=("${docker_free[@]}")
-            else
-              echo "::notice title=Generator round trip::$* holds a first owner feature, whose extra edits are prose, so only the domain and application layers are built."
-              for home in "${layers[@]}"; do
-                dotnet build "$home" --configuration Release --no-restore -warnaserror
-              done
-              mapfile -t projects < <(printf '%s\n' "${layers[@]}" | grep '^Tests/')
-            fi
+            local feature home persistence
+            dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once new-feature has composed $*."
+            dotnet test "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once new-feature has composed $*."
             for feature in "$@"; do
-              mapfile -t homes < <(for home in "${projects[@]}"; do [ -n "$(find "$(dirname "$home")" -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*')" ] && echo "$home"; done)
+              mapfile -t homes < <(for home in "${docker_free[@]}"; do [ -n "$(find "$(dirname "$home")" -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*')" ] && echo "$home"; done)
               [ "${#homes[@]}" -gt 0 ] || fail "new-feature $feature wrote no test in a Docker-free test project."
               for home in "${homes[@]}"; do
                 dotnet test "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
               done
             done
-            git read-tree -u --reset "$snapshot"
+            persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
+            dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the migrations new-feature added for $* do not hold its model."
+          }
+          # remove-feature deletes an untouched skeleton and refuses one still composed, so every file no manifest lists goes back to the commit, the edits, the migrations and the rewritten references among them, untracked ones included, and the files the manifests list stay as the generators wrote them.
+          detach() {
+            local keep path
+            keep=$(mktemp -d)
+            while read -r path; do
+              mkdir -p "$keep/$(dirname "$path")"
+              cp "$path" "$keep/$path"
+            done < <(jq -r '.files[].path, (.page // empty)' .feature-manifest/*.json)
+            cp -r .feature-manifest "$keep/"
+            git reset --quiet --hard
             git clean -fdq
-            git reset --quiet
+            cp -a "$keep/." .
+            rm -rf "$keep"
           }
           remove() {
             for feature in "$@"; do
@@ -605,6 +589,7 @@ jobs:
             write "$one"
             extend "$one"
             prove "${one%% *}"
+            detach
             remove "${one%% *}"
             echo "::endgroup::"
           done
@@ -617,6 +602,7 @@ jobs:
           done
           prove "${written[@]}"
           dotnet run Tools/Tasks.cs hygiene
+          detach
           remove "${written[@]}"
           echo "::endgroup::"
 

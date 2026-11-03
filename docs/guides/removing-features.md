@@ -22,16 +22,18 @@ change the business migration.
 
 ```bash
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
-dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
+dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton whose edits are undone
 ```
 
 The report reads `.feature-manifest/<Features>.json`: the files the feature owns, the lines that
 register or use it elsewhere, and the checks to run after. `--apply` deletes the files, the manifest,
 the emptied folders and the feature page, but refuses, deleting nothing, once a file was edited or
-added or a registration exists; remove such a feature by hand from the report. The first owner feature
-holds the account-deletion files later ones share, so it goes last.
-
-Then remove its row from `docs/README.md`, and change the migration as [below](#migrations).
+added or a registration exists; remove such a feature by hand from the report. Every edit
+`new-feature` made is such a registration: the manifest's `edits` name each one, the file, the line
+it is placed beside and the lines added, so undo them first, the rows it added to the documentation
+among them. The migration it added, `Add<Features>`, names the feature too, and goes as
+[below](#migrations) says. The first owner feature holds the account-deletion files later ones share,
+so it goes last.
 
 <!--#if (todoLists || notes)-->
 ## Remove the examples
@@ -177,6 +179,12 @@ Removing a business feature changes the business migration only; authentication 
 While no database has applied the initial migration, recreate it as
 [migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
 migration that drops the tables, and review it line by line.
+
+`remove-feature --apply` refuses while a migration names the feature, which the `Add<Features>`
+migration `new-feature` added does. While no database has applied that one and it is the last,
+`dotnet ef migrations remove --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence`
+takes it back before `--apply`; once a database has applied it, remove the feature by hand from the
+report, its tables dropped in a migration of their own.
 
 <!--#if (localAuth && api)-->
 ## Remove authentication

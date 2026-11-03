@@ -70,8 +70,8 @@ should run.
 
 ## Consequences
 
-- A feature's registration is one line in each host that composes features; `new-feature` prints
-  the line for every host it finds.
+- A feature's registration is one line in each host that composes features; `new-feature` writes
+  the line in every host it finds.
 - A setting the use cases read is set for every host that composes them.
 - A host's identity, its sign-in and its session belong to it: the API keeps its bearer tokens,
   a server-rendered host its cookie, and each maps its principal to the same `UserId`.

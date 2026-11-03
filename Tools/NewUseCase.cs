@@ -13,7 +13,7 @@ internal static class NewUseCase
     private const string _usage =
         "Usage: dotnet run Tools/NewUseCase.cs <Features> <UseCase> --kind command|query\n"
         + "           [--input id|none|\"[id, ]Name:Type, Other:Type\"]\n"
-        + "           [--root <path>]\n"
+        + "           [--root <path>] [--dry-run]\n"
         + "  <Features>  the folder of an existing feature of the rich shape, e.g. Invoices\n"
         + "  <UseCase>   the operation, PascalCase, a verb and its subject, e.g. ApproveInvoice\n"
         + "  --kind      required. command: changes state and answers a Result.\n"
@@ -28,6 +28,10 @@ internal static class NewUseCase
         + "              value; the output lists any other, whose rule and value are yours to write.\n"
         + "              The validator and its tests, and the handler's test, come with a rule.\n"
         + "  --root      the tree to write into, default the current directory.\n"
+        + "  --dry-run   print the files and the edit, and write and run nothing.\n"
+        + "  Where the API serves the feature, it also adds the action to the feature's controller, writes\n"
+        + "  the request and response contracts and the route's row, every edit or none, then rewrites the\n"
+        + "  OpenAPI reference and the clients written from it.\n"
         + "       dotnet run Tools/NewUseCase.cs --self-test";
 
     private static readonly string[] _optionNames = ["--kind", "--input", "--root"];
@@ -77,7 +81,7 @@ internal static class NewUseCase
 
     private sealed record Emission(string Path, string Content);
 
-    private sealed record Request(string? Features, string? Name, string? Kind, string? Input, string Root);
+    private sealed record Request(string? Features, string? Name, string? Kind, string? Input, string Root, bool DryRun);
 
     private sealed record KnownType(string? Valid, string? Empty);
 
@@ -150,10 +154,10 @@ internal static class NewUseCase
             return 0;
         }
 
-        return Run(args, Console.Out, Console.Error);
+        return Run(args, Console.Out, Console.Error, TextEdits.Execute);
     }
 
-    private static int Run(string[] args, TextWriter output, TextWriter error)
+    private static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
     {
         var problems = new List<string>();
         var request = Parse(args, problems);
@@ -167,7 +171,9 @@ internal static class NewUseCase
         }
 
         var plan = Plan(spec, root, out string? skipped);
-        string[] existing = [.. plan.Select(emission => emission.Path).Where(path => File.Exists(Path.Combine(root, path)))];
+        var editor = new TextEdits.Editor(root);
+        List<Emission> contracts = Http(editor, root, spec);
+        string[] existing = [.. plan.Concat(contracts).Select(emission => emission.Path).Where(path => File.Exists(Path.Combine(root, path)))];
 
         if (existing.Length > 0)
         {
@@ -178,11 +184,39 @@ internal static class NewUseCase
             return Refuse(error, problems);
         }
 
-        Emission? manifest = spec.Manifest is null ? null : ManifestWith(root, spec.Manifest, plan);
+        if (editor.Failures.Count > 0)
+        {
+            Report(output, root, spec, plan, skipped, Mode.Refused);
+
+            foreach (string failure in editor.Failures)
+            {
+                error.WriteLine($"error: {failure}");
+            }
+
+            error.WriteLine("Nothing was written: every edit is made or none is. Put back the line the failed edit is placed beside, or make the edit above by hand.");
+
+            return 1;
+        }
+
+        if (request.DryRun)
+        {
+            Report(output, root, spec, plan, skipped, Mode.DryRun);
+            output.WriteLine();
+            output.WriteLine("--dry-run: nothing was written and nothing was run.");
+
+            return 0;
+        }
+
+        var replaced = TextEdits.Replacements(editor).ToList();
+
+        if (spec.Manifest is not null)
+        {
+            replaced.Add(ManifestWith(root, spec.Manifest, [.. plan, .. contracts], editor));
+        }
 
         try
         {
-            WriteAll(root, plan, manifest);
+            TextEdits.Commit(root, [.. plan.Concat(contracts).Select(emission => (emission.Path, Bytes(emission)))], replaced);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -191,9 +225,19 @@ internal static class NewUseCase
             return 1;
         }
 
-        Report(output, root, spec, plan, skipped);
+        Report(output, root, spec, plan, skipped, Mode.Applied);
 
-        return 0;
+        return contracts.Count == 0 && editor.Applied.Count == 0
+            || TextEdits.RunAll(TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client")), run, output, error, "the use case's files, its action, its contracts and its route's row")
+                ? 0
+                : 1;
+    }
+
+    private enum Mode
+    {
+        Applied,
+        DryRun,
+        Refused,
     }
 
     private static int Refuse(TextWriter error, List<string> problems)
@@ -215,6 +259,7 @@ internal static class NewUseCase
     {
         var positional = new List<string>();
         var options = new Dictionary<string, string>(StringComparer.Ordinal);
+        bool dryRun = false;
 
         for (int index = 0; index < args.Length; index++)
         {
@@ -223,6 +268,13 @@ internal static class NewUseCase
             if (!argument.StartsWith('-'))
             {
                 positional.Add(argument);
+
+                continue;
+            }
+
+            if (argument == "--dry-run")
+            {
+                dryRun = true;
 
                 continue;
             }
@@ -239,7 +291,7 @@ internal static class NewUseCase
 
             if (!_optionNames.Contains(name, StringComparer.Ordinal))
             {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])}.");
+                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])} and --dry-run.");
 
                 continue;
             }
@@ -276,7 +328,8 @@ internal static class NewUseCase
             positional.Count > 1 ? positional[1] : null,
             Option("--kind"),
             Option("--input"),
-            Option("--root") ?? ".");
+            Option("--root") ?? ".",
+            dryRun);
     }
 
     private static Spec? Check(Request request, string root, List<string> problems)
@@ -963,26 +1016,54 @@ internal static class NewUseCase
     private static string HashOf(Emission emission) =>
         Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
 
-    private static Emission ManifestWith(string root, string manifest, List<Emission> plan)
+    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string manifest, List<Emission> written, TextEdits.Editor editor)
     {
-        var top = (JsonObject)JsonNode.Parse(File.ReadAllText(Path.Combine(root, manifest)))!;
-        var files = (JsonArray)top["files"]!;
-
-        var entries = files
+        byte[] original = File.ReadAllBytes(Path.Combine(root, manifest));
+        var top = (JsonObject)JsonNode.Parse(original)!;
+        var hashes = ((JsonArray)top["files"]!)
             .OfType<JsonObject>()
-            .Select(file => (Path: file["path"]!.GetValue<string>(), Sha256: file["sha256"]!.GetValue<string>()))
-            .Concat(plan.Select(emission => (emission.Path, Sha256: HashOf(emission))))
-            .OrderBy(entry => entry.Path, StringComparer.Ordinal)
-            .ToList();
+            .ToDictionary(file => file["path"]!.GetValue<string>(), file => file["sha256"]!.GetValue<string>(), StringComparer.Ordinal);
+        var edits = top["edits"] as JsonArray ?? [];
+
+        foreach (var emission in written)
+        {
+            hashes[emission.Path] = HashOf(emission);
+        }
+
+        foreach (var sheet in editor.Changed)
+        {
+            if (hashes.TryGetValue(sheet.Path, out string? recorded) && recorded == Convert.ToHexStringLower(SHA256.HashData(sheet.Original)))
+            {
+                hashes[sheet.Path] = Convert.ToHexStringLower(SHA256.HashData(sheet.Bytes()));
+            }
+        }
+
+        foreach (var edit in editor.Applied.Where(edit => !hashes.ContainsKey(edit.Path)))
+        {
+            edits.Add((JsonNode)new JsonObject
+            {
+                ["path"] = edit.Path,
+                ["anchor"] = edit.Anchor,
+                ["position"] = edit.Position,
+                ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
+            });
+        }
 
         var merged = new JsonArray();
 
-        foreach (var (path, sha256) in entries)
+        foreach (var (path, sha256) in hashes.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             merged.Add((JsonNode)new JsonObject { ["path"] = path, ["sha256"] = sha256 });
         }
 
         top["files"] = merged;
+
+        if (edits.Count > 0)
+        {
+            top["schemaVersion"] = Math.Max(top["schemaVersion"]?.GetValue<int>() ?? 1, 2);
+            top.Remove("edits");
+            top["edits"] = edits;
+        }
 
         using var stream = new MemoryStream();
 
@@ -991,67 +1072,10 @@ internal static class NewUseCase
             top.WriteTo(writer);
         }
 
-        return new Emission(manifest, Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
+        return (manifest, original, Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n"));
     }
 
-    private static void WriteAll(string root, List<Emission> emissions, Emission? manifest)
-    {
-        var files = new List<string>();
-        var directories = new List<string>();
-
-        try
-        {
-            foreach (var emission in emissions)
-            {
-                string full = Path.Combine(root, emission.Path);
-                string directory = Path.GetDirectoryName(full)!;
-
-                var missing = new Stack<string>();
-
-                for (string next = directory; !Directory.Exists(next); next = Path.GetDirectoryName(next)!)
-                {
-                    missing.Push(next);
-                }
-
-                directories.AddRange(missing);
-                Directory.CreateDirectory(directory);
-
-                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
-
-                stream.Write(Bytes(emission));
-                files.Add(full);
-            }
-
-            if (manifest is not null)
-            {
-                string full = Path.Combine(root, manifest.Path);
-                string staged = full + ".new";
-
-                File.WriteAllBytes(staged, Bytes(manifest));
-                files.Add(staged);
-                File.Move(staged, full, overwrite: true);
-            }
-        }
-        catch
-        {
-            foreach (string file in files.Where(File.Exists))
-            {
-                File.Delete(file);
-            }
-
-            foreach (string directory in Enumerable.Reverse(directories))
-            {
-                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
-                {
-                    Directory.Delete(directory);
-                }
-            }
-
-            throw;
-        }
-    }
-
-    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string? skipped)
+    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string? skipped, Mode mode)
     {
         string p = spec.Prefix;
         string f = spec.Features;
@@ -1063,7 +1087,7 @@ internal static class NewUseCase
         string api = $"Src/Presentation/{FolderOf(p, "Api")}";
         bool hasApi = Directory.Exists(Path.Combine(root, api));
 
-        output.WriteLine($"Wrote {plan.Count} files for the {spec.Kind} {u} in {f}:");
+        output.WriteLine($"{(mode == Mode.Applied ? "Wrote" : "Would write")} {plan.Count} files for the {spec.Kind} {u} in {f}:");
 
         foreach (var emission in plan)
         {
@@ -1079,7 +1103,7 @@ internal static class NewUseCase
 
         output.WriteLine(spec.Manifest is null
             ? $"No manifest names {f}, so remove-feature never deletes these files; they are the feature's like any it holds."
-            : $"Recorded in {spec.Manifest} with their SHA-256, so remove-feature deletes them with the feature while they are untouched.");
+            : $"Recorded in {spec.Manifest} with their SHA-256, the contracts among them, and with each edit made outside the feature's files, so remove-feature deletes them with the feature while they are untouched.");
 
         if (skipped is not null)
         {
@@ -1180,19 +1204,17 @@ internal static class NewUseCase
             : $"a controller under {api}/Features/{f}/Controllers/";
 
         output.WriteLine();
-        output.WriteLine($"To serve it over HTTP, the edit by hand in {where}:");
-        output.WriteLine($"  the usings it lacks  {spec.Namespace};");
-        output.WriteLine("                       Mediator;");
-
-        if (spec.HasRequest)
+        output.WriteLine(mode switch
         {
-            output.WriteLine($"                       {p}.Api.Features.{f}.Contracts.Requests;");
-        }
+            Mode.Applied => $"To serve it over HTTP, the edit made in {where}:",
+            Mode.DryRun => $"To serve it over HTTP, the edit a run without --dry-run makes in {where}:",
+            _ => $"To serve it over HTTP, the edit by hand in {where}:",
+        });
+        output.WriteLine($"  the usings it lacks  {ControllerUsings(spec)[0]};");
 
-        if (!spec.IsCommand)
+        foreach (string space in ControllerUsings(spec).Skip(1))
         {
-            output.WriteLine($"                       {p}.Application.Core.Common.Results;");
-            output.WriteLine($"                       {p}.Api.Features.{f}.Contracts.Responses;");
+            output.WriteLine($"                       {space};");
         }
 
         output.WriteLine("  the parameter        ISender sender, in the primary constructor, unless it has one");
@@ -1205,50 +1227,41 @@ internal static class NewUseCase
 
         if (spec.HasRequest)
         {
-            string carrier = spec.IsCommand ? "body" : "query string";
-            string summary = spec.HasId
-                ? $"The {carrier} of {Separated(u, ' ')}; the {Separated(spec.Aggregate!, ' ')} id travels in the route."
-                : $"The {carrier} of {Separated(u, ' ')}.";
+            output.WriteLine($"  and {RequestPath(spec)}, with what a client sends:");
 
-            output.WriteLine($"  and {api}/Features/{f}/Contracts/Requests/{spec.Request}.cs, with what a client sends:");
-            output.WriteLine($"      namespace {p}.Api.Features.{f}.Contracts.Requests;");
-            output.WriteLine(string.Empty);
-            output.WriteLine($"      /// <summary>{summary}</summary>");
-
-            foreach (string line in Record(spec.Request, spec.Inputs.Select(parameter => $"{parameter.Type} {parameter.Name}"), string.Empty).Split('\n'))
+            foreach (string line in RequestContract(spec))
             {
-                output.WriteLine("      " + line);
+                output.WriteLine(line.Length == 0 ? string.Empty : "      " + line);
             }
         }
 
         if (!spec.IsCommand)
         {
-            string response = spec.Dto![..^"Dto".Length] + "Response";
+            output.WriteLine($"  and {ResponsePath(spec)}, with the members a client reads:");
 
-            output.WriteLine($"  and {api}/Features/{f}/Contracts/Responses/{response}.cs, with the members a client reads:");
-            output.WriteLine($"      namespace {p}.Api.Features.{f}.Contracts.Responses;");
-            output.WriteLine(string.Empty);
-            output.WriteLine($"      /// <summary>The wire shape of {Separated(response[..^"Response".Length], ' ')}.</summary>");
-            output.WriteLine($"      public sealed record {response};");
+            foreach (string line in ResponseContract(spec))
+            {
+                output.WriteLine(line.Length == 0 ? string.Empty : "      " + line);
+            }
         }
 
-        output.WriteLine();
-        output.WriteLine("Then rewrite what the contract feeds, which this does not run:");
-        output.WriteLine("  dotnet run Tools/Tasks.cs openapi    (the OpenAPI reference the contract test compares)");
-
-        if (Directory.Exists(Path.Combine(root, "Src", "Clients", FolderOf(p, "Client"))))
+        if (mode != Mode.Applied)
         {
-            output.WriteLine("  dotnet run Tools/Tasks.cs api-client");
-        }
+            output.WriteLine();
+            output.WriteLine(mode == Mode.DryRun
+                ? "Then a run without --dry-run rewrites what the contract feeds, in this order:"
+                : "Then rewrite what the contract feeds, once the edit is made:");
 
-        if (File.Exists(Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs")))
-        {
-            output.WriteLine("  pnpm api    (in Src/Web)");
+            foreach (var step in TextEdits.ContractSteps(root, FolderOf(p, "Client")))
+            {
+                output.WriteLine($"  {step.Display}");
+            }
         }
-
 
         //#if (api)
-        output.WriteLine($"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:");
+        output.WriteLine(mode == Mode.Applied
+            ? $"and its row, added to the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:"
+            : $"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:");
         output.WriteLine("  " + RouteRow(spec));
         //#endif
 
@@ -1258,6 +1271,160 @@ internal static class NewUseCase
         }
     }
 
+    private static string ApiFolder(Spec spec) => $"Src/Presentation/{FolderOf(spec.Prefix, "Api")}";
+
+    private static string RequestPath(Spec spec) => $"{ApiFolder(spec)}/Features/{spec.Features}/Contracts/Requests/{spec.Request}.cs";
+
+    private static string ResponseName(Spec spec) => spec.Dto![..^"Dto".Length] + "Response";
+
+    private static string ResponsePath(Spec spec) => $"{ApiFolder(spec)}/Features/{spec.Features}/Contracts/Responses/{ResponseName(spec)}.cs";
+
+    private static string[] ControllerUsings(Spec spec) =>
+    [
+        spec.Namespace,
+        "Mediator",
+        .. spec.HasRequest ? [$"{spec.Prefix}.Api.Features.{spec.Features}.Contracts.Requests"] : Array.Empty<string>(),
+        .. spec.IsCommand
+            ? Array.Empty<string>()
+            : [$"{spec.Prefix}.Application.Core.Common.Results", $"{spec.Prefix}.Api.Features.{spec.Features}.Contracts.Responses"],
+    ];
+
+    private static string[] RequestContract(Spec spec)
+    {
+        string carrier = spec.IsCommand ? "body" : "query string";
+        string summary = spec.HasId
+            ? $"The {carrier} of {Separated(spec.Name, ' ')}; the {Separated(spec.Aggregate!, ' ')} id travels in the route."
+            : $"The {carrier} of {Separated(spec.Name, ' ')}.";
+
+        return
+        [
+            $"namespace {spec.Prefix}.Api.Features.{spec.Features}.Contracts.Requests;",
+            string.Empty,
+            $"/// <summary>{summary}</summary>",
+            .. Record(spec.Request, spec.Inputs.Select(parameter => $"{parameter.Type} {parameter.Name}"), string.Empty).Split('\n'),
+        ];
+    }
+
+    private static string[] ResponseContract(Spec spec) =>
+    [
+        $"namespace {spec.Prefix}.Api.Features.{spec.Features}.Contracts.Responses;",
+        string.Empty,
+        $"/// <summary>The wire shape of {Separated(ResponseName(spec)[..^"Response".Length], ' ')}.</summary>",
+        $"public sealed record {ResponseName(spec)};",
+    ];
+
+    private static List<Emission> Http(TextEdits.Editor editor, string root, Spec spec)
+    {
+        if (!Directory.Exists(Path.Combine(root, ApiFolder(spec))))
+        {
+            return [];
+        }
+
+        string controller = $"{ApiFolder(spec)}/Features/{spec.Features}/Controllers/{spec.Features}Controller.cs";
+
+        editor.Step = $"the action in {controller}";
+
+        if (editor.Open(controller) is { } sheet)
+        {
+            Action(editor, sheet, spec);
+        }
+
+        //#if (api)
+        editor.Step = "the route's row in docs/reference/api.md";
+        RouteRow(editor, spec);
+        //#endif
+
+        return
+        [
+            .. spec.HasRequest ? [new Emission(RequestPath(spec), string.Join('\n', RequestContract(spec)) + "\n")] : Array.Empty<Emission>(),
+            .. spec.IsCommand ? Array.Empty<Emission>() : [new Emission(ResponsePath(spec), string.Join('\n', ResponseContract(spec)) + "\n")],
+        ];
+    }
+
+    private static void Action(TextEdits.Editor editor, TextEdits.Sheet sheet, Spec spec)
+    {
+        string declaration = $" {Remainder(spec)}(";
+
+        if (TextEdits.Editor.Find(sheet, line => line.Contains("Task<ActionResult", StringComparison.Ordinal) && line.Contains(declaration, StringComparison.Ordinal)) >= 0)
+        {
+            editor.Kept.Add(editor.Step);
+
+            return;
+        }
+
+        int type = TextEdits.Editor.Find(sheet, line => line.Contains(" class ", StringComparison.Ordinal) && line.Contains("Controller(", StringComparison.Ordinal));
+        int parameters = type < 0 ? -1 : TextEdits.Editor.Find(sheet, line => line.Contains(") :", StringComparison.Ordinal), type);
+        int closing = TextEdits.Editor.FindLast(sheet, line => line == "}", sheet.Lines.Count - 1);
+
+        if (parameters < 0 || closing < parameters)
+        {
+            editor.Fail("it declares no controller with a primary constructor, and a closing brace at the start of a line, to take the action.");
+
+            return;
+        }
+
+        if (TextEdits.Editor.Find(sheet, line => line.Contains("ISender ", StringComparison.Ordinal), type, parameters + 1) < 0)
+        {
+            TextEdits.Editor.Insert(sheet, type, before: false, ["    ISender sender,"]);
+            closing++;
+        }
+
+        TextEdits.Editor.Insert(sheet, closing, before: true, ["", .. Action(spec).Select(line => line.Length == 0 ? line : "    " + line)]);
+
+        foreach (string space in ControllerUsings(spec))
+        {
+            editor.Using(sheet.Path, space);
+        }
+    }
+
+    //#if (api)
+    private static void RouteRow(TextEdits.Editor editor, Spec spec)
+    {
+        const string page = "docs/reference/api.md";
+
+        if (editor.Open(page) is not { } sheet)
+        {
+            return;
+        }
+
+        string row = RouteRow(spec);
+        int routes = TextEdits.Editor.Find(sheet, line => line == "## Routes");
+        int end = routes < 0 ? -1 : TextEdits.Editor.Find(sheet, line => line.StartsWith("## ", StringComparison.Ordinal), routes + 1);
+        int section = routes < 0 ? -1 : TextEdits.Editor.Find(
+            sheet,
+            line => line.StartsWith("### ", StringComparison.Ordinal) && Letters(line[4..]) == Letters(spec.Features),
+            routes + 1,
+            end);
+        int next = section < 0 ? -1 : TextEdits.Editor.Find(sheet, line => line.StartsWith('#'), section + 1);
+        int rule = section < 0 ? -1 : TextEdits.Editor.Find(sheet, line => line.StartsWith("|---", StringComparison.Ordinal), section + 1, next);
+
+        if (rule < 0)
+        {
+            editor.Fail($"{page} has no route table for {spec.Features} under '## Routes' to take the use case's row.");
+
+            return;
+        }
+
+        int last = rule;
+
+        while (last + 1 < sheet.Lines.Count && sheet.Lines[last + 1].StartsWith('|'))
+        {
+            last++;
+        }
+
+        if (TextEdits.Editor.Find(sheet, line => line == row, rule, last + 1) >= 0)
+        {
+            editor.Kept.Add(editor.Step);
+
+            return;
+        }
+
+        TextEdits.Editor.Insert(sheet, last, before: false, [row]);
+    }
+
+    private static string Letters(string text) => new([.. text.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
+
+    //#endif
     private static string Construction(Spec spec) =>
         $"new {spec.Input}({string.Join(", ", spec.Parameters.Select(parameter => parameter.Argument))})";
 
@@ -1434,6 +1601,9 @@ internal static class NewUseCase
             ParserCases(scratch, Expect);
             InputCases(scratch, Expect);
             TreeCases(scratch, Expect);
+            AppliedCases(scratch, Expect);
+            AllOrNothingCases(scratch, Expect);
+            IdempotenceCases(scratch, Expect);
             ShapeCases(scratch, Expect);
             ContentCases(scratch, Expect);
             DtoCases(scratch, Expect);
@@ -1487,19 +1657,185 @@ internal static class NewUseCase
                 $"public interface I{repository}Repository;\n");
         }
 
-        File.WriteAllText(Path.Combine(root, "Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs"), "the controller a person edits\n");
+        File.WriteAllText(Path.Combine(root, _controller), _controllerText);
+        Directory.CreateDirectory(Path.Combine(root, "docs/reference"));
+        File.WriteAllText(Path.Combine(root, _apiPage), _apiPageText);
 
         return root;
     }
 
-    private static (int Code, string Output, string Error) Invoke(string root, params string[] args)
+    private const string _controller = "Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs";
+
+    private const string _controllerText =
+        """
+        using Microsoft.AspNetCore.Mvc;
+
+        namespace Acme.Api.Features.Invoices.Controllers;
+
+        [ApiController]
+        public sealed class InvoicesController(
+            IInvoiceService service) : ControllerBase
+        {
+            [HttpGet]
+            public Task<ActionResult> List() => service.ListAsync();
+        }
+
+        """;
+
+    private const string _apiPage = "docs/reference/api.md";
+
+    private const string _apiPageText =
+        """
+        # API
+
+        ## Routes
+
+        ### Invoices
+
+        Under `/api/v1/invoices`.
+
+        | Method | Route | Success | Notes |
+        |---|---|---|---|
+        | GET | `/` | 200 | |
+
+        ## Error codes
+
+        """;
+
+    private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, _ => 0, args);
+
+    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args)
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = Run([.. args, "--root", root], output, error);
+        int code = Run([.. args, "--root", root], output, error, run);
 
         return (code, output.ToString(), error.ToString());
+    }
+
+    private static Func<TextEdits.Command, int> Recording(List<TextEdits.Command> ran, string? failing = null) =>
+        command =>
+        {
+            ran.Add(command);
+
+            return command.Display == failing ? 1 : 0;
+        };
+
+    private static int Occurrences(string root, string path, string line) =>
+        File.Exists(Path.Combine(root, path)) ? File.ReadAllLines(Path.Combine(root, path)).Count(candidate => candidate.Trim() == line) : -1;
+
+    private static void AppliedCases(string scratch, Action<bool, string> expect)
+    {
+        string root = NewTree(scratch);
+        var ran = new List<TextEdits.Command>();
+        var result = Invoke(root, Recording(ran), "Invoices", "FindByCustomer", "--kind", "query", "--input", "id, Customer:string");
+
+        expect(result.Code == 0, $"The applied use case was refused: {result.Error}");
+
+        (string Path, string Line, int Count)[] expected =
+        [
+            (_controller, "ISender sender,", 1),
+            (_controller, "IInvoiceService service) : ControllerBase", 1),
+            (_controller, "[HttpGet(\"{invoiceId:guid}/find-by-customer\")]", 1),
+            (_controller, "[FromQuery] FindByCustomerRequest request,", 1),
+            (_controller, "using Acme.Application.Features.Invoices.UseCases.Queries.FindByCustomer;", 1),
+            (_controller, "using Acme.Api.Features.Invoices.Contracts.Requests;", 1),
+            (_controller, "using Acme.Api.Features.Invoices.Contracts.Responses;", 1),
+            (_controller, "using Mediator;", 1),
+            //#if (api)
+            (_apiPage, "| GET | `/{invoiceId}/find-by-customer` | 200 | |", 1),
+            //#endif
+            ("Src/Presentation/A.Api/Features/Invoices/Contracts/Requests/FindByCustomerRequest.cs", "public sealed record FindByCustomerRequest(string Customer);", 1),
+            ("Src/Presentation/A.Api/Features/Invoices/Contracts/Responses/FindByCustomerResponse.cs", "public sealed record FindByCustomerResponse;", 1),
+        ];
+
+        foreach (var (path, line, count) in expected)
+        {
+            expect(Occurrences(root, path, line) == count, $"The applied use case did not leave '{line}' {count} time(s) in {path}.");
+        }
+
+        string[] controller = File.ReadAllLines(Path.Combine(root, _controller));
+
+        expect(controller[^1] == "}" && controller[^2] == "    }" && controller.Count(line => line == "}") == 1, "The action was not placed inside the controller, before its closing brace.");
+
+        string[] usings = [.. controller.Where(line => line.StartsWith("using ", StringComparison.Ordinal))];
+
+        expect(usings.SequenceEqual(usings.Order(StringComparer.OrdinalIgnoreCase)), $"The controller's usings are out of order: {string.Join(" ", usings)}");
+        expect(
+            ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs openapi"]),
+            $"The applied use case did not rewrite the OpenAPI reference alone: {string.Join(" | ", ran.Select(command => command.Display))}");
+
+        var again = Invoke(root, "Invoices", "FindByCustomer", "--kind", "query", "--input", "id, Customer:string");
+
+        expect(again.Code == 1 && again.Error.Contains("already has a use case called FindByCustomer", StringComparison.Ordinal), "Running the same use case again was not refused.");
+        expect(Occurrences(root, _controller, "ISender sender,") == 1, "A second action asked for a second ISender.");
+    }
+
+    private static void AllOrNothingCases(string scratch, Action<bool, string> expect)
+    {
+        (string Label, Action<string> Break, string Fragment)[] breaks =
+        [
+            //#if (api)
+            ("no route table", root => File.WriteAllText(Path.Combine(root, _apiPage), "# API\n\n## Routes\n\n## Error codes\n"), "has no route table for Invoices"),
+            ("no API page", root => File.Delete(Path.Combine(root, _apiPage)), "docs/reference/api.md does not exist"),
+            //#endif
+            ("no closing brace", root => File.WriteAllText(Path.Combine(root, _controller), _controllerText.Replace("\n}\n", "\n", StringComparison.Ordinal)), "closing brace"),
+            ("no controller", root => File.Delete(Path.Combine(root, _controller)), "InvoicesController.cs does not exist"),
+        ];
+
+        foreach (var (label, breaking, fragment) in breaks)
+        {
+            string root = NewTree(scratch);
+
+            breaking(root);
+
+            var before = Snapshot(root);
+            var ran = new List<TextEdits.Command>();
+            var result = Invoke(root, Recording(ran), "Invoices", "GetInvoiceTotals", "--kind", "query");
+
+            expect(result.Code == 1 && Same(before, Snapshot(root)) && ran.Count == 0, $"[{label}] a missing anchor did not stop the use case before it wrote or ran.");
+            expect(result.Error.Contains(fragment, StringComparison.Ordinal), $"[{label}] the refusal does not say '{fragment}': {result.Error}");
+            expect(result.Output.Contains("the edit by hand in", StringComparison.Ordinal), $"[{label}] the refusal does not print the edit to make by hand.");
+        }
+    }
+
+    private static void IdempotenceCases(string scratch, Action<bool, string> expect)
+    {
+        string root = NewTree(scratch);
+        string withAction = _controllerText.Replace(
+            "    public Task<ActionResult> List()",
+            "    public async Task<ActionResult> Approve(Guid invoiceId, CancellationToken cancellationToken) => NoContent();\n\n    public Task<ActionResult> List()",
+            StringComparison.Ordinal);
+
+        File.WriteAllText(Path.Combine(root, _controller), withAction);
+        File.WriteAllText(Path.Combine(root, _apiPage), _apiPageText.Replace("| GET | `/` | 200 | |", "| GET | `/` | 200 | |\n| POST | `/{invoiceId}/approve` | 204 | |", StringComparison.Ordinal));
+
+        var result = Invoke(root, "Invoices", "ApproveInvoice", "--kind", "command");
+
+        expect(result.Code == 0, $"A use case whose action a person had written was refused: {result.Error}");
+        expect(File.ReadAllText(Path.Combine(root, _controller)) == withAction, "An action already in place was written a second time.");
+        //#if (api)
+        expect(Occurrences(root, _apiPage, "| POST | `/{invoiceId}/approve` | 204 | |") == 1, "A route row already in place was written a second time.");
+        //#endif
+
+        string dry = NewTree(scratch);
+        var before = Snapshot(dry);
+        var ran = new List<TextEdits.Command>();
+        var preview = Invoke(dry, Recording(ran), "Invoices", "ApproveInvoice", "--kind", "command", "--dry-run");
+
+        expect(preview.Code == 0 && Same(before, Snapshot(dry)) && ran.Count == 0, "A dry run wrote or ran something.");
+        expect(
+            preview.Output.Contains("makes in Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal)
+                && preview.Output.Contains("nothing was written and nothing was run", StringComparison.Ordinal),
+            "A dry run did not print the edit it would make.");
+
+        string failing = NewTree(scratch);
+        var failed = Invoke(failing, Recording(ran = [], failing: "dotnet run Tools/Tasks.cs openapi"), "Invoices", "ApproveInvoice", "--kind", "command");
+
+        expect(
+            failed.Code == 1 && failed.Error.Contains("  dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal) && Occurrences(failing, _controller, "ISender sender,") == 1,
+            "A failed OpenAPI step did not fail the command and name what remains, or undid the edit.");
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>
@@ -1776,8 +2112,12 @@ internal static class NewUseCase
             var after = Snapshot(root);
             string[] created = [.. after.Keys.Except(before.Keys, StringComparer.Ordinal).Where(key => after[key] != "<directory>").Order(StringComparer.Ordinal)];
 
-            expect(created.SequenceEqual(files.Order(StringComparer.Ordinal)), $"[{label}] wrote {string.Join(", ", created)}.");
-            expect(before.All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value), $"[{label}] changed a file it does not own.");
+            expect(
+                created.Where(path => !path.Contains("/Contracts/", StringComparison.Ordinal)).SequenceEqual(files.Order(StringComparer.Ordinal)),
+                $"[{label}] wrote {string.Join(", ", created)}.");
+            expect(
+                before.Where(pair => pair.Key is not (_controller or _apiPage)).All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
+                $"[{label}] changed a file it neither owns nor serves the use case through.");
             expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), $"[{label}] wrote a manifest where the feature had none.");
             expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
             expect(
@@ -1816,13 +2156,13 @@ internal static class NewUseCase
         Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
         File.WriteAllText(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
 
-        var contract = Invoke(contractRoot, "Invoices", "ApproveInvoice", "--kind", "command");
+        var ran = new List<TextEdits.Command>();
+        var contract = Invoke(contractRoot, Recording(ran), "Invoices", "ApproveInvoice", "--kind", "command");
 
         expect(
-            contract.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal)
-                && contract.Output.Contains("dotnet run Tools/Tasks.cs api-client", StringComparison.Ordinal)
-                && contract.Output.Contains("pnpm api    (in Src/Web)", StringComparison.Ordinal),
-            "The OpenAPI, client and web steps are not all printed for a project that holds the client and the web workspace.");
+            contract.Code == 0
+                && ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs openapi", "dotnet run Tools/Tasks.cs api-client", "cd Src/Web && pnpm api"]),
+            $"The OpenAPI, client and web steps were not all run, in that order, for a project that holds the client and the web workspace: {string.Join(" | ", ran.Select(command => command.Display))}");
 
         string untested = NewTree(scratch);
         Directory.Delete(Path.Combine(untested, "Tests/Application/A.Application.UnitTests"), recursive: true);
@@ -1914,9 +2254,22 @@ internal static class NewUseCase
         var after = Snapshot(root);
         string[] created = [.. after.Keys.Except(before.Keys, StringComparer.Ordinal).Where(key => after[key] != "<directory>")];
 
-        expect(created.Length == 9, $"Two use cases wrote {created.Length} files, not 9.");
+        expect(created.Length == 10, $"Two use cases wrote {created.Length} files, not 9 and the response contract.");
+        string[] outside =
+        [
+            _controller,
+            //#if (api)
+            _apiPage,
+            //#endif
+        ];
+
+        expect(
+            top.GetProperty("edits").EnumerateArray().Select(edit => edit.GetProperty("path").GetString()!).Distinct().Order(StringComparer.Ordinal).SequenceEqual(outside.Order(StringComparer.Ordinal)),
+            $"The manifest does not record the edits made in files it does not list, the controller and the route table, and those alone: {string.Join(", ", top.GetProperty("edits").EnumerateArray().Select(edit => edit.GetProperty("path").GetString()))}");
+        expect(top.GetProperty("schemaVersion").GetInt32() == 2, "A manifest that now records edits does not say schema version 2.");
         expect(listed.Select(entry => entry.Path).SequenceEqual(listed.Select(entry => entry.Path).Order(StringComparer.Ordinal)), "The manifest's files are not in path order.");
         expect(listed.Count == created.Length + 1 && listed.Any(entry => entry.Path == generated && entry.Sha256 == new string('a', 64)), "The manifest lost the generator's own entry or gained a stranger.");
+        expect(!listed.Any(entry => entry.Path == _controller), "The manifest took in the controller, a file it did not list.");
 
         foreach (string key in created)
         {
@@ -1930,6 +2283,29 @@ internal static class NewUseCase
             "The manifest's other members were not kept.");
         expect(File.ReadAllText(manifest).EndsWith("}\n", StringComparison.Ordinal) && !File.ReadAllText(manifest).Contains('\r', StringComparison.Ordinal), "The manifest does not end in one LF.");
         expect(!File.Exists(manifest + ".new"), "The staged manifest was left behind.");
+
+        string owned = NewTree(scratch);
+        string ownedManifest = Path.Combine(owned, _manifestFolder, "Invoices.json");
+        string controllerHash = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(owned, _controller))));
+
+        Directory.CreateDirectory(Path.GetDirectoryName(ownedManifest)!);
+        File.WriteAllText(ownedManifest, original.Replace($"\"path\": \"{generated}\",\n      \"sha256\": \"{new string('a', 64)}\"", $"\"path\": \"{_controller}\",\n      \"sha256\": \"{controllerHash}\"", StringComparison.Ordinal));
+
+        expect(Invoke(owned, "Invoices", "ApproveInvoice", "--kind", "command").Code == 0, "A use case was refused in a feature whose manifest lists its controller.");
+
+        using (var ownedDocument = JsonDocument.Parse(File.ReadAllText(ownedManifest)))
+        {
+            var ownedTop = ownedDocument.RootElement;
+            string recorded = ownedTop.GetProperty("files").EnumerateArray().Single(file => file.GetProperty("path").GetString() == _controller).GetProperty("sha256").GetString()!;
+
+            expect(
+                recorded == Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(owned, _controller)))),
+                "The controller the feature owns, untouched until the action was added, is not recorded with its new hash, so remove-feature would take it for edited.");
+            expect(
+                !ownedTop.TryGetProperty("edits", out var ownedEdits)
+                    || ownedEdits.EnumerateArray().All(edit => edit.GetProperty("path").GetString() != _controller),
+                "The action added to a controller the feature owns is recorded as an edit of a file outside it.");
+        }
 
         string broken = NewTree(scratch);
         string brokenManifest = Path.Combine(broken, _manifestFolder, "Invoices.json");
@@ -2018,9 +2394,13 @@ internal static class NewUseCase
             yield return $"{relative}: a token was left unsubstituted: {_tokenPattern.Match(text).Value}";
         }
 
-        if (text.Contains("//", StringComparison.Ordinal) || text.Contains("/*", StringComparison.Ordinal))
+        string code = relative.Contains("/Contracts/", StringComparison.Ordinal)
+            ? string.Join('\n', text.Split('\n').Where(line => !line.StartsWith("/// <summary>", StringComparison.Ordinal)))
+            : text;
+
+        if (code.Contains("//", StringComparison.Ordinal) || code.Contains("/*", StringComparison.Ordinal))
         {
-            yield return $"{relative}: a comment, where generated code carries none.";
+            yield return $"{relative}: a comment, where generated code carries none outside an API contract's summary.";
         }
 
         string[] segments = relative.Split('/');
@@ -2155,4 +2535,526 @@ internal static class Templates
                 new(new %In%Handler().Handle, new %In%Validator());
         }
         """;
+}
+
+internal static class TextEdits
+{
+    private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments);
+
+    internal sealed class Sheet
+    {
+        private readonly bool _bom;
+
+        private readonly string _newline;
+
+        private readonly bool _finalNewline;
+
+        private readonly List<string> _lines;
+
+        private readonly List<bool> _inserted;
+
+        internal Sheet(string path, byte[] original)
+        {
+            Path = path;
+            Original = original;
+            _bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+
+            string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
+
+            _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            _finalNewline = text.EndsWith('\n');
+            _lines = [.. (_finalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            _inserted = [.. _lines.Select(_ => false)];
+        }
+
+        internal string Path { get; }
+
+        internal byte[] Original { get; }
+
+        internal IReadOnlyList<string> Lines => _lines;
+
+        internal void Insert(int index, string[] lines)
+        {
+            _lines.InsertRange(index, lines);
+            _inserted.InsertRange(index, lines.Select(_ => true));
+        }
+
+        internal IEnumerable<Edit> Edits()
+        {
+            for (int start = 0; start < _lines.Count; start++)
+            {
+                if (!_inserted[start])
+                {
+                    continue;
+                }
+
+                int end = start;
+
+                while (end + 1 < _lines.Count && _inserted[end + 1])
+                {
+                    end++;
+                }
+
+                int next = end + 1 < _lines.Count ? end + 1 : -1;
+                int previous = start - 1;
+                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
+
+                start = end;
+            }
+        }
+
+        internal byte[] Bytes()
+        {
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (_finalNewline ? _newline : string.Empty));
+
+            return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
+        }
+    }
+
+    internal sealed class Editor(string root)
+    {
+        private readonly Dictionary<string, Sheet?> _sheets = new(StringComparer.Ordinal);
+
+        internal string Step { get; set; } = string.Empty;
+
+        internal IReadOnlyList<Edit> Applied => [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+
+        internal List<string> Kept { get; } = [];
+
+        internal List<string> Failures { get; } = [];
+
+        internal IEnumerable<Sheet> Changed =>
+            _sheets.Values.OfType<Sheet>().Where(sheet => !sheet.Original.AsSpan().SequenceEqual(sheet.Bytes()));
+
+        internal Sheet? Open(string path)
+        {
+            if (!_sheets.TryGetValue(path, out Sheet? sheet))
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                sheet = File.Exists(full) ? new Sheet(path, File.ReadAllBytes(full)) : null;
+                _sheets[path] = sheet;
+            }
+
+            if (sheet is null)
+            {
+                Fail($"{path} does not exist.");
+            }
+
+            return sheet;
+        }
+
+        internal void Fail(string reason) => Failures.Add(Step.Length == 0 ? reason : $"{Step}: {reason}");
+
+        internal static void Insert(Sheet sheet, int anchor, bool before, string[] lines) => sheet.Insert(before ? anchor : anchor + 1, lines);
+
+        internal static int Find(Sheet sheet, Func<string, bool> match, int from = 0, int to = -1)
+        {
+            int end = to < 0 ? sheet.Lines.Count : Math.Min(to, sheet.Lines.Count);
+
+            for (int index = Math.Max(from, 0); index < end; index++)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal static int FindLast(Sheet sheet, Func<string, bool> match, int from)
+        {
+            for (int index = Math.Min(from, sheet.Lines.Count - 1); index >= 0; index--)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal void Place(string path, string[] anchors, bool before, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Trim().StartsWith(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int anchor = anchors
+                .Select(text => Find(sheet, line => line.Trim().StartsWith(text, StringComparison.Ordinal)))
+                .FirstOrDefault(index => index >= 0, -1);
+
+            if (anchor < 0)
+            {
+                Fail($"no line starts with '{string.Join("' or '", anchors)}', the line the edit is placed beside.");
+
+                return;
+            }
+
+            Insert(sheet, anchor, before, lines);
+        }
+
+        internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int found = 0;
+
+            for (int index = 0; index < sheet.Lines.Count; index++)
+            {
+                if (sheet.Lines[index].Trim() != anchor)
+                {
+                    continue;
+                }
+
+                found++;
+
+                int start = FindLast(sheet, candidate => candidate == "    {", index);
+                int end = Find(sheet, candidate => candidate == "    }", index);
+
+                if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+                {
+                    Kept.Add(Step);
+
+                    continue;
+                }
+
+                Insert(sheet, index, before, [line]);
+                index++;
+            }
+
+            if (found == 0)
+            {
+                Fail($"no line reads '{anchor}', the line the edit is placed beside in each method.");
+            }
+        }
+
+        internal void AppendToMethod(string path, string method, string prefix, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int declaration = Find(sheet, candidate => candidate.Contains(method, StringComparison.Ordinal));
+            int start = declaration < 0 ? -1 : Find(sheet, candidate => candidate == "    {", declaration);
+            int end = start < 0 ? -1 : Find(sheet, candidate => candidate == "    }", start);
+
+            if (end < 0)
+            {
+                Fail($"no method{method} with a body was found to take the line.");
+
+                return;
+            }
+
+            if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int last = FindLast(sheet, candidate => candidate.Trim().StartsWith(prefix, StringComparison.Ordinal), end);
+
+            if (last <= start)
+            {
+                Fail($"the method{method} has no line starting with '{prefix}' to place the line after.");
+
+                return;
+            }
+
+            Insert(sheet, last, before: false, [line]);
+        }
+
+        internal void Using(string path, string space)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            string directive = $"using {space};";
+            int body = Find(sheet, line => !IsHeader(line));
+            int[] usings = [.. Enumerable.Range(0, body < 0 ? sheet.Lines.Count : body).Where(index => IsUsing(sheet.Lines[index]))];
+            string? own = sheet.Lines
+                .Select(line => line.Trim())
+                .FirstOrDefault(line => line.StartsWith("namespace ", StringComparison.Ordinal) && line.EndsWith(';'))?["namespace ".Length..^1];
+
+            if (usings.Any(index => sheet.Lines[index].Trim() == directive)
+                || (own is not null && (own == space || own.StartsWith(space + ".", StringComparison.Ordinal))))
+            {
+                return;
+            }
+
+            int following = usings.FirstOrDefault(index => Order(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
+
+            if (following >= 0)
+            {
+                Insert(sheet, following, before: true, [directive]);
+            }
+            else if (usings.Length > 0)
+            {
+                Insert(sheet, usings[^1], before: false, [directive]);
+            }
+            else
+            {
+                Insert(sheet, 0, before: true, [directive, string.Empty]);
+            }
+        }
+
+        internal void Row(string path, string heading, string row, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Contains(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int level = heading.TakeWhile(character => character == '#').Count();
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith('#') && line.TakeWhile(character => character == '#').Count() <= level, section + 1);
+            int rule = section < 0 ? -1 : Find(sheet, line => line.StartsWith("|---", StringComparison.Ordinal), section + 1, next);
+
+            if (rule < 0)
+            {
+                Fail($"{path} has no table under '{heading}' to take the row.");
+
+                return;
+            }
+
+            int last = rule;
+
+            while (last + 1 < sheet.Lines.Count && sheet.Lines[last + 1].StartsWith('|'))
+            {
+                last++;
+            }
+
+            Insert(sheet, last, before: false, [row]);
+        }
+
+        internal void Section(string path, string heading, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line == present) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith("## ", StringComparison.Ordinal), section + 1);
+
+            if (next < 0)
+            {
+                Fail($"{path} has no '{heading}' section followed by another, before which the section is placed.");
+
+                return;
+            }
+
+            Insert(sheet, next, before: true, lines);
+        }
+
+        private static bool IsUsing(string line) =>
+            line.StartsWith("using ", StringComparison.Ordinal) && line.TrimEnd().EndsWith(';') && !line.Contains('=', StringComparison.Ordinal);
+
+        private static bool IsHeader(string line) =>
+            line.Trim().Length == 0 || line.TrimStart().StartsWith("//", StringComparison.Ordinal) || IsUsing(line);
+
+        private static int Order(string left, string right)
+        {
+            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
+
+            int system = IsSystem(right).CompareTo(IsSystem(left));
+
+            return system != 0 ? system
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
+                : StringComparer.Ordinal.Compare(left, right);
+        }
+    }
+
+    internal static void WriteEdits(Utf8JsonWriter writer, IEnumerable<Edit> edits)
+    {
+        writer.WriteStartArray("edits");
+
+        foreach (Edit edit in edits)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", edit.Path);
+            writer.WriteString("anchor", edit.Anchor);
+            writer.WriteString("position", edit.Position);
+            writer.WriteStartArray("lines");
+
+            foreach (string line in edit.Lines)
+            {
+                writer.WriteStringValue(line);
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    {
+        var written = new List<string>();
+        var directories = new List<string>();
+        var overwritten = new List<(string Full, byte[] Original)>();
+
+        try
+        {
+            foreach (var (path, bytes) in created)
+            {
+                string full = System.IO.Path.Combine(root, path);
+                var missing = new Stack<string>();
+
+                for (string next = System.IO.Path.GetDirectoryName(full)!; !Directory.Exists(next); next = System.IO.Path.GetDirectoryName(next)!)
+                {
+                    missing.Push(next);
+                }
+
+                directories.AddRange(missing);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+
+                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
+
+                written.Add(full);
+                stream.Write(bytes);
+            }
+
+            foreach (var (path, original, bytes) in replaced)
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                overwritten.Add((full, original));
+                File.WriteAllBytes(full, bytes);
+            }
+        }
+        catch
+        {
+            foreach (var (full, original) in overwritten)
+            {
+                File.WriteAllBytes(full, original);
+            }
+
+            foreach (string full in written.Where(File.Exists))
+            {
+                File.Delete(full);
+            }
+
+            foreach (string directory in Enumerable.Reverse(directories))
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>
+        editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
+
+    internal static Command Task(string root, params string[] task) =>
+        new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
+
+    internal static List<Command> ContractSteps(string root, string client) =>
+    [
+        Task(root, "openapi"),
+        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
+            ? [new Command("cd Src/Web && pnpm api", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api"])]
+            : Array.Empty<Command>(),
+    ];
+
+    internal static int Execute(Command command)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(command.FileName) { WorkingDirectory = command.WorkingDirectory, UseShellExecute = false };
+
+        foreach (string argument in command.Arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+
+            process.WaitForExit();
+
+            return process.ExitCode;
+        }
+        catch (System.ComponentModel.Win32Exception exception)
+        {
+            Console.Error.WriteLine($"{command.FileName} could not be started: {exception.Message}");
+
+            return 127;
+        }
+    }
+
+    internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
+    {
+        for (int index = 0; index < steps.Count; index++)
+        {
+            output.WriteLine();
+            output.WriteLine($"Running {steps[index].Display}");
+            output.Flush();
+
+            int code = run(steps[index]);
+
+            if (code == 0)
+            {
+                continue;
+            }
+
+            error.WriteLine($"error: `{steps[index].Display}` failed with exit code {code}.");
+            error.WriteLine($"Done: {done}{string.Concat(steps.Take(index).Select(step => $", then `{step.Display}`"))}.");
+            error.WriteLine("What remains, in this order, once the failure is fixed:");
+
+            foreach (Command remaining in steps.Skip(index))
+            {
+                error.WriteLine($"  {remaining.Display}");
+            }
+
+            return false;
+        }
+
+        output.WriteLine();
+        output.WriteLine($"Done: {done}{string.Concat(steps.Select(step => $", then `{step.Display}`"))}.");
+
+        return true;
+    }
 }

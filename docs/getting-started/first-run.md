@@ -379,15 +379,11 @@ dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion d
 ```
 
 It writes the files, a manifest under `.feature-manifest`, and the feature's page in
-`docs/features/`, then prints the edits it leaves to you. Make them in order: the solution compiles
-again after the first, and the feature composes after the last. Add the row it prints to
-`docs/README.md`.
-
-The database the stack started has applied the initial migration, so add one for the new tables, then
-rebuild and run the tests:
+`docs/features/`; it makes the edits that compose the feature and adds its rows to `docs/README.md`
+and `docs/reference/api.md`; then it builds, adds the `AddWidgets` migration for the new tables and
+rewrites the OpenAPI reference. Rebuild the stack and run the tests:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add AddWidgets
 docker compose up -d --build --wait
 dotnet run Tools/Tasks.cs test --no-integration
 ```
@@ -405,15 +401,11 @@ dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion d
 ```
 
 It writes every layer but an HTTP one, which this project does not hold, a manifest under
-`.feature-manifest`, and the feature's page in `docs/features/`, then prints the edits it leaves to
-you, each host's `Program.cs` among them. Make them in order: the solution compiles again after the
-first, and the feature composes after the last. Add the row it prints to `docs/README.md`.
-
-The database has applied the initial migration, so add one for the new tables, apply it as the first
-run did, then run the tests:
+`.feature-manifest`, and the feature's page in `docs/features/`; it makes the edits that compose the
+feature, each host's `Program.cs` among them, and adds its row to `docs/README.md`; then it builds and
+adds the `AddWidgets` migration for the new tables. Apply it as the first run did, then run the tests:
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add AddWidgets
 dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence
 dotnet run Tools/Tasks.cs test --no-integration
 ```

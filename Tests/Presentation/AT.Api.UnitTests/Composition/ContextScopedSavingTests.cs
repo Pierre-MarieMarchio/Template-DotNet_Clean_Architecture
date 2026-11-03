@@ -138,16 +138,129 @@ public sealed class ContextScopedSavingTests
     }
 
     [Fact]
-    public async Task ASynchronousSave_FlushesAndPublishesToo()
+    public async Task ASynchronousSave_IsRefused_AndTheAsynchronousOnePublishesOnce()
     {
         await using var host = await SqliteSavingHost.StartAsync(Token);
         await using var scope = host.RequestScope(_caller);
         var services = scope.ServiceProvider;
 
         services.GetRequiredService<ITodoListRepository>().Add(ANewList("Groceries"));
-        services.GetRequiredService<AppDbContext>().SaveChanges();
+
+        var refusal = Should.Throw<InvalidOperationException>(
+            () => services.GetRequiredService<AppDbContext>().SaveChanges());
+
+        refusal.Message.ShouldContain(nameof(AppDbContext.SaveChangesAsync));
+        host.Published.All.ShouldBeEmpty();
+
+        await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
 
         host.Published.All.ShouldHaveSingleItem().ListWasCommitted.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ASaveInsideAnExplicitTransaction_PublishesOnlyOnceTheTransactionCommits()
+    {
+        await using var host = await SqliteSavingHost.StartAsync(Token);
+        await using var scope = host.RequestScope(_caller);
+        var services = scope.ServiceProvider;
+
+        await using var transaction = await services.GetRequiredService<AppDbContext>()
+            .Database.BeginTransactionAsync(Token);
+
+        services.GetRequiredService<ITodoListRepository>().Add(ANewList("Groceries"));
+        await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
+
+        host.Published.All.ShouldBeEmpty("the transaction that writes the list has not committed");
+
+        await transaction.CommitAsync(Token);
+
+        var publication = host.Published.All.ShouldHaveSingleItem();
+        publication.Event.ShouldBeOfType<TodoListCreatedDomainEvent>();
+        publication.ListWasCommitted.ShouldBeTrue("published once the explicit transaction committed");
+    }
+
+    [Fact]
+    public async Task ARolledBackTransaction_PublishesNothing_NorDoesTheNextCommit()
+    {
+        await using var host = await SqliteSavingHost.StartAsync(Token);
+        await using var scope = host.RequestScope(_caller);
+        var services = scope.ServiceProvider;
+        var database = services.GetRequiredService<AppDbContext>().Database;
+        var kept = ANewList("Kept");
+
+        await using (var abandoned = await database.BeginTransactionAsync(Token))
+        {
+            services.GetRequiredService<ITodoListRepository>().Add(ANewList("Abandoned"));
+            await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
+
+            await abandoned.RollbackAsync(Token);
+        }
+
+        host.Published.All.ShouldBeEmpty("the rollback undid the write the event announced");
+
+        await using (var committed = await database.BeginTransactionAsync(Token))
+        {
+            services.GetRequiredService<ITodoListRepository>().Add(kept);
+            await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
+
+            await committed.CommitAsync(Token);
+        }
+
+        host.Published.OfType<TodoListCreatedDomainEvent>().ShouldHaveSingleItem().TodoListId.ShouldBe(kept.Id);
+    }
+
+    [Fact]
+    public async Task ASynchronousCommit_IsRefusedOnlyWhenTheTransactionHoldsEvents()
+    {
+        await using var host = await SqliteSavingHost.StartAsync(Token);
+        await using var scope = host.RequestScope(_caller);
+        var services = scope.ServiceProvider;
+        var database = services.GetRequiredService<AppDbContext>().Database;
+
+        using (var holdingNothing = database.BeginTransaction())
+        {
+            holdingNothing.Commit();
+        }
+
+        await using var holdingAnEvent = await database.BeginTransactionAsync(Token);
+        services.GetRequiredService<ITodoListRepository>().Add(ANewList("Groceries"));
+        await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
+
+        var refusal = Should.Throw<InvalidOperationException>(() => holdingAnEvent.Commit());
+
+        refusal.Message.ShouldContain(nameof(holdingAnEvent.CommitAsync));
+        host.Published.All.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AConsumerThatSavesAfterAnExplicitCommit_CommitsItsOwnWrite()
+    {
+        await using var host = await SqliteSavingHost.StartAsync(Token);
+        var (listId, itemId) = await AListWithOneItemAsync(host);
+        var reminderId = await AReminderForAsync(host, listId, itemId);
+
+        await using (var scope = host.RequestScope(_caller))
+        {
+            var services = scope.ServiceProvider;
+            await using var transaction = await services.GetRequiredService<AppDbContext>()
+                .Database.BeginTransactionAsync(Token);
+
+            var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, Token))!;
+            list.CompleteItem(itemId, DateTimeOffset.UtcNow);
+            await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
+
+            await transaction.CommitAsync(Token);
+        }
+
+        host.Published.OfType<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem();
+
+        await using var check = host.RequestScope(_caller);
+        var reminder = await check.ServiceProvider
+            .GetRequiredService<IReminderRepository>()
+            .GetAsync(reminderId, Token);
+        reminder!.State.ShouldBe(
+            ReminderState.Cancelled,
+            "the reminders consumer saved on the same context once the explicit transaction committed");
     }
 
     [Fact]

@@ -71,23 +71,22 @@ public sealed class DomainEventDispatchSaveChangesInterceptorTests : IDisposable
     }
 
     [Fact]
-    public void AFailedSynchronousSave_KeepsTheEventsToo()
+    public async Task ASynchronousSave_IsRefused_AndLeavesTheEventsToAnAsynchronousOne()
     {
         var dispatcher = new RecordingDomainEventDispatcher();
         var interceptor = AnInterceptor(dispatcher);
 
         Track(ANewList("Groceries"));
 
-        interceptor.SavingChanges(ASaveChangesEvent.Saving(_context), default);
-        interceptor.SaveChangesFailed(
-            ASaveChangesEvent.Failed(_context, new InvalidOperationException("nope")));
+        var refusal = Should.Throw<InvalidOperationException>(
+            () => interceptor.SavingChanges(ASaveChangesEvent.Saving(_context), default));
 
+        refusal.Message.ShouldContain(nameof(DbContext.SaveChangesAsync));
         dispatcher.Dispatched.ShouldBeEmpty();
 
-        interceptor.SavingChanges(ASaveChangesEvent.Saving(_context), default);
-        interceptor.SavedChanges(ASaveChangesEvent.Saved(_context, rowsAffected: 1), result: 1);
+        await SaveSucceedsAsync(interceptor);
 
-        dispatcher.Dispatched.ShouldHaveSingleItem();
+        dispatcher.Dispatched.ShouldHaveSingleItem().ShouldBeOfType<TodoListCreatedDomainEvent>();
     }
 
     [Fact]

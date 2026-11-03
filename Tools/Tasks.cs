@@ -108,6 +108,25 @@ internal static class Tasks
                                            web-join: the --framework, --audience and --rendering
                                            cleanarch-webapp was given, which cleanarch.json records
                                            for the app as --web would; public and spa unless given
+          --to, --source, --json, --keep   upgrade-report: the target version, the latest stable one
+                                           when left out; a .nupkg of the package or a folder of
+                                           them, read in place of the NuGet sources, once per
+                                           source; a file outside the project to write the report
+                                           to as JSON as well; a folder outside the project to keep
+                                           the two generations in
+
+        Upgrades:
+          upgrade-report                   say what a newer version of the package cleanarch.json
+                                           names changes in this project, writing nothing in it:
+                                           generate the project from the version cleanarch.json
+                                           records and from the target, each in a template hive of
+                                           its own, add the parts recorded since through their item
+                                           templates, then list each file to take as the target
+                                           writes it, to merge by hand with the diff between the two
+                                           versions, added or removed, apart from what bootstrap
+                                           writes, with the options to decide by hand and the
+                                           changelog entries in between; no step of a package runs,
+                                           and Tools/UpgradeReport.cs --help says more
 
         Examples:
           dotnet run Tools/Tasks.cs test
@@ -123,6 +142,8 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
           dotnet run Tools/Tasks.cs -- build --configuration Release
           dotnet run Tools/Tasks.cs verify -m:4
+          dotnet run Tools/Tasks.cs upgrade-report
+          dotnet run Tools/Tasks.cs upgrade-report --to 2.1.0 --source ../packages
         """;
 
     private static readonly string[] _knownTasks =
@@ -162,6 +183,7 @@ internal static class Tasks
         "web-join",
         "hygiene",
         "verify",
+        "upgrade-report",
         //#if (templateMaintenance)
         "web-lockfiles",
         //#endif
@@ -343,6 +365,7 @@ internal static class Tasks
 
         List<string> generatorArguments = [];
         List<string> generatorOptions = [];
+        List<string> upgradeOptions = [];
         var webOptions = new Dictionary<string, string>(StringComparer.Ordinal);
         bool noIntegration = false;
         bool apply = false;
@@ -442,13 +465,30 @@ internal static class Tasks
                     throw new InvalidOperationException($"'{argument}' needs a value.");
                 }
             }
+            else if (_upgradeOptionNames.FirstOrDefault(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)) is { } upgradeOption)
+            {
+                upgradeOptions.Add(upgradeOption);
+
+                if (argument.Length > upgradeOption.Length)
+                {
+                    upgradeOptions.Add(argument[(upgradeOption.Length + 1)..]);
+                }
+                else if (i + 1 < arguments.Length)
+                {
+                    upgradeOptions.Add(arguments[++i]);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"'{argument}' needs a value.");
+                }
+            }
             else if (argument.StartsWith('-'))
             {
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
                     + "--keep-stack, --no-build, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
                     + string.Concat(_generatorTasks.Select(generator => $"{generator} {string.Join(", ", GeneratorOptionsOf(generator))}, for "))
-                    + $"web-join {string.Join(", ", _webJoinOptionNames)}.");
+                    + $"web-join {string.Join(", ", _webJoinOptionNames)}, and for upgrade-report {string.Join(", ", _upgradeOptionNames)}.");
             }
             else if (task is null)
             {
@@ -484,6 +524,12 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 $"'{webOptions.Keys.First()}' is an option of the web-join task, not of '{task ?? "(no task)"}'.");
+        }
+
+        if (upgradeOptions.Count > 0 && task != "upgrade-report")
+        {
+            throw new InvalidOperationException(
+                $"'{upgradeOptions[0]}' is an option of the upgrade-report task, not of '{task ?? "(no task)"}'.");
         }
 
         if (apply && task != "remove-feature")
@@ -868,6 +914,10 @@ internal static class Tasks
                 //#endif
                 break;
 
+            case "upgrade-report":
+                Step("dotnet", ["run", Gate(repoRoot, "UpgradeReport.cs"), "--", "--root", repoRoot, .. upgradeOptions]);
+                break;
+
             case "presentation-scaffold":
                 /*#if (api)*/
                 if (PresentationScaffold(projectFile, solution, name) && File.Exists(OpenApiReferencePath(projectFile)))
@@ -1221,6 +1271,7 @@ internal static class Tasks
         Step("dotnet", "run", Gate(repoRoot, "NewSetting.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "NewEvent.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
+        Step("dotnet", "run", Gate(repoRoot, "UpgradeReport.cs"), "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", repoRoot);
         OptionalGate(repoRoot, "CheckWorkflows.cs", "--self-test");
@@ -2873,6 +2924,8 @@ internal static class Tasks
             .FirstOrDefault();
 
     private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
+
+    private static readonly string[] _upgradeOptionNames = ["--to", "--source", "--json", "--keep"];
 
     private static string TaskHelp(string task, ProjectFile projectFile)
     {

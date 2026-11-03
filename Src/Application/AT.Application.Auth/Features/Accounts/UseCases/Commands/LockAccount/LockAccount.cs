@@ -46,7 +46,7 @@ public sealed class LockAccountCommandHandler(
         }
 
         await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
-        securityEventLog.Record(SecurityEvent.AccountLockedByAdministrator(request.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.AccountLockedByAdministrator(request.UserId));
 
         return Result.Success();
     }

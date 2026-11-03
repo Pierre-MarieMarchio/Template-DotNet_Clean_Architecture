@@ -23,7 +23,7 @@ public sealed class LogoutEverywhereCommandHandler(
         }
 
         await sessionTokens.RevokeAllRefreshTokensAsync(userId.Value.Value, cancellationToken: cancellationToken);
-        securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
+        await securityEventLog.RecordAsync(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
 
         return Result.Success();
     }

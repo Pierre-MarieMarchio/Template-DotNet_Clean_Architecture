@@ -99,8 +99,8 @@ public sealed class LoginTests
 
         await _useCase.Handle(AValidRequest(), TestToken);
 
-        _securityEventLog.Received(1)
-            .Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.IncorrectPassword));
+        await _securityEventLog.Received(1)
+            .RecordAsync(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.IncorrectPassword));
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class LoginTests
 
         await _useCase.Handle(AValidRequest(), TestToken);
 
-        _securityEventLog.DidNotReceive().Record(SecurityEvent.AccountLockedOut(account.UserId));
+        await _securityEventLog.DidNotReceive().RecordAsync(SecurityEvent.AccountLockedOut(account.UserId));
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class LoginTests
 
         await _useCase.Handle(AValidRequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
     [Fact]
@@ -250,7 +250,7 @@ public sealed class LoginTests
 
         await _useCase.Handle(AValidRequest(), TestToken);
 
-        _securityEventLog.DidNotReceive().Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await _securityEventLog.DidNotReceive().RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
     private static LoginCommand AValidRequest() => new("someone@example.com", "correct horse battery");

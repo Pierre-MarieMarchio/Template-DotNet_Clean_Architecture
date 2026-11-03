@@ -41,7 +41,7 @@ public sealed class ConfirmTwoFactorSetupCommandHandler(
             return Result.Failure<ConfirmTwoFactorSetupOutcome>(ToError(confirmation.Status));
         }
 
-        securityEventLog.Record(SecurityEvent.TwoFactorEnabled(userId.Value.Value));
+        await securityEventLog.RecordAsync(SecurityEvent.TwoFactorEnabled(userId.Value.Value));
 
         await CredentialInvalidationPolicy.InvalidateOtherSessionsAsync(
             sessionTokens,

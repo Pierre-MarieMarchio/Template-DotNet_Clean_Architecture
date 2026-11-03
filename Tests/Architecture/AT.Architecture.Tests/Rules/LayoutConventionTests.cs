@@ -511,7 +511,11 @@ public sealed class LayoutConventionTests
         }
 
         examined.ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             167,
+            /*#else
+            100,
+            #endif*/
             "Far fewer source files were found than this template holds, so the walk is not reading " +
             "the tree it is meant to describe and every file in it would read as well named.");
 
@@ -532,7 +536,11 @@ public sealed class LayoutConventionTests
             .ToList();
 
         walked.Count.ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             90,
+            /*#else
+            70,
+            #endif*/
             "Far fewer folders were found than this template holds, so the walk is not reading the " +
             "tree it is meant to describe and every folder in it would read as non-empty.");
 
@@ -557,7 +565,11 @@ public sealed class LayoutConventionTests
             .ToList();
 
         files.Count.ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             167,
+            /*#else
+            100,
+            #endif*/
             "Far fewer source files were found than this template holds, so the walk is not reading " +
             "the tree it is meant to describe.");
 

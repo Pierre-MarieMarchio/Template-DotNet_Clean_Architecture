@@ -461,7 +461,7 @@ jobs:
             dotnet format whitespace --folder . --verify-no-changes --verbosity normal
           fi
 
-      # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers reference, which leaves the end-to-end suite out.
+      # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers or Aspire.Hosting.Testing reference, which leaves the end-to-end suite out.
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release
@@ -488,6 +488,19 @@ jobs:
             dotnet test "$project" --configuration Release --no-build --output Detailed
             echo "::endgroup::"
           done
+
+      # The app host started whole on the runner's Docker: every resource it declares healthy or running, and the API answering /health.
+      - name: Start the app host (aspire leg)
+        if: matrix.aspire == 'true'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          mapfile -t projects < <(grep -r --include='*.csproj' -l 'Aspire.Hosting.Testing' Tests | sort)
+          if [ "${#projects[@]}" -ne 1 ]; then
+            echo "::error title=No app host test::The generated project holds ${#projects[@]} test projects that reference Aspire.Hosting.Testing, where --aspire true writes one."
+            exit 1
+          fi
+          dotnet test "${projects[0]}" --configuration Release --no-build --output Detailed
 
       # The generated project's own task, every suite again under coverage: a shape far from this checkout's must hold the same coverage.minimum, never lowered to pass.
       - name: Measure the coverage against coverage.minimum (coverage leg)
@@ -545,7 +558,7 @@ jobs:
             "Invoices Invoice --access owner --deletion anonymise --model aggregate --concurrency etag --fields=Title:string(120),Nickname:string(40)?,Notes:text?,Summary:text(500),Count:int>=0<=1000,Total:long?>-5,Budget:decimal(12,2)>=0,Ratio:decimal(5,4)?,Paid:bool,Due:DateOnly,StartsAt:DateTimeOffset,Reference:Guid?"
             "Receipts Receipt --access owner --deletion delete --model aggregate --concurrency etag --operations get,list,create"
           )
-          mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L 'Testcontainers' | sort)
+          mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L -e 'Testcontainers' -e 'Aspire.Hosting.Testing' | sort)
           mapfile -t architecture < <(find Tests/Architecture -name '*.csproj')
           write() {
             local log="${{ runner.temp }}/new-feature-${1%% *}.log"
@@ -1169,6 +1182,8 @@ jobs:
           refuse worker-added-sqlite --database sqlite --presentation blazor-server
           # Server rendering needs a starter holding an ssr folder.
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
+          # The app host's processes cannot share the SQLite file Compose keeps in a volume.
+          refuse aspire-sqlite --database sqlite --aspire true
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
           # The item template refuses as -n each name the template writes a project under.

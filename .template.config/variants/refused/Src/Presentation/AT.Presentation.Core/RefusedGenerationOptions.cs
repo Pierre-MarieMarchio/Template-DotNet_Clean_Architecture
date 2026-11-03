@@ -22,6 +22,9 @@
 //#if (jobsWorker && database == "sqlite")
 #error The template refuses the worker with --database sqlite, whose file serves one process: a project without the API runs its jobs in the worker, so generate with --database postgresql or sqlserver, or with --presentation api.
 //#endif
+//#if (aspire && database == "sqlite")
+#error The template refuses --aspire true with --database sqlite, whose file lives in the volume Compose shares between containers, which the app host's processes cannot share: generate with --database postgresql or sqlserver, or with --aspire false.
+//#endif
 //#if (database == "sqlserver" || database == "mysql" || database == "sqlite")
 #error This version of the template generates --database postgresql only: generate with --database postgresql.
 //#endif

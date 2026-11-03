@@ -1,0 +1,26 @@
+﻿<Project Sdk="Aspire.AppHost.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>5b0f4c1e-6a2d-4f7e-9c3b-1d8e2a7f6b40</UserSecretsId>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <!--#if (sqlServer)
+    <PackageReference Include="Aspire.Hosting.SqlServer" />
+    #else-->
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <!--#endif-->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Presentation\*\*.csproj" Exclude="..\..\Presentation\*\*.Core.csproj" />
+  </ItemGroup>
+
+</Project>

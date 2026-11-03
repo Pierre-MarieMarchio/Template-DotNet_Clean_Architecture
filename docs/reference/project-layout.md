@@ -188,6 +188,11 @@ Src/Presentation/
   <Initials>.Worker                     Common/{Jobs,Security}
                                         Features/<F>/{Composition,Jobs}
 <!--#endif-->
+<!--#if (aspire)-->
+Src/AppHost/
+  AT.AppHost                            Common/{Hosting}
+                                        no Features/; AppHostModule.cs at its root: the app host's entry
+<!--#endif-->
 <!--#if (dotnetClient)-->
 Src/Clients/
   AT.Client                             Common/{Composition,Errors,Sessions}
@@ -220,7 +225,7 @@ Server and which carries the schema in its name on SQLite.
 |---|---|
 | `template` | the `package` and the `version` that generated the project |
 | `name` | the project's name, the prefix of every project under `Src` and `Tests` |
-| `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `ci`, `sonar`, `agentFiles` |
+| `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `ci`, `sonar`, `agentFiles`, `aspire` |
 | `client` | `true` when the project holds the .NET client of the API |
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience`, `rendering` and host `port` each was added with, and the `packages` added to it |
 | `presentation` | every presentation project under `Src/Presentation`, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |

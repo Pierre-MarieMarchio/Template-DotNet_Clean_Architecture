@@ -72,6 +72,10 @@ internal static class Tasks
                                            migration-bundle and verify refuse until it has run
 
         Options:
+          --no-build                       migration-add, and openapi where the project holds the API:
+                                           work from what the last build wrote instead of building
+                                           again; after a -- separator, because dotnet run claims the
+                                           name. new-feature passes it to the steps after its build
           --context <auth>                 migration-add, migration-check, database-update: the
                                            context to target, the business context when left out;
                                            auth is the identity context, which only a project
@@ -328,6 +332,7 @@ internal static class Tasks
         bool noIntegration = false;
         bool apply = false;
         bool keepStack = false;
+        bool noBuild = false;
         bool check = false;
         string configuration = "Debug";
         string? maxCpuCount = null;
@@ -352,6 +357,10 @@ internal static class Tasks
             else if (argument is "--keep-stack")
             {
                 keepStack = true;
+            }
+            else if (argument is "--no-build")
+            {
+                noBuild = true;
             }
             else if (argument is "--context")
             {
@@ -422,7 +431,7 @@ internal static class Tasks
             {
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
-                    + "--keep-stack, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
+                    + "--keep-stack, --no-build, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
                     + string.Concat(_generatorTasks.Select(generator => $"{generator} {string.Join(", ", GeneratorOptionsOf(generator))}, for "))
                     + $"web-join {string.Join(", ", _webJoinOptionNames)}.");
             }
@@ -482,6 +491,11 @@ internal static class Tasks
         if (keepStack && task != "end-to-end")
         {
             throw new InvalidOperationException($"'--keep-stack' is an option of the end-to-end task, not of '{task ?? "(no task)"}'.");
+        }
+
+        if (noBuild && task is not ("migration-add" or "openapi"))
+        {
+            throw new InvalidOperationException($"'--no-build' is an option of the migration-add and openapi tasks, not of '{task ?? "(no task)"}'.");
         }
 
         if (check && (task is null || !_checkedTasks.Contains(task, StringComparer.Ordinal)))
@@ -643,7 +657,7 @@ internal static class Tasks
             case "migration-add":
                 string addTarget = MigrationContext(context, projectFile.LocalAuth, persistence, auth);
                 RequireInitialMigrations(task, addTarget);
-                AddMigration(addTarget, RequiredName(task, name));
+                AddMigration(addTarget, RequiredName(task, name), noBuild);
                 break;
 
             case "migration-check":
@@ -683,7 +697,7 @@ internal static class Tasks
 
             //#if (api)
             case "openapi":
-                OpenApiReference(projectFile, api);
+                OpenApiReference(projectFile, api, noBuild);
                 break;
 
             case "api-client":
@@ -724,7 +738,7 @@ internal static class Tasks
                 PresentationScaffold(projectFile, solution, only: null);
                 Step("dotnet", "format", solution, "--diagnostics", "IDE0055", "IDE0005");
                 //#if (api)
-                OpenApiReference(projectFile, api);
+                OpenApiReference(projectFile, api, noBuild: false);
                 //#endif
 
                 string finished = "the formatting";
@@ -878,7 +892,7 @@ internal static class Tasks
     }
 
     //#if (api)
-    private static void OpenApiReference(ProjectFile projectFile, string api)
+    private static void OpenApiReference(ProjectFile projectFile, string api, bool noBuild)
     {
         string apiName = projectFile.ProjectName("Api");
         string reference = Path.GetDirectoryName(OpenApiReferencePath(projectFile))!;
@@ -890,15 +904,26 @@ internal static class Tasks
             defaults["Authentication__External__Audience"] = "openapi-document";
         }
 
+        string project = Path.Combine(api, apiName + ".csproj");
+        string[] document = [$"-p:OpenApiDocumentsDirectory={reference}", "-p:OpenApiGenerateDocumentsOptions=--file-name v1"];
+
         File.Delete(Path.Combine(api, "obj", apiName + ".OpenApiFiles.cache"));
 
-        StepWith(
-            defaults,
-            "dotnet",
-            "build", Path.Combine(api, apiName + ".csproj"),
-            "-p:OpenApiGenerateDocumentsOnBuild=true",
-            $"-p:OpenApiDocumentsDirectory={reference}",
-            "-p:OpenApiGenerateDocumentsOptions=--file-name v1");
+        if (!noBuild)
+        {
+            StepWith(defaults, "dotnet", ["build", project, "-p:OpenApiGenerateDocumentsOnBuild=true", .. document]);
+            return;
+        }
+
+        string output = Path.Combine(api, "bin");
+
+        if (!Directory.Exists(output) || !Directory.EnumerateFiles(output, apiName + ".dll", SearchOption.AllDirectories).Any())
+        {
+            throw new InvalidOperationException(
+                $"--no-build writes the reference from the API's last build, and {apiName} has none: run `dotnet run Tools/Tasks.cs build` first.");
+        }
+
+        StepWith(defaults, "dotnet", ["msbuild", project, "-target:GenerateOpenApiDocuments", .. document]);
     }
 
     private static string OpenApiReferencePath(ProjectFile projectFile) =>
@@ -2631,7 +2656,7 @@ internal static class Tasks
     internal static bool IsEmptyMigration(string source) =>
         _emptyMigrationMethod.Count(source) == 2;
 
-    private static void AddMigration(string context, string name)
+    private static void AddMigration(string context, string name, bool noBuild)
     {
         string folder = Path.Combine(context, "Migrations");
         string snapshotPath = Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Single();
@@ -2639,9 +2664,13 @@ internal static class Tasks
         HashSet<string> before = [.. Directory.EnumerateFiles(folder, "*.cs")];
 
         Step(
-            "dotnet", "ef", "migrations", "add", name,
-            "--project", context,
-            "--startup-project", context);
+            "dotnet",
+            [
+                "ef", "migrations", "add", name,
+                "--project", context,
+                "--startup-project", context,
+                .. noBuild ? ["--no-build"] : Array.Empty<string>(),
+            ]);
 
         string[] written = [.. Directory.EnumerateFiles(folder, "*.cs").Where(file => !before.Contains(file))];
         string? migration = written.SingleOrDefault(file => !file.EndsWith(".Designer.cs", StringComparison.Ordinal));

@@ -28,6 +28,9 @@ feature's migration.
   model holds a change no migration holds (`migration-check`). **After writing**, it builds, adds the
   `Add<Features>` migration, then rewrites the OpenAPI reference and what is written from it, and
   stops at the first failure, naming what is done and the commands that remain.
+- **One build per run**: the steps after the build pass `--no-build` and work from it. The check
+  before writing builds what `dotnet ef` needs of the tree as it stands, since the build after
+  writing cannot serve a check that must pass first.
 - `--dry-run` is the only way to write nothing; nothing skips the migration.
 - `dotnet run Tools/NewFeature.cs --self-test` and `dotnet run Tools/NewUseCase.cs --self-test`,
   which `hygiene` and `verify` run, hold each face.
@@ -55,7 +58,7 @@ feature's migration.
 - A feature written this way is registered, so `remove-feature --apply` refuses it until its edits,
   which its manifest lists, are undone.
 - The command needs what `build`, `migration-add` and `openapi` need, the restored tools among them,
-  and takes as long as they do.
+  and takes as long as one build and the steps that read it.
 - Changing a shared file's anchor line changes the generator: its self-test names the anchors.
 
 ## Revisit when

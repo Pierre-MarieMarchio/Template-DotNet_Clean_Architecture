@@ -24,25 +24,29 @@ public sealed class SecurityEventLogTests
     private readonly FakeTimeProvider _clock = TheClock.Start();
 
     [Fact]
-    public void Record_HandlesEveryDeclaredKind()
+    public async Task Record_HandlesEveryDeclaredKind()
     {
         var log = Log();
+        List<SecurityEventKind> offenders = [];
 
-        SecurityEventKind[] offenders =
-        [
-            .. Enum.GetValues<SecurityEventKind>().Where(kind => !Records(log, kind)),
-        ];
+        foreach (var kind in Enum.GetValues<SecurityEventKind>())
+        {
+            if (!await RecordsAsync(log, kind))
+            {
+                offenders.Add(kind);
+            }
+        }
 
         offenders.ShouldBeEmpty("A kind the log cannot write is an event the account's history loses.");
     }
 
     [Fact]
-    public void Record_StillWritesTheStructuredEntry_WhenTheRowCannotBeStored()
+    public async Task Record_StillWritesTheStructuredEntry_WhenTheRowCannotBeStored()
     {
         var logger = new RecordingLogger();
         var userId = Guid.CreateVersion7();
 
-        LogFor(logger).Record(SecurityEvent.LoginSucceeded(userId));
+        await LogFor(logger).RecordAsync(SecurityEvent.LoginSucceeded(userId));
 
         logger.Entries.ShouldContain(entry =>
             entry.Level == LogLevel.Information && entry.Message.Contains("Login succeeded", StringComparison.Ordinal));
@@ -52,11 +56,11 @@ public sealed class SecurityEventLogTests
             && entry.Exception != null);
     }
 
-    private static bool Records(SecurityEventLog log, SecurityEventKind kind)
+    private static async Task<bool> RecordsAsync(SecurityEventLog log, SecurityEventKind kind)
     {
         try
         {
-            log.Record(new SecurityEvent(kind, Guid.CreateVersion7()));
+            await log.RecordAsync(new SecurityEvent(kind, Guid.CreateVersion7()));
 
             return true;
         }

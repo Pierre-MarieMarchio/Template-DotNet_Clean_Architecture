@@ -1,9 +1,19 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AppTemplate.Api.Common.Jobs;
+using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueReminders;
+using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Features.Reminders.Jobs;
 
 internal static class ReminderJobsExtensions
 {
+    private static readonly JobPass _dueReminders = new(
+        "due reminders",
+        "Reminders that fall due will wait unsent: nothing else sends them.",
+        ReminderInstruments.ActivitySource,
+        "reminders.fire",
+        ReminderInstruments.Iterations,
+        ReminderInstruments.Notified);
+
     internal static IServiceCollection AddReminderJobs(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -17,7 +27,12 @@ internal static class ReminderJobsExtensions
 
         services.AddSingleton<IValidateOptions<JobsRemindersOptions>, JobsRemindersOptionsValidator>();
 
-        services.AddHostedService<ReminderBackgroundService>();
+        services.AddIntervalPass<FireDueRemindersCommand>(provider =>
+        {
+            var settings = provider.GetRequiredService<IOptions<JobsRemindersOptions>>().Value;
+
+            return new IntervalPass(_dueReminders, settings.Interval, settings.Enabled);
+        });
 
         return services;
     }

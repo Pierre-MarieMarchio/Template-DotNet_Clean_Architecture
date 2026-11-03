@@ -202,7 +202,7 @@ public sealed class CreateAccessKeyTests
             Arg.Is<IReadOnlyList<string>>(scopes => scopes.SequenceEqual(_bothScopes)),
             expiresAt,
             Arg.Any<CancellationToken>());
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.AccessKeyCreated && e.UserId == _callerId));
     }
 

@@ -65,7 +65,7 @@ public sealed class CreateAccessKeyCommandHandler(
             request.ExpiresAt,
             cancellationToken);
 
-        securityEventLog.Record(SecurityEvent.AccessKeyCreated(userId));
+        await securityEventLog.RecordAsync(SecurityEvent.AccessKeyCreated(userId));
 
         return Result.Success(new CreateAccessKeyOutcome(
             issued.Id,

@@ -19,12 +19,12 @@ internal sealed partial class SecurityEventLog(
     TimeProvider timeProvider,
     IOptions<SecurityEventLogOptions> options) : ISecurityEventLog
 {
-    public void Record(SecurityEvent securityEvent)
+    public async Task RecordAsync(SecurityEvent securityEvent)
     {
         ArgumentNullException.ThrowIfNull(securityEvent);
 
         WriteLogEntry(securityEvent);
-        WriteRow(securityEvent);
+        await WriteRowAsync(securityEvent);
     }
 
     public async Task<int> PurgeExpiredAsync(DateTimeOffset asOf, CancellationToken cancellationToken = default)
@@ -49,11 +49,11 @@ internal sealed partial class SecurityEventLog(
         return purged;
     }
 
-    private void WriteRow(SecurityEvent securityEvent)
+    private async Task WriteRowAsync(SecurityEvent securityEvent)
     {
         try
         {
-            using var own = new AuthDbContext(contextOptions);
+            await using var own = new AuthDbContext(contextOptions);
 
             own.SecurityEvents.Add(new SecurityEventRecord
             {
@@ -65,7 +65,7 @@ internal sealed partial class SecurityEventLog(
                 Detail = Truncate(DetailOf(securityEvent), SecurityEventConfiguration.DetailLength),
             });
 
-            own.SaveChanges();
+            await own.SaveChangesAsync(CancellationToken.None);
         }
         catch (Exception exception)
         {

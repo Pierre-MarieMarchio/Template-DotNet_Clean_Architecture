@@ -2,6 +2,7 @@
 using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Core.Common.Retries;
 using AppTemplate.Domain.Features.Files.Model.Events;
 using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 
@@ -10,10 +11,6 @@ namespace AppTemplate.Domain.Features.Files.Model.Entities;
 public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
     public const int MaxTags = 20;
-
-    private static readonly TimeSpan _firstInspectionRetryDelay = TimeSpan.FromMinutes(1);
-
-    private static readonly TimeSpan _longestInspectionRetryDelay = TimeSpan.FromHours(1);
 
     private readonly TagSet _tags = new(MaxTags, "stored file");
 
@@ -182,21 +179,7 @@ public sealed class StoredFile : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
 
         InspectionAttempts++;
-        NextInspectionAt = now + InspectionRetryDelayAfter(InspectionAttempts);
-    }
-
-    public static TimeSpan InspectionRetryDelayAfter(int attempts)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(attempts, 1);
-
-        var delay = _firstInspectionRetryDelay;
-
-        for (int attempt = 1; attempt < attempts && delay < _longestInspectionRetryDelay; attempt++)
-        {
-            delay += delay;
-        }
-
-        return delay < _longestInspectionRetryDelay ? delay : _longestInspectionRetryDelay;
+        NextInspectionAt = now + RetryBackoff.After(InspectionAttempts);
     }
 
     public void Delete(DateTimeOffset now)

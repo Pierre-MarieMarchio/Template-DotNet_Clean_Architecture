@@ -47,7 +47,7 @@ public sealed class DeleteAccountCommandHandler(
             return Result.Failure(ToError(outcome.Status));
         }
 
-        securityEventLog.Record(SecurityEvent.AccountDeleted(request.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.AccountDeleted(request.UserId));
 
         await domainEvents.PublishAsync(
             new UserAccountDeleted(UserId.Create(request.UserId), timeProvider.GetUtcNow()),

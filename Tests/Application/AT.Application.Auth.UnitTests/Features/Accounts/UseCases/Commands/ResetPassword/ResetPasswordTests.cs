@@ -95,7 +95,7 @@ public sealed class ResetPasswordTests
 
         await _useCase.Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(userId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(userId));
     }
 
     [Fact]

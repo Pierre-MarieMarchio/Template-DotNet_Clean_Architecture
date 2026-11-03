@@ -8,12 +8,6 @@ using AppTemplate.Api.Common.Security;
 //#if (localAuth)
 using AppTemplate.Api.IntegrationTests.Auth;
 //#endif
-//#if (todoLists)
-using AppTemplate.Application.Core;
-//#endif
-//#if (todoLists)
-using AppTemplate.Domain.Features.TodoLists.Model.Events;
-//#endif
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Options;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Configuration.Options;
@@ -73,10 +67,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<ILoggerProvider>(serviceProvider =>
                 new CapturingLoggerProvider(serviceProvider.GetRequiredService<CapturedLogs>()));
 
-            //#if (todoLists)
-            services.AddSingleton<RecordedDomainEvents>();
-            services.AddDomainEventConsumer<TodoItemCompletedDomainEvent, RecordingTodoItemCompletedConsumer>();
-            //#endif
+            services.AddRecordedDomainEvents();
 
             services.AddSingleton<IStartupFilter, TestClientAddressStartupFilter>();
 

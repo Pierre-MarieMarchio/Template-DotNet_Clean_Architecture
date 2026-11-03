@@ -46,7 +46,7 @@ public sealed class RemoveRoleCommandHandler(
         }
 
         await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
-        securityEventLog.Record(SecurityEvent.RoleRevoked(request.UserId, request.Role));
+        await securityEventLog.RecordAsync(SecurityEvent.RoleRevoked(request.UserId, request.Role));
 
         return Result.Success();
     }

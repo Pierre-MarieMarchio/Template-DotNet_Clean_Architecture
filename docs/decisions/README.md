@@ -93,5 +93,6 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#endif-->
 | [0028](0028-the-author-answers-for-every-line.md) | The author answers for every line | Contribution |
 | [0029](0029-a-project-folder-carries-the-products-initials-not-its-name.md) | A project folder carries the product's initials, not its name | Architecture |
+| [0030](0030-any-known-advisory-fails-the-build.md) | Any known advisory fails the build | Supply chain |
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

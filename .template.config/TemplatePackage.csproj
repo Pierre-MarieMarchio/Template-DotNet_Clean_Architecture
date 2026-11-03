@@ -43,7 +43,7 @@
     <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj" />
     <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md;$(TemplateRoot)LICENSE" />
     <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md" />
-    <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/release-please/**;$(TemplateRoot).github/ISSUE_TEMPLATE/**" />
+    <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/workflows/template-published-package.yml;$(TemplateRoot).github/release-please/**;$(TemplateRoot).github/ISSUE_TEMPLATE/**" />
     <TemplateExclude Include="$(TemplateRoot)Tools/CheckDocPaths.cs;$(TemplateRoot)Tools/CheckWorkflows.cs;$(TemplateRoot)Tools/CheckComments.cs" />
     <TemplateExclude Include="$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs;$(TemplateRoot)Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs;$(TemplateRoot)Tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json" />
     <TemplateExclude Include="$(TemplateRoot)Src/Infrastructure/AT.Infrastructure.Persistence/Migrations/**;$(TemplateRoot)Src/Infrastructure/AT.Infrastructure.Auth/Migrations/**" />

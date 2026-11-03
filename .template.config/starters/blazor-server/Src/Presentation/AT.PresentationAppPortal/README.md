@@ -31,7 +31,8 @@ when they are not the defaults: the project's files are written for them.
 
 It writes this folder, its tests and `docs/features/presentation.md`. The lines `--presentation`
 writes in files the item template cannot edit are listed below, each placed by the lines it goes
-beside. One task makes them all, or none when one of those lines is not found exactly once:
+beside. One task makes them all, leaving those in place already, or none when one of those lines is
+not found exactly once:
 
 ```bash
 dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppPortal
@@ -89,7 +90,7 @@ task stops:
   add:
 
   ```bash
-  # Authentication:External:Interactive section: the presentation project's client at the provider, which signs people in with the code flow.
+  # The client at the provider that signs people in with the code flow, for the presentation project (Authentication:External:Interactive) and a server-rendered web app alike; a public client leaves the secret empty.
   EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=
   EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET=
   ```

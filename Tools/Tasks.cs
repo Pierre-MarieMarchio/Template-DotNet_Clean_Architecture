@@ -210,9 +210,11 @@ internal static class Tasks
                                            under 'Joining a project generated without one', in the
                                            files outside its folders that cleanarch-presentation
                                            cannot edit: each block placed by lines found exactly
-                                           once, every edit or none; edits all in place already are
-                                           left alone; then record the project in cleanarch.json,
-                                           with the framework its scaffold.json names
+                                           once; an edit in place already is left alone, and the
+                                           others are made all or none, every line they are placed
+                                           by found before a file is written; then record the
+                                           project in cleanarch.json, with the framework its
+                                           scaffold.json names
 
         Web apps:
           web-scaffold [<App>]             create each app under Src/Web/apps that holds a scaffold.json
@@ -223,9 +225,13 @@ internal static class Tasks
                                            bootstrap runs it, and an app already created is left alone
           web-join <App> --web <F>         make the edits the README of Src/Web/apps/<App> lists under
                                            'Joining a project generated without one', as
-                                           presentation-join does: a Blazor WebAssembly app lists the
-                                           lines of the .NET client it brings; then record the app in
-                                           cleanarch.json, with the client when Src/Clients holds it
+                                           presentation-join does: its include: line in
+                                           docker-compose.yml, its port in .env.example, and for a
+                                           Blazor WebAssembly app the lines of the .NET client it
+                                           brings; for the first app, while cleanarch.json records no
+                                           workspace, those Src/Web/README.md lists before them; then
+                                           record the app in cleanarch.json, with the client when
+                                           Src/Clients holds it
           web-join <package>               record Src/Web/packages/<package> in cleanarch.json, which
                                            cleanarch-webpackage cannot edit
         """;
@@ -1939,12 +1945,46 @@ internal static class Tasks
             throw new InvalidOperationException($"--web-audience is public or admin, and --web-rendering spa or ssr; not '{audience}' and '{rendering}'.");
         }
 
-        Join(projectFile.Root, "Src/Web/apps/" + name, "cleanarch-webapp", "web-scaffold", required: false);
+        Join(projectFile.Root, "Src/Web/apps/" + name, "cleanarch-webapp", "web-scaffold", required: false, FirstAppsWorkspaceReadme(projectFile));
+        PlaceTheServerRenderingDecision(projectFile.Root, "Src/Web/apps/" + name);
         //#if (api)
         PrintApiSteps(projectFile);
         //#endif
         projectFile.RecordWebApp(name, framework, audience, rendering, WorkspaceScope(projectFile.Root));
         RecordClient(projectFile);
+    }
+
+    private const string _serverRenderingDecision = "0024-a-server-rendered-web-app-runs-on-its-own-server.md";
+
+    private static void PlaceTheServerRenderingDecision(string repoRoot, string app)
+    {
+        string brought = Path.Combine(repoRoot, app, _serverRenderingDecision);
+        string decision = Path.Combine(repoRoot, "docs", "decisions", _serverRenderingDecision);
+
+        if (!File.Exists(brought))
+        {
+            return;
+        }
+
+        if (File.Exists(decision))
+        {
+            File.Delete(brought);
+            Console.WriteLine($"In place already: docs/decisions/{_serverRenderingDecision}");
+            return;
+        }
+
+        File.Move(brought, decision);
+        Console.WriteLine($"Moved: {app}/{_serverRenderingDecision} to docs/decisions/{_serverRenderingDecision}");
+    }
+
+    private static string? FirstAppsWorkspaceReadme(ProjectFile projectFile)
+    {
+        const string workspaceReadme = "Src/Web/README.md";
+        string path = Path.Combine(projectFile.Root, workspaceReadme);
+
+        return !projectFile.HasWebWorkspace && File.Exists(path) && File.ReadAllLines(path).Contains(_joiningSection, StringComparer.Ordinal)
+            ? workspaceReadme
+            : null;
     }
 
     private static void RecordClient(ProjectFile projectFile)
@@ -1966,7 +2006,7 @@ internal static class Tasks
             : throw new InvalidOperationException("Src/Web/package.json names no @<scope>/ package, so the workspace's scope cannot be recorded.");
     }
 
-    private static void Join(string repoRoot, string folder, string itemTemplate, string scaffoldTask, bool required)
+    private static void Join(string repoRoot, string folder, string itemTemplate, string scaffoldTask, bool required, string? workspaceReadme = null)
     {
         string relative = $"{folder}/README.md";
         string readme = Path.Combine(repoRoot, relative);
@@ -1977,57 +2017,60 @@ internal static class Tasks
         }
 
         string[] text = File.Exists(readme) ? File.ReadAllLines(readme) : [];
+        var edits = new List<ReadmeEdit>();
 
-        if (!required && !text.Contains(_joiningSection, StringComparer.Ordinal))
+        if (workspaceReadme is not null)
+        {
+            edits.AddRange(ReadmeEdits(File.ReadAllLines(Path.Combine(repoRoot, workspaceReadme)), workspaceReadme));
+        }
+
+        if (required || text.Contains(_joiningSection, StringComparer.Ordinal))
+        {
+            edits.AddRange(ReadmeEdits(text, relative));
+        }
+
+        if (edits.Count == 0)
         {
             Write($"{folder} lists no edit outside its folder.", ConsoleColor.Green);
             return;
         }
 
-        List<ReadmeEdit> edits = ReadmeEdits(text, relative);
+        string listed = string.Join(" and ", edits.Select(edit => edit.Readme).Distinct(StringComparer.Ordinal));
         var files = new Dictionary<string, List<string>>(StringComparer.Ordinal);
 
-        foreach (string path in edits.Select(edit => edit.Path).Distinct(StringComparer.Ordinal))
+        foreach (ReadmeEdit edit in edits.Where(edit => !files.ContainsKey(edit.Path)))
         {
-            string full = Path.Combine(repoRoot, path);
+            string full = Path.Combine(repoRoot, edit.Path);
 
             if (!File.Exists(full))
             {
-                throw new InvalidOperationException($"{relative} edits {path}, which does not exist, so no file was changed.");
+                throw new InvalidOperationException($"{edit}: {edit.Path} does not exist, so no file was changed.");
             }
 
-            files[path] = [.. File.ReadAllText(full).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')];
+            files[edit.Path] = [.. File.ReadAllText(full).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')];
         }
 
-        ReadmeEdit[] inPlace = [.. edits.Where(edit => InPlace(edit, files[edit.Path]))];
+        (ReadmeEdit[] made, ReadmeEdit[] inPlace) = MakeEdits(edits, files);
 
-        if (inPlace.Length == edits.Count)
+        foreach (ReadmeEdit edit in inPlace)
         {
-            Write($"Every edit {relative} lists is in place already, so no file was changed.", ConsoleColor.Green);
+            Console.WriteLine($"In place already: {edit}");
+        }
+
+        if (made.Length == 0)
+        {
+            Write($"Every edit {listed} lists is in place already, so no file was changed.", ConsoleColor.Green);
             return;
         }
 
-        if (inPlace.Length > 0)
-        {
-            throw new InvalidOperationException(
-                $"Some edits {relative} lists are in place already and the others are not, so no file was changed: "
-                + string.Join("; ", inPlace.Select(edit => edit.ToString()))
-                + ". Make the others by hand, or restore those files and run the task again.");
-        }
-
-        foreach (ReadmeEdit edit in edits)
-        {
-            Apply(edit, files[edit.Path]);
-        }
-
-        foreach ((string path, List<string> lines) in files)
+        foreach (string path in made.Select(edit => edit.Path).Distinct(StringComparer.Ordinal))
         {
             string full = Path.Combine(repoRoot, path);
             bool bom = File.ReadAllBytes(full) is [0xEF, 0xBB, 0xBF, ..];
-            File.WriteAllText(full, string.Join('\n', lines), new UTF8Encoding(bom));
+            File.WriteAllText(full, string.Join('\n', files[path]), new UTF8Encoding(bom));
         }
 
-        foreach (ReadmeEdit edit in edits)
+        foreach (ReadmeEdit edit in made)
         {
             Console.WriteLine($"Applied: {edit}");
         }
@@ -2036,6 +2079,27 @@ internal static class Tasks
             $"Joined {folder} to the project. Run `dotnet run Tools/Tasks.cs {scaffoldTask} {Path.GetFileName(folder)}` "
             + "next: it creates the pages and adds the project to the solution.",
             ConsoleColor.Green);
+    }
+
+    private static (ReadmeEdit[] Made, ReadmeEdit[] InPlace) MakeEdits(IEnumerable<ReadmeEdit> edits, Dictionary<string, List<string>> files)
+    {
+        var made = new List<ReadmeEdit>();
+        var inPlace = new List<ReadmeEdit>();
+
+        foreach (ReadmeEdit edit in edits)
+        {
+            if (InPlace(edit, files[edit.Path]))
+            {
+                inPlace.Add(edit);
+            }
+            else
+            {
+                Apply(edit, files[edit.Path]);
+                made.Add(edit);
+            }
+        }
+
+        return ([.. made], [.. inPlace]);
     }
 
     private static List<ReadmeEdit> ReadmeEdits(string[] readme, string relative)
@@ -2073,7 +2137,7 @@ internal static class Tasks
             string mode = bullet.Groups["mode"].Value;
             List<string> anchor = Fence(readme, ref index, relative);
             List<string> lines = mode == "remove" ? [] : Fence(readme, ref index, relative);
-            edits.Add(new ReadmeEdit(bullet.Groups["path"].Value, mode, anchor, lines));
+            edits.Add(new ReadmeEdit(relative, edits.Count + 1, bullet.Groups["path"].Value, mode, anchor, lines));
         }
 
         if (edits.Count == 0)
@@ -2138,7 +2202,7 @@ internal static class Tasks
         if (found.Length != 1)
         {
             throw new InvalidOperationException(
-                $"{edit.Path}: the lines to place the edit by occur {found.Length} times, not once, so no file was changed:\n{string.Join('\n', edit.Anchor)}");
+                $"{edit}: the lines it is placed by occur {found.Length} times in {edit.Path}, not once, so no file was changed:\n{string.Join('\n', edit.Anchor)}");
         }
 
         int at = found[0];
@@ -2158,9 +2222,9 @@ internal static class Tasks
         }
     }
 
-    private sealed record ReadmeEdit(string Path, string Mode, List<string> Anchor, List<string> Lines)
+    private sealed record ReadmeEdit(string Readme, int Number, string Path, string Mode, List<string> Anchor, List<string> Lines)
     {
-        public override string ToString() => $"{Mode} {Anchor.Count} line(s) of {Path}";
+        public override string ToString() => $"edit {Number} of {Readme}, {Mode} {Anchor.Count} line(s) of {Path}";
     }
 
     private static string[] DeclinedScriptsWhereOffered(string directory, string template, string[] hive)
@@ -2745,6 +2809,7 @@ internal static class Tasks
             ("an unknown context is refused", Refused(() => MigrationContext("billing", true, "persistence", "auth"), "not a context")),
             .. CheckCases(),
             .. GeneratorOptionCases(),
+            .. JoinCases(),
         ];
 
         foreach ((string label, bool passed) in cases)
@@ -2809,6 +2874,28 @@ internal static class Tasks
             ("no candidate leaves HEAD as the base", PickBase(_ => false) is null),
             ("a naming violation is named once with its file and line, relative to the root", NamingViolations("/r", violations).SequenceEqual(
                 ["Src/A.cs:14: Naming rule violation: Missing prefix: '_'"])),
+        ];
+    }
+
+    private static (string Case, bool Passed)[] JoinCases()
+    {
+        ReadmeEdit Edit(int number, string mode, string[] anchor, string[] lines) => new("README.md", number, "file", mode, [.. anchor], [.. lines]);
+        Dictionary<string, List<string>> File(params string[] lines) => new(StringComparer.Ordinal) { ["file"] = [.. lines] };
+
+        Dictionary<string, List<string>> partly = File("include:", "  - path: a", "services:");
+        (ReadmeEdit[] made, ReadmeEdit[] inPlace) = MakeEdits([Edit(1, "after", ["include:"], ["  - path: a"]), Edit(2, "before", ["services:"], ["  - path: b"])], partly);
+
+        Dictionary<string, List<string>> chained = File("services:");
+        MakeEdits([Edit(1, "before", ["services:"], ["include:"]), Edit(2, "after", ["include:"], ["  - path: a"])], chained);
+
+        return
+        [
+            ("an edit in place already is left alone and the others are made", made is [{ Number: 2 }] && inPlace is [{ Number: 1 }]
+                && partly["file"].SequenceEqual(["include:", "  - path: a", "  - path: b", "services:"])),
+            ("an edit is placed by the lines an earlier edit made", chained["file"].SequenceEqual(["include:", "  - path: a", "services:"])),
+            ("an edit whose lines to place it by are missing is refused, naming it", Refused(
+                () => MakeEdits([Edit(1, "after", ["services:"], ["x"]), Edit(2, "after", ["missing"], ["y"])], File("services:")),
+                "edit 2 of README.md, after 1 line(s) of file: the lines it is placed by occur 0 times")),
         ];
     }
 
@@ -3127,6 +3214,8 @@ internal sealed class ProjectFile
 
     internal IReadOnlyList<string> Presentations =>
         _json["presentation"] is JsonArray presentations ? [.. presentations.OfType<JsonObject>().Select(entry => Text(entry, "name"))] : [];
+
+    internal bool HasWebWorkspace => _json["web"] is JsonObject;
 
     internal bool RendersAWebAppOnTheServer =>
         _json["web"]?["apps"] is JsonArray apps

@@ -337,7 +337,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldContain("●  Taken from Acme.Shop: --workspace true");
         output.ShouldContain("◊  Audience\n│  public · the only option when Project authentication is none\n");
         output.ShouldNotContain("Set up the project now?");
-        Order(output, "◊  App name", "◊  Framework", "Summary", "◊  Added BackOffice", "└  All set. A few things to do by hand, from Src/Web/README.md:");
+        Order(output, "◊  App name", "◊  Framework", "Summary", "◊  Added BackOffice", "└  All set. A few things to do by hand, from Src/Web/apps/BackOffice/README.md:");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapp -n BackOffice", StringComparison.Ordinal));
     }
 

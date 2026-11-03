@@ -42,7 +42,9 @@ public sealed class LauncherTests : IDisposable
     [Fact]
     public void TheWebAppReadmeSections_TheLauncherPrints_AreInTheTemplate()
     {
-        Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "README.md"), "## The first app of a project generated without one")
+        Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "README.md"), Launcher.JoiningSection)
+            .ShouldNotBeNull().ShouldContain(Launcher.WebJoinTask);
+        Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "apps", "FrameworkSite", "README.md"), "## Join the stack")
             .ShouldNotBeNullOrWhiteSpace();
         Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "apps", "PlaceholderSite", "README.md"), "## Join the stack")
             .ShouldNotBeNullOrWhiteSpace();

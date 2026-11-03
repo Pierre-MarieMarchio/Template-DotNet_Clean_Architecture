@@ -54,12 +54,16 @@ API's last build instead.
 - In a single-page app the access token lives in a variable, never in storage, and the refresh token
   stays in the API's `HttpOnly` cookie ([ADR 0016](../../docs/decisions/0016-browser-refresh-token-in-a-cookie.md));
   a server-rendered app keeps both on its server, and its pages send `X-CSRF: 1` through
-  `serverSessionMiddleware` ([ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+  `serverSessionMiddleware`.
 <!--#endif-->
 <!--#if (externalAuth)-->
 - A server-rendered app keeps the provider's tokens on its server, which signs people in at
   `/session/sign-in`, and its pages send `X-CSRF: 1` through `serverSessionMiddleware`; no token
-  reaches the page ([ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+  reaches the page.
+<!--#endif-->
+<!--#if (webServerRendering)-->
+- [ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why a
+  server-rendered app runs on its own server and keeps the session there.
 <!--#endif-->
 - A new app or package comes from `dotnet new cleanarch-webapp` or `dotnet new cleanarch-webpackage`
   at the project root; [more apps and packages](../../docs/features/web-frontend.md#more-apps-and-packages)

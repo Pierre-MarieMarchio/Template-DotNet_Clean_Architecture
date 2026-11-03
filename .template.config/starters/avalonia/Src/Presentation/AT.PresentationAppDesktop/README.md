@@ -79,7 +79,8 @@ It writes this folder, its tests, the .NET client in `Src/Clients` with its test
 `docs/features/presentation.md` and the client's decision; `--has-client true` leaves the client, its
 tests and its decision out, and its edits below with them. The lines `--presentation` writes in
 files the item template cannot edit are listed below, each placed by the lines it goes beside. One
-task makes them all, or none when one of those lines is not found exactly once:
+task makes them all, leaving those in place already, or none when one of those lines is not found
+exactly once:
 
 ```bash
 dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppDesktop

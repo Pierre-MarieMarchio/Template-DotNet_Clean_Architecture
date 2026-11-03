@@ -110,13 +110,13 @@ updates:
       #if (jobsWorker)
       - /Src/Presentation/AT.Worker
       #endif
-      #if (anyWeb)
-      # Every web app's image, nginx or Node, by directory glob.
-      - /Src/Web/apps/*
-      #endif
       #if (sonar)
       # The analysis image, Tools/sonar-scanner.Dockerfile, on the same SDK as the API's.
       - /Tools
+      #endif
+      #if (anyWeb)
+      # Every web app's image, nginx or Node, by directory glob.
+      - /Src/Web/apps/*
       #endif
     schedule:
       interval: weekly

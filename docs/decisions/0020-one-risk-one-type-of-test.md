@@ -69,6 +69,10 @@ ever passed and let the review catch the rest.
 - Ownership and a controller's HTTP behaviour are proved against a SQLite file, which needs no
   database container.
 <!--#endif-->
+<!--#if ((todoLists || files) && !sqlite)-->
+- An owned repository's query is also proved against an in-memory SQLite database, so a run without
+  Docker still proves that another caller's record is never loaded.
+<!--#endif-->
 - The coverage figure moves when decorative tests go; it is re-measured, not defended.
 - A change to the stack, a mail or a relay is proved by `end-to-end` before it is done, since `verify` does
   not start the stack.

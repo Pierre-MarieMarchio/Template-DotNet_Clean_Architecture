@@ -194,14 +194,17 @@ A write puts the version it loaded in its `WHERE` clause, so a writer that loses
 `concurrency.conflict`. Nothing retries it: re-applying a decision made against a state that no
 longer exists is the lost update the version prevents.
 
-When the caller sends `If-Match`, the use case compares it with the version it just loaded, after
-the ownership check, and answers `412` when they differ. [HTTP API](http-api.md#etag-and-if-match)
+When the caller sends `If-Match`, the use case compares it with the version it just loaded, and
+answers `412` when they differ. [HTTP API](http-api.md#etag-and-if-match)
 states the client's side.
 
 <!--#if (accounts)-->
 Ownership is part of the read: a query names the owner in its predicate, so another user's row never
-leaves the database and is answered exactly as a missing one. A command that loads an aggregate by id
-compares the owner in one place per feature, and answers the same `404`.
+leaves the database and is answered exactly as a missing one. A command loads an owned aggregate by
+its owner and its id together, through its repository's `GetAsync(ownerId, id, cancellationToken)`,
+and answers the same `404` when nothing comes back; an aggregate the unit of work already holds is
+handed back under the same predicate. `OwnedAggregateLoadTests` refuses a port that loads one owned
+aggregate without the owner.
 <!--#endif-->
 
 ## Text and time

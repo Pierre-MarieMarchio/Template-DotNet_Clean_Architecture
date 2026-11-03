@@ -112,7 +112,7 @@ public sealed class TodoListVersionPreconditionTests
     private TodoList GivenTheCallerOwnsAListAtTheStoredVersion(out Guid itemId)
     {
         var list = ATodoList.OwnedByWithItemAtVersion(_callerId, _storedVersion, out itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         return list;
     }

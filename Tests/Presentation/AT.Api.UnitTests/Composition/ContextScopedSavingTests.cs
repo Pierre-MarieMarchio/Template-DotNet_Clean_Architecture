@@ -89,7 +89,7 @@ public sealed class ContextScopedSavingTests
         await using (var scope = host.RequestScope(_caller))
         {
             var services = scope.ServiceProvider;
-            var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, Token))!;
+            var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(UserId.Create(_caller), listId, Token))!;
             list.CompleteItem(itemId, DateTimeOffset.UtcNow);
 
             await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
@@ -100,7 +100,7 @@ public sealed class ContextScopedSavingTests
         await using var check = host.RequestScope(_caller);
         var reminder = await check.ServiceProvider
             .GetRequiredService<IReminderRepository>()
-            .GetAsync(reminderId, Token);
+            .GetAsync(UserId.Create(_caller), reminderId, Token);
         reminder!.State.ShouldBe(
             ReminderState.Cancelled,
             "the reminders consumer saved from inside the completion's commit callback");
@@ -114,7 +114,7 @@ public sealed class ContextScopedSavingTests
 
         await using var scope = host.RequestScope(_caller);
         var services = scope.ServiceProvider;
-        var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, Token))!;
+        var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(UserId.Create(_caller), listId, Token))!;
         list.CompleteItem(itemId, DateTimeOffset.UtcNow);
 
         /*#if (tablePrefixes)
@@ -245,7 +245,7 @@ public sealed class ContextScopedSavingTests
             await using var transaction = await services.GetRequiredService<AppDbContext>()
                 .Database.BeginTransactionAsync(Token);
 
-            var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, Token))!;
+            var list = (await services.GetRequiredService<ITodoListRepository>().GetAsync(UserId.Create(_caller), listId, Token))!;
             list.CompleteItem(itemId, DateTimeOffset.UtcNow);
             await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Token);
 
@@ -257,7 +257,7 @@ public sealed class ContextScopedSavingTests
         await using var check = host.RequestScope(_caller);
         var reminder = await check.ServiceProvider
             .GetRequiredService<IReminderRepository>()
-            .GetAsync(reminderId, Token);
+            .GetAsync(UserId.Create(_caller), reminderId, Token);
         reminder!.State.ShouldBe(
             ReminderState.Cancelled,
             "the reminders consumer saved on the same context once the explicit transaction committed");
@@ -286,8 +286,8 @@ public sealed class ContextScopedSavingTests
 
         await using var check = host.RequestScope(_caller);
         var repository = check.ServiceProvider.GetRequiredService<ITodoListRepository>();
-        (await repository.GetAsync(fromRequest.Id, Token))!.CreatedBy.ShouldBe(_caller);
-        (await repository.GetAsync(fromBackground.Id, Token))!.CreatedBy.ShouldBeNull();
+        (await repository.GetAsync(UserId.Create(_caller), fromRequest.Id, Token))!.CreatedBy.ShouldBe(_caller);
+        (await repository.GetAsync(UserId.Create(_caller), fromBackground.Id, Token))!.CreatedBy.ShouldBeNull();
     }
 
     private static TodoList ANewList(string name) =>

@@ -97,7 +97,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
     [Fact]
     public async Task WhenTheConsumerHasRun_TheChangeIsAlreadyCommitted()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Do the thing");
 
@@ -108,7 +108,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
-        var stored = await LoadTodoListAsync(scope.ServiceProvider, listId);
+        var stored = await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId);
 
         stored.Items.Single(item => item.Id == itemId).CompletedAt.ShouldNotBeNull();
     }

@@ -61,9 +61,6 @@ internal static class AStoredFile
             Tags = [],
         });
 
-    internal static StoredFile AvailableOwnedBySomebodyElseThan(UserId notThisUserId) =>
-        AvailableOwnedBy(AnotherOwnerThan(notThisUserId));
-
     internal static StoredFile DepositedOwnedBy(
         UserId ownerId,
         DateTimeOffset? registeredAt = null,

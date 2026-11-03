@@ -81,8 +81,16 @@ internal sealed class InMemoryStoredFileStore : IStoredFileRepository, IUnitOfWo
         return Task.FromResult(changed.Count);
     }
 
-    public Task<StoredFile?> GetAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<StoredFile?>(_committed.TryGetValue(id, out var row) ? Track(row) : null);
+    public Task<StoredFile?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<StoredFile?>(
+            _committed.TryGetValue(id, out var row) && row.Snapshot.OwnerId == ownerId ? Track(row) : null);
+
+    public Task<StoredFile?> GetReadableAsync(
+        UserId readerId,
+        Guid id,
+        IReadOnlyCollection<FileCategory> categoriesOpenToEverySignedInUser,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("No background-pass test issues a download.");
 
     public Task<IReadOnlyList<StoredFile>> GetPendingRegisteredBeforeAsync(
         DateTimeOffset registeredBefore,

@@ -38,7 +38,7 @@ public sealed class ReplaceTodoItemTagsTests
     public async Task ANullTagSet_IsRejected()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new ReplaceTodoItemTagsCommand(list.Id, itemId, null!),
@@ -52,7 +52,7 @@ public sealed class ReplaceTodoItemTagsTests
     public async Task AnUnknownItemId_IsReportedAsNotFound()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new ReplaceTodoItemTagsCommand(list.Id, Guid.CreateVersion7(), ["urgent"]),
@@ -68,7 +68,7 @@ public sealed class ReplaceTodoItemTagsTests
         list.AddTagToItem(itemId, "urgent");
         list.AddTagToItem(itemId, "shopping");
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new ReplaceTodoItemTagsCommand(list.Id, itemId, ["weekly"]),
@@ -85,7 +85,7 @@ public sealed class ReplaceTodoItemTagsTests
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
         list.AddTagToItem(itemId, "urgent");
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new ReplaceTodoItemTagsCommand(list.Id, itemId, []),

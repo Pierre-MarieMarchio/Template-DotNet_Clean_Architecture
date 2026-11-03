@@ -33,13 +33,13 @@ public sealed class ConditionalRequestTests(ApiFixture fixture) : IntegrationTes
     [Fact]
     public async Task TheETag_DoesNotPublishTheStoredVersionInReadableForm()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Groceries");
 
         string tag = await ReadETagAsync(client, listId);
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        uint version = (await LoadTodoListAsync(scope.ServiceProvider, listId)).Version;
+        uint version = (await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId)).Version;
 
         tag.Contains(version.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal).ShouldBeFalse(
             "the stored version must not be legible in the tag.");

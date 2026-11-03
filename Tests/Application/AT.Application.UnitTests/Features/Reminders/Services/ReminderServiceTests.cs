@@ -1,7 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
-using AppTemplate.Application.Features.Reminders.Model.Errors;
 using AppTemplate.Application.Features.Reminders.Services;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
@@ -37,14 +36,14 @@ public sealed class ReminderServiceTests
     {
         await AccessFor(StubCurrentUser.Anonymous).LoadOwnedAsync(Guid.CreateVersion7(), null, TestToken);
 
-        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().GetAsync(Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task AnUnknownId_IsReportedAsNotFound()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
 
         var result = await Access().LoadOwnedAsync(missingId, null, TestToken);
 
@@ -54,26 +53,10 @@ public sealed class ReminderServiceTests
     }
 
     [Fact]
-    public async Task AnotherUsersReminder_IsIndistinguishableFromAMissingOne()
-    {
-        var foreign = AReminder.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-        var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((Reminder?)null);
-
-        var foreignResult = await Access().LoadOwnedAsync(foreign.Id, null, TestToken);
-        var missingResult = await Access().LoadOwnedAsync(missingId, null, TestToken);
-
-        foreignResult.IsFailure.ShouldBeTrue();
-        foreignResult.Error!.Code.ShouldBe(missingResult.Error!.Code);
-        foreignResult.Error.Type.ShouldBe(missingResult.Error.Type);
-    }
-
-    [Fact]
     public async Task ANullPrecondition_LeavesTheLoadUnconditional()
     {
         var reminder = AReminder.OwnedBy(_callerId);
-        _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
+        _repository.GetAsync(_callerId, reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await Access().LoadOwnedAsync(reminder.Id, precondition: null, TestToken);
 
@@ -85,7 +68,7 @@ public sealed class ReminderServiceTests
     public async Task ASatisfiedPrecondition_Succeeds()
     {
         var reminder = AReminder.OwnedBy(_callerId);
-        _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
+        _repository.GetAsync(_callerId, reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
         var precondition = new VersionPrecondition([reminder.Version]);
 
         var result = await Access().LoadOwnedAsync(reminder.Id, precondition, TestToken);
@@ -98,7 +81,7 @@ public sealed class ReminderServiceTests
     public async Task AnUnsatisfiedPrecondition_Fails()
     {
         var reminder = AReminder.OwnedBy(_callerId);
-        _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
+        _repository.GetAsync(_callerId, reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
         var precondition = new VersionPrecondition([reminder.Version + 1]);
 
         var result = await Access().LoadOwnedAsync(reminder.Id, precondition, TestToken);
@@ -106,19 +89,6 @@ public sealed class ReminderServiceTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Type.ShouldBe(ErrorType.PreconditionFailed);
         result.Error.Code.ShouldBe("precondition.failed");
-    }
-
-    [Fact]
-    public async Task APreconditionOnAForeignReminder_IsReportedAsNotFoundNotAsPreconditionFailed()
-    {
-        var foreign = AReminder.OwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-        var precondition = new VersionPrecondition([foreign.Version]);
-
-        var result = await Access().LoadOwnedAsync(foreign.Id, precondition, TestToken);
-
-        result.IsFailure.ShouldBeTrue();
-        result.Error!.Code.ShouldBe(ReminderErrors.ReminderNotFound(foreign.Id).Code);
     }
 
     private ReminderService AccessFor(ICurrentUser currentUser) => new(_repository, currentUser);

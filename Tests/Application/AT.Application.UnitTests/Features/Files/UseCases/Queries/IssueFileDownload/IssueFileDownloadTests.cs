@@ -7,6 +7,7 @@ using AppTemplate.Application.Features.Files.UseCases.Queries.IssueFileDownload;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.Files.Model.Entities;
+using AppTemplate.Domain.Features.Files.Model.ValueObjects;
 using AppTemplate.Domain.Features.Files.Repositories;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -64,7 +65,7 @@ public sealed class IssueFileDownloadTests
     public async Task AFileWhoseDepositWasNeverConfirmed_YieldsNoGrant()
     {
         var pending = AStoredFile.PendingOwnedBy(_callerId);
-        _repository.GetAsync(pending.Id, Arg.Any<CancellationToken>()).Returns(pending);
+        GivenTheCallerCanRead(pending);
 
         var result = await UseCase().Handle(new IssueFileDownloadQuery(pending.Id), TestToken);
 
@@ -78,7 +79,7 @@ public sealed class IssueFileDownloadTests
     public async Task AFileWaitingForAVerdictOnItsContent_YieldsNoGrant()
     {
         var deposited = AStoredFile.DepositedOwnedBy(_callerId);
-        _repository.GetAsync(deposited.Id, Arg.Any<CancellationToken>()).Returns(deposited);
+        GivenTheCallerCanRead(deposited);
 
         var result = await UseCase().Handle(new IssueFileDownloadQuery(deposited.Id), TestToken);
 
@@ -91,7 +92,7 @@ public sealed class IssueFileDownloadTests
     public async Task AQuarantinedFile_CanNeverBeServed()
     {
         var quarantined = AStoredFile.QuarantinedOwnedBy(_callerId);
-        _repository.GetAsync(quarantined.Id, Arg.Any<CancellationToken>()).Returns(quarantined);
+        GivenTheCallerCanRead(quarantined);
 
         var result = await UseCase().Handle(new IssueFileDownloadQuery(quarantined.Id), TestToken);
 
@@ -105,8 +106,8 @@ public sealed class IssueFileDownloadTests
     {
         var quarantined = AStoredFile.QuarantinedOwnedBy(_callerId);
         var deposited = AStoredFile.DepositedOwnedBy(_callerId);
-        _repository.GetAsync(quarantined.Id, Arg.Any<CancellationToken>()).Returns(quarantined);
-        _repository.GetAsync(deposited.Id, Arg.Any<CancellationToken>()).Returns(deposited);
+        GivenTheCallerCanRead(quarantined);
+        GivenTheCallerCanRead(deposited);
 
         var refused = await UseCase().Handle(new IssueFileDownloadQuery(quarantined.Id), TestToken);
         var waiting = await UseCase().Handle(new IssueFileDownloadQuery(deposited.Id), TestToken);
@@ -149,13 +150,11 @@ public sealed class IssueFileDownloadTests
     }
 
     [Fact]
-    public async Task AStoreThatCannotSign_OpensNothingForSomebodyElsesFile()
+    public async Task AStoreThatCannotSign_OpensNothingForAFileTheCallerCannotRead()
     {
-        var foreign = AStoredFile.AvailableOwnedBySomebodyElseThan(_callerId);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
         _transfer.IsSupported.Returns(false);
 
-        var result = await UseCase().Handle(new IssueFileDownloadQuery(foreign.Id), TestToken);
+        var result = await UseCase().Handle(new IssueFileDownloadQuery(Guid.CreateVersion7()), TestToken);
 
         result.Error!.Type.ShouldBe(ErrorType.NotFound);
         await _content.DidNotReceive().OpenReadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
@@ -178,7 +177,7 @@ public sealed class IssueFileDownloadTests
     public async Task AnotherUsersAvailableFileInAnAuthenticatedCategory_YieldsAGrant()
     {
         var shared = AStoredFile.AvailableOwnedBy(AnotherUser(), category: FilesSettings.Image);
-        _repository.GetAsync(shared.Id, Arg.Any<CancellationToken>()).Returns(shared);
+        GivenTheCallerCanRead(shared);
 
         var result = await UseCase().Handle(new IssueFileDownloadQuery(shared.Id), TestToken);
 
@@ -187,45 +186,10 @@ public sealed class IssueFileDownloadTests
     }
 
     [Fact]
-    public async Task AnotherUsersUnavailableFileInAnAuthenticatedCategory_IsNotFound()
-    {
-        var waiting = AStoredFile.DepositedOwnedBy(AnotherUser(), category: FilesSettings.Image);
-        _repository.GetAsync(waiting.Id, Arg.Any<CancellationToken>()).Returns(waiting);
-
-        var result = await UseCase().Handle(new IssueFileDownloadQuery(waiting.Id), TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        await NoGrantWasMinted();
-    }
-
-    [Fact]
-    public async Task AnotherUsersFileInAPrivateCategory_IsNotFound()
-    {
-        var foreign = AStoredFile.AvailableOwnedBy(AnotherUser(), category: FilesSettings.Document);
-        _repository.GetAsync(foreign.Id, Arg.Any<CancellationToken>()).Returns(foreign);
-
-        var result = await UseCase().Handle(new IssueFileDownloadQuery(foreign.Id), TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-        await NoGrantWasMinted();
-    }
-
-    [Fact]
-    public async Task AnotherUsersFileInACategoryNoLongerConfigured_IsNotFound()
-    {
-        var orphaned = AStoredFile.AvailableOwnedBy(AnotherUser(), category: "retired");
-        _repository.GetAsync(orphaned.Id, Arg.Any<CancellationToken>()).Returns(orphaned);
-
-        var result = await UseCase().Handle(new IssueFileDownloadQuery(orphaned.Id), TestToken);
-
-        result.Error!.Type.ShouldBe(ErrorType.NotFound);
-    }
-
-    [Fact]
     public async Task TheOwnersFileInACategoryNoLongerConfigured_IsStillServed()
     {
         var storedFile = AStoredFile.AvailableOwnedBy(_callerId, category: "retired");
-        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+        GivenTheCallerCanRead(storedFile);
 
         var result = await UseCase().Handle(new IssueFileDownloadQuery(storedFile.Id), TestToken);
 
@@ -282,10 +246,18 @@ public sealed class IssueFileDownloadTests
     private StoredFile GivenTheCallerOwnsAnAvailableFile()
     {
         var storedFile = AStoredFile.AvailableOwnedBy(_callerId);
-        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+        GivenTheCallerCanRead(storedFile);
 
         return storedFile;
     }
+
+    private void GivenTheCallerCanRead(StoredFile storedFile) =>
+        _repository.GetReadableAsync(
+                _callerId,
+                storedFile.Id,
+                Arg.Any<IReadOnlyCollection<FileCategory>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(storedFile);
 
     private ValidatedHandler<IssueFileDownloadQuery, Result<FileDownload>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

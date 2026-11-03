@@ -21,12 +21,12 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task AStaleWriteToTheRoot_Fails()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Original");
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
-        var stale = await LoadTodoListAsync(scope.ServiceProvider, listId);
+        var stale = await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId);
         uint versionWhenLoaded = stale.Version;
 
         versionWhenLoaded.ShouldNotBe(0u);
@@ -47,7 +47,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
         (await ReadNameAsync(client, listId)).ShouldBe("Renamed by the winner");
 
         await using var fresh = Fixture.Factory.Services.CreateAsyncScope();
-        (await LoadTodoListAsync(fresh.ServiceProvider, listId)).Version.ShouldNotBe(versionWhenLoaded);
+        (await LoadTodoListAsync(fresh.ServiceProvider, session.UserId, listId)).Version.ShouldNotBe(versionWhenLoaded);
     }
 
     [Fact]
@@ -132,11 +132,11 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task AChangeToAChild_MakesAStaleWriteToTheRootFailToo()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Original");
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var stale = await LoadTodoListAsync(scope.ServiceProvider, listId);
+        var stale = await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId);
 
         await AddTodoItemAsync(client, listId, "Added by the winner");
 
@@ -153,11 +153,11 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task AStaleAddOfAnItem_Fails()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Original");
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var stale = await LoadTodoListAsync(scope.ServiceProvider, listId);
+        var stale = await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId);
 
         await AddTodoItemAsync(client, listId, "First");
 
@@ -174,7 +174,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task SequentialWrites_AllSucceedAndTheVersionAdvancesEachTime()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Original");
 
         var versions = new List<uint>();
@@ -189,7 +189,7 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
             renamed.StatusCode.ShouldBe(HttpStatusCode.OK);
 
             await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-            versions.Add((await LoadTodoListAsync(scope.ServiceProvider, listId)).Version);
+            versions.Add((await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId)).Version);
         }
 
         versions.Distinct().Count().ShouldBe(3);
@@ -199,11 +199,11 @@ public sealed class OptimisticConcurrencyTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task TwoWritesInOneScope_BothSucceed()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Original");
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var aggregate = await LoadTodoListAsync(scope.ServiceProvider, listId);
+        var aggregate = await LoadTodoListAsync(scope.ServiceProvider, session.UserId, listId);
         uint versionWhenLoaded = aggregate.Version;
 
         aggregate.Rename("First write");

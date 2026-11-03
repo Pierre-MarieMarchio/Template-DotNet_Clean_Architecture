@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.UnitTests.TestSupport;
+using AppTemplate.Application.Core.Common.Validation;
+using AppTemplate.Domain.Core.Common.Exceptions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Timeouts;
@@ -78,6 +80,27 @@ public sealed class GlobalExceptionHandlerTests
         await handler.TryHandleAsync(httpContext, new OperationCanceledException(), TestContext.Current.CancellationToken);
 
         httpContext.Response.StatusCode.ShouldBe(StatusCodes.Status499ClientClosedRequest);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_DomainExceptionOutsideDomainGuard_Answers409WithTheCodeDomainGuardGives()
+    {
+        var handler = new GlobalExceptionHandler(NullLogger<GlobalExceptionHandler>.Instance);
+        var httpContext = HttpContextFactory.Create();
+        using var body = new MemoryStream();
+        httpContext.Response.Body = body;
+        string guardedCode = DomainGuard.Try(() => throw new DomainException("A rule.")).Error!.Code;
+
+        bool handled = await handler.TryHandleAsync(httpContext, new DomainException("A rule."), TestContext.Current.CancellationToken);
+
+        handled.ShouldBeTrue();
+        httpContext.Response.StatusCode.ShouldBe(StatusCodes.Status409Conflict);
+
+        body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(body, cancellationToken: TestContext.Current.CancellationToken);
+        document.RootElement.GetProperty("code").GetString().ShouldBe("domain.invariantViolated");
+        document.RootElement.GetProperty("code").GetString().ShouldBe(guardedCode);
+        document.RootElement.GetProperty("status").GetInt32().ShouldBe(StatusCodes.Status409Conflict);
     }
 
     private sealed class FakeRequestTimeoutFeature : IHttpRequestTimeoutFeature

@@ -1857,6 +1857,16 @@ internal static class NewFeature
             Contains(repository, "GetAsync(Guid id,", !owner && changes, "the repository port");
             Contains(Text($"Repositories/{type}Repository.cs"), "candidate.OwnerId == ownerId.Value", owner && changes, "the repository");
             Contains(Text($"Services/{type}Service.cs"), "repository.GetAsync(userId.Value, ", owner && changes, "the access service");
+
+            string aggregateText = Text($"Model/Entities/{type}.cs");
+            int firstAssignment = aggregateText.IndexOf("Name = valid", StringComparison.Ordinal);
+            int lastValidation = aggregateText.IndexOf("string validDescription = RequireDescription(", StringComparison.Ordinal);
+
+            expect(
+                !Has("update") || (lastValidation >= 0 && firstAssignment > lastValidation),
+                $"[{label}] the aggregate's Update assigns before it has validated every input.");
+            Contains(Text($"Commands/Update{type}/Update{type}.cs"), "DomainGuard.Try(() => ", Has("update"), "the update handler");
+            Contains(Text($"Commands/Create{type}/Create{type}.cs"), "DomainGuard.Try(() => ", Has("create"), "the create handler");
         }
 
         string consumer = Text($"Services/Consumers/{verb}{type}OnAccountDeletedConsumer.cs");
@@ -2987,8 +2997,11 @@ internal static class Templates
         %if update%
             public void Update(string name, string description)
             {
-                Name = RequireName(name);
-                Description = RequireDescription(description);
+                string validName = RequireName(name);
+                string validDescription = RequireDescription(description);
+
+                Name = validName;
+                Description = validDescription;
             }
 
         %end%
@@ -3786,6 +3799,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
+        using %P%.Application.Core.Common.Validation;
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Mapping;
         using %P%.Domain.Features.%F%.Model.Entities;
@@ -3814,7 +3828,14 @@ internal static class Templates
                     return userId.To<Versioned<%A%Dto>>();
                 }
 
-                var %L% = %A%.Create(%SvcOwner%command.Name, command.Description);
+                var created = DomainGuard.Try(() => %A%.Create(%SvcOwner%command.Name, command.Description));
+
+                if (created.IsFailure)
+                {
+                    return created.To<Versioned<%A%Dto>>();
+                }
+
+                var %L% = created.Value;
 
                 repository.Add(%L%);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -3856,6 +3877,7 @@ internal static class Templates
         using %P%.Application.Core.Common.Concurrency;
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
+        using %P%.Application.Core.Common.Validation;
         using %P%.Application.Features.%F%.Model.Dtos;
         using %P%.Application.Features.%F%.Model.Mapping;
         using %P%.Application.Features.%F%.Services;
@@ -3888,7 +3910,12 @@ internal static class Templates
 
                 var %L% = loaded.Value;
 
-                %L%.Update(command.Name, command.Description);
+                var update = DomainGuard.Try(() => %L%.Update(command.Name, command.Description));
+
+                if (update.IsFailure)
+                {
+                    return update.To<Versioned<%A%Dto>>();
+                }
 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -5641,6 +5668,16 @@ internal static class Templates
 
                 Should.Throw<DomainException>(() => %L%.Update("   ", "Parcel"));
                 %L%.Name.ShouldBe("Groceries");
+            }
+
+            [Fact]
+            public void Update_RefusesAMissingDescription_WithoutChangingTheName()
+            {
+                var %L% = %A%.Rehydrate(Guid.CreateVersion7(), %OwnerIdArg%"Groceries", "Milk");
+
+                Should.Throw<DomainException>(() => %L%.Update("Errands", null!));
+                %L%.Name.ShouldBe("Groceries");
+                %L%.Description.ShouldBe("Milk");
             }
 
         %end%

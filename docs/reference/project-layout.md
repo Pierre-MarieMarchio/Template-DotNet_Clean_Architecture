@@ -344,7 +344,7 @@ references. Its folder takes the initials, as [the folder map](#the-folder-map) 
 
 Each project under `Src/` has one unit test project, `<Name>.UnitTests`, in the same layer folder under
 `Tests/`, and `TestProjectMirrorTests` names the one that is missing. The one exception is the Blazor
-WebAssembly app under `Src/Web/`, which is the output of `dotnet new blazorwasm` and holds no code of ours.
+WebAssembly app of the web workspace, which is the output of `dotnet new blazorwasm` and holds no code of ours.
 
 ## The rules the tests hold
 

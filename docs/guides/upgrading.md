@@ -57,9 +57,11 @@ your decision, file by file.
   sets; the GUIDs `dotnet new` draws for a solution's entries, read as the entries they name.
 - **Parts added since.** The generation takes the hosts under the names it gives them and the first
   web app; every other app, package and host replays its item template, in the order
-  `cleanarch.json` records, with the defaults of what the file does not record: an app created with
-  another `--port` shows its files under Merge. Their joins are not replayed, so a file a join edits
-  reads under Merge, with a note.
+  `cleanarch.json` records, with the defaults of what the file does not record: an app is replayed
+  on its recorded `port`, or on its framework's default when the file records none, and an app
+  recorded without one is a file to complete by hand, with the number its `compose.yml` gives
+  `WEB_<NAME>_HOST_PORT`, as `ProjectFileTests` asks. Their joins are not replayed, so a file a join
+  edits reads under Merge, with a note.
 - **Nothing from a package runs.** A version whose templates declare a post-action beyond printing
   instructions is refused, and so is a value `cleanarch.json` records that the newer version no
   longer offers: both leave the comparison to you.

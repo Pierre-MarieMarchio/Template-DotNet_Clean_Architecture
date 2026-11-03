@@ -79,16 +79,22 @@ project's first owner feature among them, adds the feature's migration and rewri
 reference and the client; the leg fails when a manifest records no edit or no migration was added.
 The whole solution then builds with warnings as errors, the architecture tests pass, the feature's own
 tests pass in every Docker-free test project, and the business context has no pending model change.
-Every file no manifest lists then goes back to the commit, the edits, the migration and the
-rewritten references among them, untracked files included, since `remove-feature` refuses a feature
-still composed; `remove-feature --apply` then leaves `git status` empty. Then all four are written
-together, `new-field` adds a required string and a required int, each with its default, and a
-nullable decimal to the record and to the aggregate written with `--fields`, and the leg fails when it
-does not name the breaking change, record the addition in the manifest, or give the stored rows each
-default in the migration it adds; the two runs add about a minute and a half. The four are then
-proved the same way, and on the defaults leg, which has Docker, the integration tests
-`--fields` and `new-field` wrote run against PostgreSQL, about half a minute more; `hygiene` passes, and they are
-removed last in first out. A web leg also checks its
+The next case starts from the commit generation made. Then all four are written together, `new-field`
+adds a required string and a required int, each with its default, and a nullable decimal to the
+record and to the aggregate written with `--fields`, and the leg fails when it does not name the
+breaking change, record the addition in the manifest, or give the stored rows each default in the
+migration it adds; the two runs add about a minute and a half. `new-setting` then adds a section with
+a default to Invoices and `new-event` an event nothing consumes, each recording its files and edits in
+that feature's manifest. The four are proved the same way, and on the defaults leg, which has Docker,
+the integration tests `--fields` and `new-field` wrote run against PostgreSQL, about half a minute
+more; `hygiene` passes. The tree is committed, and `remove-feature --apply` takes the four out last in
+first out, each from a committed tree, its edits undone and `Remove<Features>` added after
+`Add<Features>`; the leg fails unless the tree then differs from the commit generation made by those
+migrations and the `Add<Field>To<Features>` ones of `new-field` alone, each with its designer file,
+so the model snapshot, the references and every file an edit touched read as they did. The solution
+then builds with warnings as errors and the model holds no pending change. Each removal checks the
+model, builds once and adds its migration, under half a minute once the first build is warm, so the
+four removals and the build after them add about seven minutes to the leg. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
 install, lint, test and build, fails when an app with a build script has no built page, checks a
 second `web-scaffold` changes nothing, starts the whole stack and asks each app for its page, its

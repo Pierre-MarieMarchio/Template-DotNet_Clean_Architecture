@@ -122,12 +122,16 @@ Before it writes, it refuses while a context has no initial migration, or while
 feature's migration would otherwise carry. After it writes, it runs in this order, and stops at the
 first that fails, naming what is done and the commands that remain:
 
-1. `dotnet run Tools/Tasks.cs build`
-2. `dotnet run Tools/Tasks.cs migration-add Add<Features>`, on the business context
+1. `dotnet run Tools/Tasks.cs build`, the one build of the run
+2. `dotnet run Tools/Tasks.cs -- migration-add Add<Features> --no-build`, on the business context
 <!--#if (api)-->
-3. `dotnet run Tools/Tasks.cs openapi`, then `api-client` when the project holds the .NET client, and
-   `pnpm api` in the web workspace when it holds one
+3. `dotnet run Tools/Tasks.cs -- openapi --no-build`, then `api-client` when the project holds the .NET
+   client, and `pnpm api --no-build` in the web workspace when it holds one
 <!--#endif-->
+
+The steps after the build work from it, so the solution is built once; `--no-build` comes after the
+`--` separator because `dotnet run` claims the name. When a fix after a failed step changes the code,
+build again before the steps that remain.
 
 Run again with the same options, it writes nothing and resumes these steps; the migration it added
 is not added twice.
@@ -263,7 +267,8 @@ to the feature's controller, with its usings and the `ISender` the controller la
 the route, the other inputs in a request contract it writes, read from the query string for a query
 and from the body for a command; and for a query it writes the response contract. It adds the
 route's row to the feature's table in `docs/reference/api.md`, every edit or none as `new-feature`
-does, then runs `openapi`, `api-client` and `pnpm api` as `new-feature` does. `--dry-run` prints them
+does, then runs `openapi`, which builds the API, `api-client`, and `pnpm api --no-build` from that
+build. `--dry-run` prints them
 and writes nothing. The contracts join the manifest, and the controller's recorded hash follows the
 action when the controller was untouched.
 <!--#endif-->

@@ -88,7 +88,7 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 | EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0005](../decisions/0005-the-domain-is-not-mapped-by-ef.md) |
 | Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |
 | An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md) |
-| AutoMapper | mappings written by hand, checked by the compiler | [Layers and projects](layers-and-projects.md#the-api-host) |
+| AutoMapper | mappings written by hand, checked by the compiler; `BannedPackageTests` refuses the package | [Layers and projects](layers-and-projects.md#the-api-host) |
 <!--#if (api)-->
 | Minimal APIs | MVC controllers, which carry the filters, the result mapping and the `ETag` handling | [HTTP API](http-api.md) |
 <!--#endif-->

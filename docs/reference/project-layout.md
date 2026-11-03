@@ -342,6 +342,10 @@ A `.Core` project is marked `IsSdkProject`; an infrastructure project is a modul
 references. Its folder takes the initials, as [the folder map](#the-folder-map) says, and
 `ProjectFolderTests` names the folder a misplaced project belongs in.
 
+Each project under `Src/` has one unit test project, `<Name>.UnitTests`, in the same layer folder under
+`Tests/`, and `TestProjectMirrorTests` names the one that is missing. The one exception is the Blazor
+WebAssembly app under `Src/Web/`, which is the output of `dotnet new blazorwasm` and holds no code of ours.
+
 ## The rules the tests hold
 
 | Rule | Test |
@@ -358,5 +362,9 @@ references. Its folder takes the initials, as [the folder map](#the-folder-map) 
 | Every type under `Helpers/` is a static class | `FeatureFolderVocabularyTests.EveryTypeUnderAHelpersFolder_IsAStaticClass` |
 | One use case per operation folder, named for it | `UseCaseConventionTests.EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt` |
 | Every message has one handler | `MessageRoutingTests.EveryMessage_HasExactlyOneHandler` |
+| Every message is sent by a host or a job, and crosses the validation behaviour | `MessageRoutingTests.EveryMessage_IsSentByAHostOrAJob`, `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` |
+| Every validator targets a message or is taken by the service that runs it | `ValidatorTargetTests.EveryValidator_TargetsAMessageOrIsInjectedWhereItRuns` |
+| Every source project has its unit test project, but the exceptions the test names | `TestProjectMirrorTests.EverySourceProject_HasItsUnitTestProject_ExceptTheOnesNamedHere` |
+| MediatR and AutoMapper are in no project | `BannedPackageTests.NoProject_ReferencesABannedPackage` |
 | A repository contract lives in the domain | `StorageVocabularyTests.EveryRepositoryContract_IsDeclaredInTheDomain` |
 | No `Common/` names a feature | `ModuleDependencyTests.EveryModuleCommon_KnowsNoFeature`, `HttpCommonBoundaryTests.TheCommonHttpCode_NamesNoFeature` |

@@ -343,8 +343,9 @@ references. Its folder takes the initials, as [the folder map](#the-folder-map) 
 `ProjectFolderTests` names the folder a misplaced project belongs in.
 
 Each project under `Src/` has one unit test project, `<Name>.UnitTests`, in the same layer folder under
-`Tests/`, and `TestProjectMirrorTests` names the one that is missing. The one exception is the Blazor
-WebAssembly app of the web workspace, which is the output of `dotnet new blazorwasm` and holds no code of ours.
+`Tests/`, and `TestProjectMirrorTests` names the one that is missing. Two kinds of
+project go without one: an app of the web workspace, the output of an official CLI, and a host written
+beside its `<Name>.Core`, which holds the host's logic and its unit tests.
 
 ## The rules the tests hold
 

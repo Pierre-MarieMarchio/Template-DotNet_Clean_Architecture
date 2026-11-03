@@ -78,6 +78,7 @@ Which page answers your question, and where a new page goes.
 | [Testing](guides/testing.md) | running the suites and writing new tests |
 | [Build and CI](guides/build-and-ci.md) | the gate, locally and in CI |
 | [Deployment](guides/deployment.md) | shipping the image to an environment |
+| [Upgrading](guides/upgrading.md) | what a newer version of the package that generated this project changes, and taking it |
 
 ## Reference
 

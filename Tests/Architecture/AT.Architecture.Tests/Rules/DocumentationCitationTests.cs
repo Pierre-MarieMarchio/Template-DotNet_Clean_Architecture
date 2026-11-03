@@ -41,12 +41,17 @@ public sealed class DocumentationCitationTests
         TimeSpan.FromSeconds(1));
 
     private static readonly Regex _taskOptionNames = new(
-        @"_(?:feature|useCase|convention|webJoin)OptionNames\s*=\s*\[(?<body>[^\]]*)\]",
+        @"_webJoinOptionNames\s*=\s*\[(?<body>[^\]]*)\]",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
     private static readonly Regex _parsedOption = new(
         @"(?:argument is|arguments is \[)\s*""--(?<option>[a-z][a-z-]*)""",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _generatorOption = new(
+        @"\[""--(?<option>[a-z][a-z-]*)""\]\s*=",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -306,7 +311,7 @@ public sealed class DocumentationCitationTests
             .ToHashSet(StringComparer.Ordinal);
         options.Add("help");
 
-        foreach (Match parsed in _parsedOption.Matches(source))
+        foreach (Match parsed in _parsedOption.Matches(source).Concat(_generatorOption.Matches(source)))
         {
             options.Add(parsed.Groups["option"].Value);
         }

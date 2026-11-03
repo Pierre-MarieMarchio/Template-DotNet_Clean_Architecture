@@ -12,6 +12,12 @@ plain lines placed beside lines the shared files already hold, so a program can 
 must not do is make some of them and stop, nor fold a model change that is not the feature's into the
 feature's migration.
 
+A field added later is another kind of edit. It changes the body of classes the generator wrote: a
+constructor's parameters, a validator's rules, a record's positional parameters, a mapper's
+assignments, a test's sample. No line marks where each goes, a person may have reformatted the file
+since, and an edit placed beside a line cannot tell a member it must rewrite from one a person
+changed.
+
 ## Decision
 
 - **`new-feature` makes the edits it would print**: each is placed beside a line it finds in the
@@ -32,8 +38,22 @@ feature's migration.
   before writing builds what `dotnet ef` needs of the tree as it stands, since the build after
   writing cannot serve a check that must pass first.
 - `--dry-run` is the only way to write nothing; nothing skips the migration.
+- **`new-field` edits the members of the feature through their syntax tree**, with Roslyn
+  (`Microsoft.CodeAnalysis.CSharp`, which `Tools/NewFeature.cs` imports). It renders the feature
+  with the fields its manifest records and with the new ones, and applies the difference member by
+  member: a member that differs gets the new one, a new member goes beside its neighbour, a member a
+  person added stays, and a member that differs from what was generated, or is gone, refuses the run
+  with the change to make by hand. A member is found by its kind and its name, whatever the file's
+  formatting. The two coexist: the lines placed beside an anchor for what composes a feature and for
+  the Markdown tables, the syntax tree for the members of the classes the generator wrote; a field
+  writes every change or none, as the rest does.
+- **A field that cannot be null brings its default**, which its rules must accept; `new-field` sets
+  it as the `defaultValue` of the `AddColumn` in the migration it has just added, so the rows already
+  stored take it, and never as a default of the model, which would make EF Core leave out of an insert
+  the value a caller set when it equals the type's empty one.
 - `dotnet run Tools/NewFeature.cs --self-test` and `dotnet run Tools/NewUseCase.cs --self-test`,
-  which `hygiene` and `verify` run, hold each face.
+  which `hygiene` and `verify` run, hold each face; the first holds that a field added to an untouched
+  feature leaves each file as `new-feature --fields` writes it with that field.
 
 ## Alternatives considered
 
@@ -43,8 +63,13 @@ feature's migration.
 - **Discovering the features by reflection or a source generator** instead of registering them:
   nothing to edit, and a composition nobody can read in `Program.cs`, which every host of this
   project states line by line.
-- **Rewriting the files through their syntax tree**: exact for C#, and no help for the Markdown
-  tables, for a file a team reshaped, or for a reader who wants to see the line an edit goes beside.
+- **Rewriting the composing files through their syntax tree**: exact for C#, and no help for the
+  Markdown tables, for a file a team reshaped, or for a reader who wants to see the line an edit goes
+  beside. A field is different: it rewrites members the generator wrote, which no line marks, so it
+  takes the syntax tree.
+- **Placing a field's lines beside anchors too**: each member would need a line to find, and a
+  reformatted file or a member changed by hand would take a line in the wrong place instead of being
+  refused.
 - **Making the edits that can be made and printing the rest**: a tree half composed, which neither
   builds nor says which half is missing.
 - **Adding the migration later, by hand**: the feature's schema then depends on a step a person can
@@ -60,6 +85,10 @@ feature's migration.
 - The command needs what `build`, `migration-add` and `openapi` need, the restored tools among them,
   and takes as long as one build and the steps that read it.
 - Changing a shared file's anchor line changes the generator: its self-test names the anchors.
+- `Tools/NewFeature.cs` restores the Roslyn package the first time it runs, which needs the network
+  once, as the local tools do.
+- A field changes members a person may have changed too; those are refused, not merged, and the
+  refusal prints the lines the field adds and removes.
 
 ## Revisit when
 

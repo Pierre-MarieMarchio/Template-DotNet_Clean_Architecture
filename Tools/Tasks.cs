@@ -65,7 +65,8 @@ internal static class Tasks
                                            the identity context with --context auth; needs the database
           migration-check                  fail when the business context's model, or the identity
                                            context's with --context auth, holds a change no migration
-                                           holds yet; new-feature runs it before it writes
+                                           holds yet; new-feature and new-field run it before they
+                                           write
           migration-initial                restore, then create each context's initial migration,
                                            InitialCreate, where its Migrations folder holds no model
                                            snapshot; a context that has one is left alone. bootstrap
@@ -76,7 +77,8 @@ internal static class Tasks
           --no-build                       migration-add, and openapi where the project holds the API:
                                            work from what the last build wrote instead of building
                                            again; after a -- separator, because dotnet run claims the
-                                           name. new-feature passes it to the steps after its build
+                                           name. new-feature and new-field pass it to the steps after
+                                           their build
           --context <auth>                 migration-add, migration-check, database-update: the
                                            context to target, the business context when left out;
                                            auth is the identity context, which only a project
@@ -95,9 +97,9 @@ internal static class Tasks
                                            --help says what each one means
           --kind, --input                  new-use-case: forwarded to Tools/NewUseCase.cs, whose
                                            --help says what each one means
-          --dry-run                        new-feature, new-use-case, new-setting, new-event: print the
-                                           files and the edits the command makes, and write and run
-                                           nothing
+          --dry-run                        new-feature, new-field, new-use-case, new-setting, new-event:
+                                           print the files and the edits the command makes, and write
+                                           and run nothing
           --keys                           new-setting: forwarded to Tools/NewSetting.cs, whose
                                            --help says what each one means
           --fields, --consumer, --unconsumed
@@ -136,6 +138,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs test --no-integration
           dotnet run Tools/Tasks.cs check
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
+          dotnet run Tools/Tasks.cs new-field Widgets "Budget:decimal(12,2)>=0=0, Notes:text?"
           dotnet run Tools/Tasks.cs new-use-case TodoLists ArchiveTodoList --kind command
           dotnet run Tools/Tasks.cs new-setting TodoLists TodoListLimits --keys "MaxItems:int(1..500)=100"
           dotnet run Tools/Tasks.cs new-event TodoLists TodoListArchivedDomainEvent --unconsumed "Nothing reacts to an archived list"
@@ -159,6 +162,7 @@ internal static class Tasks
         "format",
         "format-fix",
         "new-feature",
+        "new-field",
         "new-use-case",
         "new-setting",
         "new-event",
@@ -662,6 +666,19 @@ internal static class Tasks
                         "run", Path.Combine(repoRoot, "Tools", "NewFeature.cs"),
                         RequiredSecond(task, name),
                         RequiredSecond(task, second),
+                        "--root", repoRoot,
+                        .. generatorArguments,
+                    ]);
+                break;
+
+            case "new-field":
+                Step(
+                    "dotnet",
+                    [
+                        "run", Path.Combine(repoRoot, "Tools", "NewFeature.cs"),
+                        "new-field",
+                        RequiredFields(task, name, second),
+                        second!,
                         "--root", repoRoot,
                         .. generatorArguments,
                     ]);
@@ -2942,7 +2959,7 @@ internal static class Tasks
 
     private static readonly string[] _maxCpuCountPrefixes = ["-m:", "-maxcpucount:"];
 
-    private static readonly string[] _generatorTasks = ["new-feature", "new-use-case", "new-setting", "new-event"];
+    private static readonly string[] _generatorTasks = ["new-feature", "new-field", "new-use-case", "new-setting", "new-event"];
 
     private static readonly Dictionary<string, string[]> _generatorOptions = new(StringComparer.Ordinal)
     {
@@ -3054,6 +3071,18 @@ internal static class Tasks
         }
 
         return first;
+    }
+
+    private static string RequiredFields(string task, string? features, string? fields)
+    {
+        if (string.IsNullOrWhiteSpace(features) || string.IsNullOrWhiteSpace(fields))
+        {
+            throw new InvalidOperationException(
+                $"The '{task}' task needs the feature and the fields to add, each that cannot be null with its default, "
+                + $"e.g. dotnet run Tools/Tasks.cs {task} Widgets \"Budget:decimal(12,2)>=0=0, Notes:text?\"");
+        }
+
+        return features;
     }
 
     private static string RequiredUseCase(string task, string? second)
@@ -3253,7 +3282,7 @@ internal static class Tasks
         ("--fields reaches new-feature and new-event", GeneratorOptionRefusal("new-feature", ["--fields"]) is null && GeneratorOptionRefusal("new-event", ["--fields"]) is null),
         ("--fields is refused for new-setting", GeneratorOptionRefusal("new-setting", ["--fields"]) == "'--fields' is an option of the new-feature and new-event tasks, not of 'new-setting'."),
         ("--keys is refused for new-event", GeneratorOptionRefusal("new-event", ["--keys"]) == "'--keys' is an option of the new-setting task, not of 'new-event'."),
-        ("--dry-run is refused outside the generators", GeneratorOptionRefusal("build", ["--dry-run"]) == "'--dry-run' is an option of the new-feature, new-use-case, new-setting and new-event tasks, not of 'build'."),
+        ("--dry-run is refused outside the generators", GeneratorOptionRefusal("build", ["--dry-run"]) == "'--dry-run' is an option of the new-feature, new-field, new-use-case, new-setting and new-event tasks, not of 'build'."),
     ];
 
     private static (string Case, bool Passed)[] CheckCases()

@@ -10,8 +10,58 @@ A rule that holds whatever the deployment is not a setting: it stays an invarian
 its domain test. A setting that bounds a request is read by the command's validator, so a request
 past it answers `400`; one that shapes the work is read by the use case.
 
+<!--#if (canAddFeature)-->
+## The command
+
+```bash
+dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>, <Key>:<type>"
+```
+
+`<Features>` is a feature that a host registers, and `<Section>` the new section's name, without
+`Options`. `--keys` lists one entry per key, a type from a closed set, so that no key is written
+without its rule:
+
+| Type | Written as | The validator refuses |
+|---|---|---|
+| `int`, `long` | `MaxItems:int(1..100)=10` | a value outside the bounds; the default sits inside them |
+| `duration` | `Interval:duration(00:00:01..01:00:00)=00:05:00` | a `TimeSpan` of whole seconds outside the bounds |
+| `bool` | `Strict:bool=true` | nothing: a bool has no invalid value, so a section holds at least one other key |
+| `string` | `Label:string(1..20)=main`, or `Owner:string(3..40)` | a length outside the range; with no default the key is required and its minimum is 1 |
+| `secret` | `ApiKey:secret` | a blank value: the key is required and has no default |
+
+A number, a duration or a bool carries its default, which the class and the shipped file both
+hold: an absent number cannot be told from `0`. Only a required key stops the host when its value is
+missing, and it is the one that has no value in `appsettings.json`.
+
+It writes steps 1 to 3, 5, 6 and 7 below, or nothing: every file is computed in memory and every
+anchor checked before the first write, and a missing anchor names the edit and stops with a
+non-zero exit. A section that already exists is refused, so running it twice never duplicates
+anything. `--dry-run` prints what it would write and writes nothing.
+
+- The options class and its validator in `Features/<Features>/Configuration/Options/`, and the test
+  of each key's bounds and of the start-up refusal beside the other feature tests.
+- The registration in `Add<Features>`, read from the container with `BindConfiguration` where the
+  call does not take the configuration yet, so no call site changes.
+- The section in `appsettings.json` of each host that composes the feature.
+- The section's table in [the configuration reference](../reference/configuration.md), with the
+  bounds as notes, under the group named for the feature.
+- The `Configuration/Options` folder word in `LayoutConventionTests`, when the project lacks it.
+- For a required key, its value in `ValidSettings` of `HostComposition`, so the architecture tests
+  still compose a host, and its variable in `docker-compose.yml` and `.env.example`, empty: Compose
+  refuses to start until it is set. A secret never holds a value in a tracked file.
+
+What stays yours: step 4, the sentence in each Notes cell saying what the key changes, the secret's
+value in `dotnet user-secrets` or the environment, and a value for any test that starts a host.
+
+Where the project holds no `Add<Features>` in its `ApplicationModule`, follow the steps by hand.
+
+## The steps by hand
+
+<!--#endif-->
+<!--#if (!canAddFeature)-->
 ## Steps
 
+<!--#endif-->
 `<Section>` is the section's name, `<Features>` the feature's folder.
 
 1. Write `<Section>Options` in
@@ -36,7 +86,9 @@ past it answers `400`; one that shapes the work is read by the use case.
 
    The build then names every call site to pass `IConfiguration` to: `Program.cs`, each composition
    in `HostComposition`, the feature calls in the application tests, and any test host that composes
-   the feature.
+   the feature. A call that does not take the configuration can read it from the container instead,
+   with `.BindConfiguration(<Section>Options.SectionName)` in place of `.Bind(...)`, and no call site
+   changes.
 4. Inject `IOptions<<Section>Options>` into the validator or the use case that applies the rule.
 5. Add a `` ### `<Section>` `` heading under its group in
    [the configuration reference](../reference/configuration.md), with a
@@ -76,6 +128,6 @@ names `<Section>:<Key>`.
 
 ## Undo
 
-Delete the options class and its validator, the registration and the `IConfiguration` parameter it
-brought, the section in the configuration reference, and the key in `appsettings.json`,
-`docker-compose.yml` and `.env.example`.
+Delete the options class and its validator, their tests, the registration and the `IConfiguration`
+parameter it brought, the section in the configuration reference, and the key in `appsettings.json`,
+`docker-compose.yml`, `.env.example` and `ValidSettings` of `HostComposition`.

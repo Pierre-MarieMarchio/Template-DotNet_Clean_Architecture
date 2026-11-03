@@ -131,7 +131,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 ## Files not edited by hand
 
 <!--#if (canAddFeature)-->
-- `.feature-manifest/`: `remove-feature` compares its hashes to know what is untouched.
+- `.feature-manifest/`: `remove-feature` reads its files, hashes and edits to know what is the feature's
+  and to undo each edit as it was made.
 <!--#endif-->
 <!--#if (canAddFeature)-->
 - A migration: `dotnet ef` writes it, bootstrap the first, and `new-field` sets the default of each
@@ -170,7 +171,7 @@ dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "MaxItems:int(1..100)=10"
 dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
-dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton whose edits are undone
+dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # removes it, edited or not, once committed
 ```
 
 <!--#endif-->

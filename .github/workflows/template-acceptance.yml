@@ -540,7 +540,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
 
-      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. With the four together, new-field adds a required field with its default, another and a nullable one to the record and to the aggregate with fields, then adds their migration with the defaults, before the same proof. The hygiene gates pass with four features present, and remove-feature --apply leaves the tree as it was.
+      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. With the four together, new-field adds a required field with its default, another and a nullable one to the record and to the aggregate with fields, then adds their migration with the defaults, and Invoices takes a setting and an event, before the same proof. The hygiene gates pass with four features present, and remove-feature --apply takes them out of the committed tree, leaving each feature's migrations alone.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -612,39 +612,51 @@ jobs:
             persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
             dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the migrations new-feature added for $* do not hold its model."
           }
-          # remove-feature deletes an untouched skeleton and refuses one still composed, so every file no manifest lists goes back to the commit, the edits, the migrations and the rewritten references among them, untracked ones included, and the files the manifests list stay as the generators wrote them.
-          detach() {
-            local keep path
-            keep=$(mktemp -d)
-            while read -r path; do
-              mkdir -p "$keep/$(dirname "$path")"
-              cp "$path" "$keep/$path"
-            done < <(jq -r '.files[].path, (.page // empty)' .feature-manifest/*.json)
-            cp -r .feature-manifest "$keep/"
-            git reset --quiet --hard
-            git clean -fdq
-            cp -a "$keep/." .
-            rm -rf "$keep"
+          # new-setting writes a section with a default, so no secret, and new-event an event nothing consumes: both record their files and edits in the manifest of Invoices, which remove-feature then undoes with the feature.
+          settle() {
+            local log="${{ runner.temp }}/new-setting.log"
+            dotnet run Tools/Tasks.cs new-setting Invoices InvoiceLimits --keys "MaxLines:int(1..500)=100" > "$log" 2>&1 || { cat "$log"; fail "new-setting Invoices failed."; }
+            log="${{ runner.temp }}/new-event.log"
+            dotnet run Tools/Tasks.cs new-event Invoices InvoiceApprovedDomainEvent --unconsumed "Nothing reacts to an approved invoice yet" > "$log" 2>&1 || { cat "$log"; fail "new-event Invoices failed."; }
+            jq -e '[.files[].path] | any(endswith("/InvoiceLimitsOptions.cs")) and any(endswith("/InvoiceApprovedDomainEvent.cs"))' .feature-manifest/Invoices.json > /dev/null || fail "new-setting or new-event did not record its files in the manifest of Invoices."
+            jq -e '[.edits[].path] | any(endswith("/appsettings.json")) and any(endswith("/DomainEventTests.cs"))' .feature-manifest/Invoices.json > /dev/null || fail "new-setting or new-event did not record its edits in the manifest of Invoices."
           }
+          commit() {
+            git add -A
+            git -c user.name=acceptance -c user.email=acceptance@localhost commit --quiet -m "$1"
+          }
+          # remove-feature --apply takes each feature out of a committed tree, edited or not, last in first out; the tree then differs from the commit generation made by each feature's Add and Remove migrations and the migrations new-field added alone, so the model snapshot, the references and every file an edit touched read as they did there.
           remove() {
+            local feature log names widened
+            widened=$(jq -s '[.[] | (.addedFields // []) | length] | add' .feature-manifest/*.json)
             for feature in "$@"; do
-              dotnet run Tools/Tasks.cs remove-feature "$feature" --apply > "${{ runner.temp }}/remove-feature.log" 2>&1 || { cat "${{ runner.temp }}/remove-feature.log"; fail "remove-feature $feature --apply failed."; }
+              log="${{ runner.temp }}/remove-feature-$feature.log"
+              dotnet run Tools/Tasks.cs remove-feature "$feature" > "$log" 2>&1 || { cat "$log"; fail "remove-feature $feature failed."; }
+              grep -q 'Blockers: none.' "$log" || { cat "$log"; fail "remove-feature $feature reported a blocker."; }
+              dotnet run Tools/Tasks.cs remove-feature "$feature" --apply > "$log" 2>&1 || { cat "$log"; fail "remove-feature $feature --apply failed."; }
+              commit "remove $feature"
             done
-            if [ -n "$(git status --porcelain)" ]; then
-              git status --porcelain
-              fail "remove-feature $* left the tree changed."
+            names=$(IFS='|'; echo "$*")
+            unexpected=$(git diff --name-status "$start" HEAD | grep -Ev "^A[[:space:]]+$persistence/Migrations/[0-9]+_(Add|Remove)([A-Za-z0-9]*To)?($names)(\.Designer)?\.cs$" || true)
+            if [ -n "$unexpected" ]; then
+              echo "$unexpected"
+              fail "remove-feature $* left the tree other than the commit generation made, the migrations of each feature aside."
             fi
+            [ "$(git diff --name-only "$start" HEAD | wc -l)" -eq $((4 * $# + 2 * widened)) ] || fail "remove-feature $* did not add a Remove migration beside each Add one and leave each new-field migration, each with its designer file."
           }
+          start=$(git rev-parse HEAD)
+          persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
+          # Each case is proved alone, then the next starts from the commit generation made; the four are removed together below, which takes each shape out, the last owner feature with the account-deletion files among them.
           for one in "${cases[@]}"; do
             echo "::group::$one"
             write "$one"
             extend "$one"
             prove "${one%% *}"
-            detach
-            remove "${one%% *}"
+            git reset --quiet --hard "$start"
+            git clean -fdq
             echo "::endgroup::"
           done
-          echo "::group::all four together, removed last in first out"
+          echo "::group::all four together, with a setting and an event, removed last in first out"
           written=()
           for one in "${cases[@]}"; do
             write "$one"
@@ -654,14 +666,17 @@ jobs:
           for one in "${cases[@]}"; do
             widen "$one"
           done
+          settle
           prove "${written[@]}"
           if [ "$INTEGRATION" = "true" ]; then
             integration=$(find Tests/Integration -name '*.Api.IntegrationTests.csproj')
             dotnet test "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests new-feature --fields wrote fail against the database."
           fi
           dotnet run Tools/Tasks.cs hygiene
-          detach
+          commit "the four features"
           remove "${written[@]}"
+          dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once remove-feature has removed ${written[*]}."
+          dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the Remove migrations do not hold the model remove-feature left."
           echo "::endgroup::"
 
       # A generated project holds one app, so it receives that shape's lockfile, not this checkout's union one.

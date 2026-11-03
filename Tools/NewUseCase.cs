@@ -1635,7 +1635,7 @@ internal static class NewUseCase
         string Read(string relative) => File.Exists(Path.Combine(root, relative)) ? File.ReadAllText(Path.Combine(root, relative)) : string.Empty;
 
         void Holds(string text, string fragment, string what) =>
-            expect(text.Contains(fragment, StringComparison.Ordinal), $"{what} does not hold '{fragment}'.");
+            expect(text.ReplaceLineEndings("\n").Contains(fragment, StringComparison.Ordinal), $"{what} does not hold '{fragment}'.");
 
         var query = Invoke(root, "Invoices", "FindInvoicesByCustomer", "--kind", "query", "--input", "Customer:string, Limit:int, Since:DateOnly?, Until:DateTimeOffset?");
         string queryFolder = $"{useCases}/Queries/FindInvoicesByCustomer";

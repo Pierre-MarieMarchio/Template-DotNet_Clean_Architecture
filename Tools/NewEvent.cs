@@ -9,8 +9,6 @@ using System.Text.RegularExpressions;
 
 internal static class NewEvent
 {
-    private const string _manifestFolder = ".feature-manifest";
-
     private const string _conditionOpen = "#" + "if (";
 
     private const string _conditionClose = "#" + "endif";
@@ -117,9 +115,9 @@ internal static class NewEvent
 
         var replaced = TextEdits.Replacements(editor).ToList();
 
-        if (spec.Manifest is { } manifest)
+        if (spec.Manifest is not null)
         {
-            replaced.Add((manifest, File.ReadAllBytes(Path.Combine(root, manifest)), TextEdits.Encode(manifest, ManifestWith(root, manifest, emissions))));
+            replaced.Add(ManifestWith(root, spec.Features, emissions));
         }
 
         if (!request.DryRun)
@@ -346,17 +344,16 @@ internal static class NewEvent
             }
         }
 
-        string manifest = $"{_manifestFolder}/{features}.json";
-        string manifestFull = Path.Combine(root, manifest);
+        var manifest = FeatureManifest.Read(root, features, out string? unread);
 
-        if (File.Exists(manifestFull) && !ManifestReads(manifestFull, features))
+        if (unread is not null)
         {
-            problems.Add($"'{manifest}' does not read as the manifest of {features}, so the files written could not be recorded in it. Repair or delete it first.");
+            problems.Add($"'{FeatureManifest.PathOf(features)}' {unread}, so the files written could not be recorded in it. Repair or delete it first.");
 
             return null;
         }
 
-        return new Spec(prefix, features, name, fields, consumerFeatures, reaction, takes, request.Unconsumed?.Trim(), File.Exists(manifestFull) ? manifest : null);
+        return new Spec(prefix, features, name, fields, consumerFeatures, reaction, takes, request.Unconsumed?.Trim(), manifest?.Path);
     }
 
     private static List<Field> ReadFields(string? text, string name, string domain, string features, List<string> problems)
@@ -712,55 +709,19 @@ internal static class NewEvent
             ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
             : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 
-    private static bool ManifestReads(string manifestFull, string features)
-    {
-        try
-        {
-            return JsonNode.Parse(File.ReadAllText(manifestFull)) is JsonObject top
-                && top["feature"]?.GetValue<string>() == features
-                && top["files"] is JsonArray;
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
-        {
-            return false;
-        }
-    }
-
     private static string Decode(byte[] bytes) =>
         Encoding.UTF8.GetString(bytes, bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0, bytes.Length - (bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0));
 
-    private static string HashOf(Emission emission) =>
-        Convert.ToHexStringLower(SHA256.HashData(TextEdits.Encode(emission.Path, emission.Content)));
-
-    private static string ManifestWith(string root, string manifest, List<Emission> plan)
+    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> plan)
     {
-        var top = (JsonObject)JsonNode.Parse(File.ReadAllText(Path.Combine(root, manifest)))!;
-        var files = (JsonArray)top["files"]!;
+        var manifest = FeatureManifest.Read(root, features, out _)!;
 
-        var entries = files
-            .OfType<JsonObject>()
-            .Select(file => (Path: file["path"]!.GetValue<string>(), Sha256: file["sha256"]!.GetValue<string>()))
-            .Concat(plan.Select(emission => (emission.Path, Sha256: HashOf(emission))))
-            .OrderBy(entry => entry.Path, StringComparer.Ordinal)
-            .ToList();
-
-        var merged = new JsonArray();
-
-        foreach (var (path, sha256) in entries)
+        foreach (var emission in plan)
         {
-            merged.Add((JsonNode)new JsonObject { ["path"] = path, ["sha256"] = sha256 });
+            manifest.Record(emission.Path, TextEdits.Encode(emission.Path, emission.Content));
         }
 
-        top["files"] = merged;
-
-        using var stream = new MemoryStream();
-
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
-        {
-            top.WriteTo(writer);
-        }
-
-        return Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n";
+        return manifest.Replacement;
     }
 
     private static string Sorted(string source)
@@ -2753,30 +2714,6 @@ internal static class TextEdits
         }
     }
 
-    internal static void WriteEdits(Utf8JsonWriter writer, IEnumerable<Edit> edits)
-    {
-        writer.WriteStartArray("edits");
-
-        foreach (Edit edit in edits)
-        {
-            writer.WriteStartObject();
-            writer.WriteString("path", edit.Path);
-            writer.WriteString("anchor", edit.Anchor);
-            writer.WriteString("position", edit.Position);
-            writer.WriteStartArray("lines");
-
-            foreach (string line in edit.Lines)
-            {
-                writer.WriteStringValue(line);
-            }
-
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-
-        writer.WriteEndArray();
-    }
-
     internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
     {
         var written = new List<string>();
@@ -2945,4 +2882,249 @@ internal static class TextEdits
 
         return true;
     }
+}
+
+internal sealed class FeatureManifest
+{
+    internal const string Folder = ".feature-manifest";
+
+    internal const int EditsVersion = 2;
+
+    private readonly JsonObject _top;
+
+    private readonly SortedDictionary<string, string> _files = new(StringComparer.Ordinal);
+
+    private readonly List<TextEdits.Edit> _edits;
+
+    private readonly int _editsRead;
+
+    private FeatureManifest(string path, JsonObject top, byte[]? original, List<TextEdits.Edit> edits)
+    {
+        Path = path;
+        Original = original;
+        _top = top;
+        _edits = edits;
+        _editsRead = edits.Count;
+
+        foreach (var file in ((JsonArray)top["files"]!).OfType<JsonObject>())
+        {
+            _files[file["path"]!.GetValue<string>()] = file["sha256"]!.GetValue<string>();
+        }
+    }
+
+    internal string Path { get; }
+
+    internal byte[]? Original { get; }
+
+    internal int? SchemaVersion =>
+        _top["schemaVersion"] is JsonValue value && value.GetValueKind() == JsonValueKind.Number && value.TryGetValue(out int version) ? version : null;
+
+    internal string? Generator => Text(_top["generator"]);
+
+    internal string? Feature => Text(_top["feature"]);
+
+    internal string? Type => Text(_top["type"]);
+
+    internal string? Page => Text(_top["page"]);
+
+    internal JsonObject? Options => _top["options"] as JsonObject;
+
+    internal JsonArray? Fields => _top["fields"] as JsonArray;
+
+    internal IReadOnlyDictionary<string, string> Files => _files;
+
+    internal IReadOnlyList<TextEdits.Edit> Edits => _edits;
+
+    internal IReadOnlyList<(string Declaration, string Migration, string[] Paths)> AddedFields =>
+        [
+            .. (_top["addedFields"] as JsonArray ?? [])
+                .OfType<JsonObject>()
+                .Where(addition => Text(addition["declaration"]) is not null && Text(addition["migration"]) is not null)
+                .Select(addition => (
+                    Text(addition["declaration"])!,
+                    Text(addition["migration"])!,
+                    (string[])[.. (addition["files"] as JsonArray ?? []).OfType<JsonObject>().Select(file => Text(file["path"])).OfType<string>()])),
+        ];
+
+    internal (string Path, byte[] Original, byte[] Bytes) Replacement => (Path, Original!, Bytes());
+
+    internal static string PathOf(string features) => $"{Folder}/{features}.json";
+
+    internal static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    internal static FeatureManifest Create(string generator, string features, string type, JsonObject options, JsonArray? fields, string? page)
+    {
+        var top = new JsonObject
+        {
+            ["schemaVersion"] = EditsVersion,
+            ["generator"] = generator,
+            ["feature"] = features,
+            ["type"] = type,
+            ["options"] = options,
+        };
+
+        if (fields is not null)
+        {
+            top["fields"] = fields;
+        }
+
+        top["files"] = new JsonArray();
+
+        if (page is not null)
+        {
+            top["page"] = page;
+        }
+
+        top["edits"] = new JsonArray();
+
+        return new FeatureManifest(PathOf(features), top, null, []);
+    }
+
+    internal static FeatureManifest? Read(string root, string features, out string? problem)
+    {
+        string path = PathOf(features);
+        string full = System.IO.Path.Combine(root, path);
+
+        problem = null;
+
+        if (!File.Exists(full))
+        {
+            return null;
+        }
+
+        byte[] original;
+
+        try
+        {
+            original = File.ReadAllBytes(full);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            problem = $"cannot be read ({exception.Message})";
+
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(original) is not JsonObject top
+                || Text(top["feature"]) != features
+                || top["files"] is not JsonArray files
+                || files.Any(file => file is not JsonObject entry || Text(entry["path"]) is null || Text(entry["sha256"]) is null)
+                || (top["edits"] is { } edits && edits is not JsonArray))
+            {
+                problem = $"does not read as the manifest of {features}";
+
+                return null;
+            }
+
+            var read = new List<TextEdits.Edit>();
+
+            foreach (var node in top["edits"] as JsonArray ?? [])
+            {
+                if (node is not JsonObject edit
+                    || Text(edit["path"]) is not { } editPath
+                    || Text(edit["anchor"]) is not { } anchor
+                    || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
+                    || lines.Any(line => Text(line) is null))
+                {
+                    problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
+
+                    return null;
+                }
+
+                read.Add(new TextEdits.Edit(editPath, anchor, Text(edit["position"])!, [.. lines.Select(line => Text(line)!)]));
+            }
+
+            return new FeatureManifest(path, top, original, read);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
+        {
+            problem = $"cannot be read ({exception.Message})";
+
+            return null;
+        }
+    }
+
+    internal void Record(string path, byte[] bytes) => _files[path] = Sha256(bytes);
+
+    internal void RecordAddition(string declaration, string migration, IEnumerable<(string Path, byte[]? Before, byte[] After, IReadOnlyList<string> Changes)> files)
+    {
+        var additions = _top["addedFields"] as JsonArray ?? [];
+
+        additions.Add((JsonNode)new JsonObject
+        {
+            ["declaration"] = declaration,
+            ["migration"] = migration,
+            ["files"] = new JsonArray([.. files.Select(file => (JsonNode)new JsonObject
+            {
+                ["path"] = file.Path,
+                ["before"] = file.Before is null ? null : Sha256(file.Before),
+                ["after"] = Sha256(file.After),
+                ["changes"] = new JsonArray([.. file.Changes.Select(change => (JsonNode)JsonValue.Create(change)!)]),
+            })]),
+        });
+        _top["addedFields"] = additions;
+    }
+
+    internal void Record(TextEdits.Editor editor)
+    {
+        foreach (var sheet in editor.Changed)
+        {
+            if (_files.TryGetValue(sheet.Path, out string? recorded) && recorded == Sha256(sheet.Original))
+            {
+                _files[sheet.Path] = Sha256(sheet.Bytes());
+            }
+        }
+
+        _edits.AddRange(editor.Applied.Where(edit => !_files.ContainsKey(edit.Path)));
+    }
+
+    internal byte[] Bytes()
+    {
+        var files = new JsonArray();
+
+        foreach (var (path, sha256) in _files)
+        {
+            files.Add((JsonNode)new JsonObject { ["path"] = path, ["sha256"] = sha256 });
+        }
+
+        _top["files"] = files;
+
+        var edits = new JsonArray();
+
+        foreach (var edit in _edits)
+        {
+            edits.Add((JsonNode)new JsonObject
+            {
+                ["path"] = edit.Path,
+                ["anchor"] = edit.Anchor,
+                ["position"] = edit.Position,
+                ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
+            });
+        }
+
+        if (_edits.Count > _editsRead)
+        {
+            _top["schemaVersion"] = Math.Max(SchemaVersion ?? 1, EditsVersion);
+            _top.Remove("edits");
+            _top["edits"] = edits;
+        }
+        else if (_top.ContainsKey("edits"))
+        {
+            _top["edits"] = edits;
+        }
+
+        using var stream = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            _top.WriteTo(writer);
+        }
+
+        return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
+    }
+
+    private static string? Text(JsonNode? node) =>
+        node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
 }

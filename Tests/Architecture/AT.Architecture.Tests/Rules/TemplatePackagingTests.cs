@@ -979,6 +979,7 @@ public sealed class TemplatePackagingTests
     [InlineData("NewUseCase.cs")]
     [InlineData("NewSetting.cs")]
     [InlineData("NewEvent.cs")]
+    [InlineData("RemoveFeature.cs")]
     public void EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn(string generator)
     {
         string own = SharedUnit("NewFeature.cs", "internal static class TextEdits", "internal static class TextEdits");
@@ -988,6 +989,22 @@ public sealed class TemplatePackagingTests
             own,
             $"The generators are file-based programs, which share no code, so each closes on its own copy of TextEdits, the one way they "
             + $"edit files they do not own and write everything or nothing: make {generator}'s copy read as NewFeature.cs's.");
+    }
+
+    [Theory]
+    [InlineData("NewUseCase.cs")]
+    [InlineData("NewSetting.cs")]
+    [InlineData("NewEvent.cs")]
+    [InlineData("RemoveFeature.cs")]
+    public void EveryCopyOfTheFeatureManifest_ReadsAsNewFeaturesOwn(string program)
+    {
+        string own = SharedUnit("NewFeature.cs", "internal sealed class FeatureManifest", "internal sealed class FeatureManifest");
+
+        own.ShouldNotBeEmpty("NewFeature.cs declares no FeatureManifest, so this rule compares nothing.");
+        SharedUnit(program, "internal sealed class FeatureManifest", "internal sealed class FeatureManifest").ShouldBe(
+            own,
+            $"Every program that reads or writes a feature's manifest does it through its own copy of FeatureManifest, the one way a manifest "
+            + $"is read, merged and written, so what one program records another reads back: make {program}'s copy read as NewFeature.cs's.");
     }
 
     [Theory]

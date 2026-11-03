@@ -334,7 +334,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `AGENTS.md`, before the line:
 
   ```markdown
-  | After adding a feature's setting | `dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
+  | After adding a field to a feature `new-feature --fields` generated | `dotnet run Tools/Tasks.cs new-field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
   ```
 
   add:

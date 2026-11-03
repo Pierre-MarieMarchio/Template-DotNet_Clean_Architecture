@@ -23,10 +23,11 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
 | `end-to-end` | the end-to-end suite against a Compose stack of its own, then with a web app the browser smoke over each app, the stack removed afterwards unless `--keep-stack` |
 | `new-feature`, `remove-feature` | the feature generator and its undo |
+| `new-field` | one or more fields added to a feature `new-feature --fields` generated, in every layer, with its migration |
 | `new-use-case` | one more use case in a feature of the rich shape |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
 | `migration-add`, `database-update` | `dotnet ef` over the business context, or the authentication context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
-| `migration-check` | fail when the business context's model, or the authentication context's with `--context auth`, holds a change no migration holds; `new-feature` runs it before it writes |
+| `migration-check` | fail when the business context's model, or the authentication context's with `--context auth`, holds a change no migration holds; `new-feature` and `new-field` run it before they write |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 | `api-client` | once the project holds the .NET client, rewrite its `Generated/` folder from the OpenAPI reference, as `bootstrap` does after `migration-initial`; `--check` fails on a difference |

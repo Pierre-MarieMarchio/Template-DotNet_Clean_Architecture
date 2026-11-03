@@ -46,8 +46,18 @@ export interface BrowserSessionOptions {
   readonly fetch?: typeof fetch;
 }
 
+export function withoutTrailingSlashes(value: string): string {
+  let end = value.length;
+
+  while (end > 0 && value[end - 1] === '/') {
+    end--;
+  }
+
+  return value.slice(0, end);
+}
+
 export function createBrowserSession(options: BrowserSessionOptions = {}): BrowserSession {
-  const baseUrl = (options.baseUrl ?? '').replace(/\/+$/, '');
+  const baseUrl = withoutTrailingSlashes(options.baseUrl ?? '');
   const send = options.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init));
   const listeners = new Set<(signedIn: boolean) => void>();
 

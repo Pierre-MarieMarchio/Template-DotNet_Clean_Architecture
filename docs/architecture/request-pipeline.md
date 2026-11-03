@@ -96,7 +96,8 @@ them too, whatever the request's `Accept` header says. A `500` carries a fixed s
 
 Each request writes one structured entry: method, path, status, elapsed time and the trace
 identifiers. The entry never includes the `Authorization` header, cookies, the query string or the
-body, so a credential cannot reach a log by accident. Logs are JSON from `AddJsonConsole`;
+body, so a credential cannot reach a log by accident. Logs are JSON from `AddJsonConsole`, which escapes
+the line breaks of a path or a header value, so a caller cannot forge a log line (`LogFormatTests` holds it);
 [Observability](../features/observability.md) covers their export.
 
 ## Rate limiting

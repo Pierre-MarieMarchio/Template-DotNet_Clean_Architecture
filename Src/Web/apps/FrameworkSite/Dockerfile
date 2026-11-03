@@ -30,6 +30,7 @@ ENV CI=true \
 WORKDIR /workspace
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 RUN corepack enable && pnpm fetch
 
 COPY . .

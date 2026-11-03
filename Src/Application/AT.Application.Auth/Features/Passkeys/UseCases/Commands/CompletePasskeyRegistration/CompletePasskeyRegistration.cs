@@ -74,16 +74,16 @@ public sealed class CompletePasskeyRegistrationCommandHandler(
 
         return registration.Status switch
         {
-            PasskeyRegistrationStatus.Registered => Registered(userId, registration.Credential!),
+            PasskeyRegistrationStatus.Registered => await RegisteredAsync(userId, registration.Credential!),
             PasskeyRegistrationStatus.NoSuchAccount => Result.Failure<PasskeyCredential>(CommonErrors.NotAuthenticated),
             PasskeyRegistrationStatus.StoreRejected => Result.Failure<PasskeyCredential>(PasskeysErrors.PasskeyRegistrationRejected),
             _ => Result.Failure<PasskeyCredential>(PasskeysErrors.InvalidPasskeyRegistration),
         };
     }
 
-    private Result<PasskeyCredential> Registered(Guid userId, PasskeyCredential credential)
+    private async Task<Result<PasskeyCredential>> RegisteredAsync(Guid userId, PasskeyCredential credential)
     {
-        securityEventLog.Record(SecurityEvent.PasskeyRegistered(userId));
+        await securityEventLog.RecordAsync(SecurityEvent.PasskeyRegistered(userId));
 
         return Result.Success(credential);
     }

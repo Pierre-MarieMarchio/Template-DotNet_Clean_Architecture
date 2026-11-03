@@ -35,7 +35,7 @@ public sealed class RemovePasskeyCommandHandler(
             return Result.Failure(PasskeysErrors.NoSuchPasskey);
         }
 
-        securityEventLog.Record(SecurityEvent.PasskeyRemoved(callerId.Value.Value));
+        await securityEventLog.RecordAsync(SecurityEvent.PasskeyRemoved(callerId.Value.Value));
 
         await CredentialInvalidationPolicy.InvalidateOtherSessionsAsync(
             sessionTokens,

@@ -187,7 +187,7 @@ public sealed class CompletePasskeyRegistrationTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldBe(stored);
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeyRegistered && e.UserId == _callerId));
     }
 

@@ -56,7 +56,7 @@ public sealed class UnlockAccountTests
 
         await UseCase().Handle(new UnlockAccountCommand(_targetId), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.AccountUnlockedByAdministrator(_targetId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.AccountUnlockedByAdministrator(_targetId));
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class UnlockAccountTests
 
         await UseCase().Handle(new UnlockAccountCommand(_targetId), TestToken);
 
-        _securityEventLog.DidNotReceive().Record(SecurityEvent.SecurityStampRotated(_targetId));
+        await _securityEventLog.DidNotReceive().RecordAsync(SecurityEvent.SecurityStampRotated(_targetId));
     }
 
     private void GivenTheOutcomeIs(AccountAdministrationOutcome outcome) =>

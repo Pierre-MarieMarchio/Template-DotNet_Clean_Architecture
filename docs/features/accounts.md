@@ -129,7 +129,10 @@ policy and the leased sweep, written by `new-feature --deletion delete|anonymise
 Every sign-in attempt, lockout, logout, refresh-token revocation or replay, stamp rotation,
 second-factor and passkey change, role change and deletion is recorded with its time, the client
 address and the user agent. The holder reads theirs with `GET /api/v1/auth/me/security-events`, an
-administrator any account's with `GET /api/v1/auth/accounts/{userId}/security-events`.
+administrator any account's with `GET /api/v1/auth/accounts/{userId}/security-events`. Recording
+an event takes no cancellation token, so it is stored even when the caller gives up, and it is
+awaited on its own context, so a failed operation does not take it back and a database that is down
+only costs the row, never the sign-in.
 
 The log survives the account it describes, so an investigation after a deletion still has it, and
 it is purged after `SecurityEventLog:RetentionInDays` (90 days by default) by the maintenance job,

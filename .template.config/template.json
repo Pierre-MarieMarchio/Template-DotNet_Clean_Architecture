@@ -1879,7 +1879,6 @@
             "Tests/Integration/AT.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/RecordedDomainEvents.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"

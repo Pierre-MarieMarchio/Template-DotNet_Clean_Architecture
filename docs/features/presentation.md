@@ -470,7 +470,10 @@ and so is a token issued for the API; the resource metadata names the provider;
 <!--#if (localAuth)-->
 and so is an unknown or revoked key; a key that only reads sees and calls no tool that writes;
 <!--#endif-->
-every tool says whether it only reads, and a record of another caller answers as an absent one.
+every tool says whether it only reads, and two callers are never one to the tools.
+Those two guarantees, the refusal of a read-only key and the caller's identity, are proved on a probe
+tool (`TestSupport/ProbeTools.cs`) the test host registers, so they hold in a project generated
+without examples; with notes, a record of another caller also answers as an absent one.
 `ToolAnswerTests` holds the answers and their problems, each tool's own tests the use case it calls
 and what it passes.
 <!--#if (externalAuth)-->

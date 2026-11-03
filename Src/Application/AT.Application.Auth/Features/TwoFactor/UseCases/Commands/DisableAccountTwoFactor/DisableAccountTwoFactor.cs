@@ -49,7 +49,7 @@ public sealed class DisableAccountTwoFactorCommandHandler(
         }
 
         await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
-        securityEventLog.Record(SecurityEvent.TwoFactorDisabledByAdministrator(request.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.TwoFactorDisabledByAdministrator(request.UserId));
 
         return Result.Success();
     }

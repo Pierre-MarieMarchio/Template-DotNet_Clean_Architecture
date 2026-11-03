@@ -95,7 +95,7 @@ public sealed class ConfirmEmailChangeTests
 
         await UseCase().Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
     [Fact]

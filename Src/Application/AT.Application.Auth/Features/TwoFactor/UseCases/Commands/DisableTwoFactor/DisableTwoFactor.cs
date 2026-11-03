@@ -48,7 +48,7 @@ public sealed class DisableTwoFactorCommandHandler(
             return Result.Failure(TwoFactorErrors.TwoFactorDisableRejected);
         }
 
-        securityEventLog.Record(SecurityEvent.TwoFactorDisabled(userId.Value.Value));
+        await securityEventLog.RecordAsync(SecurityEvent.TwoFactorDisabled(userId.Value.Value));
 
         await CredentialInvalidationPolicy.InvalidateOtherSessionsAsync(
             sessionTokens,

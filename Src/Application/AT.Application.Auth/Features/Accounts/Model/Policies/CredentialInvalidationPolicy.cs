@@ -15,7 +15,7 @@ public static class CredentialInvalidationPolicy
         ArgumentNullException.ThrowIfNull(securityEventLog);
 
         await sessionTokens.RevokeAllRefreshTokensAsync(userId, cancellationToken: cancellationToken);
-        securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId));
+        await securityEventLog.RecordAsync(SecurityEvent.SecurityStampRotated(userId));
     }
 
     public static async Task InvalidateOtherSessionsAsync(
@@ -29,6 +29,6 @@ public static class CredentialInvalidationPolicy
         ArgumentNullException.ThrowIfNull(securityEventLog);
 
         await sessionTokens.RevokeAllRefreshTokensAsync(userId, currentSessionId, cancellationToken);
-        securityEventLog.Record(SecurityEvent.SecurityStampRotated(userId));
+        await securityEventLog.RecordAsync(SecurityEvent.SecurityStampRotated(userId));
     }
 }

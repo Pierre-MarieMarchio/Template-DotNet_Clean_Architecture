@@ -540,7 +540,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
 
-      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. The hygiene gates pass with four features present, and remove-feature --apply leaves the tree as it was.
+      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. With the four together, new-field adds a required field with its default, another and a nullable one to the record and to the aggregate with fields, then adds their migration with the defaults, before the same proof. The hygiene gates pass with four features present, and remove-feature --apply leaves the tree as it was.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -586,6 +586,17 @@ jobs:
               # shellcheck disable=SC2086
               dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "$log" 2>&1 || { cat "$log"; fail "new-use-case $feature $usecase failed."; }
             done
+          }
+          widen() {
+            local feature log migration
+            read -r feature _ <<< "$1"
+            [[ "$1" == *"--fields"* ]] || return 0
+            log="${{ runner.temp }}/new-field-$feature.log"
+            dotnet run Tools/Tasks.cs new-field "$feature" "Code:string(20)='none', Rank:int>=1=1, Weight:decimal(8,3)?" > "$log" 2>&1 || { cat "$log"; fail "new-field $feature failed."; }
+            grep -q 'Breaking change: Code is required' "$log" || fail "new-field $feature did not say that a required field breaks the clients."
+            jq -e '.addedFields | length == 1' ".feature-manifest/$feature.json" > /dev/null || fail "new-field $feature recorded no addition in its manifest."
+            migration=$(compgen -G "Src/Infrastructure/*.Infrastructure.Persistence/Migrations/*_AddCodeAnd2MoreFieldsTo$feature.cs") || fail "new-field $feature added no migration."
+            grep -q 'defaultValue: "none"' "$migration" && grep -q 'defaultValue: 1)' "$migration" || fail "new-field $feature did not give the stored rows each default."
           }
           prove() {
             local feature home persistence
@@ -639,6 +650,9 @@ jobs:
             write "$one"
             extend "$one"
             written=("${one%% *}" "${written[@]}")
+          done
+          for one in "${cases[@]}"; do
+            widen "$one"
           done
           prove "${written[@]}"
           if [ "$INTEGRATION" = "true" ]; then

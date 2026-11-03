@@ -128,11 +128,12 @@ Three `SaveChanges` interceptors run, in the order the context attaches them:
 |---|---|
 | Aggregate flushing | writes each tracked aggregate onto its rows, before EF computes its diff |
 | Audit stamping | stamps `CreatedAt`, `CreatedBy`, `LastModifiedAt`, `LastModifiedBy` on what changed |
-| Domain event dispatch | collects the staged aggregates' events, and publishes them after the commit |
+| Domain event dispatch | collects the staged aggregates' events, and publishes them after the commit, an explicit transaction's when there is one |
 
-They are interceptors rather than steps of the unit of work, so a stray `SaveChanges()`, the
-synchronous one included, flushes and publishes too. The business context attaches all three with
-`UseAggregateFlushing`, `UseAuditStamping` and `UseDomainEventDispatch`.
+They are interceptors rather than steps of the unit of work, so a stray `SaveChangesAsync()` flushes
+and publishes too, while the synchronous `SaveChanges()` is refused
+([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)). The business context
+attaches all three with `UseAggregateFlushing`, `UseAuditStamping` and `UseDomainEventDispatch`.
 <!--#if (localAuth)-->
 The identity context attaches none: it has no aggregate and no audited row.
 <!--#endif-->

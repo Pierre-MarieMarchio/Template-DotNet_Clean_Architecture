@@ -36,13 +36,17 @@ every tagged aggregate shares, held once, sit in `TagSet` under the domain's `Co
 
 A root raises an event with `RaiseDomainEvent`, and the event waits on the aggregate. The dispatch
 interceptor collects the events of the aggregates staged on the context being saved as the save
-begins, and publishes them once that save has committed. An event is therefore never observed for a
-transaction that rolled back; a failed save hands its events back, so the retry publishes them.
+begins, and publishes them once that save has committed. Inside an explicit transaction, it holds
+them until that transaction commits and drops them if it rolls back. An event is therefore never
+observed for a transaction that rolled back; a failed save hands its events back, so the retry
+publishes them. Publishing is awaited, so the business context refuses the synchronous
+`SaveChanges()`, and a transaction holding events refuses the synchronous `Commit()`.
 
 A fact no aggregate carries, such as an operation's own outcome, is published through
 `IDomainEventPublisher` by the use case that made it true, after its own commit.
 
-Consumers run in process, after the commit and outside its transaction. A consumer implements
+Consumers run in process, after the commit and outside its transaction, so a consumer that saves on
+the same context commits a transaction of its own. A consumer implements
 `IDomainEventConsumer<TEvent>` and is registered with `AddDomainEventConsumer`; one that throws is
 logged and skipped, so delivery is at most once. Every consumer therefore re-derives its
 precondition when it runs and is idempotent by shape, and a sweep, not a retry, is the guarantee

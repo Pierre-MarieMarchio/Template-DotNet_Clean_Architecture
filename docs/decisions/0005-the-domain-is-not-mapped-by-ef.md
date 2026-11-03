@@ -22,8 +22,9 @@ EF maps row records, never domain types. An aggregate is persisted through three
 
 Three `SaveChanges` interceptors run in this order: the flush writes each tracked aggregate onto its
 rows, the audit interceptor stamps what that wrote, and the dispatcher publishes events after the
-commit. Because they are interceptors rather than steps of the unit of work, any `SaveChanges`,
-the synchronous overload included, flushes and publishes.
+commit. Because they are interceptors rather than steps of the unit of work, any `SaveChangesAsync`
+flushes and publishes, and the synchronous overload is refused
+([ADR 0006](0006-events-after-commit-without-an-outbox.md)).
 
 Rehydration goes through the aggregate's own factories and checks structure only: a state and its
 dates agree, children belong to their root. Policy limits such as caps and lengths apply to new

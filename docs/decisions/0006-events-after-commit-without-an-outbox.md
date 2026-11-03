@@ -16,6 +16,11 @@ no outbox and no retry. A consumer that throws is logged and skipped; its siblin
 no aggregate carries is published by the use case or service that made it true, after its write
 commits, never before.
 
+Under an explicit transaction, the commit that counts is that transaction's: the events of a save
+inside it are held until it commits, and dropped if it rolls back or fails. Publishing awaits every
+consumer, so the business context refuses the synchronous `SaveChanges`, and a transaction holding
+events refuses the synchronous `Commit`, rather than block a thread on them.
+
 What makes this safe is the shape every consumer must have:
 
 - **It re-derives its precondition** when it runs, so running twice is the same as running once, and

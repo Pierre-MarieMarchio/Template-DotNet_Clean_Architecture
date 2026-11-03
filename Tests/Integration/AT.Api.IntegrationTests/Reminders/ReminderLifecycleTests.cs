@@ -11,6 +11,32 @@ namespace AppTemplate.Api.IntegrationTests.Reminders;
 public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBase(fixture)
 {
     [Fact]
+    public async Task ADueDate_SentWithANonZeroOffset_IsStoredAndAnsweredAsTheSameInstantInUtc()
+    {
+        var (client, _, _) = await SignInAsync();
+        var listId = await CreateTodoListAsync(client, "Chores");
+        var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
+        var dueAt = Clock.GetUtcNow().AddDays(1);
+
+        var created = await ScheduleReminderAsync(client, listId, itemId, dueAt.ToOffset(TimeSpan.FromHours(2)));
+
+        created.DueAt.Offset.ShouldBe(TimeSpan.Zero);
+        created.DueAt.ShouldBe(dueAt);
+
+        var read = (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.ShouldHaveSingleItem();
+        read.DueAt.Offset.ShouldBe(TimeSpan.Zero);
+        read.DueAt.ShouldBe(dueAt);
+
+        var newDueAt = dueAt.AddDays(1);
+        using var rescheduled = await RescheduleAsync(client, created.Id, newDueAt.ToOffset(TimeSpan.FromHours(-5)));
+        rescheduled.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var afterwards = await ApiJson.ReadAsync<ReminderResponse>(rescheduled, TestToken);
+        afterwards.DueAt.Offset.ShouldBe(TimeSpan.Zero);
+        afterwards.DueAt.ShouldBe(newDueAt);
+    }
+
+    [Fact]
     public async Task SchedulingReadingReschedulingAndCancelling_FollowsTheFullHttpLifecycle()
     {
         var (client, _, _) = await SignInAsync();

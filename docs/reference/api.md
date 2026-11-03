@@ -2,7 +2,9 @@
 
 Every route and every refusal `code`. The rules all endpoints follow are in
 [HTTP API](../architecture/http-api.md). In Development the OpenAPI document is at
-`/openapi/v1.json`, Scalar at `/scalar/v1`.
+`/openapi/v1.json`, Scalar at `/scalar/v1`. A response gives every instant in UTC; an instant sent
+with another offset (`2026-11-04T10:00:00+02:00`) is accepted and answered as the same instant
+(`2026-11-04T08:00:00Z`).
 <!--#if (accounts)-->
 A route requires a signed-in caller unless marked anonymous; another caller's resource is `404`.
 <!--#endif-->

@@ -5,6 +5,15 @@
       "longName": "agent-files",
       "shortName": ""
     },
+    "aspire": {
+      "longName": "aspire",
+      "shortName": ""
+    },
+    "aspireNeedsServerDatabase": {
+      "longName": "aspire-needs-server-database",
+      "shortName": "",
+      "isHidden": true
+    },
     "authNoneNeedsExamplesNone": {
       "longName": "auth-none-needs-examples-none",
       "shortName": "",

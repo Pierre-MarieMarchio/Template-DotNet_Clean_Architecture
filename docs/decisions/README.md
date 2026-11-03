@@ -97,5 +97,8 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#if (accounts)-->
 | [0031](0031-the-feature-generator-composes-what-it-writes.md) | The feature generator composes what it writes | Tooling |
 <!--#endif-->
+<!--#if (aspire)-->
+| [0032](0032-the-app-host-follows-compose.md) | The app host follows Compose | Local stack |
+<!--#endif-->
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

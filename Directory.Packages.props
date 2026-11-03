@@ -135,6 +135,20 @@
     <PackageVersion Include="Scalar.AspNetCore" Version="2.18.7" />
   </ItemGroup>
 
+  <!--#if (aspire)-->
+  <!-- One band with the app host's SDK in global.json, which LocalStackParityTests holds to these versions. -->
+  <ItemGroup Label="Aspire">
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.4" />
+    <!--#if (postgreSql)-->
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
+    <!--#endif-->
+    <!--#if (sqlServer)-->
+    <PackageVersion Include="Aspire.Hosting.SqlServer" Version="13.6.4" />
+    <!--#endif-->
+    <PackageVersion Include="Aspire.Hosting.Testing" Version="13.6.4" />
+  </ItemGroup>
+
+  <!--#endif-->
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <!-- The in-process relational provider the saving-pipeline tests run on. -->

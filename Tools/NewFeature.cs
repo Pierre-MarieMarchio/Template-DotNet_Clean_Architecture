@@ -100,7 +100,8 @@ internal static class NewFeature
         string Concurrency,
         string? Reaction,
         bool HasApi,
-        IReadOnlyList<Field>? Fields = null)
+        IReadOnlyList<Field>? Fields = null,
+        bool TablePrefixes = false)
     {
         internal bool Has(string operation) => Operations.Contains(operation, StringComparer.Ordinal);
     }
@@ -541,10 +542,12 @@ internal static class NewFeature
         }
 
         string prefix;
+        bool tablePrefixes;
 
         try
         {
             prefix = ProductPrefix(root);
+            tablePrefixes = TablePrefixes(root);
         }
         catch (InvalidOperationException exception)
         {
@@ -579,7 +582,7 @@ internal static class NewFeature
             }
         }
 
-        return new Spec(prefix, features, type, access, deletion, operations, model, concurrency, reaction, hasApi, fields);
+        return new Spec(prefix, features, type, access, deletion, operations, model, concurrency, reaction, hasApi, fields, tablePrefixes);
     }
 
     private static string? IdentityFeature(string root, string host)
@@ -738,6 +741,27 @@ internal static class NewFeature
         return document.RootElement.TryGetProperty("name", out JsonElement name) && name.GetString() is { Length: > 0 } prefix
             ? prefix
             : throw new InvalidOperationException($"'{projectFile}' records no name.");
+    }
+
+    private static bool TablePrefixes(string root)
+    {
+        string projectFile = System.IO.Path.Combine(root, "cleanarch.json");
+
+        using var document = JsonDocument.Parse(File.ReadAllText(projectFile));
+
+        string? database = document.RootElement.TryGetProperty("options", out JsonElement options)
+            && options.TryGetProperty("database", out JsonElement recorded)
+                ? recorded.GetString()
+                : null;
+
+        return database switch
+        {
+            "postgresql" or "sqlserver" => false,
+            "sqlite" => true,
+            _ => throw new InvalidOperationException(
+                $"'{projectFile}' records no options.database the generator knows (postgresql, sqlserver or sqlite), "
+                + "and the feature's table test depends on it: the provider decides whether a schema holds the table or prefixes its name."),
+        };
     }
 
     internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
@@ -1052,6 +1076,7 @@ internal static class NewFeature
         When(spec.Deletion == "anonymise" && (fields is null || fields.Any(field => field is { Kind: FieldKind.String, Nullable: false })), "anontext");
         When(flags.Contains("content") && (fields is null || fields.Any(field => field.Kind == FieldKind.String)), "trim");
         When(fields is null || fields.Any(FieldCode.HasConstants), "policy");
+        When(spec.TablePrefixes, "prefixed");
 
         return flags;
     }
@@ -2250,6 +2275,7 @@ internal static class NewFeature
             PageCases(scratch, Expect);
             WithoutTheApiCases(scratch, Expect);
             WithoutFieldsCases(scratch, Expect);
+            ProviderCases(scratch, Expect);
             FieldGrammarCases(scratch, Expect);
             FieldEmissionCases(scratch, Expect);
             TemplateGuardCases(Expect);
@@ -2272,7 +2298,7 @@ internal static class NewFeature
         return problems.Count == 0 ? 0 : 1;
     }
 
-    private static string NewTree(string scratch, bool reaction = true)
+    private static string NewTree(string scratch, bool reaction = true, string database = "postgresql")
     {
         string root = System.IO.Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
 
@@ -2293,7 +2319,9 @@ internal static class NewFeature
             Directory.CreateDirectory(System.IO.Path.Combine(root, directory));
         }
 
-        File.WriteAllText(System.IO.Path.Combine(root, "cleanarch.json"), "{\n  \"name\": \"Acme\"\n}\n");
+        File.WriteAllText(
+            System.IO.Path.Combine(root, "cleanarch.json"),
+            $"{{\n  \"name\": \"Acme\",\n  \"options\": {{\n    \"database\": \"{database}\"\n  }}\n}}\n");
 
         foreach (var (path, content) in ComposableFiles())
         {
@@ -4080,7 +4108,44 @@ internal static class NewFeature
         ("aggregate, shared", "ba40daae27a45f1f0257e53906fcd0795f282330138bc528bdec2e8812d81f40"),
         ("record, owner, delete, the project's first owner feature", "45fa021c321979c3bf9a4977ca912de5d4ebfec2723007df50804bcb78273f65"),
         ("record, owner, delete, without the API", "d5c5373197b6f89a6db03cad1c6b6f68eef131a12e17e365eb1c3884cb809872"),
+        ("record, owner, delete, on SQL Server", "4140d16e269b6cdb35910d865de5e88366cea1d8d6878d8a3cca0c31168b8c5d"),
+        ("record, owner, delete, on SQLite", "a96a7361bbdecbc2679f0526c5ad1ca6f0f7b38e464e608657e6902b2ae812c6"),
     ];
+
+    private static void ProviderCases(string scratch, Action<bool, string> expect)
+    {
+        const string test = "Tests/Infrastructure/A.Infrastructure.Persistence.UnitTests/Features/Widgets/Rows/Configurations/WidgetRecordConfigurationTests.cs";
+        string[] inItsSchema = ["public void TheTable_LivesInItsOwnSchema()", "Entity().GetTableName().ShouldBe(\"Widgets\");", "Entity().GetSchema().ShouldBe(AppDbContext.WidgetsSchema);"];
+        string[] prefixed = ["public void TheTable_IsPrefixedWithTheWidgetsSchema()", "Entity().GetTableName().ShouldBe($\"{AppDbContext.WidgetsSchema}_Widgets\");", "Entity().GetSchema().ShouldBeNull();"];
+
+        foreach (var (database, present, absent) in new (string, string[], string[])[] { ("postgresql", inItsSchema, prefixed), ("sqlserver", inItsSchema, prefixed), ("sqlite", prefixed, inItsSchema) })
+        {
+            foreach (string[] fields in new[] { Array.Empty<string>(), ["--fields", "Title:string(120), Budget:decimal>=0"] })
+            {
+                string root = NewTree(scratch, database: database);
+                var result = Invoke(root, ["Widgets", "Widget", "--access", "shared", .. fields]);
+                string written = File.Exists(System.IO.Path.Combine(root, test)) ? File.ReadAllText(System.IO.Path.Combine(root, test)) : string.Empty;
+
+                expect(
+                    result.Code == 0 && present.All(line => written.Contains(line, StringComparison.Ordinal)) && !absent.Any(line => written.Contains(line, StringComparison.Ordinal)),
+                    $"[{database}{(fields.Length == 0 ? string.Empty : ", --fields")}] the table test does not hold where {database} keeps the feature's table: {result.Error}{written}");
+            }
+        }
+
+        foreach (string projectFile in new[] { "{\n  \"name\": \"Acme\"\n}\n", "{\n  \"name\": \"Acme\",\n  \"options\": { \"database\": \"oracle\" }\n}\n" })
+        {
+            string root = NewTree(scratch);
+
+            File.WriteAllText(System.IO.Path.Combine(root, "cleanarch.json"), projectFile);
+
+            var before = Snapshot(root);
+            var refused = Invoke(root, "Widgets", "Widget", "--access", "shared");
+
+            expect(
+                refused.Code == 1 && Same(before, Snapshot(root)) && refused.Error.Contains("records no options.database the generator knows", StringComparison.Ordinal),
+                $"A project file that does not say which database the project uses was not refused before anything was written: {refused.Error}");
+        }
+    }
 
     private static void WithoutFieldsCases(string scratch, Action<bool, string> expect)
     {
@@ -4104,21 +4169,23 @@ internal static class NewFeature
                 .Select(mask => _operationNames.Where((_, index) => (mask & (1 << index)) != 0).ToArray()),
         ];
 
-        (string Group, string[] Options, bool Reaction, bool Api)[] groups =
+        (string Group, string[] Options, bool Reaction, bool Api, string Database)[] groups =
         [
-            ("record, owner, delete", ["--access", "owner", "--deletion", "delete"], true, true),
-            ("record, owner, anonymise", ["--access", "owner", "--deletion", "anonymise"], true, true),
-            ("record, shared", ["--access", "shared"], true, true),
-            ("aggregate, owner, delete", ["--access", "owner", "--deletion", "delete", "--model", "aggregate"], true, true),
-            ("aggregate, owner, anonymise", ["--access", "owner", "--deletion", "anonymise", "--model", "aggregate"], true, true),
-            ("aggregate, shared", ["--access", "shared", "--model", "aggregate"], true, true),
-            ("record, owner, delete, the project's first owner feature", ["--access", "owner", "--deletion", "delete"], false, true),
-            ("record, owner, delete, without the API", ["--access", "owner", "--deletion", "delete"], true, false),
+            ("record, owner, delete", ["--access", "owner", "--deletion", "delete"], true, true, "postgresql"),
+            ("record, owner, anonymise", ["--access", "owner", "--deletion", "anonymise"], true, true, "postgresql"),
+            ("record, shared", ["--access", "shared"], true, true, "postgresql"),
+            ("aggregate, owner, delete", ["--access", "owner", "--deletion", "delete", "--model", "aggregate"], true, true, "postgresql"),
+            ("aggregate, owner, anonymise", ["--access", "owner", "--deletion", "anonymise", "--model", "aggregate"], true, true, "postgresql"),
+            ("aggregate, shared", ["--access", "shared", "--model", "aggregate"], true, true, "postgresql"),
+            ("record, owner, delete, the project's first owner feature", ["--access", "owner", "--deletion", "delete"], false, true, "postgresql"),
+            ("record, owner, delete, without the API", ["--access", "owner", "--deletion", "delete"], true, false, "postgresql"),
+            ("record, owner, delete, on SQL Server", ["--access", "owner", "--deletion", "delete"], true, true, "sqlserver"),
+            ("record, owner, delete, on SQLite", ["--access", "owner", "--deletion", "delete"], true, true, "sqlite"),
         ];
 
-        foreach (var (group, options, reaction, api) in groups)
+        foreach (var (group, options, reaction, api, database) in groups)
         {
-            string root = NewTree(scratch, reaction);
+            string root = NewTree(scratch, reaction, database);
 
             if (!api)
             {
@@ -4493,7 +4560,7 @@ internal static class Template
     {
         "get", "list", "create", "update", "delete", "owner", "shared", "rec", "agg", "etag",
         "content", "change", "wq", "dto", "single", "rq", "notfound", "clock", "stage",
-        "purge", "anon", "fields", "anontext", "trim", "policy",
+        "purge", "anon", "fields", "anontext", "trim", "policy", "prefixed",
     };
 
     private static readonly Regex _tokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
@@ -7719,11 +7786,19 @@ internal static class Templates
 
         %end%
             [Fact]
+        %if prefixed%
+            public void TheTable_IsPrefixedWithThe%F%Schema()
+            {
+                Entity().GetTableName().ShouldBe($"{AppDbContext.%F%Schema}_%F%");
+                Entity().GetSchema().ShouldBeNull();
+            }
+        %else%
             public void TheTable_LivesInItsOwnSchema()
             {
                 Entity().GetTableName().ShouldBe("%F%");
                 Entity().GetSchema().ShouldBe(AppDbContext.%F%Schema);
             }
+        %end%
 
             private static IEntityType Entity()
             {

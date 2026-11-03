@@ -178,13 +178,21 @@ While no database has applied the initial migration, recreate it as
 [migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
 migration that drops the tables, and review it line by line.
 
-<!--#if (localAuth)-->
+<!--#if (localAuth && api)-->
 ## Remove authentication
 
 Delete `Src/Application/AT.Application.Auth`, `Src/Infrastructure/AT.Infrastructure.Auth`
 and `Src/Presentation/AT.Api/Features/Auth` with their tests and solution entries, and the
 `AddAuthFeature` line in `Program.cs`; the `identity` migration goes with its project. The host then
 owes an authentication scheme of its own and the `Administrator` policy.
+<!--#endif-->
+<!--#if (localAuth && !api)-->
+## Remove authentication
+
+Delete `Src/Application/AT.Application.Auth`, `Src/Infrastructure/AT.Infrastructure.Auth` and the
+`Features/Auth` folder of each host under `Src/Presentation` with their tests and solution entries, and
+the line that composes it in each host's `Program.cs`; the `identity` migration goes with its
+project.
 <!--#endif-->
 <!--#if (localAuth && reminders)-->
 

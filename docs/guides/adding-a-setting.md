@@ -47,13 +47,15 @@ past it answers `400`; one that shapes the work is read by the use case.
 6. Give the key its deployment value in `Src/Presentation/AT.Api/appsettings.json` when an
    operator is expected to change it. For the Compose stack, map `<Section>__<Key>` to a variable in
    the API's `environment` in `docker-compose.yml`, and add that variable to `.env.example` under one
-   `#` line saying what it governs.
+   `#` line saying what it governs. `ConfigurationSurfaceTests` also fails while a key shipped in an
+   `appsettings` file or set by Compose or `.env.example` has no row in the reference.
 <!--#endif-->
 <!--#if (!api)-->
 6. Give the key its deployment value in the `appsettings.json` of each host that reads it when an
    operator is expected to change it. For the Compose stack, map `<Section>__<Key>` to a variable in
    `x-host-environment` in `docker-compose.yml`, and add that variable to `.env.example` under one
-   `#` line saying what it governs.
+   `#` line saying what it governs. `ConfigurationSurfaceTests` also fails while a key shipped in an
+   `appsettings` file or set by Compose or `.env.example` has no row in the reference.
 <!--#endif-->
 7. Test the validator at its boundaries, each refusal beside the value that passes, and test that
    composing the feature with the key out of range makes `IStartupValidator.Validate()` throw

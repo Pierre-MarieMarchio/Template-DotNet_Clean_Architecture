@@ -184,7 +184,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | A registration | `HostComposition` in the architecture tests |
 <!--#endif-->
 <!--#if (api)-->
-| A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review |
+| A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review; the route's row under `## Routes` of [the API reference](../reference/api.md#routes), checked both ways by `ApiRouteTableTests` |
 | An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
 <!--#endif-->
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |

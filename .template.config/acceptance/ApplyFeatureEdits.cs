@@ -13,11 +13,12 @@ internal static class FeatureEdits
 
         Applies the hand edits a new-feature run printed to the generated project at <root>: the
         lines each edit prints, placed beside the neighbours a person would choose, with the usings
-        they need, then the feature's rows in docs/README.md and docs/reference/api.md. It reads the
+        they need, then the feature's rows in docs/README.md and docs/reference/api.md and its section of the
+        route table under ## Routes. It reads the
         output and nothing else, so an edit the output no longer prints in its usual form fails here
         before it misleads a reader. Given a new-use-case run, it makes the HTTP edit that run printed:
         the usings, the ISender the controller lacks, the action before the controller's closing brace,
-        and a query's response record.
+        a query's response record, and the action's row in its feature's route table.
 
         Exit code 0 once every edit is applied; 2, writing nothing, when the output holds an edit
         given as prose only (the first owner feature of a project generated without one); 1 on any
@@ -40,6 +41,12 @@ internal static class FeatureEdits
     private static readonly Regex _fileNamespace = new(@"^namespace\s+([A-Za-z0-9_.]+);", RegexOptions.Multiline, _timeout);
 
     private static readonly Regex _useCaseHeader = new(@"^Wrote \d+ files for the (?:command|query) ", RegexOptions.None, _timeout);
+
+    private const string _apiPage = "docs/reference/api.md";
+
+    private const string _routeSectionAnnouncement = "And its section of the route table under ## Routes in docs/reference/api.md";
+
+    private const string _routeRowAnnouncement = "and its row in the table of ";
 
     private const string _httpEditHeader = "To serve it over HTTP, the edit by hand in ";
 
@@ -102,6 +109,7 @@ internal static class FeatureEdits
 
         DocumentRow(root, output, "docs/README.md", "## Features", "Then its row under ## Features in docs/README.md:", required: true);
         DocumentRow(root, output, "docs/reference/api.md", "### Resources", "And the row of its refusal under ### Resources in docs/reference/api.md", required: false);
+        RouteSection(root, output);
 
         return 0;
     }
@@ -113,9 +121,19 @@ internal static class FeatureEdits
         if (header < 0)
         {
             Console.WriteLine("The use case is served by no HTTP host here, so there is no edit to apply.");
-            return 0;
+        }
+        else
+        {
+            ApplyAction(output, root, header);
         }
 
+        RouteRow(root, output);
+
+        return 0;
+    }
+
+    private static void ApplyAction(string[] output, string root, int header)
+    {
         string controller = output[header][_httpEditHeader.Length..].TrimEnd(':');
         int usingsStart = Expect(output, header + 1, "  the usings it lacks  ");
         var usings = new List<string> { output[usingsStart]["  the usings it lacks  ".Length..].TrimEnd(';') };
@@ -164,9 +182,79 @@ internal static class FeatureEdits
             Write(root, response, [.. body]);
             Console.WriteLine($"Wrote the response: {response}");
         }
-
-        return 0;
     }
+
+    private static void RouteSection(string root, string[] output)
+    {
+        int announced = Array.FindIndex(output, line => line.StartsWith(_routeSectionAnnouncement, StringComparison.Ordinal));
+
+        if (announced < 0)
+        {
+            return;
+        }
+
+        string[] section = [.. output.Skip(announced + 1).TakeWhile(line => line.StartsWith("  ", StringComparison.Ordinal)).Select(line => line[2..]).Reverse().SkipWhile(line => line.Length == 0).Reverse()];
+
+        if (section.Length == 0 || !section[0].StartsWith("### ", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"The output no longer prints its route section as '{_routeSectionAnnouncement}' followed by a ### section.");
+        }
+
+        List<string> lines = Read(root, _apiPage);
+        int routes = lines.FindIndex(line => line == "## Routes");
+        int next = routes < 0 ? -1 : lines.FindIndex(routes + 1, line => line.StartsWith("## ", StringComparison.Ordinal));
+
+        if (next < 0)
+        {
+            throw new InvalidOperationException($"{_apiPage} has no '## Routes' section followed by another to take the feature's route section.");
+        }
+
+        lines.InsertRange(next, [.. section, string.Empty]);
+        Write(root, _apiPage, lines);
+        Console.WriteLine($"Added the feature's route section to {_apiPage}");
+    }
+
+    private static void RouteRow(string root, string[] output)
+    {
+        int announced = Array.FindIndex(output, line => line.StartsWith(_routeRowAnnouncement, StringComparison.Ordinal));
+
+        if (announced < 0)
+        {
+            return;
+        }
+
+        string features = output[announced][_routeRowAnnouncement.Length..].Split(' ')[0];
+
+        if (announced + 1 >= output.Length || !output[announced + 1].TrimStart().StartsWith('|'))
+        {
+            throw new InvalidOperationException($"The output no longer prints the route's row after '{_routeRowAnnouncement}'.");
+        }
+
+        List<string> lines = Read(root, _apiPage);
+        int routes = lines.FindIndex(line => line == "## Routes");
+        int end = routes < 0 ? -1 : lines.FindIndex(routes + 1, line => line.StartsWith("## ", StringComparison.Ordinal));
+        string wanted = Letters(features);
+        int section = routes < 0 ? -1 : lines.FindIndex(routes + 1, end < 0 ? lines.Count - routes - 1 : end - routes - 1, line => line.StartsWith("### ", StringComparison.Ordinal) && Letters(line[4..]) == wanted);
+        int table = section < 0 ? -1 : lines.FindIndex(section, line => line.StartsWith("|---", StringComparison.Ordinal));
+
+        if (table < 0)
+        {
+            throw new InvalidOperationException($"{_apiPage} has no route table for {features} under '## Routes' to take the use case's row.");
+        }
+
+        int last = table;
+
+        while (last + 1 < lines.Count && lines[last + 1].StartsWith('|'))
+        {
+            last++;
+        }
+
+        lines.Insert(last + 1, output[announced + 1].Trim());
+        Write(root, _apiPage, lines);
+        Console.WriteLine($"Added the route's row to the table of {features} in {_apiPage}");
+    }
+
+    private static string Letters(string text) => new([.. text.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant)]);
 
     private static int Expect(string[] output, int index, string prefix) =>
         index < output.Length && output[index].StartsWith(prefix, StringComparison.Ordinal)

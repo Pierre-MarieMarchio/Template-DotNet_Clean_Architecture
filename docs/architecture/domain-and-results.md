@@ -61,7 +61,7 @@ An expected outcome is a value; only a bug is an exception.
 |---|---|---|
 | Not found, conflict, validation failure, not authenticated | `Result` or `Result<T>` carrying an `Error` | the status of its `ErrorType`, with its `code` |
 | An invariant the use case expects the aggregate may refuse | the call wrapped in `DomainGuard.Try` | `409` `domain.invariantViolated` |
-| An invariant violated where nothing expected it | `DomainException`, uncaught | `400` with a fixed message |
+| An invariant violated where nothing expected it | `DomainException`, uncaught | `409` `domain.invariantViolated` with a fixed message |
 | A lost update at commit | `ConcurrencyConflictException` | `409` `concurrency.conflict` |
 | A programming error, an infrastructure failure | any other exception | `500` with a `traceId` and no detail |
 

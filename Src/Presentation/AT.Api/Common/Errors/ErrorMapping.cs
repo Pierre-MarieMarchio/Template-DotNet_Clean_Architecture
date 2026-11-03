@@ -56,7 +56,7 @@ public static class ErrorMapping
         IReadOnlyDictionary<string, IReadOnlyList<string>> details) =>
         details.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.Ordinal);
 
-    private static int StatusCodeFor(ErrorType type) => type switch
+    internal static int StatusCodeFor(ErrorType type) => type switch
     {
         ErrorType.Validation => StatusCodes.Status400BadRequest,
         ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
@@ -69,7 +69,7 @@ public static class ErrorMapping
         _ => StatusCodes.Status500InternalServerError,
     };
 
-    private static string TitleFor(ErrorType type) => type switch
+    internal static string TitleFor(ErrorType type) => type switch
     {
         ErrorType.Validation => "Invalid request",
         ErrorType.Unauthorized => "Unauthorized",

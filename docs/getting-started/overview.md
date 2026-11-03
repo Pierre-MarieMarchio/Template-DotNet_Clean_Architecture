@@ -87,7 +87,7 @@ features grow beside them, and the documentation grows with them.
 <!--#if (jobsWorker)-->
 | Background jobs | timers in the worker, `Src/Presentation/<Initials>.Worker`, a process of their own |
 <!--#endif-->
-| Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case |
+| Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case; `Tools/NewSetting.cs`, a validated setting |
 <!--#if (anyWeb)-->
 | Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
 <!--#endif-->

@@ -932,6 +932,7 @@ public sealed class TemplatePackagingTests
             Path.Combine("Tools", "Tasks.cs"),
             Path.Combine("Tools", "NewFeature.cs"),
             Path.Combine("Tools", "NewUseCase.cs"),
+            Path.Combine("Tools", "NewSetting.cs"),
             Path.Combine("Launcher", "CleanArch.Create", "Projects", "GeneratedProject.cs"),
         ];
         string own = SegmentInitials(Path.Combine("Tests", "Architecture", ProjectFolders.FolderOf("AppTemplate.Architecture.Tests"), "Fixtures", "ProjectFolders.cs"));

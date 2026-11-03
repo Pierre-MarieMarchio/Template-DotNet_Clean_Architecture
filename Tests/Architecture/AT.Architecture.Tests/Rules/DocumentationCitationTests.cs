@@ -41,7 +41,7 @@ public sealed class DocumentationCitationTests
         TimeSpan.FromSeconds(1));
 
     private static readonly Regex _taskOptionNames = new(
-        @"_(?:feature|useCase|webJoin)OptionNames\s*=\s*\[(?<body>[^\]]*)\]",
+        @"_(?:feature|useCase|convention|webJoin)OptionNames\s*=\s*\[(?<body>[^\]]*)\]",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 

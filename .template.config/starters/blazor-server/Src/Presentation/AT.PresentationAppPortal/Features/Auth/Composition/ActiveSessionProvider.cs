@@ -1,7 +1,6 @@
 ﻿using System.Globalization;
 using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.PresentationAppPortal.Common.Security;
 using Mediator;
 using Microsoft.AspNetCore.Authentication;
@@ -9,7 +8,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 
-internal sealed class ActiveSessionProvider(IServiceScopeFactory scopes, IDateTimeProvider clock)
+internal sealed class ActiveSessionProvider(IServiceScopeFactory scopes, TimeProvider clock)
 {
     internal const string CheckedAtKey = "session.checked_at";
 
@@ -36,7 +35,7 @@ internal sealed class ActiveSessionProvider(IServiceScopeFactory scopes, IDateTi
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var now = clock.UtcNow;
+        var now = clock.GetUtcNow();
 
         if (context.Properties.Items.TryGetValue(CheckedAtKey, out string? checkedAt)
             && DateTimeOffset.TryParse(checkedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var last)

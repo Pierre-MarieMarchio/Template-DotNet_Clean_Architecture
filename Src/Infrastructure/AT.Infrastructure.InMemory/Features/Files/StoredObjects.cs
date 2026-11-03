@@ -1,11 +1,10 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Core.Common.Ports;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
+public sealed class StoredObjects(TimeProvider timeProvider)
 {
     public const string Origin = "https://files.in-memory.invalid";
 
@@ -25,7 +24,7 @@ public sealed class StoredObjects(IDateTimeProvider dateTimeProvider)
             mediaType,
             content.LongLength,
             Convert.ToHexStringLower(SHA256.HashData(content)),
-            dateTimeProvider.UtcNow,
+            timeProvider.GetUtcNow(),
 
             content.ToArray());
 

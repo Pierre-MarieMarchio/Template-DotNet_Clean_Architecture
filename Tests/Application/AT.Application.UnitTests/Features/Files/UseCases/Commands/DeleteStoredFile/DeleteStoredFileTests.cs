@@ -65,7 +65,7 @@ public sealed class DeleteStoredFileTests
         announcement.StoredFileId.ShouldBe(storedFile.Id);
         announcement.OwnerId.ShouldBe(_callerId);
         announcement.ObjectKey.ShouldBe(storedFile.ObjectKey);
-        announcement.OccurredOn.ShouldBe(StubDateTimeProvider.DefaultInstant);
+        announcement.OccurredOn.ShouldBe(TheClock.DefaultInstant);
     }
 
     [Fact]
@@ -127,5 +127,5 @@ public sealed class DeleteStoredFileTests
     private ValidatedHandler<DeleteStoredFileCommand, Result> UseCaseFor(ICurrentUser currentUser) => new(new DeleteStoredFileCommandHandler(new StoredFileService(_repository, currentUser, FilesSettings.Default().AsOptions()),
         _repository,
         _unitOfWork,
-        new StubDateTimeProvider()).Handle, new DeleteStoredFileCommandValidator());
+        TheClock.Start()).Handle, new DeleteStoredFileCommandValidator());
 }

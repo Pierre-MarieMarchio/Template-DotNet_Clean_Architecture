@@ -20,7 +20,7 @@ public sealed class BackgroundPassStorageTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task TheInspectionQueue_OffersDueFilesInTheOrderTheyBecameDue()
     {
-        var now = Clock.UtcNow;
+        var now = Clock.GetUtcNow();
         var owner = UserId.Create(Guid.CreateVersion7());
 
         var fresh = await StoreAsync(owner, now.AddMinutes(-3), Confirm);
@@ -51,7 +51,7 @@ public sealed class BackgroundPassStorageTests(ApiFixture fixture) : Integration
     [Fact]
     public async Task ADeferral_SurvivesTheRoundTrip()
     {
-        var now = Clock.UtcNow;
+        var now = Clock.GetUtcNow();
         var stored = await StoreAsync(UserId.Create(Guid.CreateVersion7()), now, file =>
         {
             Confirm(file);

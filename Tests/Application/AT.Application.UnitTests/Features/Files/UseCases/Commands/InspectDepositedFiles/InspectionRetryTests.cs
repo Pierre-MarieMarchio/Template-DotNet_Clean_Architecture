@@ -18,7 +18,7 @@ public sealed class InspectionRetryTests
 
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
     private static readonly byte[] _png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00];
-    private static readonly DateTimeOffset _start = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _start = TheClock.DefaultInstant;
 
     private readonly InMemoryStoredFileStore _store = new();
     private readonly IFileContentStore _content = Substitute.For<IFileContentStore>();
@@ -187,7 +187,7 @@ public sealed class InspectionRetryTests
             _content,
             _scanner,
             _store,
-            new StubDateTimeProvider(now),
+            TheClock.At(now),
             new StubLeaderLease(),
             FilesSettings.Default().AsOptions(),
             NullLogger<InspectDepositedFilesCommandHandler>.Instance).Handle(new InspectDepositedFilesCommand(), TestToken);

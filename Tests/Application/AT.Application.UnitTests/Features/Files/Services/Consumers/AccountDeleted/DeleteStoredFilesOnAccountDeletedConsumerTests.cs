@@ -21,7 +21,7 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
     private readonly IUserAccountDirectory _accounts = Substitute.For<IUserAccountDirectory>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly IDateTimeProvider _dateTimeProvider = new StubDateTimeProvider();
+    private readonly TimeProvider _timeProvider = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -102,5 +102,5 @@ public sealed class DeleteStoredFilesOnAccountDeletedConsumerTests
             .Returns((IReadOnlyList<StoredFile>)[.. files]);
 
     private DeleteStoredFilesOnAccountDeletedConsumer Consumer() =>
-        new(_repository, _queries, _accounts, _unitOfWork, _dateTimeProvider);
+        new(_repository, _queries, _accounts, _unitOfWork, _timeProvider);
 }

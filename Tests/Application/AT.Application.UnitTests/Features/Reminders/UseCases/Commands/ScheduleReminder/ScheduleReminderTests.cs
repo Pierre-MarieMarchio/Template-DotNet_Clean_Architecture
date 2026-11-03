@@ -17,7 +17,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class ScheduleReminderTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly ITodoItemQueries _todoItems = Substitute.For<ITodoItemQueries>();
     private readonly IReminderRepository _reminders = Substitute.For<IReminderRepository>();
@@ -139,7 +139,7 @@ public sealed class ScheduleReminderTests
         _reminders,
         _unitOfWork,
         currentUser,
-        new StubDateTimeProvider()).Handle, _validator);
+        TheClock.Start()).Handle, _validator);
 
     private ValidatedHandler<ScheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

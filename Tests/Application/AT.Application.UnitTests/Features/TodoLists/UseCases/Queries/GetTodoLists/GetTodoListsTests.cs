@@ -122,7 +122,7 @@ public sealed class GetTodoListsTests
     }
 
     private static TodoListSummaryDto ASummary() =>
-        new(Guid.CreateVersion7(), "Groceries", 3, 1, StubDateTimeProvider.DefaultInstant);
+        new(Guid.CreateVersion7(), "Groceries", 3, 1, TheClock.DefaultInstant);
 
     private GetTodoListsQueryHandler UseCaseFor(ICurrentUser currentUser) => new(_queries, currentUser);
 

@@ -17,8 +17,8 @@ internal static class AReminder
             ownerId,
             todoListId ?? Guid.CreateVersion7(),
             todoItemId ?? Guid.CreateVersion7(),
-            dueAt ?? StubDateTimeProvider.DefaultInstant.AddHours(1),
-            StubDateTimeProvider.DefaultInstant);
+            dueAt ?? TheClock.DefaultInstant.AddHours(1),
+            TheClock.DefaultInstant);
 
         reminder.ClearDomainEvents();
 

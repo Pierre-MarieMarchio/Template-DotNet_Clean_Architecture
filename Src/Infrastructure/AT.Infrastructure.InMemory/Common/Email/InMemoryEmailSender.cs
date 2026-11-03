@@ -2,7 +2,7 @@
 
 namespace AppTemplate.Infrastructure.InMemory.Common.Email;
 
-internal sealed class InMemoryEmailSender(RecordedEmails recorded, IDateTimeProvider dateTimeProvider) : IEmailSender
+internal sealed class InMemoryEmailSender(RecordedEmails recorded, TimeProvider timeProvider) : IEmailSender
 {
     public Task SendAsync(
         string recipient,
@@ -12,7 +12,7 @@ internal sealed class InMemoryEmailSender(RecordedEmails recorded, IDateTimeProv
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        recorded.Record(new SentEmail(recipient, subject, htmlBody, dateTimeProvider.UtcNow));
+        recorded.Record(new SentEmail(recipient, subject, htmlBody, timeProvider.GetUtcNow()));
 
         return Task.CompletedTask;
     }

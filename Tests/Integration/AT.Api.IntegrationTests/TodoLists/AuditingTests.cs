@@ -12,7 +12,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     public async Task CreatingAList_StampsTheInstantAndTheRealCaller()
     {
         var (client, _, session) = await SignInAsync();
-        var createdAt = Clock.UtcNow;
+        var createdAt = Clock.GetUtcNow();
 
         var listId = await CreateTodoListAsync(client, "Audited");
 
@@ -28,12 +28,12 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     public async Task ModifyingAList_StampsTheModificationAndLeavesTheCreationAlone()
     {
         var (client, _, session) = await SignInAsync();
-        var createdAt = Clock.UtcNow;
+        var createdAt = Clock.GetUtcNow();
 
         var listId = await CreateTodoListAsync(client, "Audited");
 
         Clock.Advance(TimeSpan.FromMinutes(7));
-        var modifiedAt = Clock.UtcNow;
+        var modifiedAt = Clock.GetUtcNow();
 
         await AddTodoItemAsync(client, listId, "An item");
 
@@ -55,7 +55,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         var afterAdd = await LoadAggregateAsync(listId);
 
         Clock.Advance(TimeSpan.FromMinutes(1));
-        var completedAt = Clock.UtcNow;
+        var completedAt = Clock.GetUtcNow();
 
         using var completed = await client.PostAsync(
             new Uri($"{TodoListsRoute}/{listId}/items/{itemId}/complete", UriKind.Relative),
@@ -91,7 +91,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         var (client, _, _) = await SignInAsync();
 
         Clock.Advance(TimeSpan.FromDays(3));
-        var expected = Clock.UtcNow;
+        var expected = Clock.GetUtcNow();
 
         var listId = await CreateTodoListAsync(client, "Three days from now");
 

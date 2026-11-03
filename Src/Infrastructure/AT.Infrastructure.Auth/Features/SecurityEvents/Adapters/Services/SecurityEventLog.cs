@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Configuration.Options;
@@ -17,7 +16,7 @@ internal sealed partial class SecurityEventLog(
     DbContextOptions<AuthDbContext> contextOptions,
     AuthDbContext context,
     ISecurityEventOriginProvider origin,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IOptions<SecurityEventLogOptions> options) : ISecurityEventLog
 {
     public void Record(SecurityEvent securityEvent)
@@ -60,7 +59,7 @@ internal sealed partial class SecurityEventLog(
             {
                 UserId = securityEvent.UserId,
                 Kind = securityEvent.Kind,
-                OccurredAt = dateTimeProvider.UtcNow,
+                OccurredAt = timeProvider.GetUtcNow(),
                 IpAddress = Truncate(origin.IpAddress, SecurityEventConfiguration.IpAddressLength),
                 UserAgent = Truncate(origin.UserAgent, SecurityEventConfiguration.UserAgentLength),
                 Detail = Truncate(DetailOf(securityEvent), SecurityEventConfiguration.DetailLength),

@@ -154,6 +154,6 @@ public sealed class GetTodoItemTests
     private void GivenTheListHolds(Guid listId, params TodoItemDto[] items) =>
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>())
             .Returns(new Versioned<TodoListDetailDto>(
-                new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, items),
+                new TodoListDetailDto(listId, "Groceries", TheClock.DefaultInstant, null, items),
                 _listVersion));
 }

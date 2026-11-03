@@ -4,6 +4,7 @@ using AppTemplate.Infrastructure.Storage.Features.Files.Access.Stores;
 using AppTemplate.Infrastructure.Storage.Features.Files.Adapters.Inventories;
 using AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Contracts;
 using AppTemplate.Infrastructure.Storage.UnitTests.Fixtures;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -12,10 +13,11 @@ namespace AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Adapters.I
 public sealed class FileSystemFileContentInventoryTests : FileContentInventoryContract, IDisposable
 {
     private readonly TemporaryRoot _root = new();
+    private readonly FakeTimeProvider _clock = new(DateTimeOffset.UtcNow);
 
     protected override IFileContentStore Store => new FileSystemFileContentStore(_root.Options);
 
-    protected override IFileContentInventory Inventory => new FileSystemFileContentInventory(_root.Options);
+    protected override IFileContentInventory Inventory => new FileSystemFileContentInventory(_root.Options, _clock);
 
     public void Dispose() => _root.Dispose();
 
@@ -37,7 +39,7 @@ public sealed class FileSystemFileContentInventoryTests : FileContentInventoryCo
         string fresh = Path.Combine(_root.Path, "t0/202609/.c.fresh.tmp");
         File.SetLastWriteTimeUtc(
             stale,
-            DateTime.UtcNow - FileSystemFileContentInventory.StaleTemporaryFileAge - TimeSpan.FromMinutes(1));
+            _clock.GetUtcNow().UtcDateTime - FileSystemFileContentInventory.StaleTemporaryFileAge - TimeSpan.FromMinutes(1));
 
         var page = await FileSystemInventory().ListKeysAsync("t0/", null, 10, TestToken);
 
@@ -46,7 +48,7 @@ public sealed class FileSystemFileContentInventoryTests : FileContentInventoryCo
         File.Exists(fresh).ShouldBeTrue();
     }
 
-    private FileSystemFileContentInventory FileSystemInventory() => new(_root.Options);
+    private FileSystemFileContentInventory FileSystemInventory() => new(_root.Options, _clock);
 
     private void Create(params string[] keys)
     {

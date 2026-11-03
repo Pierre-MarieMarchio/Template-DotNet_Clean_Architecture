@@ -33,7 +33,7 @@ internal static class AStoredFile
                 DeclaredMediaType.Create(MediaType),
                 FileSize.Create(sizeInBytes),
                 Sha256Checksum.Create(checksum)),
-            registeredAt ?? StubDateTimeProvider.DefaultInstant);
+            registeredAt ?? TheClock.DefaultInstant);
 
     internal static StoredFile PendingOwnedBySomebodyElseThan(UserId notThisUserId) =>
         PendingOwnedBy(AnotherOwnerThan(notThisUserId), name: "somebody else's file.png");
@@ -48,14 +48,14 @@ internal static class AStoredFile
             Id = Guid.CreateVersion7(),
             OwnerId = ownerId,
             Category = FileCategory.Create(category),
-            ObjectKey = ObjectKey.New(StubDateTimeProvider.DefaultInstant),
+            ObjectKey = ObjectKey.New(TheClock.DefaultInstant),
             Name = StoredFileName.Create("holiday.png"),
             DeclaredMediaType = DeclaredMediaType.Create(MediaType),
             Size = FileSize.Create(sizeInBytes),
             Checksum = Sha256Checksum.Create(checksum),
             State = StoredFileState.Available,
-            RegisteredAt = StubDateTimeProvider.DefaultInstant,
-            AvailableAt = StubDateTimeProvider.DefaultInstant.AddMinutes(1),
+            RegisteredAt = TheClock.DefaultInstant,
+            AvailableAt = TheClock.DefaultInstant.AddMinutes(1),
             InspectionAttempts = 0,
             NextInspectionAt = null,
             Tags = [],
@@ -78,7 +78,7 @@ internal static class AStoredFile
                 DeclaredMediaType.Create(mediaType),
                 FileSize.Create(SizeInBytes),
                 Sha256Checksum.Create(Checksum)),
-            registeredAt ?? StubDateTimeProvider.DefaultInstant);
+            registeredAt ?? TheClock.DefaultInstant);
 
         storedFile.ConfirmDeposit(FileSize.Create(SizeInBytes), Sha256Checksum.Create(Checksum));
 
@@ -91,13 +91,13 @@ internal static class AStoredFile
             Id = Guid.CreateVersion7(),
             OwnerId = ownerId,
             Category = FileCategory.Create(Category),
-            ObjectKey = ObjectKey.New(StubDateTimeProvider.DefaultInstant),
+            ObjectKey = ObjectKey.New(TheClock.DefaultInstant),
             Name = StoredFileName.Create("holiday.png"),
             DeclaredMediaType = DeclaredMediaType.Create(MediaType),
             Size = FileSize.Create(SizeInBytes),
             Checksum = Sha256Checksum.Create(Checksum),
             State = StoredFileState.Quarantined,
-            RegisteredAt = StubDateTimeProvider.DefaultInstant,
+            RegisteredAt = TheClock.DefaultInstant,
             AvailableAt = null,
             InspectionAttempts = 0,
             NextInspectionAt = null,

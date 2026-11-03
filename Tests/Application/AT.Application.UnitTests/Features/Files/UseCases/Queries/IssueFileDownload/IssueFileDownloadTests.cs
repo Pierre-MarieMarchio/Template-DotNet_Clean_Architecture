@@ -21,7 +21,7 @@ public sealed class IssueFileDownloadTests
 
     private static readonly IssuedDownloadGrant _grant = new(
         "https://store.example/download",
-        StubDateTimeProvider.DefaultInstant.AddMinutes(5));
+        TheClock.DefaultInstant.AddMinutes(5));
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
     private readonly IFileDirectTransfer _transfer = Substitute.For<IFileDirectTransfer>();

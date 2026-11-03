@@ -18,14 +18,14 @@ public sealed class DeleteMyAccountTests
     private static readonly TimeSpan _window = DeleteMyAccountCommandHandler.RecentAuthenticationWindow;
 
     private static readonly Guid _callerId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
     private readonly IReAuthenticationService _reAuthentication = Substitute.For<IReAuthenticationService>();
     private readonly ICurrentAccessToken _currentAccessToken = Substitute.For<ICurrentAccessToken>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly IDomainEventPublisher _domainEvents = Substitute.For<IDomainEventPublisher>();
-    private readonly IDateTimeProvider _dateTimeProvider = new StubDateTimeProvider();
+    private readonly TimeProvider _timeProvider = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -237,7 +237,7 @@ public sealed class DeleteMyAccountTests
             _securityEventLog,
             _domainEvents,
             currentUser,
-            _dateTimeProvider).Handle, new DeleteMyAccountCommandValidator());
+            _timeProvider).Handle, new DeleteMyAccountCommandValidator());
 
     private ValidatedHandler<DeleteMyAccountCommand, Result> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

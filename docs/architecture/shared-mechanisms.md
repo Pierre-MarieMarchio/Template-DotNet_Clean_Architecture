@@ -73,12 +73,15 @@ their own budgets.
 
 ## The clock
 
-`IDateTimeProvider.UtcNow` is the one clock. It is registered once, reads UTC, and every stored
-instant is UTC: a column mixing local and UTC values makes every comparison silently wrong. A use
-case reads the clock and passes `now` to the aggregate, which never reads time itself.
+`TimeProvider.GetUtcNow()` is the one clock, and no code under `Src/` reads `DateTime.UtcNow` or
+`DateTimeOffset.UtcNow`: `ClockUsageTests` holds it. The BCL's `TimeProvider` is the clock rather than a
+port of this project because it is the standard abstraction, `FakeTimeProvider` is its official test
+double, and the timers (`PeriodicTimer`) take it too, so a test moves a job's interval without waiting.
+It is registered once, reads UTC, and every stored instant is UTC: a column mixing local and UTC
+values makes every comparison silently wrong. A use case reads the clock and passes `now` to the
+aggregate, which never reads time itself.
 
-In tests, the in-memory module replaces it with a fixed clock that moves only when told to, and
-refuses to move backwards.
+In tests, the in-memory module replaces it with a `FakeTimeProvider`, which moves only when told to.
 
 ## Current user and audit actor
 

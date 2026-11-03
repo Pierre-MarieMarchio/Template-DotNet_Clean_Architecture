@@ -64,7 +64,8 @@ public sealed class ReminderBackgroundServiceTests
         using var service = new ReminderBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<ReminderBackgroundService>.Instance);
+            NullLogger<ReminderBackgroundService>.Instance,
+            TimeProvider.System);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -97,7 +98,8 @@ public sealed class ReminderBackgroundServiceTests
         using var service = new ReminderBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            logger);
+            logger,
+            TimeProvider.System);
 
         await service.StartAsync(CancellationToken.None);
 
@@ -130,7 +132,8 @@ public sealed class ReminderBackgroundServiceTests
         return new ReminderBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<ReminderBackgroundService>.Instance);
+            NullLogger<ReminderBackgroundService>.Instance,
+            TimeProvider.System);
     }
 
 }

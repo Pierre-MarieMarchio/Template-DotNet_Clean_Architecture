@@ -3,7 +3,6 @@ using AppTemplate.Application.Auth.Features.SecurityEvents.Model.Policies;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventQueries;
 using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
@@ -16,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NSubstitute;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -62,8 +61,8 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
         var contextOptions = scope.ServiceProvider.GetRequiredService<DbContextOptions<AuthDbContext>>();
         var options = scope.ServiceProvider.GetRequiredService<IOptions<SecurityEventLogOptions>>();
 
-        var clock = Substitute.For<IDateTimeProvider>();
-        clock.UtcNow.Returns(_now);
+        var clock = new FakeTimeProvider();
+        clock.AdjustTime(_now);
 
         var log = new SecurityEventLog(
             NullLogger<SecurityEventLog>.Instance,

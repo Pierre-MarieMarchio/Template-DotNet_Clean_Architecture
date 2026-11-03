@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.AccountQueries;
 using AppTemplate.Application.Core.Common.Collections;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using Microsoft.AspNetCore.Identity;
@@ -11,7 +10,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.Accounts.Access.Queries;
 internal sealed class AccountQueries(
     AuthDbContext context,
     ILookupNormalizer normalizer,
-    IDateTimeProvider dateTimeProvider) : IAccountQueries
+    TimeProvider timeProvider) : IAccountQueries
 {
     public async Task<PagedResult<AccountSummary>> ListAsync(
         string? emailPrefix,
@@ -34,7 +33,7 @@ internal sealed class AccountQueries(
 
         int totalCount = await users.CountAsync(cancellationToken);
         int page = paging.Page ?? 1;
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
 
         var rows = await users
             .OrderBy(user => user.NormalizedEmail)

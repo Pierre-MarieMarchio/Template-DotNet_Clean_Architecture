@@ -21,7 +21,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class FireDueRemindersTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
     private static readonly ReminderRecipient _recipient = new("someone", "someone@example.com");
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
@@ -279,7 +279,7 @@ public sealed class FireDueRemindersTests
         _recipients,
         _diagnostics,
         _unitOfWork,
-        new StubDateTimeProvider(_now),
+        TheClock.At(_now),
         _lease,
         NullLogger<FireDueRemindersCommandHandler>.Instance);
 

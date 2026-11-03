@@ -156,12 +156,12 @@ public sealed class LayoutConventionTests
         //#endif
 
         ["Src/Infrastructure/AT.Infrastructure.Core"] =
-            ["Caching", "Contexts", "Options", "Saving", "Templating", "Time"],
+            ["Caching", "Contexts", "Options", "Saving", "Templating"],
 
         ["Src/Infrastructure/AT.Infrastructure.Email"] =
             ["Http", "Smtp"],
         ["Src/Infrastructure/AT.Infrastructure.InMemory"] =
-            ["Email", "Time"],
+            ["Email"],
         //#if (localAuth)
         ["Src/Infrastructure/AT.Infrastructure.Auth"] =
             ["Contexts", "Options"],

@@ -120,7 +120,7 @@ public sealed class NoteServiceTests
             .Do(call => stagedId = call.ArgAt<Guid>(1));
         _queries.GetAsync(_callerId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(call => new Versioned<NoteDto>(
-                new NoteDto(call.ArgAt<Guid>(1), "Groceries", "Milk, eggs", StubDateTimeProvider.DefaultInstant, null),
+                new NoteDto(call.ArgAt<Guid>(1), "Groceries", "Milk, eggs", TheClock.DefaultInstant, null),
                 1));
 
         var result = await Service().CreateAsync(new NoteContentDto("  Groceries  ", "Milk, eggs"), TestToken);
@@ -132,7 +132,7 @@ public sealed class NoteServiceTests
             _callerId,
             stagedId.Value,
             new NoteContentDto("Groceries", "Milk, eggs"),
-            StubDateTimeProvider.DefaultInstant);
+            TheClock.DefaultInstant);
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -169,7 +169,7 @@ public sealed class NoteServiceTests
             _callerId,
             noteId,
             new NoteContentDto("Title", "Body"),
-            StubDateTimeProvider.DefaultInstant,
+            TheClock.DefaultInstant,
             precondition,
             Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -265,10 +265,10 @@ public sealed class NoteServiceTests
     }
 
     private static NoteDto ANote(Guid? id = null) =>
-        new(id ?? Guid.CreateVersion7(), "Groceries", "Milk, eggs", StubDateTimeProvider.DefaultInstant, null);
+        new(id ?? Guid.CreateVersion7(), "Groceries", "Milk, eggs", TheClock.DefaultInstant, null);
 
     private NoteService ServiceFor(ICurrentUser currentUser) =>
-        new(_queries, _store, _unitOfWork, currentUser, new StubDateTimeProvider(), new NoteContentDtoValidator());
+        new(_queries, _store, _unitOfWork, currentUser, TheClock.Start(), new NoteContentDtoValidator());
 
     private NoteService Service() => ServiceFor(StubCurrentUser.WithId(_callerId));
 }

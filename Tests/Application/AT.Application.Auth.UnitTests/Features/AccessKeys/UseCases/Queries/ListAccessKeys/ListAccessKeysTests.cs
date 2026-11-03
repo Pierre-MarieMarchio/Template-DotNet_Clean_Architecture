@@ -30,7 +30,7 @@ public sealed class ListAccessKeysTests
     {
         LiveAccessKey[] keys =
         [
-            new(Guid.CreateVersion7(), "CI", "ak_abcdefgh", ["read"], StubDateTimeProvider.DefaultInstant, null, null),
+            new(Guid.CreateVersion7(), "CI", "ak_abcdefgh", ["read"], TheClock.DefaultInstant, null, null),
         ];
         _accessKeys.ListLiveAsync(_callerId, Arg.Any<CancellationToken>()).Returns(keys);
 

@@ -106,7 +106,7 @@ public sealed class CreateWidgetCommandHandler(
     IWidgetRepository repository,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDateTimeProvider clock) : ICommandHandler<CreateWidgetCommand, Result<Versioned<WidgetDto>>>
+    TimeProvider clock) : ICommandHandler<CreateWidgetCommand, Result<Versioned<WidgetDto>>>
 {
     public async ValueTask<Result<Versioned<WidgetDto>>> Handle(
         CreateWidgetCommand command,
@@ -118,7 +118,7 @@ public sealed class CreateWidgetCommandHandler(
             return userId.To<Versioned<WidgetDto>>();
         }
 
-        var widget = Widget.Create(userId.Value, command.Name, clock.UtcNow);
+        var widget = Widget.Create(userId.Value, command.Name, clock.GetUtcNow());
         repository.Add(widget);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

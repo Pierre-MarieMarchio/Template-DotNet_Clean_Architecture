@@ -19,14 +19,14 @@ public sealed class CompletePasskeyRegistrationTests
     private static readonly TimeSpan _window = DeleteMyAccountCommandHandler.RecentAuthenticationWindow;
 
     private static readonly Guid _callerId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly IPasskeyService _passkeys = Substitute.For<IPasskeyService>();
     private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
     private readonly IReAuthenticationService _reAuthentication = Substitute.For<IReAuthenticationService>();
     private readonly ICurrentAccessToken _currentAccessToken = Substitute.For<ICurrentAccessToken>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
-    private readonly IDateTimeProvider _dateTimeProvider = new StubDateTimeProvider();
+    private readonly TimeProvider _timeProvider = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -221,7 +221,7 @@ public sealed class CompletePasskeyRegistrationTests
             _accounts,
             _reAuthentication,
             _currentAccessToken,
-            _dateTimeProvider,
+            _timeProvider,
             _securityEventLog,
             caller).Handle, new CompletePasskeyRegistrationCommandValidator());
 }

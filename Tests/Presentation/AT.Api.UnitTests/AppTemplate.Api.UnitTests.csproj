@@ -13,6 +13,7 @@
     <!--#if (externalAuth)-->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <!--#endif-->
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Shouldly" />

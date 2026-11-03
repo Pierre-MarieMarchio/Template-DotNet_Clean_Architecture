@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Auth.Features.Sessions.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Microsoft.IdentityModel.Tokens;
 using Shouldly;
 using Xunit;
@@ -20,7 +21,7 @@ public sealed class SigningKeyDirectoryTests : IDisposable
     private readonly RSA _key = RSA.Create(2048);
     private readonly RSA _rotatedKey = RSA.Create(2048);
     private readonly CountingKeySetEndpoint _endpoint = new();
-    private readonly MovableDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
     private readonly CachedSigningKeys _cache = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;

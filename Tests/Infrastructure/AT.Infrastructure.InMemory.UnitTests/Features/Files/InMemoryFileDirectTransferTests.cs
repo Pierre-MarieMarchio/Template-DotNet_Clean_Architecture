@@ -34,11 +34,11 @@ public sealed class InMemoryFileDirectTransferTests
             TestContext.Current.CancellationToken);
 
         grant.Method.ShouldBe("PUT");
-        grant.ExpiresAt.ShouldBe(clock.UtcNow.AddMinutes(30));
-        bucket.IsGrantValid(grant.Url, "PUT", clock.UtcNow).ShouldBeTrue();
+        grant.ExpiresAt.ShouldBe(clock.GetUtcNow().AddMinutes(30));
+        bucket.IsGrantValid(grant.Url, "PUT", clock.GetUtcNow()).ShouldBeTrue();
 
         clock.Advance(TimeSpan.FromMinutes(31));
-        bucket.IsGrantValid(grant.Url, "PUT", clock.UtcNow).ShouldBeFalse();
+        bucket.IsGrantValid(grant.Url, "PUT", clock.GetUtcNow()).ShouldBeFalse();
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class InMemoryFileDirectTransferTests
             TestContext.Current.CancellationToken);
 
         FileContentHost.BucketOf(provider)
-            .IsGrantValid(grant.Url, "GET", FileContentHost.ClockOf(provider).UtcNow)
+            .IsGrantValid(grant.Url, "GET", FileContentHost.ClockOf(provider).GetUtcNow())
             .ShouldBeFalse();
     }
 
@@ -92,9 +92,9 @@ public sealed class InMemoryFileDirectTransferTests
             TimeSpan.FromMinutes(5),
             TestContext.Current.CancellationToken);
 
-        grant.ExpiresAt.ShouldBe(clock.UtcNow.AddMinutes(5));
-        FileContentHost.BucketOf(provider).IsGrantValid(grant.Url, "GET", clock.UtcNow).ShouldBeTrue();
-        FileContentHost.BucketOf(provider).IsGrantValid(grant.Url, "PUT", clock.UtcNow).ShouldBeFalse();
+        grant.ExpiresAt.ShouldBe(clock.GetUtcNow().AddMinutes(5));
+        FileContentHost.BucketOf(provider).IsGrantValid(grant.Url, "GET", clock.GetUtcNow()).ShouldBeTrue();
+        FileContentHost.BucketOf(provider).IsGrantValid(grant.Url, "PUT", clock.GetUtcNow()).ShouldBeFalse();
     }
 
     [Fact]

@@ -7,6 +7,7 @@ using AppTemplate.Api.Features.Maintenance.Jobs;
 using AppTemplate.Api.Features.Reminders.Jobs;
 //#endif
 using AppTemplate.Presentation.Core.Common.Jobs;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AppTemplate.Api.Features.BackgroundJobs.Jobs;
 
@@ -31,6 +32,7 @@ public static class BackgroundJobsModule
         }
 
         services.AddBackgroundScope();
+        services.TryAddSingleton(TimeProvider.System);
 
         services.AddMaintenanceJobs(configuration);
         //#if (anyFeature)

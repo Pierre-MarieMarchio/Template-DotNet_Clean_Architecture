@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -32,7 +33,7 @@ public sealed class IdempotencyFilterTests
             store,
             Options.Create(new IdempotencyOptions()),
             currentUser,
-            Substitute.For<IDateTimeProvider>(),
+            new FakeTimeProvider(),
             logger);
 
         var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
@@ -73,7 +74,7 @@ public sealed class IdempotencyFilterTests
             Substitute.For<IIdempotencyStore>(),
             Options.Create(new IdempotencyOptions()),
             currentUser,
-            Substitute.For<IDateTimeProvider>(),
+            new FakeTimeProvider(),
             new RecordingLogger<IdempotencyFilter>());
 
         var context = CreateIdempotentPostContext(idempotencyKey: null);
@@ -101,7 +102,7 @@ public sealed class IdempotencyFilterTests
             Substitute.For<IIdempotencyStore>(),
             Options.Create(new IdempotencyOptions { Enabled = false }),
             currentUser,
-            Substitute.For<IDateTimeProvider>(),
+            new FakeTimeProvider(),
             new RecordingLogger<IdempotencyFilter>());
 
         var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
@@ -136,7 +137,7 @@ public sealed class IdempotencyFilterTests
             store,
             Options.Create(new IdempotencyOptions()),
             currentUser,
-            Substitute.For<IDateTimeProvider>(),
+            new FakeTimeProvider(),
             new RecordingLogger<IdempotencyFilter>());
 
         var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
@@ -166,7 +167,7 @@ public sealed class IdempotencyFilterTests
             store,
             Options.Create(new IdempotencyOptions()),
             currentUser,
-            Substitute.For<IDateTimeProvider>(),
+            new FakeTimeProvider(),
             new RecordingLogger<IdempotencyFilter>());
 
         var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
@@ -246,7 +247,7 @@ public sealed class IdempotencyFilterTests
             store,
             Options.Create(new IdempotencyOptions()),
             currentUser,
-            Substitute.For<IDateTimeProvider>(),
+            new FakeTimeProvider(),
             new RecordingLogger<IdempotencyFilter>());
     }
 

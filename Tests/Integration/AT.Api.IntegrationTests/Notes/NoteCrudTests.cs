@@ -46,11 +46,11 @@ public sealed class NoteCrudTests(ApiFixture fixture) : NotesTestBase(fixture)
     public async Task EveryResponse_CarriesEachMemberAsTheNoteHoldsIt()
     {
         var (client, _, _) = await SignInAsync();
-        var createdAt = Clock.UtcNow;
+        var createdAt = Clock.GetUtcNow();
         var created = await CreateNoteAsync(client, "Groceries", "Milk");
 
         var modifiedAt = createdAt.AddMinutes(5);
-        Clock.Set(modifiedAt);
+        Clock.AdjustTime(modifiedAt);
         using var updated = await UpdateNoteAsync(client, created.Note.Id, "Groceries (done)", "Everything", created.ETag);
         updated.StatusCode.ShouldBe(HttpStatusCode.OK);
 

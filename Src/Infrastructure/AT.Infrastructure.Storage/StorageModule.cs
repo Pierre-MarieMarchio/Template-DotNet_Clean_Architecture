@@ -46,6 +46,8 @@ public static class StorageModule
 
         AddScanner(services, configuration);
 
+        services.TryAddSingleton(TimeProvider.System);
+
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<FilesOptions>, FilesCategoriesStorageValidator>());
         services.TryAddEnumerable(

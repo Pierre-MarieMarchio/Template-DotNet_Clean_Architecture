@@ -18,7 +18,7 @@ internal sealed class NoteService(
     INoteStore store,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IValidator<NoteContentDto> validator) : INoteService
 {
     public async Task<Result<PagedResult<NoteSummaryDto>>> ListAsync(
@@ -82,7 +82,7 @@ internal sealed class NoteService(
 
         var noteId = Guid.CreateVersion7();
 
-        store.Add(userId.Value, noteId, Trimmed(content), dateTimeProvider.UtcNow);
+        store.Add(userId.Value, noteId, Trimmed(content), timeProvider.GetUtcNow());
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return await ReadAsync(userId.Value, noteId, cancellationToken);
@@ -114,7 +114,7 @@ internal sealed class NoteService(
             userId.Value,
             noteId,
             Trimmed(content),
-            dateTimeProvider.UtcNow,
+            timeProvider.GetUtcNow(),
             precondition,
             cancellationToken);
 

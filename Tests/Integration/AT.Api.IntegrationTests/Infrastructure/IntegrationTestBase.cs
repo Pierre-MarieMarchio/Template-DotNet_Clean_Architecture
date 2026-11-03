@@ -28,10 +28,10 @@ using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 //#if (todoLists || externalAuth)
 using Microsoft.Extensions.DependencyInjection;
 //#endif
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -84,7 +84,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     protected ApiFixture Fixture { get; }
 
-    protected FixedDateTimeProvider Clock => Fixture.Clock;
+    protected FakeTimeProvider Clock => Fixture.Clock;
 
     protected RecordedEmails Emails => Fixture.Emails;
 
@@ -103,7 +103,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         //#endif
 
         var now = DateTimeOffset.UtcNow;
-        Clock.Set(new DateTimeOffset(
+        Clock.AdjustTime(new DateTimeOffset(
             now.Ticks - (now.Ticks % TimeSpan.TicksPerMillisecond),
             TimeSpan.Zero));
     }

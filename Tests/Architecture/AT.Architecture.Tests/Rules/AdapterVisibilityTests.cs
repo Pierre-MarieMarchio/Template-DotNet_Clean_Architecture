@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Architecture.Tests.Fixtures;
+﻿using AppTemplate.Architecture.Tests.Fixtures;
 using NetArchTest.Rules;
 using Shouldly;
 using Xunit;
@@ -70,9 +69,9 @@ public sealed class AdapterVisibilityTests
             .Where(type => type is { IsClass: true, IsPublic: true })
             .Select(type => type.Name)
             .ShouldContain(
-                "FixedDateTimeProvider",
-                "A test host has to be able to move the clock, so this double is public by design " +
-                "and is why AppTemplate.Infrastructure.InMemory is excluded from the adapter-visibility rule.");
+                "RecordedEmails",
+                "A test host has to be able to read what the doubles recorded, so they are public by design " +
+                "and that is why AppTemplate.Infrastructure.InMemory is excluded from the adapter-visibility rule.");
     }
 
     [Fact]
@@ -84,15 +83,15 @@ public sealed class AdapterVisibilityTests
             .And()
             .AreNotAbstract()
             .And()
-            .ImplementInterface(typeof(IDateTimeProvider));
+            .HaveName("RecordedEmails");
 
-        RuleAssertions.RequireTypes(doubles, "an IDateTimeProvider implementation in AppTemplate.Infrastructure.InMemory");
+        RuleAssertions.RequireTypes(doubles, "the RecordedEmails double in AppTemplate.Infrastructure.InMemory");
 
         doubles.ShouldNot()
             .BePublic()
             .GetResult()
             .ShouldDetectAViolation(
-                "FixedDateTimeProvider is public, so applying 'ShouldNot().BePublic()' to it must " +
+                "RecordedEmails is public, so applying 'ShouldNot().BePublic()' to it must " +
                 "fail. That it passed means the condition is evaluating nothing, and the " +
                 "adapter-visibility rule above is worthless.");
     }

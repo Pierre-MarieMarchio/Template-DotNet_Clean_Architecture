@@ -148,7 +148,7 @@ public sealed class TodoListVersionPreconditionTests
                 new CompleteTodoItemCommandHandler(
                         access,
                         _unitOfWork,
-                        new StubDateTimeProvider())
+                        TheClock.Start())
                     .Handle(new CompleteTodoItemCommand(list.Id, itemId, precondition), TestToken)),
 
             _removeItem => Widened(

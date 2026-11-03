@@ -1,7 +1,6 @@
 ﻿using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Access.Tables;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
 using Microsoft.AspNetCore.DataProtection;
@@ -12,7 +11,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.Passkeys.Adapters.Services;
 internal sealed class PasskeyCeremonyStateIssuer(
     IDataProtectionProvider dataProtectionProvider,
     ISpentPasskeyCeremonyTable spentCeremonies,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IOptions<PasskeyOptions> options)
 {
     internal const string RegistrationStatePurpose = "AppTemplate.Infrastructure.Auth.Passkeys.RegistrationState";
@@ -35,7 +34,7 @@ internal sealed class PasskeyCeremonyStateIssuer(
         SpendAsync(SignInProtector(), sealedState, cancellationToken);
 
     public Task<int> PurgeSpentAsync(CancellationToken cancellationToken) =>
-        spentCeremonies.PurgeExpiredAsync(dateTimeProvider.UtcNow.Subtract(_clockSkewAllowance), cancellationToken);
+        spentCeremonies.PurgeExpiredAsync(timeProvider.GetUtcNow().Subtract(_clockSkewAllowance), cancellationToken);
 
     private ITimeLimitedDataProtector RegistrationProtector(Guid userId) =>
         dataProtectionProvider
@@ -46,7 +45,7 @@ internal sealed class PasskeyCeremonyStateIssuer(
         dataProtectionProvider.CreateProtector(SignInStatePurpose).ToTimeLimitedDataProtector();
 
     private string Seal(ITimeLimitedDataProtector protector, string state) =>
-        protector.Protect(state, dateTimeProvider.UtcNow.Add(options.Value.CeremonyLifetime));
+        protector.Protect(state, timeProvider.GetUtcNow().Add(options.Value.CeremonyLifetime));
 
     private async Task<string?> SpendAsync(
         ITimeLimitedDataProtector protector,
@@ -65,7 +64,7 @@ internal sealed class PasskeyCeremonyStateIssuer(
             return null;
         }
 
-        if (expiresAt <= dateTimeProvider.UtcNow)
+        if (expiresAt <= timeProvider.GetUtcNow())
         {
             return null;
         }

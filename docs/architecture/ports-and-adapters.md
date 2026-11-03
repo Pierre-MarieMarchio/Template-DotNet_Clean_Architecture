@@ -27,7 +27,6 @@ The cross-cutting ports, and what implements each:
 | `IUnitOfWork` | `EfUnitOfWork` over the business context |
 | `IEmailSender` | `MailKitEmailSender` or `PostmarkEmailSender`, chosen by configuration |
 | `ICurrentUser`, `ICurrentAccessToken` | the host, from the request's claims |
-| `IDateTimeProvider` | `SystemDateTimeProvider` |
 <!--#if (postgreSql)-->
 | `ILeaderLease` | `LeaderLease`, a session-level advisory lock |
 <!--#endif-->

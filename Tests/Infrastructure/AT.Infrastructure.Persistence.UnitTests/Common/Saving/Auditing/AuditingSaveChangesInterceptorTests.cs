@@ -1,10 +1,10 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Infrastructure.Core.Common.Contexts;
+﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.TodoLists.Rows.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -72,7 +72,7 @@ public sealed class AuditingSaveChangesInterceptorTests
 
     private static void Save(AppDbContext context, IAuditActor actor)
     {
-        var interceptor = new AuditingSaveChangesInterceptor(actor, new FixedClock());
+        var interceptor = new AuditingSaveChangesInterceptor(actor, new FakeTimeProvider(_now));
 
         interceptor.SavingChanges(new DbContextEventData(null!, null!, context), default);
     }
@@ -95,10 +95,5 @@ public sealed class AuditingSaveChangesInterceptorTests
                 return userId;
             }
         }
-    }
-
-    private sealed class FixedClock : IDateTimeProvider
-    {
-        public DateTimeOffset UtcNow => _now;
     }
 }

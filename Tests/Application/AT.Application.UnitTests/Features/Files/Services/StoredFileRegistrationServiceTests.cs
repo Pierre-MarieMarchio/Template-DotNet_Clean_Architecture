@@ -195,6 +195,6 @@ public sealed class StoredFileRegistrationServiceTests
         _queries,
         quotaLock,
         _unitOfWork,
-        new StubDateTimeProvider(),
+        TheClock.Start(),
         _files.AsOptions());
 }

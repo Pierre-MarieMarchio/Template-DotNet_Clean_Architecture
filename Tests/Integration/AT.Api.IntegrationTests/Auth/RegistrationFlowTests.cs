@@ -31,7 +31,7 @@ public sealed class RegistrationFlowTests(ApiFixture fixture) : IntegrationTestB
         var sent = RequireLastEmailTo(email);
         Emails.Snapshot().Count.ShouldBe(1);
         sent.Subject.ShouldBe("Confirm your email address");
-        sent.SentAt.ShouldBe(Clock.UtcNow);
+        sent.SentAt.ShouldBe(Clock.GetUtcNow());
 
         using var tooEarly = await client.PostAsJsonAsync(
             $"{AuthRoute}/login",

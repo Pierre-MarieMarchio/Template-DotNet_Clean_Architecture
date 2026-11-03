@@ -15,7 +15,7 @@ internal sealed class IdempotencyFilter(
     IIdempotencyStore store,
     IOptions<IdempotencyOptions> options,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ILogger<IdempotencyFilter> logger) : IAsyncResourceFilter
 {
     private const string _headerName = "Idempotency-Key";
@@ -67,7 +67,7 @@ internal sealed class IdempotencyFilter(
         }
 
         var key = keyResult.Value;
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var claim = await store.ClaimAsync(key, now + settings.Retention, now + settings.ClaimLease, httpContext.RequestAborted);
 
         switch (claim.Status)

@@ -162,7 +162,7 @@ public sealed class TodoItemTests(ApiFixture fixture) : IntegrationTestBase(fixt
         var itemId = await AddTodoItemAsync(client, listId, "Do the thing");
 
         Clock.Advance(TimeSpan.FromMinutes(3));
-        var completedAt = Clock.UtcNow;
+        var completedAt = Clock.GetUtcNow();
 
         using var response = await client.PostAsync(
             new Uri($"{TodoListsRoute}/{listId}/items/{itemId}/complete", UriKind.Relative),

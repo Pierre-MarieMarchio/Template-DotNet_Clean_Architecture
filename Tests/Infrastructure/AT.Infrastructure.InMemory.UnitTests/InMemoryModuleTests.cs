@@ -3,12 +3,12 @@ using AppTemplate.Application.Auth.Features.ExternalLogins.Ports.ExternalIdentit
 //#endif
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 //#if (localAuth)
 using AppTemplate.Infrastructure.InMemory.Features.ExternalLogins;
 //#endif
 using AppTemplate.Infrastructure.InMemory.UnitTests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -20,12 +20,12 @@ public sealed class InMemoryModuleTests
     [Fact]
     public void AddInMemoryModule_ReplacesAClockThatWasAlreadyRegistered()
     {
-        var real = Substitute.For<IDateTimeProvider>();
+        var real = new FakeTimeProvider();
 
         using var provider = ComposeAfter(services => services.AddSingleton(real));
 
-        var clock = provider.GetRequiredService<IDateTimeProvider>();
-        clock.ShouldBeOfType<FixedDateTimeProvider>();
+        var clock = provider.GetRequiredService<TimeProvider>();
+        clock.ShouldBeOfType<FakeTimeProvider>();
         clock.ShouldNotBeSameAs(real);
     }
 
@@ -82,14 +82,14 @@ public sealed class InMemoryModuleTests
         var services = new ServiceCollection();
         services.AddSingleton(Substitute.For<IEmailSender>());
         services.AddSingleton(Substitute.For<IEmailSender>());
-        services.AddSingleton(Substitute.For<IDateTimeProvider>());
-        services.AddSingleton(Substitute.For<IDateTimeProvider>());
+        services.AddSingleton(new FakeTimeProvider());
+        services.AddSingleton(new FakeTimeProvider());
 
         services.AddInMemoryModule();
 
         using var provider = services.BuildServiceProvider(validateScopes: true);
         using var scope = provider.CreateScope();
-        provider.GetServices<IDateTimeProvider>().ShouldHaveSingleItem().ShouldBeOfType<FixedDateTimeProvider>();
+        provider.GetServices<TimeProvider>().ShouldHaveSingleItem().ShouldBeOfType<FakeTimeProvider>();
         scope.ServiceProvider.GetServices<IEmailSender>().ShouldHaveSingleItem();
     }
 
@@ -98,12 +98,12 @@ public sealed class InMemoryModuleTests
     {
         using var provider = InMemoryHost.Compose();
 
-        var port = provider.GetRequiredService<IDateTimeProvider>();
-        var controllable = provider.GetRequiredService<FixedDateTimeProvider>();
+        var port = provider.GetRequiredService<TimeProvider>();
+        var controllable = provider.GetRequiredService<FakeTimeProvider>();
 
         port.ShouldBeSameAs(controllable);
         controllable.Advance(TimeSpan.FromHours(1));
-        port.UtcNow.ShouldBe(FixedDateTimeProvider.DefaultInstant.AddHours(1));
+        port.GetUtcNow().ShouldBe(InMemoryModule.ClockStart.AddHours(1));
     }
 
     [Fact]

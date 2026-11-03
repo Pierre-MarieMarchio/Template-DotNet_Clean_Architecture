@@ -13,11 +13,11 @@ public sealed class ReminderOwnershipTests(ApiFixture fixture) : RemindersTestBa
         var (owner, _, _) = await SignInAsync("owner");
         var listId = await CreateTodoListAsync(owner, "Owner's list");
         var itemId = await AddTodoItemAsync(owner, listId, "Owner's item");
-        var reminder = await ScheduleReminderAsync(owner, listId, itemId, Clock.UtcNow.AddDays(1));
+        var reminder = await ScheduleReminderAsync(owner, listId, itemId, Clock.GetUtcNow().AddDays(1));
 
         var (stranger, _, _) = await SignInAsync("stranger");
 
-        using var response = await RescheduleAsync(stranger, reminder.Id, Clock.UtcNow.AddDays(2));
+        using var response = await RescheduleAsync(stranger, reminder.Id, Clock.GetUtcNow().AddDays(2));
 
         response.StatusCode.ShouldBe(
             HttpStatusCode.NotFound,
@@ -28,7 +28,7 @@ public sealed class ReminderOwnershipTests(ApiFixture fixture) : RemindersTestBa
         var problem = await ApiJson.ReadProblemAsync(response, TestToken);
         problem.Code.ShouldBe("reminder.notFound", problem.Body);
 
-        using var unknown = await RescheduleAsync(stranger, Guid.CreateVersion7(), Clock.UtcNow.AddDays(2));
+        using var unknown = await RescheduleAsync(stranger, Guid.CreateVersion7(), Clock.GetUtcNow().AddDays(2));
         var unknownProblem = await ApiJson.ReadProblemAsync(unknown, TestToken);
 
         problem.Status.ShouldBe(unknownProblem.Status);
@@ -44,7 +44,7 @@ public sealed class ReminderOwnershipTests(ApiFixture fixture) : RemindersTestBa
         var (owner, _, _) = await SignInAsync("owner");
         var listId = await CreateTodoListAsync(owner, "Owner's list");
         var itemId = await AddTodoItemAsync(owner, listId, "Owner's item");
-        var reminder = await ScheduleReminderAsync(owner, listId, itemId, Clock.UtcNow.AddDays(1));
+        var reminder = await ScheduleReminderAsync(owner, listId, itemId, Clock.GetUtcNow().AddDays(1));
 
         var (stranger, _, _) = await SignInAsync("stranger");
 
@@ -66,7 +66,7 @@ public sealed class ReminderOwnershipTests(ApiFixture fixture) : RemindersTestBa
         var (owner, _, _) = await SignInAsync("owner");
         var listId = await CreateTodoListAsync(owner, "Owner's list");
         var itemId = await AddTodoItemAsync(owner, listId, "Owner's item");
-        await ScheduleReminderAsync(owner, listId, itemId, Clock.UtcNow.AddDays(1));
+        await ScheduleReminderAsync(owner, listId, itemId, Clock.GetUtcNow().AddDays(1));
 
         var (stranger, _, _) = await SignInAsync("stranger");
 

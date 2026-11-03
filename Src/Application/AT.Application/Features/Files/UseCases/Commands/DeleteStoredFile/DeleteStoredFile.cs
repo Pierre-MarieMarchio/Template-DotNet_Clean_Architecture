@@ -14,7 +14,7 @@ public sealed class DeleteStoredFileCommandHandler(
     IStoredFileService files,
     IStoredFileRepository repository,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<DeleteStoredFileCommand, Result>
+    TimeProvider timeProvider) : ICommandHandler<DeleteStoredFileCommand, Result>
 {
     public async ValueTask<Result> Handle(
         DeleteStoredFileCommand command,
@@ -31,7 +31,7 @@ public sealed class DeleteStoredFileCommandHandler(
 
         var storedFile = access.Value;
 
-        var announcement = DomainGuard.Try(() => storedFile.Delete(dateTimeProvider.UtcNow));
+        var announcement = DomainGuard.Try(() => storedFile.Delete(timeProvider.GetUtcNow()));
 
         if (announcement.IsFailure)
         {

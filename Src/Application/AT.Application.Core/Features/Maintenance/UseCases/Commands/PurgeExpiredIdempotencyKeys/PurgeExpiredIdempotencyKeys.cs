@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using Mediator;
 
@@ -9,8 +8,8 @@ public sealed record PurgeExpiredIdempotencyKeysCommand : ICommand<Result<int>>;
 
 public sealed class PurgeExpiredIdempotencyKeysCommandHandler(
     IIdempotencyStore store,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>>
+    TimeProvider timeProvider) : ICommandHandler<PurgeExpiredIdempotencyKeysCommand, Result<int>>
 {
     public async ValueTask<Result<int>> Handle(PurgeExpiredIdempotencyKeysCommand command, CancellationToken cancellationToken) =>
-        await store.PurgeExpiredAsync(dateTimeProvider.UtcNow, cancellationToken);
+        await store.PurgeExpiredAsync(timeProvider.GetUtcNow(), cancellationToken);
 }

@@ -69,7 +69,7 @@ public sealed class StrictQuotaConcurrencyTests(ApiFixture fixture) : Integratio
                     DeclaredMediaType.Create("application/pdf"),
                     FileSize.Create(4_096),
                     Sha256Checksum.Create(new string('a', Sha256Checksum.Length))),
-                Fixture.Clock.UtcNow));
+                Fixture.Clock.GetUtcNow()));
         }
 
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestToken);

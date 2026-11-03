@@ -19,7 +19,7 @@ public sealed class ScheduleReminderCommandHandler(
     IReminderRepository reminders,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<ScheduleReminderCommand, Result<Versioned<ReminderDto>>>
+    TimeProvider timeProvider) : ICommandHandler<ScheduleReminderCommand, Result<Versioned<ReminderDto>>>
 {
     public async ValueTask<Result<Versioned<ReminderDto>>> Handle(
         ScheduleReminderCommand command,
@@ -50,7 +50,7 @@ public sealed class ScheduleReminderCommandHandler(
             command.TodoListId,
             command.TodoItemId,
             command.DueAt,
-            dateTimeProvider.UtcNow));
+            timeProvider.GetUtcNow()));
 
         if (scheduled.IsFailure)
         {

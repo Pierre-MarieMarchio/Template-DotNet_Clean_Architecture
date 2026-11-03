@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Access.Tables;
@@ -22,7 +21,7 @@ internal sealed class SessionTokensService(
     IAppUserDirectory directory,
     IContextUnitOfWork<AuthDbContext> unitOfWork,
     AuthDbContext context,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IOptions<RefreshTokenOptions> options,
     ISecurityEventLog securityEventLog,
     ILogger<SessionTokensService> logger) : ISessionTokensService
@@ -43,7 +42,7 @@ internal sealed class SessionTokensService(
         SessionClient client,
         CancellationToken cancellationToken = default)
     {
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var (value, expiresAt) = CreateSecret(now);
 
         Guid familyId = families.Start(userId, now, client.UserAgent);
@@ -81,7 +80,7 @@ internal sealed class SessionTokensService(
             return await RespondToReplayAsync(grant.UserId, cancellationToken);
         }
 
-        if (!grant.IsActiveAt(dateTimeProvider.UtcNow))
+        if (!grant.IsActiveAt(timeProvider.GetUtcNow()))
         {
             return RefreshTokenRotation.Rejected;
         }
@@ -93,7 +92,7 @@ internal sealed class SessionTokensService(
             return RefreshTokenRotation.Rejected;
         }
 
-        var (replacementValue, replacementExpiresAt) = CreateSecret(dateTimeProvider.UtcNow);
+        var (replacementValue, replacementExpiresAt) = CreateSecret(timeProvider.GetUtcNow());
         string replacementHash = ComputeHash(replacementValue);
 
         bool rotated = await context.Database.CreateExecutionStrategy().ExecuteInTransactionAsync(
@@ -125,7 +124,7 @@ internal sealed class SessionTokensService(
             return null;
         }
 
-        await families.EndAsync(grant.UserId, grant.FamilyId, dateTimeProvider.UtcNow, cancellationToken);
+        await families.EndAsync(grant.UserId, grant.FamilyId, timeProvider.GetUtcNow(), cancellationToken);
 
         return grant.UserId;
     }
@@ -135,7 +134,7 @@ internal sealed class SessionTokensService(
         Guid? exceptSessionId = null,
         CancellationToken cancellationToken = default)
     {
-        await families.RevokeAllForUserAsync(userId, exceptSessionId, dateTimeProvider.UtcNow, cancellationToken);
+        await families.RevokeAllForUserAsync(userId, exceptSessionId, timeProvider.GetUtcNow(), cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -158,14 +157,14 @@ internal sealed class SessionTokensService(
         if (!await table.TryRotateAsync(
             presentedHash,
             replacementHash,
-            dateTimeProvider.UtcNow,
+            timeProvider.GetUtcNow(),
             replacementExpiresAt,
             cancellationToken))
         {
             return false;
         }
 
-        await families.MarkUsedAsync(familyId, client.UserAgent, dateTimeProvider.UtcNow, cancellationToken);
+        await families.MarkUsedAsync(familyId, client.UserAgent, timeProvider.GetUtcNow(), cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

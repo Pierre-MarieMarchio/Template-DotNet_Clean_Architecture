@@ -1,6 +1,6 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -10,16 +10,10 @@ namespace AppTemplate.Application.Core.UnitTests.Features.Maintenance.UseCases.C
 public sealed class PurgeExpiredIdempotencyKeysTests
 {
     private readonly IIdempotencyStore _store = Substitute.For<IIdempotencyStore>();
-    private readonly StubDateTimeProvider _clock = new();
+    private static readonly DateTimeOffset _instant = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
+    private readonly FakeTimeProvider _clock = new(_instant);
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
-
-    private sealed class StubDateTimeProvider : IDateTimeProvider
-    {
-        public static readonly DateTimeOffset DefaultInstant = new(2026, 8, 3, 12, 0, 0, TimeSpan.Zero);
-
-        public DateTimeOffset UtcNow => DefaultInstant;
-    }
 
     private PurgeExpiredIdempotencyKeysCommandHandler UseCase() => new(_store, _clock);
 
@@ -28,7 +22,7 @@ public sealed class PurgeExpiredIdempotencyKeysTests
     {
         await UseCase().Handle(new PurgeExpiredIdempotencyKeysCommand(), TestToken);
 
-        await _store.Received(1).PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
+        await _store.Received(1).PurgeExpiredAsync(_instant, Arg.Any<CancellationToken>());
     }
 
     [Fact]

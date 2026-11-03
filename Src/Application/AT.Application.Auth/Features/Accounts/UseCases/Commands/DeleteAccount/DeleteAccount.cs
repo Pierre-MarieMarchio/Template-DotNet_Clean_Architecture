@@ -17,7 +17,7 @@ public sealed class DeleteAccountCommandHandler(
     ISecurityEventLog securityEventLog,
     IDomainEventPublisher domainEvents,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<DeleteAccountCommand, Result>
+    TimeProvider timeProvider) : ICommandHandler<DeleteAccountCommand, Result>
 {
     public async ValueTask<Result> Handle(DeleteAccountCommand request, CancellationToken cancellationToken)
     {
@@ -50,7 +50,7 @@ public sealed class DeleteAccountCommandHandler(
         securityEventLog.Record(SecurityEvent.AccountDeleted(request.UserId));
 
         await domainEvents.PublishAsync(
-            new UserAccountDeleted(UserId.Create(request.UserId), dateTimeProvider.UtcNow),
+            new UserAccountDeleted(UserId.Create(request.UserId), timeProvider.GetUtcNow()),
             cancellationToken);
 
         return Result.Success();

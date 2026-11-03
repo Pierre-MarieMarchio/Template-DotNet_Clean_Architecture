@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.SecurityEvents.UseCases.Commands.PurgeExpiredSecurityEvents;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -10,7 +11,7 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.SecurityEvents.UseCase
 public sealed class PurgeExpiredSecurityEventsTests
 {
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
-    private readonly StubDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -22,7 +23,7 @@ public sealed class PurgeExpiredSecurityEventsTests
         await UseCase().Handle(new PurgeExpiredSecurityEventsCommand(), TestToken);
 
         await _securityEventLog.Received(1)
-            .PurgeExpiredAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
+            .PurgeExpiredAsync(TheClock.DefaultInstant, Arg.Any<CancellationToken>());
     }
 
     [Fact]

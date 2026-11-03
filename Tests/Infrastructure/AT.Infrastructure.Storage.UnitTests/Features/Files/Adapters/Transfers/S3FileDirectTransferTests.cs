@@ -217,5 +217,5 @@ public sealed class S3FileDirectTransferTests
             TestContext.Current.CancellationToken);
 
     private static S3FileDirectTransfer Transfer(FilesStorageS3Options options) =>
-        new(StorageFixture.Signer(options), StorageFixture.Wrap(options));
+        new(StorageFixture.Signer(options), StorageFixture.Wrap(options), TimeProvider.System);
 }

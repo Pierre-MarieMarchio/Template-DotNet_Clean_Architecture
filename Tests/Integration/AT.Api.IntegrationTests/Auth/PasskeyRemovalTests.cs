@@ -81,7 +81,7 @@ public sealed class PasskeyRemovalTests(ApiFixture fixture) : IntegrationTestBas
         var added = await userManager.AddOrUpdatePasskeyAsync(user, new UserPasskeyInfo(
             credentialId,
             publicKey: [4, 5, 6],
-            createdAt: Clock.UtcNow,
+            createdAt: Clock.GetUtcNow(),
             signCount: 1,
             transports: [],
             isUserVerified: true,

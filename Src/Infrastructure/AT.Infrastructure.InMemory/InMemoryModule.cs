@@ -14,7 +14,6 @@ using AppTemplate.Application.Features.Files.Ports.OwnerQuotaLock;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 //#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 //#if (localAuth)
 using AppTemplate.Infrastructure.InMemory.Features.ExternalLogins;
 //#endif
@@ -26,20 +25,23 @@ using AppTemplate.Infrastructure.InMemory.Features.Reminders;
 //#endif
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Time.Testing;
 
 namespace AppTemplate.Infrastructure.InMemory;
 
 public static class InMemoryModule
 {
+    public static readonly DateTimeOffset ClockStart = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
     public static IServiceCollection AddInMemoryModule(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.RemoveAll<IDateTimeProvider>();
-        services.RemoveAll<FixedDateTimeProvider>();
-        services.AddSingleton<FixedDateTimeProvider>();
-        services.AddSingleton<IDateTimeProvider>(
-            serviceProvider => serviceProvider.GetRequiredService<FixedDateTimeProvider>());
+        services.RemoveAll<TimeProvider>();
+        services.RemoveAll<FakeTimeProvider>();
+        services.AddSingleton(new FakeTimeProvider(ClockStart));
+        services.AddSingleton<TimeProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<FakeTimeProvider>());
 
         services.RemoveAll<IEmailSender>();
         services.RemoveAll<RecordedEmails>();

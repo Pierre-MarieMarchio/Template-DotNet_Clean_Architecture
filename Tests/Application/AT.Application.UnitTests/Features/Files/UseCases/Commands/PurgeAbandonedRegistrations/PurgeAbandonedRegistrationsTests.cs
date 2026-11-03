@@ -15,7 +15,7 @@ namespace AppTemplate.Application.UnitTests.Features.Files.UseCases.Commands.Pur
 
 public sealed class PurgeAbandonedRegistrationsTests
 {
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -194,7 +194,7 @@ public sealed class PurgeAbandonedRegistrationsTests
     private PurgeAbandonedRegistrationsCommandHandler UseCase() => new(
         _repository,
         _unitOfWork,
-        new StubDateTimeProvider(_now),
+        TheClock.At(_now),
         _lease,
         NullLogger<PurgeAbandonedRegistrationsCommandHandler>.Instance);
 }

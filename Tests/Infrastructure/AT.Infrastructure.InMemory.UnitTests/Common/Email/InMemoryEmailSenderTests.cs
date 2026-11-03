@@ -30,7 +30,7 @@ public sealed class InMemoryEmailSenderTests
         using var provider = InMemoryHost.Compose();
         var clock = InMemoryHost.ClockOf(provider);
         var sendingInstant = new DateTimeOffset(2026, 5, 4, 9, 15, 0, TimeSpan.Zero);
-        clock.Set(sendingInstant);
+        clock.SetUtcNow(sendingInstant);
 
         await InMemoryHost.SendAsync(provider, "someone@example.invalid", "First", "<p>1</p>", TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromHours(2));

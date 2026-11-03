@@ -14,7 +14,8 @@ namespace AppTemplate.Api.Features.Files.Jobs;
 internal sealed class FileBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<JobsFilesOptions> options,
-    ILogger<FileBackgroundService> logger) : BackgroundService
+    ILogger<FileBackgroundService> logger,
+    TimeProvider timeProvider) : BackgroundService
 {
     private const string _abandonedRegistrationsTask = "abandoned registrations";
     private const string _orphanedContentTask = "orphaned content";
@@ -78,6 +79,7 @@ internal sealed class FileBackgroundService(
         where TCommand : ICommand<Result<int>>, new()
         => PeriodicJob.RunAsync(
             interval,
+            timeProvider,
             async token =>
             {
                 if (enabled)

@@ -128,7 +128,7 @@ public sealed class RegisterFileConcurrencyTests
                     "https://store.example/upload",
                     "PUT",
                     new Dictionary<string, string>(StringComparer.Ordinal),
-                    StubDateTimeProvider.DefaultInstant.AddMinutes(30)));
+                    TheClock.DefaultInstant.AddMinutes(30)));
 
             var useCase = new RegisterFileCommandHandler(
                 new StoredFileRegistrationService(
@@ -136,7 +136,7 @@ public sealed class RegisterFileConcurrencyTests
                     queries,
                     Lock,
                     unitOfWork,
-                    new StubDateTimeProvider(),
+                    TheClock.Start(),
                     _files.AsOptions()),
                 transfer,
                 StubCurrentUser.WithId(_callerId),

@@ -17,7 +17,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         var itemId = await AddTodoItemAsync(client, listId, "Do the thing");
 
         Clock.Advance(TimeSpan.FromMinutes(4));
-        var completedAt = Clock.UtcNow;
+        var completedAt = Clock.GetUtcNow();
 
         Fixture.DomainEvents.Clear();
 

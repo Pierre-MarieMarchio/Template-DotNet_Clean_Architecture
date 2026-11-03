@@ -15,7 +15,7 @@ public sealed class CreateTodoListCommandHandler(
     ITodoListRepository repository,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>>
+    TimeProvider timeProvider) : ICommandHandler<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>>
 {
     public async ValueTask<Result<Versioned<TodoListDetailDto>>> Handle(
         CreateTodoListCommand command,
@@ -30,7 +30,7 @@ public sealed class CreateTodoListCommandHandler(
             return userId.To<Versioned<TodoListDetailDto>>();
         }
 
-        var todoList = TodoList.Create(userId.Value, command.Name, dateTimeProvider.UtcNow);
+        var todoList = TodoList.Create(userId.Value, command.Name, timeProvider.GetUtcNow());
 
         repository.Add(todoList);
         await unitOfWork.SaveChangesAsync(cancellationToken);

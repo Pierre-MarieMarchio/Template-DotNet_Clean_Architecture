@@ -6,8 +6,9 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Infrastructure.Storage.Features.Files.Adapters.Inventories;
 
-internal sealed class FileSystemFileContentInventory(IOptions<FilesStorageFileSystemOptions> options)
-    : IFileContentInventory
+internal sealed class FileSystemFileContentInventory(
+    IOptions<FilesStorageFileSystemOptions> options,
+    TimeProvider timeProvider) : IFileContentInventory
 {
     internal static readonly TimeSpan StaleTemporaryFileAge = TimeSpan.FromDays(1);
 
@@ -54,11 +55,11 @@ internal sealed class FileSystemFileContentInventory(IOptions<FilesStorageFileSy
         return Task.FromResult(PagedResult.Keyset(page, pageSize, nextCursor));
     }
 
-    private static void DeleteIfStale(string path)
+    private void DeleteIfStale(string path)
     {
         try
         {
-            if (DateTime.UtcNow - File.GetLastWriteTimeUtc(path) > StaleTemporaryFileAge)
+            if (timeProvider.GetUtcNow() - File.GetLastWriteTimeUtc(path) > StaleTemporaryFileAge)
             {
                 File.Delete(path);
             }

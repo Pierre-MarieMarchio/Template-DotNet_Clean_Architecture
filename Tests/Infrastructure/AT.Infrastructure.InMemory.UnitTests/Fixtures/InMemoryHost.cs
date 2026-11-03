@@ -1,7 +1,7 @@
 ﻿using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Fixtures;
 
@@ -27,6 +27,6 @@ internal static class InMemoryHost
     public static RecordedEmails MailboxOf(IServiceProvider provider) =>
         provider.GetRequiredService<RecordedEmails>();
 
-    public static FixedDateTimeProvider ClockOf(IServiceProvider provider) =>
-        provider.GetRequiredService<FixedDateTimeProvider>();
+    public static FakeTimeProvider ClockOf(IServiceProvider provider) =>
+        provider.GetRequiredService<FakeTimeProvider>();
 }

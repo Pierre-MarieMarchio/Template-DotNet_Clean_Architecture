@@ -17,7 +17,7 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var dueAt = Clock.UtcNow.AddDays(1);
+        var dueAt = Clock.GetUtcNow().AddDays(1);
 
         using var scheduled = await client.PostAsJsonAsync(
             $"{TodoListsRoute}/{listId}/items/{itemId}/reminders",
@@ -92,7 +92,7 @@ public sealed class ReminderLifecycleTests(ApiFixture fixture) : RemindersTestBa
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddDays(1));
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddDays(1));
 
         reminder.Status.ShouldBe("pending");
     }

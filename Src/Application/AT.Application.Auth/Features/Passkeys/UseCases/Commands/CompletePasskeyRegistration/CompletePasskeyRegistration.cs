@@ -22,7 +22,7 @@ public sealed class CompletePasskeyRegistrationCommandHandler(
     IAccountsService accounts,
     IReAuthenticationService reAuthentication,
     ICurrentAccessToken currentAccessToken,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser) : ICommandHandler<CompletePasskeyRegistrationCommand, Result<PasskeyCredential>>
 {
@@ -60,7 +60,7 @@ public sealed class CompletePasskeyRegistrationCommandHandler(
             }
         }
         else if (currentAccessToken.IssuedAt is not { } issuedAt
-            || dateTimeProvider.UtcNow - issuedAt > DeleteMyAccountCommandHandler.RecentAuthenticationWindow)
+            || timeProvider.GetUtcNow() - issuedAt > DeleteMyAccountCommandHandler.RecentAuthenticationWindow)
         {
             return Result.Failure<PasskeyCredential>(AccountsErrors.ReAuthenticationRequired);
         }

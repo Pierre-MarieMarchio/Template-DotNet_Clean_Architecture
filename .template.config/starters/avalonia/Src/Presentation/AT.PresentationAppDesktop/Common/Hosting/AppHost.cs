@@ -32,6 +32,7 @@ internal static class AppHost
             .ValidateOnStart();
 
         builder.Services.AddHttpClient(DesktopSession.HttpClientName);
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<ISystemBrowser, SystemBrowser>();
         builder.Services.AddSingleton<DesktopSession>();
         builder.Services.AddSingleton<IAccessTokenSource>(provider => provider.GetRequiredService<DesktopSession>());

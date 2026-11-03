@@ -5,6 +5,7 @@ using AppTemplate.Application.Auth.UnitTests.TestDoubles;
 using AppTemplate.Application.Core.Common.Events;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -19,7 +20,7 @@ public sealed class DeleteAccountTests
     private readonly IAccountAdministrationService _administration = Substitute.For<IAccountAdministrationService>();
     private readonly ISecurityEventLog _securityEventLog = Substitute.For<ISecurityEventLog>();
     private readonly IDomainEventPublisher _domainEvents = Substitute.For<IDomainEventPublisher>();
-    private readonly StubDateTimeProvider _dateTimeProvider = new();
+    private readonly FakeTimeProvider _timeProvider = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -95,7 +96,7 @@ public sealed class DeleteAccountTests
 
         await _domainEvents.Received(1).PublishAsync(
             Arg.Is<UserAccountDeleted>(fact =>
-                fact.UserId.Value == _targetId && fact.OccurredAt == _dateTimeProvider.UtcNow),
+                fact.UserId.Value == _targetId && fact.OccurredAt == _timeProvider.GetUtcNow()),
             Arg.Any<CancellationToken>());
     }
 
@@ -115,7 +116,7 @@ public sealed class DeleteAccountTests
         _administration.DeleteAsync(_targetId, Arg.Any<CancellationToken>()).Returns(outcome);
 
     private ValidatedHandler<DeleteAccountCommand, Result> UseCaseFor(ICurrentUser currentUser) =>
-        new(new DeleteAccountCommandHandler(_administration, _securityEventLog, _domainEvents, currentUser, _dateTimeProvider).Handle, new DeleteAccountCommandValidator());
+        new(new DeleteAccountCommandHandler(_administration, _securityEventLog, _domainEvents, currentUser, _timeProvider).Handle, new DeleteAccountCommandValidator());
 
     private ValidatedHandler<DeleteAccountCommand, Result> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 }

@@ -1,10 +1,9 @@
 ﻿using System.Globalization;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Files;
 
-internal sealed class InMemoryFileDirectTransfer(StoredObjects objects, IDateTimeProvider dateTimeProvider)
+internal sealed class InMemoryFileDirectTransfer(StoredObjects objects, TimeProvider timeProvider)
     : IFileDirectTransfer
 {
     private const string _uploadMethod = "PUT";
@@ -28,7 +27,7 @@ internal sealed class InMemoryFileDirectTransfer(StoredObjects objects, IDateTim
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lifetime, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var expiresAt = dateTimeProvider.UtcNow.Add(lifetime);
+        var expiresAt = timeProvider.GetUtcNow().Add(lifetime);
 
         var required = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -57,7 +56,7 @@ internal sealed class InMemoryFileDirectTransfer(StoredObjects objects, IDateTim
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(lifetime, TimeSpan.Zero);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var expiresAt = dateTimeProvider.UtcNow.Add(lifetime);
+        var expiresAt = timeProvider.GetUtcNow().Add(lifetime);
 
         return Task.FromResult(new IssuedDownloadGrant(
             objects.SignedUrl(_downloadMethod, objectKey, expiresAt, downloadFileName),

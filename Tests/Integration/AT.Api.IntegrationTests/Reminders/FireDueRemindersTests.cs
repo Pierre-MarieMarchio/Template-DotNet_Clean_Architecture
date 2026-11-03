@@ -16,8 +16,8 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
-        var dueAt = Clock.UtcNow.AddMinutes(-1);
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddMinutes(5));
+        var dueAt = Clock.GetUtcNow().AddMinutes(-1);
         await BackdateReminderAsync(reminder.Id, dueAt);
 
         int notified = await FireDueRemindersAsync();
@@ -44,8 +44,8 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
-        await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddMinutes(5));
+        await BackdateReminderAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(-1));
 
         (await FireDueRemindersAsync()).ShouldBe(1);
         Notifications.Snapshot().Count.ShouldBe(1);
@@ -70,15 +70,15 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
-        await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-30));
-        await PutInBackoffAsync(reminder.Id, Clock.UtcNow.AddMinutes(10));
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddMinutes(5));
+        await BackdateReminderAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(-30));
+        await PutInBackoffAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(10));
 
         (await FireDueRemindersAsync()).ShouldBe(0, "its retry time is still ahead");
         Notifications.Snapshot().ShouldBeEmpty();
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("pending");
 
-        await PutInBackoffAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
+        await PutInBackoffAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(-1));
 
         (await FireDueRemindersAsync()).ShouldBe(1, "its retry time has passed");
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("fired");
@@ -93,7 +93,7 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddMinutes(5));
 
         using var completed = await client.PostAsync(
             new Uri($"{TodoListsRoute}/{listId}/items/{itemId}/complete", UriKind.Relative),
@@ -103,7 +103,7 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
 
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("cancelled");
 
-        await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
+        await BackdateReminderAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(-1));
 
         int notified = await FireDueRemindersAsync();
 
@@ -120,10 +120,10 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
-        await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddMinutes(5));
+        await BackdateReminderAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(-1));
 
-        await CompleteTodoItemWithoutRaisingAnEventAsync(itemId, Clock.UtcNow);
+        await CompleteTodoItemWithoutRaisingAnEventAsync(itemId, Clock.GetUtcNow());
 
         (await GetRemindersForItemAsync(client, listId, itemId)).Reminders.Single().Status.ShouldBe("pending");
 
@@ -149,8 +149,8 @@ public sealed class FireDueRemindersTests(ApiFixture fixture) : RemindersTestBas
         var listId = await CreateTodoListAsync(client, "Chores");
         var itemId = await AddTodoItemAsync(client, listId, "Water the plants");
 
-        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.UtcNow.AddMinutes(5));
-        await BackdateReminderAsync(reminder.Id, Clock.UtcNow.AddMinutes(-1));
+        var reminder = await ScheduleReminderAsync(client, listId, itemId, Clock.GetUtcNow().AddMinutes(5));
+        await BackdateReminderAsync(reminder.Id, Clock.GetUtcNow().AddMinutes(-1));
 
         using var removed = await client.DeleteAsync(
             new Uri($"{TodoListsRoute}/{listId}/items/{itemId}", UriKind.Relative),

@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.ExternalLogins.Ports.ExternalLogins;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using Microsoft.AspNetCore.Identity;
@@ -10,7 +9,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Adapters.Servi
 internal sealed class ExternalLoginsService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
-    IDateTimeProvider dateTimeProvider) : IExternalLoginsService
+    TimeProvider timeProvider) : IExternalLoginsService
 {
     public async Task<AccountIdentity?> FindByExternalLoginAsync(
         string provider,
@@ -68,7 +67,7 @@ internal sealed class ExternalLoginsService(
             UserName = email,
             Email = email,
             EmailConfirmed = true,
-            CreatedAt = dateTimeProvider.UtcNow,
+            CreatedAt = timeProvider.GetUtcNow(),
         };
 
         var created = await userManager.CreateAsync(user);

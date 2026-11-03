@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Auth.Features.Sessions.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Microsoft.IdentityModel.JsonWebTokens;
 using NSubstitute;
 using Shouldly;
@@ -17,7 +18,7 @@ public sealed class AccessTokenIssuerTests
     private static readonly Guid _userId = Guid.CreateVersion7();
 
     private readonly IAppUserDirectory _directory = Substitute.For<IAppUserDirectory>();
-    private readonly MovableDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 

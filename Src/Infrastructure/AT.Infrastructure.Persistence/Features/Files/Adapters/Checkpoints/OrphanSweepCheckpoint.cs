@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
+﻿using AppTemplate.Application.Features.Files.Ports.OrphanSweepCheckpoint;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Features.Files.Rows.Models;
@@ -9,7 +8,7 @@ namespace AppTemplate.Infrastructure.Persistence.Features.Files.Adapters.Checkpo
 
 internal sealed class OrphanSweepCheckpoint(
     IDbContextFactory<AppDbContext> contextFactory,
-    IDateTimeProvider dateTimeProvider) : IOrphanSweepCheckpoint
+    TimeProvider timeProvider) : IOrphanSweepCheckpoint
 {
     internal const string WalkName = "reclaim-orphans";
 
@@ -27,7 +26,7 @@ internal sealed class OrphanSweepCheckpoint(
     public async Task SaveAsync(string? lastKey, CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
 
         if (await UpdateAsync(context, lastKey, now, cancellationToken) > 0)
         {

@@ -277,6 +277,43 @@ operations are methods of its service, a use case the feature already has, an in
 `Name:Type` or whose type does not read as C#, a name given twice, and `id` where the feature's
 repositories do not name one aggregate.
 
+## Add a domain event
+
+A feature of the rich shape announces a fact as a domain event, which other features react to
+([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)):
+
+```bash
+dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction> [--fields "<Name>:<Type>, ..."]
+dotnet run Tools/Tasks.cs new-event <Features> <Event> --unconsumed "<reason>"
+```
+
+The event's name ends in `DomainEvent`. `--fields` lists what it carries besides `OccurredOn`, which
+it always ends with, each of a type from `Guid`, `string`, `int`, `long`, `bool`, `decimal`,
+`DateOnly` and `DateTimeOffset`; left out, the event carries the id of the feature's aggregate when
+its repository is the only one. An event is consumed or listed as unconsumed with its reason, so one
+of `--consumer` and `--unconsumed` is required, never both.
+
+The command writes, or nothing: each file is computed in memory and each anchor checked before the
+first write, a missing anchor names the edit and stops with a non-zero exit, and an event that
+exists is refused, so running it twice duplicates nothing. `--dry-run` prints what it would write.
+
+- the event, a sealed record under `Model/Events/` of the feature's domain folder, with its test;
+- with `--consumer <Features>:<Reaction>`, `<Reaction>On<Event>Consumer` in `Services/Consumers/` of
+  the feature that reacts, its `AddDomainEventConsumer` line in that feature's `Add<Features>`, and
+  a test that the consumer is registered for the event;
+- with `--unconsumed`, the event's name and the reason in `_deliberatelyUnconsumed` of
+  `DomainEventTests`.
+
+What stays yours: the aggregate method that raises the event with `RaiseDomainEvent`, and its test;
+the body of the consumer, which throws `NotImplementedException` until written and, as the ADR asks,
+re-derives its precondition so running twice is running once. The dispatcher logs a consumer that
+throws and drops the event, so the consumer's generated test `TheReaction_IsWritten` fails until you
+replace it with the tests of the reaction: `verify` and the CI stay red until then, so a reaction
+nobody wrote cannot pass the gate; and, when a consumer later joins an
+event listed as unconsumed, the deletion of its entry, which `DomainEventTests` demands. Where the
+project holds no `Add<Features>` in its `ApplicationModule`, register the consumer by hand with
+`AddDomainEventConsumer`.
+
 ## The closed lists a feature joins
 
 Some lists change only on purpose, and a test fails until they name what you added:
@@ -295,7 +332,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 <!--#endif-->
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
-| A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed` |
+| A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed`; `new-event` writes either |
 | A public interface under `Common/` that is not a port | `ApplicationPorts.NotPorts`, with its reason |
 <!--#if (api)-->
 | A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |

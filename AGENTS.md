@@ -66,6 +66,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 <!--#endif-->
 <!--#if (canAddFeature)-->
 | After adding a feature's setting | `dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
+| After adding a domain event | `dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
 <!--#endif-->
 | Every task and option | `dotnet run Tools/Tasks.cs help [<task>]`; `-m:<N>` caps build and test parallelism | nothing |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
@@ -149,6 +150,7 @@ dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared --fields "Title:string(120), Budget:decimal>=0"
 dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "MaxItems:int(1..100)=10"
+dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton whose edits are undone
 ```
@@ -177,8 +179,9 @@ feature (a simple one is promoted first) and prints the hosts that may offer it.
 <!--#endif-->
 <!--#if (canAddFeature)-->
 `new-setting` writes a feature's options class and validator, registers them, ships the section in
-each host's `appsettings.json` and lists it in the configuration reference. It writes everything or
-nothing, and `--dry-run` prints what it would write.
+each host's `appsettings.json` and lists it in the configuration reference; `new-event` writes a
+domain event, its consumer or its place on the list of events nobody consumes, and their tests. Each
+writes everything or nothing, and `--dry-run` prints what it would write.
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.
 <!--#endif-->
 <!--#if (!canAddFeature)-->

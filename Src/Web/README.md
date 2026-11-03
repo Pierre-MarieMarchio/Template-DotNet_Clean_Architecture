@@ -15,11 +15,28 @@ pnpm lint
 pnpm test
 pnpm build
 pnpm api                 # regenerate packages/api-client from the API's OpenAPI document
+pnpm --filter "*browser-smoke" smoke   # drive every app in Chromium; needs the stack, as below
 ```
 
 `dotnet run Tools/Tasks.cs web-scaffold` at the project root creates each framework app that still
 holds its scaffold.json, with its framework's official CLI, then installs and runs `pnpm api`;
 `bootstrap` runs the same step.
+
+## The browser smoke
+
+`packages/browser-smoke` drives every app `cleanarch.json` records in Chromium, against the running
+Compose stack: its page loads, the browser reports no Content-Security-Policy violation, console
+error or uncaught exception, and a call through its `/api/` relay reaches the API. It finds each
+app's port from `WEB_<APP>_HOST_PORT` in the environment, then in `.env`, then in `.env.example`
+(`SMOKE_ENV_FILE` names another file), so a new app needs no edit. `dotnet run Tools/Tasks.cs end-to-end`
+runs it after the end-to-end suite. `pnpm test` runs only the unit tests of how the apps are found.
+
+Chromium comes apart from `pnpm install`; install it once per machine, adding `--with-deps` on a
+Linux that lacks the system libraries:
+
+```bash
+pnpm --filter "*browser-smoke" exec playwright install --only-shell chromium
+```
 
 ## Adding an app or a package
 
@@ -50,10 +67,10 @@ dotnet run Tools/Tasks.cs web-join PlaceholderSite --web <framework>
 
 Pass the project's `--auth`, `--ci` and `--agent-files` too when they are not the defaults.
 
-`--workspace` writes this folder, the shared packages, the API client, the web apps' end-to-end
-tests, `docs/features/web-frontend.md`, `docs/decisions/0019-one-generated-api-client.md`, the
-server-rendered app's decision under `--rendering ssr` and, unless `--ci false`,
-`.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
+`--workspace` writes this folder, the shared packages, the browser smoke among them, the API client,
+the web apps' end-to-end tests, `docs/features/web-frontend.md`,
+`docs/decisions/0019-one-generated-api-client.md`, the server-rendered app's decision under
+`--rendering ssr` and, unless `--ci false`, `.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
 files the item template cannot edit are listed below, then those of the app's own `README.md`.
 `web-join`, the first time it joins an app to a project whose `cleanarch.json` records no
 workspace, makes all of them, leaves those in place already, or makes none when one of the lines an
@@ -233,9 +250,56 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
           patterns:
             - typescript
             - vitest
+            - "@playwright/*"
 
   ```
 
+<!--#if (ci)-->
+- in `.github/workflows/ci.yml`, before the line:
+
+  ```yaml
+        - name: Start the stack, run the suite, remove the stack
+  ```
+
+  add:
+
+  ```yaml
+        # The browser smoke that closes the task drives every web app in Chromium: the workspace is installed for it, and the browser is cached by the Playwright release the lockfile resolves.
+        - name: Set up pnpm (from package.json)
+          uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+          with:
+            package_json_file: Src/Web/package.json
+            cache: true
+            cache_dependency_path: Src/Web/pnpm-lock.yaml
+
+        - name: Set up Node.js (from .node-version)
+          uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+          with:
+            node-version-file: Src/Web/.node-version
+
+        - name: Install the web workspace (frozen lockfile)
+          working-directory: Src/Web
+          run: pnpm install --frozen-lockfile
+
+        - name: Find the Playwright release
+          id: playwright
+          working-directory: Src/Web
+          run: echo "version=$(pnpm --filter '*browser-smoke' exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+        - name: Cache Chromium
+          uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+            path: ~/.cache/ms-playwright
+            key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+        # Runs on a cache hit too, for the system libraries, and downloads nothing the cache holds.
+        - name: Install Chromium
+          working-directory: Src/Web
+          run: pnpm --filter '*browser-smoke' exec playwright install --only-shell --with-deps chromium
+
+  ```
+
+<!--#endif-->
 <!--#if (ci)-->
 - in `.github/workflows/codeql.yml`, after the lines:
 
@@ -432,6 +496,21 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   ```
 
 <!--#endif-->
+- in `docs/decisions/0020-one-risk-one-type-of-test.md`, before the line:
+
+  ```markdown
+  - **Coverage is a tripwire.** The floor in `coverage.minimum` catches an area shipped with no test.
+  ```
+
+  add:
+
+  ```markdown
+  - **What the browser blocks or breaks in a served web app is held by a browser smoke**: one Playwright
+    test per app, in Chromium alone, run by `end-to-end` against the stack. No lower type sees a
+    Content-Security-Policy violation, a console error or a call through the relay from inside a page,
+    and a request that reads headers and bytes does not run what the page loads.
+  ```
+
 - in `docs/decisions/README.md`, before the line:
 
   ```markdown
@@ -637,6 +716,19 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   `dnx CleanArch.Create -- presentation` at the project's root.
   ```
 
+- in `docs/getting-started/first-run.md`, after the line:
+
+  ```markdown
+  whole stack of its own on the same ports, so stop yours first with `docker compose down`.
+  ```
+
+  add:
+
+  ```markdown
+  It then drives each web app in Chromium, which [testing](../guides/testing.md#the-browser-smoke)
+  shows how to install.
+  ```
+
 - in `docs/guides/adding-a-feature.md`, after the lines:
 
   ```markdown
@@ -771,6 +863,30 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/guides/testing.md`, after the line:
 
   ```markdown
+  | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
+  ```
+
+  add:
+
+  ```markdown
+  | Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `Src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
+  ```
+
+- in `docs/guides/testing.md`, after the line:
+
+  ```markdown
+  apart from both.
+  ```
+
+  add:
+
+  ```markdown
+  The browser smoke needs the stack and Chromium, and runs with the end-to-end suite.
+  ```
+
+- in `docs/guides/testing.md`, after the line:
+
+  ```markdown
   variable set before the task moves the stack and the suite together.
   ```
 
@@ -791,6 +907,62 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 
   ```markdown
   | `WebAppTests` | each web app serves its page and relays `/api` to the API |
+  ```
+
+- in `docs/guides/testing.md`, after the line:
+
+  ```markdown
+  | The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AT.EndToEnd.Tests` |
+  ```
+
+  add:
+
+  ```markdown
+  | What the browser blocks or breaks in a web app | browser smoke, one test per app | `Src/Web/packages/browser-smoke` |
+  ```
+
+- in `docs/guides/testing.md`, before the line:
+
+  ```markdown
+  ## Coverage
+  ```
+
+  add:
+
+  ```markdown
+  ## The browser smoke
+
+  After the end-to-end suite, `end-to-end` drives every web app in Chromium, through
+  `pnpm --filter "*browser-smoke" smoke` in `Src/Web`. The package reads the apps `cleanarch.json` records
+  and each one's port from `WEB_<APP>_HOST_PORT`, in the environment and then in `.env.example`, so an app
+  added later is driven without an edit. For each app, one test:
+
+  - loads `/`, which answers with a success status and renders text;
+  - fails on any `securitypolicyviolation` the page raises, any console error and any uncaught exception;
+<!--#if (accounts)-->
+  - calls `/api/v1/relay-check` from the page and expects the API's problem answer, `route.notFound` or
+    `auth.required`, so the relay and the page's `connect-src` are both held.
+<!--#endif-->
+<!--#if (!accounts)-->
+  - calls `/api/v1/relay-check` from the page and expects the API's `route.notFound` problem answer, so
+    the relay and the page's `connect-src` are both held.
+<!--#endif-->
+
+  A page rendered on the server is driven the same way, at the port of its Node server. The smoke
+  needs the stack, so `pnpm test` leaves it out; `pnpm test` runs the unit tests of how the apps and
+  their ports are found.
+
+  Chromium is not installed by `pnpm install`. Install it once per machine with
+  `pnpm --filter "*browser-smoke" exec playwright install --only-shell chromium` in `Src/Web`, adding
+  `--with-deps` on a Linux that lacks the system libraries it loads.
+
+  `end-to-end` fails with that command in its message when the browser is missing, and has no option to
+  skip the smoke.
+<!--#if (ci)-->
+  CI installs Chromium in the `end-to-end` job and caches it by the Playwright release the lockfile
+  resolves.
+<!--#endif-->
+
   ```
 
 <!--#if (externalAuth)-->

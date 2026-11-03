@@ -4,4 +4,5 @@
 # Build output, coverage, and the OpenAPI document pnpm api writes.
 dist/
 coverage/
+test-results/
 packages/api-client/openapi/

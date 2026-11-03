@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using CleanArch.Tooling;
 using Shouldly;
@@ -205,12 +206,14 @@ public sealed partial class EndToEndTests : IDisposable
         foreach ((string app, string framework, string port) in ((string, string, string)[])[("BackOffice", "angular", "8082"), ("Shop", "react-router", "8083")])
         {
             DotNet(added, ["new", "cleanarch-webapp", "-n", app, "--framework", framework, "--rendering", "ssr", "--port", port, "--scope", "acme-shop", "--debug:custom-hive", hive]);
-            DotNet(added, ["run", "Tools/Tasks.cs", "web-join", app, "--web", framework, "--web-rendering", "ssr"]);
+            DotNet(added, ["run", "Tools/Tasks.cs", "web-join", app, "--web", framework, "--web-rendering", "ssr", "--web-port", port]);
             File.Exists(Path.Combine(added, "Src", "Web", "apps", app, _serverRenderingDecision)).ShouldBeFalse($"web-join leaves no copy of the decision in {app}'s folder.");
         }
 
         Dictionary<string, string> written = Tree(added);
         Dictionary<string, string> expected = Tree(generated);
+        JsonNode?[] ports = [.. JsonNode.Parse(written["cleanarch.json"])!["web"]!["apps"]!.AsArray().Select(app => app!["port"])];
+        ports.Select(port => port!.GetValue<int>()).ShouldBe([5173, 8082, 8083], "cleanarch.json records each app's port: the first one's framework default, and the two added with --port.");
         foreach (string file in (string[])[$"docs/decisions/{_serverRenderingDecision}", "docs/decisions/README.md", "docs/features/authentication.md", "docs/decisions/0016-browser-refresh-token-in-a-cookie.md"])
         {
             written[file].ShouldBe(expected[file], $"{file} differs from what --web-rendering ssr writes.");

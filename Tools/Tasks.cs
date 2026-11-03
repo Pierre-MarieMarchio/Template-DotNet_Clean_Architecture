@@ -104,10 +104,12 @@ internal static class Tasks
                                            --help says what each one means
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
-          --web, --web-audience, --web-rendering
-                                           web-join: the --framework, --audience and --rendering
-                                           cleanarch-webapp was given, which cleanarch.json records
-                                           for the app as --web would; public and spa unless given
+          --web, --web-audience, --web-rendering, --web-port
+                                           web-join: the --framework, --audience, --rendering and
+                                           --port cleanarch-webapp was given, which cleanarch.json
+                                           records for the app as --web would; public and spa unless
+                                           given, and the port the app's compose.yml holds, which
+                                           --web-port must equal
           --to, --source, --json, --keep   upgrade-report: the target version, the latest stable one
                                            when left out; a .nupkg of the package or a folder of
                                            them, read in place of the NuGet sources, once per
@@ -2297,7 +2299,7 @@ internal static class Tasks
             ?? throw new InvalidOperationException(
                 $"The 'web-join' task records the app in {ProjectFile.FileName} with the --framework cleanarch-webapp was given: "
                 + $"dotnet run Tools/Tasks.cs web-join {name} --web <framework>, with --web-audience and --web-rendering when its "
-                + "--audience and --rendering were not public and spa.");
+                + "--audience and --rendering were not public and spa, and --web-port when it was given a --port.");
         string audience = options.GetValueOrDefault("--web-audience", "public");
         string rendering = options.GetValueOrDefault("--web-rendering", "spa");
 
@@ -2311,8 +2313,30 @@ internal static class Tasks
         //#if (api)
         PrintApiSteps(projectFile);
         //#endif
-        projectFile.RecordWebApp(name, framework, audience, rendering, WorkspaceScope(projectFile.Root));
+        projectFile.RecordWebApp(name, framework, audience, rendering, WebAppPort(app, name, options.GetValueOrDefault("--web-port")), WorkspaceScope(projectFile.Root));
         RecordClient(projectFile);
+    }
+
+    private static int WebAppPort(string app, string name, string? given)
+    {
+        string compose = Path.Combine(app, "compose.yml");
+        Match held = File.Exists(compose)
+            ? Regex.Match(File.ReadAllText(compose), @"_HOST_PORT:-(?<port>\d+)\}", RegexOptions.None, TimeSpan.FromSeconds(5))
+            : Match.Empty;
+
+        if (!held.Success)
+        {
+            throw new InvalidOperationException($"Src/Web/apps/{name}/compose.yml holds no WEB_<NAME>_HOST_PORT default, so the app's port is not known.");
+        }
+
+        int port = int.Parse(held.Groups["port"].Value, CultureInfo.InvariantCulture);
+
+        if (given is not null && (!int.TryParse(given, NumberStyles.None, CultureInfo.InvariantCulture, out int asked) || asked != port))
+        {
+            throw new InvalidOperationException($"--web-port {given} is not the port Src/Web/apps/{name}/compose.yml holds, {port}: give cleanarch-webapp's --port.");
+        }
+
+        return port;
     }
 
     private const string _serverRenderingDecision = "0024-a-server-rendered-web-app-runs-on-its-own-server.md";
@@ -2923,7 +2947,7 @@ internal static class Tasks
                 : $"'{option}' is an option of the {string.Join(", ", owners[..^1])} and {owners[^1]} tasks, not of '{task ?? "(no task)"}'.")
             .FirstOrDefault();
 
-    private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
+    private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering", "--web-port"];
 
     private static readonly string[] _upgradeOptionNames = ["--to", "--source", "--json", "--keep"];
 
@@ -3185,6 +3209,7 @@ internal static class Tasks
             .. CheckCases(),
             .. GeneratorOptionCases(),
             .. JoinCases(),
+            .. WebAppRecordCases(),
             ("verify refuses a web workspace without pnpm, saying how to get it", Refused(() => RequirePnpm("pnpm-not-on-this-path"), "run `corepack enable` once")),
         ];
 
@@ -3273,6 +3298,46 @@ internal static class Tasks
                 () => MakeEdits([Edit(1, "after", ["services:"], ["x"]), Edit(2, "after", ["missing"], ["y"])], File("services:")),
                 "edit 2 of README.md, after 1 line(s) of file: the lines it is placed by occur 0 times")),
         ];
+    }
+
+    private static (string Case, bool Passed)[] WebAppRecordCases()
+    {
+        string root = Directory.CreateTempSubdirectory("web-app-record-").FullName;
+        TextWriter output = Console.Out;
+
+        try
+        {
+            string path = Path.Combine(root, ProjectFile.FileName);
+            File.WriteAllText(
+                path,
+                """{"template":{"package":"P","version":"1.0.0"},"name":"X","web":{"scope":"x","apps":[{"name":"Site","framework":"vite-react","audience":"public","rendering":"spa","owner":"kept"}],"packages":[]}}""");
+            Console.SetOut(TextWriter.Null);
+            ProjectFile.Read(root).RecordWebApp("Site", "vite-react", "public", "spa", 8083, "x");
+            string recorded = File.ReadAllText(path);
+            ProjectFile.Read(root).RecordWebApp("Site", "vite-react", "public", "spa", 8083, "x");
+            bool unchanged = File.ReadAllText(path) == recorded;
+            Console.SetOut(output);
+
+            JsonObject app = ((JsonObject)JsonNode.Parse(recorded)!)["web"]!["apps"]![0]!.AsObject();
+            string folder = Path.Combine(root, "Site");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "compose.yml"), "ports:\n  - \"127.0.0.1:${WEB_SITE_HOST_PORT:-8083}:8080\"\n");
+
+            return
+            [
+                ("a port recorded for an app already recorded keeps its other keys and their order",
+                    app.Select(property => property.Key).SequenceEqual(["name", "framework", "audience", "rendering", "owner", "port"]) && app["owner"]!.GetValue<string>() == "kept"),
+                ("recording the same app and port again writes nothing", unchanged),
+                ("the port is the one the app's compose.yml holds", WebAppPort(folder, "Site", null) == 8083 && WebAppPort(folder, "Site", "8083") == 8083),
+                ("a --web-port other than the one compose.yml holds is refused", Refused(() => WebAppPort(folder, "Site", "8085"), "is not the port")),
+                ("an app without a compose.yml port is refused", Refused(() => WebAppPort(root, "Site", null), "holds no WEB_<NAME>_HOST_PORT")),
+            ];
+        }
+        finally
+        {
+            Console.SetOut(output);
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static bool Refused(Action action, string saying)
@@ -3554,6 +3619,8 @@ internal sealed class ProjectFile
 
     private static readonly string[] _keyOrder = ["template", "name", "options", "client", "web", "presentation"];
 
+    private static readonly string[] _appKeyOrder = ["name", "framework", "audience", "rendering", "port"];
+
     private static readonly JsonSerializerOptions _written = new()
     {
         WriteIndented = true,
@@ -3645,13 +3712,17 @@ internal sealed class ProjectFile
         Save($"the presentation project {name}, of framework {framework}");
     }
 
-    internal void RecordWebApp(string name, string framework, string audience, string rendering, string scope)
+    internal void RecordWebApp(string name, string framework, string audience, string rendering, int port, string scope)
     {
         JsonArray apps = WebList(scope, "apps");
-        var app = new JsonObject { ["name"] = name, ["framework"] = framework, ["audience"] = audience, ["rendering"] = rendering };
         JsonObject? recorded = apps.OfType<JsonObject>().FirstOrDefault(entry => entry["name"]?.GetValue<string>() == name);
+        var wanted = new (string Key, JsonNode Value)[]
+        {
+            ("name", JsonValue.Create(name)), ("framework", JsonValue.Create(framework)), ("audience", JsonValue.Create(audience)),
+            ("rendering", JsonValue.Create(rendering)), ("port", JsonValue.Create(port)),
+        };
 
-        if (recorded is not null && JsonNode.DeepEquals(recorded, app))
+        if (recorded is not null && wanted.All(entry => JsonNode.DeepEquals(recorded[entry.Key], entry.Value)))
         {
             Console.WriteLine($"{FileName} records the web app {name} already.");
             return;
@@ -3659,14 +3730,16 @@ internal sealed class ProjectFile
 
         if (recorded is null)
         {
-            apps.Add((JsonNode)app);
-        }
-        else
-        {
-            apps[apps.IndexOf(recorded)] = app;
+            recorded = [];
+            apps.Add((JsonNode)recorded);
         }
 
-        Save($"the web app {name}, of framework {framework}, for the {audience} audience, rendered {(rendering == "ssr" ? "on the server" : "in the browser")}");
+        foreach ((string key, JsonNode value) in wanted)
+        {
+            Place(recorded, key, value, _appKeyOrder);
+        }
+
+        Save($"the web app {name}, of framework {framework}, for the {audience} audience, rendered {(rendering == "ssr" ? "on the server" : "in the browser")}, on port {port}");
     }
 
     internal void RecordWebPackage(string name, string scope)

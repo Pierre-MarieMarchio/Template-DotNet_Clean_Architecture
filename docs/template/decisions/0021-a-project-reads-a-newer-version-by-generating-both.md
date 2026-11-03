@@ -45,8 +45,9 @@ generation holds, and an item template's join edits files outside its part.
 ## Consequences
 
 - A generation stays reproducible from `cleanarch.json`: an option the file does not record, or a
-  generator that draws a value, shows every file it touches as changed. A web app's `--port` is not
-  recorded, so an app created with another port reads as merged.
+  generator that draws a value, shows every file it touches as changed. A web app's `--port` is
+  recorded with the app for that reason, and a record without one is replayed on its framework's
+  default.
 - `_writtenByBootstrap` and `_editedByBootstrap` in `Tools/UpgradeReport.cs` follow what bootstrap
   writes: a step added to bootstrap adds its paths there, or every project reads them as its own.
 - The report replays an item template's options by the names its `template.json` declares; a

@@ -83,7 +83,7 @@ public sealed partial class Launcher
     internal const string JoiningSection = "## Joining a project generated without one";
     internal const string PresentationCreateSection = "## Create the project";
 
-    private static readonly (string Name, string Symbol)[] _webJoinOptions = [("--web", "framework"), ("--web-audience", "audience"), ("--web-rendering", "rendering")];
+    private static readonly (string Name, string Symbol)[] _webJoinOptions = [("--web", "framework"), ("--web-audience", "audience"), ("--web-rendering", "rendering"), ("--web-port", "port")];
 
     private readonly IAnsiConsole _console;
     private readonly string _workingDirectory;

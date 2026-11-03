@@ -51,7 +51,8 @@ internal static class Tasks
                                            unit tests of those projects, never the projects that need
                                            Docker. It leaves out verify's gates over the whole tree,
                                            the integration tests, coverage, the migration drift check,
-                                           the vulnerability listing and the generated clients
+                                           the vulnerability listing, the generated clients and the
+                                           web workspace's install, lint, test and build
           format-fix                       dotnet format over the solution, then a pass naming each file
                                            and line whose name breaks a naming rule (IDE1006), which
                                            dotnet format cannot rename; the task fails while one is left
@@ -818,6 +819,11 @@ internal static class Tasks
             case "verify":
                 RequireInitialMigrations(task, contexts);
                 Gates(repoRoot);
+
+                if (projectFile.HasWebWorkspace)
+                {
+                    RequirePnpm(_pnpm);
+                }
                 //#if (api)
 
                 if (HoldsTheClient(projectFile))
@@ -829,6 +835,11 @@ internal static class Tasks
                 //#endif
 
                 WebAudit(projectFile);
+
+                if (projectFile.HasWebWorkspace)
+                {
+                    WebGate(repoRoot);
+                }
 
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
@@ -1173,6 +1184,32 @@ internal static class Tasks
                 error.Message + " A web package with a known advisory is locked, at any severity. Raise the dependency, "
                 + "or pin a patched release under overrides in Src/Web/pnpm-workspace.yaml with a comment saying when it can go; "
                 + "then run `pnpm install` in Src/Web and commit the lockfile.");
+        }
+    }
+
+    private static readonly string[] _webScripts = ["lint", "test", "build"];
+
+    private static void RequirePnpm(string pnpm)
+    {
+        try
+        {
+            Capture(null, echo: false, pnpm, "--version");
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException(
+                error.Message + " cleanarch.json records a web workspace, so verify installs, lints, tests and builds Src/Web as the web workflow does, "
+                + "which needs Node.js, the version in Src/Web/.node-version, and pnpm: install Node.js, run `corepack enable` once, then run verify again.");
+        }
+    }
+
+    private static void WebGate(string repoRoot)
+    {
+        WebWorkspace(repoRoot, "install", "--frozen-lockfile");
+
+        foreach (string script in _webScripts)
+        {
+            StepIn(Path.Combine(repoRoot, "Src", "Web"), _pnpm, script);
         }
     }
 
@@ -3095,6 +3132,7 @@ internal static class Tasks
             .. CheckCases(),
             .. GeneratorOptionCases(),
             .. JoinCases(),
+            ("verify refuses a web workspace without pnpm, saying how to get it", Refused(() => RequirePnpm("pnpm-not-on-this-path"), "run `corepack enable` once")),
         ];
 
         foreach ((string label, bool passed) in cases)

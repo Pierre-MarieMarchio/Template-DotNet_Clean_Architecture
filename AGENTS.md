@@ -69,7 +69,12 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 | After adding a domain event | `dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
 <!--#endif-->
 | Every task and option | `dotnet run Tools/Tasks.cs help [<task>]`; `-m:<N>` caps build and test parallelism | nothing |
+<!--#if (!anyWeb)-->
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
+<!--#endif-->
+<!--#if (anyWeb)-->
+| Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores, Node.js and pnpm |
+<!--#endif-->
 <!--#if (api)-->
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
 <!--#endif-->

@@ -335,6 +335,11 @@ No object store runs.
   otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it.
 - A link from a shared file (`CONTRIBUTING.md`, `AGENTS.md`, `SECURITY.md`) to `docs/template/` sits
   in a `templateMaintenance` block, which is always false at generation.
+- A shared file conditions a line on a part a project can gain later (a web app, a presentation host,
+  the worker) only when the item template that adds the part rewrites the file or its join edits it;
+  otherwise the project that gains the part reads otherwise than one generated with it, and
+  `Launcher/CleanArch.Create.Tests/EndToEndTests.cs` fails. The issue forms and the pull request
+  template under `.github` stay true in every form instead.
 - Text that names a token (`AppTemplate`, `app-template`, the web app tokens) is replaced in a
   generated project; write a token only where its replacement reads right.
 - Project pages say "this project"; only `docs/template/` and the repository `README.md` say "the

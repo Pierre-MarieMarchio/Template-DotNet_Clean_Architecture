@@ -19,9 +19,7 @@ Closes #<issue>
 <!--#if (api)-->
 - [ ] `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client`, after a change to a route or a contract: <result, or not applicable>
 <!--#endif-->
-<!--#if (anyWeb)-->
 - [ ] `pnpm lint`, `pnpm test` and `pnpm build` in `Src/Web`, after a change to the web workspace: <result, or not applicable>
-<!--#endif-->
 - Did not run, and why: <gate and reason, or none>
 
 ## What holds each guarantee

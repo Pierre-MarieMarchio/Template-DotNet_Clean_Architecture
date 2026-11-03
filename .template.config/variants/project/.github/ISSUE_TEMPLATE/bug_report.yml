@@ -19,18 +19,7 @@ body:
       label: Where it happens
       options:
         - the domain, the use cases or the infrastructure
-        #if (api)
-        - the HTTP API
-        #endif
-        #if (anyWeb)
-        - the web workspace
-        #endif
-        #if (jobsWorker)
-        - the worker
-        #endif
-        #if (anyPresentation)
-        - another host: the portal, the MCP server or the desktop app
-        #endif
+        - a host or a web app
         - the build, the tests or the tools
         - the documentation
     validations:
@@ -68,12 +57,7 @@ body:
     id: environment
     attributes:
       label: dotnet --info
-      #if (anyWeb)
-      description: Its whole output; with the web workspace, also node --version and pnpm --version.
-      #endif
-      #if (!anyWeb)
-      description: Its whole output.
-      #endif
+      description: Its whole output; with a web app, also node --version and pnpm --version.
       render: text
     validations:
       required: true

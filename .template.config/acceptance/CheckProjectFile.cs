@@ -133,6 +133,7 @@ internal static class ProjectFileCheck
                     ["framework"] = web,
                     ["audience"] = Value("webAudience"),
                     ["rendering"] = Value("webRendering"),
+                    ["port"] = web switch { "angular" => 4200, "vite-react" or "vite-vue" or "vite-svelte" or "react-router" => 5173, _ => 8081 },
                 }),
                 ["packages"] = new JsonArray(),
             };
@@ -185,7 +186,7 @@ internal static class ProjectFileCheck
             string[] expectations =
             [
                 "\"auth\": \"local\"", "\"agentFiles\": false", "\"client\": true", "\"scope\": \"acme-shop\"",
-                "\"name\": \"Site\"", "\"audience\": \"admin\"", "\"rendering\": \"spa\"", "\"name\": \"Api\"",
+                "\"name\": \"Site\"", "\"audience\": \"admin\"", "\"rendering\": \"spa\"", "\"port\": 5173", "\"name\": \"Api\"",
                 "\"framework\": \"wpf\"", "\"name\": \"Worker\"",
             ];
             problems.AddRange(expectations.Where(line => !text.Contains(line, StringComparison.Ordinal)).Select(line => $"The expected file lacks {line}."));

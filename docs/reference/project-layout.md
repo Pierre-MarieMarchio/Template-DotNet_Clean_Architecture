@@ -222,7 +222,7 @@ Server and which carries the schema in its name on SQLite.
 | `name` | the project's name, the prefix of every project under `Src` and `Tests` |
 | `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `ci`, `sonar`, `agentFiles` |
 | `client` | `true` when the project holds the .NET client of the API |
-| `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience` and `rendering` each was added with, and the `packages` added to it |
+| `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience`, `rendering` and host `port` each was added with, and the `packages` added to it |
 | `presentation` | every presentation project under `Src/Presentation`, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
 
 The options are a fact about the day of generation, and no task rewrites them: removing an example

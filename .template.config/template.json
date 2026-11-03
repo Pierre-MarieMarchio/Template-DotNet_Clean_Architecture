@@ -1375,6 +1375,24 @@
       "replaces": "\"rendering\": \"spa\"",
       "description": "The --web-rendering value cleanarch.json records for the first web app."
     },
+    "projectFileWebPort": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "const",
+            "value": "\"port\": "
+          },
+          {
+            "type": "ref",
+            "value": "webDefaultPort"
+          }
+        ]
+      },
+      "replaces": "\"port\": 8081",
+      "description": "The port cleanarch.json records for the first web app, the one its framework gives it."
+    },
     "projectFileApi": {
       "type": "generated",
       "generator": "switch",

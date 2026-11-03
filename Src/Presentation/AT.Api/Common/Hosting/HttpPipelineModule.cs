@@ -1,4 +1,6 @@
-﻿using AppTemplate.Api.Common.Caching;
+﻿using System.Globalization;
+using System.Reflection;
+using AppTemplate.Api.Common.Caching;
 using AppTemplate.Api.Common.Concurrency;
 using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.Common.Idempotency;
@@ -7,13 +9,16 @@ using AppTemplate.Api.Common.Observability;
 using AppTemplate.Api.Common.OpenApi;
 using AppTemplate.Api.Common.Security;
 using Asp.Versioning;
-using Asp.Versioning.ApiExplorer;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.OpenApi;
 
 namespace AppTemplate.Api.Common.Hosting;
 
 public static class HttpPipelineModule
 {
+    private const string _versionGroupFormat = "'v'VVV";
+
     public static IServiceCollection AddHttpPipeline(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -46,34 +51,33 @@ public static class HttpPipelineModule
 
         services.AddApiVersioning(options =>
             {
-                options.DefaultApiVersion = new ApiVersion(1, 0);
                 options.ApiVersionReader = new UrlSegmentApiVersionReader();
                 options.ReportApiVersions = true;
             })
             .AddMvc()
             .AddApiExplorer(options =>
             {
-                options.GroupNameFormat = "'v'VVV";
+                options.GroupNameFormat = _versionGroupFormat;
                 options.SubstituteApiVersionInUrl = true;
             });
 
         return services;
     }
 
-    public static IReadOnlyList<string> ApiVersionGroups(this IServiceCollection services)
+    public static IReadOnlyList<string> ApiVersionGroups(this IMvcBuilder controllers)
     {
-        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(controllers);
 
-#pragma warning disable ASP0000
-        using var versionProvider = services.BuildServiceProvider();
-#pragma warning restore ASP0000
+        var feature = new ControllerFeature();
+        controllers.PartManager.PopulateFeature(feature);
 
         return
         [
-            .. versionProvider
-                .GetRequiredService<IApiVersionDescriptionProvider>()
-                .ApiVersionDescriptions
-                .Select(description => description.GroupName),
+            .. feature.Controllers
+                .SelectMany(DeclaredApiVersions)
+                .Distinct()
+                .Order()
+                .Select(version => version.ToString(_versionGroupFormat, CultureInfo.InvariantCulture)),
         ];
     }
 
@@ -113,5 +117,25 @@ public static class HttpPipelineModule
         app.UseApiRequestTimeouts();
 
         return app;
+    }
+
+    private static IEnumerable<ApiVersion> DeclaredApiVersions(TypeInfo controller)
+    {
+        object[] attributes = controller.GetCustomAttributes(inherit: true);
+
+        ApiVersion[] declared =
+        [
+            .. attributes
+                .Concat(controller.GetMethods().SelectMany(action => action.GetCustomAttributes(inherit: true)))
+                .OfType<IApiVersionProvider>()
+                .Where(provider => !provider.Options.HasFlag(ApiVersionProviderOptions.Advertised))
+                .SelectMany(provider => provider.Versions),
+        ];
+
+        bool implicitlyVersioned = declared.Length == 0
+            && !attributes.OfType<IApiVersionNeutral>().Any()
+            && attributes.Concat(controller.Assembly.GetCustomAttributes()).OfType<IApiBehaviorMetadata>().Any();
+
+        return implicitlyVersioned ? [ApiVersion.Default] : declared;
     }
 }

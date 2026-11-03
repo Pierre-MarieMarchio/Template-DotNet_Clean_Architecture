@@ -68,9 +68,60 @@ generator, the removal command and the coverage gate, each against faulted and s
 also refuses to pass on nothing: a test run that executed no test and a coverage total over no
 assembly both fail. A rule added to a gate comes with the fixture that fails without it.
 
-`TreatWarningsAsErrors` is set in `Directory.Build.props` for every project. Do not silence a
-diagnostic with `#pragma`, `<NoWarn>` or a lowered severity; a diagnostic wrong for one file gets a
-path-scoped `.editorconfig` section with its reason.
+`TreatWarningsAsErrors` is set in `Directory.Build.props` for every project. A diagnostic is
+silenced only by a row of the table below, whatever the form: a `#pragma warning disable`, a
+`[SuppressMessage]`, a `#nullable disable`, a `<NoWarn>` or a `<WarningsNotAsErrors>`, a severity
+lowered to `none`, `silent` or `suggestion`, a `generated_code` section, a test's `Skip`, or a build
+told not to fail on its warnings. Anything else is fixed in the code. A diagnostic wrong for one file
+gets a section of `.editorconfig` naming that file, and its row here. `SilencedDiagnosticTests` finds
+each one in the tree and fails on one without its row, on a row that silences nothing, and on a
+section that names a file the tree does not hold. Inside a `generated_code` section, the code is the
+tool's and keeps the directives the tool writes.
+
+| Diagnostic | Where | Why |
+|---|---|---|
+| `CS1591`, `CS1573` | `Directory.Build.props` | The documentation file is generated for the build to report IDE0005 and for the OpenAPI document to read its summaries, not to make every public member of an application carry a comment, which the comment rule would then have restate a name. |
+| `CA1848` | `.editorconfig` `*.cs` | A log call stays one sentence at the line it describes; the `[LoggerMessage]` generator would declare each one apart, as a partial method, to save an allocation no path here has measured as worth it. |
+<!--#if (api)-->
+| `AV0029`, `AV0030` | `Src/Presentation/AT.Api/AppTemplate.Api.csproj` | Both ask for `Asp.Versioning.OpenApi`, whose transformer renders a `<see cref>` in a schema description as an empty string and titles the document after the entry assembly; `OpenApiDocumentTests` asserts on both. Project-wide, since AV0029 also fires in the source the OpenAPI generator writes into the build. |
+<!--#endif-->
+| `CA1716` | `.editorconfig` `Src/Application/AT.Application.Core/Common/Results/Error.cs` | A C#-only API, and `Error` is the Result pattern's name for the concept; the rule guards a Visual Basic keyword. |
+| `CA1000` | `.editorconfig` `Src/Application/AT.Application.Core/Common/Results/Result.cs` | `Result<TValue>.Failure` implements the static abstract `IFailable<TSelf>.Failure` the pipeline behaviours call, and the type-inferring `Result.Success` and `Result.Failure` serve every other caller. |
+| `S4136` | `.editorconfig` `Src/Application/AT.Application.Core/Common/Results/Result.cs` | The non-generic and generic overloads are paired, each beside its counterpart. |
+<!--#if (reminders)-->
+| `S107` | `.editorconfig` `Src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueReminders.cs` | Nine distinct collaborators, each needed once; a parameter object would only rename the constructor. |
+<!--#endif-->
+| `S4035` | `.editorconfig` `Src/Domain/AT.Domain.Core/Common/Primitives/Entity.cs` | The abstract base of every aggregate, whose `Equals` compares the runtime type first. |
+<!--#if (files)-->
+| `S3267` | `.editorconfig` `Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs` | The loop refuses on the first bad character; a `Where` would collect them all first. |
+| `S3267` | `.editorconfig` `Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs` | The loop refuses on the first control character; a `Where` would collect them all first. |
+<!--#endif-->
+<!--#if (localAuth)-->
+| `S6672` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs` | The logger's type argument is fixed by `DataProtectorTokenProvider<AppUser>`, the base class. |
+| `S6672` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs` | The logger's type argument is fixed by `DataProtectorTokenProvider<AppUser>`, the base class. |
+<!--#endif-->
+| `S2068` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs` | The local Compose database's design-time fallback, not a secret. |
+| `S2326` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs` | `TContext` is a marker that makes one closed generic per context. |
+| `S3267` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs` | The loop drains and clears each aggregate's events; a projection would do neither. |
+<!--#if (files)-->
+| `S3267` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs` | A reconciliation with two side effects, not a filter. |
+<!--#endif-->
+<!--#if (todoLists)-->
+| `S3267` | `.editorconfig` `Src/Infrastructure/AT.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs` | A reconciliation with two side effects, not a filter. |
+<!--#endif-->
+<!--#if (api)-->
+| `S2139` | `.editorconfig` `Src/Presentation/AT.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs` | The development database bootstrap logs critically once, then fails the start. |
+| `S4136` | `.editorconfig` `Src/Presentation/AT.Api/Common/Controllers/ApiControllerBase.cs` | The private helper sits under its only caller, between the overloads. |
+| `S1075` | `.editorconfig` `Src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs` | The default problem-type base, on the reserved `.example` domain; `ProblemTypeOptions.BaseUri` replaces it. |
+<!--#endif-->
+| `generated_code`, `IDE0005` | `.editorconfig` `**/Migrations/*.cs` | `dotnet ef` writes the migrations, and one a database has applied is never rewritten. |
+| `generated_code` | `.editorconfig` `**/Generated/**.cs` | Kiota writes the .NET client's `Generated/` folder, and `api-client` rewrites it whole ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). |
+| `CA1707` | `.editorconfig` `Tests/**/*.cs` | A test's name reads as its claim, its parts separated by underscores. |
+<!--#if (templateMaintenance)-->
+| `CA1707` | `Launcher/.editorconfig` `CleanArch.Create.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
+| `CA1707` | `Launcher/.editorconfig` `CleanArch.Tooling.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
+| `CA1707` | `Launcher/.editorconfig` `CleanArch.Cli.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |
+<!--#endif-->
 
 The build holds the code style: `EnforceCodeStyleInBuild` runs the `.editorconfig` rules during
 compilation, so a formatting defect (IDE0055), a private field without its underscore (IDE1006) or an

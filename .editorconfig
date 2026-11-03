@@ -56,9 +56,7 @@ dotnet_diagnostic.IDE0055.severity = warning   # the build reads no option's sev
 dotnet_diagnostic.IDE1006.severity = warning   # the build ignores a naming rule's own severity
 dotnet_diagnostic.CS8618.severity = error      # non-nullable not initialised
 dotnet_diagnostic.CS8602.severity = error      # dereference of possibly null
-dotnet_diagnostic.CA2007.severity = none       # ConfigureAwait: not needed in ASP.NET Core
-dotnet_diagnostic.CA1848.severity = none       # LoggerMessage delegates: overkill for a template
-dotnet_diagnostic.CA1515.severity = none       # 'make internal': types are the template's public surface
+dotnet_diagnostic.CA1848.severity = none
 
 #### Naming ####
 
@@ -90,97 +88,69 @@ dotnet_naming_symbols.private_field_symbol.applicable_accessibilities = private
 dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 
-#### Suppressions: one section per file, with its reason; never a repository-wide NoWarn ####
+#### Suppressions: each one has its row and its reason in docs/guides/build-and-ci.md ####
 
 [Src/Application/AT.Application.Core/Common/Results/Error.cs]
-# CA1716: a C#-only API; `Error` is the Result pattern's name for the concept.
 dotnet_diagnostic.CA1716.severity = none
 
 [Src/Application/AT.Application.Core/Common/Results/Result.cs]
-# CA1000, S4136: the type-inferring entry points live on Result; the overloads pair non-generic with generic.
 dotnet_diagnostic.CA1000.severity = none
 dotnet_diagnostic.S4136.severity = none
 
-[Src/Domain/AT.Domain.Core/Common/Exceptions/DomainException.cs]
-# CA1032: an invariant violation without a message would be unactionable.
-dotnet_diagnostic.CA1032.severity = none
-
-#if (localAuth)
-[Src/Application/AT.Application.Auth/Features/ExternalLogins/UseCases/Commands/SignInWithExternalProvider/SignInWithExternalProviderUseCase.cs]
-# S107: eight distinct collaborators, each needed once.
-dotnet_diagnostic.S107.severity = none
-
-#endif
 #if (reminders)
-[Src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueRemindersUseCase.cs]
-# S107: eight distinct collaborators, each needed once.
+[Src/Application/AT.Application/Features/Reminders/UseCases/Commands/FireDueReminders/FireDueReminders.cs]
 dotnet_diagnostic.S107.severity = none
-#endif
 
+#endif
 [Src/Domain/AT.Domain.Core/Common/Primitives/Entity.cs]
-# S4035: the abstract base of every aggregate; Equals compares the runtime type first.
 dotnet_diagnostic.S4035.severity = none
 
+#if (files)
 [Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/Sha256Checksum.cs]
-# S3267: the loop refuses on the first bad character; Where would collect.
 dotnet_diagnostic.S3267.severity = none
 
-#if (files)
 [Src/Domain/AT.Domain/Features/Files/Model/ValueObjects/StoredFileName.cs]
-# S3267: the loop refuses on the first control character; Where would collect.
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (localAuth)
 [Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/EmailChangeTokenProvider.cs]
-# S6672: the logger's type argument is fixed by DataProtectorTokenProvider<AppUser>.
 dotnet_diagnostic.S6672.severity = none
 
 [Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Adapters/Providers/PasswordResetTokenProvider.cs]
-# S6672: the logger's type argument is fixed by DataProtectorTokenProvider<AppUser>.
 dotnet_diagnostic.S6672.severity = none
 
 #endif
 [Src/Infrastructure/AT.Infrastructure.Core/Common/Contexts/DefaultConnectionString.cs]
-# S2068: the local compose database's design-time fallback, not a secret.
 dotnet_diagnostic.S2068.severity = none
 
 [Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/IContextUnitOfWork.cs]
-# S2326: TContext is a marker that makes one closed generic per context.
 dotnet_diagnostic.S2326.severity = none
 
 [Src/Infrastructure/AT.Infrastructure.Core/Common/Saving/Tracking/AggregateTracker.cs]
-# S3267: the loop drains and clears each aggregate's events; a projection would do neither.
 dotnet_diagnostic.S3267.severity = none
 
 #if (files)
 [Src/Infrastructure/AT.Infrastructure.Persistence/Features/Files/Rows/Mapping/StoredFileMapper.cs]
-# S3267: a reconciliation with two side effects, not a filter.
 dotnet_diagnostic.S3267.severity = none
 
 #endif
 #if (todoLists)
 [Src/Infrastructure/AT.Infrastructure.Persistence/Features/TodoLists/Rows/Mapping/TodoListMapper.cs]
-# S3267: a reconciliation with two side effects, not a filter.
 dotnet_diagnostic.S3267.severity = none
-#endif
 
+#endif
+#if (api)
 [Src/Presentation/AT.Api/Common/Hosting/DevelopmentDatabaseExtensions.cs]
-# S2139: the database bootstrap logs critically once, then fails the start.
 dotnet_diagnostic.S2139.severity = none
 
-[Src/Presentation/AT.Api/Common/Hosting/HttpPipelineModule.cs]
-# AV0011: the default API version is stated where a derived project looks for it.
-dotnet_diagnostic.AV0011.severity = none
-
 [Src/Presentation/AT.Api/Common/Controllers/ApiControllerBase.cs]
-# S4136: the private helper sits under its only caller, between the overloads.
 dotnet_diagnostic.S4136.severity = none
 
 [Src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs]
-# S1075: the default problem-type base on the reserved .example TLD; ProblemTypeOptions.BaseUri replaces it.
 dotnet_diagnostic.S1075.severity = none
 
+#endif
 [**/Migrations/*.cs]
 generated_code = true
 dotnet_diagnostic.IDE0005.severity = none
@@ -189,4 +159,4 @@ dotnet_diagnostic.IDE0005.severity = none
 generated_code = true
 
 [Tests/**/*.cs]
-dotnet_diagnostic.CA1707.severity = none   # underscores in test method names are intentional
+dotnet_diagnostic.CA1707.severity = none

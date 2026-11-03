@@ -91,7 +91,7 @@ builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 //#endif
 
-builder.Services.AddControllers();
+var controllers = builder.Services.AddControllers();
 
 builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
@@ -109,7 +109,7 @@ builder.Services.AddExternalAuthentication(builder.Configuration);
 
 builder.Services.AddUrlSegmentApiVersioning();
 
-foreach (string versionGroup in builder.Services.ApiVersionGroups())
+foreach (string versionGroup in controllers.ApiVersionGroups())
 {
     builder.Services.AddOpenApi(versionGroup, options => options.UseApiDocumentConventions(versionGroup));
 }

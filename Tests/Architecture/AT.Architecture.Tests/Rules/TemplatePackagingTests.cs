@@ -18,7 +18,7 @@ public sealed class TemplatePackagingTests
 
     private static readonly string[] _projectRoots = ["Src", "Tests"];
 
-    private static readonly string[] _recordedAppKeys = ["framework", "audience", "rendering"];
+    private static readonly string[] _recordedAppKeys = ["framework", "audience", "rendering", "port"];
 
     private static readonly byte[] _utf8Bom = [0xEF, 0xBB, 0xBF];
 

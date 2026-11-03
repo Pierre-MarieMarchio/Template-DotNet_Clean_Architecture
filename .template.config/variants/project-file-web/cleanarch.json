@@ -21,7 +21,8 @@
         "name": "PlaceholderSite",
         "framework": "placeholder",
         "audience": "public",
-        "rendering": "spa"
+        "rendering": "spa",
+        "port": 8081
       }
     ],
     "packages": []

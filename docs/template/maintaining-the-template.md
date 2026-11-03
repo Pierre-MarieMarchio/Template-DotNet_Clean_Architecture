@@ -101,7 +101,11 @@ runs `presentation-scaffold` before the formatting, a step that does nothing wit
 project, and a web leg creates the WebAssembly app of `--web blazor-wasm` there too, so the build
 compiles it and its tests run with the others. After the build, every leg checks that bootstrap left
 whitespace and encoding unchanged; the `defaults` leg alone runs the `format` task, whose rules need a
-compilation, as `ci.yml` runs it on the template. The three web legs that pass `--presentation
+compilation, as `ci.yml` runs it on the template, and, once the initial migrations and the OpenAPI
+reference are written, the project's `upgrade-report` against this checkout packed again under the
+next patch version, which may name no file but the version in `cleanarch.json` and in
+`docs/getting-started/overview.md`; that is the one proof against a project that went through
+bootstrap, since `IDE0055` can rewrite more than the usings, and it adds about half a minute. The three web legs that pass `--presentation
 blazor-server`, one per authentication mode, create the presentation project, build and test it, and
 ask it in the stack for its page or its redirect to the sign-in page, for the sign-in form under local accounts,
 and for `/health`. The leg that adds a first app adds the presentation project too, with
@@ -867,9 +871,10 @@ repository:
 | `PlanOf`, which turns `cleanarch.json` into a generation and item templates | the options the project file records, the names generation gives each host, and the item templates' options |
 | the changelog range | the version headings release-please writes in `CHANGELOG.md`, which the package carries |
 
-Its `--self-test`, which `hygiene` runs, judges the comparison on fixtures. The real path, two
-generations from two packed versions, runs by hand: pack a copy of the checkout under two
-`templateVersion` values, generate a project from the first in a scratch hive, and run
+Its `--self-test`, which `hygiene` runs, judges the comparison on fixtures. The `defaults` leg of
+the acceptance runs the real path on a bootstrapped project, with a version as the only change. A
+change that touches more runs by hand: pack a copy of the checkout under two `templateVersion`
+values, generate a project from the first in a scratch hive, and run
 `upgrade-report --source <folder>` with the folder holding both packages.
 
 ## Changelog

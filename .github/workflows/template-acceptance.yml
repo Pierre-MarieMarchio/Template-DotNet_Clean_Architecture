@@ -420,6 +420,35 @@ jobs:
           dotnet run Tools/Tasks.cs api-client
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
+      # A newer version that changes nothing but its number is a version in cleanarch.json and in docs/getting-started/overview.md, so the report on a project as bootstrap leaves it names those and no other file; IDE0055 may rewrite more than the usings, which only a project that went through bootstrap shows. The report writes nothing in the project, and the newer package is this checkout packed again under the next patch version.
+      - name: Assert upgrade-report names only the version after bootstrap (defaults leg)
+        if: matrix.name == 'defaults'
+        working-directory: ${{ runner.temp }}/generated
+        run: |
+          set -euo pipefail
+          fail() { echo "::error title=Upgrade report::$1"; exit 1; }
+          current=$(jq -r .template.version cleanarch.json)
+          core=${current%%[-+]*}
+          next="${core%.*}.$(( ${core##*.} + 1 ))"
+          copy="${{ runner.temp }}/template-next"
+          cp -a "$GITHUB_WORKSPACE/." "$copy"
+          rm -rf "$copy/.git"
+          sed -i "/\"templateVersion\"/,/\"value\"/ s/\"value\": \"[^\"]*\"/\"value\": \"$next\"/" "$copy/.template.config/template.json"
+          grep -qE "\"value\": \"$next\"" "$copy/.template.config/template.json" || fail "The copy of the template does not hold version $next."
+          (cd "$copy" && dotnet pack .template.config/TemplatePackage.csproj --configuration Release --output "${{ runner.temp }}/package-next")
+          dotnet run Tools/Tasks.cs upgrade-report --to "$next" --source "${{ runner.temp }}/package" --source "${{ runner.temp }}/package-next" --json "${{ runner.temp }}/upgrade-report.json"
+          jq -e --arg current "$current" --arg next "$next" '
+            .from == $current and .to == $next
+            and ([.take[].path] == ["docs/getting-started/overview.md"])
+            and (.provenance != null)
+            and ([.merge, .added, .removed, .scaffolds, .decisions] | all(length == 0))
+          ' "${{ runner.temp }}/upgrade-report.json" > /dev/null || {
+            jq '{take: [.take[].path], merge: [.merge[].path], added: [.added[].path], removed: [.removed[].path], scaffolds, decisions, provenance}' "${{ runner.temp }}/upgrade-report.json"
+            fail "Bumping the version alone reports more than the version in cleanarch.json and docs/getting-started/overview.md: a file bootstrap rewrote, or a generator that draws a value."
+          }
+          own=$(jq -r '.own | length' "${{ runner.temp }}/upgrade-report.json")
+          echo "::notice title=Upgrade report::$own file(s) of the project's own, in neither generation."
+
       # The build holds the style it can see and bootstrap must leave whitespace and encoding unchanged on every shape; the rules that need a compilation, using order among them, run on the defaults shape, as ci.yml runs them on the template.
       - name: Check the formatting the build does not
         working-directory: ${{ runner.temp }}/generated

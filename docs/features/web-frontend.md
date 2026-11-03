@@ -311,7 +311,8 @@ dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin -
 it adds outside its folder: an `include:` entry in `docker-compose.yml` and `WEB_<NAME>_HOST_PORT` in
 `.env.example`. `dotnet run Tools/Tasks.cs web-join BackOffice --web angular --web-audience admin`,
 adding `--web-rendering ssr` for an app rendered on the server, makes them, leaving those in place
-already, then records the app in `cleanarch.json` with the values it was given. Then run
+already, then records the app in `cleanarch.json` with the values it was given and the port its
+`compose.yml` holds (`--web-port` states it, and is refused when it differs). Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
 `--rendering ssr` with `--framework angular` or `react-router` renders the app on its own Node

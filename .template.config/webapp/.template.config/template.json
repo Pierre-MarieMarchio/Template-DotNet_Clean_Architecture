@@ -601,7 +601,7 @@
       "description": "Join the app to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name> --web <framework>, with --web-audience and --web-rendering when --audience and --rendering were not public and spa. It makes the lines --web writes outside the app's folder, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one' (its include: line in docker-compose.yml, its port in .env.example and what its framework adds), with those Src/Web/README.md lists for a first app and its workspace, leaves those in place already, then records the app in cleanarch.json."
+          "text": "At the project root, run dotnet run Tools/Tasks.cs web-join <name> --web <framework>, with --web-audience and --web-rendering when --audience and --rendering were not public and spa, and --web-port when --port was given. It makes the lines --web writes outside the app's folder, all or none, as Src/Web/apps/<name>/README.md lists them under 'Joining a project generated without one' (its include: line in docker-compose.yml, its port in .env.example and what its framework adds), with those Src/Web/README.md lists for a first app and its workspace, leaves those in place already, then records the app in cleanarch.json."
         }
       ],
       "continueOnError": true

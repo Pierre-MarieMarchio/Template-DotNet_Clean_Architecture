@@ -242,7 +242,8 @@ internal static class UpgradeReport
                         Text(app["name"], "web app name"),
                         Text(app["framework"], "web app framework"),
                         Text(app["audience"], "web app audience"),
-                        Text(app["rendering"], "web app rendering")))],
+                        Text(app["rendering"], "web app rendering"),
+                        app["port"]?.GetValue<int>()))],
                     [.. (workspace["packages"] as JsonArray ?? []).Select(package => Text(package, "web package name"))])
                 : null;
 
@@ -260,7 +261,7 @@ internal static class UpgradeReport
 
     private sealed record WebRecord(string Scope, IReadOnlyList<WebApp> Apps, IReadOnlyList<string> Packages);
 
-    private sealed record WebApp(string Name, string Framework, string Audience, string Rendering);
+    private sealed record WebApp(string Name, string Framework, string Audience, string Rendering, int? Port = null);
 
     private sealed record Release(string Version, string? File);
 
@@ -705,7 +706,7 @@ internal static class UpgradeReport
             replays.Add(new Replay(
                 _webAppItem,
                 app.Name,
-                [("framework", app.Framework), ("audience", app.Audience), ("rendering", app.Rendering), ("scope", project.Web!.Scope), ("projectName", project.Name)],
+                [("framework", app.Framework), ("audience", app.Audience), ("rendering", app.Rendering), .. PortOf(app), ("scope", project.Web!.Scope), ("projectName", project.Name)],
                 [.. recorded],
                 "Src/Web/apps/" + app.Name));
         }
@@ -741,6 +742,9 @@ internal static class UpgradeReport
             _ => node.ToString(),
         };
     }
+
+    private static (string, string)[] PortOf(WebApp app) =>
+        app.Port is { } port ? [("port", port.ToString(CultureInfo.InvariantCulture))] : [];
 
     private static string[] Arguments(Template template, IEnumerable<(string Symbol, string Value)> values, string version, List<string> notes)
     {
@@ -1549,6 +1553,12 @@ internal static class UpgradeReport
             "The item templates do not replay the apps, packages and hosts generation cannot express, in the recorded order.");
         expect(plan.Replays[0].Values.Contains(("rendering", "ssr")) && plan.Replays[0].ProjectOptions.Contains(("auth", "external")),
             "The second app is not replayed with its recorded rendering and the project's options.");
+        expect(!plan.Replays[0].Values.Any(value => value.Symbol == "port"),
+            "A web app whose record holds no port was replayed with one: it keeps the framework's default.");
+
+        Provenance ported = Fixture(web: new WebRecord("sample-shop", [new WebApp("Site", "vite-react", "public", "spa"), new WebApp("Shop", "angular", "public", "spa", 8083)], []));
+        expect(PlanOf(ported).Replays.Single().Values.Contains(("port", "8083")),
+            "A web app is not replayed on the port its record holds.");
 
         Provenance workspaceLater = Fixture(web: new WebRecord("custom", [new WebApp("Site", "vite-react", "public", "spa")], []));
         expect(PlanOf(workspaceLater).Replays.Count == 1, "A first app recorded under another scope than generation gives was generated rather than replayed.");

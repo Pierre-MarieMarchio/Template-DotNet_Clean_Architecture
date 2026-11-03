@@ -667,6 +667,21 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
+    public void AWebAppGivenAPort_HasItPassedToTheJoin()
+    {
+        AGeneratedProject();
+        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps"));
+        File.WriteAllText(Path.Combine(_root, "Src", "Web", "package.json"), "{}");
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm", "--port", "8085", "--yes");
+
+        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm --web blazor-wasm --web-audience public --web-rendering spa --web-port 8085");
+    }
+
+    [Fact]
     public void AWebAppWhoseJoinFails_IsAlmostThere_WithTheJoiningSectionLeftByHand()
     {
         AGeneratedProject();

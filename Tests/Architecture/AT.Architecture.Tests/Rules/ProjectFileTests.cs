@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -8,6 +9,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 public sealed class ProjectFileTests
 {
     private static readonly string[] _workspacePackages = ["api-client", "eslint-config", "tsconfig"];
+
+    private static readonly Regex _composePort = new(@"_HOST_PORT:-(?<port>\d+)\}", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     private const string _generatedDatabase = "postgresql";
 
@@ -120,6 +123,12 @@ public sealed class ProjectFileTests
             Directory.EnumerateFiles(folder, "*.csproj").Any().ShouldBe(
                 Text(app, "framework") == "blazor-wasm",
                 $"cleanarch.json records {name} as a {Text(app, "framework")} app, and a .NET project comes with blazor-wasm alone.");
+
+            int port = app["port"]?.GetValue<int>()
+                ?? throw new InvalidOperationException($"cleanarch.json records no port for {name}: add \"port\", the number its compose.yml gives WEB_<NAME>_HOST_PORT.");
+            _composePort.Match(File.ReadAllText(Path.Combine(folder, "compose.yml"))).Groups["port"].Value.ShouldBe(
+                port.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                $"cleanarch.json records {name} on port {port}, and its compose.yml gives another default: web-join records the port the app holds.");
 
             if (Text(app, "framework") != "blazor-wasm")
             {

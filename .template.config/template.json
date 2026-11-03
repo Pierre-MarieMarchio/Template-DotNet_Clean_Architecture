@@ -1913,6 +1913,13 @@
           ]
         },
         {
+          "condition": "(!(reminders || files))",
+          "exclude": [
+            "Src/Domain/AT.Domain.Core/Common/Retries/**",
+            "Tests/Domain/AT.Domain.Core.UnitTests/Common/Retries/**"
+          ]
+        },
+        {
           "condition": "(!todoLists && !notes && !files && !externalAuth)",
           "exclude": [
             "Tests/Presentation/AT.Api.UnitTests/Composition/SqliteSavingHost.cs",

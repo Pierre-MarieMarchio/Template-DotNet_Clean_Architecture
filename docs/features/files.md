@@ -119,7 +119,7 @@ lease, each with its own interval and switch under `Jobs:Files`:
 
 | Pass | Does | On failure |
 |---|---|---|
-| Inspection | moves `deposited` files to `available` or `quarantined` | commits each file alone; a file without a verdict waits one minute, doubling up to one hour, behind those that waited longer |
+| Inspection | moves `deposited` files to `available` or `quarantined` | commits each file alone; a file without a verdict waits one minute, doubling up to one hour (`RetryBackoff`), behind those that waited longer |
 | Abandoned registrations | removes `pending` rows whose bytes never came | idempotent: the next pass selects the same rows |
 | Orphaned content | deletes objects no row references, walking up to 250 000 keys per pass from a saved checkpoint | every object present when a walk starts is visited within a bounded number of passes, across restarts |
 

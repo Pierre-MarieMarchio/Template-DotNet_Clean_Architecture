@@ -7,6 +7,7 @@ using AppTemplate.Application.Features.Reminders.UseCases.Commands.FireDueRemind
 using AppTemplate.Application.Features.TodoLists.Ports.TodoItemQueries;
 using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Core.Common.Retries;
 using AppTemplate.Domain.Features.Reminders.Model.Entities;
 using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 using AppTemplate.Domain.Features.Reminders.Repositories;
@@ -147,7 +148,7 @@ public sealed class FireDueRemindersTests
         result.Value.ShouldBe(1);
         failing.State.ShouldBe(ReminderState.Pending);
         failing.FailedAttempts.ShouldBe(1);
-        failing.NextAttemptAt.ShouldBe(_now + Reminder.RetryDelayAfter(1));
+        failing.NextAttemptAt.ShouldBe(_now + RetryBackoff.After(1));
         succeeding.State.ShouldBe(ReminderState.Fired);
     }
 

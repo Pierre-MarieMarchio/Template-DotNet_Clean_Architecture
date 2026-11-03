@@ -1,4 +1,5 @@
-﻿using AppTemplate.Application.Core.Common.Results;
+﻿using AppTemplate.Api.Common.Jobs;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Core.Features.Maintenance.UseCases.Commands.PurgeExpiredIdempotencyKeys;
 using Mediator;
 using Microsoft.Extensions.Options;
@@ -43,8 +44,16 @@ internal static class MaintenanceJobsExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(disabledConsequence);
         ArgumentNullException.ThrowIfNull(isEnabled);
 
+        var pass = new JobPass(
+            label,
+            disabledConsequence,
+            MaintenanceInstruments.ActivitySource,
+            "maintenance.purge",
+            MaintenanceInstruments.Iterations,
+            MaintenanceInstruments.Purged);
+
         services.AddSingleton<IMaintenanceTask>(provider =>
-            new MaintenanceTask<TCommand>(label, disabledConsequence, () => isEnabled(provider)));
+            new MaintenanceTask<TCommand>(pass, () => isEnabled(provider)));
 
         return services;
     }

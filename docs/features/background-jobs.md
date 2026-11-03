@@ -82,6 +82,13 @@ worker from its own `Program.cs` with every registration validated and resolves 
 handler it composes in a background scope.
 <!--#endif-->
 
+Every pass sends its command and records what came of it through one `JobPass`, in the jobs host's
+`Common/Jobs/`: a span from its feature's activity source, one `iterations` count tagged with its
+`task` and its `outcome`, the count its handler returns, and a log line. A failure or an exception
+is logged and counted, never thrown; a stop that lands mid-pass is not a failure. A pass on an
+interval of its own runs in `IntervalPassBackgroundService<TCommand>` beside it; the maintenance
+tasks run one after another in `MaintenanceBackgroundService`, on one timer and in one scope.
+
 A pass opens its own scope with `CreateBackgroundScope()`. In that scope `ICurrentUser.UserId`
 throws, since no one is calling, and the audit actor records nobody, since no one made the write.
 A use case that needs a caller fails loudly there instead of acting for no one.
@@ -125,7 +132,8 @@ leased pass therefore states what a repeat costs, and the other passes are idemp
 <!--#if (reminders)-->
 The reminder pass sends, then commits, one reminder at a time, so a crash between the two sends
 that one reminder twice: delivery is at least once. A failed send is retried after a minute,
-doubling up to an hour, behind the reminders that waited longer.
+doubling up to an hour, behind the reminders that waited longer: `RetryBackoff`, in
+`Src/Domain/AT.Domain.Core/Common/Retries/RetryBackoff.cs`, holds that wait.
 <!--#endif-->
 
 <!--#if (postgreSql)-->
@@ -199,25 +207,32 @@ the idempotency purge this way.
 the idempotency purge this way.
 <!--#endif-->
 
-**A pass with its own interval is a `BackgroundService`** running `PeriodicJob.RunAsync`, opening
-each pass with `CreateBackgroundScope()`, with options under `Jobs:<Feature>` bound and validated
-only when `Jobs:Enabled` is true, a meter counting `iterations`, and one call from
-`AddBackgroundJobs`.
-<!--#if (reminders && !jobsWorker)-->
-`Src/Presentation/AT.Api/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
-`ReminderBackgroundService` beside it are the model.
+**A pass with its own interval joins `AddIntervalPass`**: a command of the same shape, and an
+`IntervalPass` read from options under `Jobs:<Feature>`, bound and validated only when
+`Jobs:Enabled` is true, that gives its interval, its switch and its `JobPass`: a label, what a
+switched-off pass leaves undone, and the feature's activity source and counters. One call from
+`AddBackgroundJobs` registers the feature; no feature writes a `BackgroundService` of its own.
+
+```csharp
+services.AddIntervalPass<SendDueDigestsCommand>(provider =>
+{
+    var settings = provider.GetRequiredService<IOptions<JobsDigestsOptions>>().Value;
+
+    return new IntervalPass(_dueDigests, settings.Interval, settings.Enabled);
+});
+```
+
+<!--#if (reminders)-->
+`Features/Reminders/Jobs/ReminderJobsExtensions.cs`, in the host that runs the jobs, registers the
+reminder pass this way.
 <!--#endif-->
-<!--#if (!reminders && !jobsWorker)-->
-`MaintenanceBackgroundService`, in `Src/Presentation/AT.Api/Features/Maintenance/Jobs/`, is
-the model.
+<!--#if (files && !reminders)-->
+`Features/Files/Jobs/FileJobsExtensions.cs`, in the host that runs the jobs, registers the three file
+passes this way.
 <!--#endif-->
-<!--#if (reminders && jobsWorker)-->
-`Src/Presentation/<Initials>.Worker/Features/Reminders/Jobs/ReminderJobsExtensions.cs` and the
-`ReminderBackgroundService` beside it are the model.
-<!--#endif-->
-<!--#if (!reminders && jobsWorker)-->
-`MaintenanceBackgroundService`, in `Src/Presentation/<Initials>.Worker/Features/Maintenance/Jobs/`, is
-the model.
+<!--#if (!reminders && !files)-->
+No pass of this project runs on an interval of its own yet: `AddIntervalPass` waits in the jobs
+host's `Common/Jobs/` for the first one.
 <!--#endif-->
 
 Either way, a pass that must run on one instance takes `ILeaderLease` in its use case, not in the
@@ -238,7 +253,7 @@ loop.
 | [`IdempotencyPurge`](../reference/configuration.md#idempotencypurge) | rows deleted per round trip by the idempotency purge |
 
 An invalid interval fails start-up on an instance that runs jobs; it is never read as "disabled".
-A maintenance task switched off logs a warning on every tick saying what accumulates.
+A pass switched off logs a warning on every tick saying what it leaves undone.
 
 ## Decisions
 

@@ -396,7 +396,12 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
+<!--#if (!presentationBlazorServer)-->
 | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | Sent on every API response. |
+<!--#endif-->
+<!--#if (presentationBlazorServer)-->
+| `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | Sent on every API response, and on every portal response, which starts from a default of its own ([portal security headers](../features/presentation.md#portal-security-headers)). A blank value, or one without `frame-ancestors`, stops the host. |
+<!--#endif-->
 
 ### `RequestLimits`
 

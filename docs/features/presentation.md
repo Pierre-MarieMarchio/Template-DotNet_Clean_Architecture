@@ -57,7 +57,8 @@ The portal's own files come with this project: its project file, `Program.cs`, i
 image, and the wiring under `Common/` and `Features/`. The pages come from Microsoft's own
 template: the step runs `dotnet new blazor` from the template package and version the project's
 descriptor pins, in a template hive of its own, and keeps what it writes under `Components` and
-`wwwroot`. It needs the network once.
+`wwwroot`. A file this project already holds is kept, which is why `Components/App.razor` and, under
+local accounts, `Components/Pages/SignIn.razor` are the portal's own. It needs the network once.
 
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
@@ -123,51 +124,19 @@ it, rather than guess.
 
 ### Portal sign-in
 
-No page, and no authorization by default: a page asks for a signed-in user with `[Authorize]`, or
-`[Authorize(Policy = AuthorizationPolicies.Administrator)]`, and the router shows it only then
-once the routes component uses `AuthorizeRouteView` in place of `RouteView`.
+<!--#if (!publicApi)-->
+A page needs no attribute to be protected: see [the default deny](#portal-security-headers) below. `[Authorize(Policy = AuthorizationPolicies.Administrator)]`
+narrows a page to the administrators, and the router shows it only to them once the routes component
+uses `AuthorizeRouteView` in place of `RouteView`.
+<!--#endif-->
 
 <!--#if (localAuth)-->
-The sign-in is the application's own use cases, kept in a cookie. A page rendered statically posts
-the form, sends `LoginCommand`, then `VerifyTwoFactorCommand` with the challenge when two-factor is
-on, and hands the `LoginOutcome.Authenticated` it gets to `CookieSession.SignInAsync`:
-
-```razor
-@page "/account/sign-in"
-@inject ISender Sender
-@inject CookieSession Session
-@inject NavigationManager Navigation
-
-<EditForm Model="Input" method="post" OnValidSubmit="SignInAsync" FormName="sign-in">
-    <InputText @bind-Value="Input.Email" />
-    <InputText type="password" @bind-Value="Input.Password" />
-    <button type="submit">Sign in</button>
-</EditForm>
-
-@code {
-    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
-
-    [SupplyParameterFromForm] private SignInForm Input { get; set; } = new();
-
-    private async Task SignInAsync()
-    {
-        var outcome = await Sender.Send(new LoginCommand(Input.Email, Input.Password));
-
-        if (outcome is { IsSuccess: true, Value: LoginOutcome.Authenticated session }
-            && await Session.SignInAsync(HttpContext, session))
-        {
-            Navigation.NavigateTo("/");
-        }
-    }
-
-    private sealed class SignInForm
-    {
-        public string Email { get; set; } = string.Empty;
-
-        public string Password { get; set; } = string.Empty;
-    }
-}
-```
+The sign-in is the application's own use cases, kept in a cookie. `Components/Pages/SignIn.razor`, at
+`/account/sign-in`, is the page: rendered statically, anonymous with `[AllowAnonymous]`, it posts a
+form, sends `LoginCommand`, then `VerifyTwoFactorCommand` with the challenge when two-factor is on, and
+hands the `LoginOutcome.Authenticated` it gets to `CookieSession.SignInAsync`. A failure shows one
+message for every cause, so the page reveals nothing about which accounts exist, and a `ReturnUrl` is
+followed only when it is a path of the portal. It is the project's own to restyle.
 
 `SignInAsync` validates the access token the use case issued with the bearer settings every host shares, so
 the cookie holds exactly the claims a bearer token carries: the user, the session, the roles and the
@@ -191,6 +160,61 @@ with its antiforgery token, ends the cookie session; the provider's own session 
 <!--#endif-->
 <!--#if (publicApi)-->
 Nobody signs in: this project authenticates nobody, and `ICurrentUser` names no caller.
+<!--#endif-->
+
+### Portal security headers
+
+Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy: no-referrer` and a `Content-Security-Policy`, and no `X-Powered-By`: the headers every
+HTTP host of the project sends. Their values, and the `SecurityHeaders` options with the validator that refuses a blank policy or
+one without `frame-ancestors`, are `Presentation.Core`'s (`SecurityHeaderValues`,
+`AddSecurityHeaderOptions`), which each host registers. The middleware that writes them stays in each
+host, because `Presentation.Core` holds no reference to ASP.NET Core
+(`ThePortableProjects_DoNotReachTheAspNetFramework`).
+
+The portal's default policy is its own, since a Blazor page needs what the API's `default-src 'none'`
+refuses. `frame-ancestors 'none'` and `X-Frame-Options: DENY` both forbid framing.
+
+| Directive | Value | Why |
+|---|---|---|
+| `default-src` | `'self'` | Nothing loads from another origin. |
+| `script-src` | `'self'` | `blazor.web.js` and the project's own scripts. Never `'unsafe-inline'` nor `'unsafe-eval'`: an injected script does not run. |
+| `style-src` | `'self' 'unsafe-inline'` | The pages `dotnet new blazor` write no `style` attribute, but the component libraries and the framework's own error and validation UI may, and a nonce cannot cover an attribute. A style cannot run code. A portal that has none tightens it to `'self'` in `SecurityHeaders:ContentSecurityPolicy`. |
+| `connect-src` | `'self'` | The circuit's SignalR connection, over WebSockets or long polling, back to the portal. |
+| `img-src` | `'self' data:` | Images of the portal and inline ones. |
+| `font-src`, `object-src`, `base-uri`, `form-action` | `'self'`, `'none'`, `'self'`, `'self'` | Nothing else is allowed to be a font, a plug-in, a base or a form target. |
+
+A script written inline in a page is refused by the browser, which logs it, so `App.razor` leaves out the
+`<ImportMap />` component that `dotnet new blazor` writes, and every script is loaded by `@Assets[...]`: put a
+script of your own in `wwwroot`. `ServedPageTests` holds that a served page has no inline script.
+`SecurityHeaders:ContentSecurityPolicy` replaces the whole policy
+([the configuration reference](../reference/configuration.md)).
+
+<!--#if (!publicApi)-->
+The default deny is a fallback authorization policy that asks for a signed-in user: a page or an
+endpoint that does not say otherwise answers a caller who is not signed in with a challenge.
+<!--#if (localAuth)-->
+The challenge sends the browser to `/account/sign-in`.
+<!--#endif-->
+<!--#if (externalAuth)-->
+The challenge sends the browser to `/account/sign-in`, which sends it on to the provider.
+<!--#endif-->
+What opts out is `/health` and `/health/ready`, the static assets
+<!--#if (localAuth)-->
+and the sign-in page, with `[AllowAnonymous]`, and the pages `/Error` and `/not-found`, by `AnonymousPages`.
+<!--#endif-->
+<!--#if (externalAuth)-->
+and the sign-in route, with `.AllowAnonymous()`, and the pages `/Error` and `/not-found`, by `AnonymousPages`.
+<!--#endif-->
+<!--#if (api)-->
+`HttpSurfaceTests` counts the opt-outs written with `.AllowAnonymous()`, so a new one is counted there.
+<!--#endif-->
+An interactive page for a caller who is not signed in is not supported: the circuit's own connection is
+behind the policy too.
+<!--#endif-->
+<!--#if (publicApi)-->
+This project authenticates nobody, so the portal sets no fallback policy: a policy that asks for a
+caller would make every page unreachable.
 <!--#endif-->
 
 ### Portal settings
@@ -230,6 +254,19 @@ revalidation.
 <!--#endif-->
 <!--#if (!localAuth)-->
 `DataProtectionOptionsValidatorTests` holds the key ring's setting.
+<!--#endif-->
+`ServedPageTests` holds that a served page has no inline script.
+<!--#if (localAuth)-->
+`SignInPageTests` holds that a caller who is not signed in receives the form, and that a wrong password
+sets no cookie.
+<!--#endif-->
+`SecurityHeaderTests` holds the headers and the policy's script, framing and circuit directives.
+<!--#if (!publicApi)-->
+`DefaultDenyTests` holds the fallback policy, and that every endpoint that does not opt out
+challenges a caller who is not signed in.
+<!--#endif-->
+<!--#if (publicApi)-->
+`DefaultDenyTests` holds that no fallback policy is set.
 <!--#endif-->
 `NoHost_ReferencesAnotherHost` keeps the portal from reaching the jobs and migrations of another host.
 <!--#endif-->

@@ -596,6 +596,7 @@
           "condition": "(!localAuth)",
           "exclude": [
             "**/Features/Auth/**",
+            "**/Components/Pages/SignIn.razor",
             "**/AccountReminderRecipientDirectory*.cs"
           ]
         },

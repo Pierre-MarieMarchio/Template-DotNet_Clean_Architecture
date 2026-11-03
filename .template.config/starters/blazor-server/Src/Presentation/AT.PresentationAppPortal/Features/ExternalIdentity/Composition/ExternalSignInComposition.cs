@@ -55,7 +55,6 @@ internal static class ExternalSignInComposition
         services.AddAuthentication(options =>
             {
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
             })
             .AddCookie(options =>
             {
@@ -64,6 +63,7 @@ internal static class ExternalSignInComposition
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.SlidingExpiration = false;
+                options.LoginPath = SignInPath;
             })
             .AddOpenIdConnect();
         services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, ConfigureExternalOpenIdConnectOptions>();
@@ -83,7 +83,8 @@ internal static class ExternalSignInComposition
 
         endpoints.MapGet(SignInPath, (string? returnUrl) => Results.Challenge(
             new AuthenticationProperties { RedirectUri = IsLocal(returnUrl) ? returnUrl : "/" },
-            [OpenIdConnectDefaults.AuthenticationScheme]));
+            [OpenIdConnectDefaults.AuthenticationScheme]))
+            .AllowAnonymous();
 
         endpoints.MapPost(SignOutPath, async (HttpContext context) =>
             {

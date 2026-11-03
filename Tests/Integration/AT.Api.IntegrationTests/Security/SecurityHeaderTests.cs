@@ -1,8 +1,8 @@
 ﻿using System.Net;
-//#if (signedInRoute)
-using AppTemplate.Api.Common.Security;
-//#endif
 using AppTemplate.Api.IntegrationTests.Infrastructure;
+//#if (signedInRoute)
+using AppTemplate.Presentation.Core.Common.Security;
+//#endif
 using Shouldly;
 using Xunit;
 

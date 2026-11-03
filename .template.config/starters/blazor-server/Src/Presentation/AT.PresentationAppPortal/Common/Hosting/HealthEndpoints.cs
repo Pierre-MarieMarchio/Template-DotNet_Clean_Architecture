@@ -10,11 +10,12 @@ internal static class HealthEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
+        endpoints.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false })
+            .AllowAnonymous();
         endpoints.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains(ReadyTag),
-        });
+        }).AllowAnonymous();
 
         return endpoints;
     }

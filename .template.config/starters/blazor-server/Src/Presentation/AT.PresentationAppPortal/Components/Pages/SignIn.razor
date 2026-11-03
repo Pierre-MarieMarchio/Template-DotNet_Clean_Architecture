@@ -1,0 +1,101 @@
+﻿@page "/account/sign-in"
+@attribute [AllowAnonymous]
+@using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.Login
+@using AppTemplate.Application.Auth.Features.TwoFactor.UseCases.Commands.VerifyTwoFactor
+@using AppTemplate.PresentationAppPortal.Features.Auth.Composition
+@using AppTemplate.Application.Core.Common.Results
+@using Mediator
+@using Microsoft.AspNetCore.Authorization
+@inject ISender Sender
+@inject CookieSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in</PageTitle>
+
+<h1>Sign in</h1>
+
+@if (_failed)
+{
+    <p role="alert">The sign-in failed. Check what you typed and try again.</p>
+}
+
+@if (Verification!.ChallengeToken.Length == 0)
+{
+    <EditForm Model="Credentials" method="post" OnValidSubmit="SignInAsync" FormName="sign-in">
+        <p>
+            <label>Email <InputText type="email" autocomplete="username" @bind-Value="Credentials!.Email" /></label>
+        </p>
+        <p>
+            <label>Password <InputText type="password" autocomplete="current-password" @bind-Value="Credentials!.Password" /></label>
+        </p>
+        <button type="submit">Sign in</button>
+    </EditForm>
+}
+else
+{
+    <EditForm Model="Verification" method="post" OnValidSubmit="VerifyAsync" FormName="two-factor">
+        <InputText type="hidden" @bind-Value="Verification!.ChallengeToken" />
+        <p>
+            <label>Code <InputText inputmode="numeric" autocomplete="one-time-code" @bind-Value="Verification!.Code" /></label>
+        </p>
+        <button type="submit">Verify</button>
+    </EditForm>
+}
+
+@code {
+    private bool _failed;
+
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromForm(FormName = "sign-in")] private SignInForm? Credentials { get; set; }
+
+    [SupplyParameterFromForm(FormName = "two-factor")] private VerificationForm? Verification { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Credentials ??= new();
+        Verification ??= new();
+    }
+
+    private async Task SignInAsync() =>
+        await ContinueAsync(await Sender.Send(new LoginCommand(Credentials!.Email, Credentials.Password)));
+
+    private async Task VerifyAsync() =>
+        await ContinueAsync(await Sender.Send(new VerifyTwoFactorCommand(Verification!.ChallengeToken, Verification.Code)));
+
+    private async Task ContinueAsync(Result<LoginOutcome> outcome)
+    {
+        if (outcome is { IsSuccess: true, Value: LoginOutcome.TwoFactorRequired required })
+        {
+            Verification!.ChallengeToken = required.ChallengeToken;
+        }
+        else if (outcome is { IsSuccess: true, Value: LoginOutcome.Authenticated session }
+            && await Session.SignInAsync(HttpContext, session))
+        {
+            Navigation.NavigateTo(IsLocal(ReturnUrl) ? ReturnUrl! : "/");
+        }
+        else
+        {
+            _failed = true;
+        }
+    }
+
+    private static bool IsLocal(string? url) =>
+        url is { Length: > 0 } && url[0] == '/' && (url.Length == 1 || (url[1] != '/' && url[1] != '\\'));
+
+    private sealed class SignInForm
+    {
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private sealed class VerificationForm
+    {
+        public string ChallengeToken { get; set; } = string.Empty;
+
+        public string Code { get; set; } = string.Empty;
+    }
+}

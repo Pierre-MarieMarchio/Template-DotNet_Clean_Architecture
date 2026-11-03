@@ -19,6 +19,9 @@ using AppTemplate.PresentationAppPortal.Features.Auth.Composition;
 //#if (externalAuth)
 using AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Composition;
 //#endif
+//#if (!publicApi)
+using Microsoft.AspNetCore.Authorization;
+//#endif
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -57,6 +60,8 @@ builder.Services.AddEmailModule(builder.Configuration);
 builder.Services.AddStorageModule(builder.Configuration);
 //#endif
 
+builder.Services.AddPortalSecurityHeaders(builder.Configuration);
+
 builder.Services.AddCallerIdentity();
 /*#if (localAuth)*/
 builder.Services.AddCookieSessions(builder.Configuration);
@@ -65,6 +70,13 @@ builder.Services.AddDataProtectionKeys(builder.Configuration);
 #endif*/
 //#if (externalAuth)
 builder.Services.AddExternalSignIn(builder.Configuration);
+//#endif
+
+//#if (!publicApi)
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
 //#endif
 
 builder.Services.AddObservability(
@@ -81,6 +93,8 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
+app.UsePortalSecurityHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -95,9 +109,10 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AllowAnonymousPages();
 /*#if (localAuth)*/
 
 app.MapCookieSessionEndpoints();

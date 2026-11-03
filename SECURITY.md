@@ -56,6 +56,9 @@ Each row links to the page that describes it.
 | A setting the host cannot use stops it at start, naming the key | [Deployment › Configuration and secrets](docs/guides/deployment.md#configuration-and-secrets) |
 | Every dependency pinned and audited; any known advisory fails the build | [Build and CI › Supply chain](docs/guides/build-and-ci.md#supply-chain) |
 | An unprivileged image exposing 8080 only | [Deployment › The image](docs/guides/deployment.md#the-image) |
+<!--#if (presentationBlazorServer)-->
+| The portal sends the API's security headers and a policy that allows no script but its own and forbids framing; where the project authenticates, every page asks for a signed-in user unless it opts out | [Presentation projects › Portal security headers](docs/features/presentation.md#portal-security-headers) |
+<!--#endif-->
 
 ## Before you deploy
 

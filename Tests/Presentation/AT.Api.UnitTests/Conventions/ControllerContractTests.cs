@@ -18,7 +18,7 @@ namespace AppTemplate.Api.UnitTests.Conventions;
 
 public sealed class ControllerContractTests
 {
-    private static readonly Assembly _api = typeof(SecurityHeaderOptions).Assembly;
+    private static readonly Assembly _api = typeof(ResponseContentSecurityPolicy).Assembly;
 
     private static readonly Assembly[] _applicationLayer =
     [

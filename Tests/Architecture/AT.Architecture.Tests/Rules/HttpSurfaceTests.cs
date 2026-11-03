@@ -25,7 +25,13 @@ public sealed class HttpSurfaceTests
         //#endif
     ];
 
+    /*#if (!presentationBlazorServer)*/
     private const int _fluentlyAnonymousEndpoints = 4;
+    /*#elseif (externalAuth)
+    private const int _fluentlyAnonymousEndpoints = 8;
+    #else
+    private const int _fluentlyAnonymousEndpoints = 7;
+    #endif*/
 
     private static readonly string[] _linkNeedles = ["\"Link\"", "HeaderNames.Link", "Headers.Link"];
 

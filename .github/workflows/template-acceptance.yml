@@ -746,7 +746,7 @@ jobs:
           docker compose build
           docker compose up --detach --wait --wait-timeout 300
 
-      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A server-rendered app that keeps sessions refuses a POST without X-CSRF itself, and with an external provider refuses a sign-in callback it did not start and sends a sign-in to the provider, or answers 502 while the provider cannot be reached. A page that signs in at the provider may reach its origin.
+      # Each web app answers on the port .env.example gives it, serves its page with the page headers, and relays to the API. An inline script runs only by its hash or its response's nonce in the served script-src, and no two responses share a nonce; an event-handler attribute never runs. A server-rendered app that keeps sessions refuses a POST without X-CSRF itself, and with an external provider refuses a sign-in callback it did not start and sends a sign-in to the provider, or answers 502 while the provider cannot be reached. A page that signs in at the provider may reach its origin. A presentation project answers / with a page, or, where it authenticates, with a redirect to its own sign-in page; under local accounts, which its .env shows by the JWT_KEY it holds, that page holds a form.
       - name: Assert every web app serves its page and relays to the API
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -826,10 +826,21 @@ jobs:
           mapfile -t presentations < <(grep -oE '^PRESENTATION_[A-Z0-9_]+_HOST_PORT=[0-9]+' .env | grep -v '^PRESENTATION_MCP_' | cut -d= -f2)
           for port in "${presentations[@]}"; do
             base="http://127.0.0.1:${port}"
-            curl -fsS -o page.html "$base/" || fail "The presentation project on $port does not answer /."
-            grep -qi '<html' page.html || fail "The presentation project on $port served no page."
+            status=$(curl -sS -o page.html -D page.headers -w '%{http_code}' "$base/")
+            case "$status" in
+              200) grep -qi '<html' page.html || fail "The presentation project on $port served no page." ;;
+              302)
+                location=$(sed -n 's/^[Ll]ocation: *//p' page.headers | tr -d '\r')
+                [[ "$location" =~ ^(http://[^/]+)?/account/sign-in(\?.*)?$ ]] || fail "The presentation project on $port redirected / to ${location}, not to its sign-in page."
+                ;;
+              *) fail "The presentation project on $port answered $status to /, not a page or a redirect to its sign-in page." ;;
+            esac
+            if grep -q '^JWT_KEY=' .env; then
+              curl -fsS -o sign-in.html "$base/account/sign-in" || fail "The presentation project on $port does not serve its sign-in page."
+              grep -qi '<form' sign-in.html || fail "The presentation project on $port serves a sign-in page without a form."
+            fi
             curl -fsS "$base/health" > /dev/null || fail "The presentation project on $port does not answer /health."
-            echo "Presentation project on $port: page and /health verified."
+            echo "Presentation project on $port: page or sign-in redirect, sign-in form under local accounts, and /health verified."
           done
 
       # The worker runs its first maintenance pass as it starts; the API, which leaves the jobs to it, starts none.

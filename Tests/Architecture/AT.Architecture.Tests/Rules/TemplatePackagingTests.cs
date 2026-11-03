@@ -943,16 +943,46 @@ public sealed class TemplatePackagingTests
             "Each file-based tool and the launcher compute a project's folder on their own, and these compute the initials otherwise than ProjectFolders does: make each SegmentInitials read as that one.");
     }
 
-    [Fact]
-    public void EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn()
+    [Theory]
+    [InlineData("NewUseCase.cs")]
+    [InlineData("NewSetting.cs")]
+    [InlineData("NewEvent.cs")]
+    public void EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn(string generator)
     {
-        string own = SharedFileEdits(Path.Combine("Tools", "NewFeature.cs"));
+        string own = SharedUnit("NewFeature.cs", "internal static class TextEdits", "internal static class TextEdits");
 
         own.ShouldNotBeEmpty("NewFeature.cs declares no TextEdits, so this rule compares nothing.");
-        SharedFileEdits(Path.Combine("Tools", "NewUseCase.cs")).ShouldBe(
+        SharedUnit(generator, "internal static class TextEdits", "internal static class TextEdits").ShouldBe(
             own,
-            "NewFeature.cs and NewUseCase.cs are file-based programs, which share no code, so each closes on its own copy of TextEdits, "
-            + "the edits both make in files a feature does not own and the commands both run after: make NewUseCase.cs's copy read as NewFeature.cs's.");
+            $"The generators are file-based programs, which share no code, so each closes on its own copy of TextEdits, the one way they "
+            + $"edit files they do not own and write everything or nothing: make {generator}'s copy read as NewFeature.cs's.");
+    }
+
+    [Theory]
+    [InlineData("NewUseCase.cs")]
+    [InlineData("NewSetting.cs")]
+    [InlineData("NewEvent.cs")]
+    public void EveryCopyOfTheNameRules_ReadsAsNewFeaturesOwn(string generator)
+    {
+        string own = SharedUnit("NewFeature.cs", "internal static class CSharpNames", "internal static class CSharpNames");
+
+        own.ShouldNotBeEmpty("NewFeature.cs declares no CSharpNames, so this rule compares nothing.");
+        SharedUnit(generator, "internal static class CSharpNames", "internal static class CSharpNames").ShouldBe(
+            own,
+            $"Every generator refuses a name by the same rules, PascalCase and no C# keyword once lowered, from its own copy of CSharpNames: "
+            + $"make {generator}'s copy read as NewFeature.cs's.");
+    }
+
+    [Fact]
+    public void EveryCopyOfTheFieldGrammar_ReadsAsNewFeaturesOwn()
+    {
+        string own = SharedUnit("NewFeature.cs", "internal enum FieldKind", "internal static class FieldGrammar");
+
+        own.ShouldNotBeEmpty("NewFeature.cs declares no FieldGrammar, so this rule compares nothing.");
+        SharedUnit("NewEvent.cs", "internal enum FieldKind", "internal static class FieldGrammar").ShouldBe(
+            own,
+            "new-feature --fields and new-event --fields read one grammar, each from its own copy of the field model and FieldGrammar, "
+            + "an event taking the subset FieldProfile.Event declares: make NewEvent.cs's copy read as NewFeature.cs's.");
     }
 
     [Fact]
@@ -1230,12 +1260,14 @@ public sealed class TemplatePackagingTests
         }
     }
 
-    private static string SharedFileEdits(string relative)
+    private static string SharedUnit(string generator, string first, string last)
     {
-        string text = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, relative)).ReplaceLineEndings("\n");
-        int start = text.IndexOf("\ninternal static class TextEdits\n", StringComparison.Ordinal);
+        string text = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Tools", generator)).ReplaceLineEndings("\n");
+        int start = text.IndexOf($"\n{first}\n", StringComparison.Ordinal);
+        int lastStart = start < 0 ? -1 : text.IndexOf($"\n{last}\n", start, StringComparison.Ordinal);
+        int end = lastStart < 0 ? -1 : text.IndexOf("\n}\n", lastStart, StringComparison.Ordinal);
 
-        return start < 0 ? string.Empty : text[start..];
+        return end < 0 ? string.Empty : text[start..(end + 3)];
     }
 
     private static string SegmentInitials(string relative) =>

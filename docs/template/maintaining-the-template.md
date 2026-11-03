@@ -662,6 +662,22 @@ program shares no code.
 | The token stands only before a project's folder, at the start of a word, in every path and file a template writes | `TemplatePackagingTests.TheFolderToken_NamesNothingButAProjectFolder` |
 | No path under `Src` and `Tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
 
+## The generators' shared code
+
+`Tools/NewFeature.cs`, `Tools/NewUseCase.cs`, `Tools/NewSetting.cs` and `Tools/NewEvent.cs` are
+file-based programs, which share no code, so each closes on its own copy of what they hold in
+common, and `Tools/NewFeature.cs` holds the copy the others read as. A change to a shared unit is
+made in `Tools/NewFeature.cs` and copied as is.
+
+| Unit | Copied in | Test |
+|---|---|---|
+| `TextEdits`, the edits in files a generator does not own, placed beside a line or computed on the whole text, and the write of every file or none | the four generators | `TemplatePackagingTests.EveryCopyOfTheSharedFileEdits_ReadsAsNewFeaturesOwn` |
+| `CSharpNames`, a name in PascalCase and the C# keywords it must not become once lowered | the four generators | `TemplatePackagingTests.EveryCopyOfTheNameRules_ReadsAsNewFeaturesOwn` |
+| The field model and `FieldGrammar`, with the subset of each `FieldProfile` | `Tools/NewFeature.cs` and `Tools/NewEvent.cs` | `TemplatePackagingTests.EveryCopyOfTheFieldGrammar_ReadsAsNewFeaturesOwn` |
+
+`new-setting --keys` reads its own grammar: a key is a bounded configuration value with a default,
+`duration` and `secret` among its types, which no field has; its names follow `CSharpNames`.
+
 ## The package
 
 `.template.config/TemplatePackage.csproj` packs the four templates into one NuGet package,

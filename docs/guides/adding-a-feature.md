@@ -293,9 +293,11 @@ dotnet run Tools/Tasks.cs new-event <Features> <Event> --unconsumed "<reason>"
 ```
 
 The event's name ends in `DomainEvent`. `--fields` lists what it carries besides `OccurredOn`, which
-it always ends with, each of a type from `Guid`, `string`, `int`, `long`, `bool`, `decimal`,
-`DateOnly` and `DateTimeOffset`; left out, the event carries the id of the feature's aggregate when
-its repository is the only one. An event is consumed or listed as unconsumed with its reason, so one
+it always ends with, in the grammar and with the name rules of [the fields](#fields) of a feature,
+each of a type from `Guid`, `string`, `int`, `long`, `bool`, `decimal`, `DateOnly` and
+`DateTimeOffset`, and with no length, precision, bound or `?`: no column holds an event, and the
+aggregate checks a value before it raises the event with it. Left out, the event carries the id of
+the feature's aggregate when its repository is the only one. An event is consumed or listed as unconsumed with its reason, so one
 of `--consumer` and `--unconsumed` is required, never both.
 
 The command writes, or nothing: each file is computed in memory and each anchor checked before the

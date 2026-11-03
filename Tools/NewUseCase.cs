@@ -63,20 +63,6 @@ internal static class NewUseCase
 
     private static readonly string[] _reservedSuffixes = ["UseCase", "Command", "Query", "Handler", "Validator", "Dto"];
 
-    private static readonly string[] _keywords =
-    [
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
-        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
-        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
-        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
-        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
-        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
-        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
-    ];
-
-    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
-
     private static readonly Regex _tokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     private sealed record Emission(string Path, string Content);
@@ -102,7 +88,7 @@ internal static class NewUseCase
 
         internal string? Empty => IsNullable ? null : Known?.Empty;
 
-        internal string Argument => _keywords.Contains(Lower(Name), StringComparer.Ordinal) ? "@" + Lower(Name) : Lower(Name);
+        internal string Argument => CSharpNames.Keywords.Contains(CSharpNames.Lower(Name), StringComparer.Ordinal) ? "@" + CSharpNames.Lower(Name) : CSharpNames.Lower(Name);
     }
 
     private sealed record Spec(
@@ -422,7 +408,7 @@ internal static class NewUseCase
                 .Select(Path.GetFileNameWithoutExtension)
                 .OfType<string>()
                 .Select(file => file[1..^"Repository".Length])
-                .Where(type => _pascalCase.IsMatch(type))
+                .Where(type => CSharpNames.PascalCase.IsMatch(type))
                 .Order(StringComparer.Ordinal)]
             : [];
 
@@ -512,12 +498,12 @@ internal static class NewUseCase
     {
         var problems = new List<string>();
 
-        if (!_pascalCase.IsMatch(features))
+        if (!CSharpNames.PascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a feature folder: <Features> is PascalCase and plural, e.g. Invoices.");
         }
 
-        if (!_pascalCase.IsMatch(name))
+        if (!CSharpNames.PascalCase.IsMatch(name))
         {
             problems.Add($"'{name}' is not a use case name: <UseCase> is PascalCase, e.g. ApproveInvoice.");
         }
@@ -547,9 +533,9 @@ internal static class NewUseCase
             problems.Add($"'{name}' ends in '{suffix}', which the generated types append themselves. Name the operation alone, e.g. {name[..^suffix.Length]}.");
         }
 
-        if (_keywords.Contains(Lower(name), StringComparer.Ordinal))
+        if (CSharpNames.Keywords.Contains(CSharpNames.Lower(name), StringComparer.Ordinal))
         {
-            problems.Add($"'{name}' becomes the C# keyword '{Lower(name)}' once its first letter is lowered, which is how the controller names it. Choose another name.");
+            problems.Add($"'{name}' becomes the C# keyword '{CSharpNames.Lower(name)}' once its first letter is lowered, which is how the controller names it. Choose another name.");
         }
 
         return problems;
@@ -600,7 +586,7 @@ internal static class NewUseCase
                 var (canonical, problem) = TypeSyntax.Read(type);
                 int refusedBefore = problems.Count;
 
-                if (!_pascalCase.IsMatch(name))
+                if (!CSharpNames.PascalCase.IsMatch(name))
                 {
                     problems.Add($"'{name}' in --input is not an input name: it is PascalCase, e.g. MaxCount.");
                 }
@@ -776,7 +762,7 @@ internal static class NewUseCase
                 return type;
             }
 
-            return _keywords.Contains(name, StringComparer.Ordinal)
+            return CSharpNames.Keywords.Contains(name, StringComparer.Ordinal)
                 ? throw new FormatException($"'{name}' is a C# keyword, not an element name")
                 : type + " " + Next();
         }
@@ -793,7 +779,7 @@ internal static class NewUseCase
 
             string first = Identifier();
 
-            if (_keywords.Contains(first, StringComparer.Ordinal))
+            if (CSharpNames.Keywords.Contains(first, StringComparer.Ordinal))
             {
                 return _predefinedTypes.Contains(first, StringComparer.Ordinal) && global.Length == 0 && Peek is not ("." or "<")
                     ? first
@@ -807,7 +793,7 @@ internal static class NewUseCase
                 _at++;
                 string segment = Identifier();
 
-                named += "." + (_keywords.Contains(segment, StringComparer.Ordinal) ? throw new FormatException($"'{segment}' is a C# keyword, not a type") : segment) + TypeArguments();
+                named += "." + (CSharpNames.Keywords.Contains(segment, StringComparer.Ordinal) ? throw new FormatException($"'{segment}' is a C# keyword, not a type") : segment) + TypeArguments();
             }
 
             return named;
@@ -860,8 +846,6 @@ internal static class NewUseCase
         segment.Any(char.IsAsciiLetterUpper)
             ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
             : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
-
-    private static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 
     private static bool IsVowel(char letter) => "aeiou".Contains(char.ToLowerInvariant(letter), StringComparison.Ordinal);
 
@@ -1003,15 +987,7 @@ internal static class NewUseCase
         return emissions;
     }
 
-    private static byte[] Bytes(Emission emission)
-    {
-        bool bom = emission.Path.EndsWith(".cs", StringComparison.Ordinal);
-        string text = emission.Content.ReplaceLineEndings("\n");
-
-        return bom
-            ? [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)]
-            : Encoding.UTF8.GetBytes(text);
-    }
+    private static byte[] Bytes(Emission emission) => TextEdits.Encode(emission.Path, emission.Content);
 
     private static string HashOf(Emission emission) =>
         Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
@@ -1458,7 +1434,7 @@ internal static class NewUseCase
             ? spec.Name.Replace(aggregate, string.Empty, StringComparison.Ordinal)
             : spec.Name;
 
-    private static string IdName(Spec spec) => spec.Aggregate is null ? string.Empty : Lower(spec.Aggregate) + "Id";
+    private static string IdName(Spec spec) => spec.Aggregate is null ? string.Empty : CSharpNames.Lower(spec.Aggregate) + "Id";
 
     private static string RouteTemplate(Spec spec)
     {
@@ -2539,6 +2515,25 @@ internal static class Templates
         """;
 }
 
+internal static class CSharpNames
+{
+    internal static readonly string[] Keywords =
+    [
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
+        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
+        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
+        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
+        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
+        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
+        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
+    ];
+
+    internal static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+    internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
+}
+
 internal static class TextEdits
 {
     private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
@@ -2558,8 +2553,6 @@ internal static class TextEdits
 
         private readonly string _newline;
 
-        private readonly bool _finalNewline;
-
         private readonly List<string> _lines;
 
         private readonly List<bool> _inserted;
@@ -2573,8 +2566,8 @@ internal static class TextEdits
             string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
 
             _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-            _finalNewline = text.EndsWith('\n');
-            _lines = [.. (_finalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            FinalNewline = text.EndsWith('\n');
+            _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
             _inserted = [.. _lines.Select(_ => false)];
         }
 
@@ -2583,6 +2576,39 @@ internal static class TextEdits
         internal byte[] Original { get; }
 
         internal IReadOnlyList<string> Lines => _lines;
+
+        internal bool FinalNewline { get; private set; }
+
+        internal bool Rewritten { get; private set; }
+
+        internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
+
+        internal void Rewrite(string text)
+        {
+            bool finalNewline = text.EndsWith('\n');
+            string[] next = (finalNewline ? text[..^1] : text).Split('\n');
+            int head = 0;
+
+            while (head < next.Length && head < _lines.Count && next[head] == _lines[head])
+            {
+                head++;
+            }
+
+            int tail = 0;
+
+            while (tail < next.Length - head && tail < _lines.Count - head && next[^(tail + 1)] == _lines[^(tail + 1)])
+            {
+                tail++;
+            }
+
+            int removed = _lines.Count - head - tail;
+
+            Rewritten |= removed > 0 || finalNewline != FinalNewline;
+            _lines.RemoveRange(head, removed);
+            _inserted.RemoveRange(head, removed);
+            Insert(head, next[head..^tail]);
+            FinalNewline = finalNewline;
+        }
 
         internal void Insert(int index, string[] lines)
         {
@@ -2618,7 +2644,7 @@ internal static class TextEdits
 
         internal byte[] Bytes()
         {
-            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (_finalNewline ? _newline : string.Empty));
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (FinalNewline ? _newline : string.Empty));
 
             return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
         }
@@ -2630,7 +2656,10 @@ internal static class TextEdits
 
         internal string Step { get; set; } = string.Empty;
 
-        internal IReadOnlyList<Edit> Applied => [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+        internal IReadOnlyList<Edit> Applied =>
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
+                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+                : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
 
         internal List<string> Kept { get; } = [];
 
@@ -2715,6 +2744,23 @@ internal static class TextEdits
             }
 
             Insert(sheet, anchor, before, lines);
+        }
+
+        internal void Rewrite(string path, Func<string, string?> edit)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (edit(sheet.Text) is { } text)
+            {
+                sheet.Rewrite(text);
+            }
+            else
+            {
+                Fail($"its anchor is not in {path}, so nothing could be written.");
+            }
         }
 
         internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
@@ -2938,6 +2984,7 @@ internal static class TextEdits
         var written = new List<string>();
         var directories = new List<string>();
         var overwritten = new List<(string Full, byte[] Original)>();
+        string? staged = null;
 
         try
         {
@@ -2964,12 +3011,30 @@ internal static class TextEdits
             {
                 string full = System.IO.Path.Combine(root, path);
 
+                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
+                {
+                    stream.Write(bytes);
+                }
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(staged, File.GetUnixFileMode(full));
+                }
+
+                File.Move(staged, full, overwrite: true);
+                staged = null;
                 overwritten.Add((full, original));
-                File.WriteAllBytes(full, bytes);
             }
         }
         catch
         {
+            if (staged is not null && File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
             foreach (var (full, original) in overwritten)
             {
                 File.WriteAllBytes(full, original);
@@ -2990,6 +3055,15 @@ internal static class TextEdits
 
             throw;
         }
+    }
+
+    internal static byte[] Encode(string path, string content)
+    {
+        byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
+
+        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+            ? [.. Encoding.UTF8.GetPreamble(), .. text]
+            : text;
     }
 
     internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>

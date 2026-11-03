@@ -714,17 +714,20 @@ public sealed partial class Launcher
         Equivalents(session, Arguments.PresentationCommand, [manifest.ShortName, "-n", name, .. options], then: [joinLine, scaffoldLine]);
         string readme = Path.Combine(project.PresentationFolder, folder, "README.md");
         string shown = $"Src/Presentation/{folder}/README.md";
+        string[] identityStep = project.Auth == "local" && manifest.Resolve(_frameworkSymbol, asked.Options) == "mcp"
+            ? [TemplateEngine.CommandLine("dotnet", ["run", "Tools/Tasks.cs", "migration-add", "AddAccessKeys", "--context", "auth"])]
+            : [];
         if (created)
         {
             session.Conversation.Close(new Closing(
                 null,
-                [],
+                identityStep,
                 $"Commit Src/Presentation/{folder} and its tests: from now on the pages are this project's own. {shown} says how the project was created."));
             return;
         }
 
         string heading = joined ? PresentationCreateSection : JoiningSection;
-        session.Conversation.Close(new Closing(shown, [], MarkdownSection(readme, heading) ?? $"Read {shown}.", StepsLeft: true));
+        session.Conversation.Close(new Closing(shown, identityStep, MarkdownSection(readme, heading) ?? $"Read {shown}.", StepsLeft: true));
     }
 
     private bool RunTask(Session session, string root, string title, string running, IReadOnlyList<string> arguments)

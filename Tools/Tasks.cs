@@ -36,6 +36,11 @@ internal static class Tasks
         <tasks>
 
         Migrations:
+          migration-add <Name>             add a migration to the business context, or to the identity
+                                           context with --context auth; refused, with nothing written,
+                                           when the model has not changed since the last migration
+          database-update                  apply the pending migrations of the business context, or of
+                                           the identity context with --context auth; needs the database
           migration-initial                restore, then create each context's initial migration,
                                            InitialCreate, where its Migrations folder holds no model
                                            snapshot; a context that has one is left alone. bootstrap
@@ -43,6 +48,10 @@ internal static class Tasks
                                            migration-bundle and verify refuse until it has run
 
         Options:
+          --context <auth>                 migration-add, database-update: the context to target, the
+                                           business context when left out; auth is the identity
+                                           context, which only a project generated with --auth local
+                                           holds
           --no-integration                 test: run only the projects that set IsTestProject and
                                            reference no Testcontainers, so no Docker daemon is needed
           --configuration <Debug|Release>  build, test, coverage, migration-bundle, verify, and end-to-end
@@ -71,6 +80,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs remove-feature Widgets
           dotnet run Tools/Tasks.cs remove-feature Widgets --apply
           dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
+          dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
           dotnet run Tools/Tasks.cs -- build --configuration Release
           dotnet run Tools/Tasks.cs verify -m:4
         """;
@@ -234,6 +244,11 @@ internal static class Tasks
 
     private static int Dispatch(string[] arguments)
     {
+        if (arguments is ["--self-test"])
+        {
+            return SelfTest();
+        }
+
         ProjectFile projectFile = ProjectFile.Read(ResolveRepoRoot());
 
         if (arguments is ["help", var helped] && !helped.StartsWith('-'))
@@ -277,6 +292,7 @@ internal static class Tasks
         bool check = false;
         string configuration = "Debug";
         string? maxCpuCount = null;
+        string? context = null;
 
         for (int i = 0; i < arguments.Length; i++)
         {
@@ -297,6 +313,19 @@ internal static class Tasks
             else if (argument is "--keep-stack")
             {
                 keepStack = true;
+            }
+            else if (argument is "--context")
+            {
+                if (i + 1 >= arguments.Length)
+                {
+                    throw new InvalidOperationException("'--context' needs a value: auth, the identity context; leave it out for the business context.");
+                }
+
+                context = arguments[++i];
+            }
+            else if (argument.StartsWith("--context=", StringComparison.Ordinal))
+            {
+                context = argument["--context=".Length..];
             }
             else if (argument is "--configuration")
             {
@@ -367,7 +396,7 @@ internal static class Tasks
             {
                 throw new InvalidOperationException(
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
-                    + "--keep-stack, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
+                    + "--keep-stack, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
                     + $"new-feature {string.Join(", ", _featureOptionNames)}, for new-use-case {string.Join(", ", _useCaseOptionNames)}, "
                     + $"and for web-join {string.Join(", ", _webJoinOptionNames)}.");
             }
@@ -423,6 +452,12 @@ internal static class Tasks
         {
             throw new InvalidOperationException(
                 $"'-m:{maxCpuCount}' is an option of the restore, build, test, coverage and verify tasks, not of '{task ?? "(no task)"}'.");
+        }
+
+        if (context is not null && task is not ("migration-add" or "database-update"))
+        {
+            throw new InvalidOperationException(
+                $"'--context' is an option of the migration-add and database-update tasks, not of '{task ?? "(no task)"}'.");
         }
 
         if (keepStack && task != "end-to-end")
@@ -558,19 +593,18 @@ internal static class Tasks
                 break;
 
             case "migration-add":
-                RequireInitialMigrations(task, persistence);
-                Step(
-                    "dotnet", "ef", "migrations", "add", RequiredName(task, name),
-                    "--project", persistence,
-                    "--startup-project", persistence);
+                string addTarget = MigrationContext(context, projectFile.LocalAuth, persistence, auth);
+                RequireInitialMigrations(task, addTarget);
+                AddMigration(addTarget, RequiredName(task, name));
                 break;
 
             case "database-update":
-                RequireInitialMigrations(task, persistence);
+                string updateTarget = MigrationContext(context, projectFile.LocalAuth, persistence, auth);
+                RequireInitialMigrations(task, updateTarget);
                 Step(
                     "dotnet", "ef", "database", "update",
-                    "--project", persistence,
-                    "--startup-project", persistence);
+                    "--project", updateTarget,
+                    "--startup-project", updateTarget);
                 break;
 
             case "migration-bundle":
@@ -953,6 +987,7 @@ internal static class Tasks
     //#endif
     private static void Gates(string repoRoot)
     {
+        Step("dotnet", "run", Gate(repoRoot, "Tasks.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "NewUseCase.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
@@ -2139,6 +2174,140 @@ internal static class Tasks
                 "dotnet", "ef", "migrations", "add", _initialMigrationName,
                 "--project", context,
                 "--startup-project", context);
+        }
+    }
+
+    private static readonly Regex _emptyMigrationMethod = new(
+        @"void\s+(?:Up|Down)\s*\(\s*MigrationBuilder\s+\w+\s*\)\s*\{\s*\}",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(5));
+
+    private static string MigrationContext(string? requested, bool localAuth, string persistence, string auth)
+    {
+        if (requested is null)
+        {
+            return persistence;
+        }
+
+        if (requested != "auth")
+        {
+            throw new InvalidOperationException(
+                $"'{requested}' is not a context of this project. Leave --context out for the business context, or give auth for the identity context.");
+        }
+
+        return localAuth
+            ? auth
+            : throw new InvalidOperationException(
+                "--context auth targets the identity context, which only a project generated with --auth local holds; "
+                + "this one keeps no accounts of its own. Leave --context out for the business context.");
+    }
+
+    internal static bool IsEmptyMigration(string source) =>
+        _emptyMigrationMethod.Count(source) == 2;
+
+    private static void AddMigration(string context, string name)
+    {
+        string folder = Path.Combine(context, "Migrations");
+        string snapshotPath = Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Single();
+        byte[] snapshot = File.ReadAllBytes(snapshotPath);
+        HashSet<string> before = [.. Directory.EnumerateFiles(folder, "*.cs")];
+
+        Step(
+            "dotnet", "ef", "migrations", "add", name,
+            "--project", context,
+            "--startup-project", context);
+
+        string[] written = [.. Directory.EnumerateFiles(folder, "*.cs").Where(file => !before.Contains(file))];
+        string? migration = written.SingleOrDefault(file => !file.EndsWith(".Designer.cs", StringComparison.Ordinal));
+
+        if (migration is null || !IsEmptyMigration(File.ReadAllText(migration)))
+        {
+            return;
+        }
+
+        foreach (string file in written)
+        {
+            File.Delete(file);
+        }
+
+        File.WriteAllBytes(snapshotPath, snapshot);
+        throw new InvalidOperationException(
+            $"The model of {Path.GetFileName(context)} has not changed since its last migration; nothing is written. "
+            + "A new entity needs its schema constant, its set and its ApplyConfiguration call in the context (docs/guides/migrations.md).");
+    }
+
+    private static int SelfTest()
+    {
+        const string empty = """
+            public partial class Nothing : Migration
+            {
+                protected override void Up(MigrationBuilder migrationBuilder)
+                {
+                }
+
+                protected override void Down(MigrationBuilder migrationBuilder)
+                {
+                }
+            }
+            """;
+        const string addsAColumn = """
+            public partial class AddX : Migration
+            {
+                protected override void Up(MigrationBuilder migrationBuilder)
+                {
+                    migrationBuilder.AddColumn<string>(name: "X", table: "Notes", nullable: true);
+                }
+
+                protected override void Down(MigrationBuilder migrationBuilder)
+                {
+                }
+            }
+            """;
+        const string dropsOnly = """
+            public partial class DropX : Migration
+            {
+                protected override void Up(MigrationBuilder migrationBuilder)
+                {
+                }
+
+                protected override void Down(MigrationBuilder migrationBuilder)
+                {
+                    migrationBuilder.DropColumn(name: "X", table: "Notes");
+                }
+            }
+            """;
+        string windowsEmpty = empty.Replace("\n", "\r\n", StringComparison.Ordinal);
+
+        (string Case, bool Passed)[] cases =
+        [
+            ("an empty Up and Down is empty", IsEmptyMigration(empty)),
+            ("an empty migration with CRLF line ends is empty", IsEmptyMigration(windowsEmpty)),
+            ("a migration with an operation in Up is not empty", !IsEmptyMigration(addsAColumn)),
+            ("a migration with an operation in Down only is not empty", !IsEmptyMigration(dropsOnly)),
+            ("no --context targets the business context", MigrationContext(null, true, "persistence", "auth") == "persistence"),
+            ("--context auth targets the identity context", MigrationContext("auth", true, "persistence", "auth") == "auth"),
+            ("--context auth is refused where there is no identity context", Refused(() => MigrationContext("auth", false, "persistence", "auth"), "--auth local")),
+            ("an unknown context is refused", Refused(() => MigrationContext("billing", true, "persistence", "auth"), "not a context")),
+        ];
+
+        foreach ((string label, bool passed) in cases)
+        {
+            Write((passed ? "ok     " : "FAILED ") + label, passed ? ConsoleColor.Green : ConsoleColor.Red);
+        }
+
+        return cases.All(result => result.Passed) ? 0 : 1;
+    }
+
+    private static bool Refused(Action action, string saying)
+    {
+        try
+        {
+            action();
+            return false;
+        }
+        catch (InvalidOperationException error)
+        {
+            return error.Message.Contains(saying, StringComparison.Ordinal);
         }
     }
 

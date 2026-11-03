@@ -66,18 +66,19 @@ dotnet run Tools/Tasks.cs migration-add <Name>
 
 The task targets the business context.
 <!--#if (localAuth)-->
-For authentication, name its project:
+`--context auth` targets the authentication context instead:
 
 ```bash
-dotnet ef migrations add <Name> \
-  --project Src/Infrastructure/AT.Infrastructure.Auth \
-  --startup-project Src/Infrastructure/AT.Infrastructure.Auth \
-  --output-dir Migrations
+dotnet run Tools/Tasks.cs migration-add <Name> --context auth
 ```
 <!--#endif-->
+<!--#if (!localAuth)-->
+`--context auth` names the authentication context, which this project does not hold: the task refuses it.
+<!--#endif-->
 
-An empty migration means a configuration nobody applies: a new entity needs its schema constant, its
-set and its `ApplyConfiguration` call in the context.
+When the model has not changed since the context's last migration, the task deletes the empty
+migration `dotnet ef` wrote, restores the model snapshot and fails, so nothing is written: a new entity
+needs its schema constant, its set and its `ApplyConfiguration` call in the context first.
 
 ## Check it against the model
 
@@ -120,6 +121,10 @@ Every other environment refuses to start: this project runs on SQLite, a develop
 ```bash
 dotnet run Tools/Tasks.cs database-update    # the business context, against ConnectionStrings__Default
 ```
+<!--#if (localAuth)-->
+
+`database-update --context auth` applies the authentication context's migrations in the same way.
+<!--#endif-->
 
 ## Seeding
 

@@ -24,7 +24,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `new-use-case` | one more use case in a feature of the rich shape |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
-| `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration |
+| `migration-add`, `database-update` | `dotnet ef` over the business context, or the authentication context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 | `api-client` | once the project holds the .NET client, rewrite its `Generated/` folder from the OpenAPI reference, as `bootstrap` does after `migration-initial`; `--check` fails on a difference |

@@ -1,4 +1,4 @@
-﻿﻿# PresentationAppMcp
+﻿# PresentationAppMcp
 
 The presentation project beside the API: an MCP server whose tools call the use cases in its own
 process, for the caller its credential names. [Presentation project](../../../docs/features/presentation.md)

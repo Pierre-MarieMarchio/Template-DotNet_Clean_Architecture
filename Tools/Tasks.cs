@@ -1,4 +1,5 @@
 ﻿#:property UseAppHost=false
+#:property PublishAot=false
 
 using System.ComponentModel;
 using System.Diagnostics;
@@ -18,7 +19,11 @@ internal static class Tasks
     private const string _usage =
         """
         Usage: dotnet run Tools/Tasks.cs <task> [<name> [<second>]] [options]
-               dotnet run Tools/Tasks.cs help
+               dotnet run Tools/Tasks.cs help [<task>]
+               dotnet run Tools/Tasks.cs -- <task> --help
+
+        dotnet run claims --help before the script sees it: after the file name, write help <task>,
+        or put -- before the task, as in -- build --help; either prints only that task's lines.
 
         Thin wrappers over the dotnet and docker commands of this repository. Each task prints the
         command it runs before running it, so the printed line gives the same result without this
@@ -231,7 +236,19 @@ internal static class Tasks
     {
         ProjectFile projectFile = ProjectFile.Read(ResolveRepoRoot());
 
-        if (arguments is ["--help"] or ["-h"] or ["help"])
+        if (arguments is ["help", var helped] && !helped.StartsWith('-'))
+        {
+            Console.WriteLine(TaskHelp(helped, projectFile));
+            return 0;
+        }
+
+        if (arguments is [var asked, ..] && !asked.StartsWith('-') && asked != "help" && arguments.Skip(1).Any(argument => argument is "--help" or "-h"))
+        {
+            Console.WriteLine(TaskHelp(asked, projectFile));
+            return 0;
+        }
+
+        if (arguments is ["--help"] or ["-h"] or ["help"] or ["help", "--help" or "-h"])
         {
             Console.WriteLine(_usage.Replace("<tasks>", TaskList(projectFile), StringComparison.Ordinal));
             //#if (api)
@@ -1995,6 +2012,60 @@ internal static class Tasks
     private static readonly string[] _useCaseOptionNames = ["--kind", "--input"];
 
     private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
+
+    private static string TaskHelp(string task, ProjectFile projectFile)
+    {
+        if (!_knownTasks.Contains(task, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"'{task}' does not belong to the set of tasks. Supply one of these and then try the command again:"
+                + Environment.NewLine + TaskList(projectFile));
+        }
+
+        StringBuilder everything = new StringBuilder(_usage.Replace("<tasks>", TaskList(projectFile), StringComparison.Ordinal))
+            .AppendLine().AppendLine(_webUsage);
+        //#if (api)
+        everything.AppendLine(_apiUsage).AppendLine(_clientUsage);
+        //#endif
+        //#if (templateMaintenance)
+        everything.AppendLine(_maintenanceUsage);
+        //#endif
+
+        var word = new Regex($@"(?<![\w-]){Regex.Escape(task)}(?![\w-])");
+        List<string> shown = [];
+        List<string> entry = [];
+        void Flush()
+        {
+            if (entry.Count > 0 && (entry[0].Trim().Split(' ')[0] == task || (entry[0].TrimStart().StartsWith('-') && word.IsMatch(string.Join(' ', entry)))))
+            {
+                shown.AddRange(entry);
+            }
+
+            entry.Clear();
+        }
+
+        foreach (string line in everything.ToString().ReplaceLineEndings("\n").Split('\n'))
+        {
+            bool starts = line.StartsWith("  ", StringComparison.Ordinal) && !line.StartsWith("   ", StringComparison.Ordinal);
+            if (starts || !line.StartsWith("   ", StringComparison.Ordinal))
+            {
+                Flush();
+            }
+
+            if (starts || (entry.Count > 0 && line.StartsWith("   ", StringComparison.Ordinal)))
+            {
+                entry.Add(line);
+            }
+        }
+
+        Flush();
+
+        string usage = $"Usage: dotnet run Tools/Tasks.cs {task} [<name> [<second>]] [options]";
+        string body = shown.Count > 0
+            ? string.Join(Environment.NewLine, shown)
+            : "  Runs the dotnet command it prints before running it.";
+        return usage + Environment.NewLine + Environment.NewLine + body;
+    }
 
     private static string TaskList(ProjectFile projectFile) =>
         "  " + string.Join(", ", _knownTasks.Where(task => task != "sonar" || projectFile.Sonar));

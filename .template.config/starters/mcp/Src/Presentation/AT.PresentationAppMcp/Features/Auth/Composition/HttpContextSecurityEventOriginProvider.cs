@@ -1,4 +1,4 @@
-﻿﻿using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
+﻿using AppTemplate.Infrastructure.Auth.Features.SecurityEvents.Adapters.Providers;
 
 namespace AppTemplate.PresentationAppMcp.Features.Auth.Composition;
 

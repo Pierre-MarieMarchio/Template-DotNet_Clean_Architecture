@@ -75,6 +75,7 @@ to the API, the tests and a first feature.
 dotnet run Tools/Tasks.cs test --no-integration   # the tests that need no Docker
 dotnet run Tools/Tasks.cs verify                  # the whole gate, Docker needed
 dotnet run Tools/Tasks.cs help                    # every task and its options
+dotnet run Tools/Tasks.cs help verify             # one task alone
 docker compose down                               # stop the stack
 ```
 

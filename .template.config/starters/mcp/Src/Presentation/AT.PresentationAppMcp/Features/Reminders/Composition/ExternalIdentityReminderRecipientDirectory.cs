@@ -1,4 +1,4 @@
-﻿﻿using AppTemplate.Application.Features.ExternalIdentity.Services;
+﻿using AppTemplate.Application.Features.ExternalIdentity.Services;
 using AppTemplate.Application.Features.Reminders.Ports.ReminderRecipients;
 using AppTemplate.Domain.Core.Common.Primitives;
 

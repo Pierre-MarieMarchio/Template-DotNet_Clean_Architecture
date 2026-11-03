@@ -64,7 +64,7 @@ Each question is also a flag named like the option, and `--yes` takes the defaul
 given, or the only value the template leaves it: `--auth none --yes` generates with
 `--examples none --files false`. Without a terminal, every answer is a flag or `--yes` is passed.
 `dnx` takes `--yes`, `--help` and `--version` for itself, so every argument of the launcher follows
-`--`:
+`--`, `--help` of a command included (`-- web-app --help` lists the options of a web app, not of a project):
 
 ```bash
 dnx CleanArch.Create -- new -n Acme.Shop --auth external --examples notes --yes

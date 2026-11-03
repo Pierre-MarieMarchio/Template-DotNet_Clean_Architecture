@@ -30,8 +30,8 @@ using AppTemplate.Domain.Features.TodoLists.Repositories;
 using AppTemplate.Infrastructure.InMemory.Common.Email;
 //#if (todoLists || externalAuth)
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Time.Testing;
 //#endif
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;

@@ -18,6 +18,6 @@ allowBuilds:
   lmdb: false
   msgpackr-extract: false
 
-# minimatch 11 exports a named function where 5 exported the function itself, which @redocly/openapi-core 1.34.21 still requires; a newer openapi-typescript brings another @redocly version, so re-check this patch then.
+# minimatch 11 exports a named function where 5 exported the function itself, which @redocly/openapi-core 1.34 still requires; keyed by range since a project's first install resolves the newest 1.x openapi-typescript accepts, and an install fails once the patch stops applying.
 patchedDependencies:
-  '@redocly/openapi-core@1.34.21': patches/@redocly__openapi-core@1.34.21.patch
+  '@redocly/openapi-core@^1.34.21': patches/@redocly__openapi-core.patch

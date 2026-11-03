@@ -9,7 +9,7 @@ overrides:
   minimatch@5: 11.0.4
 
 patchedDependencies:
-  '@redocly/openapi-core@1.34.21': 2ce4959e1555cddcaa3ace4fa90cf5c75c71412b92b632497c2344ea137ebef1
+  '@redocly/openapi-core@^1.34.21': 2ce4959e1555cddcaa3ace4fa90cf5c75c71412b92b632497c2344ea137ebef1
 
 importers:
 

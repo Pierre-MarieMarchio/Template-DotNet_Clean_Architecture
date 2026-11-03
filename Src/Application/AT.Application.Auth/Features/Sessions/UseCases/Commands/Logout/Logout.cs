@@ -19,7 +19,7 @@ public sealed class LogoutCommandHandler(
 
         if (userId is { } id)
         {
-            securityEventLog.Record(SecurityEvent.LoggedOut(id));
+            await securityEventLog.RecordAsync(SecurityEvent.LoggedOut(id));
         }
 
         return Result.Success();

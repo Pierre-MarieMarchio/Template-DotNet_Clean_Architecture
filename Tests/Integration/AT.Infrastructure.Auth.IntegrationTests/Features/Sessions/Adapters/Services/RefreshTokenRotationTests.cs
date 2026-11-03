@@ -149,7 +149,7 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
 
         retried.Succeeded.ShouldBeTrue(
             "the failed attempt issued no successor, so it must not have consumed the grant either.");
-        log.DidNotReceiveWithAnyArgs().Record(default!);
+        await log.DidNotReceiveWithAnyArgs().RecordAsync(default!);
         (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(1);
     }
 
@@ -173,7 +173,7 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
 
         fault.Fired.ShouldBeTrue();
         rotation.Succeeded.ShouldBeTrue();
-        log.DidNotReceiveWithAnyArgs().Record(default!);
+        await log.DidNotReceiveWithAnyArgs().RecordAsync(default!);
         (await fixture.CountLiveGrantsAsync(user.Id, TestToken)).ShouldBe(
             1,
             "exactly one successor: the retry neither lost the one it staged nor inserted it twice.");

@@ -176,7 +176,7 @@ internal sealed class SessionTokensService(
             "A consumed refresh token was presented for user {UserId}. Revoking every session of the user.",
             userId);
 
-        securityEventLog.Record(SecurityEvent.RefreshTokenReplayDetected(userId));
+        await securityEventLog.RecordAsync(SecurityEvent.RefreshTokenReplayDetected(userId));
 
         await RevokeAllRefreshTokensAsync(userId, cancellationToken: cancellationToken);
 

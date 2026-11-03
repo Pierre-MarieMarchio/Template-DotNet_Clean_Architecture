@@ -2,7 +2,7 @@
 
 public interface ISecurityEventLog
 {
-    void Record(SecurityEvent securityEvent);
+    Task RecordAsync(SecurityEvent securityEvent);
 
     Task<int> PurgeExpiredAsync(DateTimeOffset asOf, CancellationToken cancellationToken = default);
 }

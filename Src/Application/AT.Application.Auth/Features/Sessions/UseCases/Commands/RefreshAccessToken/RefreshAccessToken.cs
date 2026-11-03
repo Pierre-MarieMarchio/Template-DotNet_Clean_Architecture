@@ -35,7 +35,7 @@ public sealed class RefreshAccessTokenCommandHandler(
         if (!await accounts.CanSignInAsync(userId, cancellationToken))
         {
             await sessionTokens.RevokeAllRefreshTokensAsync(userId, cancellationToken: cancellationToken);
-            securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId));
+            await securityEventLog.RecordAsync(SecurityEvent.RefreshTokenRevoked(userId));
 
             return Result.Failure<RefreshAccessTokenOutcome>(SessionsErrors.InvalidRefreshToken);
         }

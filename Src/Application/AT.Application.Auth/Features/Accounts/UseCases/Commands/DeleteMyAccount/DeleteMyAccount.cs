@@ -121,7 +121,7 @@ public sealed class DeleteMyAccountCommandHandler(
             return Result.Failure(AccountsErrors.AccountDeletionRejected);
         }
 
-        securityEventLog.Record(SecurityEvent.AccountSelfDeleted(userId));
+        await securityEventLog.RecordAsync(SecurityEvent.AccountSelfDeleted(userId));
 
         await domainEvents.PublishAsync(
             new UserAccountDeleted(UserId.Create(userId), timeProvider.GetUtcNow()),

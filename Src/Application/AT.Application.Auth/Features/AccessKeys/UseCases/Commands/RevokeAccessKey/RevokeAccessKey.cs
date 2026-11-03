@@ -30,7 +30,7 @@ public sealed class RevokeAccessKeyCommandHandler(
             return Result.Failure(AccessKeysErrors.NoSuchAccessKey);
         }
 
-        securityEventLog.Record(SecurityEvent.AccessKeyRevoked(callerId.Value.Value));
+        await securityEventLog.RecordAsync(SecurityEvent.AccessKeyRevoked(callerId.Value.Value));
 
         return Result.Success();
     }

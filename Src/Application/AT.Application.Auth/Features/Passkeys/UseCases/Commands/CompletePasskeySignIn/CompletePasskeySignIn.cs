@@ -32,19 +32,19 @@ public sealed class CompletePasskeySignInCommandHandler(
 
         if (assertion.Status is not PasskeySignInStatus.Authenticated || assertion.Account is not { } account)
         {
-            securityEventLog.Record(SecurityEvent.PasskeySignInFailed(null));
+            await securityEventLog.RecordAsync(SecurityEvent.PasskeySignInFailed(null));
 
             return Result.Failure<LoginOutcome>(PasskeysErrors.InvalidPasskeySignIn);
         }
 
         if (!await accounts.CanSignInAsync(account.UserId, cancellationToken))
         {
-            securityEventLog.Record(SecurityEvent.PasskeySignInFailed(account.UserId));
+            await securityEventLog.RecordAsync(SecurityEvent.PasskeySignInFailed(account.UserId));
 
             return Result.Failure<LoginOutcome>(PasskeysErrors.InvalidPasskeySignIn);
         }
 
-        securityEventLog.Record(SecurityEvent.PasskeySignInSucceeded(account.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.PasskeySignInSucceeded(account.UserId));
 
         var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
             account.UserId,

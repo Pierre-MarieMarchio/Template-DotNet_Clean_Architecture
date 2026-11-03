@@ -63,7 +63,7 @@ public sealed class RemovePasskeyTests
         var result = await UseCase().Handle(ARequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeyRemoved && e.UserId == _callerId));
     }
 
@@ -112,7 +112,7 @@ public sealed class RemovePasskeyTests
 
         await UseCase().Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
     private static RemovePasskeyCommand ARequest() => new([1, 2, 3]);

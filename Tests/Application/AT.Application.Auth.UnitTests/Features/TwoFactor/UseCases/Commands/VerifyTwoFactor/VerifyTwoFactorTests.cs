@@ -88,7 +88,7 @@ public sealed class VerifyTwoFactorTests
 
         await _useCase.Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.TwoFactorChallengeFailed(account.UserId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.TwoFactorChallengeFailed(account.UserId));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public sealed class VerifyTwoFactorTests
 
         await _useCase.Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class VerifyTwoFactorTests
 
         await _useCase.Handle(ARequest(), TestToken);
 
-        _securityEventLog.DidNotReceive().Record(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
+        await _securityEventLog.DidNotReceive().RecordAsync(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class VerifyTwoFactorTests
 
         await _useCase.Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
     }
 
     private static VerifyTwoFactorCommand ARequest() => new("a-challenge-token", "123456");

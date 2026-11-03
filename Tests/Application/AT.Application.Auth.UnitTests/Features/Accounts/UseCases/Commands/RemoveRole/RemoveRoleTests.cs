@@ -104,8 +104,8 @@ public sealed class RemoveRoleTests
 
         await UseCase().Handle(new RemoveRoleCommand(_targetId, _role), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.RoleRevoked(_targetId, _role));
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_targetId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.RoleRevoked(_targetId, _role));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(_targetId));
     }
 
     [Fact]

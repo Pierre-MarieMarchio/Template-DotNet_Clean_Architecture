@@ -84,7 +84,7 @@ public sealed class DeleteAccountTests
 
         await UseCase().Handle(new DeleteAccountCommand(_targetId), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.AccountDeleted(_targetId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.AccountDeleted(_targetId));
     }
 
     [Fact]

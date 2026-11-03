@@ -30,7 +30,7 @@ public sealed class RevokeSessionCommandHandler(
             return Result.Failure(SessionsErrors.NoSuchSession);
         }
 
-        securityEventLog.Record(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
+        await securityEventLog.RecordAsync(SecurityEvent.RefreshTokenRevoked(userId.Value.Value));
 
         return Result.Success();
     }

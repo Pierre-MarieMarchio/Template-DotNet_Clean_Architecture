@@ -29,7 +29,7 @@ public sealed class VerifyTwoFactorCommandHandler(
 
         if (redemption is { Status: TwoFactorRedemptionStatus.InvalidCode, Account: { } failedAccount })
         {
-            securityEventLog.Record(SecurityEvent.TwoFactorChallengeFailed(failedAccount.UserId));
+            await securityEventLog.RecordAsync(SecurityEvent.TwoFactorChallengeFailed(failedAccount.UserId));
         }
 
         if (redemption is not { Status: TwoFactorRedemptionStatus.Verified, Account: { } account })
@@ -42,11 +42,11 @@ public sealed class VerifyTwoFactorCommandHandler(
             return Result.Failure<LoginOutcome>(TwoFactorErrors.InvalidTwoFactorChallenge);
         }
 
-        securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
 
         if (redemption.UsedRecoveryCode)
         {
-            securityEventLog.Record(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
+            await securityEventLog.RecordAsync(SecurityEvent.RecoveryCodeRedeemed(account.UserId));
         }
 
         var refreshToken = await sessionTokens.IssueRefreshTokenAsync(

@@ -8,7 +8,7 @@ internal static class ATodoList
 {
     internal static TodoList OwnedBy(UserId ownerId, string name = "Groceries")
     {
-        var list = TodoList.Create(ownerId, name, StubDateTimeProvider.DefaultInstant);
+        var list = TodoList.Create(ownerId, name, TheClock.DefaultInstant);
         list.ClearDomainEvents();
 
         return list;

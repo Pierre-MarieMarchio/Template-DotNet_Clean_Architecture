@@ -2,7 +2,6 @@
 using AppTemplate.Application.Auth.Features.AccessKeys.Model.Policies;
 using AppTemplate.Application.Auth.Features.AccessKeys.Ports.AccessKeys;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using Mediator;
 
@@ -13,7 +12,7 @@ public sealed record AuthenticateAccessKeyCommand(string Key) : ICommand<Result<
 public sealed class AuthenticateAccessKeyCommandHandler(
     IAccessKeysService accessKeys,
     IAccountsService accounts,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<AuthenticateAccessKeyCommand, Result<AccessKeyCaller>>
+    TimeProvider timeProvider) : ICommandHandler<AuthenticateAccessKeyCommand, Result<AccessKeyCaller>>
 {
     public async ValueTask<Result<AccessKeyCaller>> Handle(
         AuthenticateAccessKeyCommand request,
@@ -26,7 +25,7 @@ public sealed class AuthenticateAccessKeyCommandHandler(
             return Result.Failure<AccessKeyCaller>(AccessKeysErrors.InvalidKey);
         }
 
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var grant = await accessKeys.FindAsync(request.Key, cancellationToken);
 
         if (grant is null

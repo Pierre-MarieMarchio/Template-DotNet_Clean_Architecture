@@ -72,7 +72,7 @@ public sealed class CancelReminderTests
     public async Task AnAlreadyFiredReminder_CannotBeCancelled()
     {
         var reminder = AReminder.Rehydrated(
-            _callerId, StubDateTimeProvider.DefaultInstant, ReminderState.Fired, notifiedAt: StubDateTimeProvider.DefaultInstant);
+            _callerId, TheClock.DefaultInstant, ReminderState.Fired, notifiedAt: TheClock.DefaultInstant);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);
@@ -86,7 +86,7 @@ public sealed class CancelReminderTests
     public async Task AnAlreadyCancelledReminder_CancelsAgainWithoutError()
     {
         var reminder = AReminder.Rehydrated(
-            _callerId, StubDateTimeProvider.DefaultInstant, ReminderState.Cancelled);
+            _callerId, TheClock.DefaultInstant, ReminderState.Cancelled);
         _repository.GetAsync(reminder.Id, Arg.Any<CancellationToken>()).Returns(reminder);
 
         var result = await UseCase().Handle(new CancelReminderCommand(reminder.Id), TestToken);

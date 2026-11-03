@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
@@ -10,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Shouldly;
@@ -212,7 +212,7 @@ public sealed class AccountsServiceRegisterTests
             userManager,
             signInManager,
             Substitute.For<IAppUserDirectory>(),
-            Substitute.For<IDateTimeProvider>());
+            new FakeTimeProvider());
     }
 
     private sealed class RefusingValidator(IdentityError error) : IUserValidator<AppUser>

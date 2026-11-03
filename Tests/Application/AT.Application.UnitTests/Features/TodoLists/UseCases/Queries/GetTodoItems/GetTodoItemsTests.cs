@@ -50,7 +50,7 @@ public sealed class GetTodoItemsTests
         var listId = Guid.CreateVersion7();
         var items = new[] { new TodoItemDto(Guid.CreateVersion7(), "Buy milk", null, false, null, []) };
         var detail = new Versioned<TodoListDetailDto>(
-            new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, items),
+            new TodoListDetailDto(listId, "Groceries", TheClock.DefaultInstant, null, items),
             _listVersion);
         _queries.GetDetailAsync(listId, _callerId, Arg.Any<CancellationToken>()).Returns(detail);
 

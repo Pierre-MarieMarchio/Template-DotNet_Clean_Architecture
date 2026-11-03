@@ -5,11 +5,11 @@ using AppTemplate.Api.Features.Auth.Contracts.Requests;
 using AppTemplate.Api.Features.Auth.Contracts.Responses;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -99,7 +99,7 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
         using var client = AcceptingClient(host);
 
         string state = await BeginSignInAsync(client);
-        host.Services.GetRequiredService<FixedDateTimeProvider>().Advance(TimeSpan.FromMinutes(5));
+        host.Services.GetRequiredService<FakeTimeProvider>().Advance(TimeSpan.FromMinutes(5));
 
         using var refused = await PostSignInAsync(client, session.UserId, state);
         refused.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -134,7 +134,7 @@ public sealed class PasskeyCeremonyStateTests(ApiFixture fixture) : IntegrationT
             services.AddScoped<IPasskeyHandler<AppUser>, AcceptingPasskeyHandler>();
         }));
 
-        host.Services.GetRequiredService<FixedDateTimeProvider>().Set(Clock.UtcNow);
+        host.Services.GetRequiredService<FakeTimeProvider>().AdjustTime(Clock.GetUtcNow());
 
         return host;
     }

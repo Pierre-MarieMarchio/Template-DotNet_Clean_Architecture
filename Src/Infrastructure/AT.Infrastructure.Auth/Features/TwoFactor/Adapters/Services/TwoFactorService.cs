@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
 using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.TwoFactor.Configuration.Options;
@@ -16,7 +15,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.TwoFactor.Adapters.Services;
 internal sealed class TwoFactorService(
     UserManager<AppUser> userManager,
     IAppUserDirectory directory,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IOptions<TwoFactorOptions> options) : ITwoFactorService
 {
     private const string _loginProvider = "TwoFactorChallenge";
@@ -162,7 +161,7 @@ internal sealed class TwoFactorService(
             ?? throw new InvalidOperationException($"No account with id '{userId}' exists.");
 
         string secret = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(_secretSizeInBytes));
-        var expiresAt = dateTimeProvider.UtcNow.Add(options.Value.ChallengeLifetime);
+        var expiresAt = timeProvider.GetUtcNow().Add(options.Value.ChallengeLifetime);
 
         await userManager.SetAuthenticationTokenAsync(
             user,
@@ -198,7 +197,7 @@ internal sealed class TwoFactorService(
 
         if (stored is null
             || !TryDecode(stored, out var expiresAt, out byte[] expectedHash, out int attempts)
-            || dateTimeProvider.UtcNow >= expiresAt
+            || timeProvider.GetUtcNow() >= expiresAt
             || !CryptographicOperations.FixedTimeEquals(ComputeHash(presentedSecret), expectedHash))
         {
             return TwoFactorRedemptionOutcome.InvalidChallenge;

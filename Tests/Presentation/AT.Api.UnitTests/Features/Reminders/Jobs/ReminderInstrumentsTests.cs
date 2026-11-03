@@ -111,7 +111,8 @@ public sealed class ReminderInstrumentsTests
         using var service = new ReminderBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<ReminderBackgroundService>.Instance);
+            NullLogger<ReminderBackgroundService>.Instance,
+            TimeProvider.System);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(until, description);

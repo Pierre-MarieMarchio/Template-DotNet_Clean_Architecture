@@ -4,12 +4,12 @@ using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Access.Tables;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.Passkeys.Configuration.Options;
-using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -25,7 +25,7 @@ public sealed class PasskeyServiceTests
     private readonly EphemeralDataProtectionProvider _dataProtection = new();
     private readonly ISpentPasskeyCeremonyTable _spentCeremonies = Substitute.For<ISpentPasskeyCeremonyTable>();
 
-    private readonly MovableDateTimeProvider _clockAtTheMachinesTime = new(DateTimeOffset.UtcNow);
+    private readonly FakeTimeProvider _clockAtTheMachinesTime = new(DateTimeOffset.UtcNow);
 
     private readonly IUserStore<AppUser> _store = (IUserStore<AppUser>)Substitute.For(
         [
@@ -356,7 +356,7 @@ public sealed class PasskeyServiceTests
     {
         GivenAVerifiedSignIn();
         string expired = SignInProtector().Protect("the-state", DateTimeOffset.UtcNow.AddMinutes(-1));
-        var behind = new MovableDateTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-10));
+        var behind = new FakeTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-10));
 
         var assertion = await CreateService(clock: behind).CompleteSignInAsync("the-credential", expired, TestToken);
 
@@ -474,7 +474,7 @@ public sealed class PasskeyServiceTests
     public async Task CompleteSignInAsync_RecordsAHashOfTheStateUntilTheStateExpires()
     {
         GivenAVerifiedSignIn();
-        var expiresAt = _clockAtTheMachinesTime.UtcNow.Add(_lifetime);
+        var expiresAt = _clockAtTheMachinesTime.GetUtcNow().Add(_lifetime);
 
         await CreateService().CompleteSignInAsync("the-credential", SignInState(), TestToken);
         await CreateService().CompleteSignInAsync("the-credential", SignInState("another-state"), TestToken);
@@ -499,7 +499,7 @@ public sealed class PasskeyServiceTests
         await CreateService().BeginSignInAsync(TestToken);
 
         await _spentCeremonies.Received(1).PurgeExpiredAsync(
-            Arg.Is<DateTimeOffset>(cutoff => cutoff < _clockAtTheMachinesTime.UtcNow),
+            Arg.Is<DateTimeOffset>(cutoff => cutoff < _clockAtTheMachinesTime.GetUtcNow()),
             Arg.Any<CancellationToken>());
     }
 
@@ -510,7 +510,7 @@ public sealed class PasskeyServiceTests
         GivenAVerifiedSignIn();
         _handler.MakeRequestOptionsAsync(Arg.Any<AppUser?>(), Arg.Any<HttpContext>())
             .Returns(new PasskeyRequestOptionsResult { RequestOptionsJson = "{}", AssertionState = "another-state" });
-        var clock = new MovableDateTimeProvider(_clockAtTheMachinesTime.UtcNow);
+        var clock = new FakeTimeProvider(_clockAtTheMachinesTime.GetUtcNow());
 
         await CreateService(clock: clock, spentCeremonies: ledger)
             .CompleteSignInAsync("the-credential", SignInState(), TestToken);
@@ -604,17 +604,17 @@ public sealed class PasskeyServiceTests
         _dataProtection.CreateProtector(PasskeyCeremonyStateIssuer.SignInStatePurpose).ToTimeLimitedDataProtector();
 
     private string RegistrationState(Guid? userId = null) =>
-        RegistrationProtector(userId ?? _userId).Protect("the-state", _clockAtTheMachinesTime.UtcNow.Add(_lifetime));
+        RegistrationProtector(userId ?? _userId).Protect("the-state", _clockAtTheMachinesTime.GetUtcNow().Add(_lifetime));
 
     private string SignInState(string state = "the-state") =>
-        SignInProtector().Protect(state, _clockAtTheMachinesTime.UtcNow.Add(_lifetime));
+        SignInProtector().Protect(state, _clockAtTheMachinesTime.GetUtcNow().Add(_lifetime));
 
     private static string Unseal(ITimeLimitedDataProtector protector, string sealedState) =>
         protector.Unprotect(sealedState, out _);
 
     private PasskeyService CreateService(
         IUserValidator<AppUser>[]? validators = null,
-        MovableDateTimeProvider? clock = null,
+        FakeTimeProvider? clock = null,
         ISpentPasskeyCeremonyTable? spentCeremonies = null)
     {
         var userManager = new UserManager<AppUser>(

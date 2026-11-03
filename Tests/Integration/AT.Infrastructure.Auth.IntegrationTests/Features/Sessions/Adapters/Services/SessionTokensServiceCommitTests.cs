@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
@@ -125,13 +124,13 @@ public sealed class SessionTokensServiceCommitTests(GrantTableFixture fixture) :
             new AccessTokenIssuer(
                 directory,
                 new OptionsWrapper<JwtOptions>(new JwtOptions()),
-                request.GetRequiredService<IDateTimeProvider>()),
+                request.GetRequiredService<TimeProvider>()),
             request.GetRequiredService<IRefreshTokenTable>(),
             request.GetRequiredService<IRefreshTokenFamilyTable>(),
             directory,
             request.GetRequiredService<IContextUnitOfWork<AuthDbContext>>(),
             request.GetRequiredService<AuthDbContext>(),
-            request.GetRequiredService<IDateTimeProvider>(),
+            request.GetRequiredService<TimeProvider>(),
             new OptionsWrapper<RefreshTokenOptions>(new RefreshTokenOptions()),
             Substitute.For<ISecurityEventLog>(),
             NullLogger<SessionTokensService>.Instance);

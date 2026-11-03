@@ -8,6 +8,7 @@ using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -20,7 +21,7 @@ public sealed class SecurityEventLogTests
             .UseDatabase(DatabaseFaults.UnreachableConnectionString)
             .Options;
 
-    private readonly MovableDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     [Fact]
     public void Record_HandlesEveryDeclaredKind()

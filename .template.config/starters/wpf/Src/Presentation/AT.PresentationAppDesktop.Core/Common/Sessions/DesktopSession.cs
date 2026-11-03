@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace AppTemplate.PresentationAppDesktop.Core.Common.Sessions;
 
-public sealed class DesktopSession(IOptions<SignInOptions> options, ISystemBrowser systemBrowser, IHttpClientFactory httpClients)
+public sealed class DesktopSession(IOptions<SignInOptions> options, ISystemBrowser systemBrowser, IHttpClientFactory httpClients, TimeProvider timeProvider)
     : IAccessTokenSource
 {
     public const string HttpClientName = "AppTemplate.PresentationAppDesktop.Core.SignIn";
@@ -94,7 +94,7 @@ public sealed class DesktopSession(IOptions<SignInOptions> options, ISystemBrows
                 return null;
             }
 
-            if (tokens.ExpiresAt - RefreshAhead > DateTimeOffset.UtcNow)
+            if (tokens.ExpiresAt - RefreshAhead > timeProvider.GetUtcNow())
             {
                 return tokens.AccessToken;
             }
@@ -154,7 +154,7 @@ public sealed class DesktopSession(IOptions<SignInOptions> options, ISystemBrows
 
     private string? CurrentOrForget(Tokens tokens)
     {
-        if (tokens.ExpiresAt > DateTimeOffset.UtcNow)
+        if (tokens.ExpiresAt > timeProvider.GetUtcNow())
         {
             return tokens.AccessToken;
         }

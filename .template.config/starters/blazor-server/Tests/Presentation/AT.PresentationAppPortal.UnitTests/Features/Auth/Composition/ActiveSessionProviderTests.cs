@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Shouldly;
 using Xunit;
+using Microsoft.Extensions.Time.Testing;
 
 namespace AppTemplate.PresentationAppPortal.UnitTests.Features.Auth.Composition;
 
@@ -102,8 +103,8 @@ public sealed class ActiveSessionProviderTests
 
     private ActiveSessionProvider Sessions()
     {
-        var clock = Substitute.For<IDateTimeProvider>();
-        clock.UtcNow.Returns(_now);
+        var clock = new FakeTimeProvider();
+        clock.SetUtcNow(_now);
 
         var provider = new ServiceCollection()
             .AddSingleton<IHttpContextAccessor, HttpContextAccessor>()

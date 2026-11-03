@@ -224,13 +224,13 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
         var middle = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
         var late = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
 
-        Clock.Set(early);
+        Clock.AdjustTime(early);
         var earlyId = await CreateTodoListAsync(client, "Early");
 
-        Clock.Set(middle);
+        Clock.AdjustTime(middle);
         var middleId = await CreateTodoListAsync(client, "Middle");
 
-        Clock.Set(late);
+        Clock.AdjustTime(late);
         await CreateTodoListAsync(client, "Late");
 
         string after = Iso(early);

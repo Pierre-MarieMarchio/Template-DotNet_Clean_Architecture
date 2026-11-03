@@ -18,7 +18,7 @@ public sealed record CompleteTodoItemCommand(
 public sealed class CompleteTodoItemCommandHandler(
     ITodoListService lists,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<CompleteTodoItemCommand, Result<Versioned<TodoItemDto>>>
+    TimeProvider timeProvider) : ICommandHandler<CompleteTodoItemCommand, Result<Versioned<TodoItemDto>>>
 {
     public async ValueTask<Result<Versioned<TodoItemDto>>> Handle(
         CompleteTodoItemCommand command,
@@ -42,7 +42,7 @@ public sealed class CompleteTodoItemCommandHandler(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        var completion = DomainGuard.Try(() => todoList.CompleteItem(command.TodoItemId, dateTimeProvider.UtcNow));
+        var completion = DomainGuard.Try(() => todoList.CompleteItem(command.TodoItemId, timeProvider.GetUtcNow()));
 
         if (completion.IsFailure)
         {

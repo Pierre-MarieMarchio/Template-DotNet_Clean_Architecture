@@ -24,7 +24,7 @@ public sealed class CreateAccessKeyTests
     private static readonly string[] _bothScopes = ["read", "write"];
 
     private static readonly Guid _callerId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly IAccessKeysService _accessKeys = Substitute.For<IAccessKeysService>();
     private readonly IAccountsService _accounts = Substitute.For<IAccountsService>();
@@ -244,7 +244,7 @@ public sealed class CreateAccessKeyTests
             _accounts,
             _reAuthentication,
             _currentAccessToken,
-            new StubDateTimeProvider(),
+            TheClock.Start(),
             _securityEventLog,
             caller).Handle, new CreateAccessKeyCommandValidator());
 }

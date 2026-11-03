@@ -18,7 +18,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class RescheduleReminderTests
 {
     private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
@@ -114,7 +114,7 @@ public sealed class RescheduleReminderTests
 
     private ValidatedHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCaseFor(ICurrentUser currentUser) => new(new RescheduleReminderCommandHandler(new ReminderService(_repository, currentUser),
         _unitOfWork,
-        new StubDateTimeProvider()).Handle, _validator);
+        TheClock.Start()).Handle, _validator);
 
     private ValidatedHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));
 

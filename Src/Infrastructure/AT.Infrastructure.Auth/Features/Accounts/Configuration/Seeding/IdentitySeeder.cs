@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
+﻿using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,7 +11,7 @@ internal sealed class IdentitySeeder(
     RoleManager<AppRole> roleManager,
     IOptions<IdentitySeedOptions> options,
     IHostEnvironment environment,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ILogger<IdentitySeeder> logger) : IIdentitySeeder
 {
     public const string AdminRoleName = IdentityRoles.Administrator;
@@ -81,7 +80,7 @@ internal sealed class IdentitySeeder(
             UserName = settings.AdminEmail,
             Email = settings.AdminEmail,
             EmailConfirmed = true,
-            CreatedAt = dateTimeProvider.UtcNow,
+            CreatedAt = timeProvider.GetUtcNow(),
         };
 
         var result = await userManager.CreateAsync(user, settings.AdminPassword);

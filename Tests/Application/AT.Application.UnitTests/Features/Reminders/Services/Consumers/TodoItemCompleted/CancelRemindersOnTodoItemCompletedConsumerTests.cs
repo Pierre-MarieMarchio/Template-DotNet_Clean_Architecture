@@ -15,7 +15,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.Services.Consumer
 public sealed class CancelRemindersOnTodoItemCompletedConsumerTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
 
     private readonly IReminderRepository _repository = Substitute.For<IReminderRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();

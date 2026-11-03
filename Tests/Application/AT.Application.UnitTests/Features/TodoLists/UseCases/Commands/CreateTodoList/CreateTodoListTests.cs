@@ -10,6 +10,7 @@ using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Domain.Features.TodoLists.Model.ValueObjects;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 using FluentValidation;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -22,7 +23,7 @@ public sealed class CreateTodoListTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly StubDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
     private readonly CreateTodoListCommandValidator _validator = new();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
@@ -165,7 +166,7 @@ public sealed class CreateTodoListTests
         var domainEvent = staged.ShouldHaveSingleItem().DomainEvents.ShouldHaveSingleItem()
             .ShouldBeOfType<TodoListCreatedDomainEvent>();
         domainEvent.OwnerId.ShouldBe(_callerId);
-        domainEvent.OccurredOn.ShouldBe(StubDateTimeProvider.DefaultInstant);
+        domainEvent.OccurredOn.ShouldBe(TheClock.DefaultInstant);
     }
 
     private ValidatedHandler<CreateTodoListCommand, Result<Versioned<TodoListDetailDto>>> UseCaseFor(ICurrentUser currentUser) =>

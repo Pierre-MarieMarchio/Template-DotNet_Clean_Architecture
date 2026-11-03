@@ -856,7 +856,7 @@ internal static class NewFeature
         [
             .. Flags(spec).Contains("rq") ? ["_queries"] : Array.Empty<string>(),
             .. Flags(spec).Contains("wq") ? ["_store", "_unitOfWork"] : Array.Empty<string>(),
-            .. Flags(spec).Contains("clock") ? ["new StubDateTimeProvider()"] : Array.Empty<string>(),
+            .. Flags(spec).Contains("clock") ? ["TheClock.Start()"] : Array.Empty<string>(),
             .. Flags(spec).Contains("content") ? [$"new {a}ContentDtoValidator()"] : Array.Empty<string>(),
             "currentUser",
         ];
@@ -3343,7 +3343,7 @@ internal static class Templates
             IUnitOfWork unitOfWork,
         %end%
         %if clock%
-            IDateTimeProvider dateTimeProvider,
+            TimeProvider timeProvider,
         %end%
         %if content%
             IValidator<%A%ContentDto> validator,
@@ -3416,7 +3416,7 @@ internal static class Templates
 
                 var %L%Id = Guid.CreateVersion7();
 
-                store.Add(%SvcOwner%%L%Id, Trimmed(content), dateTimeProvider.UtcNow);
+                store.Add(%SvcOwner%%L%Id, Trimmed(content), timeProvider.GetUtcNow());
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
                 return await ReadAsync(%SvcOwner%%L%Id, cancellationToken);
@@ -3454,7 +3454,7 @@ internal static class Templates
         %end%
                     %L%Id,
                     Trimmed(content),
-                    dateTimeProvider.UtcNow,
+                    timeProvider.GetUtcNow(),
         %if etag%
                     precondition,
         %end%

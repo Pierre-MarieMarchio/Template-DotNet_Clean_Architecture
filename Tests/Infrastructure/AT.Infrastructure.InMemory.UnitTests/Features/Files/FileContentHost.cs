@@ -2,9 +2,9 @@
 using AppTemplate.Application.Features.Files.Ports.FileContentScanner;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Application.Features.Files.Ports.FileDirectTransfer;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.InMemory.Features.Files;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace AppTemplate.Infrastructure.InMemory.UnitTests.Features.Files;
 
@@ -31,6 +31,6 @@ internal static class FileContentHost
     internal static ArrangedScans ScansOf(IServiceProvider provider) =>
         provider.GetRequiredService<ArrangedScans>();
 
-    internal static FixedDateTimeProvider ClockOf(IServiceProvider provider) =>
-        provider.GetRequiredService<FixedDateTimeProvider>();
+    internal static FakeTimeProvider ClockOf(IServiceProvider provider) =>
+        provider.GetRequiredService<FakeTimeProvider>();
 }

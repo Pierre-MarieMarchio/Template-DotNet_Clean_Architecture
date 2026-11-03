@@ -19,7 +19,7 @@ internal sealed class StoredFileRegistrationService(
     IStoredFileQueries queries,
     IOwnerQuotaLock quotaLock,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IOptions<FilesOptions> options) : IStoredFileRegistrationService
 {
     public async Task<Result<StoredFile>> RegisterAsync(
@@ -55,7 +55,7 @@ internal sealed class StoredFileRegistrationService(
                     DeclaredMediaType.Create(mediaType),
                     FileSize.Create(sizeInBytes),
                     Sha256Checksum.Create(checksum)),
-                dateTimeProvider.UtcNow));
+                timeProvider.GetUtcNow()));
 
             if (registration.IsFailure)
             {
@@ -87,7 +87,7 @@ internal sealed class StoredFileRegistrationService(
     {
         ArgumentNullException.ThrowIfNull(storedFile);
 
-        storedFile.Delete(dateTimeProvider.UtcNow);
+        storedFile.Delete(timeProvider.GetUtcNow());
         repository.Remove(storedFile);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }

@@ -1,10 +1,10 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Features.Files.Ports.FileContentStore;
 using AppTemplate.Infrastructure.InMemory.Features.Files;
 using AppTemplate.Infrastructure.Storage.UnitTests.Features.Files.Contracts;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -83,14 +83,14 @@ public sealed class InMemoryFileContentStoreTests : FileContentStoreContract, ID
     [Fact]
     public void AddInMemoryFileContent_ReplacesTheFilePortsWithoutTouchingTheClock()
     {
-        var real = Substitute.For<IDateTimeProvider>();
+        var real = new FakeTimeProvider();
         var services = new ServiceCollection();
-        services.AddSingleton(real);
+        services.AddSingleton<TimeProvider>(real);
 
         services.AddInMemoryFileContent();
 
         using var provider = services.BuildServiceProvider(validateScopes: true);
-        provider.GetRequiredService<IDateTimeProvider>().ShouldBeSameAs(real);
+        provider.GetRequiredService<TimeProvider>().ShouldBeSameAs(real);
         provider.GetRequiredService<StoredObjects>().ShouldNotBeNull();
     }
 }

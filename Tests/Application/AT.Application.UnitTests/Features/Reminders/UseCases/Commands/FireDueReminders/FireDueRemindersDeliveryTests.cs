@@ -18,7 +18,7 @@ namespace AppTemplate.Application.UnitTests.Features.Reminders.UseCases.Commands
 public sealed class FireDueRemindersDeliveryTests
 {
     private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
-    private static readonly DateTimeOffset _start = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _start = TheClock.DefaultInstant;
 
     private readonly InMemoryReminderStore _store = new();
     private readonly ScriptedNotifier _notifier = new();
@@ -165,7 +165,7 @@ public sealed class FireDueRemindersDeliveryTests
             Recipients(),
             Substitute.For<IReminderDiagnostics>(),
             _store,
-            new StubDateTimeProvider(now),
+            TheClock.At(now),
             _lease,
             NullLogger<FireDueRemindersCommandHandler>.Instance);
 

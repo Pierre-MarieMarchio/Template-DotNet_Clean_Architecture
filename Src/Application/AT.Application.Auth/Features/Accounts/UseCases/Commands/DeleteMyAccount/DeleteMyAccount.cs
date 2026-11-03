@@ -19,7 +19,7 @@ public sealed class DeleteMyAccountCommandHandler(
     ISecurityEventLog securityEventLog,
     IDomainEventPublisher domainEvents,
     ICurrentUser currentUser,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<DeleteMyAccountCommand, Result>
+    TimeProvider timeProvider) : ICommandHandler<DeleteMyAccountCommand, Result>
 {
     public static readonly TimeSpan RecentAuthenticationWindow = TimeSpan.FromMinutes(5);
 
@@ -105,7 +105,7 @@ public sealed class DeleteMyAccountCommandHandler(
 
     private bool SignedInRecently() =>
         currentAccessToken.IssuedAt is { } issuedAt
-        && dateTimeProvider.UtcNow - issuedAt <= RecentAuthenticationWindow;
+        && timeProvider.GetUtcNow() - issuedAt <= RecentAuthenticationWindow;
 
     private async Task<Result> DeleteAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -124,7 +124,7 @@ public sealed class DeleteMyAccountCommandHandler(
         securityEventLog.Record(SecurityEvent.AccountSelfDeleted(userId));
 
         await domainEvents.PublishAsync(
-            new UserAccountDeleted(UserId.Create(userId), dateTimeProvider.UtcNow),
+            new UserAccountDeleted(UserId.Create(userId), timeProvider.GetUtcNow()),
             cancellationToken);
 
         return Result.Success();

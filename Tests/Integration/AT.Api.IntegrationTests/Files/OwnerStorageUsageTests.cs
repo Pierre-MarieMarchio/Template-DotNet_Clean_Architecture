@@ -26,7 +26,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
         await StoreAsync(owner, file =>
         {
             Confirm(file);
-            file.Quarantine(Fixture.Clock.UtcNow);
+            file.Quarantine(Fixture.Clock.GetUtcNow());
         });
 
         var usage = await UsageForAsync(owner);
@@ -105,7 +105,7 @@ public sealed class OwnerStorageUsageTests(ApiFixture fixture) : IntegrationTest
                 DeclaredMediaType.Create("image/png"),
                 FileSize.Create(_size),
                 Sha256Checksum.Create(new string('a', Sha256Checksum.Length))),
-            Fixture.Clock.UtcNow);
+            Fixture.Clock.GetUtcNow());
 
         advance(file);
 

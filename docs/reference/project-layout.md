@@ -77,7 +77,7 @@ Src/Application/
                                                   SecurityEvents}/{UseCases,Ports,Model/{Errors,Policies}}
 <!--#endif-->
 Src/Infrastructure/
-  AT.Infrastructure.Core                Common/{Caching,Contexts,Options,Saving,Templating,Time}
+  AT.Infrastructure.Core                Common/{Caching,Contexts,Options,Saving,Templating}
                                         no Features/
   AT.Infrastructure.Persistence
                                         Common/{Contexts,Idempotency,Leases}
@@ -106,7 +106,7 @@ Src/Infrastructure/
                                                         Adapters/{Inventories,Scanners,Transfers},
                                                         Configuration/Options}
 <!--#endif-->
-  AT.Infrastructure.InMemory            Common/{Email,Time}      Features/<F>/, files side by side
+  AT.Infrastructure.InMemory            Common/Email             Features/<F>/, files side by side
 Src/Presentation/
   AT.Presentation.Core                  Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/

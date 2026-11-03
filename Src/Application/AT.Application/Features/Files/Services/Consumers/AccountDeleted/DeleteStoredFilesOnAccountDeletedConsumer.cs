@@ -11,7 +11,7 @@ internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
     IStoredFileQueries queries,
     IUserAccountDirectory accounts,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider) : IDomainEventConsumer<UserAccountDeleted>, IDeletedAccountDataPolicy
+    TimeProvider timeProvider) : IDomainEventConsumer<UserAccountDeleted>, IDeletedAccountDataPolicy
 {
     public Task ConsumeAsync(UserAccountDeleted domainEvent, CancellationToken cancellationToken = default)
     {
@@ -36,7 +36,7 @@ internal sealed class DeleteStoredFilesOnAccountDeletedConsumer(
             return false;
         }
 
-        var deletedAt = dateTimeProvider.UtcNow;
+        var deletedAt = timeProvider.GetUtcNow();
 
         foreach (var file in owned)
         {

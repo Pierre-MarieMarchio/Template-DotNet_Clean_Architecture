@@ -4,7 +4,6 @@ using AppTemplate.Infrastructure.Core.Common.Saving;
 using AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
 using AppTemplate.Infrastructure.Core.Common.Saving.Tracking;
-using AppTemplate.Infrastructure.Core.Common.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,7 +65,7 @@ public static class InfrastructureCoreModule
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }

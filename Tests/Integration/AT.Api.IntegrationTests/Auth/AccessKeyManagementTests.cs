@@ -71,7 +71,7 @@ public sealed class AccessKeyManagementTests(ApiFixture fixture) : IntegrationTe
         var (client, user, _) = await SignInAsync();
 
         using (var past = await CreateAsync(
-            client, new CreateAccessKeyRequest("CI", _read, Clock.UtcNow.AddMinutes(-1), user.Password)))
+            client, new CreateAccessKeyRequest("CI", _read, Clock.GetUtcNow().AddMinutes(-1), user.Password)))
         {
             past.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
             (await ApiJson.ReadProblemAsync(past, TestToken)).Body.ShouldContain("expiresAt");
@@ -147,7 +147,7 @@ public sealed class AccessKeyManagementTests(ApiFixture fixture) : IntegrationTe
         caller.Value.UserId.ShouldBe(session.UserId);
         caller.Value.AccessKeyId.ShouldBe(key.Id);
         caller.Value.Scopes.ShouldBe(_read);
-        (await ListAsync(client)).ShouldHaveSingleItem().LastUsedAt.ShouldBe(Clock.UtcNow);
+        (await ListAsync(client)).ShouldHaveSingleItem().LastUsedAt.ShouldBe(Clock.GetUtcNow());
 
         using (var revoked = await RevokeAsync(client, key.Id))
         {

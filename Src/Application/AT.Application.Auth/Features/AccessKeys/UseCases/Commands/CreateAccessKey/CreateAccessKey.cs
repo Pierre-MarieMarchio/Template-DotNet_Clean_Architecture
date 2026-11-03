@@ -23,7 +23,7 @@ public sealed class CreateAccessKeyCommandHandler(
     IAccountsService accounts,
     IReAuthenticationService reAuthentication,
     ICurrentAccessToken currentAccessToken,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ISecurityEventLog securityEventLog,
     ICurrentUser currentUser) : ICommandHandler<CreateAccessKeyCommand, Result<CreateAccessKeyOutcome>>
 {
@@ -40,7 +40,7 @@ public sealed class CreateAccessKeyCommandHandler(
             return callerId.To<CreateAccessKeyOutcome>();
         }
 
-        if (request.ExpiresAt is { } expiresAt && expiresAt <= dateTimeProvider.UtcNow)
+        if (request.ExpiresAt is { } expiresAt && expiresAt <= timeProvider.GetUtcNow())
         {
             return Result.Failure<CreateAccessKeyOutcome>(AccessKeysErrors.ExpiryNotInTheFuture);
         }
@@ -102,7 +102,7 @@ public sealed class CreateAccessKeyCommandHandler(
         }
 
         return currentAccessToken.IssuedAt is { } issuedAt
-            && dateTimeProvider.UtcNow - issuedAt <= DeleteMyAccountCommandHandler.RecentAuthenticationWindow
+            && timeProvider.GetUtcNow() - issuedAt <= DeleteMyAccountCommandHandler.RecentAuthenticationWindow
                 ? Result.Success()
                 : Result.Failure(AccountsErrors.ReAuthenticationRequired);
     }

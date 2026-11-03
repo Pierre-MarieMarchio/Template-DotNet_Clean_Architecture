@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Services;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
@@ -8,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -104,7 +104,7 @@ public sealed class AccountsServiceChangePasswordTests
             Substitute.For<IAuthenticationSchemeProvider>(),
             Substitute.For<IUserConfirmation<AppUser>>());
 
-        return new AccountsService(userManager, signInManager, _directory, Substitute.For<IDateTimeProvider>());
+        return new AccountsService(userManager, signInManager, _directory, new FakeTimeProvider());
     }
 
     private sealed class ConfigurableHasher : IPasswordHasher<AppUser>

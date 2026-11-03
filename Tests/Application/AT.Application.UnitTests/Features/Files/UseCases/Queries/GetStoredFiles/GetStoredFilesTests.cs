@@ -113,7 +113,7 @@ public sealed class GetStoredFilesTests
         string cursor = Cursor
             .After(
                 SortOrder.Parse("registeredAt:desc", StoredFileCollectionPolicy.Instance).Value.Terms[0],
-                StubDateTimeProvider.DefaultInstant.ToString("O", CultureInfo.InvariantCulture),
+                TheClock.DefaultInstant.ToString("O", CultureInfo.InvariantCulture),
                 Guid.CreateVersion7())
             .Encode();
 

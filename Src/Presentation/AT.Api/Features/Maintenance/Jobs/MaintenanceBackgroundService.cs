@@ -10,7 +10,8 @@ internal sealed class MaintenanceBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<JobsMaintenanceOptions> options,
     IEnumerable<IMaintenanceTask> tasks,
-    ILogger<MaintenanceBackgroundService> logger) : BackgroundService
+    ILogger<MaintenanceBackgroundService> logger,
+    TimeProvider timeProvider) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -27,6 +28,7 @@ internal sealed class MaintenanceBackgroundService(
 
         await PeriodicJob.RunAsync(
             settings.Interval,
+            timeProvider,
             token => RunIterationAsync(registered, token),
             stoppingToken);
 

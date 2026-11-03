@@ -1,5 +1,4 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Domain.Core.Common.Abstractions;
+﻿using AppTemplate.Domain.Core.Common.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -7,7 +6,7 @@ namespace AppTemplate.Infrastructure.Core.Common.Saving.Auditing;
 
 public sealed class AuditingSaveChangesInterceptor(
     IAuditActor auditActor,
-    IDateTimeProvider dateTimeProvider) : SaveChangesInterceptor
+    TimeProvider timeProvider) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
@@ -39,7 +38,7 @@ public sealed class AuditingSaveChangesInterceptor(
             return;
         }
 
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var userId = auditActor.UserId;
 
         foreach (var entry in context.ChangeTracker.Entries<IAuditable>())

@@ -92,8 +92,8 @@ public sealed class GetStoredFileTests
             AStoredFile.SizeInBytes,
             AStoredFile.Checksum,
             StoredFileState.Available,
-            StubDateTimeProvider.DefaultInstant,
-            StubDateTimeProvider.DefaultInstant, []),
+            TheClock.DefaultInstant,
+            TheClock.DefaultInstant, []),
         3u);
 
     private ValidatedHandler<GetStoredFileQuery, Result<Versioned<StoredFileDto>>> UseCase() => UseCaseFor(StubCurrentUser.WithId(_callerId));

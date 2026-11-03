@@ -44,7 +44,7 @@ public sealed class InspectDepositedFilesTests
 
         result.Value.ShouldBe(1);
         storedFile.State.ShouldBe(StoredFileState.Available);
-        storedFile.AvailableAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
+        storedFile.AvailableAt.ShouldBe(TheClock.DefaultInstant);
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -109,7 +109,7 @@ public sealed class InspectDepositedFilesTests
         storedFile.State.ShouldBe(StoredFileState.Deposited);
         storedFile.DomainEvents.ShouldBeEmpty();
         storedFile.InspectionAttempts.ShouldBe(1);
-        storedFile.NextInspectionAt.ShouldBe(StubDateTimeProvider.DefaultInstant.AddMinutes(1));
+        storedFile.NextInspectionAt.ShouldBe(TheClock.DefaultInstant.AddMinutes(1));
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -239,7 +239,7 @@ public sealed class InspectDepositedFilesTests
         await UseCase().Handle(new InspectDepositedFilesCommand(), TestToken);
 
         await _repository.Received(1).GetDepositedAsync(
-            StubDateTimeProvider.DefaultInstant,
+            TheClock.DefaultInstant,
             InspectDepositedFilesCommandHandler.BatchSize,
             Arg.Any<CancellationToken>());
     }
@@ -370,7 +370,7 @@ public sealed class InspectDepositedFilesTests
         _content,
         _scanner,
         _unitOfWork,
-        new StubDateTimeProvider(),
+        TheClock.Start(),
         _lease,
         _files.AsOptions(),
         NullLogger<InspectDepositedFilesCommandHandler>.Instance);

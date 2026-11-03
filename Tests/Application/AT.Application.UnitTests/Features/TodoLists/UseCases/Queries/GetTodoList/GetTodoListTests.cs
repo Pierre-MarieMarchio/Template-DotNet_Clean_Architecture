@@ -117,7 +117,7 @@ public sealed class GetTodoListTests
     }
 
     private static Versioned<TodoListDetailDto> ADetailFor(Guid listId) =>
-        new(new TodoListDetailDto(listId, "Groceries", StubDateTimeProvider.DefaultInstant, null, []), _listVersion);
+        new(new TodoListDetailDto(listId, "Groceries", TheClock.DefaultInstant, null, []), _listVersion);
 
     private ValidatedHandler<GetTodoListQuery, Result<Versioned<TodoListDetailDto>>> UseCaseFor(ICurrentUser currentUser) =>
         new(new GetTodoListQueryHandler(_queries, currentUser).Handle, new GetTodoListQueryValidator());

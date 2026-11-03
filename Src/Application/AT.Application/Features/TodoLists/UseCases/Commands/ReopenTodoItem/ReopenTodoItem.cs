@@ -17,7 +17,7 @@ public sealed record ReopenTodoItemCommand(
 public sealed class ReopenTodoItemCommandHandler(
     ITodoListService lists,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<ReopenTodoItemCommand, Result<Versioned<TodoItemDto>>>
+    TimeProvider timeProvider) : ICommandHandler<ReopenTodoItemCommand, Result<Versioned<TodoItemDto>>>
 {
     public async ValueTask<Result<Versioned<TodoItemDto>>> Handle(
         ReopenTodoItemCommand command,
@@ -41,7 +41,7 @@ public sealed class ReopenTodoItemCommandHandler(
             return found.To<Versioned<TodoItemDto>>();
         }
 
-        todoList.ReopenItem(command.TodoItemId, dateTimeProvider.UtcNow);
+        todoList.ReopenItem(command.TodoItemId, timeProvider.GetUtcNow());
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

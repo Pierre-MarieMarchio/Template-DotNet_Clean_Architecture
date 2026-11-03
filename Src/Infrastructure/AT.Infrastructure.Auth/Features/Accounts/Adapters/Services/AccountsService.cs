@@ -1,7 +1,6 @@
 ﻿using System.Globalization;
 using System.Security.Cryptography;
 using AppTemplate.Application.Auth.Features.Accounts.Ports.Accounts;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
@@ -14,7 +13,7 @@ internal sealed class AccountsService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     IAppUserDirectory directory,
-    IDateTimeProvider dateTimeProvider) : IAccountsService
+    TimeProvider timeProvider) : IAccountsService
 {
     private static string? _decoyPasswordHash;
 
@@ -35,7 +34,7 @@ internal sealed class AccountsService(
         {
             UserName = email,
             Email = email,
-            CreatedAt = dateTimeProvider.UtcNow,
+            CreatedAt = timeProvider.GetUtcNow(),
         };
 
         var refusals = await RefusalsOfTheSubmittedValuesAsync(user, password);

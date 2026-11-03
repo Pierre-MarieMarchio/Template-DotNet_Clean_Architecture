@@ -5,6 +5,7 @@ using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -22,7 +23,7 @@ public sealed class ExternalLoginsServiceTests : IDisposable
     {
         User = { RequireUniqueEmail = true, AllowedUserNameCharacters = string.Empty },
     };
-    private readonly MovableDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 

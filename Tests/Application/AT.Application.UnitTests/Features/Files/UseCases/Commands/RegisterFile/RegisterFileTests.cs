@@ -25,7 +25,7 @@ public sealed class RegisterFileTests
         "https://store.example/upload",
         "PUT",
         new Dictionary<string, string>(StringComparer.Ordinal) { ["Content-Type"] = AStoredFile.MediaType },
-        StubDateTimeProvider.DefaultInstant.AddMinutes(30));
+        TheClock.DefaultInstant.AddMinutes(30));
 
     private readonly IStoredFileRepository _repository = Substitute.For<IStoredFileRepository>();
     private readonly IStoredFileQueries _queries = Substitute.For<IStoredFileQueries>();
@@ -308,7 +308,7 @@ public sealed class RegisterFileTests
         staged.ShouldNotBeNull();
         staged.OwnerId.ShouldBe(_callerId);
         staged.State.ShouldBe(StoredFileState.Pending);
-        staged.RegisteredAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
+        staged.RegisteredAt.ShouldBe(TheClock.DefaultInstant);
     }
 
     [Fact]
@@ -422,7 +422,7 @@ public sealed class RegisterFileTests
             _queries,
             _quotaLock,
             _unitOfWork,
-            new StubDateTimeProvider(),
+            TheClock.Start(),
             _files.AsOptions()),
         _transfer,
         currentUser,

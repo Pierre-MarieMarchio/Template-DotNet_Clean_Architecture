@@ -391,7 +391,7 @@ public sealed class UploadFileTests
             _queries,
             _quotaLock,
             _unitOfWork,
-            new StubDateTimeProvider(),
+            TheClock.Start(),
             _files.AsOptions()),
         new StoredFileDepositService(_content, _unitOfWork),
         _content,

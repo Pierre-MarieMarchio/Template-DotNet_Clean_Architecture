@@ -12,7 +12,8 @@ namespace AppTemplate.Infrastructure.Storage.Features.Files.Adapters.Transfers;
 
 internal sealed class S3FileDirectTransfer(
     [FromKeyedServices(BucketClientFactory.SigningClientKey)] IAmazonS3 signer,
-    IOptions<FilesStorageS3Options> options) : IFileDirectTransfer
+    IOptions<FilesStorageS3Options> options,
+    TimeProvider timeProvider) : IFileDirectTransfer
 {
     private const string _checksumHeader = "x-amz-checksum-sha256";
 
@@ -75,7 +76,7 @@ internal sealed class S3FileDirectTransfer(
 
         var granted = lifetime <= options.Value.MaxGrantLifetime ? lifetime : options.Value.MaxGrantLifetime;
 
-        return DateTimeOffset.UtcNow.Add(granted);
+        return timeProvider.GetUtcNow().Add(granted);
     }
 
     private GetPreSignedUrlRequest PreSignedRequest(string objectKey, HttpVerb verb, DateTimeOffset expiresAt) =>

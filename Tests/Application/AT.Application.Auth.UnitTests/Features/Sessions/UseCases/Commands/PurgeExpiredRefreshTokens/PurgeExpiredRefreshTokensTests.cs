@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Commands.PurgeExpiredRefreshTokens;
 using AppTemplate.Application.Auth.UnitTests.TestDoubles;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -10,7 +11,7 @@ namespace AppTemplate.Application.Auth.UnitTests.Features.Sessions.UseCases.Comm
 public sealed class PurgeExpiredRefreshTokensTests
 {
     private readonly ISessionTokensService _sessionTokens = Substitute.For<ISessionTokensService>();
-    private readonly StubDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -22,7 +23,7 @@ public sealed class PurgeExpiredRefreshTokensTests
         await UseCase().Handle(new PurgeExpiredRefreshTokensCommand(), TestToken);
 
         await _sessionTokens.Received(1)
-            .PurgeExpiredRefreshTokensAsync(StubDateTimeProvider.DefaultInstant, Arg.Any<CancellationToken>());
+            .PurgeExpiredRefreshTokensAsync(TheClock.DefaultInstant, Arg.Any<CancellationToken>());
     }
 
     [Fact]

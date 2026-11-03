@@ -42,7 +42,7 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
     public async Task EveryResponse_CarriesEachMemberAsTheListHoldsIt()
     {
         var (client, _, _) = await SignInAsync();
-        var createdAt = Clock.UtcNow;
+        var createdAt = Clock.GetUtcNow();
         var listId = await CreateTodoListAsync(client, "Errands");
 
         using var added = await client.PostAsJsonAsync(
@@ -53,7 +53,7 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
         await AddTodoItemAsync(client, listId, "Buy stamps");
 
         var completedAt = createdAt.AddMinutes(5);
-        Clock.Set(completedAt);
+        Clock.AdjustTime(completedAt);
         using var completed = await client.PostAsync(
             new Uri($"{TodoListsRoute}/{listId}/items/{itemId}/complete", UriKind.Relative),
             content: null,
@@ -108,7 +108,7 @@ public sealed class TodoListCrudTests(ApiFixture fixture) : IntegrationTestBase(
         detail.Id.ShouldBe(id);
         detail.Name.ShouldBe("Reading list");
         detail.Items.ShouldBeEmpty();
-        detail.CreatedAt.ShouldBe(Clock.UtcNow);
+        detail.CreatedAt.ShouldBe(Clock.GetUtcNow());
         detail.LastModifiedAt.ShouldBeNull();
 
         using var deleted = await client.DeleteAsync(

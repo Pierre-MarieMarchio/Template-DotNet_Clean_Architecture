@@ -20,7 +20,7 @@ public sealed class InspectDepositedFilesCommandHandler(
     IFileContentStore content,
     IFileContentScanner scanner,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ILeaderLease lease,
     IOptions<FilesOptions> options,
     ILogger<InspectDepositedFilesCommandHandler> logger) : ICommandHandler<InspectDepositedFilesCommand, Result<int>>
@@ -51,7 +51,7 @@ public sealed class InspectDepositedFilesCommandHandler(
     private async Task<int> InspectBatchAsync(CancellationToken cancellationToken)
     {
         var candidates = await repository.GetDepositedAsync(
-            dateTimeProvider.UtcNow,
+            timeProvider.GetUtcNow(),
             BatchSize,
             cancellationToken);
 
@@ -61,7 +61,7 @@ public sealed class InspectDepositedFilesCommandHandler(
         foreach (var storedFile in candidates)
         {
             (var verdict, var scan) = await InspectAsync(storedFile, cancellationToken);
-            var now = dateTimeProvider.UtcNow;
+            var now = timeProvider.GetUtcNow();
 
             if (verdict == ContentDecision.Retry)
             {

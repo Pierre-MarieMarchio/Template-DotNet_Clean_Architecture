@@ -14,7 +14,7 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
         var key = AKey("still-leased");
-        var now = Clock.UtcNow;
+        var now = Clock.GetUtcNow();
 
         (await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken)).Status
             .ShouldBe(IdempotencyStatus.Claimed);
@@ -30,13 +30,13 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
         var key = AKey("abandoned");
-        var claimedAt = Clock.UtcNow;
+        var claimedAt = Clock.GetUtcNow();
 
         (await store.ClaimAsync(key, claimedAt.AddHours(24), claimedAt.AddMinutes(15), TestToken)).Status
             .ShouldBe(IdempotencyStatus.Claimed);
 
         Clock.Advance(TimeSpan.FromMinutes(16));
-        var now = Clock.UtcNow;
+        var now = Clock.GetUtcNow();
 
         var reclaimed = await store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken);
 
@@ -53,13 +53,13 @@ public sealed class IdempotencyLeaseTests(ApiFixture fixture) : IntegrationTestB
         var store = scope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
         var otherStore = otherScope.ServiceProvider.GetRequiredService<IIdempotencyStore>();
         var key = AKey("raced");
-        var claimedAt = Clock.UtcNow;
+        var claimedAt = Clock.GetUtcNow();
 
         (await store.ClaimAsync(key, claimedAt.AddHours(24), claimedAt.AddMinutes(15), TestToken)).Status
             .ShouldBe(IdempotencyStatus.Claimed);
 
         Clock.Advance(TimeSpan.FromMinutes(16));
-        var now = Clock.UtcNow;
+        var now = Clock.GetUtcNow();
 
         var results = await Task.WhenAll(
             store.ClaimAsync(key, now.AddHours(24), now.AddMinutes(15), TestToken),

@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Application.Auth.Features.SecurityEvents.Ports.SecurityEventLog;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
@@ -237,13 +236,13 @@ public sealed class RefreshTokenRotationTests(GrantTableFixture fixture) : IClas
             new AccessTokenIssuer(
                 directory,
                 new OptionsWrapper<JwtOptions>(new JwtOptions()),
-                scoped.GetRequiredService<IDateTimeProvider>()),
+                scoped.GetRequiredService<TimeProvider>()),
             scoped.GetRequiredService<IRefreshTokenTable>(),
             scoped.GetRequiredService<IRefreshTokenFamilyTable>(),
             directory,
             scoped.GetRequiredService<IContextUnitOfWork<AuthDbContext>>(),
             scoped.GetRequiredService<AuthDbContext>(),
-            scoped.GetRequiredService<IDateTimeProvider>(),
+            scoped.GetRequiredService<TimeProvider>(),
             new OptionsWrapper<RefreshTokenOptions>(new RefreshTokenOptions()),
             log ?? Substitute.For<ISecurityEventLog>(),
             NullLogger<SessionTokensService>.Instance);

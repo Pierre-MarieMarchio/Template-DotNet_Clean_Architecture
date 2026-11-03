@@ -21,7 +21,7 @@ public sealed class FireDueRemindersCommandHandler(
     IReminderRecipientDirectory recipients,
     IReminderDiagnostics diagnostics,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ILeaderLease lease,
     ILogger<FireDueRemindersCommandHandler> logger) : ICommandHandler<FireDueRemindersCommand, Result<int>>
 {
@@ -50,7 +50,7 @@ public sealed class FireDueRemindersCommandHandler(
 
     private async Task<int> FireDueBatchAsync(CancellationToken cancellationToken)
     {
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var due = await reminders.GetDueAsync(now, _batchSize, cancellationToken);
 
         if (due.Count == 0)

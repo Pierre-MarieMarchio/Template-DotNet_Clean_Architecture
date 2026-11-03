@@ -1,6 +1,5 @@
 ﻿using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.Ports.SessionTokens;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Sessions.Configuration.Options;
 using Microsoft.Extensions.Options;
@@ -12,7 +11,7 @@ namespace AppTemplate.Infrastructure.Auth.Features.Sessions.Adapters.Services;
 internal sealed class AccessTokenIssuer(
     IAppUserDirectory directory,
     IOptions<JwtOptions> options,
-    IDateTimeProvider dateTimeProvider)
+    TimeProvider timeProvider)
 {
     private readonly JsonWebTokenHandler _handler = new();
 
@@ -24,7 +23,7 @@ internal sealed class AccessTokenIssuer(
         var claims = await directory.GenerateClaimsAsync(user, cancellationToken);
 
         var settings = options.Value;
-        var issuedAt = dateTimeProvider.UtcNow;
+        var issuedAt = timeProvider.GetUtcNow();
         var expiresAt = issuedAt.AddMinutes(settings.AccessTokenLifetimeInMinutes);
 
         var identity = new ClaimsIdentity(claims);

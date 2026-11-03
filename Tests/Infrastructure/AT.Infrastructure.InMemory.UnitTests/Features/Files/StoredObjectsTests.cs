@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.InMemory.Features.Files;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -15,7 +15,7 @@ public sealed class StoredObjectsTests
 
     private static readonly byte[] _content = Encoding.UTF8.GetBytes("the deposited bytes");
 
-    private readonly FixedDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = new(InMemoryModule.ClockStart);
 
     [Fact]
     public void Deposit_MeasuresAndDigestsTheBytesItWasGiven()
@@ -27,7 +27,7 @@ public sealed class StoredObjectsTests
         deposited.SizeInBytes.ShouldBe(_content.Length);
         deposited.Checksum.ShouldBe(Convert.ToHexStringLower(SHA256.HashData(_content)));
         deposited.MediaType.ShouldBe(_mediaType);
-        deposited.DepositedAt.ShouldBe(FixedDateTimeProvider.DefaultInstant);
+        deposited.DepositedAt.ShouldBe(InMemoryModule.ClockStart);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class StoredObjectsTests
         _clock.Advance(TimeSpan.FromHours(3));
 
         objects.Deposit(_objectKey, _mediaType, _content)
-            .DepositedAt.ShouldBe(FixedDateTimeProvider.DefaultInstant.AddHours(3));
+            .DepositedAt.ShouldBe(InMemoryModule.ClockStart.AddHours(3));
     }
 
     [Fact]
@@ -84,5 +84,5 @@ public sealed class StoredObjectsTests
     [InlineData("https://example.invalid/t0/202601/a?method=GET&expires=99999999999&signature=00")]
     [InlineData("not a url at all")]
     public void IsGrantValid_RefusesAnythingItDidNotSign(string url) =>
-        new StoredObjects(_clock).IsGrantValid(url, "GET", _clock.UtcNow).ShouldBeFalse();
+        new StoredObjects(_clock).IsGrantValid(url, "GET", _clock.GetUtcNow()).ShouldBeFalse();
 }

@@ -9,6 +9,7 @@ using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Model.Entities;
 using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -21,7 +22,7 @@ public sealed class CompleteTodoItemTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly StubDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -117,7 +118,7 @@ public sealed class CompleteTodoItemTests
     public async Task AnAlreadyCompletedItem_BecomesAConflict()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        var firstCompletion = StubDateTimeProvider.DefaultInstant.AddDays(-1);
+        var firstCompletion = TheClock.DefaultInstant.AddDays(-1);
         list.CompleteItem(itemId, firstCompletion);
         list.ClearDomainEvents();
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
@@ -133,7 +134,7 @@ public sealed class CompleteTodoItemTests
     public async Task AnAlreadyCompletedItem_KeepsItsOriginalCompletionTimeAndDoesNotCommit()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        var firstCompletion = StubDateTimeProvider.DefaultInstant.AddDays(-1);
+        var firstCompletion = TheClock.DefaultInstant.AddDays(-1);
         list.CompleteItem(itemId, firstCompletion);
         list.ClearDomainEvents();
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
@@ -156,7 +157,7 @@ public sealed class CompleteTodoItemTests
         result.IsSuccess.ShouldBeTrue();
         var item = list.Items.ShouldHaveSingleItem();
         item.IsCompleted.ShouldBeTrue();
-        item.CompletedAt.ShouldBe(StubDateTimeProvider.DefaultInstant);
+        item.CompletedAt.ShouldBe(TheClock.DefaultInstant);
     }
 
     [Fact]
@@ -169,7 +170,7 @@ public sealed class CompleteTodoItemTests
         var useCase = new CompleteTodoItemCommandHandler(
             new TodoListService(_repository, StubCurrentUser.WithId(_callerId)),
             _unitOfWork,
-            new StubDateTimeProvider(pinnedInstant));
+            TheClock.At(pinnedInstant));
 
         await useCase.Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 

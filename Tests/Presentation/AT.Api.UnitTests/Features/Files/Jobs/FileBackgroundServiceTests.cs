@@ -132,7 +132,8 @@ public sealed class FileBackgroundServiceTests
         using var service = new FileBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<FileBackgroundService>.Instance);
+            NullLogger<FileBackgroundService>.Instance,
+            TimeProvider.System);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -201,6 +202,7 @@ public sealed class FileBackgroundServiceTests
         return new FileBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<FileBackgroundService>.Instance);
+            NullLogger<FileBackgroundService>.Instance,
+            TimeProvider.System);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Idempotency;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Core.Common.Contexts;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +10,7 @@ namespace AppTemplate.Infrastructure.Persistence.Common.Idempotency;
 
 internal sealed class IdempotencyStore(
     IDbContextFactory<AppDbContext> contextFactory,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     IOptions<IdempotencyPurgeOptions> purgeOptions,
     ILogger<IdempotencyStore> logger) : IIdempotencyStore
 {
@@ -35,7 +34,7 @@ internal sealed class IdempotencyStore(
             Fingerprint = key.Fingerprint,
             IsCompleted = false,
             ClaimedUntil = claimedUntil,
-            CreatedAt = dateTimeProvider.UtcNow,
+            CreatedAt = timeProvider.GetUtcNow(),
             ExpiresAt = expiresAt,
         });
 
@@ -66,7 +65,7 @@ internal sealed class IdempotencyStore(
             return IdempotencyClaim.KeyReused();
         }
 
-        if (!HasExpiredLease(existing, dateTimeProvider.UtcNow))
+        if (!HasExpiredLease(existing, timeProvider.GetUtcNow()))
         {
             return Decide(key, existing);
         }
@@ -76,7 +75,7 @@ internal sealed class IdempotencyStore(
                 record.UserId == key.UserId
                 && record.Key == key.Key
                 && !record.IsCompleted
-                && record.ClaimedUntil <= dateTimeProvider.UtcNow)
+                && record.ClaimedUntil <= timeProvider.GetUtcNow())
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(record => record.ClaimedUntil, claimedUntil)

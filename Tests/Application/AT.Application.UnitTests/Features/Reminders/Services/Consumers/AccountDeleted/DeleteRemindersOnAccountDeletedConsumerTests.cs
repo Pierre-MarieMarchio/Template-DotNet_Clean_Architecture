@@ -28,7 +28,7 @@ public sealed class DeleteRemindersOnAccountDeletedConsumerTests
     public async Task TheOwnersReminders_AreRemovedAndCommittedWhateverTheirState()
     {
         var pending = AReminder.OwnedBy(_ownerId, todoItemId: Guid.CreateVersion7());
-        var fired = AReminder.Rehydrated(_ownerId, StubDateTimeProvider.DefaultInstant, ReminderState.Fired, notifiedAt: StubDateTimeProvider.DefaultInstant);
+        var fired = AReminder.Rehydrated(_ownerId, TheClock.DefaultInstant, ReminderState.Fired, notifiedAt: TheClock.DefaultInstant);
         GivenTheAccountIsGone();
         GivenTheOwnerHolds(pending, fired);
 

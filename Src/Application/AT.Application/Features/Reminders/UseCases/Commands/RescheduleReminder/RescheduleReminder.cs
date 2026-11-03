@@ -17,7 +17,7 @@ public sealed record RescheduleReminderCommand(
 public sealed class RescheduleReminderCommandHandler(
     IReminderService reminders,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider) : ICommandHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>>
+    TimeProvider timeProvider) : ICommandHandler<RescheduleReminderCommand, Result<Versioned<ReminderDto>>>
 {
     public async ValueTask<Result<Versioned<ReminderDto>>> Handle(
         RescheduleReminderCommand command,
@@ -34,7 +34,7 @@ public sealed class RescheduleReminderCommandHandler(
 
         var reminder = access.Value;
 
-        var reschedule = DomainGuard.Try(() => reminder.Reschedule(command.DueAt, dateTimeProvider.UtcNow));
+        var reschedule = DomainGuard.Try(() => reminder.Reschedule(command.DueAt, timeProvider.GetUtcNow()));
 
         if (reschedule.IsFailure)
         {

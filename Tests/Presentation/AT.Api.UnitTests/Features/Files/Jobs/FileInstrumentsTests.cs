@@ -76,7 +76,8 @@ public sealed class FileInstrumentsTests
         using var service = new FileBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<FileBackgroundService>.Instance);
+            NullLogger<FileBackgroundService>.Instance,
+            TimeProvider.System);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(
@@ -134,7 +135,8 @@ public sealed class FileInstrumentsTests
         using var service = new FileBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<FileBackgroundService>.Instance);
+            NullLogger<FileBackgroundService>.Instance,
+            TimeProvider.System);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(
@@ -183,7 +185,8 @@ public sealed class FileInstrumentsTests
         using var service = new FileBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(options),
-            NullLogger<FileBackgroundService>.Instance);
+            NullLogger<FileBackgroundService>.Instance,
+            TimeProvider.System);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         await BackgroundServiceProbe.WaitUntilAsync(

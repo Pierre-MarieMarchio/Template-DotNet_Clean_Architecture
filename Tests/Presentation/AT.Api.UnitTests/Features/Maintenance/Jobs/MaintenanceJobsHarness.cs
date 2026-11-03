@@ -39,6 +39,7 @@ internal static class MaintenanceJobsHarness
 
         var services = new ServiceCollection();
         services.AddBackgroundScope();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<ISender, RoutingSender>();
         services.AddScoped(_ => idempotency);
         //#if (localAuth)

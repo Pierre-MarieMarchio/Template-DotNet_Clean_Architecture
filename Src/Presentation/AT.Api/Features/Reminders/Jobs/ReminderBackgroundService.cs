@@ -11,7 +11,8 @@ namespace AppTemplate.Api.Features.Reminders.Jobs;
 internal sealed class ReminderBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptions<JobsRemindersOptions> options,
-    ILogger<ReminderBackgroundService> logger) : BackgroundService
+    ILogger<ReminderBackgroundService> logger,
+    TimeProvider timeProvider) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -27,6 +28,7 @@ internal sealed class ReminderBackgroundService(
 
         await PeriodicJob.RunAsync(
             settings.Interval,
+            timeProvider,
             token => RunIterationAsync(settings, token),
             stoppingToken);
 

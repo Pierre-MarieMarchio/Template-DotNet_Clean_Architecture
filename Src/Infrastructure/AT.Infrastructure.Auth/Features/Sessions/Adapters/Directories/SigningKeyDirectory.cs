@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.ExternalLogins.Configuration.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,7 +10,7 @@ internal sealed class SigningKeyDirectory(
     HttpClient httpClient,
     CachedSigningKeys cache,
     IOptions<ExternalIdentityOptions> options,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ILogger<SigningKeyDirectory> logger) : ISigningKeyDirectory
 {
     private static readonly TimeSpan _minimumTimeBetweenForcedFetches = TimeSpan.FromMinutes(1);
@@ -26,7 +25,7 @@ internal sealed class SigningKeyDirectory(
 
         var cached = cache.Find(provider.Name);
 
-        return cached is not null && dateTimeProvider.UtcNow - cached.FetchedAt < options.Value.KeySetLifetime
+        return cached is not null && timeProvider.GetUtcNow() - cached.FetchedAt < options.Value.KeySetLifetime
             ? cached.Keys
             : await FetchAsync(provider, cached, cancellationToken);
     }
@@ -40,7 +39,7 @@ internal sealed class SigningKeyDirectory(
         var cached = cache.Find(provider.Name);
 
         return cached is not null
-            && dateTimeProvider.UtcNow - cached.AttemptedAt < _minimumTimeBetweenForcedFetches
+            && timeProvider.GetUtcNow() - cached.AttemptedAt < _minimumTimeBetweenForcedFetches
             ? cached.Keys
             : await FetchAsync(provider, cached, cancellationToken);
     }
@@ -50,7 +49,7 @@ internal sealed class SigningKeyDirectory(
         SigningKeySet? cached,
         CancellationToken cancellationToken)
     {
-        var attemptedAt = dateTimeProvider.UtcNow;
+        var attemptedAt = timeProvider.GetUtcNow();
 
         try
         {

@@ -55,8 +55,8 @@ public sealed class GetRemindersTests
     [Fact]
     public async Task WhatTheQueryReturns_ComesBackUnchangedAndInTheSameOrder()
     {
-        var sooner = ADto(StubDateTimeProvider.DefaultInstant.AddDays(1));
-        var later = ADto(StubDateTimeProvider.DefaultInstant.AddDays(2));
+        var sooner = ADto(TheClock.DefaultInstant.AddDays(1));
+        var later = ADto(TheClock.DefaultInstant.AddDays(2));
         _queries.GetForTodoItemAsync(_callerId, _todoListId, _todoItemId, Arg.Any<CancellationToken>())
             .Returns((IReadOnlyList<ReminderDto>)[sooner, later]);
 

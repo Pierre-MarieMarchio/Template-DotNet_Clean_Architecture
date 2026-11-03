@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.TwoFactor.Adapters.Services;
@@ -8,6 +7,7 @@ using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -30,13 +30,11 @@ public sealed class TwoFactorServiceChallengeTests
         []);
 
     private readonly IAppUserDirectory _directory = Substitute.For<IAppUserDirectory>();
-    private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+    private readonly FakeTimeProvider _timeProvider = new(_now);
     private readonly Dictionary<string, string> _tokens = [];
     private List<string> _recoveryCodes = [];
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
-
-    public TwoFactorServiceChallengeTests() => _dateTimeProvider.UtcNow.Returns(_now);
 
     [Fact]
     public async Task IssueChallengeAsync_EmbedsTheUserIdInTheChallengeToken()
@@ -109,7 +107,7 @@ public sealed class TwoFactorServiceChallengeTests
         GivenTheAccountExists();
         var issued = await challenges.IssueChallengeAsync(_userId, TestToken);
 
-        _dateTimeProvider.UtcNow.Returns(_now.AddMinutes(5));
+        _timeProvider.Advance(TimeSpan.FromMinutes(5));
 
         var redemption = await challenges.RedeemChallengeAsync(issued.ChallengeToken, "123456", TestToken);
 
@@ -240,7 +238,7 @@ public sealed class TwoFactorServiceChallengeTests
         var wrong = await challenges.RedeemChallengeAsync(issued.ChallengeToken, "000000", TestToken);
         wrong.Status.ShouldBe(TwoFactorRedemptionStatus.InvalidCode);
 
-        _dateTimeProvider.UtcNow.Returns(_now.AddMinutes(5));
+        _timeProvider.Advance(TimeSpan.FromMinutes(5));
 
         var afterExpiry = await challenges.RedeemChallengeAsync(
             issued.ChallengeToken,
@@ -426,6 +424,6 @@ public sealed class TwoFactorServiceChallengeTests
                 MaxChallengeAttempts = maxChallengeAttempts,
             });
 
-        return new TwoFactorService(userManager, _directory, _dateTimeProvider, options);
+        return new TwoFactorService(userManager, _directory, _timeProvider, options);
     }
 }

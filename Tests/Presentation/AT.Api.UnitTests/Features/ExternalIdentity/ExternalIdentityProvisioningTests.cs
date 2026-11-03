@@ -16,6 +16,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Xunit;
 
@@ -32,7 +33,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     private const string _rolesTable = "\"RoleAssignments\"";
     /*#endif*/
 
-    private readonly SettableClock _clock = new();
+    private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero));
     private readonly RecordingPublisher _published = new();
     private string _database = null!;
     private SqliteConnection _keeper = null!;
@@ -65,7 +66,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         services.AddApiCallerIdentity();
         services.AddExternalIdentity();
         services.AddExternalIdentityPersistence(configuration);
-        services.AddSingleton<IDateTimeProvider>(_clock);
+        services.AddSingleton<TimeProvider>(_clock);
         services.AddSingleton<IDomainEventPublisher>(_published);
         SqliteSavingHost.OnSqlite<AppDbContext>(services, _database);
 
@@ -160,7 +161,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         _clock.Advance(TimeSpan.FromHours(2));
         await ResolveAsync(Caller("subject-1", "a@example.com"));
 
-        (await RowsAsync()).Single().LastSeenAt.ShouldBe(_clock.UtcNow);
+        (await RowsAsync()).Single().LastSeenAt.ShouldBe(_clock.GetUtcNow());
     }
 
     [Fact]
@@ -176,7 +177,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     [Fact]
     public async Task AnInsertForAnExistingPair_IsRefusedByTheIndex_AndReportedAsLost()
     {
-        var link = new ExternalIdentityLink(_issuer, "subject-1", UserId.Create(Guid.CreateVersion7()), null, null, _clock.UtcNow);
+        var link = new ExternalIdentityLink(_issuer, "subject-1", UserId.Create(Guid.CreateVersion7()), null, null, _clock.GetUtcNow());
         var rival = link with { UserId = UserId.Create(Guid.CreateVersion7()) };
 
         await using var scope = _services.CreateAsyncScope();
@@ -192,7 +193,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     public async Task ALostFirstRequestRace_AnswersTheWinnersOwner()
     {
         var winner = UserId.Create(Guid.CreateVersion7());
-        var rival = new ExternalIdentityLink(_issuer, "subject-1", winner, null, null, _clock.UtcNow);
+        var rival = new ExternalIdentityLink(_issuer, "subject-1", winner, null, null, _clock.GetUtcNow());
 
         await using var racing = Compose(real => new RivalInsertsFirst(real, rival));
         await using var scope = racing.CreateAsyncScope();
@@ -246,7 +247,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
         await using (var scope = _services.CreateAsyncScope())
         {
             await scope.ServiceProvider.GetRequiredService<IExternalIdentityStore>().TryAddAsync(
-                new ExternalIdentityLink("https://new.example.com", "new-subject", owner, "new@example.com", "New", _clock.UtcNow),
+                new ExternalIdentityLink("https://new.example.com", "new-subject", owner, "new@example.com", "New", _clock.GetUtcNow()),
                 TestToken);
         }
 
@@ -279,7 +280,7 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
 
         var fact = _published.Events.OfType<UserAccountDeleted>().Single();
         fact.UserId.ShouldBe(owner);
-        fact.OccurredAt.ShouldBe(_clock.UtcNow);
+        fact.OccurredAt.ShouldBe(_clock.GetUtcNow());
     }
 
     [Fact]
@@ -364,13 +365,6 @@ public sealed class ExternalIdentityProvisioningTests : IAsyncLifetime
     }
 
     private sealed record Row(Guid UserId, string? Email, string? DisplayName, DateTimeOffset LastSeenAt);
-
-    private sealed class SettableClock : IDateTimeProvider
-    {
-        public DateTimeOffset UtcNow { get; private set; } = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
-
-        public void Advance(TimeSpan delta) => UtcNow += delta;
-    }
 
     private sealed class RivalInsertsFirst(IExternalIdentityStore inner, ExternalIdentityLink rival) : IExternalIdentityStore
     {

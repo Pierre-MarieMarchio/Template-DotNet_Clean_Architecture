@@ -8,6 +8,7 @@ using AppTemplate.Application.UnitTests.TestDoubles;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -20,7 +21,7 @@ public sealed class ReopenTodoItemTests
 
     private readonly ITodoListRepository _repository = Substitute.For<ITodoListRepository>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
-    private readonly StubDateTimeProvider _clock = new();
+    private readonly FakeTimeProvider _clock = TheClock.Start();
 
     private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
@@ -52,7 +53,7 @@ public sealed class ReopenTodoItemTests
     public async Task ACompletedItem_IsReopenedAndRaisesTheReopenedEvent()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        list.CompleteItem(itemId, StubDateTimeProvider.DefaultInstant);
+        list.CompleteItem(itemId, TheClock.DefaultInstant);
         list.ClearDomainEvents();
         _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
 

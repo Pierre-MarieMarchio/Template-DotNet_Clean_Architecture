@@ -2,10 +2,10 @@
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
 //#endif
 using AppTemplate.Infrastructure.InMemory.Common.Email;
-using AppTemplate.Infrastructure.InMemory.Common.Time;
 using AppTemplate.Infrastructure.Persistence.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
@@ -21,7 +21,7 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public TestDatabase Database => _database ?? throw NotInitialised();
 
-    public FixedDateTimeProvider Clock => Factory.Services.GetRequiredService<FixedDateTimeProvider>();
+    public FakeTimeProvider Clock => Factory.Services.GetRequiredService<FakeTimeProvider>();
 
     public RecordedEmails Emails => Factory.Services.GetRequiredService<RecordedEmails>();
 

@@ -11,7 +11,7 @@ public sealed record PurgeAbandonedRegistrationsCommand : ICommand<Result<int>>;
 public sealed class PurgeAbandonedRegistrationsCommandHandler(
     IStoredFileRepository repository,
     IUnitOfWork unitOfWork,
-    IDateTimeProvider dateTimeProvider,
+    TimeProvider timeProvider,
     ILeaderLease lease,
     ILogger<PurgeAbandonedRegistrationsCommandHandler> logger) : ICommandHandler<PurgeAbandonedRegistrationsCommand, Result<int>>
 {
@@ -42,7 +42,7 @@ public sealed class PurgeAbandonedRegistrationsCommandHandler(
 
     private async Task<int> PurgeBatchAsync(CancellationToken cancellationToken)
     {
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
 
         var candidates = await repository.GetPendingRegisteredBeforeAsync(
             now - AbandonedAfter,

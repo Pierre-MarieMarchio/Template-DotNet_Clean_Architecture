@@ -16,7 +16,7 @@ internal sealed class ExternalIdentityService(
     IExternalIdentityQueries queries,
     IRoleAssignmentQueries roleAssignments,
     IDomainEventPublisher domainEvents,
-    IDateTimeProvider dateTimeProvider) : IExternalIdentityService
+    TimeProvider timeProvider) : IExternalIdentityService
 {
     internal static readonly TimeSpan LastSeenGranularity = TimeSpan.FromHours(1);
 
@@ -28,7 +28,7 @@ internal sealed class ExternalIdentityService(
         ArgumentOutOfRangeException.ThrowIfGreaterThan(caller.Issuer.Length, ExternalIdentityPolicy.IssuerMaxLength);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(caller.Subject.Length, ExternalIdentityPolicy.SubjectMaxLength);
 
-        var now = dateTimeProvider.UtcNow;
+        var now = timeProvider.GetUtcNow();
         string? email = KeptEmail(caller.Email);
         string? displayName = KeptDisplayName(caller.DisplayName);
 
@@ -93,7 +93,7 @@ internal sealed class ExternalIdentityService(
         }
 
         await domainEvents.PublishAsync(
-            new UserAccountDeleted(userId, dateTimeProvider.UtcNow),
+            new UserAccountDeleted(userId, timeProvider.GetUtcNow()),
             cancellationToken);
 
         return Result.Success();

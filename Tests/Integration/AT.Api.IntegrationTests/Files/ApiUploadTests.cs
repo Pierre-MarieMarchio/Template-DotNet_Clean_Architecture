@@ -41,7 +41,7 @@ public sealed class ApiUploadTests(ApiFixture fixture) : IntegrationTestBase(fix
         file.DeclaredMediaType.ShouldBe("text/plain");
         file.SizeInBytes.ShouldBe(_contentAboveThe64KiBDefaultBodyLimit.Length);
         file.Checksum.ShouldBe(Convert.ToHexStringLower(SHA256.HashData(_contentAboveThe64KiBDefaultBodyLimit)));
-        file.RegisteredAt.ShouldBe(Clock.UtcNow);
+        file.RegisteredAt.ShouldBe(Clock.GetUtcNow());
         file.AvailableAt.ShouldBeNull();
         file.Tags.ShouldBeEmpty();
         response.Headers.Location!.ToString().ShouldEndWith($"{_filesRoute}/{file.Id}");

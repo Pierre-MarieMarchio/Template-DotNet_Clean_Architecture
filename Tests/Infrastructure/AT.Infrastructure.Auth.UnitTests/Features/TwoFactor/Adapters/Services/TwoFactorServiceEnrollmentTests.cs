@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Auth.Features.TwoFactor.Ports.TwoFactor;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Adapters.Directories;
 using AppTemplate.Infrastructure.Auth.Features.Accounts.Rows.Models;
 using AppTemplate.Infrastructure.Auth.Features.TwoFactor.Adapters.Services;
@@ -8,6 +7,7 @@ using AppTemplate.Infrastructure.Auth.UnitTests.Fixtures;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -469,7 +469,7 @@ public sealed class TwoFactorServiceEnrollmentTests
 
         var options = new OptionsWrapper<TwoFactorOptions>(new TwoFactorOptions { RecoveryCodeCount = recoveryCodeCount });
 
-        return new TwoFactorService(userManager, _directory, Substitute.For<IDateTimeProvider>(), options);
+        return new TwoFactorService(userManager, _directory, new FakeTimeProvider(), options);
     }
 
     private sealed class ConfigurableHasher : IPasswordHasher<AppUser>

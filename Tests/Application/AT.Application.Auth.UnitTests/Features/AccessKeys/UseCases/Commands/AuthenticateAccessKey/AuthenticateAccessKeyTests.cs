@@ -18,7 +18,7 @@ public sealed class AuthenticateAccessKeyTests
 
     private static readonly Guid _ownerId = Guid.CreateVersion7();
     private static readonly Guid _accessKeyId = Guid.CreateVersion7();
-    private static readonly DateTimeOffset _now = StubDateTimeProvider.DefaultInstant;
+    private static readonly DateTimeOffset _now = TheClock.DefaultInstant;
     private static readonly string _key = AKey();
 
     private readonly IAccessKeysService _accessKeys = Substitute.For<IAccessKeysService>();
@@ -173,5 +173,5 @@ public sealed class AuthenticateAccessKeyTests
         AccessKeyPolicy.KeyPrefix
         + Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(AccessKeyPolicy.SecretSizeInBytes));
 
-    private AuthenticateAccessKeyCommandHandler UseCase() => new(_accessKeys, _accounts, new StubDateTimeProvider());
+    private AuthenticateAccessKeyCommandHandler UseCase() => new(_accessKeys, _accounts, TheClock.Start());
 }

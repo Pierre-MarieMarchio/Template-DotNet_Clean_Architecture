@@ -1,11 +1,10 @@
-﻿using AppTemplate.Application.Core.Common.Ports;
-using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
+﻿using AppTemplate.Application.Features.Reminders.Ports.ReminderNotifier;
 
 namespace AppTemplate.Infrastructure.InMemory.Features.Reminders;
 
 internal sealed class InMemoryReminderNotifier(
     RecordedReminderNotifications recorded,
-    IDateTimeProvider dateTimeProvider) : IReminderNotifier
+    TimeProvider timeProvider) : IReminderNotifier
 {
     public Task NotifyAsync(ReminderNotification notification, CancellationToken cancellationToken = default)
     {
@@ -16,7 +15,7 @@ internal sealed class InMemoryReminderNotifier(
             notification.OwnerId,
             notification.TodoItemId,
             notification.DueAt,
-            dateTimeProvider.UtcNow));
+            timeProvider.GetUtcNow()));
 
         return Task.CompletedTask;
     }

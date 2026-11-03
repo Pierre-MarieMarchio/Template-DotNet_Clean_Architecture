@@ -47,7 +47,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
         var services = scope.ServiceProvider;
         await CompleteWithoutSavingAsync(services, listId, itemId);
 
-        var now = Clock.UtcNow;
+        var now = Clock.GetUtcNow();
         var claim = await services.GetRequiredService<IIdempotencyStore>()
             .ClaimAsync(AKey("complete-the-item"), now.AddHours(24), now.AddMinutes(15), TestToken);
 
@@ -63,7 +63,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
     private async Task<(Guid ListId, Guid ItemId)> AListWithOneItemAsync()
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
-        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Chores", Clock.UtcNow);
+        var list = TodoList.Create(UserId.Create(Guid.CreateVersion7()), "Chores", Clock.GetUtcNow());
         var itemId = list.AddItem("Do the thing", description: null);
 
         scope.ServiceProvider.GetRequiredService<ITodoListRepository>().Add(list);
@@ -77,7 +77,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
     private async Task CompleteWithoutSavingAsync(IServiceProvider services, Guid listId, Guid itemId)
     {
         var list = await services.GetRequiredService<ITodoListRepository>().GetAsync(listId, TestToken);
-        list.ShouldNotBeNull().CompleteItem(itemId, Clock.UtcNow);
+        list.ShouldNotBeNull().CompleteItem(itemId, Clock.GetUtcNow());
     }
 
     //#if (localAuth)
@@ -93,7 +93,7 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
             Email = $"{name}@example.invalid",
             NormalizedEmail = $"{name}@example.invalid".ToUpperInvariant(),
             SecurityStamp = Guid.NewGuid().ToString(),
-            CreatedAt = Clock.UtcNow,
+            CreatedAt = Clock.GetUtcNow(),
         };
     }
 

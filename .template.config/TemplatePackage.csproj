@@ -53,6 +53,7 @@
   <ItemGroup>
     <None Include="$(TemplateRoot)**/*" Exclude="@(TemplateExclude)" Pack="true" PackagePath="content/" />
     <None Include="$(TemplateRoot)README.md" Pack="true" PackagePath="/" />
+    <None Include="$(TemplateRoot)CHANGELOG.md" Pack="true" PackagePath="/" />
     <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="/" />
   </ItemGroup>
 

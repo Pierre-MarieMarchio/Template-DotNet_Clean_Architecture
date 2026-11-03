@@ -1,6 +1,8 @@
 ﻿using System.Net;
 using AppTemplate.Client.Common.Errors;
+//#if (localAuth)
 using AppTemplate.Client.Generated.Models;
+//#endif
 using AppTemplate.Client.UnitTests.TestSupport;
 using Microsoft.Kiota.Abstractions;
 using Shouldly;

@@ -357,9 +357,12 @@ build sees it, so two checks hold the rule.
 | `Record the using directives the template wrote`, then `Bootstrap formatting` | the forms the legs generate, every using alike: a using bootstrap's IDE0005 removes from a file the template wrote fails the leg | `.github/workflows/template-acceptance.yml` |
 
 The test judges a namespace by the names the template's own C# files declare in it, types, their
-attributes' short names and extension methods, and a line as reading a name it spells. It leaves out
-what it cannot know: a namespace from a package, and the projects an official CLI creates, whose
-`scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs build.
+attributes' short names and extension methods, and a line as reading a name it spells. It reads the
+files under `.template.config/variants` and `.template.config/starters` as the forms that write them,
+and the client Kiota writes in `Src/Clients/AT.Client/Generated` for the names it declares only. It
+leaves out what it cannot know: a namespace from a package, and the projects an official CLI creates,
+whose `scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs
+build.
 A form the test reports runs with the options it names: generate it and build it to see IDE0005.
 
 The same holds for a tool's own methods: a method of a file under `Tools` stands under the condition

@@ -5,12 +5,11 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 internal static class RemoveFeature
 {
-    private const string _manifestFolder = ".feature-manifest";
-
     private const string _usage =
         "Usage: dotnet run Tools/RemoveFeature.cs <Features> [--apply] [--root <path>]\n"
         + "  <Features>  the folder of the feature, PascalCase and plural, e.g. Widgets\n"
@@ -194,14 +193,13 @@ internal static class RemoveFeature
     private static Analysis Analyze(string root, string features)
     {
         var blockers = new List<string>();
-        string manifestPath = $"{_manifestFolder}/{features}.json";
-        string manifestFull = Path.Combine(root, manifestPath);
+        string manifestPath = FeatureManifest.PathOf(features);
 
         Manifest? manifest = null;
 
-        if (File.Exists(manifestFull))
+        if (File.Exists(Path.Combine(root, manifestPath)))
         {
-            manifest = ReadManifest(manifestFull, features, blockers);
+            manifest = ReadManifest(root, features, blockers);
         }
         else
         {
@@ -321,7 +319,7 @@ internal static class RemoveFeature
 
     private static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers)
     {
-        string manifests = Path.Combine(root, _manifestFolder);
+        string manifests = Path.Combine(root, FeatureManifest.Folder);
 
         if (Directory.Exists(manifests))
         {
@@ -334,18 +332,18 @@ internal static class RemoveFeature
                     continue;
                 }
 
-                try
-                {
-                    using var document = JsonDocument.Parse(File.ReadAllBytes(file));
+                var read = FeatureManifest.Read(root, other, out string? problem);
+                string? access = read?.Options?["access"] is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
 
-                    if (document.RootElement.GetProperty("options").GetProperty("access").GetString() == "owner")
-                    {
-                        dependents.Add(new Dependent(other, "generated, --access owner"));
-                    }
-                }
-                catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or IOException)
+                if (access == "owner")
                 {
-                    blockers.Add($"'{_manifestFolder}/{other}.json' cannot be read ({exception.Message}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
+                    dependents.Add(new Dependent(other, "generated, --access owner"));
+                }
+                else if (access is null)
+                {
+                    string reason = problem ?? "it records no access";
+
+                    blockers.Add($"'{FeatureManifest.PathOf(other)}' cannot be read ({reason}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
                 }
             }
         }
@@ -420,77 +418,61 @@ internal static class RemoveFeature
         _ => "possible match(es)",
     };
 
-    private static Manifest? ReadManifest(string path, string features, List<string> blockers)
+    private static Manifest? ReadManifest(string root, string features, List<string> blockers)
     {
-        try
+        if (FeatureManifest.Read(root, features, out string? problem) is not { } read)
         {
-            using var document = JsonDocument.Parse(File.ReadAllBytes(path));
-            var top = document.RootElement;
-
-            if (top.GetProperty("schemaVersion").GetInt32() is not (1 or 2))
-            {
-                blockers.Add("The manifest has a schema version this command does not read.");
-
-                return null;
-            }
-
-            if (top.GetProperty("feature").GetString() != features)
-            {
-                blockers.Add($"The manifest names another feature than {features}.");
-
-                return null;
-            }
-
-            string type = top.GetProperty("type").GetString() ?? string.Empty;
-            var files = new List<Entry>();
-            var shared = new List<string>();
-            var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, _timeout);
-
-            foreach (var file in top.GetProperty("files").EnumerateArray())
-            {
-                string entry = file.GetProperty("path").GetString() ?? string.Empty;
-                string digest = file.GetProperty("sha256").GetString() ?? string.Empty;
-                bool isShared = _sharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
-
-                if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared) || digest.Length != 64)
-                {
-                    blockers.Add($"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares.");
-
-                    return null;
-                }
-
-                files.Add(new Entry(entry, digest));
-
-                if (isShared)
-                {
-                    shared.Add(entry);
-                }
-            }
-
-            if (type.Length == 0 || files.Count == 0)
-            {
-                blockers.Add("The manifest names no type or no file.");
-
-                return null;
-            }
-
-            string? page = top.TryGetProperty("page", out var written) ? written.GetString() : null;
-
-            if (page is not null && page != PagePath(features))
-            {
-                blockers.Add($"The manifest lists the page '{page}', where the generator writes '{PagePath(features)}'.");
-
-                return null;
-            }
-
-            return new Manifest(type, files, shared, page);
-        }
-        catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or IOException)
-        {
-            blockers.Add($"The manifest cannot be read: {exception.Message}");
+            blockers.Add($"The manifest {problem}.");
 
             return null;
         }
+
+        if (read.SchemaVersion is not (1 or 2))
+        {
+            blockers.Add("The manifest has a schema version this command does not read.");
+
+            return null;
+        }
+
+        string type = read.Type ?? string.Empty;
+        var files = new List<Entry>();
+        var shared = new List<string>();
+        var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, _timeout);
+
+        foreach (var (entry, digest) in read.Files)
+        {
+            bool isShared = _sharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
+
+            if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared) || digest.Length != 64)
+            {
+                blockers.Add($"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares.");
+
+                return null;
+            }
+
+            files.Add(new Entry(entry, digest));
+
+            if (isShared)
+            {
+                shared.Add(entry);
+            }
+        }
+
+        if (type.Length == 0 || files.Count == 0)
+        {
+            blockers.Add("The manifest names no type or no file.");
+
+            return null;
+        }
+
+        if (read.Page is { } page && page != PagePath(features))
+        {
+            blockers.Add($"The manifest lists the page '{page}', where the generator writes '{PagePath(features)}'.");
+
+            return null;
+        }
+
+        return new Manifest(type, files, shared, read.Page);
     }
 
     private static List<string> FeatureFolders(List<string> files, string features)
@@ -730,7 +712,7 @@ internal static class RemoveFeature
                 || ownFiles.Contains(relative)
                 || ownFolders.Any(folder => relative.StartsWith(folder, StringComparison.Ordinal))
                 || !_textExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)
-                || relative.StartsWith($"{_manifestFolder}/", StringComparison.Ordinal))
+                || relative.StartsWith($"{FeatureManifest.Folder}/", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -939,8 +921,8 @@ internal static class RemoveFeature
                 RemoveEmpty(Path.Combine(root, Path.GetDirectoryName(analysis.Page)!));
             }
 
-            File.Delete(Path.Combine(root, _manifestFolder, $"{analysis.Features}.json"));
-            RemoveEmpty(Path.Combine(root, _manifestFolder));
+            File.Delete(Path.Combine(root, FeatureManifest.Folder, $"{analysis.Features}.json"));
+            RemoveEmpty(Path.Combine(root, FeatureManifest.Folder));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -1137,7 +1119,7 @@ internal static class RemoveFeature
 
         expect(applied.Code == 0, $"An untouched skeleton was refused: {applied.Error}{applied.Output}");
         expect(_skeletonFiles.All(file => !File.Exists(Path.Combine(root, file))), "A generated file was left behind.");
-        expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), "The manifest or its folder was left behind.");
+        expect(!Directory.Exists(Path.Combine(root, FeatureManifest.Folder)), "The manifest or its folder was left behind.");
         expect(!after.Keys.Any(key => key.Contains("Widgets", StringComparison.Ordinal)), "A folder of the feature was left behind.");
         expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/A.Api/Program.cs")), "A file the feature did not own was deleted.");
 
@@ -1206,7 +1188,7 @@ internal static class RemoveFeature
         var secondApplied = Invoke(second, "Widgets", "--apply");
 
         expect(
-            secondApplied.Code == 0 && !Directory.Exists(Path.Combine(second, _manifestFolder)),
+            secondApplied.Code == 0 && !Directory.Exists(Path.Combine(second, FeatureManifest.Folder)),
             $"A version 2 manifest, whose edits are undone, was not read or not removed: {secondApplied.Output}{secondApplied.Error}");
 
         Refused("a manifest path leaves the feature", tree => Put(tree, ".feature-manifest/Widgets.json", File.ReadAllText(Path.Combine(tree, ".feature-manifest/Widgets.json")).Replace(_skeletonFiles[0], "Src/Domain/A.Domain/Features/Widgets/../../../../README.md", StringComparison.Ordinal)), "not a file under a Features/Widgets folder");
@@ -1247,7 +1229,7 @@ internal static class RemoveFeature
 
         string bare = Skeleton(scratch);
 
-        File.Delete(Path.Combine(bare, _manifestFolder, "Widgets.json"));
+        File.Delete(Path.Combine(bare, FeatureManifest.Folder, "Widgets.json"));
 
         var bareBefore = Snapshot(bare);
         var bareReport = Invoke(bare, "Widgets");
@@ -1438,7 +1420,7 @@ internal static class RemoveFeature
 
         expect(Invoke(notes, "Widgets", "--apply").Code == 0, "(c) a shared feature held the owner feature back.");
         expect(
-            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal) || pair.Key == $"{_manifestFolder}/Notes.json")
+            withNotes.Where(pair => pair.Key.Contains("/Features/Notes", StringComparison.Ordinal) || pair.Key == $"{FeatureManifest.Folder}/Notes.json")
                 .All(pair => Snapshot(notes).TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
             "(c) removing Widgets touched Notes.");
         expect(Invoke(notes, "Notes", "--apply").Code == 0, "(c) Notes was refused.");
@@ -1492,12 +1474,12 @@ internal static class RemoveFeature
 
         string stale = WithWidgets();
 
-        Put(stale, $"{_manifestFolder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
+        Put(stale, $"{FeatureManifest.Folder}/Gizmos.json", "{ \"schemaVersion\": 1, \"feature\": \"Gizmos\", \"type\": \"Gizmo\", \"options\": { \"access\": \"owner\" }, \"files\": [] }\n");
         Refused("(i) a stale owner manifest", stale, "Widgets", "Gizmos (generated, --access owner)");
 
         string unreadable = WithWidgets();
 
-        Put(unreadable, $"{_manifestFolder}/Gizmos.json", "{ not json\n");
+        Put(unreadable, $"{FeatureManifest.Folder}/Gizmos.json", "{ not json\n");
         Refused("an unreadable manifest", unreadable, "Widgets", "nothing can tell whether Gizmos depends");
     }
 
@@ -1562,7 +1544,7 @@ internal static class RemoveFeature
 
         expect(Generate(forged, widgets) == 0, "The generator refused Widgets for the forged page.");
 
-        string manifest = Path.Combine(forged, _manifestFolder, "Widgets.json");
+        string manifest = Path.Combine(forged, FeatureManifest.Folder, "Widgets.json");
 
         File.WriteAllText(manifest, File.ReadAllText(manifest).Replace(pagePath, "docs/README.md", StringComparison.Ordinal));
 
@@ -1749,4 +1731,840 @@ internal static class RemoveFeature
             expect(Same(original, Snapshot(root)), $"After removing {features} without the API the tree is not the one that was there before it was generated.");
         }
     }
+}
+
+internal static class TextEdits
+{
+    private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
+    {
+        internal bool FromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
+    }
+
+    private const string _noBuild = "--no-build";
+
+    internal sealed class Sheet
+    {
+        private readonly bool _bom;
+
+        private readonly string _newline;
+
+        private readonly List<string> _lines;
+
+        private readonly List<bool> _inserted;
+
+        internal Sheet(string path, byte[] original)
+        {
+            Path = path;
+            Original = original;
+            _bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+
+            string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
+
+            _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            FinalNewline = text.EndsWith('\n');
+            _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            _inserted = [.. _lines.Select(_ => false)];
+        }
+
+        internal string Path { get; }
+
+        internal byte[] Original { get; }
+
+        internal IReadOnlyList<string> Lines => _lines;
+
+        internal bool FinalNewline { get; private set; }
+
+        internal bool Rewritten { get; private set; }
+
+        internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
+
+        internal void Rewrite(string text)
+        {
+            bool finalNewline = text.EndsWith('\n');
+            string[] next = (finalNewline ? text[..^1] : text).Split('\n');
+            int head = 0;
+
+            while (head < next.Length && head < _lines.Count && next[head] == _lines[head])
+            {
+                head++;
+            }
+
+            int tail = 0;
+
+            while (tail < next.Length - head && tail < _lines.Count - head && next[^(tail + 1)] == _lines[^(tail + 1)])
+            {
+                tail++;
+            }
+
+            int removed = _lines.Count - head - tail;
+
+            Rewritten |= removed > 0 || finalNewline != FinalNewline;
+            _lines.RemoveRange(head, removed);
+            _inserted.RemoveRange(head, removed);
+            Insert(head, next[head..^tail]);
+            FinalNewline = finalNewline;
+        }
+
+        internal void Insert(int index, string[] lines)
+        {
+            _lines.InsertRange(index, lines);
+            _inserted.InsertRange(index, lines.Select(_ => true));
+        }
+
+        internal IEnumerable<Edit> Edits()
+        {
+            for (int start = 0; start < _lines.Count; start++)
+            {
+                if (!_inserted[start])
+                {
+                    continue;
+                }
+
+                int end = start;
+
+                while (end + 1 < _lines.Count && _inserted[end + 1])
+                {
+                    end++;
+                }
+
+                int next = end + 1 < _lines.Count ? end + 1 : -1;
+                int previous = start - 1;
+                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
+
+                start = end;
+            }
+        }
+
+        internal byte[] Bytes()
+        {
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (FinalNewline ? _newline : string.Empty));
+
+            return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
+        }
+    }
+
+    internal sealed class Editor(string root)
+    {
+        private readonly Dictionary<string, Sheet?> _sheets = new(StringComparer.Ordinal);
+
+        internal string Step { get; set; } = string.Empty;
+
+        internal IReadOnlyList<Edit> Applied =>
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
+                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+                : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+
+        internal List<string> Kept { get; } = [];
+
+        internal List<string> Failures { get; } = [];
+
+        internal IEnumerable<Sheet> Changed =>
+            _sheets.Values.OfType<Sheet>().Where(sheet => !sheet.Original.AsSpan().SequenceEqual(sheet.Bytes()));
+
+        internal Sheet? Open(string path)
+        {
+            if (!_sheets.TryGetValue(path, out Sheet? sheet))
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                sheet = File.Exists(full) ? new Sheet(path, File.ReadAllBytes(full)) : null;
+                _sheets[path] = sheet;
+            }
+
+            if (sheet is null)
+            {
+                Fail($"{path} does not exist.");
+            }
+
+            return sheet;
+        }
+
+        internal void Fail(string reason) => Failures.Add(Step.Length == 0 ? reason : $"{Step}: {reason}");
+
+        internal static void Insert(Sheet sheet, int anchor, bool before, string[] lines) => sheet.Insert(before ? anchor : anchor + 1, lines);
+
+        internal static int Find(Sheet sheet, Func<string, bool> match, int from = 0, int to = -1)
+        {
+            int end = to < 0 ? sheet.Lines.Count : Math.Min(to, sheet.Lines.Count);
+
+            for (int index = Math.Max(from, 0); index < end; index++)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal static int FindLast(Sheet sheet, Func<string, bool> match, int from)
+        {
+            for (int index = Math.Min(from, sheet.Lines.Count - 1); index >= 0; index--)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal void Place(string path, string[] anchors, bool before, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Trim().StartsWith(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int anchor = anchors
+                .Select(text => Find(sheet, line => line.Trim().StartsWith(text, StringComparison.Ordinal)))
+                .FirstOrDefault(index => index >= 0, -1);
+
+            if (anchor < 0)
+            {
+                Fail($"no line starts with '{string.Join("' or '", anchors)}', the line the edit is placed beside.");
+
+                return;
+            }
+
+            Insert(sheet, anchor, before, lines);
+        }
+
+        internal void Rewrite(string path, Func<string, string?> edit)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (edit(sheet.Text) is { } text)
+            {
+                sheet.Rewrite(text);
+            }
+            else
+            {
+                Fail($"its anchor is not in {path}, so nothing could be written.");
+            }
+        }
+
+        internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int found = 0;
+
+            for (int index = 0; index < sheet.Lines.Count; index++)
+            {
+                if (sheet.Lines[index].Trim() != anchor)
+                {
+                    continue;
+                }
+
+                found++;
+
+                int start = FindLast(sheet, candidate => candidate == "    {", index);
+                int end = Find(sheet, candidate => candidate == "    }", index);
+
+                if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+                {
+                    Kept.Add(Step);
+
+                    continue;
+                }
+
+                Insert(sheet, index, before, [line]);
+                index++;
+            }
+
+            if (found == 0)
+            {
+                Fail($"no line reads '{anchor}', the line the edit is placed beside in each method.");
+            }
+        }
+
+        internal void AppendToMethod(string path, string method, string prefix, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int declaration = Find(sheet, candidate => candidate.Contains(method, StringComparison.Ordinal));
+            int start = declaration < 0 ? -1 : Find(sheet, candidate => candidate == "    {", declaration);
+            int end = start < 0 ? -1 : Find(sheet, candidate => candidate == "    }", start);
+
+            if (end < 0)
+            {
+                Fail($"no method{method} with a body was found to take the line.");
+
+                return;
+            }
+
+            if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int last = FindLast(sheet, candidate => candidate.Trim().StartsWith(prefix, StringComparison.Ordinal), end);
+
+            if (last <= start)
+            {
+                Fail($"the method{method} has no line starting with '{prefix}' to place the line after.");
+
+                return;
+            }
+
+            Insert(sheet, last, before: false, [line]);
+        }
+
+        internal void Using(string path, string space)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            string directive = $"using {space};";
+            int body = Find(sheet, line => !IsHeader(line));
+            int[] usings = [.. Enumerable.Range(0, body < 0 ? sheet.Lines.Count : body).Where(index => IsUsing(sheet.Lines[index]))];
+            string? own = sheet.Lines
+                .Select(line => line.Trim())
+                .FirstOrDefault(line => line.StartsWith("namespace ", StringComparison.Ordinal) && line.EndsWith(';'))?["namespace ".Length..^1];
+
+            if (usings.Any(index => sheet.Lines[index].Trim() == directive)
+                || (own is not null && (own == space || own.StartsWith(space + ".", StringComparison.Ordinal))))
+            {
+                return;
+            }
+
+            int following = usings.FirstOrDefault(index => Order(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
+
+            if (following >= 0)
+            {
+                Insert(sheet, following, before: true, [directive]);
+            }
+            else if (usings.Length > 0)
+            {
+                Insert(sheet, usings[^1], before: false, [directive]);
+            }
+            else
+            {
+                Insert(sheet, 0, before: true, [directive, string.Empty]);
+            }
+        }
+
+        internal void Row(string path, string heading, string row, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Contains(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int level = heading.TakeWhile(character => character == '#').Count();
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith('#') && line.TakeWhile(character => character == '#').Count() <= level, section + 1);
+            int rule = section < 0 ? -1 : Find(sheet, line => line.StartsWith("|---", StringComparison.Ordinal), section + 1, next);
+
+            if (rule < 0)
+            {
+                Fail($"{path} has no table under '{heading}' to take the row.");
+
+                return;
+            }
+
+            int last = rule;
+
+            while (last + 1 < sheet.Lines.Count && sheet.Lines[last + 1].StartsWith('|'))
+            {
+                last++;
+            }
+
+            Insert(sheet, last, before: false, [row]);
+        }
+
+        internal void Section(string path, string heading, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line == present) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith("## ", StringComparison.Ordinal), section + 1);
+
+            if (next < 0)
+            {
+                Fail($"{path} has no '{heading}' section followed by another, before which the section is placed.");
+
+                return;
+            }
+
+            Insert(sheet, next, before: true, lines);
+        }
+
+        private static bool IsUsing(string line) =>
+            line.StartsWith("using ", StringComparison.Ordinal) && line.TrimEnd().EndsWith(';') && !line.Contains('=', StringComparison.Ordinal);
+
+        private static bool IsHeader(string line) =>
+            line.Trim().Length == 0 || line.TrimStart().StartsWith("//", StringComparison.Ordinal) || IsUsing(line);
+
+        private static int Order(string left, string right)
+        {
+            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
+
+            int system = IsSystem(right).CompareTo(IsSystem(left));
+
+            return system != 0 ? system
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
+                : StringComparer.Ordinal.Compare(left, right);
+        }
+    }
+
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    {
+        var written = new List<string>();
+        var directories = new List<string>();
+        var overwritten = new List<(string Full, byte[] Original)>();
+        string? staged = null;
+
+        try
+        {
+            foreach (var (path, bytes) in created)
+            {
+                string full = System.IO.Path.Combine(root, path);
+                var missing = new Stack<string>();
+
+                for (string next = System.IO.Path.GetDirectoryName(full)!; !Directory.Exists(next); next = System.IO.Path.GetDirectoryName(next)!)
+                {
+                    missing.Push(next);
+                }
+
+                directories.AddRange(missing);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+
+                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
+
+                written.Add(full);
+                stream.Write(bytes);
+            }
+
+            foreach (var (path, original, bytes) in replaced)
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
+                {
+                    stream.Write(bytes);
+                }
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(staged, File.GetUnixFileMode(full));
+                }
+
+                File.Move(staged, full, overwrite: true);
+                staged = null;
+                overwritten.Add((full, original));
+            }
+        }
+        catch
+        {
+            if (staged is not null && File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
+            foreach (var (full, original) in overwritten)
+            {
+                File.WriteAllBytes(full, original);
+            }
+
+            foreach (string full in written.Where(File.Exists))
+            {
+                File.Delete(full);
+            }
+
+            foreach (string directory in Enumerable.Reverse(directories))
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    internal static byte[] Encode(string path, string content)
+    {
+        byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
+
+        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+            ? [.. Encoding.UTF8.GetPreamble(), .. text]
+            : text;
+    }
+
+    internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>
+        editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
+
+    internal static Command Task(string root, params string[] task) =>
+        new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
+
+    internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
+
+    internal static List<Command> ContractSteps(string root, string client, bool built) =>
+    [
+        built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
+        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
+            ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
+            : Array.Empty<Command>(),
+    ];
+
+    internal static int Execute(Command command)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(command.FileName) { WorkingDirectory = command.WorkingDirectory, UseShellExecute = false };
+
+        foreach (string argument in command.Arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+
+            process.WaitForExit();
+
+            return process.ExitCode;
+        }
+        catch (System.ComponentModel.Win32Exception exception)
+        {
+            Console.Error.WriteLine($"{command.FileName} could not be started: {exception.Message}");
+
+            return 127;
+        }
+    }
+
+    internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
+    {
+        for (int index = 0; index < steps.Count; index++)
+        {
+            output.WriteLine();
+            output.WriteLine($"Running {steps[index].Display}");
+            output.Flush();
+
+            int code = run(steps[index]);
+
+            if (code == 0)
+            {
+                continue;
+            }
+
+            error.WriteLine($"error: `{steps[index].Display}` failed with exit code {code}.");
+            error.WriteLine($"Done: {done}{string.Concat(steps.Take(index).Select(step => $", then `{step.Display}`"))}.");
+            error.WriteLine("What remains, in this order, once the failure is fixed:");
+
+            foreach (Command remaining in steps.Skip(index))
+            {
+                error.WriteLine($"  {remaining.Display}");
+            }
+
+            if (steps.Skip(index).Any(remaining => remaining.FromLastBuild))
+            {
+                error.WriteLine(
+                    $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "
+                    + "`dotnet run Tools/Tasks.cs build` before it.");
+            }
+
+            return false;
+        }
+
+        output.WriteLine();
+        output.WriteLine($"Done: {done}{string.Concat(steps.Select(step => $", then `{step.Display}`"))}.");
+
+        return true;
+    }
+}
+
+internal sealed class FeatureManifest
+{
+    internal const string Folder = ".feature-manifest";
+
+    internal const int EditsVersion = 2;
+
+    private readonly JsonObject _top;
+
+    private readonly SortedDictionary<string, string> _files = new(StringComparer.Ordinal);
+
+    private readonly List<TextEdits.Edit> _edits;
+
+    private readonly int _editsRead;
+
+    private FeatureManifest(string path, JsonObject top, byte[]? original, List<TextEdits.Edit> edits)
+    {
+        Path = path;
+        Original = original;
+        _top = top;
+        _edits = edits;
+        _editsRead = edits.Count;
+
+        foreach (var file in ((JsonArray)top["files"]!).OfType<JsonObject>())
+        {
+            _files[file["path"]!.GetValue<string>()] = file["sha256"]!.GetValue<string>();
+        }
+    }
+
+    internal string Path { get; }
+
+    internal byte[]? Original { get; }
+
+    internal int? SchemaVersion =>
+        _top["schemaVersion"] is JsonValue value && value.GetValueKind() == JsonValueKind.Number && value.TryGetValue(out int version) ? version : null;
+
+    internal string? Generator => Text(_top["generator"]);
+
+    internal string? Feature => Text(_top["feature"]);
+
+    internal string? Type => Text(_top["type"]);
+
+    internal string? Page => Text(_top["page"]);
+
+    internal JsonObject? Options => _top["options"] as JsonObject;
+
+    internal JsonArray? Fields => _top["fields"] as JsonArray;
+
+    internal IReadOnlyDictionary<string, string> Files => _files;
+
+    internal IReadOnlyList<TextEdits.Edit> Edits => _edits;
+
+    internal IReadOnlyList<(string Declaration, string Migration, string[] Paths)> AddedFields =>
+        [
+            .. (_top["addedFields"] as JsonArray ?? [])
+                .OfType<JsonObject>()
+                .Where(addition => Text(addition["declaration"]) is not null && Text(addition["migration"]) is not null)
+                .Select(addition => (
+                    Text(addition["declaration"])!,
+                    Text(addition["migration"])!,
+                    (string[])[.. (addition["files"] as JsonArray ?? []).OfType<JsonObject>().Select(file => Text(file["path"])).OfType<string>()])),
+        ];
+
+    internal (string Path, byte[] Original, byte[] Bytes) Replacement => (Path, Original!, Bytes());
+
+    internal static string PathOf(string features) => $"{Folder}/{features}.json";
+
+    internal static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    internal static FeatureManifest Create(string generator, string features, string type, JsonObject options, JsonArray? fields, string? page)
+    {
+        var top = new JsonObject
+        {
+            ["schemaVersion"] = EditsVersion,
+            ["generator"] = generator,
+            ["feature"] = features,
+            ["type"] = type,
+            ["options"] = options,
+        };
+
+        if (fields is not null)
+        {
+            top["fields"] = fields;
+        }
+
+        top["files"] = new JsonArray();
+
+        if (page is not null)
+        {
+            top["page"] = page;
+        }
+
+        top["edits"] = new JsonArray();
+
+        return new FeatureManifest(PathOf(features), top, null, []);
+    }
+
+    internal static FeatureManifest? Read(string root, string features, out string? problem)
+    {
+        string path = PathOf(features);
+        string full = System.IO.Path.Combine(root, path);
+
+        problem = null;
+
+        if (!File.Exists(full))
+        {
+            return null;
+        }
+
+        byte[] original;
+
+        try
+        {
+            original = File.ReadAllBytes(full);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            problem = $"cannot be read ({exception.Message})";
+
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(original) is not JsonObject top
+                || Text(top["feature"]) != features
+                || top["files"] is not JsonArray files
+                || files.Any(file => file is not JsonObject entry || Text(entry["path"]) is null || Text(entry["sha256"]) is null)
+                || (top["edits"] is { } edits && edits is not JsonArray))
+            {
+                problem = $"does not read as the manifest of {features}";
+
+                return null;
+            }
+
+            var read = new List<TextEdits.Edit>();
+
+            foreach (var node in top["edits"] as JsonArray ?? [])
+            {
+                if (node is not JsonObject edit
+                    || Text(edit["path"]) is not { } editPath
+                    || Text(edit["anchor"]) is not { } anchor
+                    || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
+                    || lines.Any(line => Text(line) is null))
+                {
+                    problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
+
+                    return null;
+                }
+
+                read.Add(new TextEdits.Edit(editPath, anchor, Text(edit["position"])!, [.. lines.Select(line => Text(line)!)]));
+            }
+
+            return new FeatureManifest(path, top, original, read);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
+        {
+            problem = $"cannot be read ({exception.Message})";
+
+            return null;
+        }
+    }
+
+    internal void Record(string path, byte[] bytes) => _files[path] = Sha256(bytes);
+
+    internal void RecordAddition(string declaration, string migration, IEnumerable<(string Path, byte[]? Before, byte[] After, IReadOnlyList<string> Changes)> files)
+    {
+        var additions = _top["addedFields"] as JsonArray ?? [];
+
+        additions.Add((JsonNode)new JsonObject
+        {
+            ["declaration"] = declaration,
+            ["migration"] = migration,
+            ["files"] = new JsonArray([.. files.Select(file => (JsonNode)new JsonObject
+            {
+                ["path"] = file.Path,
+                ["before"] = file.Before is null ? null : Sha256(file.Before),
+                ["after"] = Sha256(file.After),
+                ["changes"] = new JsonArray([.. file.Changes.Select(change => (JsonNode)JsonValue.Create(change)!)]),
+            })]),
+        });
+        _top["addedFields"] = additions;
+    }
+
+    internal void Record(TextEdits.Editor editor)
+    {
+        foreach (var sheet in editor.Changed)
+        {
+            if (_files.TryGetValue(sheet.Path, out string? recorded) && recorded == Sha256(sheet.Original))
+            {
+                _files[sheet.Path] = Sha256(sheet.Bytes());
+            }
+        }
+
+        _edits.AddRange(editor.Applied.Where(edit => !_files.ContainsKey(edit.Path)));
+    }
+
+    internal byte[] Bytes()
+    {
+        var files = new JsonArray();
+
+        foreach (var (path, sha256) in _files)
+        {
+            files.Add((JsonNode)new JsonObject { ["path"] = path, ["sha256"] = sha256 });
+        }
+
+        _top["files"] = files;
+
+        var edits = new JsonArray();
+
+        foreach (var edit in _edits)
+        {
+            edits.Add((JsonNode)new JsonObject
+            {
+                ["path"] = edit.Path,
+                ["anchor"] = edit.Anchor,
+                ["position"] = edit.Position,
+                ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
+            });
+        }
+
+        if (_edits.Count > _editsRead)
+        {
+            _top["schemaVersion"] = Math.Max(SchemaVersion ?? 1, EditsVersion);
+            _top.Remove("edits");
+            _top["edits"] = edits;
+        }
+        else if (_top.ContainsKey("edits"))
+        {
+            _top["edits"] = edits;
+        }
+
+        using var stream = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            _top.WriteTo(writer);
+        }
+
+        return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
+    }
+
+    private static string? Text(JsonNode? node) =>
+        node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
 }

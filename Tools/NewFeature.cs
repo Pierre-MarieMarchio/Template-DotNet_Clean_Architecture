@@ -14,8 +14,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 internal static partial class NewFeature
 {
-    private const string _manifestFolder = ".feature-manifest";
-
     private const string _pageTemplate = "docs/_page-templates/feature.md";
 
     private const string _usage =
@@ -184,7 +182,7 @@ internal static partial class NewFeature
 
         var page = PageOf(root, spec, plan, out string? unwritten);
         var editor = Edits(root, spec, plan);
-        var manifest = ManifestOf(spec, plan, page, editor.Applied);
+        var manifest = ManifestOf(spec, plan, page, editor);
 
         if (editor.Failures.Count > 0)
         {
@@ -254,41 +252,27 @@ internal static partial class NewFeature
         Refused,
     }
 
-    private const int _manifestSchemaVersion = 2;
-
     private static (string Path, byte[] Bytes) Created(Emission emission) => (emission.Path, Bytes(emission));
 
     private static bool AlreadyGenerated(string root, Spec spec)
     {
-        string path = System.IO.Path.Combine(root, ManifestPath(spec));
-
-        if (!File.Exists(path))
+        if (FeatureManifest.Read(root, spec.Features, out _) is not { Options: { } options } manifest)
         {
             return false;
         }
 
-        try
-        {
-            using var document = JsonDocument.Parse(File.ReadAllBytes(path));
-            var top = document.RootElement;
-            var options = top.GetProperty("options");
+        static string? Text(JsonNode? node) => node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
 
-            return top.GetProperty("schemaVersion").GetInt32() == _manifestSchemaVersion
-                && top.GetProperty("feature").GetString() == spec.Features
-                && top.GetProperty("type").GetString() == spec.Type
-                && options.GetProperty("access").GetString() == spec.Access
-                && options.GetProperty("model").GetString() == spec.Model
-                && options.GetProperty("concurrency").GetString() == spec.Concurrency
-                && (options.TryGetProperty("deletion", out var deletion) ? deletion.GetString() : string.Empty) == spec.Deletion
-                && options.GetProperty("operations").EnumerateArray().Select(operation => operation.GetString()).SequenceEqual(spec.Operations)
-                && (top.TryGetProperty("fields", out var fields)
-                    ? spec.Fields is not null && fields.EnumerateArray().Select(field => field.GetProperty("declaration").GetString()).SequenceEqual(spec.Fields.Select(field => field.Declaration))
-                    : spec.Fields is null);
-        }
-        catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
-        {
-            return false;
-        }
+        return manifest.SchemaVersion == FeatureManifest.EditsVersion
+            && manifest.Type == spec.Type
+            && Text(options["access"]) == spec.Access
+            && Text(options["model"]) == spec.Model
+            && Text(options["concurrency"]) == spec.Concurrency
+            && (Text(options["deletion"]) ?? string.Empty) == spec.Deletion
+            && options["operations"] is JsonArray operations && operations.Select(Text).SequenceEqual(spec.Operations)
+            && (manifest.Fields is { } fields
+                ? spec.Fields is not null && fields.Select(field => Text(field?["declaration"])).SequenceEqual(spec.Fields.Select(field => field.Declaration))
+                : spec.Fields is null);
     }
 
     private static string TestDatabasePath(Spec spec) => $"{IntegrationTests(spec)}/Infrastructure/TestDatabase.cs";
@@ -1475,7 +1459,7 @@ internal static partial class NewFeature
         return problems;
     }
 
-    private static string ManifestPath(Spec spec) => $"{_manifestFolder}/{spec.Features}.json";
+    private static string ManifestPath(Spec spec) => FeatureManifest.PathOf(spec.Features);
 
     private static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
@@ -1562,106 +1546,69 @@ internal static partial class NewFeature
 
     private static byte[] Bytes(Emission emission) => TextEdits.Encode(emission.Path, emission.Content);
 
-    private static string HashOf(Emission emission) =>
-        Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
-
-    private static Emission ManifestOf(Spec spec, List<Emission> plan, Emission? page, IReadOnlyList<TextEdits.Edit> edits)
+    private static Emission ManifestOf(Spec spec, List<Emission> plan, Emission? page, TextEdits.Editor editor)
     {
-        using var stream = new MemoryStream();
-
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        var options = new JsonObject
         {
-            writer.WriteStartObject();
-            writer.WriteNumber("schemaVersion", _manifestSchemaVersion);
-            writer.WriteString("generator", "Tools/NewFeature.cs");
-            writer.WriteString("feature", spec.Features);
-            writer.WriteString("type", spec.Type);
+            ["access"] = spec.Access,
+            ["operations"] = new JsonArray([.. spec.Operations.Select(operation => (JsonNode)JsonValue.Create(operation)!)]),
+            ["model"] = spec.Model,
+            ["concurrency"] = spec.Concurrency,
+        };
 
-            writer.WriteStartObject("options");
-            writer.WriteString("access", spec.Access);
-            writer.WriteStartArray("operations");
-
-            foreach (string operation in spec.Operations)
-            {
-                writer.WriteStringValue(operation);
-            }
-
-            writer.WriteEndArray();
-            writer.WriteString("model", spec.Model);
-            writer.WriteString("concurrency", spec.Concurrency);
-
-            if (spec.Access == "owner")
-            {
-                writer.WriteString("deletion", spec.Deletion);
-            }
-
-            writer.WriteEndObject();
-
-            if (spec.Fields is { } fields)
-            {
-                WriteFields(writer, fields);
-            }
-
-            writer.WriteStartArray("files");
-
-            foreach (var emission in plan.OrderBy(emission => emission.Path, StringComparer.Ordinal))
-            {
-                writer.WriteStartObject();
-                writer.WriteString("path", emission.Path);
-                writer.WriteString("sha256", HashOf(emission));
-                writer.WriteEndObject();
-            }
-
-            writer.WriteEndArray();
-
-            if (page is not null)
-            {
-                writer.WriteString("page", page.Path);
-            }
-
-            TextEdits.WriteEdits(writer, edits);
-            writer.WriteEndObject();
+        if (spec.Access == "owner")
+        {
+            options["deletion"] = spec.Deletion;
         }
 
-        string json = Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n";
+        var manifest = FeatureManifest.Create("Tools/NewFeature.cs", spec.Features, spec.Type, options, spec.Fields is { } fields ? FieldsOf(fields) : null, page?.Path);
 
-        return new Emission(ManifestPath(spec), json);
+        foreach (var emission in plan)
+        {
+            manifest.Record(emission.Path, Bytes(emission));
+        }
+
+        manifest.Record(editor);
+
+        return new Emission(manifest.Path, Encoding.UTF8.GetString(manifest.Bytes()));
     }
 
-    private static void WriteFields(Utf8JsonWriter writer, IReadOnlyList<Field> fields)
+    private static JsonArray FieldsOf(IReadOnlyList<Field> fields)
     {
-        writer.WriteStartArray("fields");
+        var written = new JsonArray();
 
         foreach (var field in fields)
         {
-            writer.WriteStartObject();
-            writer.WriteString("name", field.Name);
-            writer.WriteString("declaration", field.Declaration);
-            writer.WriteString("kind", field.Kind.ToString());
-            writer.WriteBoolean("nullable", field.Nullable);
+            var entry = new JsonObject
+            {
+                ["name"] = field.Name,
+                ["declaration"] = field.Declaration,
+                ["kind"] = field.Kind.ToString(),
+                ["nullable"] = field.Nullable,
+            };
 
             if (FieldCode.IsReference(field))
             {
-                writer.WriteNumber("maxLength", field.Length);
+                entry["maxLength"] = field.Length;
             }
 
             if (field.Kind == FieldKind.Decimal)
             {
-                writer.WriteNumber("precision", field.Precision);
-                writer.WriteNumber("scale", field.Scale);
+                entry["precision"] = field.Precision;
+                entry["scale"] = field.Scale;
             }
 
             foreach (var bound in field.Bounds)
             {
-                writer.WriteString(char.ToLowerInvariant(bound.Suffix[0]) + bound.Suffix[1..], bound.Literal);
+                entry[char.ToLowerInvariant(bound.Suffix[0]) + bound.Suffix[1..]] = bound.Literal;
             }
 
-            writer.WriteBoolean("sortable", FieldCode.IsSortable(field));
-            writer.WriteBoolean("inSummary", FieldCode.InSummary(field));
-            writer.WriteEndObject();
+            entry["sortable"] = FieldCode.IsSortable(field);
+            entry["inSummary"] = FieldCode.InSummary(field);
+            written.Add((JsonNode)entry);
         }
 
-        writer.WriteEndArray();
+        return written;
     }
 
     private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped, Mode mode)
@@ -3687,7 +3634,7 @@ internal static partial class NewFeature
                 written.Any(path => path.StartsWith($"Src/Application/A.Application/Features/{combination[0]}/", StringComparison.Ordinal))
                     && written.Any(path => path.StartsWith($"Src/Infrastructure/A.Infrastructure.Persistence/Features/{combination[0]}/", StringComparison.Ordinal))
                     && written.Any(path => path.StartsWith("Tests/", StringComparison.Ordinal))
-                    && written.Contains($"{_manifestFolder}/{combination[0]}.json", StringComparer.Ordinal)
+                    && written.Contains(FeatureManifest.PathOf(combination[0]), StringComparer.Ordinal)
                     && written.Contains(PagePath(combination[0]), StringComparer.Ordinal),
                 $"[{label}] without the API did not write its application, persistence, tests, manifest and page.");
             expect(
@@ -4264,7 +4211,7 @@ internal static partial class NewFeature
 
                     var plan = Plan(spec, root, out var skipped);
                     var editor = Edits(root, spec, plan);
-                    var manifest = ManifestOf(spec, plan, null, editor.Applied);
+                    var manifest = ManifestOf(spec, plan, null, editor);
 
                     using var report = new StringWriter();
                     Report(report, root, spec, plan, manifest.Path, skipped, Mode.DryRun);
@@ -4627,7 +4574,7 @@ internal static partial class NewFeature
 
     private sealed record FieldRequest(string? Features, string? Declaration, string Root, bool DryRun);
 
-    private sealed record Addition(Spec Before, Spec After, IReadOnlyList<Field> Added, string Migration, JsonObject Manifest, bool Pending);
+    private sealed record Addition(Spec Before, Spec After, IReadOnlyList<Field> Added, string Migration, FeatureManifest Manifest, bool Pending);
 
     private sealed record FieldChange(string Path, byte[]? Original, byte[] Bytes, List<string> Members);
 
@@ -4792,7 +4739,7 @@ internal static partial class NewFeature
             return null;
         }
 
-        string manifestPath = $"{_manifestFolder}/{features}.json";
+        string manifestPath = FeatureManifest.PathOf(features);
         string manifestFile = System.IO.Path.Combine(root, manifestPath);
 
         if (!File.Exists(manifestFile))
@@ -4807,15 +4754,9 @@ internal static partial class NewFeature
             return null;
         }
 
-        JsonObject manifest;
-
-        try
+        if (FeatureManifest.Read(root, features, out string? unread) is not { } manifest)
         {
-            manifest = JsonNode.Parse(File.ReadAllText(manifestFile))?.AsObject() ?? throw new JsonException("empty");
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            problems.Add($"{manifestPath} is not the JSON object new-feature writes: {exception.Message}");
+            problems.Add($"{manifestPath} is not the JSON object new-feature writes: it {unread}");
 
             return null;
         }
@@ -4843,8 +4784,7 @@ internal static partial class NewFeature
 
         if (added.Any(field => existing.Any(present => string.Equals(present.Name, field.Name, StringComparison.OrdinalIgnoreCase))))
         {
-            bool recorded = manifest["addedFields"] is JsonArray additions
-                && additions.Any(entry => entry?["declaration"]?.GetValue<string>() == declared && entry["migration"]?.GetValue<string>() == migration);
+            bool recorded = manifest.AddedFields.Any(entry => entry.Declaration == declared && entry.Migration == migration);
             var after = before with { Fields = existing };
 
             if (recorded && !Migrated(root, after, migration, added))
@@ -4902,26 +4842,26 @@ internal static partial class NewFeature
             .SelectMany(Directory.EnumerateDirectories)
             .Any(project => Directory.Exists(System.IO.Path.Combine(project, "Features", features)));
 
-    private static Spec? ManifestSpec(JsonObject manifest, string path, string prefix, bool tablePrefixes, string root, List<string> problems)
+    private static Spec? ManifestSpec(FeatureManifest manifest, string path, string prefix, bool tablePrefixes, string root, List<string> problems)
     {
         try
         {
-            if (manifest["schemaVersion"]?.GetValue<int>() != _manifestSchemaVersion || manifest["generator"]?.GetValue<string>() != "Tools/NewFeature.cs")
+            if (manifest.SchemaVersion != FeatureManifest.EditsVersion || manifest.Generator != "Tools/NewFeature.cs")
             {
                 problems.Add(
-                    $"{path} is not a manifest of schema version {_manifestSchemaVersion} written by Tools/NewFeature.cs, the one new-field reads. "
+                    $"{path} is not a manifest of schema version {FeatureManifest.EditsVersion} written by Tools/NewFeature.cs, the one new-field reads. "
                     + "Add the field by hand: docs/guides/adding-a-feature.md, under Adding a field, lists every place it goes.");
 
                 return null;
             }
 
-            var options = manifest["options"]!.AsObject();
-            string features = manifest["feature"]!.GetValue<string>();
-            string type = manifest["type"]!.GetValue<string>();
+            var options = manifest.Options!;
+            string features = manifest.Feature!;
+            string type = manifest.Type!;
             string access = options["access"]!.GetValue<string>();
             string[] operations = [.. options["operations"]!.AsArray().Select(operation => operation!.GetValue<string>())];
 
-            if (manifest["fields"] is not JsonArray recorded)
+            if (manifest.Fields is not { } recorded)
             {
                 problems.Add(
                     $"{features} was generated without --fields: its Name and Description are placeholders a person replaces by hand, so "
@@ -4972,10 +4912,7 @@ internal static partial class NewFeature
     {
         var before = Plan(addition.Before, root, out _).ToDictionary(emission => emission.Path, StringComparer.Ordinal);
         var after = Plan(addition.After, root, out _);
-        var recorded = (addition.Manifest["files"] as JsonArray ?? [])
-            .Select(file => file?["path"]?.GetValue<string>())
-            .OfType<string>()
-            .ToHashSet(StringComparer.Ordinal);
+        var recorded = addition.Manifest.Files.Keys.ToHashSet(StringComparer.Ordinal);
         var changes = new List<FieldChange>();
 
         foreach (string path in before.Keys.Where(path => after.All(emission => emission.Path != path)))
@@ -5034,72 +4971,32 @@ internal static partial class NewFeature
 
     private static byte[] UpdatedManifest(Addition addition, List<FieldChange> changes)
     {
-        var manifest = addition.Manifest.DeepClone().AsObject();
-        var fields = manifest["fields"]!.AsArray();
+        var manifest = addition.Manifest;
+        var written = FieldsOf(addition.Added);
 
-        using (var stream = new MemoryStream())
+        for (int index = 0; index < addition.Added.Count; index++)
         {
-            using (var writer = new Utf8JsonWriter(stream))
+            var entry = written[index]!.DeepClone().AsObject();
+
+            if (addition.Added[index].Default is { } value)
             {
-                writer.WriteStartObject();
-                WriteFields(writer, addition.Added);
-                writer.WriteEndObject();
+                entry["default"] = value.Literal;
             }
 
-            var written = JsonNode.Parse(stream.ToArray())!["fields"]!.AsArray();
-
-            for (int index = 0; index < addition.Added.Count; index++)
-            {
-                var entry = written[index]!.DeepClone().AsObject();
-
-                if (addition.Added[index].Default is { } value)
-                {
-                    entry["default"] = value.Literal;
-                }
-
-                fields.Add((JsonNode)entry);
-            }
+            manifest.Fields!.Add((JsonNode)entry);
         }
-
-        string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
-
-        var files = (manifest["files"] as JsonArray ?? [])
-            .Select(file => (Path: file!["path"]!.GetValue<string>(), Sha: file["sha256"]!.GetValue<string>()))
-            .ToDictionary(file => file.Path, file => file.Sha, StringComparer.Ordinal);
 
         foreach (var change in changes)
         {
-            files[change.Path] = Hash(change.Bytes);
+            manifest.Record(change.Path, change.Bytes);
         }
 
-        manifest["files"] = new JsonArray([.. files
-            .OrderBy(file => file.Key, StringComparer.Ordinal)
-            .Select(file => (JsonNode)new JsonObject { ["path"] = file.Key, ["sha256"] = file.Value })]);
+        manifest.RecordAddition(
+            string.Join(", ", addition.Added.Select(field => field.Declared)),
+            addition.Migration,
+            changes.Select(change => (change.Path, change.Original, change.Bytes, (IReadOnlyList<string>)change.Members)));
 
-        var additions = manifest["addedFields"] as JsonArray ?? [];
-
-        additions.Add((JsonNode)new JsonObject
-        {
-            ["declaration"] = string.Join(", ", addition.Added.Select(field => field.Declared)),
-            ["migration"] = addition.Migration,
-            ["files"] = new JsonArray([.. changes.Select(change => (JsonNode)new JsonObject
-            {
-                ["path"] = change.Path,
-                ["before"] = change.Original is null ? null : Hash(change.Original),
-                ["after"] = Hash(change.Bytes),
-                ["changes"] = new JsonArray([.. change.Members.Select(member => (JsonNode)JsonValue.Create(member))]),
-            })]),
-        });
-        manifest["addedFields"] = additions;
-
-        using var output = new MemoryStream();
-
-        using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
-        {
-            manifest.WriteTo(writer);
-        }
-
-        return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(output.ToArray()).ReplaceLineEndings("\n") + "\n");
+        return manifest.Bytes();
     }
 
     private static bool Migrated(string root, Spec spec, string migration, IReadOnlyList<Field> added)
@@ -5312,7 +5209,7 @@ internal static partial class NewFeature
             if (command.Arguments.Contains("migration-add", StringComparer.Ordinal))
             {
                 string name = command.Arguments[command.Arguments.ToList().IndexOf("migration-add") + 1];
-                var manifest = JsonNode.Parse(File.ReadAllText(Directory.EnumerateFiles(System.IO.Path.Combine(root, _manifestFolder)).Single()))!;
+                var manifest = JsonNode.Parse(File.ReadAllText(Directory.EnumerateFiles(System.IO.Path.Combine(root, FeatureManifest.Folder)).Single()))!;
                 var fields = FieldGrammar.Parse(
                     manifest["addedFields"]!.AsArray().Last()!["declaration"]!.GetValue<string>(),
                     FieldProfile.AddedField,
@@ -5358,7 +5255,7 @@ internal static partial class NewFeature
 
     private static Dictionary<string, string> FeatureFiles(string root) =>
         Snapshot(root)
-            .Where(pair => !pair.Key.StartsWith(_manifestFolder, StringComparison.Ordinal) && !pair.Key.StartsWith(_thingMigrations + "/2026", StringComparison.Ordinal))
+            .Where(pair => !pair.Key.StartsWith(FeatureManifest.Folder, StringComparison.Ordinal) && !pair.Key.StartsWith(_thingMigrations + "/2026", StringComparison.Ordinal))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
 
     private static string Differing(Dictionary<string, string> expected, Dictionary<string, string> actual) =>
@@ -12069,30 +11966,6 @@ internal static class TextEdits
         }
     }
 
-    internal static void WriteEdits(Utf8JsonWriter writer, IEnumerable<Edit> edits)
-    {
-        writer.WriteStartArray("edits");
-
-        foreach (Edit edit in edits)
-        {
-            writer.WriteStartObject();
-            writer.WriteString("path", edit.Path);
-            writer.WriteString("anchor", edit.Anchor);
-            writer.WriteString("position", edit.Position);
-            writer.WriteStartArray("lines");
-
-            foreach (string line in edit.Lines)
-            {
-                writer.WriteStringValue(line);
-            }
-
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }
-
-        writer.WriteEndArray();
-    }
-
     internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
     {
         var written = new List<string>();
@@ -12261,4 +12134,249 @@ internal static class TextEdits
 
         return true;
     }
+}
+
+internal sealed class FeatureManifest
+{
+    internal const string Folder = ".feature-manifest";
+
+    internal const int EditsVersion = 2;
+
+    private readonly JsonObject _top;
+
+    private readonly SortedDictionary<string, string> _files = new(StringComparer.Ordinal);
+
+    private readonly List<TextEdits.Edit> _edits;
+
+    private readonly int _editsRead;
+
+    private FeatureManifest(string path, JsonObject top, byte[]? original, List<TextEdits.Edit> edits)
+    {
+        Path = path;
+        Original = original;
+        _top = top;
+        _edits = edits;
+        _editsRead = edits.Count;
+
+        foreach (var file in ((JsonArray)top["files"]!).OfType<JsonObject>())
+        {
+            _files[file["path"]!.GetValue<string>()] = file["sha256"]!.GetValue<string>();
+        }
+    }
+
+    internal string Path { get; }
+
+    internal byte[]? Original { get; }
+
+    internal int? SchemaVersion =>
+        _top["schemaVersion"] is JsonValue value && value.GetValueKind() == JsonValueKind.Number && value.TryGetValue(out int version) ? version : null;
+
+    internal string? Generator => Text(_top["generator"]);
+
+    internal string? Feature => Text(_top["feature"]);
+
+    internal string? Type => Text(_top["type"]);
+
+    internal string? Page => Text(_top["page"]);
+
+    internal JsonObject? Options => _top["options"] as JsonObject;
+
+    internal JsonArray? Fields => _top["fields"] as JsonArray;
+
+    internal IReadOnlyDictionary<string, string> Files => _files;
+
+    internal IReadOnlyList<TextEdits.Edit> Edits => _edits;
+
+    internal IReadOnlyList<(string Declaration, string Migration, string[] Paths)> AddedFields =>
+        [
+            .. (_top["addedFields"] as JsonArray ?? [])
+                .OfType<JsonObject>()
+                .Where(addition => Text(addition["declaration"]) is not null && Text(addition["migration"]) is not null)
+                .Select(addition => (
+                    Text(addition["declaration"])!,
+                    Text(addition["migration"])!,
+                    (string[])[.. (addition["files"] as JsonArray ?? []).OfType<JsonObject>().Select(file => Text(file["path"])).OfType<string>()])),
+        ];
+
+    internal (string Path, byte[] Original, byte[] Bytes) Replacement => (Path, Original!, Bytes());
+
+    internal static string PathOf(string features) => $"{Folder}/{features}.json";
+
+    internal static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    internal static FeatureManifest Create(string generator, string features, string type, JsonObject options, JsonArray? fields, string? page)
+    {
+        var top = new JsonObject
+        {
+            ["schemaVersion"] = EditsVersion,
+            ["generator"] = generator,
+            ["feature"] = features,
+            ["type"] = type,
+            ["options"] = options,
+        };
+
+        if (fields is not null)
+        {
+            top["fields"] = fields;
+        }
+
+        top["files"] = new JsonArray();
+
+        if (page is not null)
+        {
+            top["page"] = page;
+        }
+
+        top["edits"] = new JsonArray();
+
+        return new FeatureManifest(PathOf(features), top, null, []);
+    }
+
+    internal static FeatureManifest? Read(string root, string features, out string? problem)
+    {
+        string path = PathOf(features);
+        string full = System.IO.Path.Combine(root, path);
+
+        problem = null;
+
+        if (!File.Exists(full))
+        {
+            return null;
+        }
+
+        byte[] original;
+
+        try
+        {
+            original = File.ReadAllBytes(full);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            problem = $"cannot be read ({exception.Message})";
+
+            return null;
+        }
+
+        try
+        {
+            if (JsonNode.Parse(original) is not JsonObject top
+                || Text(top["feature"]) != features
+                || top["files"] is not JsonArray files
+                || files.Any(file => file is not JsonObject entry || Text(entry["path"]) is null || Text(entry["sha256"]) is null)
+                || (top["edits"] is { } edits && edits is not JsonArray))
+            {
+                problem = $"does not read as the manifest of {features}";
+
+                return null;
+            }
+
+            var read = new List<TextEdits.Edit>();
+
+            foreach (var node in top["edits"] as JsonArray ?? [])
+            {
+                if (node is not JsonObject edit
+                    || Text(edit["path"]) is not { } editPath
+                    || Text(edit["anchor"]) is not { } anchor
+                    || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
+                    || lines.Any(line => Text(line) is null))
+                {
+                    problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
+
+                    return null;
+                }
+
+                read.Add(new TextEdits.Edit(editPath, anchor, Text(edit["position"])!, [.. lines.Select(line => Text(line)!)]));
+            }
+
+            return new FeatureManifest(path, top, original, read);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
+        {
+            problem = $"cannot be read ({exception.Message})";
+
+            return null;
+        }
+    }
+
+    internal void Record(string path, byte[] bytes) => _files[path] = Sha256(bytes);
+
+    internal void RecordAddition(string declaration, string migration, IEnumerable<(string Path, byte[]? Before, byte[] After, IReadOnlyList<string> Changes)> files)
+    {
+        var additions = _top["addedFields"] as JsonArray ?? [];
+
+        additions.Add((JsonNode)new JsonObject
+        {
+            ["declaration"] = declaration,
+            ["migration"] = migration,
+            ["files"] = new JsonArray([.. files.Select(file => (JsonNode)new JsonObject
+            {
+                ["path"] = file.Path,
+                ["before"] = file.Before is null ? null : Sha256(file.Before),
+                ["after"] = Sha256(file.After),
+                ["changes"] = new JsonArray([.. file.Changes.Select(change => (JsonNode)JsonValue.Create(change)!)]),
+            })]),
+        });
+        _top["addedFields"] = additions;
+    }
+
+    internal void Record(TextEdits.Editor editor)
+    {
+        foreach (var sheet in editor.Changed)
+        {
+            if (_files.TryGetValue(sheet.Path, out string? recorded) && recorded == Sha256(sheet.Original))
+            {
+                _files[sheet.Path] = Sha256(sheet.Bytes());
+            }
+        }
+
+        _edits.AddRange(editor.Applied.Where(edit => !_files.ContainsKey(edit.Path)));
+    }
+
+    internal byte[] Bytes()
+    {
+        var files = new JsonArray();
+
+        foreach (var (path, sha256) in _files)
+        {
+            files.Add((JsonNode)new JsonObject { ["path"] = path, ["sha256"] = sha256 });
+        }
+
+        _top["files"] = files;
+
+        var edits = new JsonArray();
+
+        foreach (var edit in _edits)
+        {
+            edits.Add((JsonNode)new JsonObject
+            {
+                ["path"] = edit.Path,
+                ["anchor"] = edit.Anchor,
+                ["position"] = edit.Position,
+                ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
+            });
+        }
+
+        if (_edits.Count > _editsRead)
+        {
+            _top["schemaVersion"] = Math.Max(SchemaVersion ?? 1, EditsVersion);
+            _top.Remove("edits");
+            _top["edits"] = edits;
+        }
+        else if (_top.ContainsKey("edits"))
+        {
+            _top["edits"] = edits;
+        }
+
+        using var stream = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            _top.WriteTo(writer);
+        }
+
+        return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
+    }
+
+    private static string? Text(JsonNode? node) =>
+        node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
 }

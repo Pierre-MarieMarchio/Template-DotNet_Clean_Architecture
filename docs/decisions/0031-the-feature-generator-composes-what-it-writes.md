@@ -80,8 +80,9 @@ changed.
 - A generated feature builds, composes and has its migration in one command; the shared files keep
   the lines the edits are placed beside, and a team that renames one of them gets a refusal naming the
   edit, never a half-written tree.
-- A feature written this way is registered, so `remove-feature --apply` refuses it until its edits,
-  which its manifest lists, are undone.
+- A feature written this way can be removed the same way: `remove-feature --apply` undoes each edit
+  its manifest lists, exactly as it was made, deletes its files and adds the migration that drops its
+  tables, and refuses, writing nothing, an edit whose lines changed since.
 - The command needs what `build`, `migration-add` and `openapi` need, the restored tools among them,
   and takes as long as one build and the steps that read it.
 - Changing a shared file's anchor line changes the generator: its self-test names the anchors.

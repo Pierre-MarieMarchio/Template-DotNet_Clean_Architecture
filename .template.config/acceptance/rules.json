@@ -23,8 +23,12 @@
         "Tools/CheckComments.cs",
         "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
         "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
+        "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
         ".github/workflows/template-release.yml",
         ".github/workflows/template-published-package.yml",
+        ".github/workflows/template-pull-request-title.yml",
+        ".github/workflows/template-web-lockfiles.yml",
+        ".github/workflows/template-web-lockfiles-commit.yml",
         ".github/release-please/**",
         ".github/ISSUE_TEMPLATE/**"
       ],

@@ -195,7 +195,7 @@ public sealed class DeleteMyAccountTests
 
         await UseCase().Handle(new DeleteMyAccountCommand("the password", null), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.AccountSelfDeleted(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.AccountSelfDeleted(_callerId));
         await _domainEvents.Received(1).PublishAsync(
             Arg.Is<UserAccountDeleted>(fact =>
                 fact.UserId.Value == _callerId && fact.OccurredAt == _now),

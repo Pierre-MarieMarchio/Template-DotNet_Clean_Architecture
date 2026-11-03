@@ -370,21 +370,6 @@ public sealed class StoredFileTests
         Should.Throw<DomainException>(() => file.DeferInspection(_now));
     }
 
-    [Theory]
-    [InlineData(1, 1)]
-    [InlineData(2, 2)]
-    [InlineData(3, 4)]
-    [InlineData(6, 32)]
-    [InlineData(7, 60)]
-    [InlineData(8, 60)]
-    [InlineData(1_000_000, 60)]
-    public void InspectionRetryDelayAfter_DoublesFromAMinuteUpToAnHour(int attempts, int expectedMinutes) =>
-        StoredFile.InspectionRetryDelayAfter(attempts).ShouldBe(TimeSpan.FromMinutes(expectedMinutes));
-
-    [Fact]
-    public void InspectionRetryDelayAfter_Rejects_NoAttemptAtAll() =>
-        Should.Throw<ArgumentOutOfRangeException>(() => StoredFile.InspectionRetryDelayAfter(0));
-
     [Fact]
     public void AVerdictAfterDeferrals_KeepsTheirRecord()
     {

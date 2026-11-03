@@ -1,6 +1,7 @@
 ﻿using AppTemplate.Domain.Core.Common.Abstractions;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using AppTemplate.Domain.Core.Common.Primitives;
+using AppTemplate.Domain.Core.Common.Retries;
 using AppTemplate.Domain.Features.Reminders.Model.Events;
 using AppTemplate.Domain.Features.Reminders.Model.ValueObjects;
 
@@ -8,10 +9,6 @@ namespace AppTemplate.Domain.Features.Reminders.Model.Entities;
 
 public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
 {
-    private static readonly TimeSpan _firstRetryDelay = TimeSpan.FromMinutes(1);
-
-    private static readonly TimeSpan _longestRetryDelay = TimeSpan.FromHours(1);
-
     private Reminder(Guid id, UserId ownerId, Guid todoListId, Guid todoItemId, DateTimeOffset dueAt)
         : base(id)
     {
@@ -125,21 +122,7 @@ public sealed class Reminder : AuditableAggregateRoot<Guid>, IOwnedAggregate
         }
 
         FailedAttempts++;
-        NextAttemptAt = now + RetryDelayAfter(FailedAttempts);
-    }
-
-    public static TimeSpan RetryDelayAfter(int failedAttempts)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(failedAttempts, 1);
-
-        var delay = _firstRetryDelay;
-
-        for (int failure = 1; failure < failedAttempts && delay < _longestRetryDelay; failure++)
-        {
-            delay += delay;
-        }
-
-        return delay < _longestRetryDelay ? delay : _longestRetryDelay;
+        NextAttemptAt = now + RetryBackoff.After(FailedAttempts);
     }
 
     public void Cancel()

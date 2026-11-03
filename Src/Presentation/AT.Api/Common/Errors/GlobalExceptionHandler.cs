@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Timeouts;
@@ -30,11 +31,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "uniqueness.conflict",
                 "A resource with the same unique value already exists."),
 
-            DomainException => (
-                StatusCodes.Status400BadRequest,
-                "Invalid request",
-                "domain.invariantViolated",
-                "The request could not be completed because it violates a business rule."),
+            DomainException => InvariantViolation(),
             OperationCanceledException when isServerTimeout => (
                 StatusCodes.Status504GatewayTimeout,
                 "Request timeout",
@@ -73,7 +70,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
             {
                 logger.LogWarning(
                     exception,
-                    "Concurrency conflict while handling {Method} {Path}.",
+                    "Conflict while handling {Method} {Path}.",
                     httpContext.Request.Method,
                     httpContext.Request.Path);
             }
@@ -117,5 +114,13 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
             cancellationToken);
 
         return true;
+    }
+
+    private static (int Status, string Title, string Code, string Detail) InvariantViolation()
+    {
+        var error = CommonErrors.InvariantViolated(
+            "The request could not be completed because it violates a business rule.");
+
+        return (ErrorMapping.StatusCodeFor(error.Type), ErrorMapping.TitleFor(error.Type), error.Code, error.Message);
     }
 }

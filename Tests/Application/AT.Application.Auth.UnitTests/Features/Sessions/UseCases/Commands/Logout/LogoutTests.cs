@@ -52,7 +52,7 @@ public sealed class LogoutTests
 
         await _useCase.Handle(new LogoutCommand("an-opaque-secret"), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.LoggedOut(userId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.LoggedOut(userId));
     }
 
     [Fact]

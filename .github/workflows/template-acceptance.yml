@@ -839,12 +839,12 @@ jobs:
         run: |
           set -euo pipefail
           for _ in $(seq 1 60); do
-            if docker compose logs worker | grep -q 'Purge of .* completed'; then
+            if docker compose logs worker | grep -q 'The pass over .* completed'; then
               break
             fi
             sleep 2
           done
-          docker compose logs worker | grep -q 'Purge of .* completed' || { echo "::error title=Worker::The worker logged no completed pass within two minutes."; exit 1; }
+          docker compose logs worker | grep -q 'The pass over .* completed' || { echo "::error title=Worker::The worker logged no completed pass within two minutes."; exit 1; }
           [ "$(docker compose ps --status running --quiet worker | wc -l)" -eq 1 ] || { echo "::error title=Worker::The worker is not running."; exit 1; }
           if docker compose logs api | grep -q 'Maintenance job starting'; then
             echo "::error title=Worker::The API started a job loop, which the worker runs."

@@ -311,21 +311,6 @@ public sealed class ReminderTests
     }
 
     [Theory]
-    [InlineData(1, 1)]
-    [InlineData(2, 2)]
-    [InlineData(3, 4)]
-    [InlineData(6, 32)]
-    [InlineData(7, 60)]
-    [InlineData(8, 60)]
-    [InlineData(1_000_000, 60)]
-    public void RetryDelayAfter_DoublesFromAMinuteUpToAnHour(int failedAttempts, int expectedMinutes) =>
-        Reminder.RetryDelayAfter(failedAttempts).ShouldBe(TimeSpan.FromMinutes(expectedMinutes));
-
-    [Fact]
-    public void RetryDelayAfter_Rejects_NoFailureAtAll() =>
-        Should.Throw<ArgumentOutOfRangeException>(() => Reminder.RetryDelayAfter(0));
-
-    [Theory]
     [InlineData(ReminderState.Fired)]
     [InlineData(ReminderState.Cancelled)]
     public void RecordFailure_Rejects_AReminderThatIsNoLongerPending(ReminderState state)

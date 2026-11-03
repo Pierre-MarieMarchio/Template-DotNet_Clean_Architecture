@@ -62,7 +62,7 @@ public sealed class RevokeAccessKeyTests
 
         result.IsSuccess.ShouldBeTrue();
         await _accessKeys.Received(1).RevokeAsync(_callerId, _accessKeyId, Arg.Any<CancellationToken>());
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.AccessKeyRevoked && e.UserId == _callerId));
     }
 

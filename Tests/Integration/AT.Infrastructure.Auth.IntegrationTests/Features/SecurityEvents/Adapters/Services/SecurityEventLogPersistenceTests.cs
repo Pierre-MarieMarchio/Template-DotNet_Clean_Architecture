@@ -44,7 +44,7 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
             ConcurrencyStamp = Guid.CreateVersion7().ToString("N"),
         });
 
-        log.Record(SecurityEvent.LoginSucceeded(userId));
+        await log.RecordAsync(SecurityEvent.LoginSucceeded(userId));
 
         (await context.SecurityEvents.CountAsync(securityEvent => securityEvent.UserId == userId, TestToken))
             .ShouldBe(1, "the row commits immediately, on its own connection");
@@ -72,7 +72,7 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
             clock,
             options);
 
-        log.Record(SecurityEvent.RoleGranted(userId, new string('r', 100)));
+        await log.RecordAsync(SecurityEvent.RoleGranted(userId, new string('r', 100)));
 
         var stored = await QueryRowAsync(fixture, userId);
 
@@ -132,7 +132,7 @@ public sealed class SecurityEventLogPersistenceTests(GrantTableFixture fixture) 
         await using var scope = fixture.Services.CreateAsyncScope();
         var log = scope.ServiceProvider.GetRequiredService<ISecurityEventLog>();
 
-        log.Record(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.NoSuchAccount));
+        await log.RecordAsync(SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.NoSuchAccount));
 
         (await CountRowsAsync(fixture, null)).ShouldBe(1, "the user id is nullable by design: the address is the one thing the trail will not carry");
     }

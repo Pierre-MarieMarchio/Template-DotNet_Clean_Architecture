@@ -1880,7 +1880,6 @@
             "Tests/Integration/AT.Api.IntegrationTests/Caching/CacheHeaderTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Http/RequestBodySizeLimitTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Idempotency/IdempotencyTests.cs",
-            "Tests/Integration/AT.Api.IntegrationTests/Infrastructure/RecordedDomainEvents.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Saving/ContextScopedSavingTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Security/FrameworkProblemDetailsTests.cs",
             "Tests/Integration/AT.Api.IntegrationTests/Security/OwnershipIsolationTests.cs"
@@ -1911,6 +1910,13 @@
             "Src/Domain/AT.Domain/Common/Tagging/**",
             "Src/Application/AT.Application/Common/Tagging/**",
             "Tests/Domain/AT.Domain.UnitTests/Common/Tagging/**"
+          ]
+        },
+        {
+          "condition": "(!(reminders || files))",
+          "exclude": [
+            "Src/Domain/AT.Domain.Core/Common/Retries/**",
+            "Tests/Domain/AT.Domain.Core.UnitTests/Common/Retries/**"
           ]
         },
         {

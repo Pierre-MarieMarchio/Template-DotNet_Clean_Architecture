@@ -133,7 +133,12 @@ public sealed class LayoutConventionTests
     private static readonly Dictionary<string, string[]?> _commonVocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Domain/AT.Domain.Core"] =
-            ["Abstractions", "Events", "Exceptions", "Primitives"],
+            [
+                "Abstractions", "Events", "Exceptions", "Primitives",
+                //#if (reminders || files)
+                "Retries",
+                //#endif
+            ],
 
         /*#if (tagging)*/
         ["Src/Domain/AT.Domain"] = ["Tagging"],

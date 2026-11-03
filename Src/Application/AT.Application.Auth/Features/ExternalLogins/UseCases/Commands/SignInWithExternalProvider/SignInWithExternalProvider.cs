@@ -33,7 +33,7 @@ public sealed class SignInWithExternalProviderCommandHandler(
 
         if (identity is null)
         {
-            securityEventLog.Record(
+            await securityEventLog.RecordAsync(
                 SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.NoSuchAccount));
 
             return Refused();
@@ -51,7 +51,7 @@ public sealed class SignInWithExternalProviderCommandHandler(
 
         if (!identity.EmailVerified || string.IsNullOrWhiteSpace(identity.Email))
         {
-            securityEventLog.Record(
+            await securityEventLog.RecordAsync(
                 SecurityEvent.AuthenticationFailed(null, CredentialCheckStatus.NoSuchAccount));
 
             return Refused();
@@ -67,7 +67,7 @@ public sealed class SignInWithExternalProviderCommandHandler(
             ExternalAccountLinkDecision.Link =>
                 await LinkAsync(match!.Account, identity, cancellationToken),
 
-            _ => RefuseUnconfirmedLink(match!.Account),
+            _ => await RefuseUnconfirmedLinkAsync(match!.Account),
         };
     }
 
@@ -89,7 +89,7 @@ public sealed class SignInWithExternalProviderCommandHandler(
             return Refused();
         }
 
-        securityEventLog.Record(SecurityEvent.Registered(account.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.Registered(account.UserId));
 
         return await CompleteSignInAsync(account, accountCreated: true, cancellationToken);
     }
@@ -113,9 +113,9 @@ public sealed class SignInWithExternalProviderCommandHandler(
         return await CompleteSignInAsync(account, accountCreated: false, cancellationToken);
     }
 
-    private Result<SignInWithExternalProviderOutcome> RefuseUnconfirmedLink(AccountIdentity account)
+    private async Task<Result<SignInWithExternalProviderOutcome>> RefuseUnconfirmedLinkAsync(AccountIdentity account)
     {
-        securityEventLog.Record(
+        await securityEventLog.RecordAsync(
             SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.EmailNotConfirmed));
 
         return Refused();
@@ -128,7 +128,7 @@ public sealed class SignInWithExternalProviderCommandHandler(
     {
         if (!await accounts.CanSignInAsync(account.UserId, cancellationToken))
         {
-            securityEventLog.Record(
+            await securityEventLog.RecordAsync(
                 SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.LockedOut));
 
             return Refused();
@@ -142,7 +142,7 @@ public sealed class SignInWithExternalProviderCommandHandler(
                 new SignInWithExternalProviderOutcome.TwoFactorRequired(challenge.ChallengeToken));
         }
 
-        securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
 
         var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
             account.UserId,

@@ -1,4 +1,7 @@
-﻿//#if (localAuth)
+﻿//#if (reminders || files)
+using AppTemplate.Api.Common.Jobs;
+//#endif
+//#if (localAuth)
 using AppTemplate.Api.Features.Auth.Jobs;
 //#endif
 using AppTemplate.Api.Features.BackgroundJobs.Jobs;
@@ -49,10 +52,12 @@ public sealed class BackgroundJobsModuleTests
 
         hosted.ShouldContain(typeof(MaintenanceBackgroundService));
         //#if (reminders)
-        hosted.ShouldContain(typeof(ReminderBackgroundService));
+        hosted.ShouldContain(typeof(IntervalPassBackgroundService<FireDueRemindersCommand>));
         //#endif
         //#if (files)
-        hosted.ShouldContain(typeof(FileBackgroundService));
+        hosted.ShouldContain(typeof(IntervalPassBackgroundService<PurgeAbandonedRegistrationsCommand>));
+        hosted.ShouldContain(typeof(IntervalPassBackgroundService<ReclaimOrphanedContentCommand>));
+        hosted.ShouldContain(typeof(IntervalPassBackgroundService<InspectDepositedFilesCommand>));
         //#endif
     }
 

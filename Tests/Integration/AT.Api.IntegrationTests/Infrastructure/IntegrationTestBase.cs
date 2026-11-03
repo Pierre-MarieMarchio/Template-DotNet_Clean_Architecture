@@ -99,9 +99,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         Emails.Clear();
         Fixture.Logs.Clear();
-        //#if (todoLists)
         Fixture.DomainEvents.Clear();
-        //#endif
 
         var now = DateTimeOffset.UtcNow;
         Clock.AdjustTime(new DateTimeOffset(

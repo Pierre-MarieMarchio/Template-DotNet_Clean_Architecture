@@ -205,8 +205,8 @@ public sealed class SignInWithExternalProviderTests
 
         await _useCase.Handle(AValidRequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.Registered(provisioned.UserId));
-        _securityEventLog.Received(1).Record(SecurityEvent.LoginSucceeded(provisioned.UserId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.Registered(provisioned.UserId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.LoginSucceeded(provisioned.UserId));
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public sealed class SignInWithExternalProviderTests
 
         await _useCase.Handle(AValidRequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.EmailNotConfirmed));
     }
 
@@ -343,7 +343,7 @@ public sealed class SignInWithExternalProviderTests
         result.IsFailure.ShouldBeTrue();
         result.Error.ShouldBe(_refusal);
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             SecurityEvent.AuthenticationFailed(account.UserId, CredentialCheckStatus.LockedOut));
     }
 
@@ -365,7 +365,7 @@ public sealed class SignInWithExternalProviderTests
             .ChallengeToken.ShouldBe("a-challenge-token");
 
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
-        _securityEventLog.DidNotReceive().Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await _securityEventLog.DidNotReceive().RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
     }
 
     [Fact]

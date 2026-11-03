@@ -89,7 +89,7 @@ public sealed class RefreshAccessTokenTests
 
         await _useCase.Handle(new RefreshAccessTokenCommand("presented"), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.RefreshTokenRevoked(userId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.RefreshTokenRevoked(userId));
     }
 
     [Fact]

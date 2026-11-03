@@ -23,7 +23,7 @@ public sealed class UnlockAccountCommandHandler(
             return Result.Failure(ToError(outcome.Status));
         }
 
-        securityEventLog.Record(SecurityEvent.AccountUnlockedByAdministrator(request.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.AccountUnlockedByAdministrator(request.UserId));
 
         return Result.Success();
     }

@@ -4,13 +4,13 @@ using System.Net.Http.Json;
 using AppTemplate.Application.Features.Notes.Services;
 //#endif
 using AppTemplate.PresentationAppMcp.UnitTests.TestSupport;
-//#if (notes)
 using Microsoft.Extensions.DependencyInjection;
+//#if (notes)
 using Microsoft.Extensions.DependencyInjection.Extensions;
 //#endif
-//#if (localAuth)
 using ModelContextProtocol;
-//#endif
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using Shouldly;
 using Xunit;
 
@@ -137,10 +137,23 @@ public sealed class McpAuthorizationTests
 
         tools.Select(tool => tool.Name).ShouldBe(ToolCatalogue.ReadOnlyNames, ignoreOrder: true);
     }
+
+    [Fact]
+    public async Task AKeyThatOnlyReads_IsRefusedAnyToolThatWrites()
+    {
+        await using var host = new McpHost(ProbeTools.Offer);
+        await using var reader = await host.ConnectAsync(TestKeys.ReadOnly, Cancellation);
+        await using var writer = await host.ConnectAsync(TestKeys.ReadWrite, Cancellation);
+
+        await Should.ThrowAsync<McpProtocolException>(() => reader.CallToolAsync(ProbeTools.Writes, cancellationToken: Cancellation).AsTask());
+        var written = await writer.CallToolAsync(ProbeTools.Writes, cancellationToken: Cancellation);
+
+        written.IsError.ShouldNotBe(true, "The refusal is the key's scope: a key that writes calls the same tool.");
+    }
     //#if (notes)
 
     [Fact]
-    public async Task AKeyThatOnlyReads_IsRefusedAToolThatWrites()
+    public async Task AKeyThatOnlyReads_IsRefusedCreatingANote()
     {
         await using var host = new McpHost(services => services.Replace(ServiceDescriptor.Scoped<INoteService, InMemoryNotes>()));
         await using var client = await host.ConnectAsync(TestKeys.ReadOnly, Cancellation);
@@ -152,6 +165,24 @@ public sealed class McpAuthorizationTests
     }
     //#endif
     //#endif
+
+    [Fact]
+    public async Task EachCaller_IsKnownToTheToolsByItsOwnIdentityAlone()
+    {
+        await using var host = new McpHost(ProbeTools.Offer);
+        await using var owner = await host.ConnectAsync(_caller, Cancellation);
+        await using var again = await host.ConnectAsync(_caller, Cancellation);
+        await using var stranger = await host.ConnectAsync(_anotherCaller, Cancellation);
+
+        string ownerSeen = await WhoAmIAsync(owner);
+        string ownerSeenAgain = await WhoAmIAsync(again);
+        string strangerSeen = await WhoAmIAsync(stranger);
+
+        ownerSeen.ShouldNotBeNullOrEmpty();
+        ownerSeenAgain.ShouldBe(ownerSeen);
+        strangerSeen.ShouldNotBeNullOrEmpty();
+        strangerSeen.ShouldNotBe(ownerSeen, "A tool scopes what it reads to the caller it sees, so two credentials must never share one.");
+    }
     //#if (notes)
 
     [Fact]
@@ -178,6 +209,13 @@ public sealed class McpAuthorizationTests
             "Another caller's note answers exactly as a note that does not exist, so a tool reveals nothing the caller does not own.");
     }
     //#endif
+
+    private static async Task<string> WhoAmIAsync(McpClient client)
+    {
+        var answer = await client.CallToolAsync(ProbeTools.Reads, cancellationToken: Cancellation);
+
+        return answer.Content.OfType<TextContentBlock>().Single().Text;
+    }
 
     private static JsonContent ToolsList() =>
         JsonContent.Create(new { jsonrpc = "2.0", id = 1, method = "tools/list" });

@@ -96,8 +96,10 @@ change without its regenerated client fails.
 <!--#if (anyWeb)-->
 With a web workspace it then runs `pnpm install --frozen-lockfile` and compares
 `Src/Web/packages/api-client/src/generated/schema.ts` with what `openapi-typescript` writes from the
-OpenAPI reference, so a contract change without `pnpm api` fails and the message names that command;
-that step needs Node.js and pnpm.
+OpenAPI reference, so a contract change without `pnpm api` fails and the message names that command,
+then `pnpm audit`, and, once `cleanarch.json` records the workspace, `pnpm lint`, `pnpm test` and
+`pnpm build` as the web workflow does. Those steps need Node.js and pnpm: without pnpm, `verify`
+stops before them and says how to install it, and no option skips them.
 <!--#endif-->
 
 On a machine short of memory, `-m:<N>` caps `restore`, `build`, `test`, `coverage` and `verify` at

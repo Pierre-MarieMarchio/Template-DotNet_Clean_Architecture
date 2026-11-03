@@ -105,8 +105,11 @@ internal static class Tasks
           --fields, --consumer, --unconsumed
                                            new-event: forwarded to Tools/NewEvent.cs, whose
                                            --help says what each one means
-          --apply                          remove-feature: delete an untouched generated skeleton
-                                           instead of reporting what removing it involves
+          --apply                          remove-feature: remove the feature its manifest records,
+                                           edited or not, instead of reporting what removing it
+                                           involves: delete its files, undo its recorded edits, then
+                                           build, add Remove<Features> and rewrite the references;
+                                           refused while what it changes is not committed
           --web, --web-audience, --web-rendering, --web-port
                                            web-join: the --framework, --audience, --rendering and
                                            --port cleanarch-webapp was given, which cleanarch.json

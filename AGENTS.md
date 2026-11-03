@@ -159,8 +159,9 @@ dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untou
 <!--#if (canAddFeature && api)-->
 `new-feature` writes the skeleton, its manifest and its page, and makes the edits that compose it
 with its rows in `docs/README.md` and `docs/reference/api.md`: every edit or none, each recorded in
-the manifest. It refuses while a model change waits for a migration, then builds, adds the
-`Add<Features>` migration and rewrites the OpenAPI reference and what is written from it;
+the manifest. It refuses while a model change waits for a migration, then builds once and, from
+that build, adds the `Add<Features>` migration and rewrites the OpenAPI reference and what is written
+from it;
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column, its contracts and its tests, an
 integration test among them; without it the fields are `Name` and `Description`, placeholders you

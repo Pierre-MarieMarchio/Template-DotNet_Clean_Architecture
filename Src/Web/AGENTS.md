@@ -19,7 +19,8 @@ From `Src/Web`, after `corepack enable` once per machine:
 | After a change to the API's routes or bodies | `pnpm api` |
 | Before calling a change done | `pnpm lint`, `pnpm test`, `pnpm build` |
 
-`pnpm api` builds the API, so it needs the .NET SDK as well as Node.
+`pnpm api` builds the API, so it needs the .NET SDK as well as Node; `pnpm api --no-build` reads the
+API's last build instead.
 
 ## Files not edited by hand
 

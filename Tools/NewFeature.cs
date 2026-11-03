@@ -350,8 +350,8 @@ internal static class NewFeature
     private static List<TextEdits.Command> Steps(string root, Spec spec, bool migrated = false) =>
     [
         TextEdits.Task(root, "build"),
-        .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.Task(root, "migration-add", $"Add{spec.Features}")],
-        .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client")) : [],
+        .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.FromLastBuild(root, "migration-add", $"Add{spec.Features}")],
+        .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client"), built: true) : [],
     ];
 
     private static string[] SweepMethod() =>
@@ -2695,7 +2695,7 @@ internal static class NewFeature
         expect(result.Output.Contains("TodoListsSchema", StringComparison.Ordinal), "The composition steps do not name the schema constant.");
         expect(result.Output.Contains("migration-add", StringComparison.Ordinal), "The migration step is not printed.");
         expect(result.Output.Contains("last-write-wins", StringComparison.Ordinal), "The last-write-wins consequence of --concurrency none is not printed.");
-        expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), "The OpenAPI step is not printed.");
+        expect(result.Output.Contains("dotnet run Tools/Tasks.cs -- openapi --no-build", StringComparison.Ordinal), "The OpenAPI step is not printed.");
         expect(
             !result.Output.Contains("api-client", StringComparison.Ordinal) && !result.Output.Contains("pnpm api", StringComparison.Ordinal),
             "A step is printed for a client and a web workspace the project does not hold.");
@@ -2710,20 +2710,18 @@ internal static class NewFeature
         var contract = Invoke(contractRoot, Recording(ran), "Notes", "Note", "--access", "shared");
 
         expect(
-            ran.Select(command => command.Display).SequenceEqual(
+            Launched(ran).SequenceEqual(
             [
                 "dotnet run Tools/Tasks.cs migration-check",
                 "dotnet run Tools/Tasks.cs build",
-                "dotnet run Tools/Tasks.cs migration-add AddNotes",
-                "dotnet run Tools/Tasks.cs openapi",
+                "dotnet run Tools/Tasks.cs -- migration-add AddNotes --no-build",
+                "dotnet run Tools/Tasks.cs -- openapi --no-build",
                 "dotnet run Tools/Tasks.cs api-client",
-                "cd Src/Web && pnpm api",
+                "pnpm api --no-build",
             ]),
-            $"The check, the build, the migration, the OpenAPI reference, the client and the web schema were not run in that order: {string.Join(" | ", ran.Select(command => command.Display))}");
-        expect(
-            ran.Last().WorkingDirectory == System.IO.Path.Combine(contractRoot, "Src", "Web") && ran.Last().Arguments.SequenceEqual(["api"]),
-            "pnpm api did not run in Src/Web.");
-        expect(contract.Output.Contains("Running cd Src/Web && pnpm api", StringComparison.Ordinal), "The web step was not announced.");
+            $"The check, the one build, then the migration, the OpenAPI reference, the client and the web schema from that build were not run in that order: {string.Join(" | ", Launched(ran))}");
+        expect(ran.Last().WorkingDirectory == System.IO.Path.Combine(contractRoot, "Src", "Web"), "pnpm api did not run in Src/Web.");
+        expect(contract.Output.Contains("Running cd Src/Web && pnpm api --no-build", StringComparison.Ordinal), "The web step was not announced.");
 
         string vowelRoot = NewTree(scratch);
         var vowel = Invoke(vowelRoot, "Invoices", "Invoice", "--access", "shared");
@@ -2735,6 +2733,9 @@ internal static class NewFeature
             vowelTests.Contains("GetAsync_AnInvoiceThatIsNotThere_IsNotFound", StringComparison.Ordinal) && !vowelTests.Contains("_AInvoice", StringComparison.Ordinal),
             "A test name does not give a feature named with a vowel the article 'An'.");
     }
+
+    private static IEnumerable<string> Launched(List<TextEdits.Command> ran) =>
+        ran.Select(command => string.Join(' ', [System.IO.Path.GetFileNameWithoutExtension(command.FileName), .. command.Arguments]));
 
     private static Func<TextEdits.Command, int> Recording(List<TextEdits.Command> ran, string? failing = null) =>
         command =>
@@ -2860,14 +2861,14 @@ internal static class NewFeature
         }
 
         expect(
-            ran.Select(command => command.Display).SequenceEqual(
+            Launched(ran).SequenceEqual(
             [
                 "dotnet run Tools/Tasks.cs migration-check",
                 "dotnet run Tools/Tasks.cs build",
-                "dotnet run Tools/Tasks.cs migration-add AddWidgets",
-                "dotnet run Tools/Tasks.cs openapi",
+                "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build",
+                "dotnet run Tools/Tasks.cs -- openapi --no-build",
             ]),
-            $"The applied run did not check, build, migrate and rewrite the OpenAPI reference in that order: {string.Join(" | ", ran.Select(command => command.Display))}");
+            $"The applied run did not check, build once, then migrate and rewrite the OpenAPI reference from that build, in that order: {string.Join(" | ", Launched(ran))}");
         expect(ran.All(command => command.WorkingDirectory == root || command.WorkingDirectory.StartsWith(root, StringComparison.Ordinal)), "A step ran outside the tree.");
     }
 
@@ -2959,8 +2960,8 @@ internal static class NewFeature
             afterFirst.All(pair => afterAgain.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
             "Running the same command again changed a file.");
         expect(
-            ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs openapi"]),
-            $"Running the same command again did not resume with the build and the OpenAPI reference alone: {string.Join(" | ", ran.Select(command => command.Display))}");
+            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            $"Running the same command again did not resume with the build and the OpenAPI reference from it alone: {string.Join(" | ", Launched(ran))}");
 
         foreach (string line in new[] { "builder.Services.AddWidgets();", "using Acme.Application;" })
         {
@@ -2985,7 +2986,7 @@ internal static class NewFeature
         expect(
             result.Output.Contains("Eleven edits", StringComparison.Ordinal)
                 && result.Output.Contains("  1. Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", StringComparison.Ordinal)
-                && result.Output.Contains("dotnet run Tools/Tasks.cs migration-add AddWidgets", StringComparison.Ordinal)
+                && result.Output.Contains("dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build", StringComparison.Ordinal)
                 && result.Output.Contains("nothing was written and nothing was run", StringComparison.Ordinal),
             "A dry run did not print the edits and the steps a run makes.");
     }
@@ -3028,16 +3029,17 @@ internal static class NewFeature
     {
         string root = NewTree(scratch);
         var ran = new List<TextEdits.Command>();
-        var result = Invoke(root, Recording(ran, failing: "dotnet run Tools/Tasks.cs migration-add AddWidgets"), "Widgets", "Widget", "--access", "shared");
+        var result = Invoke(root, Recording(ran, failing: "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build"), "Widgets", "Widget", "--access", "shared");
 
         expect(result.Code == 1, "A failed step did not fail the command.");
         expect(
             ran.Select(command => command.Display).SequenceEqual(
-                ["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs migration-add AddWidgets"]),
+                ["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build"]),
             $"The steps did not stop at the one that failed: {string.Join(" | ", ran.Select(command => command.Display))}");
         expect(
             result.Error.Contains("then `dotnet run Tools/Tasks.cs build`", StringComparison.Ordinal)
-                && result.Error.Contains("  dotnet run Tools/Tasks.cs migration-add AddWidgets\n  dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal),
+                && result.Error.Contains("  dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build\n  dotnet run Tools/Tasks.cs -- openapi --no-build\n", StringComparison.Ordinal)
+                && result.Error.Contains("run `dotnet run Tools/Tasks.cs build` before it", StringComparison.Ordinal),
             $"A failed step does not say what is done and the commands that remain: {result.Error}");
         expect(File.Exists(System.IO.Path.Combine(root, ".feature-manifest/Widgets.json")), "A failed step undid the files written, which are consistent without it.");
     }
@@ -4100,16 +4102,16 @@ internal static class NewFeature
 
     private static readonly (string Group, string Digest)[] _withoutFieldsDigests =
     [
-        ("record, owner, delete", "4140d16e269b6cdb35910d865de5e88366cea1d8d6878d8a3cca0c31168b8c5d"),
-        ("record, owner, anonymise", "830692bab42e5b054ac23483931476155a3bbc5b9b715c83ef8c1c1ace4e000d"),
-        ("record, shared", "4e87e0e965f5bb9f623ed8fc56ea5927f2ec91ad5e73e099f731332cd6692d1a"),
-        ("aggregate, owner, delete", "78eb62df25010c9767e21cc06f886202427eac614a3515a6511af6227a839f48"),
-        ("aggregate, owner, anonymise", "5db6137cdc7ff74adda1c44669a517176c5b2378b1d84fee4a3665a39a5e8ab3"),
-        ("aggregate, shared", "ba40daae27a45f1f0257e53906fcd0795f282330138bc528bdec2e8812d81f40"),
-        ("record, owner, delete, the project's first owner feature", "45fa021c321979c3bf9a4977ca912de5d4ebfec2723007df50804bcb78273f65"),
-        ("record, owner, delete, without the API", "d5c5373197b6f89a6db03cad1c6b6f68eef131a12e17e365eb1c3884cb809872"),
-        ("record, owner, delete, on SQL Server", "4140d16e269b6cdb35910d865de5e88366cea1d8d6878d8a3cca0c31168b8c5d"),
-        ("record, owner, delete, on SQLite", "a96a7361bbdecbc2679f0526c5ad1ca6f0f7b38e464e608657e6902b2ae812c6"),
+        ("record, owner, delete", "e163bf80ae69729e7f326fc38ecc9dab57f66b9c4594f02873f4a5b7c7124850"),
+        ("record, owner, anonymise", "36cbb1cea5755de5ea1c2b35311fa9b69eab642376ffb225da33826dccb00a50"),
+        ("record, shared", "5e72b73401b1fa87c9c616e34a8734a27e17bc7c32ffaff4c200e4b69518e92e"),
+        ("aggregate, owner, delete", "6bdc4580d8a672555f961c4130dc5af2452b2697c4bee4a75a7bc6b5cf3f35f6"),
+        ("aggregate, owner, anonymise", "e4e3ec095d0a76adbd25c3b81d19968225b4d3e4c8f9a7824ca8f5b0d84c9c51"),
+        ("aggregate, shared", "98a62c8b370c718eb3e1436fab9cad52f5823b75d87e4bb9f560dafb53d9967f"),
+        ("record, owner, delete, the project's first owner feature", "e880bd15eac462476f4b80e1a48e6fd8b2db491453b2cd478b7bbbcf28dd194a"),
+        ("record, owner, delete, without the API", "2acdd9553a3b112bda2f331606c60487785993cfc8a87d483470dbcdc332cf69"),
+        ("record, owner, delete, on SQL Server", "e163bf80ae69729e7f326fc38ecc9dab57f66b9c4594f02873f4a5b7c7124850"),
+        ("record, owner, delete, on SQLite", "2aa9c005001729a66e9772bd79ae80e97c918097eabb5786d4bc7bc42317c676"),
     ];
 
     private static void ProviderCases(string scratch, Action<bool, string> expect)
@@ -9559,7 +9561,12 @@ internal static class TextEdits
 
     internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
 
-    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments);
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
+    {
+        internal bool FromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
+    }
+
+    private const string _noBuild = "--no-build";
 
     internal sealed class Sheet
     {
@@ -10007,12 +10014,14 @@ internal static class TextEdits
     internal static Command Task(string root, params string[] task) =>
         new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
 
-    internal static List<Command> ContractSteps(string root, string client) =>
+    internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
+
+    internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
-        Task(root, "openapi"),
+        built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
         .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
-            ? [new Command("cd Src/Web && pnpm api", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api"])]
+            ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),
     ];
 
@@ -10063,6 +10072,13 @@ internal static class TextEdits
             foreach (Command remaining in steps.Skip(index))
             {
                 error.WriteLine($"  {remaining.Display}");
+            }
+
+            if (steps.Skip(index).Any(remaining => remaining.FromLastBuild))
+            {
+                error.WriteLine(
+                    $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "
+                    + "`dotnet run Tools/Tasks.cs build` before it.");
             }
 
             return false;

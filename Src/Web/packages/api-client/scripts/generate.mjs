@@ -43,9 +43,14 @@ const document = join(packageRoot, 'openapi', 'document.json');
 rmSync(join(apiProject, 'obj', `${apiName}.OpenApiFiles.cache`), { force: true });
 rmSync(document, { force: true });
 
+const project = join(apiProject, `${apiName}.csproj`);
+const fromLastBuild = process.argv.includes('--no-build');
+
 execFileSync(
   'dotnet',
-  ['build', join(apiProject, `${apiName}.csproj`), '--nologo', '--verbosity', 'quiet', '-p:OpenApiGenerateDocumentsOnBuild=true'],
+  fromLastBuild
+    ? ['msbuild', project, '-nologo', '-verbosity:quiet', '-target:GenerateOpenApiDocuments']
+    : ['build', project, '--nologo', '--verbosity', 'quiet', '-p:OpenApiGenerateDocumentsOnBuild=true'],
   {
     stdio: 'inherit',
     env: {

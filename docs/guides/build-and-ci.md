@@ -15,7 +15,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (!anyWeb)-->
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
-| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder |
+| `check` | what `verify` would catch on the files you touched, in under a minute once built: [below](#check) |
+| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder; `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
 | `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |
@@ -46,6 +47,32 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 Everything under `Tools/` is a file-based C# app: the SDK `global.json` pins is all it needs. The
 first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and
 `.editorconfig` as the solution.
+
+## Check
+
+While you work, `dotnet run Tools/Tasks.cs check` runs the part of the gate a change of a few files can
+break, on the files `git diff` touches: the working tree, the files not yet tracked and the commits of
+the branch since its merge-base with `origin/develop`, or with the first of `origin/HEAD`,
+`origin/main`, `origin/master`, `develop`, `main` and `master` that exists, or with `HEAD` when none
+does. With nothing touched it says so and passes. In this order it:
+
+1. verifies the format of the C# files touched, as `format` does for the whole tree;
+2. builds the projects touched and every project that references them, found through the
+   `ProjectReference` graph of the solution, or the whole solution when the change touches a file that
+   sets the build for all of them: a project or solution file, `Directory.Build.props`,
+   `Directory.Build.targets`, `Directory.Packages.props`, `.editorconfig`, `global.json` or
+   `nuget.config`;
+3. runs the architecture tests, whatever was touched, and the unit tests of those projects, which are
+   the projects that need no Docker.
+
+The build fails on an `IDE1006` naming rule like any warning. `check` stands in for `verify` on a
+small change and for nothing else: it runs no test project that needs Docker, and leaves out
+`coverage`, the migration drift check, the vulnerability listing, the `hygiene` gates and, where the
+project has them, the comparison of the generated clients with the OpenAPI reference. Run
+`verify` and `coverage` before calling a change done.
+<!--#if (templateMaintenance)-->
+It also leaves out the template's own gates.
+<!--#endif-->
 
 ## The gate
 

@@ -176,6 +176,7 @@ error under warnings as errors. Pick a name with no such segment.
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
 | `--sonar` | `true`, `false` | `true` | the local SonarQube profile, its scanner image and task, and its steps in `ci.yml` when `--ci` is true |
 | `--agent-files` | `true`, `false` | `true` | `AGENTS.md`, and `Src/Web/AGENTS.md` with a web app; it is the only agent file the template writes, and the pages that point to it point to the page that owns the rule when it is absent |
+| `--aspire` | `true`, `false` | `false` | an Aspire app host, `<Project>.AppHost` in `Src/AppHost`, beside Docker Compose, which stays the reference of the deployment: it starts the containers Compose runs and every host and web app `cleanarch.json` records, with the settings Compose gives them and their telemetry in the Aspire dashboard, and its integration test starts the whole stack; refused with `--database sqlite` |
 
 Each framework value of `--web`, and of `cleanarch-webapp --framework`, names the generator that
 writes the app and never changes meaning:
@@ -205,6 +206,7 @@ it, and the generated solution builds and passes its tests.
 | `--presentation mcp` with `--auth none` | `--mcp-needs-accounts` | choose `--auth local` or `external` |
 | `--presentation avalonia` with `--presentation wpf` | `--desktop-is-one-framework` | choose one of them |
 | `--presentation worker`, or presentation projects that hold neither the API nor the worker, such as `--presentation blazor-server` alone, with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or leave the jobs to the API with `--presentation api` |
+| `--aspire true` with `--database sqlite` | `--aspire-needs-server-database` | choose `--database postgresql` or `sqlserver`, or `--aspire false` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing any file, though `-o` leaves its empty folder to delete. The launcher

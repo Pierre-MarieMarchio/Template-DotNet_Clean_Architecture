@@ -139,6 +139,20 @@ public sealed class TemplatePackagingTests
         unconditioned.ShouldBeEmpty($"These solution lines name a '{marker}' project outside a block opened by '{opening}'.");
     }
 
+    [Fact]
+    public void TheGlobalJsonWithoutTheAppHost_IsTheCheckoutsMinusItsMsBuildSdks()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var full = JsonNode.Parse(File.ReadAllText(Path.Combine(root, "global.json")))!;
+        var withoutAppHost = JsonNode.Parse(File.ReadAllText(
+            Path.Combine(root, ".template.config", "variants", "no-aspire", "global.json")))!;
+
+        full.AsObject().Remove("msbuild-sdks").ShouldBeTrue("global.json no longer pins the app host's SDK under msbuild-sdks.");
+
+        JsonNode.DeepEquals(full, withoutAppHost).ShouldBeTrue(
+            ".template.config/variants/no-aspire/global.json has drifted from global.json.");
+    }
+
     [Theory]
     [InlineData("no-sonar", new[] { "dotnet-sonarscanner" })]
     [InlineData("no-client", new[] { "microsoft.openapi.kiota" })]

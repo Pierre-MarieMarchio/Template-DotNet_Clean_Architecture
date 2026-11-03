@@ -233,6 +233,11 @@ public sealed class AcceptanceSelectionTests
             tags.Add("presentation-item");
         }
 
+        if (Chooses(options, "--aspire", "true"))
+        {
+            tags.Add("aspire");
+        }
+
         tags.AddRange(presentationStarters
             .Where(starter => Chooses(options, "--presentation", starter) || Chooses(firstPresentation, "--framework", starter))
             .Select(starter => $"presentation-{starter}"));

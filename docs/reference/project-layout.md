@@ -212,7 +212,9 @@ Tests/                                  one test project per source project, mir
 ## The project file
 
 `cleanarch.json`, at the root, records what this project was generated with and what was added
-since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options there.
+since. `dotnet run Tools/Tasks.cs` finds the root by it and reads the options there; `new-feature`
+reads `database` to write the test of the feature's table, which a schema holds on PostgreSQL and SQL
+Server and which carries the schema in its name on SQLite.
 
 | Key | Holds |
 |---|---|

@@ -49,6 +49,15 @@ public sealed class ApiVersionGroupsTests
         groups.ShouldBe(described, ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task AnApiWithNoControllerYet_KeepsTheDefaultGroupTheVersionedApiExplorerDescribes()
+    {
+        var (groups, described) = await GroupsOf(_ => { });
+
+        described.ShouldBe(["v1"]);
+        groups.ShouldBe(described);
+    }
+
     private static async Task<(IReadOnlyList<string> Groups, string[] Described)> GroupsOf(Action<ApplicationPartManager> configure)
     {
         var builder = WebApplication.CreateSlimBuilder();

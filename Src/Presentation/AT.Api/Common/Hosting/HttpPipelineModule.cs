@@ -71,12 +71,11 @@ public static class HttpPipelineModule
         var feature = new ControllerFeature();
         controllers.PartManager.PopulateFeature(feature);
 
+        ApiVersion[] versions = [.. feature.Controllers.SelectMany(DeclaredApiVersions).Distinct().Order()];
+
         return
         [
-            .. feature.Controllers
-                .SelectMany(DeclaredApiVersions)
-                .Distinct()
-                .Order()
+            .. (versions.Length == 0 ? [ApiVersion.Default] : versions)
                 .Select(version => version.ToString(_versionGroupFormat, CultureInfo.InvariantCulture)),
         ];
     }

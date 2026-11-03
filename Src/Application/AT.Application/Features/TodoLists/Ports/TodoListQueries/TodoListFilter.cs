@@ -51,7 +51,7 @@ public sealed record TodoListFilter
                     CollectionErrors.InvalidFilter("'createdAfter' is not a valid ISO 8601 date/time."));
             }
 
-            after = parsed;
+            after = parsed.ToUniversalTime();
         }
 
         DateTimeOffset? before = null;
@@ -68,7 +68,7 @@ public sealed record TodoListFilter
                     CollectionErrors.InvalidFilter("'createdBefore' is not a valid ISO 8601 date/time."));
             }
 
-            before = parsed;
+            before = parsed.ToUniversalTime();
         }
 
         if (after is { } lower && before is { } upper && lower > upper)

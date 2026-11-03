@@ -244,6 +244,34 @@ public sealed class CollectionQueryTests(ApiFixture fixture) : IntegrationTestBa
     }
 
     [Fact]
+    public async Task CreatedAfterAndCreatedBefore_SentWithANonZeroOffset_NarrowOnTheSameInstants()
+    {
+        var (client, _, _) = await SignInAsync();
+
+        var early = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var middle = new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
+        var late = new DateTimeOffset(2026, 1, 3, 0, 0, 0, TimeSpan.Zero);
+
+        Clock.AdjustTime(early);
+        var earlyId = await CreateTodoListAsync(client, "Early");
+
+        Clock.AdjustTime(middle);
+        var middleId = await CreateTodoListAsync(client, "Middle");
+
+        Clock.AdjustTime(late);
+        await CreateTodoListAsync(client, "Late");
+
+        string after = Iso(early.ToOffset(TimeSpan.FromHours(2)));
+        string before = Iso(middle.ToOffset(TimeSpan.FromHours(-5)));
+
+        var page = await ReadPageAsync(
+            client,
+            $"createdAfter={Uri.EscapeDataString(after)}&createdBefore={Uri.EscapeDataString(before)}");
+
+        page.Items.Select(item => item.Id).ShouldBe([earlyId, middleId], ignoreOrder: true);
+    }
+
+    [Fact]
     public async Task CreatedAfterLaterThanCreatedBefore_Is400WithTheStableCode()
     {
         var (client, _, _) = await SignInAsync();

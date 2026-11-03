@@ -1,29 +1,33 @@
-﻿using AppTemplate.Application.Core.Common.Events;
-using AppTemplate.Domain.Features.TodoLists.Model.Events;
+﻿using AppTemplate.Domain.Core.Common.Events;
+using AppTemplate.Infrastructure.Core.Common.Saving.DomainEvents;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AppTemplate.Api.IntegrationTests.Infrastructure;
 
 public sealed class RecordedDomainEvents
 {
     private readonly object _gate = new();
-    private readonly List<TodoItemCompletedDomainEvent> _completedItems = [];
+    private readonly List<IDomainEvent> _events = [];
 
-    public IReadOnlyList<TodoItemCompletedDomainEvent> CompletedItems
+    public IReadOnlyList<IDomainEvent> All
     {
         get
         {
             lock (_gate)
             {
-                return [.. _completedItems];
+                return [.. _events];
             }
         }
     }
 
-    public void Record(TodoItemCompletedDomainEvent domainEvent)
+    public IReadOnlyList<TEvent> Of<TEvent>()
+        where TEvent : IDomainEvent => [.. All.OfType<TEvent>()];
+
+    public void Record(IDomainEvent domainEvent)
     {
         lock (_gate)
         {
-            _completedItems.Add(domainEvent);
+            _events.Add(domainEvent);
         }
     }
 
@@ -31,23 +35,34 @@ public sealed class RecordedDomainEvents
     {
         lock (_gate)
         {
-            _completedItems.Clear();
+            _events.Clear();
         }
     }
 }
 
-internal sealed class RecordingTodoItemCompletedConsumer(RecordedDomainEvents recorded)
-    : IDomainEventConsumer<TodoItemCompletedDomainEvent>
+internal sealed class RecordingDomainEventDispatcher(
+    IDomainEventDispatcher inner,
+    RecordedDomainEvents recorded) : IDomainEventDispatcher
 {
-    public Task ConsumeAsync(
-        TodoItemCompletedDomainEvent domainEvent,
-        CancellationToken cancellationToken = default)
+    public Task DispatchAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(domainEvent);
-        cancellationToken.ThrowIfCancellationRequested();
 
         recorded.Record(domainEvent);
 
-        return Task.CompletedTask;
+        return inner.DispatchAsync(domainEvent, cancellationToken);
+    }
+}
+
+internal static class RecordedDomainEventsExtensions
+{
+    internal static IServiceCollection AddRecordedDomainEvents(this IServiceCollection services)
+    {
+        services.AddSingleton<RecordedDomainEvents>();
+        services.AddScoped<IDomainEventDispatcher>(serviceProvider => new RecordingDomainEventDispatcher(
+            ActivatorUtilities.CreateInstance<DomainEventDispatcher>(serviceProvider),
+            serviceProvider.GetRequiredService<RecordedDomainEvents>()));
+
+        return services;
     }
 }

@@ -27,9 +27,7 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public CapturedLogs Logs => Factory.Services.GetRequiredService<CapturedLogs>();
 
-    //#if (todoLists)
     public RecordedDomainEvents DomainEvents => Factory.Services.GetRequiredService<RecordedDomainEvents>();
-    //#endif
 
     public async ValueTask InitializeAsync()
     {

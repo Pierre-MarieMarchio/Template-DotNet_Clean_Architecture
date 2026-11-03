@@ -1233,7 +1233,19 @@ internal static class NewUseCase
         }
 
         output.WriteLine();
-        output.WriteLine("Then rewrite the OpenAPI reference the contract test compares:  dotnet run Tools/Tasks.cs openapi");
+        output.WriteLine("Then rewrite what the contract feeds, which this does not run:");
+        output.WriteLine("  dotnet run Tools/Tasks.cs openapi    (the OpenAPI reference the contract test compares)");
+
+        if (Directory.Exists(Path.Combine(root, "Src", "Clients", FolderOf(p, "Client"))))
+        {
+            output.WriteLine("  dotnet run Tools/Tasks.cs api-client");
+        }
+
+        if (File.Exists(Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs")))
+        {
+            output.WriteLine("  pnpm api    (in Src/Web)");
+        }
+
 
         //#if (api)
         output.WriteLine($"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:");
@@ -1768,6 +1780,9 @@ internal static class NewUseCase
             expect(before.All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value), $"[{label}] changed a file it does not own.");
             expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), $"[{label}] wrote a manifest where the feature had none.");
             expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
+            expect(
+                !result.Output.Contains("api-client", StringComparison.Ordinal) && !result.Output.Contains("pnpm api", StringComparison.Ordinal),
+                $"[{label}] printed a step for a client and a web workspace the project does not hold.");
             expect(result.Output.Contains("Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal), $"[{label}] did not name the feature's controller.");
 
             //#if (api)
@@ -1794,6 +1809,20 @@ internal static class NewUseCase
                 }
             }
         }
+
+        string contractRoot = NewTree(scratch);
+
+        Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Clients/A.Client"));
+        Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
+        File.WriteAllText(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
+
+        var contract = Invoke(contractRoot, "Invoices", "ApproveInvoice", "--kind", "command");
+
+        expect(
+            contract.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal)
+                && contract.Output.Contains("dotnet run Tools/Tasks.cs api-client", StringComparison.Ordinal)
+                && contract.Output.Contains("pnpm api    (in Src/Web)", StringComparison.Ordinal),
+            "The OpenAPI, client and web steps are not all printed for a project that holds the client and the web workspace.");
 
         string untested = NewTree(scratch);
         Directory.Delete(Path.Combine(untested, "Tests/Application/A.Application.UnitTests"), recursive: true);

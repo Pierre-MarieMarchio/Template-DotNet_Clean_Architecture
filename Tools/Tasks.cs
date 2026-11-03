@@ -739,6 +739,8 @@ internal static class Tasks
                 {
                     ApiClient(projectFile, check: true);
                 }
+
+                WebSchema(projectFile);
                 //#endif
 
                 //#if (templateMaintenance)
@@ -921,6 +923,58 @@ internal static class Tasks
             {
                 Directory.Delete(output, recursive: true);
             }
+        }
+    }
+
+    private static void PrintApiSteps(ProjectFile projectFile)
+    {
+        Console.WriteLine("Next, once the routes and contracts are as they should be:");
+        Console.WriteLine("  dotnet run Tools/Tasks.cs openapi");
+
+        if (HoldsTheClient(projectFile))
+        {
+            Console.WriteLine("  dotnet run Tools/Tasks.cs api-client");
+        }
+
+        if (HoldsTheWebSchema(projectFile))
+        {
+            Console.WriteLine("  pnpm api    (in Src/Web)");
+        }
+    }
+
+    private static string ApiClientPackage(ProjectFile projectFile) =>
+        Path.Combine(projectFile.Root, "Src", "Web", "packages", "api-client");
+
+    private static bool HoldsTheWebSchema(ProjectFile projectFile) =>
+        File.Exists(Path.Combine(ApiClientPackage(projectFile), "scripts", "generate.mjs"));
+
+    private static void WebSchema(ProjectFile projectFile)
+    {
+        if (!HoldsTheWebSchema(projectFile))
+        {
+            Write("The project has no web workspace, so Src/Web/packages/api-client/src/generated/schema.ts is not checked.", ConsoleColor.Yellow);
+            return;
+        }
+
+        string reference = OpenApiReferencePath(projectFile);
+
+        if (!File.Exists(reference))
+        {
+            throw new InvalidOperationException(
+                $"{Path.GetRelativePath(projectFile.Root, reference)} is missing: run `dotnet run Tools/Tasks.cs openapi` first.");
+        }
+
+        WebWorkspace(projectFile.Root, "install", "--frozen-lockfile");
+
+        try
+        {
+            StepIn(ApiClientPackage(projectFile), _pnpm, "exec", "node", "scripts/generate.mjs", "--check", reference);
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException(
+                error.Message + " Src/Web/packages/api-client/src/generated/schema.ts is out of date with the OpenAPI reference: "
+                + "run `pnpm api` in Src/Web, then commit what it writes.");
         }
     }
 
@@ -1510,6 +1564,9 @@ internal static class Tasks
         }
 
         Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", required: true);
+        //#if (api)
+        PrintApiSteps(projectFile);
+        //#endif
 
         if (!recorded)
         {
@@ -1549,6 +1606,9 @@ internal static class Tasks
         }
 
         Join(projectFile.Root, "Src/Web/apps/" + name, "cleanarch-webapp", "web-scaffold", required: false);
+        //#if (api)
+        PrintApiSteps(projectFile);
+        //#endif
         projectFile.RecordWebApp(name, framework, audience, rendering, WorkspaceScope(projectFile.Root));
         RecordClient(projectFile);
     }

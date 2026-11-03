@@ -168,7 +168,7 @@ public sealed class ConfirmFileUploadTests
     public async Task AnAlreadyAvailableFile_IsRefused()
     {
         var storedFile = AStoredFile.AvailableOwnedBy(_callerId);
-        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+        _repository.GetAsync(_callerId, storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
         GivenTheStoreHolds(storedFile, AStoredFile.SizeInBytes, AStoredFile.Checksum);
 
         var result = await UseCase().Handle(new ConfirmFileUploadCommand(storedFile.Id), TestToken);
@@ -180,7 +180,7 @@ public sealed class ConfirmFileUploadTests
     private StoredFile GivenTheCallerOwnsAPendingFile()
     {
         var storedFile = AStoredFile.PendingOwnedBy(_callerId);
-        _repository.GetAsync(storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
+        _repository.GetAsync(_callerId, storedFile.Id, Arg.Any<CancellationToken>()).Returns(storedFile);
 
         return storedFile;
     }

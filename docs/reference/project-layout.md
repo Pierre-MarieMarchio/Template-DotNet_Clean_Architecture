@@ -55,7 +55,7 @@ Src/Domain/
                                         Features/<F>/{Model/{Entities,Events,ValueObjects},Repositories}
 Src/Application/
   AT.Application.Core                   Common/{Collections,Concurrency,Events,Idempotency,Localization,
-                                                Ownership,Policies,Ports,Results,UseCases,Validation}
+                                                Policies,Ports,Results,UseCases,Validation}
                                         Features/<F>/UseCases/Commands/<Operation>
 <!--#if (tagging)-->
   AT.Application                        Common/{Tagging}

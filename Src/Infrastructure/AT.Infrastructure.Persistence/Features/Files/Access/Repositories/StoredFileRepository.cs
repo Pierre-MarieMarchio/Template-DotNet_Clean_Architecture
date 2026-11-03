@@ -15,16 +15,40 @@ internal sealed class StoredFileRepository(
     IStoredFileMapper mapper,
     IStoredFileTracker tracker) : IStoredFileRepository
 {
-    public async Task<StoredFile?> GetAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<StoredFile?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
         if (tracker.Find(id) is { } alreadyLoaded)
         {
-            return alreadyLoaded;
+            return alreadyLoaded.OwnerId == ownerId ? alreadyLoaded : null;
         }
 
         var record = await context.StoredFiles
             .Include(file => file.Tags)
-            .FirstOrDefaultAsync(file => file.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(file => file.Id == id && file.OwnerId == ownerId.Value, cancellationToken);
+
+        return record is null ? null : LoadOrTrack(record);
+    }
+
+    public async Task<StoredFile?> GetReadableAsync(
+        UserId readerId,
+        Guid id,
+        IReadOnlyCollection<FileCategory> categoriesOpenToEverySignedInUser,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(readerId);
+        ArgumentNullException.ThrowIfNull(categoriesOpenToEverySignedInUser);
+
+        var openCategories = categoriesOpenToEverySignedInUser.Select(category => category.Value).ToList();
+
+        var record = await context.StoredFiles
+            .Include(file => file.Tags)
+            .FirstOrDefaultAsync(
+                file => file.Id == id
+                    && (file.OwnerId == readerId.Value
+                        || (file.State == StoredFileState.Available && openCategories.Contains(file.Category))),
+                cancellationToken);
 
         return record is null ? null : LoadOrTrack(record);
     }

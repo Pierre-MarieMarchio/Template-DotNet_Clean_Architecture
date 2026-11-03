@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Reminders.Model.Errors;
@@ -22,10 +21,15 @@ internal sealed class ReminderService(IReminderRepository repository, ICurrentUs
             return userId.To<Reminder>();
         }
 
-        return OwnedAggregate.Require(
-            await repository.GetAsync(reminderId, cancellationToken),
-            userId.Value,
-            ReminderErrors.ReminderNotFound(reminderId),
-            precondition);
+        var aggregate = await repository.GetAsync(userId.Value, reminderId, cancellationToken);
+
+        if (aggregate is null)
+        {
+            return Result.Failure<Reminder>(ReminderErrors.ReminderNotFound(reminderId));
+        }
+
+        return precondition is not null && !precondition.IsSatisfiedBy(aggregate.Version)
+            ? Result.Failure<Reminder>(ConcurrencyErrors.PreconditionFailed)
+            : Result.Success(aggregate);
     }
 }

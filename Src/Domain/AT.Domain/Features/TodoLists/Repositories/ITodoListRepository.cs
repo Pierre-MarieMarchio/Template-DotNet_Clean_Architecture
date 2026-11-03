@@ -5,7 +5,7 @@ namespace AppTemplate.Domain.Features.TodoLists.Repositories;
 
 public interface ITodoListRepository
 {
-    Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<TodoList?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<TodoList>> GetForOwnerAsync(
         UserId ownerId,

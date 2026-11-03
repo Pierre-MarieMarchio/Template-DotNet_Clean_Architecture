@@ -42,7 +42,7 @@ public sealed class RenameTodoListTests
         await UseCaseFor(StubCurrentUser.Anonymous)
             .Handle(new RenameTodoListCommand(Guid.CreateVersion7(), "Shopping"), TestToken);
 
-        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().GetAsync(Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -97,7 +97,7 @@ public sealed class RenameTodoListTests
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
 
         var result = await UseCase().Handle(new RenameTodoListCommand(missingId, "Shopping"), TestToken);
 
@@ -155,7 +155,7 @@ public sealed class RenameTodoListTests
     private TodoList GivenTheCallerOwnsAList()
     {
         var list = ATodoList.OwnedBy(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         return list;
     }

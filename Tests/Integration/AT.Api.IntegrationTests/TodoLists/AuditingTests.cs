@@ -16,7 +16,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         var listId = await CreateTodoListAsync(client, "Audited");
 
-        var stored = await LoadAggregateAsync(listId);
+        var stored = await LoadAggregateAsync(session.UserId, listId);
 
         stored.CreatedAt.ShouldBe(createdAt);
         stored.CreatedBy.ShouldBe(session.UserId);
@@ -37,7 +37,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         await AddTodoItemAsync(client, listId, "An item");
 
-        var stored = await LoadAggregateAsync(listId);
+        var stored = await LoadAggregateAsync(session.UserId, listId);
 
         stored.CreatedAt.ShouldBe(createdAt);
         stored.CreatedBy.ShouldBe(session.UserId);
@@ -52,7 +52,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
         var listId = await CreateTodoListAsync(client, "Audited");
         var itemId = await AddTodoItemAsync(client, listId, "An item");
 
-        var afterAdd = await LoadAggregateAsync(listId);
+        var afterAdd = await LoadAggregateAsync(session.UserId, listId);
 
         Clock.Advance(TimeSpan.FromMinutes(1));
         var completedAt = Clock.GetUtcNow();
@@ -63,7 +63,7 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
             TestToken);
         completed.EnsureSuccessStatusCode();
 
-        var afterComplete = await LoadAggregateAsync(listId);
+        var afterComplete = await LoadAggregateAsync(session.UserId, listId);
 
         afterComplete.LastModifiedAt.ShouldBe(completedAt);
         afterComplete.LastModifiedAt.ShouldNotBe(afterAdd.LastModifiedAt);
@@ -81,21 +81,21 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
 
         firstSession.UserId.ShouldNotBe(secondSession.UserId);
 
-        (await LoadAggregateAsync(firstList)).CreatedBy.ShouldBe(firstSession.UserId);
-        (await LoadAggregateAsync(secondList)).CreatedBy.ShouldBe(secondSession.UserId);
+        (await LoadAggregateAsync(firstSession.UserId, firstList)).CreatedBy.ShouldBe(firstSession.UserId);
+        (await LoadAggregateAsync(secondSession.UserId, secondList)).CreatedBy.ShouldBe(secondSession.UserId);
     }
 
     [Fact]
     public async Task TheStampComesFromTheInjectedClock()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
 
         Clock.Advance(TimeSpan.FromDays(3));
         var expected = Clock.GetUtcNow();
 
         var listId = await CreateTodoListAsync(client, "Three days from now");
 
-        var stored = await LoadAggregateAsync(listId);
+        var stored = await LoadAggregateAsync(session.UserId, listId);
 
         stored.CreatedAt.ShouldBe(expected);
 
@@ -105,10 +105,10 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
     [Fact]
     public async Task TheAggregateAndTheRow_AgreeAboutTheStamps()
     {
-        var (client, _, _) = await SignInAsync();
+        var (client, _, session) = await SignInAsync();
         var listId = await CreateTodoListAsync(client, "Audited");
 
-        var aggregate = await LoadAggregateAsync(listId);
+        var aggregate = await LoadAggregateAsync(session.UserId, listId);
 
         int matches = await Database.CountAsync(
             $"""
@@ -123,10 +123,10 @@ public sealed class AuditingTests(ApiFixture fixture) : IntegrationTestBase(fixt
             + "interceptor wrote were never read back into the domain object.");
     }
 
-    private async Task<TodoList> LoadAggregateAsync(Guid listId)
+    private async Task<TodoList> LoadAggregateAsync(Guid ownerId, Guid listId)
     {
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
-        return await LoadTodoListAsync(scope.ServiceProvider, listId);
+        return await LoadTodoListAsync(scope.ServiceProvider, ownerId, listId);
     }
 }

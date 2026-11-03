@@ -42,7 +42,7 @@ public sealed class AddTagToTodoItemTests
     public async Task ABlankTag_IsRejected(string tag)
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new AddTagToTodoItemCommand(list.Id, itemId, tag), TestToken);
 
@@ -54,7 +54,7 @@ public sealed class AddTagToTodoItemTests
     public async Task AnUnknownItemId_IsReportedAsNotFound()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new AddTagToTodoItemCommand(list.Id, Guid.CreateVersion7(), "urgent"),
@@ -74,7 +74,7 @@ public sealed class AddTagToTodoItemTests
         }
 
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new AddTagToTodoItemCommand(list.Id, itemId, "one-too-many"),
@@ -88,7 +88,7 @@ public sealed class AddTagToTodoItemTests
     public async Task AValidTag_IsAddedAndNormalised()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new AddTagToTodoItemCommand(list.Id, itemId, "  URGENT "), TestToken);
 

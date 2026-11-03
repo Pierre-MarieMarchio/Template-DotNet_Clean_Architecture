@@ -1853,6 +1853,10 @@ internal static class NewFeature
             Contains(repository, " Add(", Has("create"), "the repository port");
             Contains(repository, " Remove(", Has("delete") || owner, "the repository port");
             Contains(repository, "GetForOwnerAsync", owner, "the repository port");
+            Contains(repository, "GetAsync(UserId ownerId, Guid id,", owner && changes, "the repository port");
+            Contains(repository, "GetAsync(Guid id,", !owner && changes, "the repository port");
+            Contains(Text($"Repositories/{type}Repository.cs"), "candidate.OwnerId == ownerId.Value", owner && changes, "the repository");
+            Contains(Text($"Services/{type}Service.cs"), "repository.GetAsync(userId.Value, ", owner && changes, "the access service");
         }
 
         string consumer = Text($"Services/Consumers/{verb}{type}OnAccountDeletedConsumer.cs");
@@ -3035,7 +3039,11 @@ internal static class Templates
         public interface I%A%Repository
         {
         %if change%
+        %if owner%
+            Task<%A%?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken);
+        %else%
             Task<%A%?> GetAsync(Guid id, CancellationToken cancellationToken);
+        %end%
 
         %end%
         %if owner%
@@ -3608,7 +3616,6 @@ internal static class Templates
 
     internal const string AccessService = """
         using %P%.Application.Core.Common.Concurrency;
-        using %P%.Application.Core.Common.Ownership; //?OwnedAggregate
         using %P%.Application.Core.Common.Ports;
         using %P%.Application.Core.Common.Results;
         using %P%.Application.Features.%F%.Model.Errors;
@@ -3631,14 +3638,7 @@ internal static class Templates
                     return userId.To<%A%>();
                 }
 
-        %if owner%
-                return OwnedAggregate.Require(
-                    await repository.GetAsync(%L%Id, cancellationToken),
-                    userId.Value,
-                    %A%Errors.%A%NotFound(%L%Id),
-                    precondition);
-        %else%
-                var aggregate = await repository.GetAsync(%L%Id, cancellationToken);
+                var aggregate = await repository.GetAsync(%SvcOwner%%L%Id, cancellationToken);
 
                 if (aggregate is null)
                 {
@@ -3648,7 +3648,6 @@ internal static class Templates
                 return precondition is not null && !precondition.IsSatisfiedBy(aggregate.Version)
                     ? Result.Failure<%A%>(ConcurrencyErrors.PreconditionFailed)
                     : Result.Success(aggregate);
-        %end%
             }
         }
         """;
@@ -4425,6 +4424,23 @@ internal static class Templates
             I%A%Tracker tracker) : I%A%Repository
         {
         %if change%
+        %if owner%
+            public async Task<%A%?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken)
+            {
+                ArgumentNullException.ThrowIfNull(ownerId);
+
+                if (tracker.Find(id) is { } alreadyLoaded)
+                {
+                    return alreadyLoaded.OwnerId == ownerId ? alreadyLoaded : null;
+                }
+
+                var record = await context.%F%.FirstOrDefaultAsync(
+                    candidate => candidate.Id == id && candidate.OwnerId == ownerId.Value,
+                    cancellationToken);
+
+                return record is null ? null : LoadOrTrack(record);
+            }
+        %else%
             public async Task<%A%?> GetAsync(Guid id, CancellationToken cancellationToken)
             {
                 if (tracker.Find(id) is { } alreadyLoaded)
@@ -4438,6 +4454,7 @@ internal static class Templates
 
                 return record is null ? null : LoadOrTrack(record);
             }
+        %end%
 
         %end%
         %if owner%

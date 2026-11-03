@@ -42,7 +42,7 @@ public sealed class AddTodoItemTests
     {
         await UseCaseFor(StubCurrentUser.Anonymous).Handle(ACommandFor(Guid.CreateVersion7()), TestToken);
 
-        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().GetAsync(Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -140,7 +140,7 @@ public sealed class AddTodoItemTests
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
 
         var result = await UseCase().Handle(ACommandFor(missingId), TestToken);
 
@@ -154,7 +154,7 @@ public sealed class AddTodoItemTests
     public async Task ADuplicateTitle_BecomesAConflict()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(ACommandFor(list.Id, "BUY MILK"), TestToken);
 
@@ -168,7 +168,7 @@ public sealed class AddTodoItemTests
     public async Task ADuplicateTitle_DoesNotCommit()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(ACommandFor(list.Id, "Buy milk"), TestToken);
 
@@ -179,7 +179,7 @@ public sealed class AddTodoItemTests
     public async Task AFullList_BecomesAConflict()
     {
         var list = ATodoList.OwnedByAndFull(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(ACommandFor(list.Id, "one too many"), TestToken);
 
@@ -192,7 +192,7 @@ public sealed class AddTodoItemTests
     public async Task TheConflictMessage_ComesFromTheDomain()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _, "Buy milk");
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(ACommandFor(list.Id, "Buy milk"), TestToken);
 
@@ -297,7 +297,7 @@ public sealed class AddTodoItemTests
     private TodoList GivenTheCallerOwnsAList()
     {
         var list = ATodoList.OwnedBy(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         return list;
     }

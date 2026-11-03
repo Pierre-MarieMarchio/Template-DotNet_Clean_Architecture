@@ -43,7 +43,7 @@ public sealed class CompleteTodoItemTests
         await UseCaseFor(StubCurrentUser.Anonymous)
             .Handle(new CompleteTodoItemCommand(Guid.CreateVersion7(), Guid.CreateVersion7()), TestToken);
 
-        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().GetAsync(Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -51,7 +51,7 @@ public sealed class CompleteTodoItemTests
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
 
         var result = await UseCase().Handle(new CompleteTodoItemCommand(missingId, Guid.CreateVersion7()), TestToken);
 
@@ -65,7 +65,7 @@ public sealed class CompleteTodoItemTests
     public async Task AnUnknownItemId_IsReportedAsNotFoundRatherThanThrown()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, Guid.CreateVersion7()), TestToken);
 
@@ -78,7 +78,7 @@ public sealed class CompleteTodoItemTests
     public async Task AnUnknownItemId_DoesNotCommit()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(new CompleteTodoItemCommand(list.Id, Guid.CreateVersion7()), TestToken);
 
@@ -89,7 +89,7 @@ public sealed class CompleteTodoItemTests
     public async Task AStalePreconditionOnAnUnknownItem_IsReportedAsPreconditionFailedNotAsMissingItem()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
         var stalePrecondition = new VersionPrecondition([list.Version + 1]);
 
         var result = await UseCase().Handle(
@@ -106,7 +106,7 @@ public sealed class CompleteTodoItemTests
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
         var otherList = ATodoList.OwnedByWithItem(_callerId, out var otherItemId, "Elsewhere");
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, otherItemId), TestToken);
 
@@ -121,7 +121,7 @@ public sealed class CompleteTodoItemTests
         var firstCompletion = TheClock.DefaultInstant.AddDays(-1);
         list.CompleteItem(itemId, firstCompletion);
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -137,7 +137,7 @@ public sealed class CompleteTodoItemTests
         var firstCompletion = TheClock.DefaultInstant.AddDays(-1);
         list.CompleteItem(itemId, firstCompletion);
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -150,7 +150,7 @@ public sealed class CompleteTodoItemTests
     public async Task TheItem_IsCompletedAtTheInjectedClocksInstant()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -165,7 +165,7 @@ public sealed class CompleteTodoItemTests
     {
         var pinnedInstant = new DateTimeOffset(2001, 2, 3, 4, 5, 6, TimeSpan.Zero);
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var useCase = new CompleteTodoItemCommandHandler(
             new TodoListService(_repository, StubCurrentUser.WithId(_callerId)),
@@ -181,7 +181,7 @@ public sealed class CompleteTodoItemTests
     public async Task ASuccessfulCompletion_RaisesTheCompletionEvent()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -195,7 +195,7 @@ public sealed class CompleteTodoItemTests
     public async Task ASuccessfulCompletion_CommitsExactlyOnce()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -208,7 +208,7 @@ public sealed class CompleteTodoItemTests
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
         var untouchedId = list.AddItem("Leave me alone", null);
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(new CompleteTodoItemCommand(list.Id, itemId), TestToken);
 

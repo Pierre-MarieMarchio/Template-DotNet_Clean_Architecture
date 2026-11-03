@@ -25,18 +25,6 @@ internal static class AReminder
         return reminder;
     }
 
-    internal static Reminder OwnedBySomebodyElseThan(UserId notThisUserId)
-    {
-        var otherOwnerId = UserId.Create(Guid.CreateVersion7());
-
-        if (otherOwnerId == notThisUserId)
-        {
-            throw new InvalidOperationException("Guid.CreateVersion7 produced a collision.");
-        }
-
-        return OwnedBy(otherOwnerId);
-    }
-
     internal static Reminder OwnedByAtVersion(UserId ownerId, uint version)
     {
         var reminder = OwnedBy(ownerId);

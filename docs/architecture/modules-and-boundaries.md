@@ -88,8 +88,8 @@ earns the domain or application project its first one.
 <!--#endif-->
 
 A folder in the business `Common/` is earned by naming a business type, not by being repeated: the
-ownership check and the paged read every feature performs name no feature, so they live one project
-inwards. `EveryModuleCommon_KnowsNoFeature`, `ThePersistenceMechanisms_KnowNoFeature` and
+version precondition and the paged read every feature performs name no feature, so they live one
+project inwards. `EveryModuleCommon_KnowsNoFeature`, `ThePersistenceMechanisms_KnowNoFeature` and
 `TheCommonHttpCode_NamesNoFeature` hold the rule.
 <!--#if (anyFeature)-->
 `AppDbContext` is its one exception: it applies every feature's configuration, and

@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.Files.Configuration.Options;
@@ -28,11 +27,16 @@ internal sealed class StoredFileService(
             return userId.To<StoredFile>();
         }
 
-        return OwnedAggregate.Require(
-            await repository.GetAsync(storedFileId, cancellationToken),
-            userId.Value,
-            StoredFileErrors.FileNotFound(storedFileId),
-            precondition);
+        var aggregate = await repository.GetAsync(userId.Value, storedFileId, cancellationToken);
+
+        if (aggregate is null)
+        {
+            return Result.Failure<StoredFile>(StoredFileErrors.FileNotFound(storedFileId));
+        }
+
+        return precondition is not null && !precondition.IsSatisfiedBy(aggregate.Version)
+            ? Result.Failure<StoredFile>(ConcurrencyErrors.PreconditionFailed)
+            : Result.Success(aggregate);
     }
 
     public async Task<Result<StoredFile>> LoadReadableAsync(
@@ -46,18 +50,20 @@ internal sealed class StoredFileService(
             return userId.To<StoredFile>();
         }
 
-        var storedFile = await repository.GetAsync(storedFileId, cancellationToken);
+        var storedFile = await repository.GetReadableAsync(
+            userId.Value,
+            storedFileId,
+            CategoriesOpenToEverySignedInUser(),
+            cancellationToken);
 
-        if (storedFile is not null
-            && (storedFile.OwnerId == userId.Value || IsOpenToEverySignedInUser(storedFile)))
-        {
-            return storedFile;
-        }
-
-        return Result.Failure<StoredFile>(StoredFileErrors.FileNotFound(storedFileId));
+        return storedFile is null
+            ? Result.Failure<StoredFile>(StoredFileErrors.FileNotFound(storedFileId))
+            : Result.Success(storedFile);
     }
 
-    private bool IsOpenToEverySignedInUser(StoredFile storedFile) =>
-        storedFile.State == StoredFileState.Available
-        && options.Value.Find(storedFile.Category)?.IsReadableByAnySignedInUser == true;
+    private List<FileCategory> CategoriesOpenToEverySignedInUser() =>
+        options.Value.Categories
+            .Where(category => category.Value.IsReadableByAnySignedInUser)
+            .Select(category => FileCategory.Create(category.Key))
+            .ToList();
 }

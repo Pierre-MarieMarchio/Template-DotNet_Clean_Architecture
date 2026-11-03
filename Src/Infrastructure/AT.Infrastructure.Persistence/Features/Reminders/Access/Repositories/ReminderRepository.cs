@@ -15,15 +15,17 @@ internal sealed class ReminderRepository(
     IReminderMapper mapper,
     IReminderTracker tracker) : IReminderRepository
 {
-    public async Task<Reminder?> GetAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Reminder?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
         if (tracker.Find(id) is { } alreadyLoaded)
         {
-            return alreadyLoaded;
+            return alreadyLoaded.OwnerId == ownerId ? alreadyLoaded : null;
         }
 
         var record = await context.Reminders.FirstOrDefaultAsync(
-            reminder => reminder.Id == id,
+            reminder => reminder.Id == id && reminder.OwnerId == ownerId.Value,
             cancellationToken);
 
         return record is null ? null : LoadOrTrack(record);

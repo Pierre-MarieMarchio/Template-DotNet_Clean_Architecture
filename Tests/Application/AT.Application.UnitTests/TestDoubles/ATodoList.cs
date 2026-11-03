@@ -14,18 +14,6 @@ internal static class ATodoList
         return list;
     }
 
-    internal static TodoList OwnedBySomebodyElseThan(UserId notThisUserId)
-    {
-        var otherOwnerId = UserId.Create(Guid.CreateVersion7());
-
-        if (otherOwnerId == notThisUserId)
-        {
-            throw new InvalidOperationException("Guid.CreateVersion7 produced a collision.");
-        }
-
-        return OwnedBy(otherOwnerId, "Somebody else's list");
-    }
-
     internal static TodoList OwnedByWithItem(UserId ownerId, out Guid itemId, string title = "Buy milk")
     {
         var list = OwnedBy(ownerId);

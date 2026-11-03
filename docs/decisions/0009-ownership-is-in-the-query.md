@@ -14,18 +14,36 @@ anyone to ask whether an id names something real.
 The owner is in every predicate. Each query and each write of an owner-scoped feature filters by
 the caller's id in the same statement that finds the record, and a record that belongs to someone
 else is answered exactly as one that does not exist: the feature's own not-found error, a `404`,
-never a `403`. `OwnedAggregate` answers both cases alike for an aggregate, with the error the
-feature passes in.
+never a `403`. An aggregate is no exception: its repository loads one by its owner and its id
+together, `GetAsync(ownerId, id, cancellationToken)`, the adapter puts both in the `WHERE` clause,
+and an aggregate the unit of work already holds is handed back under the same predicate. The use
+case passes the caller and answers its not-found error when nothing comes back, so no aggregate of
+another user is ever loaded to be refused.
+<!--#if (files)-->
+A file that a category opens to every signed-in caller is read through
+`GetReadableAsync(readerId, id, categories)`, whose predicate names the reader too: the reader's own
+file, or an available one in a category the configuration opens.
+<!--#endif-->
 
-Each feature has one query that crosses owners on purpose: the owner ids that still hold data, for
-the account-deletion sweep. It returns ids and nothing else.
+The reads that cross owners on purpose have no caller behind them and a name of their own: the
+owner ids that still hold data, for the account-deletion sweep, which returns ids and nothing else,
+and the batches a background pass works through.
 
 The generator's `--access owner` writes a feature this way; `--access shared` writes one whose
 records every authenticated caller sees, with no owner at all.
 
 ## Consequences
 
-- No route discloses whether an id exists, and no code path holds another user's row.
+- No route discloses whether an id exists, and no request loads another user's row to refuse it.
+- `OwnedAggregateLoadTests` holds the shape: every domain port that returns one `IOwnedAggregate`
+  takes the owner's `UserId`.
+<!--#if (api && todoLists)-->
+- `TodoListOwnerQueryTests` runs the to-do list repository's predicate against SQLite, where a
+  stranger's read finds nothing and leaves the context empty.
+<!--#endif-->
+<!--#if (api && files)-->
+- `StoredFileOwnerQueryTests` runs both reads of the stored-file repository against SQLite.
+<!--#endif-->
 - A version check runs on the record the owner query found, so a stale caller is never told about
   a record that is not theirs.
 - The index behind each sortable field leads with the owner id, which every read filters by.

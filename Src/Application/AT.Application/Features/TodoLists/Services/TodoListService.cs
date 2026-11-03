@@ -1,5 +1,4 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
-using AppTemplate.Application.Core.Common.Ownership;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.Application.Features.TodoLists.Model.Errors;
@@ -22,10 +21,15 @@ internal sealed class TodoListService(ITodoListRepository repository, ICurrentUs
             return userId.To<TodoList>();
         }
 
-        return OwnedAggregate.Require(
-            await repository.GetAsync(todoListId, cancellationToken),
-            userId.Value,
-            TodoListErrors.ListNotFound(todoListId),
-            precondition);
+        var aggregate = await repository.GetAsync(userId.Value, todoListId, cancellationToken);
+
+        if (aggregate is null)
+        {
+            return Result.Failure<TodoList>(TodoListErrors.ListNotFound(todoListId));
+        }
+
+        return precondition is not null && !precondition.IsSatisfiedBy(aggregate.Version)
+            ? Result.Failure<TodoList>(ConcurrencyErrors.PreconditionFailed)
+            : Result.Success(aggregate);
     }
 }

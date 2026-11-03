@@ -14,11 +14,13 @@ internal sealed class TodoListRepository(
     ITodoListMapper mapper,
     ITodoListTracker tracker) : ITodoListRepository
 {
-    public async Task<TodoList?> GetAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<TodoList?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
         if (tracker.Find(id) is { } alreadyLoaded)
         {
-            return alreadyLoaded;
+            return alreadyLoaded.OwnerId == ownerId ? alreadyLoaded : null;
         }
 
         var record = await context.TodoLists
@@ -26,7 +28,7 @@ internal sealed class TodoListRepository(
             .ThenInclude(item => item.Tags)
 
             .AsSplitQuery()
-            .FirstOrDefaultAsync(list => list.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(list => list.Id == id && list.OwnerId == ownerId.Value, cancellationToken);
 
         if (record is null)
         {

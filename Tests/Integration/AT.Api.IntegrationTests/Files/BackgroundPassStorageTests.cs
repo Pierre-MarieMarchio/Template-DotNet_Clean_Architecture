@@ -61,7 +61,7 @@ public sealed class BackgroundPassStorageTests(ApiFixture fixture) : Integration
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
         var loaded = await scope.ServiceProvider.GetRequiredService<IStoredFileRepository>()
-            .GetAsync(stored.Id, TestToken);
+            .GetAsync(stored.OwnerId, stored.Id, TestToken);
 
         loaded!.InspectionAttempts.ShouldBe(2);
         loaded.NextInspectionAt.ShouldBe(now.AddMinutes(3));

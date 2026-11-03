@@ -38,7 +38,7 @@ public sealed class DeleteTodoListTests
         await UseCaseFor(StubCurrentUser.Anonymous)
             .Handle(new DeleteTodoListCommand(Guid.CreateVersion7()), TestToken);
 
-        await _repository.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().GetAsync(Arg.Any<UserId>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         _repository.DidNotReceive().Remove(Arg.Any<TodoList>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -47,7 +47,7 @@ public sealed class DeleteTodoListTests
     public async Task AMissingList_IsReportedAsNotFoundRatherThanThrown()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
 
         var result = await UseCase().Handle(new DeleteTodoListCommand(missingId), TestToken);
 
@@ -60,7 +60,7 @@ public sealed class DeleteTodoListTests
     public async Task AMissingList_IsNotDeletedAndDoesNotCommit()
     {
         var missingId = Guid.CreateVersion7();
-        _repository.GetAsync(missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
+        _repository.GetAsync(_callerId, missingId, Arg.Any<CancellationToken>()).Returns((TodoList?)null);
 
         await UseCase().Handle(new DeleteTodoListCommand(missingId), TestToken);
 
@@ -83,7 +83,7 @@ public sealed class DeleteTodoListTests
     public async Task TheAggregateThatWasLoaded_IsTheOneRemoved()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         await UseCase().Handle(new DeleteTodoListCommand(list.Id), TestToken);
 
@@ -108,7 +108,7 @@ public sealed class DeleteTodoListTests
     private TodoList GivenTheCallerOwnsAList()
     {
         var list = ATodoList.OwnedBy(_callerId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         return list;
     }

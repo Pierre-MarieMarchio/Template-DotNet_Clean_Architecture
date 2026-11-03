@@ -39,7 +39,7 @@ public sealed class ReopenTodoItemTests
     public async Task AnUnknownItemId_IsReportedAsNotFound()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out _);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(
             new ReopenTodoItemCommand(list.Id, Guid.CreateVersion7()),
@@ -55,7 +55,7 @@ public sealed class ReopenTodoItemTests
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
         list.CompleteItem(itemId, TheClock.DefaultInstant);
         list.ClearDomainEvents();
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new ReopenTodoItemCommand(list.Id, itemId), TestToken);
 
@@ -69,7 +69,7 @@ public sealed class ReopenTodoItemTests
     public async Task AnAlreadyOpenItem_IsAcceptedAsANoOp()
     {
         var list = ATodoList.OwnedByWithItem(_callerId, out var itemId);
-        _repository.GetAsync(list.Id, Arg.Any<CancellationToken>()).Returns(list);
+        _repository.GetAsync(_callerId, list.Id, Arg.Any<CancellationToken>()).Returns(list);
 
         var result = await UseCase().Handle(new ReopenTodoItemCommand(list.Id, itemId), TestToken);
 

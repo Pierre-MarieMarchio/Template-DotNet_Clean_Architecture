@@ -1,0 +1,43 @@
+name: Pull request title
+
+# Template repository only: a pull request lands as one rebased or squashed commit, and release-please reads that commit's title, skipping in silence one that is not a conventional commit.
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, edited, synchronize, reopened]
+
+# One run per pull request: a newer title or push cancels the check of the older one.
+concurrency:
+  group: pull-request-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Least privilege; the title comes from the event, nothing is checked out.
+permissions:
+  contents: read
+
+jobs:
+  title:
+    name: Conventional Commits title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # The types are the changelog sections of .github/release-please/config.json; a ! before the colon marks a breaking change, as docs/template/maintaining-the-template.md says.
+      - name: The title is a conventional commit release-please reads
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          pattern='^(feat|fix|perf|revert|docs|refactor|test|build|ci|chore|style)(\([a-z0-9][a-z0-9._/-]*\))?!?: [^[:space:]]'
+          conventional() { [[ "$1" =~ $pattern ]]; }
+          for sound in 'feat: add a leg' 'fix(api)!: refuse a stale token' 'build(deps-dev): Bump eslint in /Src/Web' 'chore: release 2.0.0'; do
+            conventional "$sound" || { echo "::error title=Title check::The pattern refuses '$sound', a title release-please reads."; exit 1; }
+          done
+          for faulted in 'Update the README' 'feature: add a leg' 'fix:missing space' 'fix(API): capital scope' 'Revert "feat: add a leg"' 'docs : spaced colon'; do
+            ! conventional "$faulted" || { echo "::error title=Title check::The pattern accepts '$faulted', a title release-please skips."; exit 1; }
+          done
+          if ! conventional "$TITLE"; then
+            echo "::error title=Not a conventional commit::'$TITLE' is not <type>[(<scope>)][!]: <subject>, with <type> one of feat, fix, perf, revert, docs, refactor, test, build, ci, chore, style. Edit the title; this check runs again."
+            exit 1
+          fi
+          echo "'$TITLE' is a conventional commit."

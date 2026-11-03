@@ -30,6 +30,7 @@
     "options": "--presentation api --presentation mcp --presentation worker --auth external --examples all --files true --web blazor-wasm",
     "auth_context": "false",
     "integration": "true",
+    "coverage": "true",
     "web": "true",
     "worker": "true",
     "mcp": "true",

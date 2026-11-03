@@ -33,6 +33,7 @@ public sealed partial class Launcher
         ["mcp"] = "Mcp",
         ["avalonia"] = "Desktop",
         ["wpf"] = "Desktop",
+        ["worker"] = "Worker",
     };
 
     private const string _help =
@@ -681,6 +682,7 @@ public sealed partial class Launcher
             ["database"] = project.Database,
             ["agentFiles"] = project.AgentFiles ? Condition.True : Condition.False,
             ["hasApi"] = project.HasApi ? Condition.True : Condition.False,
+            ["ci"] = project.Ci ? Condition.True : Condition.False,
         };
         Detected(session.Conversation, project, manifest, detected);
 

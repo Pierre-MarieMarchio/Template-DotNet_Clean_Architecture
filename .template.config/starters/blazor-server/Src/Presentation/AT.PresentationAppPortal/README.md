@@ -359,20 +359,6 @@ task stops:
   ```
 
 <!--#endif-->
-- in `docs/features/background-jobs.md`, after the lines:
-
-  ```markdown
-  Every pass sends an application use case's message through `ISender`, exactly as a controller does;
-  a job adds a trigger, not logic.
-  ```
-
-  add:
-
-  ```markdown
-  The jobs run in the API alone: the other hosts compose the same use cases and run none of them on
-  a timer.
-  ```
-
 - in `docs/getting-started/first-run.md`, after the line:
 
   ```markdown

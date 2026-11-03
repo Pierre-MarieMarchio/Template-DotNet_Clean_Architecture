@@ -174,7 +174,9 @@ public sealed class TemplateManifest
         condition.IsTrue(name => Resolve(name, answers));
 
     public IReadOnlyList<Refusal> RefusalsFor(IReadOnlyDictionary<string, string> answers) =>
-        [.. Refusals.Where(refusal => Holds(refusal.When, answers))];
+        [.. Refusals.Where(refusal => (answers.ContainsKey(ItemName) || !refusal.When.Symbols.Contains(ItemName)) && Holds(refusal.When, answers))];
+
+    public const string ItemName = "name";
 
     public IReadOnlySet<string> ParametersBehind(Condition condition)
     {

@@ -39,6 +39,10 @@
         {
           "choice": "wpf",
           "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, its view models and host in <project>.<name>.Core, calling the API through the .NET client of Src/Clients, which comes with it."
+        },
+        {
+          "choice": "worker",
+          "description": "The worker that runs the background jobs, written in the shape of dotnet new worker: <project>.Worker, named with -n Worker. presentation-join then moves the API's jobs into it, with their tests."
         }
       ],
       "description": "The presentation project's framework."
@@ -67,7 +71,7 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\" || (framework == \"wpf\" && (name == \"Infrastructure\" || name == \"Presentation\")))",
+      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\" || (framework == \"wpf\" && (name == \"Infrastructure\" || name == \"Presentation\"))))",
       "description": "Never set. -n names a project the template already writes, which would be overwritten, or with --framework wpf one whose <name>.Core is: choose another name, such as Portal."
     },
     "auth": {
@@ -204,6 +208,42 @@
       "isRequired": "(((framework == \"avalonia\" || framework == \"wpf\") || (framework == \"mcp\" && auth == \"local\")) && !hasApi)",
       "description": "Never set. --framework avalonia and --framework wpf call the API, and --framework mcp under local accounts takes the access keys it issues, and a project without the API has neither: add the presentation to a project that holds the API."
     },
+    "workerIsNamedWorker": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(framework == \"worker\" && name != \"Worker\")",
+      "description": "Never set. The worker is <project>.Worker in every project, the name presentation-join, the jobs' namespaces and the architecture tests read: choose -n Worker."
+    },
+    "workerTakesTheJobsOfTheApi": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(framework == \"worker\" && !hasApi)",
+      "description": "Never set. --framework worker takes the background jobs out of the API, and a project without the API runs them in a worker already: choose another framework, or add the worker to a project that holds the API."
+    },
+    "workerNeedsServerDatabase": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(framework == \"worker\" && database == \"sqlite\")",
+      "description": "Never set. The worker runs the jobs in a second process, and a SQLite file serves one: add the worker to a project generated with --database postgresql or sqlserver."
+    },
     "mySqlNotYetGenerated": {
       "type": "parameter",
       "datatype": "choice",
@@ -231,6 +271,10 @@
     "accounts": {
       "type": "computed",
       "value": "(localAuth || externalAuth)"
+    },
+    "postgreSql": {
+      "type": "computed",
+      "value": "(database == \"postgresql\")"
     },
     "sqlServer": {
       "type": "computed",
@@ -284,6 +328,17 @@
     "presentationWpf": {
       "type": "computed",
       "value": "(framework == \"wpf\")"
+    },
+    "presentationWorker": {
+      "type": "computed",
+      "value": "(framework == \"worker\")"
+    },
+    "ci": {
+      "type": "parameter",
+      "displayName": "Project generated with --ci",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "The project's --ci value: the worker's lines to add name the release workflow only where the project has it."
     },
     "agentFiles": {
       "type": "parameter",
@@ -702,6 +757,40 @@
       ]
     },
     {
+      "source": "../starters/worker/",
+      "target": "./",
+      "condition": "(presentationWorker)",
+      "modifiers": [
+        {
+          "condition": "(!localAuth)",
+          "exclude": [
+            "**/Features/Auth/**",
+            "**/AccountReminderRecipientDirectory.cs"
+          ]
+        },
+        {
+          "condition": "(!externalAuth)",
+          "exclude": [
+            "**/Features/ExternalIdentity/**",
+            "**/ExternalIdentityReminderRecipientDirectory.cs"
+          ]
+        },
+        {
+          "condition": "(!reminders)",
+          "exclude": [
+            "**/Features/Reminders/**"
+          ]
+        },
+        {
+          "condition": "(!anyFeature)",
+          "exclude": [
+            "**/AccountUserAccountDirectory.cs",
+            "**/ExternalIdentityUserAccountDirectory.cs"
+          ]
+        }
+      ]
+    },
+    {
       "source": "../starters/wpf/",
       "target": "./",
       "condition": "(presentationWpf)",
@@ -806,8 +895,17 @@
     {
       "source": "../../docs/",
       "target": "./docs/",
+      "condition": "(!presentationWorker)",
       "include": [
         "features/presentation.md"
+      ]
+    },
+    {
+      "source": "../../docs/",
+      "target": "./docs/",
+      "condition": "(presentationWorker)",
+      "include": [
+        "decisions/0025-jobs-run-in-a-worker-under-a-lease.md"
       ]
     },
     {
@@ -833,7 +931,7 @@
       "description": "Join the presentation project to the project.",
       "manualInstructions": [
         {
-          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<initials>.<name>/README.md lists them under 'Joining a project generated without one'. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates it as its scaffold.json describes, adds it with its tests to the solution and writes the .NET client where the project calls the API through it; creating it from its framework's template needs the network, and a project written whole, the MCP server, needs none. Commit the project."
+          "text": "At the project root, run dotnet run Tools/Tasks.cs presentation-join <project>.<name>, which makes the lines --presentation writes outside the project's own folders, all or none, as Src/Presentation/<initials>.<name>/README.md lists them under 'Joining a project generated without one', and for the worker first moves the API's jobs into it, on a clean git tree, and builds them there. Then run dotnet run Tools/Tasks.cs presentation-scaffold <project>.<name>, which creates it as its scaffold.json describes, adds it with its tests to the solution and writes the .NET client where the project calls the API through it; creating it from its framework's template needs the network, and a project written whole, the MCP server, needs none. Commit the project."
         }
       ],
       "continueOnError": true

@@ -512,8 +512,10 @@ the SQLite external-auth leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
-`Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. It offers no
-worker, whose jobs it cannot move. `--has-api`, true by default, says whether the project holds the
+`Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. For `worker`
+it brings ADR 0025 instead of the page, refuses every `-n` but `Worker` (`workerIsNamedWorker`), a
+project without the API (`workerTakesTheJobsOfTheApi`) and SQLite (`workerNeedsServerDatabase`), and
+the project's `presentation-join` moves the jobs, as [the worker](#the-worker) says. `--has-api`, true by default, says whether the project holds the
 API: its computed `api` conditions the README's lines, and `presentationNeedsTheApi` refuses a
 desktop client, or the MCP server under local accounts, in a project without it. It cannot read the project it runs
 in, so it declares what the starter's markers read as parameters and computed symbols of the same
@@ -528,7 +530,7 @@ without one", as an edit placed after or before the lines around it, or in their
 `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders` fails, for each
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
-Avalonia, `presentationWpf`, `dotnetClient` or `anyPresentation` for WPF, `presentationMcp` or `anyPresentation` for the MCP server, outside the files the item template brings whole and the solution, which
+Avalonia, `presentationWpf`, `dotnetClient` or `anyPresentation` for WPF, `presentationMcp` or `anyPresentation` for the MCP server, `jobsWorker` for the worker but the lines of a project without the API, outside the files the item template brings whole and the solution, which
 `presentation-scaffold` completes. The Blazor WebAssembly starter's `README.md` answers to the same
 rule for `webBlazorWasm` and `dotnetClient`, read by the project's `web-join` task, and
 `TheWebReadme_ListsEveryLineItsAppOrItsWorkspaceWritesOutsideItsFolders` holds it for
@@ -566,7 +568,8 @@ starter keeps its own `Components/App.razor`, a copy of the one the template wri
 resynchronise it with the new version's, and drop that component again.
 
 `presentationNameIsTaken` refuses each `-n` of `cleanarch-presentation` that would make
-`<Project>.<Name>` or its test project one of the template's own projects;
+`<Project>.<Name>` or its test project one of the template's own projects, but `Worker` for the
+worker itself;
 `ThePresentationItemsNameRefusal_NamesEveryProjectTheTemplateWrites` lists the projects under `Src`
 and `Tests` and fails until a new one is refused. Under `wpf` it also refuses each name whose
 `<Name>.Core` is one of them, `Infrastructure` and `Presentation` beyond those already refused, and the
@@ -590,6 +593,24 @@ a generated switch symbol, `jobsNamespace<Folder>`, whose value is the API's or 
 folder a new feature brings needs one, and `TemplatePackagingTests` fails until it has it. The API's
 own files condition what composes the jobs (`AddBackgroundJobs`, `AddAuthMaintenanceJobs`, the
 sweep's registration and the `Jobs` settings) on `!jobsWorker`.
+
+A project generated without the worker takes it later: `cleanarch-presentation --framework worker
+-n Worker` writes the starter and ADR 0025, and the project's `presentation-join` does what the
+template's sources and symbols do at generation. It moves the API's `Common/Jobs` and
+`Features/*/Jobs`, and the `Features/*/Jobs` of its unit tests, into the worker and its tests;
+renames each namespace they declare, in every file of the project, from `<Project>.Api.` to
+`<Project>.Worker.`, the rule `EveryNamespaceTheWorkerTakes_HasItsSwitchSymbol` holds the switch
+symbols to; and makes the edits the starter's `README.md` lists for the lines conditioned on
+`jobsWorker`, which also set ADR 0011 to `Superseded by` ADR 0025, since a decision is never erased, which `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders`
+holds. It refuses before writing while git reports a change to a file it would move, edit or remove,
+builds the solution and the worker's tests in a copy of the project with the join made, and writes
+nothing when that build fails, naming what a job uses that only the API declares. A line no option of
+the item can tell apart stays out of that branch: the API-alone sentence of the background jobs page
+is conditioned on `!jobsWorker` alone, so that no presentation project's README needs it, and a test
+literal that names a job namespace names the worker's, which the rename leaves alone. A launcher test
+generates a project with `--presentation api --presentation worker` and the same project without the
+worker, adds it with the item template and the join, and requires the two trees to be the same but
+for ADR 0011, superseded, and its row in the decisions index.
 
 ## Web lockfiles
 
@@ -824,7 +845,7 @@ and passes it; `TheCallersTheLauncherNames_AreExactlyWhatMakesTheTemplateAddTheA
 callers against `needsApi`. When the hosts chosen hold neither the API nor the worker, it shows the
 worker as answered for you and passes it; `TheWorkerTheLauncherAdds_IsExactlyWhatMakesTheTemplateAddIt`
 holds that rule against `needsWorker`. Inside a project, `presentation` asks the framework, then the name,
-proposing the framework's own (`Portal`, `Mcp`, `Desktop`).
+proposing the framework's own (`Portal`, `Mcp`, `Desktop`, `Worker`).
 
 ```bash
 dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive

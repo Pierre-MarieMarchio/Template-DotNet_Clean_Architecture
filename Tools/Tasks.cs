@@ -214,7 +214,15 @@ internal static class Tasks
                                            others are made all or none, every line they are placed
                                            by found before a file is written; then record the
                                            project in cleanarch.json, with the framework its
-                                           scaffold.json names
+                                           scaffold.json names. For <Project>.Worker it also moves
+                                           the API's Common/Jobs and Features/*/Jobs, and their unit
+                                           tests, into the worker, renames their namespaces from
+                                           <Project>.Api. to <Project>.Worker. wherever the project
+                                           names them; ADR 0011 is superseded by 0025, as the
+                                           README's edits say; it refuses while git
+                                           reports a change to a file it would touch, and builds the
+                                           solution and the worker's tests in a copy first, writing
+                                           nothing when they do not build
 
         Web apps:
           web-scaffold [<App>]             create each app under Src/Web/apps that holds a scaffold.json
@@ -863,7 +871,7 @@ internal static class Tasks
                 break;
 
             case "presentation-join":
-                PresentationJoin(projectFile, RequiredPresentation(task, name));
+                PresentationJoin(projectFile, RequiredPresentation(task, name), solution);
                 break;
 
             case "web-scaffold":
@@ -1883,7 +1891,7 @@ internal static class Tasks
     private static readonly Regex _joiningEdit = new(
         @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
 
-    private static void PresentationJoin(ProjectFile projectFile, string project)
+    private static void PresentationJoin(ProjectFile projectFile, string project, string solution)
     {
         string prefix = projectFile.Name + ".";
 
@@ -1903,7 +1911,15 @@ internal static class Tasks
                 $"{relative} holds no {_scaffoldDescriptor} to read its framework from, so no file was changed: name the folder cleanarch-presentation wrote, before presentation-scaffold creates it.");
         }
 
-        Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", required: true);
+        if (name == _workerName)
+        {
+            WorkerJoin(projectFile, relative, solution);
+        }
+        else
+        {
+            Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", required: true);
+        }
+
         //#if (api)
         PrintApiSteps(projectFile);
         //#endif
@@ -1914,6 +1930,263 @@ internal static class Tasks
         }
 
         RecordClient(projectFile);
+    }
+
+    private const string _workerName = "Worker";
+
+    private static readonly string[] _notInTheProject = [".git", "bin", "obj", "node_modules", "artifacts", "TestResults"];
+
+    private static readonly Regex _unreachable = new(
+        @"^\s*(?<file>[^\s(][^(\r\n]*)\(\d+,\d+\): error (?:CS0246|CS0103|CS0234): The (?:type or namespace )?name '(?<name>[^']+)'(?: does not exist in the namespace '(?<space>[^']+)')?",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(2));
+
+    private static void WorkerJoin(ProjectFile projectFile, string relative, string solution)
+    {
+        string root = projectFile.Root;
+        string readme = $"{relative}/README.md";
+
+        if (!Directory.Exists(projectFile.ProjectFolder("Src", "Presentation", "Api")))
+        {
+            throw new InvalidOperationException(
+                $"{projectFile.Name} holds no API, whose jobs the worker takes: a project without the API runs them in its worker already, so no file was changed.");
+        }
+
+        if (!File.Exists(Path.Combine(root, readme)))
+        {
+            throw new InvalidOperationException($"{readme} does not exist: name the folder cleanarch-presentation wrote under Src/Presentation.");
+        }
+
+        List<ReadmeEdit> edits = ReadmeEdits(File.ReadAllLines(Path.Combine(root, readme)), readme);
+        Dictionary<string, List<string>> files = EditedFiles(root, edits);
+        (ReadmeEdit[] made, ReadmeEdit[] inPlace) = MakeEdits(edits, files);
+        (string From, string To)[] moves = JobFilesToMove(projectFile);
+        (string From, string To)[] namespaces = MovedNamespaces(projectFile, moves);
+
+        var written = new Dictionary<string, (string Text, bool Bom)>(StringComparer.Ordinal);
+        foreach (string path in made.Select(edit => edit.Path).Distinct(StringComparer.Ordinal))
+        {
+            written[path] = (string.Join('\n', files[path]), HasBom(Path.Combine(root, path)));
+        }
+
+        string Renamed(string text) => namespaces.Aggregate(text, (current, space) => current.Replace(space.From, space.To, StringComparison.Ordinal));
+
+        foreach ((string from, string to) in moves)
+        {
+            written[to] = (Renamed(File.ReadAllText(Path.Combine(root, from))), HasBom(Path.Combine(root, from)));
+        }
+
+        string[] leaving = [.. moves.Select(move => move.From)];
+        foreach (string path in namespaces.Length == 0 ? [] : ProjectTextFiles(root).Where(path => !leaving.Contains(path, StringComparer.Ordinal)))
+        {
+            (string text, bool bom) = written.TryGetValue(path, out var pending) ? pending : (File.ReadAllText(Path.Combine(root, path)), HasBom(Path.Combine(root, path)));
+            string renamed = Renamed(text);
+
+            if (renamed != text || written.ContainsKey(path))
+            {
+                written[path] = (renamed, bom);
+            }
+        }
+
+        foreach (ReadmeEdit edit in inPlace)
+        {
+            Console.WriteLine($"In place already: {edit}");
+        }
+
+        string[] itemsOwn = [relative + "/", $"Tests/Presentation/{projectFile.FolderOf(_workerName + ".UnitTests")}/"];
+        string[] touched = [.. leaving, .. written.Keys.Except(moves.Select(move => move.To), StringComparer.Ordinal)];
+        if (touched.Length > 0)
+        {
+            RequireCommitted(root, touched, itemsOwn);
+        }
+
+        string trial = Directory.CreateTempSubdirectory("cleanarch-worker-").FullName;
+        try
+        {
+            CopyTree(root, trial, folder => _notInTheProject.Contains(Path.GetFileName(folder), StringComparer.Ordinal));
+            WriteTheJoin(trial, written, leaving);
+            BuildTheJobsInTheWorker(projectFile, trial, Path.Combine(trial, Path.GetFileName(solution)), [.. moves.Select(move => move.To)]);
+        }
+        finally
+        {
+            Directory.Delete(trial, recursive: true);
+        }
+
+        WriteTheJoin(root, written, leaving);
+
+        foreach ((string from, string to) in moves)
+        {
+            Console.WriteLine($"Moved: {from} to {to}");
+        }
+
+        foreach ((string from, string to) in namespaces)
+        {
+            Console.WriteLine($"Renamed: {from} to {to}");
+        }
+
+        foreach (ReadmeEdit edit in made)
+        {
+            Console.WriteLine($"Applied: {edit}");
+        }
+
+        Write(
+            $"Joined {relative} to the project, the jobs with it. Run `dotnet run Tools/Tasks.cs presentation-scaffold {projectFile.ProjectName(_workerName)}` "
+            + "next: it adds the worker and its tests to the solution.",
+            ConsoleColor.Green);
+    }
+
+    private static void WriteTheJoin(string root, Dictionary<string, (string Text, bool Bom)> written, string[] leaving)
+    {
+        foreach ((string path, (string text, bool bom)) in written)
+        {
+            string full = Path.Combine(root, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text, new UTF8Encoding(bom));
+        }
+
+        foreach (string path in leaving)
+        {
+            File.Delete(Path.Combine(root, path));
+        }
+
+        foreach (string folder in leaving.Select(path => Path.GetDirectoryName(Path.Combine(root, path))!).Distinct(StringComparer.Ordinal).OrderByDescending(folder => folder.Length))
+        {
+            for (string? empty = folder; empty is not null && Directory.Exists(empty) && !Directory.EnumerateFileSystemEntries(empty).Any(); empty = Path.GetDirectoryName(empty))
+            {
+                Directory.Delete(empty);
+            }
+        }
+    }
+
+    private static (string From, string To)[] JobFilesToMove(ProjectFile projectFile)
+    {
+        string root = projectFile.Root;
+        string api = projectFile.ProjectFolder("Src", "Presentation", "Api");
+        string apiTests = projectFile.ProjectFolder("Tests", "Presentation", "Api.UnitTests");
+        string worker = projectFile.ProjectFolder("Src", "Presentation", _workerName);
+        string workerTests = projectFile.ProjectFolder("Tests", "Presentation", _workerName + ".UnitTests");
+
+        IEnumerable<(string From, string To)> Folder(string folder, string from, string to) =>
+            Directory.Exists(folder)
+                ? Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                    .Select(file => (Relative(file), Relative(Path.Combine(to, Path.GetRelativePath(from, file)))))
+                : [];
+
+        IEnumerable<string> FeatureJobs(string project) =>
+            Directory.Exists(Path.Combine(project, "Features"))
+                ? Directory.EnumerateDirectories(Path.Combine(project, "Features")).Select(feature => Path.Combine(feature, "Jobs"))
+                : [];
+
+        string Relative(string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
+
+        (string From, string To)[] moves =
+        [
+            .. Folder(Path.Combine(api, "Common", "Jobs"), api, worker),
+            .. FeatureJobs(api).SelectMany(folder => Folder(folder, api, worker)),
+            .. FeatureJobs(apiTests).SelectMany(folder => Folder(folder, apiTests, workerTests)),
+        ];
+
+        string[] taken = [.. moves.Where(move => File.Exists(Path.Combine(root, move.To))).Select(move => move.To)];
+        return taken.Length == 0
+            ? moves
+            : throw new InvalidOperationException(
+                $"The worker holds these files already, which the API's jobs would replace, so no file was changed: {string.Join(", ", taken)}.");
+    }
+
+    private static (string From, string To)[] MovedNamespaces(ProjectFile projectFile, (string From, string To)[] moves)
+    {
+        string apiFolder = $"Src/Presentation/{projectFile.FolderOf("Api")}/";
+        string apiTestsFolder = $"Tests/Presentation/{projectFile.FolderOf("Api.UnitTests")}/";
+
+        string? Namespace(string from, string folder, string project) =>
+            from.StartsWith(folder, StringComparison.Ordinal) && from[folder.Length..].Split('/') is var parts && Array.IndexOf(parts, "Jobs") is > 0 and int jobs
+                ? $"{projectFile.Name}.{project}.{string.Join('.', parts[..(jobs + 1)])}"
+                : null;
+
+        return [.. moves
+            .Select(move => Namespace(move.From, apiFolder, "Api") ?? Namespace(move.From, apiTestsFolder, "Api.UnitTests"))
+            .OfType<string>()
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .Select(space => (space, space.Replace($"{projectFile.Name}.Api.", $"{projectFile.Name}.{_workerName}.", StringComparison.Ordinal)))];
+    }
+
+    private static IEnumerable<string> ProjectTextFiles(string root) =>
+        Directory.EnumerateFiles(root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Select(file => Path.GetRelativePath(root, file).Replace('\\', '/'))
+            .Where(path => !path.Split('/').SkipLast(1).Any(folder => _notInTheProject.Contains(folder, StringComparer.Ordinal)))
+            .Where(path => !File.ReadAllBytes(Path.Combine(root, path)).Contains((byte)0));
+
+    private static bool HasBom(string path) => File.ReadAllBytes(path) is [0xEF, 0xBB, 0xBF, ..];
+
+    private static void RequireCommitted(string root, string[] paths, string[] newFolders)
+    {
+        (int inside, _) = Capture(root, echo: false, "git", "rev-parse", "--is-inside-work-tree");
+        if (inside != 0)
+        {
+            throw new InvalidOperationException(
+                "presentation-join moves the API's jobs into the worker, which only `git restore` undoes, and this project is no git repository, so no file was changed: "
+                + "run `git init`, commit the project, then run the task again.");
+        }
+
+        (int exit, string output) = Capture(root, echo: false, "git", ["status", "--porcelain=v1", "--untracked-files=all", "--", .. paths]);
+        string[] changed = [.. output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Where(line => !(line.StartsWith("?? ", StringComparison.Ordinal) && newFolders.Any(folder => line[3..].StartsWith(folder, StringComparison.Ordinal))))];
+
+        if (exit != 0 || changed.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "presentation-join moves the API's jobs into the worker, which only `git restore` undoes, and these files it would move, edit or remove differ from "
+                + "what git last committed, so no file was changed: commit or restore them, then run the task again."
+                + Environment.NewLine + (exit != 0 ? output.TrimEnd() : string.Join(Environment.NewLine, changed)));
+        }
+    }
+
+    private static readonly Regex _declaredType = new(
+        @"^\s*(?:(?:public|internal|private|protected|static|sealed|abstract|partial|readonly|file)\s+)*(?:class|record|struct|interface|enum)\s+(?<type>[A-Za-z_]\w*)",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(2));
+
+    private static void BuildTheJobsInTheWorker(ProjectFile projectFile, string trial, string solution, string[] moved)
+    {
+        string workerTests = Path.Combine(
+            trial, "Tests", "Presentation", projectFile.FolderOf(_workerName + ".UnitTests"), projectFile.ProjectName(_workerName + ".UnitTests") + ".csproj");
+
+        foreach (string target in (string[])[solution, workerTests])
+        {
+            (int exit, string output) = Capture(trial, echo: true, "dotnet", "build", target);
+            if (exit == 0)
+            {
+                continue;
+            }
+
+            string[] apisTypes = [.. Directory.EnumerateFiles(projectFile.ProjectFolder("Src", "Presentation", "Api").Replace(projectFile.Root, trial, StringComparison.Ordinal), "*.cs", SearchOption.AllDirectories)
+                .SelectMany(file => _declaredType.Matches(File.ReadAllText(file)).Select(match => match.Groups["type"].Value))
+                .Distinct(StringComparer.Ordinal)];
+            string[] missing = [.. _unreachable.Matches(output)
+                .Select(match => (File: Path.GetRelativePath(trial, match.Groups["file"].Value.Trim()).Replace('\\', '/'), match))
+                .Select(found => $"{found.File} names "
+                    + (found.match.Groups["space"].Success ? $"{found.match.Groups["space"].Value}.{found.match.Groups["name"].Value}" : found.match.Groups["name"].Value)
+                    + (moved.Contains(found.File, StringComparer.Ordinal) && NamedApiTypes(Path.Combine(trial, found.File), apisTypes) is { Length: > 0 } named
+                        ? $", and with it {string.Join(", ", named)}"
+                        : string.Empty))
+                .Distinct(StringComparer.Ordinal)];
+
+            throw new InvalidOperationException(
+                missing.Length > 0
+                    ? "Built in a copy of the project with the jobs in the worker, these name what the worker cannot reach, a type or a namespace only the API declares, "
+                      + "so no file was changed: " + string.Join("; ", missing) + ". Move each such type to the application layer, or into the job's own folder, "
+                      + "commit, then run the task again."
+                    : $"Built in a copy of the project with the jobs in the worker, {Path.GetFileName(target)} does not build, so no file was changed:"
+                      + Environment.NewLine + output.TrimEnd());
+        }
+    }
+
+    private static string[] NamedApiTypes(string file, string[] apisTypes)
+    {
+        string code = File.ReadAllText(file);
+
+        return [.. apisTypes.Where(type => Regex.IsMatch(code, $@"\b{Regex.Escape(type)}\b", RegexOptions.None, TimeSpan.FromSeconds(2))).Order(StringComparer.Ordinal)];
     }
 
     private static void WebJoin(ProjectFile projectFile, string name, Dictionary<string, string> options)
@@ -2036,20 +2309,7 @@ internal static class Tasks
         }
 
         string listed = string.Join(" and ", edits.Select(edit => edit.Readme).Distinct(StringComparer.Ordinal));
-        var files = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-
-        foreach (ReadmeEdit edit in edits.Where(edit => !files.ContainsKey(edit.Path)))
-        {
-            string full = Path.Combine(repoRoot, edit.Path);
-
-            if (!File.Exists(full))
-            {
-                throw new InvalidOperationException($"{edit}: {edit.Path} does not exist, so no file was changed.");
-            }
-
-            files[edit.Path] = [.. File.ReadAllText(full).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')];
-        }
-
+        Dictionary<string, List<string>> files = EditedFiles(repoRoot, edits);
         (ReadmeEdit[] made, ReadmeEdit[] inPlace) = MakeEdits(edits, files);
 
         foreach (ReadmeEdit edit in inPlace)
@@ -2065,9 +2325,7 @@ internal static class Tasks
 
         foreach (string path in made.Select(edit => edit.Path).Distinct(StringComparer.Ordinal))
         {
-            string full = Path.Combine(repoRoot, path);
-            bool bom = File.ReadAllBytes(full) is [0xEF, 0xBB, 0xBF, ..];
-            File.WriteAllText(full, string.Join('\n', files[path]), new UTF8Encoding(bom));
+            WriteLines(repoRoot, path, files[path]);
         }
 
         foreach (ReadmeEdit edit in made)
@@ -2079,6 +2337,33 @@ internal static class Tasks
             $"Joined {folder} to the project. Run `dotnet run Tools/Tasks.cs {scaffoldTask} {Path.GetFileName(folder)}` "
             + "next: it creates the pages and adds the project to the solution.",
             ConsoleColor.Green);
+    }
+
+    private static Dictionary<string, List<string>> EditedFiles(string repoRoot, IEnumerable<ReadmeEdit> edits)
+    {
+        var files = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+        foreach (ReadmeEdit edit in edits.Where(edit => !files.ContainsKey(edit.Path)))
+        {
+            string full = Path.Combine(repoRoot, edit.Path);
+
+            if (!File.Exists(full))
+            {
+                throw new InvalidOperationException($"{edit}: {edit.Path} does not exist, so no file was changed.");
+            }
+
+            files[edit.Path] = [.. File.ReadAllText(full).Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')];
+        }
+
+        return files;
+    }
+
+    private static void WriteLines(string repoRoot, string path, List<string> lines)
+    {
+        string full = Path.Combine(repoRoot, path);
+        bool bom = File.Exists(full) && File.ReadAllBytes(full) is [0xEF, 0xBB, 0xBF, ..];
+        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+        File.WriteAllText(full, string.Join('\n', lines), new UTF8Encoding(bom));
     }
 
     private static (ReadmeEdit[] Made, ReadmeEdit[] InPlace) MakeEdits(IEnumerable<ReadmeEdit> edits, Dictionary<string, List<string>> files)
@@ -2495,6 +2780,9 @@ internal static class Tasks
             || (Path.GetDirectoryName(folder) == apps && Path.GetFileName(folder) != app));
     }
 
+    private static string Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+    //#endif
     private static void CopyTree(string source, string target, Func<string, bool> skip)
     {
         Directory.CreateDirectory(target);
@@ -2510,9 +2798,6 @@ internal static class Tasks
         }
     }
 
-    private static string Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
-
-    //#endif
     private static string Gate(string repoRoot, string fileName) => Path.Combine(repoRoot, "Tools", fileName);
 
     private const string _initialMigrationName = "InitialCreate";

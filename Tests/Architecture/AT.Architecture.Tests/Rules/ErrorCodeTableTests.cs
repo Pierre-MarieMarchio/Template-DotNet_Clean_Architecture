@@ -13,7 +13,7 @@ public sealed class ErrorCodeTableTests
 
     private static readonly Regex _citedCode = new($"`({_codeShape})`", RegexOptions.None, TimeSpan.FromSeconds(5));
 
-    private static readonly string[] _foldersThatAnswerNoRequest = ["Clients", "Jobs", "Locks"];
+    private static readonly string[] _foldersThatAnswerNoRequest = ["AppHost", "Clients", "Jobs", "Locks"];
 
     [Fact]
     public void EveryCodeTheSourceDeclares_HasARowInTheApiReference()
@@ -59,6 +59,7 @@ public sealed class ErrorCodeTableTests
     }
 
     [Theory]
+    [InlineData("Src/AppHost/X.AppHost/Common/Hosting/ProjectFile.cs", true)]
     [InlineData("Src/Infrastructure/Jobs/PurgeJob.cs", true)]
     [InlineData("Src/Application/Locks/Lease.cs", true)]
     [InlineData("Src/Infrastructure/Persistence/Migrations/Init.cs", true)]

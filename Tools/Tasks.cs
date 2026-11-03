@@ -635,12 +635,12 @@ internal static class Tasks
                 }
                 else if (maxCpuCount is null)
                 {
-                    Step("dotnet", "test", solution, "--configuration", configuration);
+                    Step("dotnet", "test", "--solution", solution, "--configuration", configuration);
                 }
                 else
                 {
                     Step("dotnet", ["build", solution, "--configuration", configuration, .. nodes]);
-                    Step("dotnet", ["test", solution, "--configuration", configuration, "--no-build", .. modules]);
+                    Step("dotnet", ["test", "--solution", solution, "--configuration", configuration, "--no-build", .. modules]);
                 }
 
                 break;
@@ -918,7 +918,7 @@ internal static class Tasks
                 Step("dotnet", ["restore", solution, .. nodes]);
                 VerifyWhatTheBuildDoesNotCheck(solution, "--no-restore");
                 Step("dotnet", ["build", solution, "--configuration", configuration, "--no-restore", .. nodes]);
-                Step("dotnet", ["test", solution, "--configuration", configuration, "--no-build", .. modules]);
+                Step("dotnet", ["test", "--solution", solution, "--configuration", configuration, "--no-build", .. modules]);
                 Step(
                     "dotnet", "ef", "migrations", "has-pending-model-changes",
                     "--project", persistence,
@@ -1603,7 +1603,7 @@ internal static class Tasks
         Step(
             "dotnet",
             [
-                "test", solution,
+                "test", "--solution", solution,
                 "--configuration", configuration,
                 .. built,
                 .. modules,
@@ -1637,7 +1637,7 @@ internal static class Tasks
             .Select(project => Path.GetRelativePath(repoRoot, project).Replace('\\', '/'))
             .Select(project =>
                 $"""
-                dotnet test "{project}" \
+                dotnet test --project "{project}" \
                   --artifacts-path artifacts/sonar \
                   --no-build \
                   --results-directory artifacts/sonar/TestResults \

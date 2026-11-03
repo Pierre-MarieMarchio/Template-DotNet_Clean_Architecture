@@ -30,7 +30,7 @@ what changing it costs.
 <!--#if (!agentFiles)-->
 | Clean comments: the code reads by itself; a comment stays only for what the code cannot say (a reason, an outside constraint, a reference), and one that explains the code calls for reworking the code | A comment that restates the code rots the next time anything moves | [Contributing](../../CONTRIBUTING.md) | — |
 <!--#endif-->
-| .NET SDK pinned by `global.json`, package versions in `Directory.Packages.props`, warnings as errors | One toolchain on every machine and in CI | [Build and CI](../guides/build-and-ci.md#the-gate) | — |
+| .NET SDK pinned by `global.json`, package versions in `Directory.Packages.props`, warnings as errors, a diagnostic silenced only by a row of the gate's list | One toolchain on every machine and in CI; `SilencedDiagnosticTests` refuses a silence without its row | [Build and CI](../guides/build-and-ci.md#the-gate) | — |
 | Every dependency at an exact version: packages, container images by digest, workflow actions by commit; Dependabot proposes updates in bands and ignores none | A tag or a range moves under you; an ignored dependency is one nobody revisits | [Supply chain](../guides/build-and-ci.md#supply-chain) | — |
 | ASP.NET Core MVC controllers, `Asp.Versioning`, `Microsoft.AspNetCore.OpenApi`; Scalar in Development | Attribute-routed controllers carry the conventions; the framework's own generator writes the document | [HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document) | — |
 <!--#if (postgreSql)-->

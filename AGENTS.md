@@ -88,7 +88,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
   explains what the code does means the code needs reworking: rename, extract or simplify it. A
   reason that outlives a line goes to an ADR or a page.
 - Never silence a diagnostic with `#pragma`, `<NoWarn>`, a lowered severity or a skipped test: fix the
-  code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) says why.
+  code, or ask. [The gate](docs/guides/build-and-ci.md#the-gate) says why, and lists with its reason
+  each silence this project keeps; `SilencedDiagnosticTests` fails on any other.
 - Extract an abstraction only once two real cases prove its shape.
 - A new setting is an options class with its `IValidateOptions`, bound with `ValidateOnStart`, and
   gets its own section in [the configuration reference](docs/reference/configuration.md);

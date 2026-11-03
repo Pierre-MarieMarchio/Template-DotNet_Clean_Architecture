@@ -189,7 +189,7 @@ builder.Services.AddEmailModule(builder.Configuration);
 <!--#if (files)-->
 builder.Services.AddStorageModule(builder.Configuration);
 <!--#endif-->
-builder.Services.AddControllers();
+var controllers = builder.Services.AddControllers();
 builder.Services.AddHttpPipeline(builder.Configuration);
 builder.Services.AddApiObservability(builder.Configuration);
 builder.Services.AddBackgroundJobs(builder.Configuration);

@@ -255,12 +255,34 @@ bands; nothing is ignored.
 | Node, pnpm and the web packages | `Src/Web/.node-version`, `Src/Web/package.json`, `Src/Web/pnpm-lock.yaml` |
 <!--#endif-->
 
-`NuGetAudit` fails the build on any known advisory, `low` included. Most arrive through a package
-nobody references directly; the answer is a transitive pin in `Directory.Packages.props` with a
-guidance line saying when it can go, never a relaxed audit level. Stay on the major the referencing
-package was built against. `dotnet list package --vulnerable --include-transitive` exits zero
-whatever it finds, so `verify` and CI read what it prints.
+### An advisory fails the build
 
+`NuGetAudit` fails the build on any known advisory, `low` included, on a direct package as on a
+transitive one: `Directory.Build.props` sets `NuGetAuditMode` to `all` and `NuGetAuditLevel` to
+`low`, under `TreatWarningsAsErrors`. A project that is born vulnerable does not build in silence
+([ADR 0030](../decisions/0030-any-known-advisory-fails-the-build.md)), so a build can fail the day an
+advisory is published, with no change to the code.
+
+When the build stops on an `NU1901`, `NU1902`, `NU1903` or `NU1904`:
+
+1. Read the warning: it names the package, its version and the advisory's address.
+2. Raise the package in `Directory.Packages.props`. Most advisories arrive through a package nobody
+   references directly; the answer is then a transitive pin there, with a guidance line saying
+   when it can go. Stay on the major the referencing package was built against.
+3. When no fixed version exists or can be taken yet, add `<NuGetAuditSuppress Include="<advisory URL>" />`
+   to `Directory.Build.props` for that one advisory, with a guidance line giving the date and the
+   reason, and remove it when a fixed version ships.
+
+Never lower the level, switch the audit to `direct`, or put the code in a `<NoWarn>`:
+`NuGetAuditPolicyTests` fails on each. `dotnet list package --vulnerable --include-transitive` exits
+zero whatever it finds, so `verify` and CI read what it prints.
+
+<!--#if (templateMaintenance)-->
+The template builds what nuget.org serves each week, so an advisory published since the last release
+shows before a user meets it:
+[the weekly build of the published package](../template/maintaining-the-template.md#the-published-package-each-week).
+
+<!--#endif-->
 ## Decisions
 
 The toolchain, the pinning and Dependabot are rows of

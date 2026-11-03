@@ -17,6 +17,17 @@ guarantee. A use case that fails writes one more line, under the `AppTemplate.Us
 `Information`: its message's name, its error code and its duration, never the message itself. A refusal's problem document carries the same `traceId` as `traceIdentifier`, so a
 client's report joins the log line, and the line joins the trace.
 
+With `OpenTelemetry:Enabled`, the same records also leave over OTLP, to the endpoint and with the
+protocol the metrics and traces use, and the console keeps writing. Each exported record carries its
+level, category, trace and span identifiers, its formatted message, its scopes and the values the
+message names as attributes: what the console line carries, no more. The collector receives
+those values in protobuf fields, so a line break in a value stays inside its field; that is why the
+rule that every host writes JSON to the console needs no counterpart here. The export applies the
+same `Logging:LogLevel:*` thresholds as the console. It adds no request header, cookie or body
+to a record: the request line above reads none of them, and anything you log yourself is exported as you wrote it, so keep
+a credential or a personal value out of a message, a scope and a structured value, as for the
+console.
+
 ## Metrics
 
 With `OpenTelemetry:Enabled`, the API exports over OTLP the meters of ASP.NET Core, `HttpClient`,
@@ -72,7 +83,8 @@ service name and version are read from the `AppTemplate.Api` assembly; `OpenTele
 overrides the name when several deployments share a collector.
 
 An unreachable collector is harmless: start-up succeeds, and failed exports are reported on the
-exporter's own event source, not in the log. With `Enabled` false, nothing is registered.
+exporter's own event source, not in the log. With `Enabled` false, nothing is registered: no
+exporter for logs, traces or metrics.
 
 ## Health checks
 
@@ -90,7 +102,7 @@ Neither says whether the jobs run: the `iterations` counters do.
 
 | Section | What it sets |
 |---|---|
-| [`OpenTelemetry`](../reference/configuration.md#opentelemetry) | the switch, the OTLP endpoint and protocol, the service name, the sampling ratio |
+| [`OpenTelemetry`](../reference/configuration.md#opentelemetry) | the switch for the logs, traces and metrics, the OTLP endpoint and protocol, the service name, the trace sampling ratio |
 | [`Shutdown`](../reference/configuration.md#shutdown) | how long in-flight requests drain |
 | [Standard ASP.NET Core keys](../reference/configuration.md#standard-aspnet-core-keys) | `Logging:LogLevel:*` |
 

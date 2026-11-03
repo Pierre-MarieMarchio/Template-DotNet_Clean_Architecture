@@ -472,8 +472,8 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Enabled` | bool | `false` | Off registers no instrumentation and no exporter. |
-| `OtlpEndpoint` | string | `""` | For example `http://collector:4317`. |
+| `Enabled` | bool | `false` | Off registers no instrumentation and no exporter. On exports the logs, traces and metrics over OTLP; the logs also stay on the JSON console. An exported log carries its formatted message, its scopes and its structured values, as the console does. |
+| `OtlpEndpoint` | string | `""` | For example `http://collector:4317`. One endpoint for the logs, traces and metrics. |
 | `OtlpProtocol` | string | `Grpc` | `Grpc` or `HttpProtobuf`. |
 | `ServiceName` | string | the host's assembly name | Blank is refused; remove the key instead. |
 | `TracesSamplingRatio` | double | `1.0` | Over 0, at most 1. |

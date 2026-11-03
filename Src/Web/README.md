@@ -131,7 +131,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/getting-started/overview.md`, after the line:
 
   ```markdown
-  | Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case; `Tools/NewSetting.cs` and `Tools/NewEvent.cs`, a validated setting and a domain event |
+  | Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case; `Tools/NewSetting.cs` and `Tools/NewEvent.cs`, a validated setting and a domain event; `Tools/UpgradeReport.cs`, what a newer version of the package changes |
   ```
 
   add:

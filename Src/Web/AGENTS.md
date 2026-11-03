@@ -28,8 +28,9 @@ From `Src/Web`, after `corepack enable` once per machine:
 - The workspace lockfile: pnpm writes it; commit it with the change that moved it, since CI and every
   image install exactly what it records.
 - `Src/Web/patches/`: `pnpm patch` and `pnpm patch-commit` write it, and `patchedDependencies` in
-  `Src/Web/pnpm-workspace.yaml` names it; a new version of the patched package, openapi-typescript's
-  `@redocly/openapi-core` included, needs the patch checked again.
+  `Src/Web/pnpm-workspace.yaml` names it, by a version range where the first install resolves the
+  newest release, as for openapi-typescript's `@redocly/openapi-core`; an install that fails because
+  a new release refuses the patch needs the patch made again from that release.
 
 ## Rules
 

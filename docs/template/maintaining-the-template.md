@@ -54,16 +54,21 @@ CI and release workflows run it before building, under `templateMaintenance` blo
 ## The acceptance matrix
 
 `.github/workflows/template-acceptance.yml` packs the template package and `CleanArch.Cli` once, chooses the legs the
-change can affect, and per leg installs that `.nupkg`, generates under another name, asserts the source name leaked nowhere, checks
+change can affect, and per leg installs that `.nupkg`, generates under another name, records the using directives it wrote, asserts the source name leaked nowhere, checks
 its `cleanarch.json` against the leg's options with `.template.config/acceptance/CheckProjectFile.cs`, bootstraps
 (the project's tool pinned from that packed `CleanArch.Cli`, which `dotnet cleanarch` then names
-the project with, the formatting, then `migration-initial` after asserting no migration was generated, and once more to
+the project with, the formatting, which fails the leg if it removes one of those usings, as
+[usings under a marker](#usings-under-a-marker) says, then `migration-initial` after asserting no migration was generated, and once more to
 prove it creates nothing), builds with warnings as errors, runs `format` for what the build does not check, runs the Docker-free tests, checks every generated context for
 pending model changes, runs the generated project's `hygiene`, and checks every path its pages cite
 with this checkout's `Tools/CheckDocPaths.cs`. The legs that set `integration` also run the
 integration suites, on the runner's Docker through Testcontainers, and the defaults, SQL Server and
 SQLite defaults legs then run the generated project's `dotnet run Tools/Tasks.cs end-to-end` against
-its Compose stack. The defaults leg, the local-auth leg without examples and the external-auth leg
+its Compose stack. The leg that sets `coverage`, the worker, MCP and Blazor WebAssembly leg with
+external sign-in and every example, then runs the generated project's `coverage` task, every suite
+again under coverage, against the `coverage.minimum` it carries, which every shape shares and nothing
+lowers to pass; its suites take under a minute, so the step adds about two minutes to a leg of about
+seven and a half. The defaults leg, the local-auth leg without examples and the external-auth leg
 without examples also run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
 aggregate one on `get,list,create` in turn, the aggregates after `new-use-case` adds a command, a
 query, a command without input, a query with typed inputs and a command with the id and a body to
@@ -99,8 +104,10 @@ and for `/health`. The leg that adds a first app adds the presentation project t
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
 `presentation-join` task, and from there runs as those three do. The legs that pass `--presentation worker`
 build and test the worker with the rest; the generator leg among them writes the deleted-account sweep
-into the worker, and the two that start the stack fail unless the worker logs a completed pass and
-the API starts no job loop. The legs that pass `--presentation mcp` with the API start the stack and
+into the worker, and the two that start the stack fail unless the worker, still running, logs a
+completed pass within two minutes of the stack being up, and the API starts no job loop. Each of
+those checks greps the logs captured whole, since `grep -q` closing a pipe early fails the pipeline
+under `pipefail` and reads a logged pass as none. The legs that pass `--presentation mcp` with the API start the stack and
 call the MCP server over raw JSON-RPC: it answers `/health` and refuses a call without a credential; under
 an external provider its `401` names its resource metadata, which names the provider; under local
 accounts the leg signs the seeded administrator in, creates an access key that writes and one that
@@ -175,7 +182,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 
 | A change to | Runs |
 |---|---|
-| `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release workflow and its configuration | no leg |
+| `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
@@ -336,6 +343,24 @@ No object store runs.
 Read a page in the default form, in `--auth none --examples none --files false`, and in each form its
 markers distinguish: no broken link or anchor, no marker left, no orphan punctuation, no page about an
 absent module.
+
+## Usings under a marker
+
+A using stands under the condition of the lines that read what it brings in, no wider: a using kept
+in a form where nothing reads it is IDE0005, which fails that form's build, warnings being errors.
+The legs build some forms only, and bootstrap's formatting would remove such a using before their
+build sees it, so two checks hold the rule.
+
+| Check | What it judges | Where |
+|---|---|---|
+| `Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs` | every form `template.json` can generate, a leg's or not: each combination of options it does not refuse, the files its sources and modifiers write for it, and the lines of each C# file its markers keep, `//#if` and `/*#if ... #endif*/` alike; a using of a project namespace no kept line reads fails, naming the file, the namespace and the options of a form that keeps it | template-only, in the architecture tests |
+| `Record the using directives the template wrote`, then `Bootstrap formatting` | the forms the legs generate, every using alike: a using bootstrap's IDE0005 removes from a file the template wrote fails the leg | `.github/workflows/template-acceptance.yml` |
+
+The test judges a namespace by the names the template's own C# files declare in it, types, their
+attributes' short names and extension methods, and a line as reading a name it spells. It leaves out
+what it cannot know: a namespace from a package, and the projects an official CLI creates, whose
+`scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs build.
+A form the test reports runs with the options it names: generate it and build it to see IDE0005.
 
 ## Web sources
 
@@ -542,8 +567,25 @@ sweep's registration and the `Jobs` settings) on `!jobsWorker`.
 The repository's `Src/Web/pnpm-lock.yaml` locks every app at once, so it is excluded from generation.
 `dotnet run Tools/Tasks.cs web-lockfiles` writes the lockfile of each shape holding a `package.json`
 into `.template.config/variants/web-<App>/Src/Web/`; a framework app gets none, since `web-scaffold`
-writes it where the app is created. Run the task after any change to the union lockfile, Dependabot's
-included; `--check` fails until you do.
+writes it where the app is created. Run the task after any change to the union lockfile; `--check`
+fails until you do.
+
+On every pull request, the `Web lockfiles` job of `.github/workflows/template-web-lockfiles.yml` runs
+the task, uploads the lockfiles it changed and fails, naming the command. On a Dependabot pull request
+of the web workspace, `.github/workflows/template-web-lockfiles-commit.yml` then commits them to the
+pull request's branch:
+
+| Facet | How |
+|---|---|
+| Trigger | `workflow_run` on the failed run, kept only for a `pull_request` run Dependabot started on a `dependabot/npm_and_yarn/` branch of this repository |
+| What runs with the write token | nothing from the pull request: no checkout, only `gh api` over the uploaded files, each a regular file at a lockfile path the branch already holds |
+| Commit | made through the API on the commit the lockfiles were written for; the branch moves only if it still points there, so a newer push wins and its own run writes them |
+| Checks | a commit made with `GITHUB_TOKEN` starts no workflow, so the checks run on the next event: update the branch with `develop`, which a merge requires anyway, or close and reopen the pull request |
+
+The run that writes the lockfiles has a read-only token and runs the pull request's code, as any pull
+request's checks do; the run that writes to the repository runs none of it, which `pull_request_target`
+checking out the branch would. A personal token or an app would start the checks at once, at the cost
+of a secret that can push, which this repository does not hold.
 
 ## The .NET client
 
@@ -628,6 +670,14 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/): a `feat` or a
 `fix` lands in the changelog, a `!` or a `BREAKING CHANGE` footer makes the next version a major one,
 and the other types stay out of it. A working branch is kept after its merge.
+
+A squashed pull request lands under its title, which release-please skips in silence unless it is a
+conventional commit. The `Conventional Commits title` job of
+`.github/workflows/template-pull-request-title.yml` checks the title of each pull request to
+`develop`, again whenever it is edited: `<type>[(<scope>)][!]: <subject>`, the type one of the
+changelog sections of `.github/release-please/config.json` (`feat`, `fix`, `perf`, `revert`, `docs`,
+`refactor`, `test`, `build`, `ci`, `chore`, `style`), the scope in lower case. Its step first proves
+the pattern accepts the titles release-please and Dependabot write and refuses a few that are not.
 
 The checks run on the pull request, which must be up to date with `develop`, so the merged tree is
 the one they passed. A push to `develop` runs CI, CodeQL and the release workflow; the acceptance

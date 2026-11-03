@@ -118,12 +118,14 @@ internal static class StoredFileSortMap
             cursor.Key,
             CultureInfo.InvariantCulture,
             DateTimeStyles.RoundtripKind,
-            out DateTimeOffset key))
+            out DateTimeOffset parsed))
         {
             throw new InvalidOperationException(
                 "The cursor's key is not a valid date/time: CursorKeys should have rejected "
                 + "it before this was ever reached.");
         }
+
+        var key = parsed.ToUniversalTime();
 
         return direction == SortDirection.Ascending
             ? source.Where(record =>

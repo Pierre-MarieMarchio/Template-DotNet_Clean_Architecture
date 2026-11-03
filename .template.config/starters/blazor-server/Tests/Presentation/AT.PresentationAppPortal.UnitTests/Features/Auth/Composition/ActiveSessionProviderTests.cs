@@ -1,7 +1,6 @@
 ﻿using System.Globalization;
 using System.Security.Claims;
 using AppTemplate.Application.Auth.Features.Sessions.UseCases.Queries.ListSessions;
-using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using AppTemplate.PresentationAppPortal.Common.Security;
 using AppTemplate.PresentationAppPortal.Features.Auth.Composition;

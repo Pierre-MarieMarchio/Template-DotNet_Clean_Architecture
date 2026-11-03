@@ -129,6 +129,13 @@ public sealed class ConditionedUsingTests
         var audit = UsingAudit.Run(_forms.Value, _template.Value);
 
         audit.FilesWithMarkers.ShouldBeGreaterThan(0, "No C# file of the template carries a marker, so this rule reads the wrong tree.");
+        _template.Value.Files.Keys.ShouldContain(
+            path => path.StartsWith(".template.config/starters/", StringComparison.Ordinal),
+            "No C# file of a presentation starter was read, so the audit judges none of the files they write.");
+        _template.Value.Files.Keys.ShouldContain(
+            path => path.StartsWith(".template.config/variants/", StringComparison.Ordinal),
+            "No C# file of a variant was read, so the audit judges none of the files they write.");
+        _template.Value.Declarations.ShouldNotBeEmpty("No file of the generated client was read, so no using of its namespaces is judged.");
         audit.Judged.ShouldBeGreaterThan(0, "No using of a project namespace was judged, so the audit reads no declaration.");
         audit.Offenders.ShouldBeEmpty(
             "A using of the project's own namespaces stays in a generated form whose lines read nothing it brings in, so IDE0005 "
@@ -192,28 +199,35 @@ public sealed class ConditionedUsingTests
 
     private sealed record AuditResult(int FilesWithMarkers, int Judged, List<string> Offenders);
 
-    private sealed class SourceTree(IReadOnlyDictionary<string, string> files, IReadOnlySet<string> scaffoldedProjects)
+    private sealed class SourceTree(IReadOnlyDictionary<string, string> files, IReadOnlyDictionary<string, string> declarations, IReadOnlySet<string> scaffoldedProjects)
     {
-        private static readonly string[] _skipped = ["bin", "obj", "node_modules", ".git", ".claude", "Generated", "Migrations", "Launcher", "Tools", "docs"];
+        private const string _generated = "Generated";
+
+        private static readonly string[] _skipped = ["bin", "obj", "node_modules", ".git", ".claude", "Migrations", "Launcher", "Tools", "docs"];
 
         private static readonly Regex _dotnetScaffold = new(@"""kind""\s*:\s*""dotnet""", RegexOptions.None, TimeSpan.FromSeconds(1));
 
         internal IReadOnlyDictionary<string, string> Files { get; } = files;
 
+        internal IReadOnlyDictionary<string, string> Declarations { get; } = declarations;
+
         internal IReadOnlySet<string> ScaffoldedProjects { get; } = scaffoldedProjects;
 
         internal static SourceTree FromText(IReadOnlyDictionary<string, string> files) =>
-            new(files, new HashSet<string>(StringComparer.Ordinal));
+            new(files, new Dictionary<string, string>(StringComparer.Ordinal), new HashSet<string>(StringComparer.Ordinal));
 
         internal static SourceTree FromDisk(string root)
         {
             var files = new Dictionary<string, string>(StringComparer.Ordinal);
+            var declarations = new Dictionary<string, string>(StringComparer.Ordinal);
             var scaffolded = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Stack<string>([root]);
 
             while (pending.TryPop(out string? directory))
             {
-                if (!Read(Relative(root, directory)))
+                string relative = Relative(root, directory);
+
+                if (!Read(relative))
                 {
                     continue;
                 }
@@ -225,9 +239,11 @@ public sealed class ConditionedUsingTests
                     scaffolded.UnionWith(Directory.EnumerateFiles(directory, "*.csproj").Select(Path.GetFileNameWithoutExtension).OfType<string>());
                 }
 
+                var read = relative.Split('/').Contains(_generated, StringComparer.Ordinal) ? declarations : files;
+
                 foreach (string file in Directory.EnumerateFiles(directory, "*.cs"))
                 {
-                    files[Relative(root, file)] = File.ReadAllText(file);
+                    read[Relative(root, file)] = File.ReadAllText(file);
                 }
 
                 foreach (string child in Directory.EnumerateDirectories(directory).Where(child => !_skipped.Contains(Path.GetFileName(child), StringComparer.Ordinal)))
@@ -236,13 +252,17 @@ public sealed class ConditionedUsingTests
                 }
             }
 
-            return new SourceTree(files, scaffolded);
+            return new SourceTree(files, declarations, scaffolded);
         }
 
-        private static bool Read(string relative) =>
-            !relative.StartsWith(".template.config/", StringComparison.Ordinal)
-            || ((relative.StartsWith(".template.config/variants/", StringComparison.Ordinal) || relative.StartsWith(".template.config/starters/", StringComparison.Ordinal))
-                && !relative.StartsWith(".template.config/variants/refused", StringComparison.Ordinal));
+        private static bool Read(string relative) => (relative + "/") switch
+        {
+            ".template.config/" => true,
+            var folder when folder.StartsWith(".template.config/variants/refused/", StringComparison.Ordinal) => false,
+            var folder when folder.StartsWith(".template.config/", StringComparison.Ordinal) =>
+                folder.StartsWith(".template.config/variants/", StringComparison.Ordinal) || folder.StartsWith(".template.config/starters/", StringComparison.Ordinal),
+            _ => true,
+        };
 
         private static string Relative(string root, string path)
         {
@@ -352,7 +372,7 @@ public sealed class ConditionedUsingTests
         {
             var provided = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
-            foreach (string text in tree.Files.Values)
+            foreach (string text in tree.Files.Values.Concat(tree.Declarations.Values))
             {
                 if (_namespace.Match(text) is not { Success: true } declared)
                 {

@@ -4,7 +4,6 @@ using System.Net;
 using Microsoft.AspNetCore.Authorization;
 //#if (!publicApi)
 using Microsoft.AspNetCore.Authorization.Infrastructure;
-using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 //#endif

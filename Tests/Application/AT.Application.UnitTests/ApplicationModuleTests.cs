@@ -1,8 +1,10 @@
 ﻿//#if (files)
 using AppTemplate.Application.Features.Files.Configuration.Options;
+//#endif
+//#if (files && todoLists)
 using AppTemplate.Application.Features.Files.UseCases.Commands.RegisterFile;
 //#endif
-//#if (reminders)
+//#if (reminders && todoLists)
 using AppTemplate.Application.Features.Reminders.UseCases.Commands.ScheduleReminder;
 //#endif
 //#if (todoLists)

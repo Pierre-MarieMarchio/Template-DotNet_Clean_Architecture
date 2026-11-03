@@ -87,7 +87,9 @@ public sealed class Questionnaire
         {
             if (!Asks)
             {
-                throw new LauncherException("The template can't generate a project with these options:" + Environment.NewLine + Explanation(refused));
+                throw new LauncherException(
+                    "The template can't generate a project with these options:" + Environment.NewLine + Explanation(refused)
+                    + Environment.NewLine + "Nothing was written. Run it again with the change each line asks for.");
             }
 
             Conversation.Warn(AskedAgain(manifest, refused));
@@ -123,7 +125,7 @@ public sealed class Questionnaire
     }
 
     private static string Explanation(IReadOnlyList<Refusal> refused) =>
-        string.Join(Environment.NewLine, refused.Select(refusal => $"{refusal.Explanation} (refused by --{refusal.CliName})"));
+        string.Join(Environment.NewLine, refused.Select(refusal => "- " + refusal.Explanation));
 
     private static string? Sentence(string? problem) =>
         string.IsNullOrEmpty(problem) ? problem : char.ToUpperInvariant(problem[0]) + problem[1..];

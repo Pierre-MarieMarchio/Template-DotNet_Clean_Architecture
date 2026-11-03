@@ -117,6 +117,65 @@ public sealed class ProjectSetupTests : IDisposable
     }
 
     [Fact]
+    public void AFailedBootstrap_NamesTheLastError_TheJournalWithTheFullOutput_AndTheCommandToRun()
+    {
+        string output = "error CS0246: The type or namespace name 'Missing' could not be found\n" + string.Join('\n', Enumerable.Range(1, 8).Select(number => $"line {number}")) + "\n";
+        _bootstrap = new ProcessResult(1, output);
+
+        SetupOutcome outcome = RunAll()[1];
+
+        string journal = Path.Combine(_root, "artifacts", "bootstrap.log");
+        string why = outcome.Why.ShouldNotBeNull();
+        why.ShouldContain("Last error: error CS0246");
+        why.ShouldContain("line 8");
+        why.ShouldContain("The full output is in " + journal);
+        File.ReadAllText(journal).ShouldContain("line 1");
+        File.ReadAllText(journal).ShouldContain("error CS0246");
+        outcome.Rerun.ShouldBe([ProjectSetup.BootstrapCommand]);
+    }
+
+    [Fact]
+    public void AProjectToolNoSourceHolds_IsNamedWithItsCause_AndTheInstallThatFixesIt()
+    {
+        _bootstrap = new ProcessResult(1, "Build succeeded.\n    0 Error(s)\n> dotnet tool install CleanArch.Cli --local --version 1.2.3\nVersion 1.2.3 of package cleanarch.cli is not found in NuGet feeds https://api.nuget.org/v3/index.json.\n'dotnet tool install CleanArch.Cli' exited with 1.\n");
+
+        SetupOutcome outcome = RunAll()[1];
+
+        outcome.Status.ShouldBe(SetupStatus.Failed);
+        string why = outcome.Why.ShouldNotBeNull();
+        why.ShouldContain("Last error: Version 1.2.3 of package cleanarch.cli is not found in NuGet feeds");
+        why.ShouldContain("CleanArch.Cli 1.2.3, the tool this project pins, isn't on a NuGet source this machine uses");
+        why.ShouldContain("CleanArch.Cli.1.2.3.nupkg");
+        why.ShouldContain("then run bootstrap again");
+        outcome.Rerun.ShouldBe(["dotnet tool install CleanArch.Cli --local --version 1.2.3 --add-source <folder holding CleanArch.Cli.1.2.3.nupkg>", ProjectSetup.BootstrapCommand]);
+    }
+
+    [Theory]
+    [InlineData("error NU1102: Unable to find package CleanArch.Cli with version (>= 1.2.3)", true)]
+    [InlineData("error NU1101: Unable to find package Some.Other.Tool", false)]
+    [InlineData("error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.", false)]
+    public void TheProjectToolNoSourceHolds_IsToldApartFromOtherRestoreFailures(string output, bool expected) =>
+        ProjectSetup.ProjectToolNotFound(output).ShouldBe(expected);
+
+    [Theory]
+    [InlineData("GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL", true)]
+    [InlineData("GIT_AUTHOR_NAME", "", "GIT_AUTHOR_EMAIL", "", false)]
+    public void TheGitEnvironmentVariables_CountAsAnIdentity_WhenAuthorAndCommitterAreBothThere(string authorName, string committerName, string authorEmail, string committerEmail, bool known)
+    {
+        _identity = false;
+        string[] set = [.. new[] { authorName, committerName, authorEmail, committerEmail }.Where(name => name.Length > 0)];
+        var setup = new ProjectSetup(_processes, _root, "1.2.3", null, name => set.Contains(name) ? "Ada" : null);
+
+        SetupOutcome outcome = setup.Run(ProjectSetup.FirstCommit, []);
+
+        (outcome.Status == SetupStatus.Done).ShouldBe(known);
+        if (!known)
+        {
+            outcome.Why.ShouldNotBeNull().ShouldContain("GIT_COMMITTER_NAME");
+        }
+    }
+
+    [Fact]
     public void AFailedFirstCommit_AfterASuccessfulInit_LeavesNoInit_AndItsCommitTakesWhatBootstrapWrote()
     {
         _add = new ProcessResult(128, "error: open(\"Src/Application/AS.Application.Auth/Features/Accounts/Model/Errors/AccountsErrors.cs\"): Filename too long\nfatal: adding files failed\n");

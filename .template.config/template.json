@@ -2457,7 +2457,7 @@
       "description": "Bootstrap the project before anything else.",
       "manualInstructions": [
         {
-          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, writes the OpenAPI reference, restores the local tools and creates each context's initial migration. It needs the network, not Docker."
+          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, writes the OpenAPI reference, restores the local tools and creates each context's initial migration. It needs the network, not Docker. dotnet new creates no git repository: run git init before the first commit. dnx CleanArch.Create -- new --setup does the git init, the commits, bootstrap and the .env copy in one go."
         }
       ],
       "continueOnError": true
@@ -2468,7 +2468,7 @@
       "description": "Bootstrap the project before anything else.",
       "manualInstructions": [
         {
-          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, restores the local tools and creates each context's initial migration. It needs the network, not Docker."
+          "text": "In the project folder, run dotnet run Tools/Tasks.cs bootstrap and commit what it writes: the tests, verify and the stack assume it ran. It formats the usings around the project's name, restores the local tools and creates each context's initial migration. It needs the network, not Docker. dotnet new creates no git repository: run git init before the first commit. dnx CleanArch.Create -- new --setup does the git init, the commits, bootstrap and the .env copy in one go."
         }
       ],
       "continueOnError": true

@@ -1,5 +1,6 @@
 ﻿#:property UseAppHost=false
 
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -26,40 +27,20 @@ internal static class NewEvent
         + "                it re-derives its precondition and changes nothing when it runs twice (ADR 0006).\n"
         + "  --unconsumed  instead of a consumer, the reason nothing listens, written beside the event's name in\n"
         + "                DomainEventTests. One of the two is required: an event is consumed or listed.\n"
-        + "  --fields      what the event carries besides OccurredOn, which it always ends with. Name:Type, a type\n"
-        + "                of Guid, string, int, long, bool, decimal, DateOnly or DateTimeOffset. By default the\n"
-        + "                id of the feature's aggregate, when it has exactly one repository.\n"
+        + "  --fields      what the event carries besides OccurredOn, which it always ends with. Name:type, in the\n"
+        + "                grammar of new-feature --fields, a type of Guid, string, int, long, bool, decimal,\n"
+        + "                DateOnly or DateTimeOffset, with no length, precision, bound or '?': no column holds\n"
+        + "                an event, and the aggregate checks a value before it raises the event with it. By\n"
+        + "                default the id of the feature's aggregate, when it has exactly one repository.\n"
         + "  --dry-run     print what would be written, and write nothing.\n"
         + "  --root        the tree to write into, default the current directory.\n"
         + "       dotnet run Tools/NewEvent.cs --self-test";
 
     private static readonly string[] _optionNames = ["--consumer", "--unconsumed", "--fields", "--root", "--dry-run"];
 
-    private static readonly string[] _fieldTypes = ["Guid", "string", "int", "long", "bool", "decimal", "DateOnly", "DateTimeOffset"];
-
-    private static readonly string[] _keywords =
-    [
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
-        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
-        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
-        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
-        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
-        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
-        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
-    ];
-
-    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _usingLine = new(@"^using [A-Z][\w.]*;$", RegexOptions.None, TimeSpan.FromSeconds(1));
-
     private sealed record Emission(string Path, string Content);
 
-    private sealed record Edit(string Path, string Description, Func<string, string?> Apply);
-
     private sealed record Request(string? Features, string? Name, string? Consumer, string? Unconsumed, string? Fields, string Root, bool DryRun);
-
-    private sealed record Field(string Name, string Type);
 
     private sealed record Spec(
         string Prefix,
@@ -120,47 +101,32 @@ internal static class NewEvent
             return Refuse(error, problems);
         }
 
-        var (edits, documents) = Edits(spec, root, problems);
+        var editor = Edits(spec, root, problems);
 
         if (problems.Count > 0)
         {
             return Refuse(error, problems);
         }
 
-        var changed = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var edit in edits)
-        {
-            string current = changed.TryGetValue(edit.Path, out string? pending) ? pending : documents[edit.Path];
-            string? next = edit.Apply(current);
-
-            if (next is null)
-            {
-                problems.Add($"{edit.Description}: its anchor is not in {edit.Path}, so nothing could be written. Fix that file, or make this edit by hand.");
-
-                continue;
-            }
-
-            changed[edit.Path] = next;
-        }
-
-        foreach (string path in changed.Where(pair => pair.Value == documents[pair.Key]).Select(pair => pair.Key).ToList())
-        {
-            changed.Remove(path);
-        }
+        problems.AddRange(editor.Failures.Select(failure => $"{failure} Fix that file, or make this edit by hand."));
 
         if (problems.Count > 0)
         {
             return Refuse(error, problems);
         }
 
-        Emission? manifest = spec.Manifest is null ? null : ManifestWith(root, spec.Manifest, emissions);
+        var replaced = TextEdits.Replacements(editor).ToList();
+
+        if (spec.Manifest is { } manifest)
+        {
+            replaced.Add((manifest, File.ReadAllBytes(Path.Combine(root, manifest)), TextEdits.Encode(manifest, ManifestWith(root, manifest, emissions))));
+        }
 
         if (!request.DryRun)
         {
             try
             {
-                WriteAll(root, emissions, changed, manifest);
+                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, TextEdits.Encode(emission.Path, emission.Content)))], replaced);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -170,7 +136,7 @@ internal static class NewEvent
             }
         }
 
-        Report(output, spec, emissions, changed.Keys, request.DryRun);
+        Report(output, spec, emissions, editor.Changed.Select(sheet => sheet.Path), request.DryRun);
 
         return 0;
     }
@@ -254,12 +220,12 @@ internal static class NewEvent
         string features = request.Features ?? string.Empty;
         string name = request.Name ?? string.Empty;
 
-        if (!_pascalCase.IsMatch(features))
+        if (!CSharpNames.PascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a feature folder: <Features> is PascalCase and plural, e.g. Invoices.");
         }
 
-        if (!_pascalCase.IsMatch(name))
+        if (!CSharpNames.PascalCase.IsMatch(name))
         {
             problems.Add($"'{name}' is not an event name: <Event> is PascalCase, e.g. InvoicePaidDomainEvent.");
         }
@@ -292,7 +258,7 @@ internal static class NewEvent
         {
             string[] parts = consumer.Split(':');
 
-            if (parts.Length != 2 || !_pascalCase.IsMatch(parts[0]) || !_pascalCase.IsMatch(parts[1]))
+            if (parts.Length != 2 || !CSharpNames.PascalCase.IsMatch(parts[0]) || !CSharpNames.PascalCase.IsMatch(parts[1]))
             {
                 problems.Add($"--consumer '{consumer}' is not written <Features>:<Reaction>, both PascalCase, e.g. Reminders:CancelReminders.");
             }
@@ -405,7 +371,7 @@ internal static class NewEvent
                     .Select(Path.GetFileNameWithoutExtension)
                     .OfType<string>()
                     .Select(file => file[1..^"Repository".Length])
-                    .Where(type => _pascalCase.IsMatch(type))
+                    .Where(type => CSharpNames.PascalCase.IsMatch(type))
                     .Order(StringComparer.Ordinal)]
                 : [];
 
@@ -418,42 +384,19 @@ internal static class NewEvent
                 return fields;
             }
 
-            return [new Field(found[0] + "Id", "Guid")];
+            return [new Field(found[0] + "Id", FieldKind.Guid, Nullable: false, Length: 0, Precision: 0, Scale: 0, Lower: null, Upper: null, Position: 0)];
         }
 
-        foreach (string entry in text.Split(',').Select(entry => entry.Trim()))
+        if (FieldGrammar.Parse(text, FieldProfile.Event, problems) is not { } parsed)
         {
-            string[] parts = entry.Split(':');
+            return fields;
+        }
 
-            if (entry.Length == 0 || parts.Length != 2)
-            {
-                problems.Add($"'{entry}' in --fields is not written Name:Type.");
+        fields.AddRange(parsed);
 
-                continue;
-            }
-
-            (string field, string type) = (parts[0].Trim(), parts[1].Trim());
-
-            if (!_pascalCase.IsMatch(field))
-            {
-                problems.Add($"'{field}' in --fields is not a field name: PascalCase, e.g. InvoiceId.");
-            }
-            else if (field is "OccurredOn" or "EqualityContract" || field == name || _keywords.Contains(Lower(field), StringComparer.Ordinal))
-            {
-                problems.Add($"'{field}' in --fields is a name the event declares itself, or a C# keyword once lowered.");
-            }
-            else if (fields.Any(existing => string.Equals(existing.Name, field, StringComparison.OrdinalIgnoreCase)))
-            {
-                problems.Add($"--fields names {field} more than once.");
-            }
-            else if (!_fieldTypes.Contains(type, StringComparer.Ordinal))
-            {
-                problems.Add($"'{type}' in --fields is not a type of this tool. The types are {string.Join(", ", _fieldTypes)}; an event carries facts, not objects.");
-            }
-            else
-            {
-                fields.Add(new Field(field, type));
-            }
+        if (fields.FirstOrDefault(field => field.Name == name) is { } own)
+        {
+            problems.Add($"--fields, at character {own.Position + 1}: {name} is the event's own name, which a property of it cannot share. Choose another name.");
         }
 
         if (problems.Count == 0 && fields.Count > 12)
@@ -494,7 +437,7 @@ internal static class NewEvent
 
     private static string EventRecord(Spec spec)
     {
-        string parameters = string.Concat(spec.Fields.Select(field => $"    {field.Type} {field.Name},\n"));
+        string parameters = string.Concat(spec.Fields.Select(field => $"    {field.ClrType} {field.Name},\n"));
 
         return Sorted(
             $"using {spec.Prefix}.Domain.Core.Common.Events;\n\n"
@@ -502,15 +445,15 @@ internal static class NewEvent
             + $"public sealed record {spec.Name}(\n{parameters}    DateTimeOffset OccurredOn) : IDomainEvent;\n");
     }
 
-    private static string Sample(Field field, int index) => field.Type switch
+    private static string Sample(Field field, int index) => field.Kind switch
     {
-        "Guid" => $"guid{index}",
-        "string" => $"\"{Words(field.Name)}\"",
-        "int" => "1",
-        "long" => "1L",
-        "bool" => "true",
-        "decimal" => "1m",
-        "DateOnly" => "new DateOnly(2026, 1, 1)",
+        FieldKind.Guid => $"guid{index}",
+        FieldKind.String => $"\"{Words(field.Name)}\"",
+        FieldKind.Int => "1",
+        FieldKind.Long => "1L",
+        FieldKind.Bool => "true",
+        FieldKind.Decimal => "1m",
+        FieldKind.DateOnly => "new DateOnly(2026, 1, 1)",
         _ => "new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)",
     };
 
@@ -518,7 +461,7 @@ internal static class NewEvent
         string.Concat(pascal.Select((character, index) => char.IsUpper(character) && index > 0 ? " " + char.ToLowerInvariant(character) : char.ToLowerInvariant(character).ToString()));
 
     private static string GuidDeclarations(Spec spec) =>
-        string.Concat(spec.Fields.Select((field, index) => (field, index)).Where(pair => pair.field.Type == "Guid").Select(pair => $"        var guid{pair.index} = Guid.CreateVersion7();\n"));
+        string.Concat(spec.Fields.Select((field, index) => (field, index)).Where(pair => pair.field.Kind == FieldKind.Guid).Select(pair => $"        var guid{pair.index} = Guid.CreateVersion7();\n"));
 
     private static string EventTests(Spec spec)
     {
@@ -576,9 +519,9 @@ internal static class NewEvent
             + $"    public void TheReaction_IsWritten() =>\n        Assert.Fail(\n            \"{spec.Reaction} is not written: {spec.ConsumerName} throws NotImplementedException, and the dispatcher logs that and drops the event. \"\n            + \"Re-derive the precondition from the stores, act, commit through IUnitOfWork so that running twice changes nothing (ADR 0006), \"\n            + \"then replace this test with the ones that hold the reaction.\");\n}}\n");
     }
 
-    private static (List<Edit> Edits, Dictionary<string, string> Documents) Edits(Spec spec, string root, List<string> problems)
+    private static TextEdits.Editor Edits(Spec spec, string root, List<string> problems)
     {
-        var edits = new List<Edit>();
+        var editor = new TextEdits.Editor(root);
         var documents = new Dictionary<string, string>(StringComparer.Ordinal);
 
         string Load(string relative)
@@ -624,8 +567,14 @@ internal static class NewEvent
                 problems.Add($"{module} already mentions {spec.ConsumerName}. A consumer is registered once.");
             }
 
-            edits.Add(new Edit(module, $"the registration in Add{spec.ConsumerFeatures} of {module}", text => Register(text, spec)));
-            edits.Add(new Edit(module, $"the usings of {module}", text => AddUsings(text, [$"{spec.Prefix}.Application.Core", spec.EventNamespace, spec.ConsumerNamespace])));
+            editor.Step = $"the registration in Add{spec.ConsumerFeatures} of {module}";
+            editor.Rewrite(module, text => Register(text, spec));
+            editor.Step = $"the usings of {module}";
+
+            foreach (string space in new[] { $"{spec.Prefix}.Application.Core", spec.EventNamespace, spec.ConsumerNamespace })
+            {
+                editor.Using(module, space);
+            }
         }
         else
         {
@@ -638,11 +587,12 @@ internal static class NewEvent
             else
             {
                 Load(list);
-                edits.Add(new Edit(list, $"the _deliberatelyUnconsumed list of {list}", text => Excuse(text, spec)));
+                editor.Step = $"the _deliberatelyUnconsumed list of {list}";
+                editor.Rewrite(list, text => Excuse(text, spec));
             }
         }
 
-        return (edits, documents);
+        return editor;
     }
 
     private static string? Register(string text, Spec spec)
@@ -762,8 +712,6 @@ internal static class NewEvent
             ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
             : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 
-    private static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
-
     private static bool ManifestReads(string manifestFull, string features)
     {
         try
@@ -781,19 +729,10 @@ internal static class NewEvent
     private static string Decode(byte[] bytes) =>
         Encoding.UTF8.GetString(bytes, bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0, bytes.Length - (bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0));
 
-    private static byte[] Bytes(string path, string content, bool bom)
-    {
-        string text = content.ReplaceLineEndings("\n");
-
-        return bom || path.EndsWith(".cs", StringComparison.Ordinal)
-            ? [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)]
-            : Encoding.UTF8.GetBytes(text);
-    }
-
     private static string HashOf(Emission emission) =>
-        Convert.ToHexStringLower(SHA256.HashData(Bytes(emission.Path, emission.Content, bom: false)));
+        Convert.ToHexStringLower(SHA256.HashData(TextEdits.Encode(emission.Path, emission.Content)));
 
-    private static Emission ManifestWith(string root, string manifest, List<Emission> plan)
+    private static string ManifestWith(string root, string manifest, List<Emission> plan)
     {
         var top = (JsonObject)JsonNode.Parse(File.ReadAllText(Path.Combine(root, manifest)))!;
         var files = (JsonArray)top["files"]!;
@@ -821,82 +760,7 @@ internal static class NewEvent
             top.WriteTo(writer);
         }
 
-        return new Emission(manifest, Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
-    }
-
-    private static void WriteAll(string root, List<Emission> emissions, Dictionary<string, string> changed, Emission? manifest)
-    {
-        var created = new List<string>();
-        var directories = new List<string>();
-        var originals = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-
-        try
-        {
-            foreach (var emission in emissions)
-            {
-                string full = Path.Combine(root, emission.Path);
-                string directory = Path.GetDirectoryName(full)!;
-                var missing = new Stack<string>();
-
-                for (string next = directory; !Directory.Exists(next); next = Path.GetDirectoryName(next)!)
-                {
-                    missing.Push(next);
-                }
-
-                directories.AddRange(missing);
-                Directory.CreateDirectory(directory);
-
-                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
-
-                stream.Write(Bytes(emission.Path, emission.Content, bom: false));
-                created.Add(full);
-            }
-
-            var replacements = changed.Select(pair => (pair.Key, Content: pair.Value)).ToList();
-
-            if (manifest is not null)
-            {
-                replacements.Add((manifest.Path, manifest.Content));
-            }
-
-            foreach (var (relative, content) in replacements)
-            {
-                string full = Path.Combine(root, relative);
-                byte[] before = File.ReadAllBytes(full);
-                string staged = full + ".new";
-
-                originals[full] = before;
-                File.WriteAllBytes(staged, Bytes(relative, content, before is [0xEF, 0xBB, 0xBF, ..]));
-                File.Move(staged, full, overwrite: true);
-            }
-        }
-        catch
-        {
-            foreach (var (full, before) in originals)
-            {
-                File.WriteAllBytes(full, before);
-
-                if (File.Exists(full + ".new"))
-                {
-                    File.Delete(full + ".new");
-                }
-            }
-
-            foreach (string file in created.Where(File.Exists))
-            {
-                File.Delete(file);
-            }
-
-            foreach (string directory in Enumerable.Reverse(directories))
-            {
-                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
-                {
-                    Directory.Delete(directory);
-                }
-            }
-
-            throw;
-        }
+        return Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n";
     }
 
     private static string Sorted(string source)
@@ -910,28 +774,6 @@ internal static class NewEvent
     }
 
     private static string UsingKey(string line) => (line.StartsWith("using System", StringComparison.Ordinal) ? "0" : "1") + line.TrimEnd(';').ToUpperInvariant();
-
-    private static string? AddUsings(string text, string[] namespaces)
-    {
-        string[] lines = text.Split('\n');
-        int count = lines.TakeWhile(line => line.StartsWith("using ", StringComparison.Ordinal)).Count();
-
-        if (count == 0 || lines[..count].Any(line => !_usingLine.IsMatch(line)))
-        {
-            return null;
-        }
-
-        string[] current = lines[..count];
-
-        if (!current.SequenceEqual(current.OrderBy(UsingKey, StringComparer.Ordinal)))
-        {
-            return null;
-        }
-
-        string[] added = [.. current.Concat(namespaces.Select(name => $"using {name};")).Distinct(StringComparer.Ordinal).OrderBy(UsingKey, StringComparer.Ordinal)];
-
-        return string.Join('\n', [.. added, .. lines[count..]]);
-    }
 
     private static IEnumerable<string> SourceFiles(string folder, string pattern) =>
         Directory.Exists(folder)
@@ -1139,17 +981,29 @@ internal static class NewEvent
 
         (string Fields, string Fragment)[] refused =
         [
-            ("InvoiceId", "is not written Name:Type"),
-            ("InvoiceId:Guid:x", "is not written Name:Type"),
+            ("InvoiceId", "expected ':' after the field name 'InvoiceId'"),
+            ("InvoiceId:Guid:x", "expected a comma before the next field"),
             ("invoiceId:Guid", "is not a field name"),
-            ("OccurredOn:DateTimeOffset", "declares itself"),
-            ("Class:string", "C# keyword once lowered"),
+            ("OccurredOn:DateTimeOffset", "a member the event declares itself"),
+            ("ToString:string", "a member the event declares itself"),
+            ("InvoicePaidDomainEvent:Guid", "the event's own name"),
+            ("Class:string", "becomes 'class' once its first letter is lowered"),
             ("InvoiceId:Guid, invoiceid:int", "is not a field name"),
-            ("InvoiceId:Guid, InvoiceID:int", "more than once"),
-            ("Items:List<string>", "is not a type of this tool"),
-            ("Amount:double", "is not a type of this tool"),
-            ("Reason:string?", "is not a type of this tool"),
-            ("InvoiceId:Guid,", "is not written Name:Type"),
+            ("InvoiceId:Guid, InvoiceID:int", "the same name but for its case"),
+            ("Items:List<string>", "expected a type, one of Guid, string, int, long, bool, decimal, DateOnly, DateTimeOffset"),
+            ("Amount:double", "double is not a field type: it is not exact, and the providers store it differently. Use decimal."),
+            ("Rate:float", "Use decimal."),
+            ("Initial:char", "char is not a field type. Use string."),
+            ("Total:ulong", "Use long or decimal."),
+            ("Kind:enum", "Carry a string, whose values the aggregate checks."),
+            ("At:DateTime", "Use DateTimeOffset"),
+            ("Notes:text", "text is not a type of an event"),
+            ("Reason:string(40)", "takes no length or precision"),
+            ("Amount:decimal(9,2)", "takes no length or precision"),
+            ("Reason:string?", "takes no missing value"),
+            ("Amount:decimal>=0", "takes no bound"),
+            ("InvoiceId:Guid,", "expected a field name"),
+            ("", "--fields is empty"),
         ];
 
         foreach (var (fields, fragment) in refused)
@@ -1304,7 +1158,6 @@ internal static class NewEvent
             ("no method", consumed, _module, text => text.Replace("AddReminders", "AddAlerts", StringComparison.Ordinal), "the registration in AddReminders"),
             ("no return", consumed, _module, text => text.Replace("        return services;\n    }\n\n    public static IServiceCollection AddFiles", "        return;\n    }\n\n    public static IServiceCollection AddFiles", StringComparison.Ordinal), "the registration in AddReminders"),
             ("no blank before return", consumed, _module, text => text.Replace("DeleteRemindersOnAccountDeletedConsumer>();\n\n        return", "DeleteRemindersOnAccountDeletedConsumer>();\n        return", StringComparison.Ordinal), "the registration in AddReminders"),
-            ("usings out of order", consumed, _module, text => text.Replace("using Acme.Application.Core;\nusing Acme.Application.Core.Common.Events;", "using Acme.Application.Core.Common.Events;\nusing Acme.Application.Core;", StringComparison.Ordinal), "the usings of"),
             ("no list", unconsumed, _list, text => text.Replace("_deliberatelyUnconsumed", "_excused", StringComparison.Ordinal), "the _deliberatelyUnconsumed list of"),
             ("no list end", unconsumed, _list, text => text.Replace("\n    ];\n", "\n    ] ;\n", StringComparison.Ordinal), "the _deliberatelyUnconsumed list of"),
             ("already listed", unconsumed, _list, text => text.Replace("InvoiceIssuedDomainEvent", "InvoicePaidDomainEvent", StringComparison.Ordinal), "the _deliberatelyUnconsumed list of"),
@@ -1320,6 +1173,21 @@ internal static class NewEvent
             File.WriteAllBytes(full, [.. bytes is [0xEF, 0xBB, 0xBF, ..] ? Encoding.UTF8.GetPreamble() : [], .. Encoding.UTF8.GetBytes(damage(Decode(bytes)))]);
             ExpectRefusal(root, args, fragment, expect);
         }
+
+        string unsorted = NewTree(scratch);
+        string module = Path.Combine(unsorted, _module);
+
+        File.WriteAllBytes(
+            module,
+            [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(Decode(File.ReadAllBytes(module)).Replace("using Acme.Application.Core;\nusing Acme.Application.Core.Common.Events;", "using Acme.Application.Core.Common.Events;\nusing Acme.Application.Core;", StringComparison.Ordinal))]);
+
+        var result = Invoke(unsorted, consumed);
+        string[] lines = Read(unsorted, _module).Split('\n');
+        string[] usings = ["using Acme.Application.Core;", "using Acme.Domain.Features.Invoices.Model.Events;", "using Acme.Application.Features.Reminders.Services.Consumers.InvoicePaid;"];
+
+        expect(
+            result.Code == 0 && usings.All(line => lines.Count(candidate => candidate == line) == 1),
+            $"A module whose usings are out of order did not get the consumer's usings, each once: {result.Error}");
     }
 
     private static void TreeCases(string scratch, Action<bool, string> expect)
@@ -1358,12 +1226,1423 @@ internal static class NewEvent
     {
         string root = NewTree(scratch);
 
-        Directory.CreateDirectory(Path.Combine(root, _module + ".new"));
+        File.WriteAllText(Path.Combine(root, "Tests/Domain/A.Domain.UnitTests/Features"), "not a folder\n");
 
         var before = Snapshot(root);
         var result = Invoke(root, "Invoices", "InvoicePaidDomainEvent", "--consumer", "Reminders:CancelReminders");
 
         expect(result.Code == 1 && result.Error.Contains("nothing was left behind", StringComparison.Ordinal), $"A write that failed midway did not say so: {result.Error}");
         expect(Same(before, Snapshot(root)), "A write that failed midway left files or edits behind.");
+
+        string edited = NewTree(scratch);
+        var untouched = Snapshot(edited);
+        bool restored = false;
+
+        try
+        {
+            TextEdits.Commit(edited, [("Src/written.cs", [1])], [(_module, File.ReadAllBytes(Path.Combine(edited, _module)), [2]), ("Src", [], [3])]);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            restored = Same(untouched, Snapshot(edited));
+        }
+
+        expect(restored, "An edit that could not be written did not put back the files edited before it and remove the files written.");
+    }
+}
+
+internal static class CSharpNames
+{
+    internal static readonly string[] Keywords =
+    [
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
+        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
+        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
+        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
+        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
+        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
+        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
+    ];
+
+    internal static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+    internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
+}
+
+internal enum FieldKind
+{
+    String,
+    Text,
+    Int,
+    Long,
+    Decimal,
+    Bool,
+    DateOnly,
+    DateTimeOffset,
+    Guid,
+}
+
+internal sealed record FieldBound(string Operator, decimal Value, string Literal)
+{
+    internal bool IsLower => Operator[0] == '>';
+
+    internal bool IsInclusive => Operator.Length == 2;
+
+    internal string Suffix => (IsInclusive ? string.Empty : "Exclusive") + (IsLower ? "Minimum" : "Maximum");
+
+    internal string Wording => Operator switch
+    {
+        ">=" => "at least",
+        ">" => "greater than",
+        "<=" => "at most",
+        _ => "less than",
+    };
+}
+
+internal sealed record Field(
+    string Name,
+    FieldKind Kind,
+    bool Nullable,
+    int Length,
+    int Precision,
+    int Scale,
+    FieldBound? Lower,
+    FieldBound? Upper,
+    int Position)
+{
+    internal IEnumerable<FieldBound> Bounds => new[] { Lower, Upper }.OfType<FieldBound>();
+
+    internal string TypeText => Kind switch
+    {
+        FieldKind.String => Length == 0 ? "string" : $"string({Length})",
+        FieldKind.Text => $"text({Length})",
+        FieldKind.Decimal => Precision == 0 ? "decimal" : $"decimal({Precision},{Scale})",
+        FieldKind.Int => "int",
+        FieldKind.Long => "long",
+        FieldKind.Bool => "bool",
+        FieldKind.DateOnly => "DateOnly",
+        FieldKind.DateTimeOffset => "DateTimeOffset",
+        _ => "Guid",
+    };
+
+    internal string ClrType => Kind switch
+    {
+        FieldKind.String or FieldKind.Text => "string",
+        FieldKind.Int => "int",
+        FieldKind.Long => "long",
+        FieldKind.Decimal => "decimal",
+        FieldKind.Bool => "bool",
+        FieldKind.DateOnly => "DateOnly",
+        FieldKind.DateTimeOffset => "DateTimeOffset",
+        _ => "Guid",
+    };
+
+    internal string Declaration =>
+        $"{Name}:{TypeText}{(Nullable ? "?" : string.Empty)}{string.Concat(Bounds.Select(bound => bound.Operator + bound.Literal))}";
+}
+
+internal sealed record FieldProfile(
+    string Holder,
+    string Types,
+    string Example,
+    FieldKind[] Kinds,
+    bool Stored,
+    string[] ReservedMembers,
+    string ReservedWording,
+    bool ReservesGeneratedNames,
+    string DuplicateReason,
+    string UnstoredReason)
+{
+    internal static FieldProfile Feature { get; } = new(
+        "a feature",
+        "string(n), text, text(n), int, long, decimal, decimal(p,s), bool, DateOnly, DateTimeOffset, Guid",
+        "--fields \"Title:string(120), Budget:decimal>=0\"",
+        Enum.GetValues<FieldKind>(),
+        Stored: true,
+        [
+            "Id", "OwnerId", "Version", "CreatedAt", "CreatedBy", "LastModifiedAt", "LastModifiedBy", "Precondition",
+            "AnonymisedText", "DomainEvents", "ClearDomainEvents", "RaiseDomainEvent", "Create", "Rehydrate", "Update",
+            "Anonymise", "EqualityContract", "Deconstruct", "PrintMembers", "Equals", "GetHashCode", "GetType", "ToString",
+            "MemberwiseClone", "Finalize",
+        ],
+        "a column or a member the feature already declares (the id, the owner, the version, the audit stamps, or a method "
+            + "of the aggregate or of a record)",
+        ReservesGeneratedNames: true,
+        "two columns a case-insensitive database cannot tell apart",
+        string.Empty);
+
+    internal static FieldProfile Event { get; } = new(
+        "an event",
+        "Guid, string, int, long, bool, decimal, DateOnly, DateTimeOffset",
+        "--fields \"InvoiceId:Guid, Amount:decimal\"",
+        [FieldKind.Guid, FieldKind.String, FieldKind.Int, FieldKind.Long, FieldKind.Bool, FieldKind.Decimal, FieldKind.DateOnly, FieldKind.DateTimeOffset],
+        Stored: false,
+        [
+            "OccurredOn", "EqualityContract", "Deconstruct", "PrintMembers", "Equals", "GetHashCode", "GetType", "ToString",
+            "MemberwiseClone", "Finalize",
+        ],
+        "a member the event declares itself (OccurredOn, or a method of a record)",
+        ReservesGeneratedNames: false,
+        "two properties a case-insensitive JSON reader cannot tell apart",
+        "No column holds an event's fields, and the aggregate checks a value before it raises the event with it: a length, a "
+            + "precision, a bound or a missing value is the aggregate's rule, not the event's");
+}
+
+internal static class FieldGrammar
+{
+    internal const int StringMaxLength = 400;
+
+    internal const int TextDefaultLength = 2_000;
+
+    internal const int TextMaxLength = 65_536;
+
+    internal const int DecimalDefaultPrecision = 18;
+
+    internal const int DecimalDefaultScale = 2;
+
+    internal const int DecimalMaxPrecision = 28;
+
+    internal const int NameMaxLength = 40;
+
+    private static readonly string[] _reservedTypes =
+    [
+        "Guid", "DateTimeOffset", "DateOnly", "TimeSpan", "String", "Decimal", "Math", "DomainException",
+        "ArgumentNullException", "UserId", "JsonRequired",
+    ];
+
+    private static readonly string[] _generatedSuffixes =
+        ["MaxLength", "Precision", "Scale", "Minimum", "ExclusiveMinimum", "Maximum", "ExclusiveMaximum", "Field"];
+
+    private static readonly string[] _generatedPrefixes = ["Require", "Valid"];
+
+    private static readonly string[] _contextualKeywords = ["await", "nameof", "var", "value"];
+
+    private static readonly Dictionary<string, (string Reason, string Stored, string Unstored)> _refusedTypes = new(StringComparer.Ordinal)
+    {
+        ["enum"] = (
+            "enum is not a field type: an enum's values are a decision of the domain, and a stored enum changes "
+                + "meaning when a member is reordered or renamed",
+            "Declare a string(n) and check its values by hand, or write a value object",
+            "Carry a string, whose values the aggregate checks"),
+        ["DateTime"] = ("DateTime is not a field type: it carries no offset, so the instant it names depends on the server", "Use DateTimeOffset", "Use DateTimeOffset"),
+        ["double"] = ("double is not a field type: it is not exact, and the providers store it differently", "Use decimal or decimal(p,s)", "Use decimal"),
+        ["float"] = ("float is not a field type: it is not exact, and the providers store it differently", "Use decimal or decimal(p,s)", "Use decimal"),
+        ["short"] = ("short is not a field type", "Use int, with bounds if the range matters", "Use int"),
+        ["byte"] = ("byte is not a field type", "Use int, with bounds if the range matters", "Use int"),
+        ["uint"] = ("uint is not a field type: no provider stores it alike", "Use long, with >=0", "Use long"),
+        ["ulong"] = ("ulong is not a field type: no provider stores it alike", "Use long, with >=0, or decimal(20,0)", "Use long or decimal"),
+        ["char"] = ("char is not a field type", "Use string(1)", "Use string"),
+    };
+
+    private static readonly Dictionary<string, FieldKind> _kinds = new(StringComparer.Ordinal)
+    {
+        ["string"] = FieldKind.String,
+        ["text"] = FieldKind.Text,
+        ["int"] = FieldKind.Int,
+        ["long"] = FieldKind.Long,
+        ["decimal"] = FieldKind.Decimal,
+        ["bool"] = FieldKind.Bool,
+        ["DateOnly"] = FieldKind.DateOnly,
+        ["DateTimeOffset"] = FieldKind.DateTimeOffset,
+        ["Guid"] = FieldKind.Guid,
+    };
+
+    private enum TokenKind
+    {
+        Name,
+        Number,
+        Symbol,
+        Unknown,
+        End,
+    }
+
+    private sealed record Token(TokenKind Kind, string Text, int Position);
+
+    internal static List<Field>? Parse(string text, FieldProfile profile, List<string> problems)
+    {
+        int before = problems.Count;
+        var tokens = Tokenize(text);
+
+        if (tokens.Count == 1)
+        {
+            problems.Add($"--fields is empty. It lists the fields, Name:type, comma separated, as in {profile.Example}.");
+
+            return null;
+        }
+
+        var fields = new List<Field>();
+        int at = 0;
+
+        while (true)
+        {
+            if (ParseField(tokens, ref at, profile, problems) is not { } field)
+            {
+                return null;
+            }
+
+            fields.Add(field);
+
+            if (tokens[at].Kind == TokenKind.End)
+            {
+                break;
+            }
+
+            if (tokens[at].Text != ",")
+            {
+                problems.Add(Expected(tokens[at], "a comma before the next field, or the end of the list"));
+
+                return null;
+            }
+
+            at++;
+        }
+
+        problems.AddRange(NameProblems(fields, profile));
+
+        return problems.Count == before ? fields : null;
+    }
+
+    private static Field? ParseField(List<Token> tokens, ref int at, FieldProfile profile, List<string> problems)
+    {
+        var name = tokens[at];
+
+        if (name.Kind != TokenKind.Name)
+        {
+            problems.Add(Expected(name, "a field name, PascalCase, as Title"));
+
+            return null;
+        }
+
+        at++;
+
+        if (tokens[at].Text != ":")
+        {
+            problems.Add(Expected(tokens[at], $"':' after the field name {Shown(name.Text)}, then its type"));
+
+            return null;
+        }
+
+        at++;
+
+        var typeToken = tokens[at];
+
+        if (typeToken.Kind != TokenKind.Name)
+        {
+            problems.Add(Expected(typeToken, $"a type, one of {profile.Types}"));
+
+            return null;
+        }
+
+        if (_kinds.TryGetValue(typeToken.Text, out FieldKind named) && !profile.Kinds.Contains(named))
+        {
+            problems.Add($"--fields, at character {typeToken.Position + 1}: {typeToken.Text} is not a type of {profile.Holder}, which carries {profile.Types}.");
+
+            return null;
+        }
+
+        at++;
+
+        if (!profile.Stored && tokens[at].Text == "(")
+        {
+            problems.Add(Unstored(tokens[at], profile, "length or precision"));
+
+            return null;
+        }
+
+        int length = 0, precision = 0, scale = 0;
+        FieldKind kind;
+
+        switch (typeToken.Text)
+        {
+            case "string" when !profile.Stored:
+                kind = FieldKind.String;
+                break;
+
+            case "string":
+                if (tokens[at].Text != "(")
+                {
+                    problems.Add(
+                        $"--fields, at character {tokens[at].Position + 1}: string needs its maximum length, as string(120), "
+                        + "so that no column is unbounded; a long free text is text or text(n).");
+
+                    return null;
+                }
+
+                if (Arguments(tokens, ref at, 1, problems) is not [var maximum])
+                {
+                    return null;
+                }
+
+                if (maximum < 1 || maximum > StringMaxLength)
+                {
+                    problems.Add(
+                        $"--fields: {name.Text} is string({maximum}), and a string is 1 to {StringMaxLength} characters long: "
+                        + $"{StringMaxLength} keeps every string column indexable, and so sortable, on the three providers "
+                        + "(SQL Server's 1,700-byte index key holds an nvarchar(400) beside the owner and the id). A longer value is text(n).");
+                }
+
+                kind = FieldKind.String;
+                length = maximum;
+                break;
+
+            case "text":
+                length = TextDefaultLength;
+
+                if (tokens[at].Text == "(")
+                {
+                    if (Arguments(tokens, ref at, 1, problems) is not [var limit])
+                    {
+                        return null;
+                    }
+
+                    length = limit;
+                }
+
+                if (length < 1 || length > TextMaxLength)
+                {
+                    problems.Add(
+                        $"--fields: {name.Text} is text({length}), and a text is 1 to {TextMaxLength:N0} characters long: the API "
+                        + $"refuses a body over RequestLimits:MaxRequestBodyBytes, {TextMaxLength:N0} bytes by default, so a longer "
+                        + "field could not arrive in a request. A document is a file.");
+                }
+
+                kind = FieldKind.Text;
+                break;
+
+            case "decimal" when !profile.Stored:
+                kind = FieldKind.Decimal;
+                break;
+
+            case "decimal":
+                precision = DecimalDefaultPrecision;
+                scale = DecimalDefaultScale;
+
+                if (tokens[at].Text == "(")
+                {
+                    if (Arguments(tokens, ref at, 2, problems) is not [var digits, var decimals])
+                    {
+                        return null;
+                    }
+
+                    precision = digits;
+                    scale = decimals;
+                }
+
+                if (precision < 1 || precision > DecimalMaxPrecision || scale < 0 || scale > precision)
+                {
+                    problems.Add(
+                        $"--fields: {name.Text} is decimal({precision},{scale}), and a decimal(p,s) has 1 to {DecimalMaxPrecision} "
+                        + $"digits in all, the most a .NET decimal holds exactly, of which 0 to p after the point.");
+                }
+
+                kind = FieldKind.Decimal;
+                break;
+
+            case "int":
+                kind = FieldKind.Int;
+                break;
+
+            case "long":
+                kind = FieldKind.Long;
+                break;
+
+            case "bool":
+                kind = FieldKind.Bool;
+                break;
+
+            case "DateOnly":
+                kind = FieldKind.DateOnly;
+                break;
+
+            case "DateTimeOffset":
+                kind = FieldKind.DateTimeOffset;
+                break;
+
+            case "Guid":
+                kind = FieldKind.Guid;
+                break;
+
+            default:
+                problems.Add(_refusedTypes.TryGetValue(typeToken.Text, out var refusal)
+                    ? $"--fields, at character {typeToken.Position + 1}: {refusal.Reason}. {(profile.Stored ? refusal.Stored : refusal.Unstored)}."
+                    : Expected(typeToken, $"a type, one of {profile.Types}, written as listed, case included"));
+
+                return null;
+        }
+
+        bool nullable = false;
+
+        if (tokens[at].Text == "?" && !profile.Stored)
+        {
+            problems.Add(Unstored(tokens[at], profile, "missing value"));
+
+            return null;
+        }
+
+        if (tokens[at].Text == "?")
+        {
+            nullable = true;
+            at++;
+        }
+
+        FieldBound? lower = null, upper = null;
+
+        while (tokens[at].Text is ">=" or "<=" or ">" or "<")
+        {
+            var operation = tokens[at];
+
+            if (!profile.Stored)
+            {
+                problems.Add(Unstored(operation, profile, "bound"));
+
+                return null;
+            }
+
+            if (kind is not (FieldKind.Int or FieldKind.Long or FieldKind.Decimal))
+            {
+                problems.Add(
+                    $"--fields, at character {operation.Position + 1}: {name.Text} is {typeToken.Text}, and only int, long and decimal "
+                    + "take a bound. A string or a text is bounded by its length; a date's rule is usually relative to the clock, "
+                    + "\"in the future\", which belongs in the domain beside the clock, not in a constant.");
+
+                return null;
+            }
+
+            at++;
+
+            var number = tokens[at];
+
+            if (number.Kind != TokenKind.Number)
+            {
+                problems.Add(Expected(number, $"a number after '{operation.Text}'"));
+
+                return null;
+            }
+
+            at++;
+
+            if (Bound(name.Text, kind, precision, scale, operation.Text, number, problems) is not { } bound)
+            {
+                continue;
+            }
+
+            if (bound.IsLower ? lower is not null : upper is not null)
+            {
+                problems.Add(
+                    $"--fields, at character {operation.Position + 1}: {name.Text} already has {(bound.IsLower ? "a lower" : "an upper")} "
+                    + "bound; a field takes at most one of each.");
+
+                continue;
+            }
+
+            if (bound.IsLower)
+            {
+                lower = bound;
+            }
+            else
+            {
+                upper = bound;
+            }
+        }
+
+        var field = new Field(name.Text, kind, nullable, length, precision, scale, lower, upper, name.Position);
+
+        if (lower is not null || upper is not null)
+        {
+            problems.AddRange(RangeProblems(field));
+        }
+
+        return field;
+    }
+
+    private static int[]? Arguments(List<Token> tokens, ref int at, int count, List<string> problems)
+    {
+        at++;
+        var values = new List<int>();
+
+        for (int index = 0; index < count; index++)
+        {
+            if (index > 0)
+            {
+                if (tokens[at].Text != ",")
+                {
+                    problems.Add(Expected(tokens[at], "',' between the precision and the scale"));
+
+                    return null;
+                }
+
+                at++;
+            }
+
+            var number = tokens[at];
+
+            if (number.Kind != TokenKind.Number
+                || !int.TryParse(number.Text, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
+            {
+                problems.Add(Expected(number, "a whole number"));
+
+                return null;
+            }
+
+            values.Add(value);
+            at++;
+        }
+
+        if (tokens[at].Text != ")")
+        {
+            problems.Add(Expected(tokens[at], "')'"));
+
+            return null;
+        }
+
+        at++;
+
+        return [.. values];
+    }
+
+    private static FieldBound? Bound(string name, FieldKind kind, int precision, int scale, string operation, Token number, List<string> problems)
+    {
+        string where = $"--fields, at character {number.Position + 1}";
+
+        if (!decimal.TryParse(number.Text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal value))
+        {
+            problems.Add($"{where}: {Shown(number.Text)} is not a number this grammar reads.");
+
+            return null;
+        }
+
+        if (kind is FieldKind.Int or FieldKind.Long)
+        {
+            decimal minimum = kind == FieldKind.Int ? int.MinValue : long.MinValue;
+            decimal maximum = kind == FieldKind.Int ? int.MaxValue : long.MaxValue;
+            string type = kind == FieldKind.Int ? "int" : "long";
+
+            if (number.Text.Contains('.', StringComparison.Ordinal) || value < minimum || value > maximum)
+            {
+                problems.Add($"{where}: {Shown(number.Text)} is not a whole number an {type} holds.");
+
+                return null;
+            }
+
+            if ((operation == ">=" && value == minimum) || (operation == "<=" && value == maximum))
+            {
+                problems.Add($"{where}: {name}{operation}{number.Text} bounds nothing: every {type} satisfies it. Leave it out.");
+
+                return null;
+            }
+
+            return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        int decimals = number.Text.Contains('.', StringComparison.Ordinal) ? number.Text.Length - number.Text.IndexOf('.', StringComparison.Ordinal) - 1 : 0;
+        int digits = decimal.Truncate(Math.Abs(value)) == 0 ? 0 : decimal.Truncate(Math.Abs(value)).ToString(CultureInfo.InvariantCulture).Length;
+
+        if (decimals > scale || digits > precision - scale)
+        {
+            problems.Add(
+                $"{where}: {Shown(number.Text)} does not fit decimal({precision},{scale}), whose values have at most "
+                + $"{precision - scale} digits before the point and {scale} after it.");
+
+            return null;
+        }
+
+        return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static IEnumerable<string> RangeProblems(Field field)
+    {
+        decimal step = field.Kind == FieldKind.Decimal ? Step(field.Scale) : 1m;
+        decimal floor = field.Kind switch
+        {
+            FieldKind.Int => int.MinValue,
+            FieldKind.Long => long.MinValue,
+            _ => -Ceiling(field) + step,
+        };
+        decimal top = field.Kind switch
+        {
+            FieldKind.Int => int.MaxValue,
+            FieldKind.Long => long.MaxValue,
+            _ => Ceiling(field) - step,
+        };
+
+        decimal low = field.Lower is { } lower ? Math.Max(floor, lower.IsInclusive ? lower.Value : lower.Value + step) : floor;
+        decimal high = field.Upper is { } upper ? Math.Min(top, upper.IsInclusive ? upper.Value : upper.Value - step) : top;
+
+        if (low > high)
+        {
+            yield return $"--fields: no value satisfies the bounds of {field.Declaration}. Widen them.";
+        }
+    }
+
+    internal static decimal Step(int scale)
+    {
+        decimal step = 1m;
+
+        for (int index = 0; index < scale; index++)
+        {
+            step /= 10m;
+        }
+
+        return step;
+    }
+
+    internal static decimal Ceiling(Field field)
+    {
+        decimal ceiling = 1m;
+
+        for (int index = 0; index < field.Precision - field.Scale; index++)
+        {
+            ceiling *= 10m;
+        }
+
+        return ceiling;
+    }
+
+    private static List<string> NameProblems(List<Field> fields, FieldProfile profile)
+    {
+        var problems = new List<string>();
+
+        foreach (var field in fields)
+        {
+            string where = $"--fields, at character {field.Position + 1}";
+
+            if (!CSharpNames.PascalCase.IsMatch(field.Name))
+            {
+                problems.Add($"{where}: {Shown(field.Name)} is not a field name: PascalCase, letters and digits, as DueDate.");
+
+                continue;
+            }
+
+            if (field.Name.Length > NameMaxLength)
+            {
+                problems.Add($"{where}: {field.Name} is longer than {NameMaxLength} characters, which makes names some tools cannot hold. Shorten it.");
+            }
+
+            string parameter = CSharpNames.Lower(field.Name);
+
+            if (CSharpNames.Keywords.Contains(parameter, StringComparer.Ordinal) || _contextualKeywords.Contains(parameter, StringComparer.Ordinal))
+            {
+                problems.Add(
+                    $"{where}: {field.Name} becomes '{parameter}' once its first letter is lowered, which is how the generated "
+                    + "parameters are named, and C# reserves that word there. Choose another name.");
+            }
+
+            if (profile.ReservedMembers.Contains(field.Name, StringComparer.Ordinal))
+            {
+                problems.Add($"{where}: {field.Name} is {profile.ReservedWording}. Choose another name.");
+            }
+
+            if (_reservedTypes.Contains(field.Name, StringComparer.Ordinal))
+            {
+                problems.Add(
+                    $"{where}: {field.Name} names a type the generated code calls by name, which a property of that name would hide. "
+                    + "Choose another name.");
+            }
+
+            foreach (var other in fields.Where(other => profile.ReservesGeneratedNames && !ReferenceEquals(other, field)))
+            {
+                if (_generatedSuffixes.Any(suffix => field.Name == other.Name + suffix)
+                    || _generatedPrefixes.Any(prefix => field.Name == prefix + other.Name))
+                {
+                    problems.Add(
+                        $"{where}: {field.Name} is the name the generated code gives a constant, a method or a local of {other.Name}. "
+                        + "Choose another name.");
+                }
+            }
+        }
+
+        foreach (var group in fields.GroupBy(field => field.Name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
+        {
+            problems.Add(
+                $"--fields names {string.Join(" and ", group.Select(field => field.Name))}, the same name but for its case: "
+                + $"{profile.DuplicateReason}. Keep one.");
+        }
+
+        return problems;
+    }
+
+    private static List<Token> Tokenize(string text)
+    {
+        var tokens = new List<Token>();
+        int position = 0;
+
+        while (position < text.Length)
+        {
+            char current = text[position];
+
+            if (char.IsWhiteSpace(current))
+            {
+                position++;
+
+                continue;
+            }
+
+            int start = position;
+
+            if (char.IsAsciiLetter(current) || current == '_')
+            {
+                while (position < text.Length && (char.IsAsciiLetterOrDigit(text[position]) || text[position] == '_'))
+                {
+                    position++;
+                }
+
+                tokens.Add(new Token(TokenKind.Name, text[start..position], start));
+            }
+            else if (char.IsAsciiDigit(current) || (current == '-' && position + 1 < text.Length && char.IsAsciiDigit(text[position + 1])))
+            {
+                position++;
+
+                while (position < text.Length && (char.IsAsciiDigit(text[position]) || text[position] == '.'))
+                {
+                    position++;
+                }
+
+                tokens.Add(new Token(TokenKind.Number, text[start..position], start));
+            }
+            else if (current is '>' or '<')
+            {
+                position += position + 1 < text.Length && text[position + 1] == '=' ? 2 : 1;
+                tokens.Add(new Token(TokenKind.Symbol, text[start..position], start));
+            }
+            else if (current is ':' or ',' or '(' or ')' or '?')
+            {
+                position++;
+                tokens.Add(new Token(TokenKind.Symbol, current.ToString(), start));
+            }
+            else
+            {
+                position++;
+                tokens.Add(new Token(TokenKind.Unknown, current.ToString(), start));
+            }
+        }
+
+        tokens.Add(new Token(TokenKind.End, string.Empty, text.Length));
+
+        return tokens;
+    }
+
+    private static string Unstored(Token token, FieldProfile profile, string part) =>
+        $"--fields, at character {token.Position + 1}: a field of {profile.Holder} takes no {part}. {profile.UnstoredReason}.";
+
+    private static string Expected(Token token, string expected) =>
+        $"--fields, at character {token.Position + 1}: expected {expected}, and found "
+        + (token.Kind == TokenKind.End ? "the end of the list." : $"{Shown(token.Text)}.");
+
+    private static string Shown(string text) => text.Length <= 40 ? $"'{text}'" : $"'{text[..40]}...'";
+}
+
+internal static class TextEdits
+{
+    private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
+    {
+        internal bool FromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
+    }
+
+    private const string _noBuild = "--no-build";
+
+    internal sealed class Sheet
+    {
+        private readonly bool _bom;
+
+        private readonly string _newline;
+
+        private readonly List<string> _lines;
+
+        private readonly List<bool> _inserted;
+
+        internal Sheet(string path, byte[] original)
+        {
+            Path = path;
+            Original = original;
+            _bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+
+            string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
+
+            _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            FinalNewline = text.EndsWith('\n');
+            _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            _inserted = [.. _lines.Select(_ => false)];
+        }
+
+        internal string Path { get; }
+
+        internal byte[] Original { get; }
+
+        internal IReadOnlyList<string> Lines => _lines;
+
+        internal bool FinalNewline { get; private set; }
+
+        internal bool Rewritten { get; private set; }
+
+        internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
+
+        internal void Rewrite(string text)
+        {
+            bool finalNewline = text.EndsWith('\n');
+            string[] next = (finalNewline ? text[..^1] : text).Split('\n');
+            int head = 0;
+
+            while (head < next.Length && head < _lines.Count && next[head] == _lines[head])
+            {
+                head++;
+            }
+
+            int tail = 0;
+
+            while (tail < next.Length - head && tail < _lines.Count - head && next[^(tail + 1)] == _lines[^(tail + 1)])
+            {
+                tail++;
+            }
+
+            int removed = _lines.Count - head - tail;
+
+            Rewritten |= removed > 0 || finalNewline != FinalNewline;
+            _lines.RemoveRange(head, removed);
+            _inserted.RemoveRange(head, removed);
+            Insert(head, next[head..^tail]);
+            FinalNewline = finalNewline;
+        }
+
+        internal void Insert(int index, string[] lines)
+        {
+            _lines.InsertRange(index, lines);
+            _inserted.InsertRange(index, lines.Select(_ => true));
+        }
+
+        internal IEnumerable<Edit> Edits()
+        {
+            for (int start = 0; start < _lines.Count; start++)
+            {
+                if (!_inserted[start])
+                {
+                    continue;
+                }
+
+                int end = start;
+
+                while (end + 1 < _lines.Count && _inserted[end + 1])
+                {
+                    end++;
+                }
+
+                int next = end + 1 < _lines.Count ? end + 1 : -1;
+                int previous = start - 1;
+                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
+
+                start = end;
+            }
+        }
+
+        internal byte[] Bytes()
+        {
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (FinalNewline ? _newline : string.Empty));
+
+            return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
+        }
+    }
+
+    internal sealed class Editor(string root)
+    {
+        private readonly Dictionary<string, Sheet?> _sheets = new(StringComparer.Ordinal);
+
+        internal string Step { get; set; } = string.Empty;
+
+        internal IReadOnlyList<Edit> Applied =>
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
+                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+                : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+
+        internal List<string> Kept { get; } = [];
+
+        internal List<string> Failures { get; } = [];
+
+        internal IEnumerable<Sheet> Changed =>
+            _sheets.Values.OfType<Sheet>().Where(sheet => !sheet.Original.AsSpan().SequenceEqual(sheet.Bytes()));
+
+        internal Sheet? Open(string path)
+        {
+            if (!_sheets.TryGetValue(path, out Sheet? sheet))
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                sheet = File.Exists(full) ? new Sheet(path, File.ReadAllBytes(full)) : null;
+                _sheets[path] = sheet;
+            }
+
+            if (sheet is null)
+            {
+                Fail($"{path} does not exist.");
+            }
+
+            return sheet;
+        }
+
+        internal void Fail(string reason) => Failures.Add(Step.Length == 0 ? reason : $"{Step}: {reason}");
+
+        internal static void Insert(Sheet sheet, int anchor, bool before, string[] lines) => sheet.Insert(before ? anchor : anchor + 1, lines);
+
+        internal static int Find(Sheet sheet, Func<string, bool> match, int from = 0, int to = -1)
+        {
+            int end = to < 0 ? sheet.Lines.Count : Math.Min(to, sheet.Lines.Count);
+
+            for (int index = Math.Max(from, 0); index < end; index++)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal static int FindLast(Sheet sheet, Func<string, bool> match, int from)
+        {
+            for (int index = Math.Min(from, sheet.Lines.Count - 1); index >= 0; index--)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal void Place(string path, string[] anchors, bool before, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Trim().StartsWith(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int anchor = anchors
+                .Select(text => Find(sheet, line => line.Trim().StartsWith(text, StringComparison.Ordinal)))
+                .FirstOrDefault(index => index >= 0, -1);
+
+            if (anchor < 0)
+            {
+                Fail($"no line starts with '{string.Join("' or '", anchors)}', the line the edit is placed beside.");
+
+                return;
+            }
+
+            Insert(sheet, anchor, before, lines);
+        }
+
+        internal void Rewrite(string path, Func<string, string?> edit)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (edit(sheet.Text) is { } text)
+            {
+                sheet.Rewrite(text);
+            }
+            else
+            {
+                Fail($"its anchor is not in {path}, so nothing could be written.");
+            }
+        }
+
+        internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int found = 0;
+
+            for (int index = 0; index < sheet.Lines.Count; index++)
+            {
+                if (sheet.Lines[index].Trim() != anchor)
+                {
+                    continue;
+                }
+
+                found++;
+
+                int start = FindLast(sheet, candidate => candidate == "    {", index);
+                int end = Find(sheet, candidate => candidate == "    }", index);
+
+                if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+                {
+                    Kept.Add(Step);
+
+                    continue;
+                }
+
+                Insert(sheet, index, before, [line]);
+                index++;
+            }
+
+            if (found == 0)
+            {
+                Fail($"no line reads '{anchor}', the line the edit is placed beside in each method.");
+            }
+        }
+
+        internal void AppendToMethod(string path, string method, string prefix, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int declaration = Find(sheet, candidate => candidate.Contains(method, StringComparison.Ordinal));
+            int start = declaration < 0 ? -1 : Find(sheet, candidate => candidate == "    {", declaration);
+            int end = start < 0 ? -1 : Find(sheet, candidate => candidate == "    }", start);
+
+            if (end < 0)
+            {
+                Fail($"no method{method} with a body was found to take the line.");
+
+                return;
+            }
+
+            if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int last = FindLast(sheet, candidate => candidate.Trim().StartsWith(prefix, StringComparison.Ordinal), end);
+
+            if (last <= start)
+            {
+                Fail($"the method{method} has no line starting with '{prefix}' to place the line after.");
+
+                return;
+            }
+
+            Insert(sheet, last, before: false, [line]);
+        }
+
+        internal void Using(string path, string space)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            string directive = $"using {space};";
+            int body = Find(sheet, line => !IsHeader(line));
+            int[] usings = [.. Enumerable.Range(0, body < 0 ? sheet.Lines.Count : body).Where(index => IsUsing(sheet.Lines[index]))];
+            string? own = sheet.Lines
+                .Select(line => line.Trim())
+                .FirstOrDefault(line => line.StartsWith("namespace ", StringComparison.Ordinal) && line.EndsWith(';'))?["namespace ".Length..^1];
+
+            if (usings.Any(index => sheet.Lines[index].Trim() == directive)
+                || (own is not null && (own == space || own.StartsWith(space + ".", StringComparison.Ordinal))))
+            {
+                return;
+            }
+
+            int following = usings.FirstOrDefault(index => Order(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
+
+            if (following >= 0)
+            {
+                Insert(sheet, following, before: true, [directive]);
+            }
+            else if (usings.Length > 0)
+            {
+                Insert(sheet, usings[^1], before: false, [directive]);
+            }
+            else
+            {
+                Insert(sheet, 0, before: true, [directive, string.Empty]);
+            }
+        }
+
+        internal void Row(string path, string heading, string row, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Contains(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int level = heading.TakeWhile(character => character == '#').Count();
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith('#') && line.TakeWhile(character => character == '#').Count() <= level, section + 1);
+            int rule = section < 0 ? -1 : Find(sheet, line => line.StartsWith("|---", StringComparison.Ordinal), section + 1, next);
+
+            if (rule < 0)
+            {
+                Fail($"{path} has no table under '{heading}' to take the row.");
+
+                return;
+            }
+
+            int last = rule;
+
+            while (last + 1 < sheet.Lines.Count && sheet.Lines[last + 1].StartsWith('|'))
+            {
+                last++;
+            }
+
+            Insert(sheet, last, before: false, [row]);
+        }
+
+        internal void Section(string path, string heading, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line == present) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith("## ", StringComparison.Ordinal), section + 1);
+
+            if (next < 0)
+            {
+                Fail($"{path} has no '{heading}' section followed by another, before which the section is placed.");
+
+                return;
+            }
+
+            Insert(sheet, next, before: true, lines);
+        }
+
+        private static bool IsUsing(string line) =>
+            line.StartsWith("using ", StringComparison.Ordinal) && line.TrimEnd().EndsWith(';') && !line.Contains('=', StringComparison.Ordinal);
+
+        private static bool IsHeader(string line) =>
+            line.Trim().Length == 0 || line.TrimStart().StartsWith("//", StringComparison.Ordinal) || IsUsing(line);
+
+        private static int Order(string left, string right)
+        {
+            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
+
+            int system = IsSystem(right).CompareTo(IsSystem(left));
+
+            return system != 0 ? system
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
+                : StringComparer.Ordinal.Compare(left, right);
+        }
+    }
+
+    internal static void WriteEdits(Utf8JsonWriter writer, IEnumerable<Edit> edits)
+    {
+        writer.WriteStartArray("edits");
+
+        foreach (Edit edit in edits)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", edit.Path);
+            writer.WriteString("anchor", edit.Anchor);
+            writer.WriteString("position", edit.Position);
+            writer.WriteStartArray("lines");
+
+            foreach (string line in edit.Lines)
+            {
+                writer.WriteStringValue(line);
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    {
+        var written = new List<string>();
+        var directories = new List<string>();
+        var overwritten = new List<(string Full, byte[] Original)>();
+        string? staged = null;
+
+        try
+        {
+            foreach (var (path, bytes) in created)
+            {
+                string full = System.IO.Path.Combine(root, path);
+                var missing = new Stack<string>();
+
+                for (string next = System.IO.Path.GetDirectoryName(full)!; !Directory.Exists(next); next = System.IO.Path.GetDirectoryName(next)!)
+                {
+                    missing.Push(next);
+                }
+
+                directories.AddRange(missing);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+
+                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
+
+                written.Add(full);
+                stream.Write(bytes);
+            }
+
+            foreach (var (path, original, bytes) in replaced)
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
+                {
+                    stream.Write(bytes);
+                }
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(staged, File.GetUnixFileMode(full));
+                }
+
+                File.Move(staged, full, overwrite: true);
+                staged = null;
+                overwritten.Add((full, original));
+            }
+        }
+        catch
+        {
+            if (staged is not null && File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
+            foreach (var (full, original) in overwritten)
+            {
+                File.WriteAllBytes(full, original);
+            }
+
+            foreach (string full in written.Where(File.Exists))
+            {
+                File.Delete(full);
+            }
+
+            foreach (string directory in Enumerable.Reverse(directories))
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    internal static byte[] Encode(string path, string content)
+    {
+        byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
+
+        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+            ? [.. Encoding.UTF8.GetPreamble(), .. text]
+            : text;
+    }
+
+    internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>
+        editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
+
+    internal static Command Task(string root, params string[] task) =>
+        new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
+
+    internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
+
+    internal static List<Command> ContractSteps(string root, string client, bool built) =>
+    [
+        built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
+        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
+            ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
+            : Array.Empty<Command>(),
+    ];
+
+    internal static int Execute(Command command)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(command.FileName) { WorkingDirectory = command.WorkingDirectory, UseShellExecute = false };
+
+        foreach (string argument in command.Arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+
+            process.WaitForExit();
+
+            return process.ExitCode;
+        }
+        catch (System.ComponentModel.Win32Exception exception)
+        {
+            Console.Error.WriteLine($"{command.FileName} could not be started: {exception.Message}");
+
+            return 127;
+        }
+    }
+
+    internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
+    {
+        for (int index = 0; index < steps.Count; index++)
+        {
+            output.WriteLine();
+            output.WriteLine($"Running {steps[index].Display}");
+            output.Flush();
+
+            int code = run(steps[index]);
+
+            if (code == 0)
+            {
+                continue;
+            }
+
+            error.WriteLine($"error: `{steps[index].Display}` failed with exit code {code}.");
+            error.WriteLine($"Done: {done}{string.Concat(steps.Take(index).Select(step => $", then `{step.Display}`"))}.");
+            error.WriteLine("What remains, in this order, once the failure is fixed:");
+
+            foreach (Command remaining in steps.Skip(index))
+            {
+                error.WriteLine($"  {remaining.Display}");
+            }
+
+            if (steps.Skip(index).Any(remaining => remaining.FromLastBuild))
+            {
+                error.WriteLine(
+                    $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "
+                    + "`dotnet run Tools/Tasks.cs build` before it.");
+            }
+
+            return false;
+        }
+
+        output.WriteLine();
+        output.WriteLine($"Done: {done}{string.Concat(steps.Select(step => $", then `{step.Display}`"))}.");
+
+        return true;
     }
 }

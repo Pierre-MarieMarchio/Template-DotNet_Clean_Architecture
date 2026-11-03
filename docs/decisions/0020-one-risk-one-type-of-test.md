@@ -45,6 +45,12 @@ ever passed and let the review catch the rest.
 <!--#if (api && ci)-->
 - **CI runs that suite as a blocking job.**
 <!--#endif-->
+<!--#if (anyWeb)-->
+- **What the browser blocks or breaks in a served web app is held by a browser smoke**: one Playwright
+  test per app, in Chromium alone, run by `end-to-end` against the stack. No lower type sees a
+  Content-Security-Policy violation, a console error or a call through the relay from inside a page,
+  and a request that reads headers and bytes does not run what the page loads.
+<!--#endif-->
 - **Coverage is a tripwire.** The floor in `coverage.minimum` catches an area shipped with no test.
   It is never raised to reward tests, and a drop is answered by naming the risk left untested.
 - **A new check is seen failing once**, for its real cause, before it counts.

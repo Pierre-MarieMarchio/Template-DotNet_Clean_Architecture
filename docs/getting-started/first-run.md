@@ -367,6 +367,10 @@ The integration suites create their own SQLite file.
 The end-to-end suite starts a
 whole stack of its own on the same ports, so stop yours first with `docker compose down`.
 <!--#endif-->
+<!--#if (anyWeb)-->
+It then drives each web app in Chromium, which [testing](../guides/testing.md#the-browser-smoke)
+shows how to install.
+<!--#endif-->
 [Testing](../guides/testing.md) says what each suite proves.
 
 <!--#if (canAddFeature && api)-->

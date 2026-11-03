@@ -25,6 +25,22 @@ CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a
 does not receive. Its end-to-end job skips its one step in this repository, whose stack includes web
 apps no CLI has created yet; the acceptance matrix runs the suite instead.
 
+### The published package each week
+
+`.github/workflows/template-published-package.yml` runs every Monday at 05:41 UTC, off the top of the
+hour, and on demand. It installs the latest stable `CleanArch.WebApi.Templates` nuget.org serves,
+in a scratch hive and without a checkout, generates the default project, bootstraps it, which restores
+the project's local tools, `CleanArch.Cli` among them once the template pins it, from nuget.org, and builds it with warnings as errors, so NuGetAudit
+judges the dependencies users receive today. Nothing else builds the published package between
+releases: the acceptance matrix packs the checkout. A red run is an advisory published since the last
+release, or a published package that no longer builds; the fix is a release that raises the
+dependency, as [the project's policy](../decisions/0030-any-known-advisory-fails-the-build.md) says.
+A nuget.org holding no stable version fails the run too, since there is nothing for a user to install.
+Like the nightly acceptance run, GitHub announces a red run only to the person who last changed the
+cron line, by mail if their settings send workflow failures, and shows it under the Actions tab; look
+there on Mondays. The workflow is excluded from generation and from the package, and
+`rules.json` routes it to no leg.
+
 ## Migrations in this checkout
 
 The template ships no migration, so this checkout has none until

@@ -1576,6 +1576,7 @@
             "CHANGELOG.md",
             ".github/workflows/template-acceptance.yml",
             ".github/workflows/template-release.yml",
+            ".github/workflows/template-published-package.yml",
             ".github/release-please/**",
             ".github/ISSUE_TEMPLATE/**",
             "Tools/CheckDocPaths.cs",

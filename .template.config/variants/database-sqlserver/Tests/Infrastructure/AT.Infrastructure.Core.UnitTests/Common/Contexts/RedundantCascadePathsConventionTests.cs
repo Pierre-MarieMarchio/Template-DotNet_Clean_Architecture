@@ -1,6 +1,5 @@
 ﻿using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Shouldly;
 using Xunit;
 

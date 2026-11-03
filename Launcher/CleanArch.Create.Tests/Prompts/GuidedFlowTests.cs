@@ -456,6 +456,31 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
+    public void AnMcpPresentationProject_ListsTheIdentityMigration_UnderNext()
+    {
+        AGeneratedProject();
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "presentation", "--framework", "mcp", "--yes");
+
+        Order(Plain(console), "Next:", "dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth");
+    }
+
+    [Fact]
+    public void APresentationProject_WithoutTheAccessKeys_ListsNoIdentityMigration()
+    {
+        AGeneratedProject();
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "presentation", "--yes");
+
+        Plain(console).ShouldNotContain("migration-add");
+    }
+
+    [Fact]
     public void AProjectWithoutTheApi_IsOfferedOnlyThePresentationThatDoesNotCallIt()
     {
         AGeneratedProject();

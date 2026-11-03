@@ -59,10 +59,7 @@ The edits bring the access keys the server's callers present, whose table change
 authentication context's model: in a project whose migrations exist already, add one:
 
 ```bash
-dotnet ef migrations add AddAccessKeys \
-  --project Src/Infrastructure/AT.Infrastructure.Auth \
-  --startup-project Src/Infrastructure/AT.Infrastructure.Auth \
-  --output-dir Migrations
+dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
 ```
 
 <!--#endif--> `dnx CleanArch.Create -- presentation` runs the three

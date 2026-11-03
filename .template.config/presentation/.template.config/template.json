@@ -836,17 +836,6 @@
         }
       ],
       "continueOnError": true
-    },
-    {
-      "condition": "(accessKeys)",
-      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
-      "description": "Add the access keys' migration where the project has migrations.",
-      "manualInstructions": [
-        {
-          "text": "The access keys the MCP server's callers present come with it and change the authentication context's model: in a project whose migrations exist already, run dotnet ef migrations add AddAccessKeys --project Src/Infrastructure/<initials>.Infrastructure.Auth --startup-project Src/Infrastructure/<initials>.Infrastructure.Auth --output-dir Migrations, and commit it."
-        }
-      ],
-      "continueOnError": true
     }
   ]
 }

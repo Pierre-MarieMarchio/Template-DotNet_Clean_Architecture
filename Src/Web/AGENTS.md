@@ -71,7 +71,8 @@ API's last build instead.
 
 ## Done means
 
-`pnpm lint`, `pnpm test` and `pnpm build` pass here, and the root gate passes too.
+`pnpm lint`, `pnpm test` and `pnpm build` pass here, and the root gate passes too: `verify` runs the
+three after a frozen install, and stops, saying how to install pnpm, on a machine without it.
 <!--#if (ci)-->
 `.github/workflows/web.yml` runs the same three and fails when the committed client differs from what
 `pnpm api` writes.

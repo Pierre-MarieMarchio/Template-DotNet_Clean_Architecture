@@ -223,6 +223,21 @@ It creates and migrates its database file, `App_Data/appdb.db`, under the direct
 `appsettings.Development.json` already points at the mail sink, so nothing else needs setting.
 <!--#endif-->
 [Migrations](../guides/migrations.md#your-own-database) covers your own database.
+<!--#if (aspire)-->
+
+## Run with the app host
+
+The Aspire app host starts the same stack from one command, the hosts as processes a debugger
+attaches to, and shows their logs, traces and metrics in its dashboard:
+
+```bash
+dotnet run --project Src/AppHost/AT.AppHost
+```
+
+It binds the ports Compose binds, so stop the Compose stack first with `docker compose down`.
+[Running the app host](../guides/running-the-app-host.md) lists what it starts and where its secrets
+come from.
+<!--#endif-->
 
 ## Call the API
 
@@ -362,6 +377,9 @@ The integration suites start their own SQL Server in a container.
 <!--#endif-->
 <!--#if (sqlite)-->
 The integration suites create their own SQLite file.
+<!--#endif-->
+<!--#if (aspire)-->
+`LocalStackTests` starts the app host's whole stack, on ports of its own.
 <!--#endif-->
 <!--#if (api)-->
 The end-to-end suite starts a

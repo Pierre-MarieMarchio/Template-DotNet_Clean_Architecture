@@ -78,6 +78,9 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 <!--#if (api)-->
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
 <!--#endif-->
+<!--#if (aspire)-->
+| The stack from one command, with the Aspire dashboard | `dotnet run --project Src/AppHost/AT.AppHost`; a Compose service or host setting you add goes into the app host too, as `LocalStackParityTests` demands | Docker, the network on its first build |
+<!--#endif-->
 | Before taking a newer version of the package that generated the project | `dotnet run Tools/Tasks.cs upgrade-report --keep <folder>` ([upgrading](docs/guides/upgrading.md)); it writes nothing in the project | the NuGet sources, or `--source` |
 
 ## Where code goes

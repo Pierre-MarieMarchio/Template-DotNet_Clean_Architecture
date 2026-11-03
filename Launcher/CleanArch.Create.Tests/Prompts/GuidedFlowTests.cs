@@ -54,7 +54,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -102,7 +102,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -115,7 +115,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new", "--hive", "hive");
 
@@ -131,7 +131,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         TestConsole console = Terminal();
         console.Profile.Width = 1000;
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -152,7 +152,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushTextWithEnter("Demo");
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter("./Other");
-        PushEnters(console, 11);
+        PushEnters(console, 12);
 
         Run(console, "new");
 
@@ -168,7 +168,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushTextWithEnter("Demo");
         PushEnters(console, 3);
         console.Input.PushKey(ConsoleKey.End);
-        PushEnters(console, 7);
+        PushEnters(console, 8);
 
         Run(console, "new");
 
@@ -185,7 +185,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushTextWithEnter("Demo");
         PushEnters(console, 3);
         console.Input.PushKey(ConsoleKey.DownArrow);
-        PushEnters(console, 7);
+        PushEnters(console, 8);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Enter);
@@ -216,7 +216,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushKey(ConsoleKey.Escape);
         console.Input.PushKey(ConsoleKey.Home);
-        PushEnters(console, 9);
+        PushEnters(console, 10);
 
         Run(console, "new");
 
@@ -233,7 +233,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _bootstrap = new ProcessResult(1, "error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.");
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -249,7 +249,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
         var launcher = new Launcher(console, _root, interactive: true, _processes);
         _duringBootstrap = () => launcher.Interrupt().ShouldBeTrue();
 
@@ -271,7 +271,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _initialised = insideARepository;
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 10);
+        PushEnters(console, 11);
         console.Input.PushKey(ConsoleKey.Spacebar);
         PushEnters(console, 2);
         var launcher = new Launcher(console, _root, interactive: true, _processes);
@@ -296,7 +296,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         _identity = false;
         TestConsole console = Terminal();
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -572,7 +572,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         console.Input.PushKey(ConsoleKey.Spacebar);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
-        PushEnters(console, 12);
+        PushEnters(console, 13);
 
         Run(console, "new");
 
@@ -588,7 +588,7 @@ public sealed partial class GuidedFlowTests : IDisposable
     {
         TestConsole console = Terminal().Colors(ColorSystem.NoColors);
         console.Input.PushTextWithEnter("Demo");
-        PushEnters(console, 11);
+        PushEnters(console, 12);
 
         Run(console, "new");
 

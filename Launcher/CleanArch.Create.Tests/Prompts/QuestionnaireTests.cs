@@ -166,6 +166,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushTextWithEnter("n");
         console.Input.PushKey(ConsoleKey.Enter);
+        console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -190,7 +191,7 @@ public sealed class QuestionnaireTests
         console.Profile.Width = 200;
         PushKeys(console, ConsoleKey.DownArrow, ConsoleKey.DownArrow, ConsoleKey.DownArrow, ConsoleKey.Spacebar, ConsoleKey.DownArrow, ConsoleKey.Spacebar, ConsoleKey.Enter);
         PushKeys(console, ConsoleKey.DownArrow, ConsoleKey.DownArrow, ConsoleKey.DownArrow, ConsoleKey.DownArrow, ConsoleKey.Spacebar, ConsoleKey.Enter);
-        PushKeys(console, ConsoleKey.Enter);
+        PushKeys(console, ConsoleKey.Enter, ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
         Dictionary<string, string> answers = questionnaire.Answer(
@@ -269,6 +270,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.DownArrow);
         console.Input.PushKey(ConsoleKey.DownArrow);
+        console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);
         console.Input.PushKey(ConsoleKey.Enter);

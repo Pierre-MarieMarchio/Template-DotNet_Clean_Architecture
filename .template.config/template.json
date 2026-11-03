@@ -83,7 +83,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\"))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\") || (aspire && database == \"sqlite\"))"
     },
     "database": {
       "type": "parameter",
@@ -276,6 +276,25 @@
       "datatype": "bool",
       "defaultValue": "true",
       "description": "Include AGENTS.md, the brief for coding agents and people, and Src/Web/AGENTS.md with a web app. It is the only agent file the template writes."
+    },
+    "aspire": {
+      "type": "parameter",
+      "displayName": "Aspire app host",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include an Aspire app host beside Docker Compose: Src/AppHost starts the containers Compose runs and every host cleanarch.json records, with the settings Compose gives them and their telemetry in the Aspire dashboard. Compose stays the reference of the deployment."
+    },
+    "aspireNeedsServerDatabase": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(aspire && database == \"sqlite\")",
+      "description": "Never set. The app host runs each host as a process on this machine, and the SQLite shape keeps its file in the volume Compose shares between containers, which those processes cannot share: choose --database postgresql or sqlserver, or leave out the app host with --aspire false."
     },
     "web": {
       "type": "parameter",
@@ -1289,6 +1308,26 @@
       "replaces": "\"agentFiles\": true",
       "description": "The --agent-files value cleanarch.json records."
     },
+    "projectFileAspire": {
+      "type": "generated",
+      "generator": "switch",
+      "parameters": {
+        "evaluator": "C++",
+        "datatype": "string",
+        "cases": [
+          {
+            "condition": "(aspire)",
+            "value": "\"aspire\": true"
+          },
+          {
+            "condition": "(true)",
+            "value": "\"aspire\": false"
+          }
+        ]
+      },
+      "replaces": "\"aspire\": false",
+      "description": "The --aspire value cleanarch.json records."
+    },
     "projectFileClient": {
       "type": "generated",
       "generator": "switch",
@@ -1527,6 +1566,10 @@
   },
   "guids": [
     "31e7f540-0654-40db-a23e-4ea43d88972b",
+    "5b0f4c1e-6a2d-4f7e-9c3b-1d8e2a7f6b40",
+    "F7C58FC3-CBE2-41D0-9C9C-A96559DD8EE6",
+    "DE02BA05-1B26-4958-9849-FC4527D1FD01",
+    "391BC3D3-DDB4-450B-95A8-3A7C805F321B",
     "827E0CD3-B72D-47B6-A68D-7590B98EB39B",
     "8B290487-4C16-E85E-E807-F579CBE9FC4D",
     "22BAF98C-8415-17C4-B26A-D537657BC863",
@@ -1984,6 +2027,17 @@
           ]
         },
         {
+          "condition": "(!aspire)",
+          "exclude": [
+            "global.json",
+            "Src/AppHost/**",
+            "Tests/Integration/AT.AppHost.IntegrationTests/**",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/LocalStackParityTests.cs",
+            "docs/guides/running-the-app-host.md",
+            "docs/decisions/0032-the-app-host-follows-compose.md"
+          ]
+        },
+        {
           "condition": "(!sonar)",
           "exclude": [
             "Tools/sonar-scanner.Dockerfile"
@@ -2073,6 +2127,11 @@
     {
       "source": "./.template.config/variants/project/",
       "target": "./"
+    },
+    {
+      "source": "./.template.config/variants/no-aspire/",
+      "target": "./",
+      "condition": "(!aspire)"
     },
     {
       "source": "./.template.config/variants/no-sonar/",

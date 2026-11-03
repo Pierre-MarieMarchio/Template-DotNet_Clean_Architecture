@@ -128,12 +128,16 @@ accounts the leg signs the seeded administrator in, creates an access key that w
 only reads through the API, creates a note and reads it back through the tools, is refused a write
 with the read-only key, revokes the key and is refused with it. The several-hosts leg starts the API,
 the Blazor portal, the MCP server and the worker in one stack, and the leg without the API generates,
-builds and tests a portal, an MCP server and a worker with no HTTP API at all.
+builds and tests a portal, an MCP server and a worker with no HTTP API at all. The several-hosts leg
+also passes `--aspire true` and runs `LocalStackTests`, which starts the app host on the runner's
+Docker and waits for each of its resources and the API's `/health`; the step adds about three minutes,
+the build of the app host and its tests, the Aspire CLI that `dnx` fetches, and the start of four
+hosts.
 
 | Leg | Options |
 |---|---|
 | defaults | none |
-| several hosts, local auth, notes | `--presentation blazor-server --presentation mcp --presentation worker --examples notes --files false`, the API brought by the MCP server's access keys |
+| several hosts, local auth, notes | `--presentation blazor-server --presentation mcp --presentation worker --examples notes --files false --aspire true`, the API brought by the MCP server's access keys |
 | local auth, no files, no ci, no sonar | `--auth local --examples none --files false --ci false --sonar false --presentation api --presentation worker` |
 | worker, mcp and blazor wasm, external auth, all examples | `--presentation api --presentation mcp --presentation worker --auth external --examples all --files true --web blazor-wasm` |
 | sql server, avalonia, external auth, all examples | `--database sqlserver --auth external --examples all --files true --presentation avalonia` |
@@ -203,6 +207,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
 | `.template.config/starters/worker` | the legs that pass `--presentation worker` |
 | a `.template.config/variants/database-<name>` overlay | that provider's legs |
+| `Src/AppHost`, its integration tests and `LocalStackParityTests` | the leg that passes `--aspire true` |
 | anything else: `Src`, `Tests`, the shared pages, `Tools`, the props, `template.json`, the other variants | every leg, the Windows ones included |
 
 The `windows, wpf, local auth` leg generates the default shape with the WPF app added and nothing
@@ -584,6 +589,39 @@ worker itself;
 and `Tests` and fails until a new one is refused. Under `wpf` it also refuses each name whose
 `<Name>.Core` is one of them, `Infrastructure` and `Presentation` beyond those already refused, and the
 same test fails until it does.
+
+## The app host
+
+`--aspire` adds `Src/AppHost/AT.AppHost`, an Aspire app host, beside Docker Compose, which stays the
+reference ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)). Its source is in-tree, built
+and tested in this checkout like `Src/Clients`, and `template.json` leaves it out with its
+integration tests, `LocalStackParityTests`, its page and its ADR under `!aspire`; `ProjectFileTests`
+reads it as absent here. It starts the hosts and the web apps `cleanarch.json` records rather than
+a list of its own, so `presentation-join` and `web-join` need no edit of it, and its C# conditions
+only on the options a project cannot change: the database, the authentication, Files and the
+examples. A host's settings are the ones `docker-compose.yml` gives it, and its secrets Aspire
+parameters.
+
+| Rule | Held by |
+|---|---|
+| Every Compose service is a resource under the same name, and the reverse; an exception is listed with its reason | `LocalStackParityTests.EveryComposeService_IsAnAppHostResourceOfTheSameName_AndEveryResourceAComposeService` |
+| Each container runs the image its service pins, which the app host reads from the Compose files | `LocalStackParityTests.EveryContainerTheAppHostPulls_RunsTheImageItsComposeServicePins` |
+| Each `Section__Key` a Compose file sets, the app host sets | `LocalStackParityTests.EverySettingComposeGivesAHost_TheAppHostGivesToo` |
+| Each web app listens on the port its `compose.yml` publishes, which `cleanarch.json` records | `LocalStackParityTests.EveryWebAppTheAppHostStarts_ListensOnThePortItsComposeServicePublishes` |
+| `global.json` pins the SDK under `msbuild-sdks` at the version of every `Aspire.*` package | `LocalStackParityTests.TheAppHostSdk_IsPinnedInGlobalJson_AtTheVersionOfEveryAspirePackage` |
+| The whole stack starts, healthy | `LocalStackTests`, Docker, in the several-hosts leg |
+
+In this checkout the parity test reads the Compose services of the shapes the defaults leave out as
+absent, in a `templateMaintenance` block, since the checkout's `docker-compose.yml` holds every branch.
+The dashboard and the orchestrator come from the Aspire CLI that the SDK's version pins, which `dnx`
+fetches on the first build (`AspireUseCliBundle` with `DnxPinned`): Aspire warns on the NuGet
+packages it used before, and this project keeps no such silence. The app host names
+`Aspire.AppHost.Sdk` without a version and `global.json` pins it under `msbuild-sdks`, the form
+Dependabot's NuGet updater rewrites, so its `aspire` group raises the SDK and the packages in one pull
+request; a project generated without the app host receives `.template.config/variants/no-aspire/global.json`,
+which `TheGlobalJsonWithoutTheAppHost_IsTheCheckoutsMinusItsMsBuildSdks` holds to the checkout's.
+`aspireNeedsServerDatabase`
+refuses SQLite, whose file the app host's processes cannot share with Compose's volume.
 
 ## The worker
 

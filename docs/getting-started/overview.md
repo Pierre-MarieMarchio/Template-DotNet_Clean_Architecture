@@ -153,6 +153,12 @@ setting, table or test names it.
 <!--#if (!sonar)-->
 | `--sonar` | `false` | no Sonar analysis |
 <!--#endif-->
+<!--#if (aspire)-->
+| `--aspire` | `true` | an Aspire app host in `Src/AppHost`, beside Docker Compose, which it follows |
+<!--#endif-->
+<!--#if (!aspire)-->
+| `--aspire` | `false` | no Aspire app host; Docker Compose runs the local stack |
+<!--#endif-->
 <!--#if (webAngular)-->
 | `--web` | `angular` | an Angular app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
 <!--#endif-->

@@ -89,11 +89,11 @@ internal static class Tasks
                                            --help says what each one means
           --kind, --input                  new-use-case: forwarded to Tools/NewUseCase.cs, whose
                                            --help says what each one means
-          --dry-run                        new-feature, new-use-case: print the files and the edits the
-                                           command makes, and write and run nothing
-          --keys, --dry-run                new-setting: forwarded to Tools/NewSetting.cs, whose
-                                           --help says what each one means; --dry-run also
-                                           reaches new-event
+          --dry-run                        new-feature, new-use-case, new-setting, new-event: print the
+                                           files and the edits the command makes, and write and run
+                                           nothing
+          --keys                           new-setting: forwarded to Tools/NewSetting.cs, whose
+                                           --help says what each one means
           --fields, --consumer, --unconsumed
                                            new-event: forwarded to Tools/NewEvent.cs, whose
                                            --help says what each one means
@@ -322,13 +322,11 @@ internal static class Tasks
         string? name = null;
         string? second = null;
 
-        List<string> featureOptions = [];
-        List<string> useCaseOptions = [];
-        List<string> conventionOptions = [];
+        List<string> generatorArguments = [];
+        List<string> generatorOptions = [];
         var webOptions = new Dictionary<string, string>(StringComparer.Ordinal);
         bool noIntegration = false;
         bool apply = false;
-        bool dryRun = false;
         bool keepStack = false;
         bool check = false;
         string configuration = "Debug";
@@ -350,10 +348,6 @@ internal static class Tasks
             else if (argument is "--apply")
             {
                 apply = true;
-            }
-            else if (argument is "--dry-run")
-            {
-                dryRun = true;
             }
             else if (argument is "--keep-stack")
             {
@@ -394,46 +388,19 @@ internal static class Tasks
                     throw new InvalidOperationException($"'{argument}' needs a whole number of at least 1 after the colon, as in -m:4.");
                 }
             }
-            else if (_featureOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
+            else if (_generatorOptions.Keys.FirstOrDefault(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)) is { } generatorOption)
             {
-                featureOptions.Add(argument);
+                generatorOptions.Add(generatorOption);
+                generatorArguments.Add(argument);
 
-                if (!argument.Contains('=', StringComparison.Ordinal))
+                if (argument == generatorOption && !_generatorSwitches.Contains(generatorOption, StringComparer.Ordinal))
                 {
                     if (i + 1 >= arguments.Length)
                     {
                         throw new InvalidOperationException($"'{argument}' needs a value.");
                     }
 
-                    featureOptions.Add(arguments[++i]);
-                }
-            }
-            else if (_useCaseOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
-            {
-                useCaseOptions.Add(argument);
-
-                if (!argument.Contains('=', StringComparison.Ordinal))
-                {
-                    if (i + 1 >= arguments.Length)
-                    {
-                        throw new InvalidOperationException($"'{argument}' needs a value.");
-                    }
-
-                    useCaseOptions.Add(arguments[++i]);
-                }
-            }
-            else if (_conventionOptionNames.Any(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)))
-            {
-                conventionOptions.Add(argument);
-
-                if (argument != "--dry-run" && !argument.Contains('=', StringComparison.Ordinal))
-                {
-                    if (i + 1 >= arguments.Length)
-                    {
-                        throw new InvalidOperationException($"'{argument}' needs a value.");
-                    }
-
-                    conventionOptions.Add(arguments[++i]);
+                    generatorArguments.Add(arguments[++i]);
                 }
             }
             else if (_webJoinOptionNames.FirstOrDefault(option => argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal)) is { } webOption)
@@ -454,11 +421,10 @@ internal static class Tasks
             else if (argument.StartsWith('-'))
             {
                 throw new InvalidOperationException(
-                    $"'{argument}' is not an option of this file. The options are --no-integration, --apply, --dry-run, "
+                    $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
                     + "--keep-stack, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
-                    + $"new-feature {string.Join(", ", _featureOptionNames)}, for new-use-case {string.Join(", ", _useCaseOptionNames)}, "
-                    + $"for new-setting and new-event {string.Join(", ", _conventionOptionNames)}, "
-                    + $"and for web-join {string.Join(", ", _webJoinOptionNames)}.");
+                    + string.Concat(_generatorTasks.Select(generator => $"{generator} {string.Join(", ", GeneratorOptionsOf(generator))}, for "))
+                    + $"web-join {string.Join(", ", _webJoinOptionNames)}.");
             }
             else if (task is null)
             {
@@ -485,22 +451,9 @@ internal static class Tasks
                 + "Supply one of those and then try the command again.");
         }
 
-        if (featureOptions.Count > 0 && task != "new-feature")
+        if (GeneratorOptionRefusal(task, generatorOptions) is { } refusal)
         {
-            throw new InvalidOperationException(
-                $"'{featureOptions[0]}' is an option of the new-feature task, not of '{task ?? "(no task)"}'.");
-        }
-
-        if (useCaseOptions.Count > 0 && task != "new-use-case")
-        {
-            throw new InvalidOperationException(
-                $"'{useCaseOptions[0]}' is an option of the new-use-case task, not of '{task ?? "(no task)"}'.");
-        }
-
-        if (conventionOptions.Count > 0 && task is not ("new-setting" or "new-event"))
-        {
-            throw new InvalidOperationException(
-                $"'{conventionOptions[0]}' is an option of the new-setting and new-event tasks, not of '{task ?? "(no task)"}'.");
+            throw new InvalidOperationException(refusal);
         }
 
         if (webOptions.Count > 0 && task != "web-join")
@@ -512,11 +465,6 @@ internal static class Tasks
         if (apply && task != "remove-feature")
         {
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
-        }
-
-        if (dryRun && task is not ("new-feature" or "new-use-case"))
-        {
-            throw new InvalidOperationException($"'--dry-run' is an option of the new-feature and new-use-case tasks, not of '{task ?? "(no task)"}'.");
         }
 
         if (maxCpuCount is not null && task is not ("restore" or "build" or "test" or "check" or "coverage" or "verify"))
@@ -635,8 +583,7 @@ internal static class Tasks
                         RequiredSecond(task, name),
                         RequiredSecond(task, second),
                         "--root", repoRoot,
-                        .. featureOptions,
-                        .. dryRun ? ["--dry-run"] : Array.Empty<string>(),
+                        .. generatorArguments,
                     ]);
                 break;
 
@@ -648,8 +595,7 @@ internal static class Tasks
                         RequiredUseCase(task, name),
                         RequiredUseCase(task, second),
                         "--root", repoRoot,
-                        .. useCaseOptions,
-                        .. dryRun ? ["--dry-run"] : Array.Empty<string>(),
+                        .. generatorArguments,
                     ]);
                 break;
 
@@ -661,7 +607,7 @@ internal static class Tasks
                         RequiredPair(task, name, second, "TodoLists TodoListLimits --keys \"MaxItems:int(1..500)=100\""),
                         second!,
                         "--root", repoRoot,
-                        .. conventionOptions,
+                        .. generatorArguments,
                     ]);
                 break;
 
@@ -673,7 +619,7 @@ internal static class Tasks
                         RequiredPair(task, name, second, "TodoLists TodoListArchivedDomainEvent --unconsumed \"Nothing reacts to it yet\""),
                         second!,
                         "--root", repoRoot,
-                        .. conventionOptions,
+                        .. generatorArguments,
                     ]);
                 break;
 
@@ -2484,11 +2430,36 @@ internal static class Tasks
 
     private static readonly string[] _maxCpuCountPrefixes = ["-m:", "-maxcpucount:"];
 
-    private static readonly string[] _featureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency", "--fields"];
+    private static readonly string[] _generatorTasks = ["new-feature", "new-use-case", "new-setting", "new-event"];
 
-    private static readonly string[] _useCaseOptionNames = ["--kind", "--input"];
+    private static readonly Dictionary<string, string[]> _generatorOptions = new(StringComparer.Ordinal)
+    {
+        ["--access"] = ["new-feature"],
+        ["--deletion"] = ["new-feature"],
+        ["--operations"] = ["new-feature"],
+        ["--model"] = ["new-feature"],
+        ["--concurrency"] = ["new-feature"],
+        ["--fields"] = ["new-feature", "new-event"],
+        ["--kind"] = ["new-use-case"],
+        ["--input"] = ["new-use-case"],
+        ["--keys"] = ["new-setting"],
+        ["--consumer"] = ["new-event"],
+        ["--unconsumed"] = ["new-event"],
+        ["--dry-run"] = _generatorTasks,
+    };
 
-    private static readonly string[] _conventionOptionNames = ["--keys", "--dry-run", "--fields", "--consumer", "--unconsumed"];
+    private static readonly string[] _generatorSwitches = ["--dry-run"];
+
+    private static IEnumerable<string> GeneratorOptionsOf(string generator) =>
+        _generatorOptions.Where(pair => pair.Value.Contains(generator, StringComparer.Ordinal)).Select(pair => pair.Key);
+
+    private static string? GeneratorOptionRefusal(string? task, IEnumerable<string> options) =>
+        options
+            .Where(option => !_generatorOptions[option].Contains(task, StringComparer.Ordinal))
+            .Select(option => _generatorOptions[option] is var owners && owners.Length == 1
+                ? $"'{option}' is an option of the {owners[0]} task, not of '{task ?? "(no task)"}'."
+                : $"'{option}' is an option of the {string.Join(", ", owners[..^1])} and {owners[^1]} tasks, not of '{task ?? "(no task)"}'.")
+            .FirstOrDefault();
 
     private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
 
@@ -2744,6 +2715,7 @@ internal static class Tasks
             ("--context auth is refused where there is no identity context", Refused(() => MigrationContext("auth", false, "persistence", "auth"), "--auth local")),
             ("an unknown context is refused", Refused(() => MigrationContext("billing", true, "persistence", "auth"), "not a context")),
             .. CheckCases(),
+            .. GeneratorOptionCases(),
         ];
 
         foreach ((string label, bool passed) in cases)
@@ -2753,6 +2725,15 @@ internal static class Tasks
 
         return cases.All(result => result.Passed) ? 0 : 1;
     }
+
+    private static (string Case, bool Passed)[] GeneratorOptionCases() =>
+    [
+        ("--dry-run reaches every generator", _generatorTasks.All(generator => GeneratorOptionRefusal(generator, ["--dry-run"]) is null)),
+        ("--fields reaches new-feature and new-event", GeneratorOptionRefusal("new-feature", ["--fields"]) is null && GeneratorOptionRefusal("new-event", ["--fields"]) is null),
+        ("--fields is refused for new-setting", GeneratorOptionRefusal("new-setting", ["--fields"]) == "'--fields' is an option of the new-feature and new-event tasks, not of 'new-setting'."),
+        ("--keys is refused for new-event", GeneratorOptionRefusal("new-event", ["--keys"]) == "'--keys' is an option of the new-setting task, not of 'new-event'."),
+        ("--dry-run is refused outside the generators", GeneratorOptionRefusal("build", ["--dry-run"]) == "'--dry-run' is an option of the new-feature, new-use-case, new-setting and new-event tasks, not of 'build'."),
+    ];
 
     private static (string Case, bool Passed)[] CheckCases()
     {

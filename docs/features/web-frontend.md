@@ -174,9 +174,11 @@ presentation of a cookie as theft; only a refused refresh signs the page out.
 ### An app rendered on the server
 
 A server-rendered app keeps both tokens on its server, and the browser holds only the
-`__Host-session` cookie its server sets (`HttpOnly`, `Secure`, `SameSite=Lax`)
-([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)). The page posts
-the same sign-in routes through the relay, which keeps the tokens the API answers and returns the
+`__Host-session` cookie its server sets (`HttpOnly`, `Secure`, `SameSite=Lax`).
+<!--#if (webServerRendering)-->
+[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
+<!--#endif-->
+The page posts the same sign-in routes through the relay, which keeps the tokens the API answers and returns the
 answer without them, and calls the API without a token; `serverSessionMiddleware` adds the
 `X-CSRF: 1` header the server requires on every call that changes state, and answers `403`
 `session.csrfHeaderRequired` without:
@@ -229,7 +231,10 @@ lists too.
 A server-rendered app signs people in itself: its server is the OpenID Connect client, runs the
 authorization code flow with PKCE at the provider, and keeps the provider's tokens in its own
 memory; the browser holds only the `__Host-session` cookie its server sets (`HttpOnly`, `Secure`,
-`SameSite=Lax`) ([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+`SameSite=Lax`).
+<!--#if (webServerRendering)-->
+[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
+<!--#endif-->
 The page navigates to the server's routes and calls the API without a token, the server adding it;
 `serverSessionMiddleware` adds the `X-CSRF: 1` header the server requires on every call that
 changes state, and answers `403` `session.csrfHeaderRequired` without:
@@ -302,11 +307,11 @@ dotnet new cleanarch-webapp -n BackOffice --framework angular --audience admin -
 
 `--framework` is `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular` or
 `placeholder`; `--scope` is the package scope of
-`Src/Web/package.json`; `--auth` repeats this project's value. The command prints
-two lines to add, also in the app's `README.md`: an `include:` entry in `docker-compose.yml` and
-`WEB_<NAME>_HOST_PORT` in `.env.example`. Record the app in `cleanarch.json` with the values it was
-given, `dotnet run Tools/Tasks.cs web-join BackOffice --web angular --web-audience admin`, adding
-`--web-rendering ssr` for an app rendered on the server. Then run
+`Src/Web/package.json`; `--auth` repeats this project's value. The app's `README.md` lists the lines
+it adds outside its folder: an `include:` entry in `docker-compose.yml` and `WEB_<NAME>_HOST_PORT` in
+`.env.example`. `dotnet run Tools/Tasks.cs web-join BackOffice --web angular --web-audience admin`,
+adding `--web-rendering ssr` for an app rendered on the server, makes them, leaving those in place
+already, then records the app in `cleanarch.json` with the values it was given. Then run
 `dotnet run Tools/Tasks.cs web-scaffold BackOffice` for a framework app, or `pnpm install` for a
 placeholder, and commit the app with the lockfile. CI and Dependabot find apps by folder.
 `--rendering ssr` with `--framework angular` or `react-router` renders the app on its own Node
@@ -314,8 +319,8 @@ server instead, as [images and headers](#images-and-headers) describes; the othe
 single-page apps only, and `--rendering spa` is the default.
 <!--#if (externalAuth)-->
 Such an app also needs its public origin, `WEB_<NAME>_ORIGIN`, in `.env.example`, and the
-provider's client of [an app rendered on the server](#an-app-rendered-on-the-server), both lines
-its `README.md` gives.
+provider's client of [an app rendered on the server](#an-app-rendered-on-the-server), lines its
+`README.md` lists and `web-join` makes too.
 <!--#endif-->
 <!--#if (accounts)-->
 
@@ -341,9 +346,9 @@ Removing an app is deleting its folder, its `include:` line and its port line, t
 `pnpm install`.
 
 A project generated without a web app adds its first one with the same command plus
-`--workspace` (`--scope` required), which also creates `Src/Web` and `.github/workflows/web.yml`,
-then records it with `web-join` as above;
-the API side is in every project already. Add the lines `Src/Web/README.md` lists, then create the
+`--workspace`, `--project-name <Project>` and `--scope`, which also creates `Src/Web` and
+`.github/workflows/web.yml`; the API side is in every project already. `web-join` then makes the
+lines `Src/Web/README.md` lists for the workspace before the app's, and records both; create the
 app as above.
 
 ## Images and headers
@@ -401,11 +406,13 @@ dependencies, so the image holds the build output alone. Angular's server answer
 adds the host its users reach.
 <!--#if (accounts)-->
 It keeps its sessions in its own memory, so it runs as one instance, and a restart signs everyone
-out ([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+out.
 <!--#endif-->
 <!--#if (publicApi)-->
-It keeps no session, and runs as one instance
-([ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)).
+It keeps no session, and runs as one instance.
+<!--#endif-->
+<!--#if (webServerRendering)-->
+[ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
 <!--#endif-->
 
 <!--#if (ci)-->
@@ -421,7 +428,9 @@ a user other than root and exposes only 8080. Details are in
 ## Decisions
 
 - [0019 One generated API client](../decisions/0019-one-generated-api-client.md)
+<!--#if (webServerRendering)-->
 - [0024 A server-rendered web app runs on its own server](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)
+<!--#endif-->
 <!--#if (localAuth)-->
 - [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
 <!--#endif-->

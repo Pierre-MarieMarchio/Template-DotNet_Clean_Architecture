@@ -9,6 +9,11 @@ namespace AppTemplate.EndToEnd.Tests;
 
 public sealed class WebAppTests
 {
+    private static readonly Regex _webAppPort = new(
+        "^WEB_[A-Z0-9_]+_HOST_PORT$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
     private static readonly Regex _script = new(
         @"<script\b(?<attributes>[^>]*)>(?<body>[\s\S]*?)</script\s*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
@@ -29,14 +34,14 @@ public sealed class WebAppTests
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
-    public static TheoryData<string> WebAppPorts => [.. Stack.WebAppPortSettings];
+    public static TheoryData<string> WebAppPorts => [.. Stack.SettingNames.Where(name => _webAppPort.IsMatch(name)).Order(StringComparer.Ordinal)];
 
     [Theory]
     [MemberData(nameof(WebAppPorts))]
     public async Task AWebApp_ServesItsPageAndRelaysApiToTheApi(string portSetting)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        using var site = Stack.Client(Stack.WebApp(portSetting));
+        using var site = Stack.Client(Stack.Local(portSetting));
 
         using (var page = await Wire.SendAsync(site, HttpMethod.Get, string.Empty, cancellationToken))
         {
@@ -55,7 +60,7 @@ public sealed class WebAppTests
     public async Task AWebAppsPage_RunsAnInlineScriptOnlyByItsHashOrItsResponsesNonce_AndNeverRepeatsANonce(string portSetting)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        using var site = Stack.Client(Stack.WebApp(portSetting));
+        using var site = Stack.Client(Stack.Local(portSetting));
 
         var first = await PageAsync(site, cancellationToken);
         var second = await PageAsync(site, cancellationToken);
@@ -79,7 +84,7 @@ public sealed class WebAppTests
     public async Task AServerRenderedApp_RefusesACallThatChangesStateWithoutXCsrf_WhereASinglePageAppRelaysIt(string portSetting)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        using var site = Stack.Client(Stack.WebApp(portSetting));
+        using var site = Stack.Client(Stack.Local(portSetting));
         bool serverRendered = Nonces((await PageAsync(site, cancellationToken)).Allowed).Any();
 
         using var unmarked = await Wire.SendAsync(site, HttpMethod.Post, Refusal.Path, cancellationToken);
@@ -99,7 +104,7 @@ public sealed class WebAppTests
     public async Task AServerRenderedApp_RefusesASignInCallbackThisBrowserDidNotStart_WhereASinglePageAppServesItsPage(string portSetting)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        using var site = Stack.Client(Stack.WebApp(portSetting));
+        using var site = Stack.Client(Stack.Local(portSetting));
         bool serverRendered = Nonces((await PageAsync(site, cancellationToken)).Allowed).Any();
 
         using var callback = await Wire.SendAsync(site, HttpMethod.Get, "session/callback?code=forged&state=forged", cancellationToken);

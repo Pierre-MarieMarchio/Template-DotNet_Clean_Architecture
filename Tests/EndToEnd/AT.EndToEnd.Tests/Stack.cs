@@ -1,35 +1,21 @@
-﻿//#if (anyWeb)
-using System.Text.RegularExpressions;
-
-//#endif
-namespace AppTemplate.EndToEnd.Tests;
+﻿namespace AppTemplate.EndToEnd.Tests;
 
 internal static class Stack
 {
     private const string _settingsFile = ".env.example";
 
-    //#if (anyWeb)
-    private static readonly Regex _webAppPort = new(
-        "^WEB_[A-Z0-9_]+_HOST_PORT$",
-        RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1));
-
-    //#endif
     private static readonly Lazy<Dictionary<string, string>> _defaults = new(ReadDefaults);
 
-    internal static Uri Api => Local(Setting("API_HOST_PORT"));
+    internal static Uri Api => Local("API_HOST_PORT");
 
     //#if (localAuth)
-    internal static Uri Mailpit => Local(Setting("MAILPIT_UI_PORT"));
+    internal static Uri Mailpit => Local("MAILPIT_UI_PORT");
 
     //#endif
-    //#if (anyWeb)
-    internal static IReadOnlyList<string> WebAppPortSettings =>
-        [.. _defaults.Value.Keys.Where(key => _webAppPort.IsMatch(key)).Order(StringComparer.Ordinal)];
+    internal static IEnumerable<string> SettingNames => _defaults.Value.Keys;
 
-    internal static Uri WebApp(string portSetting) => Local(Setting(portSetting));
+    internal static Uri Local(string portSetting) => new($"http://localhost:{Setting(portSetting)}/");
 
-    //#endif
     internal static HttpClient Client(Uri baseAddress) =>
         new(new HttpClientHandler { AllowAutoRedirect = false })
         {
@@ -43,8 +29,6 @@ internal static class Stack
             : _defaults.Value.TryGetValue(name, out string? fallback)
                 ? fallback
                 : throw new InvalidOperationException($"{name} is set neither in the environment nor in {_settingsFile}.");
-
-    private static Uri Local(string port) => new($"http://localhost:{port}/");
 
     private static Dictionary<string, string> ReadDefaults()
     {

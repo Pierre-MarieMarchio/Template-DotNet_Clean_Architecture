@@ -25,7 +25,7 @@ interface Authorized {
 }
 
 const issuer = 'https://provider.test';
-const origin = 'http://localhost:5173';
+const origin = 'https://app.example.test';
 const minute = 60_000;
 const sessionCookiePattern = /^__Host-session=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=\d+$/;
 const signInCookiePattern = /^__Host-sign-in=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=600$/;

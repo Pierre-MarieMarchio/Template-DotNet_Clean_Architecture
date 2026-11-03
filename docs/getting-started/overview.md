@@ -5,6 +5,9 @@
 <!--#if (api)-->
 This project is a .NET 10 HTTP API built on Clean Architecture: a domain, an application layer of
 use cases, infrastructure modules behind ports, and a thin presentation layer.
+<!--#if (anyWeb)-->
+A pnpm workspace beside it holds its web apps.
+<!--#endif-->
 <!--#endif-->
 <!--#if (!api)-->
 This project is a set of .NET 10 hosts built on Clean Architecture, with no HTTP API: a domain, an
@@ -29,9 +32,6 @@ It stores its data in PostgreSQL through EF Core, and refuses to start on a sett
 <!--#endif-->
 <!--#if (sqlServer && !api)-->
 It stores its data in SQL Server through EF Core, and refuses to start on a setting it cannot use.
-<!--#endif-->
-<!--#if (anyWeb)-->
-A pnpm workspace beside it holds its web apps.
 <!--#endif-->
 <!--#if (presentationBlazorServer)-->
 A Blazor Web App beside it calls the same use cases in its own process.
@@ -225,11 +225,11 @@ To change a value, remove the part by hand or add it:
 - [Adding a feature](../guides/adding-a-feature.md) generates a feature of your own.
 <!--#endif-->
 <!--#if (!anyWeb)-->
-- `dotnet new cleanarch-webapp -n PlaceholderSite --framework vite-react --scope app-template --workspace`
+- `dotnet new cleanarch-webapp -n PlaceholderSite --framework vite-react --project-name AppTemplate --scope app-template --workspace`
   adds a first web app and its workspace (`vite-vue`, `vite-svelte`, `react-router`,
   `angular` or `placeholder` work too). Pass this project's `--auth`, `--examples` and `--ci` when they are not
-  the defaults; the README it writes in the new workspace lists the lines to add by hand, and
-  `dotnet run Tools/Tasks.cs web-join PlaceholderSite --web vite-react` records the app.
+  the defaults; then `dotnet run Tools/Tasks.cs web-join PlaceholderSite --web vite-react` makes the
+  lines the workspace's `README.md` and the app's list outside their folders, and records the app.
 <!--#endif-->
 <!--#if (anyWeb)-->
 - `dotnet new cleanarch-webapp` adds another web app; [the web front end](../features/web-frontend.md) says how.

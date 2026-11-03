@@ -362,6 +362,13 @@ what it cannot know: a namespace from a package, and the projects an official CL
 `scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs build.
 A form the test reports runs with the options it names: generate it and build it to see IDE0005.
 
+The same holds for a tool's own methods: a method of a file under `Tools` stands under the condition
+of its callers, no narrower, or a form keeps a call to a method its markers removed and
+`dotnet run` cannot compile the tool there. No project builds a tool, so
+`Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedToolMethodTests.cs` judges it: in every
+form `template.json` can generate, a call kept to a method the file declares, with no declaration
+kept, fails, naming the tool, the method and the options of a form that keeps the call.
+
 ## Web sources
 
 Two folders under `Src/Web/apps` are the source of both `--web` and `cleanarch-webapp`:

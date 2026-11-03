@@ -13,7 +13,13 @@ public sealed class DocumentationCitationTests
 
     private static readonly string[] _exemptPages = ["CHANGELOG.md"];
 
-    private static readonly string[] _pagesWithoutCitations = ["docs/template/", "docs/_page-templates/"];
+    private static readonly string[] _pagesWithoutCitations =
+    [
+        /*#if (templateMaintenance)*/
+        "docs/template/",
+        /*#endif*/
+        "docs/_page-templates/",
+    ];
 
     private static readonly string[] _skippedDirectories = ["bin", "obj", "node_modules", "plans"];
 

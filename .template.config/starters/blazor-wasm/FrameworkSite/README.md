@@ -120,17 +120,8 @@ app's image and serves it on the port below.
 
 ## Join the stack
 
-`docker compose up` starts the app once `docker-compose.yml` includes it, under `include:`:
-
-```yaml
-  - path: Src/Web/apps/FrameworkSite/compose.yml
-```
-
-and `.env.example` names its port:
-
-```bash
-WEB_FRAMEWORK_SITE_HOST_PORT=8081
-```
+`docker compose up` starts the app once `docker-compose.yml` includes it and `.env.example` names
+its port, two of the lines listed under "Joining a project generated without one" below.
 
 ## Joining a project generated without one
 
@@ -158,16 +149,39 @@ With `--auth external` it also writes the app's unit tests under `Tests`, which 
 the solution with the app.
 <!--#endif-->
 The lines `--web blazor-wasm` writes in files the item template cannot edit are listed below, each
-placed by the lines it goes beside. One task makes them all, or none when one of those lines is not
-found exactly once:
+placed by the lines it goes beside. One task makes them all, leaving those in place already, or
+none when one of those lines is not found exactly once; with `--workspace` it first makes those
+`Src/Web/README.md` lists for the workspace:
 
 ```bash
 dotnet run Tools/Tasks.cs web-join FrameworkSite --web blazor-wasm
 ```
 
-Then create the app and join the stack as above, and commit it. The edits, to make by hand where the
-task stops:
+Then create the app as above, and commit it. The edits, to make by hand where the task stops:
 
+- in `docker-compose.yml`, after the line:
+
+  ```yaml
+  include:
+  ```
+
+  add:
+
+  ```yaml
+    - path: Src/Web/apps/FrameworkSite/compose.yml
+  ```
+
+- in `.env.example`, after the line:
+
+  ```bash
+  # Web apps, loopback only: one port per app, named after its folder.
+  ```
+
+  add:
+
+  ```bash
+  WEB_FRAMEWORK_SITE_HOST_PORT=8081
+  ```
 <!--#if (!hasClient)-->
 - in `.config/dotnet-tools.json`, replace the lines:
 

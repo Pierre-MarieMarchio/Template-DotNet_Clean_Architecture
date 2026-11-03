@@ -40,9 +40,9 @@ questions, `--setup` runs every step.
 
 At the root of a generated project, or in any folder under it, it adds a web app or a package to the
 workspace: the project's authentication, workflows and scope are read from its files, and the first
-app also creates the workspace. It then prints the lines its `README.md` asks to add by hand. For a
-Blazor WebAssembly app in an existing workspace, it runs `web-join` itself and leaves out the
-instruction that asks for it.
+app also creates the workspace. It then runs `web-join`, which makes the lines the app's `README.md`
+lists outside its folder, with those of `Src/Web/README.md` for a first app, and records the app,
+and leaves out the instruction that asks for it.
 
 The presentation projects are one multi-select, the API among them; when a web app, a desktop client
 or the MCP server under local accounts calls the API, it shows the API as answered for you and says
@@ -244,20 +244,23 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 
 | Template | Options |
 |---|---|
-| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`; it is refused where `Src/Web` exists |
+| `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`, and needs `--project-name`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
 | `cleanarch-presentation` | `--framework blazor-server\|avalonia\|wpf\|mcp` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` and `wpf` take `--has-client true` where the project holds the .NET client already; `mcp` is refused with `--auth none`; `--has-api false` where the project holds no API, which refuses `avalonia`, `wpf`, and `mcp` under `--auth local`. `-n` is the presentation project's name, `Portal` by default (pass `-n Mcp` for an MCP server, `-n Desktop` for a desktop app), refused when it names one of the template's projects: a presentation project the project was generated without |
 
-An item template can add files but not edit them, so each prints the lines to add to
-`docker-compose.yml`, `.env.example` and, with `--workspace`, `.dockerignore` and
-`.github/dependabot.yml`; the generated `Src/Web/README.md` lists them. `cleanarch-presentation`
+An item template can add files but not edit them, so the `README.md` it writes lists each line its
+option writes elsewhere, in the form the join tasks read: `cleanarch-webapp` the app's `include:`
+line in `docker-compose.yml` and its port in `.env.example`, and with `--workspace`
+`Src/Web/README.md` the workspace's lines in `.dockerignore`, `.github/dependabot.yml`, the
+workflows and the pages under `docs/`. `dotnet run Tools/Tasks.cs web-join <name> --web <framework>`
+makes them. `cleanarch-presentation`
 writes the project, its tests and its page, and the `README.md` in the project's folder lists every
 line `--presentation` writes elsewhere, each placed by the lines around it: `.dockerignore`,
 `.env.example`, `Directory.Packages.props` for the packages it brings, `docker-compose.yml`,
 `AGENTS.md`, two architecture tests and the pages under `docs/`.
-`dotnet run Tools/Tasks.cs presentation-join <Project>.<name>` makes them all, or none when a line
-to place one by is not found exactly once, and leaves them alone once they are in place. Then
+`dotnet run Tools/Tasks.cs presentation-join <Project>.<name>` makes them, leaving alone those in
+place already, and makes none when a line to place one by is not found exactly once. Then
 `dotnet run Tools/Tasks.cs presentation-scaffold <Project>.<name>` creates it, as bootstrap does.
 `cleanarch-webapp --framework blazor-wasm` writes the app, the .NET client and its tests, and the
 app's `README.md` lists the lines `--web blazor-wasm` writes elsewhere the same way;
-`dotnet run Tools/Tasks.cs web-join <name>` makes them, before `web-scaffold` creates the app.
+`web-join` makes them, before `web-scaffold` creates the app.

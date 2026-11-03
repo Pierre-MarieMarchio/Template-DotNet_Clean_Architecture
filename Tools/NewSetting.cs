@@ -197,7 +197,18 @@ internal static class NewSetting
 
         if (spec.Manifest is not null)
         {
-            replaced.Add(ManifestWith(root, spec.Features, emissions));
+            try
+            {
+                replaced.Add(ManifestWith(root, spec.Features, emissions, editor));
+            }
+            catch (InvalidOperationException exception)
+            {
+                problems.Add(
+                    $"{exception.Message} {spec.Manifest} records each edit for remove-feature to undo with the feature: "
+                    + "give the file the ending this project writes (format-fix), or make this edit by hand, then run this again.");
+
+                return Refuse(error, problems);
+            }
         }
 
         if (!request.DryRun)
@@ -1329,7 +1340,7 @@ internal static class NewSetting
         return text.Insert(at, $"{indent}\"Configuration/Options\",\n");
     }
 
-    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> plan)
+    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> plan, TextEdits.Editor editor)
     {
         var manifest = FeatureManifest.Read(root, features, out _)!;
 
@@ -1337,6 +1348,8 @@ internal static class NewSetting
         {
             manifest.Record(emission.Path, TextEdits.Encode(emission.Path, emission.Content));
         }
+
+        manifest.Record(editor);
 
         return manifest.Replacement;
     }
@@ -1404,6 +1417,7 @@ internal static class NewSetting
             AnchorCases(scratch, Expect);
             TreeCases(scratch, Expect);
             RollbackCases(scratch, Expect);
+            UnrecordableEditCases(scratch, Expect);
         }
         finally
         {
@@ -1512,6 +1526,56 @@ internal static class NewSetting
         int code = Run([.. args, "--root", root], output, error);
 
         return (code, output.ToString(), error.ToString());
+    }
+
+    private static void RecordedEditsUndo(string root, Dictionary<string, string> before, Action<bool, string> expect)
+    {
+        var after = Snapshot(root);
+        string[] edited = [.. before.Keys.Where(path => after.TryGetValue(path, out string? hash) && hash != before[path] && path != ".feature-manifest/Invoices.json").Order(StringComparer.Ordinal)];
+
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, ".feature-manifest/Invoices.json")));
+        var edits = document.RootElement.TryGetProperty("edits", out var recorded) ? recorded.EnumerateArray().ToList() : [];
+
+        expect(
+            edited.Length > 0 && edited.SequenceEqual(edits.Select(edit => edit.GetProperty("path").GetString()!).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)),
+            $"The manifest does not record an edit in each file the run edited, and in those alone, so remove-feature could not undo them: {string.Join(", ", edited)}");
+
+        foreach (string path in edited)
+        {
+            byte[] bytes = File.ReadAllBytes(Path.Combine(root, path));
+            bool bom = bytes is [0xEF, 0xBB, 0xBF, ..];
+            List<string> lines = [.. Encoding.UTF8.GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0)).Split('\n')];
+
+            foreach (var edit in edits.Where(edit => edit.GetProperty("path").GetString() == path).Reverse())
+            {
+                string anchor = edit.GetProperty("anchor").GetString()!;
+                bool preceding = edit.GetProperty("position").GetString() == "before";
+                string[] added = [.. edit.GetProperty("lines").EnumerateArray().Select(line => line.GetString()!)];
+                string[] replaced = edit.TryGetProperty("replaced", out var was) ? [.. was.EnumerateArray().Select(line => line.GetString()!)] : [];
+                int at = Enumerable.Range(0, lines.Count).FirstOrDefault(
+                    index => lines[index] == anchor
+                        && (preceding
+                            ? index >= added.Length && lines.Skip(index - added.Length).Take(added.Length).SequenceEqual(added)
+                            : lines.Skip(index + 1).Take(added.Length).SequenceEqual(added)),
+                    -1);
+
+                expect(at >= 0, $"The manifest records lines {(preceding ? "before" : "after")} '{anchor}' in {path} that are not there.");
+
+                if (at >= 0)
+                {
+                    int start = preceding ? at - added.Length : at + 1;
+
+                    lines.RemoveRange(start, added.Length);
+                    lines.InsertRange(start, replaced);
+                }
+            }
+
+            byte[] undone = [.. bom ? Encoding.UTF8.Preamble : [], .. Encoding.UTF8.GetBytes(string.Join('\n', lines))];
+
+            expect(
+                Convert.ToHexStringLower(SHA256.HashData(undone)) == before[path],
+                $"Undoing the edits the manifest records in {path} does not give back the file as it was.");
+        }
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>
@@ -1742,6 +1806,7 @@ internal static class NewSetting
 
         Holds(manifest, options, "The feature's manifest");
         Holds(manifest, tests, "The feature's manifest");
+        RecordedEditsUndo(root, before, expect);
 
         var again = Snapshot(root);
         var second = Invoke(root, "Invoices", "InvoiceLimits", "--keys", _validKeys);
@@ -1921,6 +1986,20 @@ internal static class NewSetting
         expect(!Directory.Exists(Path.Combine(withoutTests, "Tests/Application")), "Tests were written to a tree that has no project for them.");
     }
 
+    private static void UnrecordableEditCases(string scratch, Action<bool, string> expect)
+    {
+        string root = NewTree(scratch);
+
+        File.WriteAllText(Path.Combine(root, _environment), File.ReadAllText(Path.Combine(root, _environment)).TrimEnd('\n'));
+        ExpectRefusal(root, ["Invoices", "InvoiceLimits", "--keys", _validKeys], "cannot be recorded to be undone", expect);
+
+        File.Delete(Path.Combine(root, ".feature-manifest/Invoices.json"));
+
+        var unrecorded = Invoke(root, "Invoices", "InvoiceLimits", "--keys", _validKeys);
+
+        expect(unrecorded.Code == 0, $"A feature with no manifest, which records nothing, was refused for an edit that ends the file with a newline: {unrecorded.Error}");
+    }
+
     private static void RollbackCases(string scratch, Action<bool, string> expect)
     {
         string root = NewTree(scratch);
@@ -1974,7 +2053,7 @@ internal static class TextEdits
 {
     private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
-    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines, string[] Replaced);
 
     internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
     {
@@ -1991,7 +2070,11 @@ internal static class TextEdits
 
         private readonly List<string> _lines;
 
-        private readonly List<bool> _inserted;
+        private readonly string[] _source;
+
+        private readonly List<int> _origin;
+
+        private readonly bool _sourceFinalNewline;
 
         internal Sheet(string path, byte[] original)
         {
@@ -2004,7 +2087,9 @@ internal static class TextEdits
             _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
             FinalNewline = text.EndsWith('\n');
             _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
-            _inserted = [.. _lines.Select(_ => false)];
+            _source = [.. _lines];
+            _origin = [.. Enumerable.Range(0, _lines.Count)];
+            _sourceFinalNewline = FinalNewline;
         }
 
         internal string Path { get; }
@@ -2015,7 +2100,7 @@ internal static class TextEdits
 
         internal bool FinalNewline { get; private set; }
 
-        internal bool Rewritten { get; private set; }
+        internal bool EndingChanged => FinalNewline != _sourceFinalNewline;
 
         internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
 
@@ -2039,9 +2124,8 @@ internal static class TextEdits
 
             int removed = _lines.Count - head - tail;
 
-            Rewritten |= removed > 0 || finalNewline != FinalNewline;
             _lines.RemoveRange(head, removed);
-            _inserted.RemoveRange(head, removed);
+            _origin.RemoveRange(head, removed);
             Insert(head, next[head..^tail]);
             FinalNewline = finalNewline;
         }
@@ -2049,32 +2133,35 @@ internal static class TextEdits
         internal void Insert(int index, string[] lines)
         {
             _lines.InsertRange(index, lines);
-            _inserted.InsertRange(index, lines.Select(_ => true));
+            _origin.InsertRange(index, lines.Select(_ => -1));
         }
 
         internal IEnumerable<Edit> Edits()
         {
-            for (int start = 0; start < _lines.Count; start++)
+            int previous = -1;
+            int previousSource = -1;
+
+            for (int index = 0; index <= _lines.Count; index++)
             {
-                if (!_inserted[start])
+                if (index < _lines.Count && _origin[index] < 0)
                 {
                     continue;
                 }
 
-                int end = start;
+                int nextSource = index < _lines.Count ? _origin[index] : _source.Length;
+                string[] added = [.. _lines.Skip(previous + 1).Take(index - previous - 1)];
+                string[] replaced = _source[(previousSource + 1)..nextSource];
 
-                while (end + 1 < _lines.Count && _inserted[end + 1])
+                if (added.Length > 0 || replaced.Length > 0)
                 {
-                    end++;
+                    int next = index < _lines.Count ? index : -1;
+                    bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                    yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", added, replaced);
                 }
 
-                int next = end + 1 < _lines.Count ? end + 1 : -1;
-                int previous = start - 1;
-                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
-
-                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
-
-                start = end;
+                previous = index;
+                previousSource = nextSource;
             }
         }
 
@@ -2093,8 +2180,8 @@ internal static class TextEdits
         internal string Step { get; set; } = string.Empty;
 
         internal IReadOnlyList<Edit> Applied =>
-            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
-                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.EndingChanged)
+                ? throw new InvalidOperationException("An edit that adds or removes the newline that ends a file cannot be recorded to be undone.")
                 : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
 
         internal List<string> Kept { get; } = [];
@@ -2391,11 +2478,12 @@ internal static class TextEdits
         }
     }
 
-    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced, IReadOnlyList<string>? deleted = null)
     {
         var written = new List<string>();
         var directories = new List<string>();
         var overwritten = new List<(string Full, byte[] Original)>();
+        var setAside = new List<(string Full, string Aside)>();
         string? staged = null;
 
         try
@@ -2439,9 +2527,23 @@ internal static class TextEdits
                 staged = null;
                 overwritten.Add((full, original));
             }
+
+            foreach (string path in deleted ?? [])
+            {
+                string full = System.IO.Path.Combine(root, path);
+                string aside = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                File.Move(full, aside);
+                setAside.Add((full, aside));
+            }
         }
         catch
         {
+            foreach (var (full, aside) in Enumerable.Reverse(setAside))
+            {
+                File.Move(aside, full);
+            }
+
             if (staged is not null && File.Exists(staged))
             {
                 File.Delete(staged);
@@ -2466,6 +2568,11 @@ internal static class TextEdits
             }
 
             throw;
+        }
+
+        foreach (var (_, aside) in setAside)
+        {
+            File.Delete(aside);
         }
     }
 
@@ -2703,14 +2810,20 @@ internal sealed class FeatureManifest
                     || Text(edit["path"]) is not { } editPath
                     || Text(edit["anchor"]) is not { } anchor
                     || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
-                    || lines.Any(line => Text(line) is null))
+                    || lines.Any(line => Text(line) is null)
+                    || (edit["replaced"] is { } replacedNode && (replacedNode is not JsonArray replacedLines || replacedLines.Any(line => Text(line) is null))))
                 {
                     problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
 
                     return null;
                 }
 
-                read.Add(new TextEdits.Edit(editPath, anchor, Text(edit["position"])!, [.. lines.Select(line => Text(line)!)]));
+                read.Add(new TextEdits.Edit(
+                    editPath,
+                    anchor,
+                    Text(edit["position"])!,
+                    [.. lines.Select(line => Text(line)!)],
+                    [.. (edit["replaced"] as JsonArray ?? []).Select(line => Text(line)!)]));
             }
 
             return new FeatureManifest(path, top, original, read);
@@ -2772,13 +2885,20 @@ internal sealed class FeatureManifest
 
         foreach (var edit in _edits)
         {
-            edits.Add((JsonNode)new JsonObject
+            var written = new JsonObject
             {
                 ["path"] = edit.Path,
                 ["anchor"] = edit.Anchor,
                 ["position"] = edit.Position,
                 ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
-            });
+            };
+
+            if (edit.Replaced.Length > 0)
+            {
+                written["replaced"] = new JsonArray([.. edit.Replaced.Select(line => (JsonNode)JsonValue.Create(line)!)]);
+            }
+
+            edits.Add((JsonNode)written);
         }
 
         if (_edits.Count > _editsRead)

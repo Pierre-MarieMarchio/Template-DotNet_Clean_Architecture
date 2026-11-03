@@ -45,20 +45,6 @@ internal static class NewSetting
 
     private static readonly string[] _reservedMembers = ["SectionName"];
 
-    private static readonly string[] _keywords =
-    [
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
-        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
-        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
-        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
-        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
-        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
-        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
-    ];
-
-    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
-
     private static readonly Regex _keySpec = new(
         @"^(?<name>[^:]*):(?<type>[a-z]+)(?:\((?<bounds>[^()]*)\))?(?:=(?<default>.*))?$",
         RegexOptions.None,
@@ -67,8 +53,6 @@ internal static class NewSetting
     private static readonly Regex _safeText = new(@"^(?:[A-Za-z0-9._:/@-](?:[A-Za-z0-9 ._:/@-]*[A-Za-z0-9._:/@-])?)?$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private static readonly Regex _sectionName = new(@"SectionName\s*=\s*""([A-Za-z:]+)""", RegexOptions.None, TimeSpan.FromSeconds(2));
-
-    private static readonly Regex _usingLine = new(@"^using [A-Z][\w.]*;$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private enum Kind
     {
@@ -81,8 +65,6 @@ internal static class NewSetting
     }
 
     private sealed record Emission(string Path, string Content);
-
-    private sealed record Edit(string Path, string Description, Func<string, string?> Apply);
 
     private sealed record Request(string? Features, string? Section, string? Keys, string Root, bool DryRun);
 
@@ -198,47 +180,33 @@ internal static class NewSetting
             return Refuse(error, problems);
         }
 
-        var (edits, hosts, documents) = Edits(spec, root, problems);
+        var (editor, hosts) = Edits(spec, root, problems);
 
         if (problems.Count > 0)
         {
             return Refuse(error, problems);
         }
 
-        var changed = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var edit in edits)
-        {
-            string current = changed.TryGetValue(edit.Path, out string? pending) ? pending : documents[edit.Path];
-            string? next = edit.Apply(current);
-
-            if (next is null)
-            {
-                problems.Add($"{edit.Description}: its anchor is not in {edit.Path}, so nothing could be written. Fix that file, or make this edit by hand and leave the setting to the steps of docs/guides/adding-a-setting.md.");
-
-                continue;
-            }
-
-            changed[edit.Path] = next;
-        }
-
-        foreach (string path in changed.Where(pair => pair.Value == documents[pair.Key]).Select(pair => pair.Key).ToList())
-        {
-            changed.Remove(path);
-        }
+        problems.AddRange(editor.Failures.Select(failure =>
+            $"{failure} Fix that file, or make this edit by hand and leave the setting to the steps of docs/guides/adding-a-setting.md."));
 
         if (problems.Count > 0)
         {
             return Refuse(error, problems);
         }
 
-        Emission? manifest = spec.Manifest is null ? null : ManifestWith(root, spec.Manifest, emissions);
+        var replaced = TextEdits.Replacements(editor).ToList();
+
+        if (spec.Manifest is { } manifest)
+        {
+            replaced.Add((manifest, File.ReadAllBytes(Path.Combine(root, manifest)), TextEdits.Encode(manifest, ManifestWith(root, manifest, emissions))));
+        }
 
         if (!request.DryRun)
         {
             try
             {
-                WriteAll(root, emissions, changed, manifest);
+                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, TextEdits.Encode(emission.Path, emission.Content)))], replaced);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -248,7 +216,7 @@ internal static class NewSetting
             }
         }
 
-        Report(output, spec, emissions, changed.Keys, hosts, request.DryRun);
+        Report(output, spec, emissions, editor.Changed.Select(sheet => sheet.Path), hosts, request.DryRun);
 
         return 0;
     }
@@ -345,12 +313,12 @@ internal static class NewSetting
         string features = request.Features ?? string.Empty;
         string section = request.Section ?? string.Empty;
 
-        if (!_pascalCase.IsMatch(features))
+        if (!CSharpNames.PascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a feature folder: <Features> is PascalCase and plural, e.g. Invoices.");
         }
 
-        if (!_pascalCase.IsMatch(section))
+        if (!CSharpNames.PascalCase.IsMatch(section))
         {
             problems.Add($"'{section}' is not a section name: <Section> is PascalCase, e.g. InvoiceReminders.");
         }
@@ -435,9 +403,9 @@ internal static class NewSetting
             problems.Add($"'{section}' ends in 'Options', which the class name appends itself: the section is the type's name without it. Name the section {section[..^"Options".Length]}.");
         }
 
-        if (_keywords.Contains(Lower(section), StringComparer.Ordinal))
+        if (CSharpNames.Keywords.Contains(CSharpNames.Lower(section), StringComparer.Ordinal))
         {
-            problems.Add($"'{section}' becomes the C# keyword '{Lower(section)}' once its first letter is lowered. Choose another name.");
+            problems.Add($"'{section}' becomes the C# keyword '{CSharpNames.Lower(section)}' once its first letter is lowered. Choose another name.");
         }
 
         if (_reservedSections.Contains(section, StringComparer.OrdinalIgnoreCase))
@@ -556,14 +524,14 @@ internal static class NewSetting
 
             string name = match.Groups["name"].Value;
 
-            if (!_pascalCase.IsMatch(name))
+            if (!CSharpNames.PascalCase.IsMatch(name))
             {
                 problems.Add($"'{name}' in --keys is not a key name: PascalCase, e.g. MaxItems.");
 
                 continue;
             }
 
-            if (_keywords.Contains(Lower(name), StringComparer.Ordinal) || _reservedMembers.Contains(name, StringComparer.Ordinal))
+            if (CSharpNames.Keywords.Contains(CSharpNames.Lower(name), StringComparer.Ordinal) || _reservedMembers.Contains(name, StringComparer.Ordinal))
             {
                 problems.Add($"'{name}' in --keys would be a C# keyword or a member the options class already declares. Choose another name.");
 
@@ -778,8 +746,6 @@ internal static class NewSetting
         segment.Any(char.IsAsciiLetterUpper)
             ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
             : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
-
-    private static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 
     private static string Words(string pascal) =>
         string.Concat(pascal.Select((character, index) => char.IsUpper(character) && index > 0 ? " " + character : character.ToString()));
@@ -1021,11 +987,17 @@ internal static class NewSetting
 
     private static string UsingKey(string line) => (line.StartsWith("using System", StringComparison.Ordinal) ? "0" : "1") + line.TrimEnd(';').ToUpperInvariant();
 
-    private static (List<Edit> Edits, List<string> Hosts, Dictionary<string, string> Documents) Edits(Spec spec, string root, List<string> problems)
+    private static (TextEdits.Editor Editor, List<string> Hosts) Edits(Spec spec, string root, List<string> problems)
     {
-        var edits = new List<Edit>();
+        var editor = new TextEdits.Editor(root);
         var documents = new Dictionary<string, string>(StringComparer.Ordinal);
         var hosts = new List<string>();
+
+        void Edit(string path, string step, Func<string, string?> edit)
+        {
+            editor.Step = step;
+            editor.Rewrite(path, edit);
+        }
 
         string Load(string relative)
         {
@@ -1067,8 +1039,13 @@ internal static class NewSetting
             problems.Add($"{module} already mentions {spec.Options}. A setting is written once; after that it is edited.");
         }
 
-        edits.Add(new Edit(module, $"the registration in Add{spec.Features} of {module}", text => Register(text, spec)));
-        edits.Add(new Edit(module, $"the usings of {module}", text => AddUsings(text, [spec.Namespace, "Microsoft.Extensions.DependencyInjection.Extensions", "Microsoft.Extensions.Options"])));
+        Edit(module, $"the registration in Add{spec.Features} of {module}", text => Register(text, spec));
+        editor.Step = $"the usings of {module}";
+
+        foreach (string space in new[] { spec.Namespace, "Microsoft.Extensions.DependencyInjection.Extensions", "Microsoft.Extensions.Options" })
+        {
+            editor.Using(module, space);
+        }
 
         string presentation = Path.Combine(root, "Src", "Presentation");
         string call = $".Add{spec.Features}(";
@@ -1084,7 +1061,7 @@ internal static class NewSetting
 
             hosts.Add(Path.GetFileName(host));
             Load(relative);
-            edits.Add(new Edit(relative, $"the {spec.Section} section of {relative}", text => AddSection(text, spec)));
+            Edit(relative, $"the {spec.Section} section of {relative}", text => AddSection(text, spec));
         }
 
         if (hosts.Count == 0)
@@ -1101,7 +1078,7 @@ internal static class NewSetting
             if (File.Exists(Path.Combine(root, composition)))
             {
                 Load(composition);
-                edits.Add(new Edit(composition, $"the ValidSettings of {composition}", text => AddValidSettings(text, spec)));
+                Edit(composition, $"the ValidSettings of {composition}", text => AddValidSettings(text, spec));
             }
 
             foreach (string file in new[] { "docker-compose.yml", ".env.example" })
@@ -1112,26 +1089,31 @@ internal static class NewSetting
                 }
 
                 Load(file);
-                edits.Add(file == ".env.example"
-                    ? new Edit(file, $"the variables of {file}", text => AddEnvironment(text, spec))
-                    : new Edit(file, $"the x-host-environment of {file}", text => AddCompose(text, spec)));
+                if (file == ".env.example")
+                {
+                    Edit(file, $"the variables of {file}", text => AddEnvironment(text, spec));
+                }
+                else
+                {
+                    Edit(file, $"the x-host-environment of {file}", text => AddCompose(text, spec));
+                }
             }
         }
 
         string guide = "docs/reference/configuration.md";
 
         Load(guide);
-        edits.Add(new Edit(guide, $"the {spec.Section} section of {guide}", text => AddGuide(text, spec)));
+        Edit(guide, $"the {spec.Section} section of {guide}", text => AddGuide(text, spec));
 
         string vocabulary = $"Tests/Architecture/{FolderOf(spec.Prefix, "Architecture.Tests")}/Rules/LayoutConventionTests.cs";
 
         if (File.Exists(Path.Combine(root, vocabulary)))
         {
             Load(vocabulary);
-            edits.Add(new Edit(vocabulary, $"the Configuration/Options folder word of {vocabulary}", text => AddVocabulary(text, FolderOf(spec.Prefix, "Application"))));
+            Edit(vocabulary, $"the Configuration/Options folder word of {vocabulary}", text => AddVocabulary(text, FolderOf(spec.Prefix, "Application")));
         }
 
-        return (edits, hosts, documents);
+        return (editor, hosts);
     }
 
     private static bool TakesConfiguration(string moduleText, string features)
@@ -1184,28 +1166,6 @@ internal static class NewSetting
             + $"        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<{spec.Options}>, {spec.Validator}>());\n";
 
         return text.Insert(position, block);
-    }
-
-    private static string? AddUsings(string text, string[] namespaces)
-    {
-        string[] lines = text.Split('\n');
-        int count = lines.TakeWhile(line => line.StartsWith("using ", StringComparison.Ordinal)).Count();
-
-        if (count == 0 || lines[..count].Any(line => !_usingLine.IsMatch(line)))
-        {
-            return null;
-        }
-
-        string[] current = lines[..count];
-
-        if (!current.SequenceEqual(current.OrderBy(UsingKey, StringComparer.Ordinal)))
-        {
-            return null;
-        }
-
-        string[] added = [.. current.Concat(namespaces.Select(name => $"using {name};")).Distinct(StringComparer.Ordinal).OrderBy(UsingKey, StringComparer.Ordinal)];
-
-        return string.Join('\n', [.. added, .. lines[count..]]);
     }
 
     private static string? AddValidSettings(string text, Spec spec)
@@ -1386,19 +1346,10 @@ internal static class NewSetting
         return text.Insert(at, $"{indent}\"Configuration/Options\",\n");
     }
 
-    private static byte[] Bytes(string path, string content, bool bom)
-    {
-        string text = content.ReplaceLineEndings("\n");
-
-        return bom || path.EndsWith(".cs", StringComparison.Ordinal)
-            ? [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)]
-            : Encoding.UTF8.GetBytes(text);
-    }
-
     private static string HashOf(Emission emission) =>
-        Convert.ToHexStringLower(SHA256.HashData(Bytes(emission.Path, emission.Content, bom: false)));
+        Convert.ToHexStringLower(SHA256.HashData(TextEdits.Encode(emission.Path, emission.Content)));
 
-    private static Emission ManifestWith(string root, string manifest, List<Emission> plan)
+    private static string ManifestWith(string root, string manifest, List<Emission> plan)
     {
         var top = (JsonObject)JsonNode.Parse(File.ReadAllText(Path.Combine(root, manifest)))!;
         var files = (JsonArray)top["files"]!;
@@ -1426,82 +1377,7 @@ internal static class NewSetting
             top.WriteTo(writer);
         }
 
-        return new Emission(manifest, Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
-    }
-
-    private static void WriteAll(string root, List<Emission> emissions, Dictionary<string, string> changed, Emission? manifest)
-    {
-        var created = new List<string>();
-        var directories = new List<string>();
-        var originals = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-
-        try
-        {
-            foreach (var emission in emissions)
-            {
-                string full = Path.Combine(root, emission.Path);
-                string directory = Path.GetDirectoryName(full)!;
-                var missing = new Stack<string>();
-
-                for (string next = directory; !Directory.Exists(next); next = Path.GetDirectoryName(next)!)
-                {
-                    missing.Push(next);
-                }
-
-                directories.AddRange(missing);
-                Directory.CreateDirectory(directory);
-
-                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
-
-                stream.Write(Bytes(emission.Path, emission.Content, bom: false));
-                created.Add(full);
-            }
-
-            var replacements = changed.Select(pair => (pair.Key, Content: pair.Value)).ToList();
-
-            if (manifest is not null)
-            {
-                replacements.Add((manifest.Path, manifest.Content));
-            }
-
-            foreach (var (relative, content) in replacements)
-            {
-                string full = Path.Combine(root, relative);
-                byte[] before = File.ReadAllBytes(full);
-                string staged = full + ".new";
-
-                originals[full] = before;
-                File.WriteAllBytes(staged, Bytes(relative, content, before is [0xEF, 0xBB, 0xBF, ..]));
-                File.Move(staged, full, overwrite: true);
-            }
-        }
-        catch
-        {
-            foreach (var (full, before) in originals)
-            {
-                File.WriteAllBytes(full, before);
-
-                if (File.Exists(full + ".new"))
-                {
-                    File.Delete(full + ".new");
-                }
-            }
-
-            foreach (string file in created.Where(File.Exists))
-            {
-                File.Delete(file);
-            }
-
-            foreach (string directory in Enumerable.Reverse(directories))
-            {
-                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
-                {
-                    Directory.Delete(directory);
-                }
-            }
-
-            throw;
-        }
+        return Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n";
     }
 
     private static void Report(TextWriter output, Spec spec, List<Emission> emissions, IEnumerable<string> edited, List<string> hosts, bool dryRun)
@@ -1998,8 +1874,6 @@ internal static class NewSetting
         [
             ("no method", args, _module, text => text.Replace("AddInvoices", "AddBills", StringComparison.Ordinal), "the registration in AddInvoices"),
             ("no guard", args, _module, text => text.Replace("ArgumentNullException.ThrowIfNull(services);\n\n        services.AddFeature(\"Invoices\")", "services.AddFeature(\"Invoices\")", StringComparison.Ordinal), "the registration in AddInvoices"),
-            ("usings out of order", args, _module, text => text.Replace("using Acme.Application.Core.Common.Events;\nusing Microsoft.Extensions.Configuration;", "using Microsoft.Extensions.Configuration;\nusing Acme.Application.Core.Common.Events;", StringComparison.Ordinal), "the usings of"),
-            ("no usings", args, _module, text => text[text.IndexOf("namespace", StringComparison.Ordinal)..], "the usings of"),
             ("not an object", args, _api, _ => "[]\n", "the Limits section of"),
             ("no guide end", args, _guide, text => text.Replace("## Beyond the sections", "## Elsewhere", StringComparison.Ordinal), "the Limits section of"),
             ("no vocabulary list", args, _vocabulary, text => text.Replace("[\"Src/Application/A.Application\"]", "[\"Src/Application/A.Elsewhere\"]", StringComparison.Ordinal), "the Configuration/Options folder word of"),
@@ -2029,6 +1903,28 @@ internal static class NewSetting
             }
 
             ExpectRefusal(root, caseArgs, fragment, expect);
+        }
+
+        (string Name, Func<string, string> Damage)[] usings =
+        [
+            ("usings out of order", text => text.Replace("using Acme.Application.Core.Common.Events;\nusing Microsoft.Extensions.Configuration;", "using Microsoft.Extensions.Configuration;\nusing Acme.Application.Core.Common.Events;", StringComparison.Ordinal)),
+            ("no usings", text => text[text.IndexOf("namespace", StringComparison.Ordinal)..]),
+        ];
+        string[] added = ["using Acme.Application.Features.Invoices.Configuration.Options;", "using Microsoft.Extensions.DependencyInjection.Extensions;", "using Microsoft.Extensions.Options;"];
+
+        foreach (var (name, damage) in usings)
+        {
+            string root = NewTree(scratch);
+            string full = Path.Combine(root, _module);
+
+            File.WriteAllBytes(full, [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(damage(Decode(File.ReadAllBytes(full))))]);
+
+            var result = Invoke(root, args);
+            string[] lines = Read(root, _module).Split('\n');
+
+            expect(
+                result.Code == 0 && added.All(line => lines.Count(candidate => candidate == line) == 1),
+                $"[{name}] the setting's usings were not each added once, beside the usings the module holds: {result.Error}");
         }
     }
 
@@ -2068,12 +1964,662 @@ internal static class NewSetting
     {
         string root = NewTree(scratch);
 
-        Directory.CreateDirectory(Path.Combine(root, _guide + ".new"));
+        File.WriteAllText(Path.Combine(root, "Tests/Application/A.Application.UnitTests/Features"), "not a folder\n");
 
         var before = Snapshot(root);
         var result = Invoke(root, "Invoices", "Limits", "--keys", "Max:int(1..9)=1");
 
         expect(result.Code == 1 && result.Error.Contains("nothing was left behind", StringComparison.Ordinal), $"A write that failed midway did not say so: {result.Error}");
         expect(Same(before, Snapshot(root)), "A write that failed midway left files or edits behind.");
+
+        string edited = NewTree(scratch);
+        string guide = Path.Combine(edited, _guide);
+        byte[] original = File.ReadAllBytes(guide);
+        bool restored = false;
+
+        try
+        {
+            TextEdits.Commit(edited, [("Src/written.cs", [1])], [(_guide, original, [2]), ("docs", [], [3])]);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            restored = File.ReadAllBytes(guide).AsSpan().SequenceEqual(original) && !File.Exists(Path.Combine(edited, "Src/written.cs"));
+        }
+
+        expect(restored, "An edit that could not be written did not put back the files edited before it and remove the files written.");
+    }
+}
+
+internal static class CSharpNames
+{
+    internal static readonly string[] Keywords =
+    [
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
+        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
+        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
+        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
+        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
+        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
+        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
+    ];
+
+    internal static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+    internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
+}
+
+internal static class TextEdits
+{
+    private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
+    {
+        internal bool FromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
+    }
+
+    private const string _noBuild = "--no-build";
+
+    internal sealed class Sheet
+    {
+        private readonly bool _bom;
+
+        private readonly string _newline;
+
+        private readonly List<string> _lines;
+
+        private readonly List<bool> _inserted;
+
+        internal Sheet(string path, byte[] original)
+        {
+            Path = path;
+            Original = original;
+            _bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+
+            string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
+
+            _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            FinalNewline = text.EndsWith('\n');
+            _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            _inserted = [.. _lines.Select(_ => false)];
+        }
+
+        internal string Path { get; }
+
+        internal byte[] Original { get; }
+
+        internal IReadOnlyList<string> Lines => _lines;
+
+        internal bool FinalNewline { get; private set; }
+
+        internal bool Rewritten { get; private set; }
+
+        internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
+
+        internal void Rewrite(string text)
+        {
+            bool finalNewline = text.EndsWith('\n');
+            string[] next = (finalNewline ? text[..^1] : text).Split('\n');
+            int head = 0;
+
+            while (head < next.Length && head < _lines.Count && next[head] == _lines[head])
+            {
+                head++;
+            }
+
+            int tail = 0;
+
+            while (tail < next.Length - head && tail < _lines.Count - head && next[^(tail + 1)] == _lines[^(tail + 1)])
+            {
+                tail++;
+            }
+
+            int removed = _lines.Count - head - tail;
+
+            Rewritten |= removed > 0 || finalNewline != FinalNewline;
+            _lines.RemoveRange(head, removed);
+            _inserted.RemoveRange(head, removed);
+            Insert(head, next[head..^tail]);
+            FinalNewline = finalNewline;
+        }
+
+        internal void Insert(int index, string[] lines)
+        {
+            _lines.InsertRange(index, lines);
+            _inserted.InsertRange(index, lines.Select(_ => true));
+        }
+
+        internal IEnumerable<Edit> Edits()
+        {
+            for (int start = 0; start < _lines.Count; start++)
+            {
+                if (!_inserted[start])
+                {
+                    continue;
+                }
+
+                int end = start;
+
+                while (end + 1 < _lines.Count && _inserted[end + 1])
+                {
+                    end++;
+                }
+
+                int next = end + 1 < _lines.Count ? end + 1 : -1;
+                int previous = start - 1;
+                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
+
+                start = end;
+            }
+        }
+
+        internal byte[] Bytes()
+        {
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (FinalNewline ? _newline : string.Empty));
+
+            return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
+        }
+    }
+
+    internal sealed class Editor(string root)
+    {
+        private readonly Dictionary<string, Sheet?> _sheets = new(StringComparer.Ordinal);
+
+        internal string Step { get; set; } = string.Empty;
+
+        internal IReadOnlyList<Edit> Applied =>
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
+                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+                : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+
+        internal List<string> Kept { get; } = [];
+
+        internal List<string> Failures { get; } = [];
+
+        internal IEnumerable<Sheet> Changed =>
+            _sheets.Values.OfType<Sheet>().Where(sheet => !sheet.Original.AsSpan().SequenceEqual(sheet.Bytes()));
+
+        internal Sheet? Open(string path)
+        {
+            if (!_sheets.TryGetValue(path, out Sheet? sheet))
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                sheet = File.Exists(full) ? new Sheet(path, File.ReadAllBytes(full)) : null;
+                _sheets[path] = sheet;
+            }
+
+            if (sheet is null)
+            {
+                Fail($"{path} does not exist.");
+            }
+
+            return sheet;
+        }
+
+        internal void Fail(string reason) => Failures.Add(Step.Length == 0 ? reason : $"{Step}: {reason}");
+
+        internal static void Insert(Sheet sheet, int anchor, bool before, string[] lines) => sheet.Insert(before ? anchor : anchor + 1, lines);
+
+        internal static int Find(Sheet sheet, Func<string, bool> match, int from = 0, int to = -1)
+        {
+            int end = to < 0 ? sheet.Lines.Count : Math.Min(to, sheet.Lines.Count);
+
+            for (int index = Math.Max(from, 0); index < end; index++)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal static int FindLast(Sheet sheet, Func<string, bool> match, int from)
+        {
+            for (int index = Math.Min(from, sheet.Lines.Count - 1); index >= 0; index--)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal void Place(string path, string[] anchors, bool before, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Trim().StartsWith(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int anchor = anchors
+                .Select(text => Find(sheet, line => line.Trim().StartsWith(text, StringComparison.Ordinal)))
+                .FirstOrDefault(index => index >= 0, -1);
+
+            if (anchor < 0)
+            {
+                Fail($"no line starts with '{string.Join("' or '", anchors)}', the line the edit is placed beside.");
+
+                return;
+            }
+
+            Insert(sheet, anchor, before, lines);
+        }
+
+        internal void Rewrite(string path, Func<string, string?> edit)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (edit(sheet.Text) is { } text)
+            {
+                sheet.Rewrite(text);
+            }
+            else
+            {
+                Fail($"its anchor is not in {path}, so nothing could be written.");
+            }
+        }
+
+        internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int found = 0;
+
+            for (int index = 0; index < sheet.Lines.Count; index++)
+            {
+                if (sheet.Lines[index].Trim() != anchor)
+                {
+                    continue;
+                }
+
+                found++;
+
+                int start = FindLast(sheet, candidate => candidate == "    {", index);
+                int end = Find(sheet, candidate => candidate == "    }", index);
+
+                if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+                {
+                    Kept.Add(Step);
+
+                    continue;
+                }
+
+                Insert(sheet, index, before, [line]);
+                index++;
+            }
+
+            if (found == 0)
+            {
+                Fail($"no line reads '{anchor}', the line the edit is placed beside in each method.");
+            }
+        }
+
+        internal void AppendToMethod(string path, string method, string prefix, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int declaration = Find(sheet, candidate => candidate.Contains(method, StringComparison.Ordinal));
+            int start = declaration < 0 ? -1 : Find(sheet, candidate => candidate == "    {", declaration);
+            int end = start < 0 ? -1 : Find(sheet, candidate => candidate == "    }", start);
+
+            if (end < 0)
+            {
+                Fail($"no method{method} with a body was found to take the line.");
+
+                return;
+            }
+
+            if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int last = FindLast(sheet, candidate => candidate.Trim().StartsWith(prefix, StringComparison.Ordinal), end);
+
+            if (last <= start)
+            {
+                Fail($"the method{method} has no line starting with '{prefix}' to place the line after.");
+
+                return;
+            }
+
+            Insert(sheet, last, before: false, [line]);
+        }
+
+        internal void Using(string path, string space)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            string directive = $"using {space};";
+            int body = Find(sheet, line => !IsHeader(line));
+            int[] usings = [.. Enumerable.Range(0, body < 0 ? sheet.Lines.Count : body).Where(index => IsUsing(sheet.Lines[index]))];
+            string? own = sheet.Lines
+                .Select(line => line.Trim())
+                .FirstOrDefault(line => line.StartsWith("namespace ", StringComparison.Ordinal) && line.EndsWith(';'))?["namespace ".Length..^1];
+
+            if (usings.Any(index => sheet.Lines[index].Trim() == directive)
+                || (own is not null && (own == space || own.StartsWith(space + ".", StringComparison.Ordinal))))
+            {
+                return;
+            }
+
+            int following = usings.FirstOrDefault(index => Order(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
+
+            if (following >= 0)
+            {
+                Insert(sheet, following, before: true, [directive]);
+            }
+            else if (usings.Length > 0)
+            {
+                Insert(sheet, usings[^1], before: false, [directive]);
+            }
+            else
+            {
+                Insert(sheet, 0, before: true, [directive, string.Empty]);
+            }
+        }
+
+        internal void Row(string path, string heading, string row, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Contains(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int level = heading.TakeWhile(character => character == '#').Count();
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith('#') && line.TakeWhile(character => character == '#').Count() <= level, section + 1);
+            int rule = section < 0 ? -1 : Find(sheet, line => line.StartsWith("|---", StringComparison.Ordinal), section + 1, next);
+
+            if (rule < 0)
+            {
+                Fail($"{path} has no table under '{heading}' to take the row.");
+
+                return;
+            }
+
+            int last = rule;
+
+            while (last + 1 < sheet.Lines.Count && sheet.Lines[last + 1].StartsWith('|'))
+            {
+                last++;
+            }
+
+            Insert(sheet, last, before: false, [row]);
+        }
+
+        internal void Section(string path, string heading, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line == present) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith("## ", StringComparison.Ordinal), section + 1);
+
+            if (next < 0)
+            {
+                Fail($"{path} has no '{heading}' section followed by another, before which the section is placed.");
+
+                return;
+            }
+
+            Insert(sheet, next, before: true, lines);
+        }
+
+        private static bool IsUsing(string line) =>
+            line.StartsWith("using ", StringComparison.Ordinal) && line.TrimEnd().EndsWith(';') && !line.Contains('=', StringComparison.Ordinal);
+
+        private static bool IsHeader(string line) =>
+            line.Trim().Length == 0 || line.TrimStart().StartsWith("//", StringComparison.Ordinal) || IsUsing(line);
+
+        private static int Order(string left, string right)
+        {
+            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
+
+            int system = IsSystem(right).CompareTo(IsSystem(left));
+
+            return system != 0 ? system
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
+                : StringComparer.Ordinal.Compare(left, right);
+        }
+    }
+
+    internal static void WriteEdits(Utf8JsonWriter writer, IEnumerable<Edit> edits)
+    {
+        writer.WriteStartArray("edits");
+
+        foreach (Edit edit in edits)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", edit.Path);
+            writer.WriteString("anchor", edit.Anchor);
+            writer.WriteString("position", edit.Position);
+            writer.WriteStartArray("lines");
+
+            foreach (string line in edit.Lines)
+            {
+                writer.WriteStringValue(line);
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    {
+        var written = new List<string>();
+        var directories = new List<string>();
+        var overwritten = new List<(string Full, byte[] Original)>();
+        string? staged = null;
+
+        try
+        {
+            foreach (var (path, bytes) in created)
+            {
+                string full = System.IO.Path.Combine(root, path);
+                var missing = new Stack<string>();
+
+                for (string next = System.IO.Path.GetDirectoryName(full)!; !Directory.Exists(next); next = System.IO.Path.GetDirectoryName(next)!)
+                {
+                    missing.Push(next);
+                }
+
+                directories.AddRange(missing);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+
+                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
+
+                written.Add(full);
+                stream.Write(bytes);
+            }
+
+            foreach (var (path, original, bytes) in replaced)
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
+                {
+                    stream.Write(bytes);
+                }
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(staged, File.GetUnixFileMode(full));
+                }
+
+                File.Move(staged, full, overwrite: true);
+                staged = null;
+                overwritten.Add((full, original));
+            }
+        }
+        catch
+        {
+            if (staged is not null && File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
+            foreach (var (full, original) in overwritten)
+            {
+                File.WriteAllBytes(full, original);
+            }
+
+            foreach (string full in written.Where(File.Exists))
+            {
+                File.Delete(full);
+            }
+
+            foreach (string directory in Enumerable.Reverse(directories))
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    internal static byte[] Encode(string path, string content)
+    {
+        byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
+
+        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+            ? [.. Encoding.UTF8.GetPreamble(), .. text]
+            : text;
+    }
+
+    internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>
+        editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
+
+    internal static Command Task(string root, params string[] task) =>
+        new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
+
+    internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
+
+    internal static List<Command> ContractSteps(string root, string client, bool built) =>
+    [
+        built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
+        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
+            ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
+            : Array.Empty<Command>(),
+    ];
+
+    internal static int Execute(Command command)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(command.FileName) { WorkingDirectory = command.WorkingDirectory, UseShellExecute = false };
+
+        foreach (string argument in command.Arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+
+            process.WaitForExit();
+
+            return process.ExitCode;
+        }
+        catch (System.ComponentModel.Win32Exception exception)
+        {
+            Console.Error.WriteLine($"{command.FileName} could not be started: {exception.Message}");
+
+            return 127;
+        }
+    }
+
+    internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
+    {
+        for (int index = 0; index < steps.Count; index++)
+        {
+            output.WriteLine();
+            output.WriteLine($"Running {steps[index].Display}");
+            output.Flush();
+
+            int code = run(steps[index]);
+
+            if (code == 0)
+            {
+                continue;
+            }
+
+            error.WriteLine($"error: `{steps[index].Display}` failed with exit code {code}.");
+            error.WriteLine($"Done: {done}{string.Concat(steps.Take(index).Select(step => $", then `{step.Display}`"))}.");
+            error.WriteLine("What remains, in this order, once the failure is fixed:");
+
+            foreach (Command remaining in steps.Skip(index))
+            {
+                error.WriteLine($"  {remaining.Display}");
+            }
+
+            if (steps.Skip(index).Any(remaining => remaining.FromLastBuild))
+            {
+                error.WriteLine(
+                    $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "
+                    + "`dotnet run Tools/Tasks.cs build` before it.");
+            }
+
+            return false;
+        }
+
+        output.WriteLine();
+        output.WriteLine($"Done: {done}{string.Concat(steps.Select(step => $", then `{step.Display}`"))}.");
+
+        return true;
     }
 }

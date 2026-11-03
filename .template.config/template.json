@@ -1684,8 +1684,13 @@
             ".github/workflows/web.yml",
             "docs/features/web-frontend.md",
             "docs/decisions/0019-one-generated-api-client.md",
-            "docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md",
             "Tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs"
+          ]
+        },
+        {
+          "condition": "(!webServerRendering)",
+          "exclude": [
+            "docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md"
           ]
         },
         {

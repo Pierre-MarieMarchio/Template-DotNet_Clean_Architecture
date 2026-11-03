@@ -41,7 +41,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#endif-->
 | `presentation-scaffold` | create each presentation project still holding its scaffold.json |
 | `presentation-join` | the lines a presentation project added by `cleanarch-presentation` lists in its `README.md`, outside its folders, then records the project in `cleanarch.json` |
-| `web-join` | for an app added by `cleanarch-webapp`, the lines a Blazor WebAssembly app lists in its `README.md` outside its folders, then records the app in `cleanarch.json` with `--web`, `--web-audience` and `--web-rendering`; for a package added by `cleanarch-webpackage`, records it |
+| `web-join` | for an app added by `cleanarch-webapp`, the lines its `README.md` lists outside its folders, with those `Src/Web/README.md` lists for a first app and its workspace, then records the app in `cleanarch.json` with `--web`, `--web-audience` and `--web-rendering`; for a package added by `cleanarch-webpackage`, records it |
 | `hygiene` | the self-tests of the gates this tree carries |
 | `verify` | the whole gate, in CI's order |
 

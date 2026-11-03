@@ -46,8 +46,8 @@ It writes this folder, its tests, `docs/features/presentation.md` and its decisi
 It also writes the access keys' own files, their tests and their decision.
 <!--#endif-->
 The lines `--presentation` writes in files the item template cannot edit are listed below, each placed by the
-lines it goes beside. One task makes them all, or none when one of those lines is not found exactly
-once:
+lines it goes beside. One task makes them all, leaving those in place already, or none when one of
+those lines is not found exactly once:
 
 ```bash
 dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppMcp

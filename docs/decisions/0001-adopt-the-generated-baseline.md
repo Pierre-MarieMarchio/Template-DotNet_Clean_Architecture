@@ -69,6 +69,9 @@ what changing it costs.
 | The API migrates itself in Development, and refuses to start anywhere else | A SQLite file is a development database; no release applies migrations to it | [Migrations](../guides/migrations.md) | Moving to a server database: [ADR 0021](0021-sqlite-is-a-development-database.md) |
 <!--#endif-->
 | The API image on alpine, running unprivileged | The healthcheck needs `wget`, which the chiseled images lack | [The image](../guides/deployment.md#the-image) | — |
+<!--#if (anyWeb)-->
+| One pnpm workspace under `Src/Web`, Node and pnpm pinned | Apps and packages share one lockfile; nothing in the .NET build needs Node | [Web front end](../features/web-frontend.md) | — |
+<!--#endif-->
 <!--#if (postgreSql)-->
 | xUnit v3, Shouldly, NSubstitute, Testcontainers, NetArchTest | Integration tests run on a real PostgreSQL; the architecture is held by tests | [Testing](../guides/testing.md) | — |
 <!--#endif-->
@@ -84,9 +87,6 @@ what changing it costs.
 <!--#endif-->
 <!--#if (sonar)-->
 | Sonar for static analysis and coverage | Issues and coverage read in one place, locally as in CI | [Sonar](../guides/build-and-ci.md#sonar) | — |
-<!--#endif-->
-<!--#if (anyWeb)-->
-| One pnpm workspace under `Src/Web`, Node and pnpm pinned | Apps and packages share one lockfile; nothing in the .NET build needs Node | [Web front end](../features/web-frontend.md) | — |
 <!--#endif-->
 <!--#if (presentationBlazorServer)-->
 | A Blazor Web App with server interactivity beside the API, its pages from `dotnet new blazor` at bootstrap, composing the use cases in process | A server-rendered site needs no client of the API and no token per user | [Presentation project](../features/presentation.md) | — |

@@ -245,7 +245,7 @@ jobs:
             exit 1
           fi
 
-      # A project generated without a web app takes its first one, and the workspace around it, from the item template; the include block, the port, the .dockerignore lines and the layout row are lines Src/Web/README.md gives.
+      # A project generated without a web app takes its first one, and the workspace around it, from the item template; web-join makes the lines Src/Web/README.md and the app's README list, so one missing fails a later step.
       - name: Add the first app with cleanarch-webapp --workspace
         if: matrix.first_app
         working-directory: ${{ runner.temp }}/generated
@@ -260,11 +260,7 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
-          sed -i 's#^services:$#include:\n  - path: Src/Web/apps/Site/compose.yml\n\nservices:#' docker-compose.yml
-          printf 'WEB_SITE_HOST_PORT=5173\n' >> .env.example
-          printf '# ---------------------------------------------------------------------------\n# The web workspace: each web app builds from Src/Web with its own image.\n# ---------------------------------------------------------------------------\nSrc/Web/\n' >> .dockerignore
           dotnet run Tools/Tasks.cs web-join Site --web "$(sed -nE 's/.*--framework ([^ ]+).*/\1/p' <<< "$FIRST_APP")"
-          sed -i 's#^Tests/                                  one test project#Src/Web/                                the pnpm workspace: apps/ and packages/\n&#' docs/reference/project-layout.md
           grep -A3 '^include:' docker-compose.yml
 
       # A project generated without a presentation project takes one from the item template; the lines outside its folders are the edits its README lists, made by the project's presentation-join task, so one missing fails a later step.
@@ -314,8 +310,6 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
-          sed -i 's#^include:$#include:\n  - path: Src/Web/apps/WasmSite/compose.yml#' docker-compose.yml
-          printf 'WEB_WASM_SITE_HOST_PORT=8089\n' >> .env.example
           dotnet run Tools/Tasks.cs web-join WasmSite --web blazor-wasm
           if ! dotnet run Tools/Tasks.cs web-join WasmSite --web blazor-wasm | grep -q 'in place already'; then
             echo "::error title=Not idempotent::A second web-join did not find its edits in place."
@@ -619,7 +613,7 @@ jobs:
         if: matrix.web == 'true'
         run: dotnet run Tools/Tasks.cs web-lockfiles --check
 
-      # The added app joins the stack by the two lines its README gives; the options stay unquoted, being several arguments.
+      # The added app joins the stack by the lines its README lists, which web-join makes; the options stay unquoted, being several arguments.
       - name: Add a second app with cleanarch-webapp
         if: matrix.web == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -634,15 +628,13 @@ jobs:
             echo "::error title=Item template token leaked::$leaked"
             exit 1
           fi
-          sed -i 's#^include:$#include:\n  - path: Src/Web/apps/BackOffice/compose.yml#' docker-compose.yml
-          printf 'WEB_BACK_OFFICE_HOST_PORT=8082\n' >> .env.example
-          grep -A3 '^include:' docker-compose.yml
           given() { sed -nE "s/.*--$1 ([^ ]+).*/\\1/p" <<< "$SECOND_APP"; }
           audience=$(given audience)
           rendering=$(given rendering)
           dotnet run Tools/Tasks.cs web-join BackOffice --web "$(given framework)" --web-audience "${audience:-public}" --web-rendering "${rendering:-spa}"
+          grep -A3 '^include:' docker-compose.yml
 
-      # Each entry is Name:port:framework, then :ssr for an app rendered on the server; the app joins the stack by the two lines its README gives.
+      # Each entry is Name:port:framework, then :ssr for an app rendered on the server; the app joins the stack by the lines its README lists, which web-join makes.
       - name: Add every other starter with cleanarch-webapp
         if: matrix.more_apps
         working-directory: ${{ runner.temp }}/generated
@@ -658,9 +650,6 @@ jobs:
               echo "::error title=Item template token leaked::$leaked"
               exit 1
             fi
-            variable=$(sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' <<< "$name" | tr '[:lower:]' '[:upper:]')
-            sed -i "s#^include:\$#include:\n  - path: Src/Web/apps/$name/compose.yml#" docker-compose.yml
-            printf 'WEB_%s_HOST_PORT=%s\n' "$variable" "$port" >> .env.example
             dotnet run Tools/Tasks.cs web-join "$name" --web "$framework" --web-rendering "${rendering:-spa}"
           done
           grep -A9 '^include:' docker-compose.yml

@@ -4,7 +4,8 @@
 
 `Tools/Tasks.cs` wraps the `dotnet` and `docker` commands of this project and prints each one before
 running it, so the printed line gives the same result without the launcher. No task hides a flag that
-changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with their options.
+changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with their options, and `help <task>` shows the lines of one task
+(`dotnet run` claims a `--help` placed after the file name, so write `-- <task> --help` to ask the same).
 
 | Task | Runs |
 |---|---|

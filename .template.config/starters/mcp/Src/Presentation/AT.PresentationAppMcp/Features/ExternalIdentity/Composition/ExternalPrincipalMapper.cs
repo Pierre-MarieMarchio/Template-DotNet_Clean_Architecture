@@ -1,4 +1,4 @@
-﻿﻿using System.Security.Claims;
+﻿using System.Security.Claims;
 using AppTemplate.Application.Features.ExternalIdentity.Model.Dtos;
 using AppTemplate.Application.Features.ExternalIdentity.Model.Policies;
 using AppTemplate.Application.Features.ExternalIdentity.Services;

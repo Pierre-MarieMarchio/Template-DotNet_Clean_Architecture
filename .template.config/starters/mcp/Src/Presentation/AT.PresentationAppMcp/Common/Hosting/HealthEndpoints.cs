@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+﻿using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 namespace AppTemplate.PresentationAppMcp.Common.Hosting;
 

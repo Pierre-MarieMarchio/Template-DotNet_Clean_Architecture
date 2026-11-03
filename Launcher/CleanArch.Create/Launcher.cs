@@ -123,7 +123,7 @@ public sealed partial class Launcher
                 : TemplateSource.Embedded(typeof(Launcher).Assembly);
             if (parsed.Help)
             {
-                _console.Verbatim(_help + Environment.NewLine + Environment.NewLine + TemplateOptions(source.Manifest(TemplateKind.Project)));
+                _console.Verbatim(Help(parsed.Command, source));
                 return 0;
             }
             var questionnaire = new Questionnaire(_console, _interactive, parsed.Yes);
@@ -167,13 +167,52 @@ public sealed partial class Launcher
         }
     }
 
-    private static string TemplateOptions(TemplateManifest manifest)
+    private static string Help(string? command, TemplateSource source)
+    {
+        (TemplateKind kind, string subject, IReadOnlyDictionary<string, Condition> askedWhen) = command switch
+        {
+            Arguments.WebAppCommand => (TemplateKind.WebApp, "web app", _alwaysAsked),
+            Arguments.WebPackageCommand => (TemplateKind.WebPackage, "web package", _alwaysAsked),
+            Arguments.PresentationCommand => (TemplateKind.Presentation, "presentation project", _alwaysAsked),
+            _ => (TemplateKind.Project, "project", ProjectAskedWhen),
+        };
+
+        string options = TemplateOptions(source.Manifest(kind), subject, askedWhen);
+        return command is null or Arguments.NewCommand
+            ? _help + Environment.NewLine + Environment.NewLine + options
+            : CommandHelp(command) + Environment.NewLine + Environment.NewLine + options;
+    }
+
+    private static string CommandHelp(string command)
+    {
+        (string purpose, string subject) = command switch
+        {
+            Arguments.WebAppCommand => ("adds a web app to the project you're in; a Blazor WebAssembly app also makes the edits its README lists.", "app"),
+            Arguments.WebPackageCommand => ("adds a shared package to the web workspace of the project you're in.", "package"),
+            _ => ("adds a presentation project to the project you're in, makes the edits its README lists, then creates its pages.", "presentation"),
+        };
+
+        return $"""
+        Usage: {InvocationWithArguments} {command} [options] [--<template option> <value>]...
+
+        {command} {purpose}
+
+        Options
+          -n, --name <name>            the {subject}'s name
+          -y, --yes                    use the default for every option you don't pass
+          --template-source <path>     use a checkout of the template or a .nupkg instead of the published package
+          --hive <folder>              keep the template engine's settings in this folder (dotnet new --debug:custom-hive)
+          -h, --help                   show this help
+        """;
+    }
+
+    private static string TemplateOptions(TemplateManifest manifest, string subject, IReadOnlyDictionary<string, Condition> askedWhen)
     {
         IEnumerable<string> lines = manifest.Options.Select(option =>
         {
             string values = option.Kind switch
             {
-                OptionKind.Choice => string.Join('|', Offer.For(manifest, option, _nothing, ProjectAskedWhen).Values),
+                OptionKind.Choice => string.Join('|', Offer.For(manifest, option, _nothing, askedWhen).Values),
                 OptionKind.Bool => "true|false",
                 _ => "<value>",
             };
@@ -183,7 +222,7 @@ public sealed partial class Launcher
             return $"{flag,-46} {option.Label}{repeated}{fallback}";
         });
 
-        return string.Join(Environment.NewLine, lines.Prepend($"Project options, asked one by one when you don't pass them ({manifest.ShortName})"));
+        return string.Join(Environment.NewLine, lines.Prepend($"{char.ToUpperInvariant(subject[0])}{subject[1..]} options, asked one by one when you don't pass them ({manifest.ShortName})"));
     }
 
     internal static string? MarkdownSection(string path, string heading)

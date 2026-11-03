@@ -354,6 +354,52 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void NoShippedFile_StartsWithTwoByteOrderMarks()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        string[] skipped = [".git", ".claude", "bin", "obj", "node_modules", "TestResults"];
+
+        IEnumerable<string> shipped = new DirectoryInfo(root).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Where(file => !Path.GetRelativePath(root, file.FullName).Split(Path.DirectorySeparatorChar).SkipLast(1).Any(skipped.Contains))
+            .Select(file => file.FullName);
+
+        DoubledByteOrderMarks(shipped).Select(file => Path.GetRelativePath(root, file)).ShouldBeEmpty(
+            "starts with two UTF-8 byte order marks, which the template engine copies as written: keep one.");
+    }
+
+    [Fact]
+    public void ADoubledByteOrderMark_IsFound_AndASingleOneIsNot()
+    {
+        string folder = Directory.CreateTempSubdirectory("doubled-bom-").FullName;
+        try
+        {
+            string doubled = Path.Combine(folder, "doubled.md");
+            string single = Path.Combine(folder, "single.md");
+            File.WriteAllBytes(doubled, [.. _utf8Bom, .. _utf8Bom, (byte)'#']);
+            File.WriteAllBytes(single, [.. _utf8Bom, (byte)'#']);
+
+            DoubledByteOrderMarks([doubled, single]).ShouldBe([doubled]);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    private static IEnumerable<string> DoubledByteOrderMarks(IEnumerable<string> files)
+    {
+        byte[] start = new byte[_utf8Bom.Length * 2];
+        foreach (string file in files)
+        {
+            using FileStream stream = File.OpenRead(file);
+            if (stream.Read(start) == start.Length && start.Take(_utf8Bom.Length).SequenceEqual(_utf8Bom) && start.Skip(_utf8Bom.Length).SequenceEqual(_utf8Bom))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    [Fact]
     public void EveryReleasePleaseFile_IsSavedWithoutABom()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;

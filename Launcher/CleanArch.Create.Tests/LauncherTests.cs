@@ -106,6 +106,24 @@ public sealed class LauncherTests : IDisposable
         console.Output.ShouldContain("Presentation projects, one --presentation per value (default: api)");
     }
 
+    [Theory]
+    [InlineData("web-app", "--framework placeholder|angular", "--has-client")]
+    [InlineData("web-package", "web-package [options]", "--scope")]
+    [InlineData("presentation", "--framework blazor-server|avalonia|mcp|wpf", "--has-api")]
+    public void TheHelpOfACommand_ShowsThatCommandsOptions_NotTheProjects(string command, string shown, string alsoShown)
+    {
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+
+        new Launcher(console, _root, interactive: false).Run([command, "--help"]).ShouldBe(0, console.Output);
+
+        console.Output.ShouldContain($"Usage: {Launcher.InvocationWithArguments} {command} ");
+        console.Output.ShouldContain(shown);
+        console.Output.ShouldContain(alsoShown);
+        console.Output.ShouldNotContain("--presentation api|");
+        console.Output.ShouldNotContain("--output <folder>");
+    }
+
     [Fact]
     public void WithoutQuestions_TheCommandPrinted_IsDotnetNews_WithTheHiveGiven()
     {

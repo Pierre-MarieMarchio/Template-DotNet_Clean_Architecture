@@ -204,11 +204,11 @@ public sealed class UseCaseConventionTests
     [Fact]
     public void TheFolderRule_IsSensitive_AndTellsAUseCaseFolderFromAnyOtherNamespace()
     {
-        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.UseCases.Commands.Place").ShouldBeTrue();
-        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.UseCases.Queries.List").ShouldBeTrue();
-        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.Commands.Place").ShouldBeFalse();
-        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.UseCases.Commands.Place.Extra").ShouldBeFalse();
-        IsInAUseCaseFolder("Shop", "Billing.Features.Orders.UseCases.Commands.Place").ShouldBeFalse();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Parcels.UseCases.Commands.Place").ShouldBeTrue();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Parcels.UseCases.Queries.List").ShouldBeTrue();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Parcels.Commands.Place").ShouldBeFalse();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Parcels.UseCases.Commands.Place.Extra").ShouldBeFalse();
+        IsInAUseCaseFolder("Shop", "Billing.Features.Parcels.UseCases.Commands.Place").ShouldBeFalse();
         IsInAUseCaseFolder("Shop", null).ShouldBeFalse();
     }
 

@@ -44,10 +44,10 @@ public sealed class PackageBoundaryTests
         var projects = new[]
         {
             Node("Sdk.Http", "Sdk.Core"),
-            Node("Sdk.Bad", "Sdk.Core", "Shop.Orders"),
+            Node("Sdk.Bad", "Sdk.Core", "Shop.Parcels"),
         };
 
-        OutwardReferences(projects, sdk.Contains, _ => "outside").ShouldBe(["Sdk.Bad.csproj -> Shop.Orders (outside)"]);
+        OutwardReferences(projects, sdk.Contains, _ => "outside").ShouldBe(["Sdk.Bad.csproj -> Shop.Parcels (outside)"]);
         OutwardReferences(projects.Take(1), sdk.Contains, _ => "outside").ShouldBeEmpty();
     }
 

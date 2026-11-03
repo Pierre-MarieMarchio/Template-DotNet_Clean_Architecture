@@ -40,7 +40,9 @@ public sealed class CreateAccessKeyCommandHandler(
             return callerId.To<CreateAccessKeyOutcome>();
         }
 
-        if (request.ExpiresAt is { } expiresAt && expiresAt <= timeProvider.GetUtcNow())
+        var expiresAt = request.ExpiresAt?.ToUniversalTime();
+
+        if (expiresAt <= timeProvider.GetUtcNow())
         {
             return Result.Failure<CreateAccessKeyOutcome>(AccessKeysErrors.ExpiryNotInTheFuture);
         }
@@ -62,7 +64,7 @@ public sealed class CreateAccessKeyCommandHandler(
             userId,
             request.Name,
             request.Scopes,
-            request.ExpiresAt,
+            expiresAt,
             cancellationToken);
 
         await securityEventLog.RecordAsync(SecurityEvent.AccessKeyCreated(userId));
@@ -73,7 +75,7 @@ public sealed class CreateAccessKeyCommandHandler(
             issued.Prefix,
             request.Scopes,
             issued.CreatedAt,
-            request.ExpiresAt,
+            expiresAt,
             issued.Key));
     }
 

@@ -23,6 +23,11 @@ public sealed class ObservabilityRegistrationTests
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
+    private static readonly Regex _observabilityCall = new(
+        @"\.Add(Api)?Observability\(",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
     [Fact]
     public void EveryDiagnosticsNameAHostDeclares_IsRegisteredByThatHost()
     {
@@ -132,6 +137,25 @@ public sealed class ObservabilityRegistrationTests
         IsRegistered(registration, "AddMeter", nameof(UseCaseInstruments), UseCaseInstruments.Name).ShouldBeTrue(
             "Every use case records its duration on UseCaseInstruments' meter; the shared registration " +
             "every host calls must export it.");
+    }
+
+    [Fact]
+    public void EveryHost_ComposesTheSharedObservability_SoItsLogsTracesAndMetricsLeaveTogether()
+    {
+        var hosts = ProjectReferenceGraph.Hosts.ToList();
+
+        hosts.ShouldNotBeEmpty();
+
+        var offenders = hosts
+            .Where(host => !_observabilityCall.IsMatch(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RootOf(host), "Program.cs"))))
+            .Select(host => host.Name)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        offenders.ShouldBeEmpty(
+            "The shared observability registers the OTLP exporters for logs, traces and metrics behind one " +
+            "setting; a host that does not call it, directly or through its own thin extension, exports none " +
+            "of them. These hosts' Program.cs call neither 'AddObservability' nor 'AddApiObservability'.");
     }
 
     [Fact]

@@ -12,18 +12,43 @@ internal static class NewUseCase
 
     private const string _usage =
         "Usage: dotnet run Tools/NewUseCase.cs <Features> <UseCase> --kind command|query\n"
-        + "           [--input id|none]\n"
+        + "           [--input id|none|\"[id, ]Name:Type, Other:Type\"]\n"
         + "           [--root <path>]\n"
         + "  <Features>  the folder of an existing feature of the rich shape, e.g. Invoices\n"
         + "  <UseCase>   the operation, PascalCase, a verb and its subject, e.g. ApproveInvoice\n"
         + "  --kind      required. command: changes state and answers a Result.\n"
-        + "              query: reads, and answers a Result of a DTO named for it, carrying the aggregate's id.\n"
-        + "  --input     default: id, a request carrying the id of the feature's aggregate, its\n"
-        + "              validator and its unit tests. none: no request, no validator, no test.\n"
+        + "              query: reads, and answers a Result of a DTO named for it, carrying the\n"
+        + "              aggregate's id when its input does.\n"
+        + "  --input     what the message carries, default id. id: the id of the feature's aggregate,\n"
+        + "              which the route carries; it comes first when inputs follow it.\n"
+        + "              Name:Type: an input, PascalCase, of any C# type, written as given, e.g.\n"
+        + "              \"Name:string, Tags:IReadOnlyList<string>\". none: a message without input.\n"
+        + "              An input of a known type (string, int, long, decimal, bool, Guid,\n"
+        + "              DateTimeOffset, DateOnly, or one of them nullable) gets its rule and its test\n"
+        + "              value; the output lists any other, whose rule and value are yours to write.\n"
+        + "              The validator and its tests, and the handler's test, come with a rule.\n"
         + "  --root      the tree to write into, default the current directory.\n"
         + "       dotnet run Tools/NewUseCase.cs --self-test";
 
     private static readonly string[] _optionNames = ["--kind", "--input", "--root"];
+
+    private static readonly string[] _recordMembers =
+        ["Deconstruct", "EqualityContract", "Equals", "GetHashCode", "GetType", "MemberwiseClone", "PrintMembers", "ToString"];
+
+    private static readonly string[] _predefinedTypes =
+        ["bool", "byte", "char", "decimal", "double", "float", "int", "long", "object", "sbyte", "short", "string", "uint", "ulong", "ushort"];
+
+    private static readonly Dictionary<string, KnownType> _knownTypes = new(StringComparer.Ordinal)
+    {
+        ["string"] = new(null, "string.Empty"),
+        ["int"] = new("1", "0"),
+        ["long"] = new("1L", "0L"),
+        ["decimal"] = new("1m", "0m"),
+        ["bool"] = new("true", null),
+        ["Guid"] = new("Guid.CreateVersion7()", "Guid.Empty"),
+        ["DateTimeOffset"] = new("new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)", "default"),
+        ["DateOnly"] = new("new DateOnly(2026, 1, 1)", "default"),
+    };
 
     private static readonly string[] _reservedNames =
     [
@@ -54,26 +79,61 @@ internal static class NewUseCase
 
     private sealed record Request(string? Features, string? Name, string? Kind, string? Input, string Root);
 
+    private sealed record KnownType(string? Valid, string? Empty);
+
+    private sealed record Parameter(string Name, string Type, string Required)
+    {
+        private bool IsNullable => Type.EndsWith('?');
+
+        private KnownType? Known => _knownTypes.GetValueOrDefault(IsNullable ? Type[..^1] : Type);
+
+        internal bool IsKnown => Known is not null;
+
+        internal string Valid => Known switch
+        {
+            null => "default!",
+            { Valid: null } => $"\"{Separated(Name, ' ')}\"",
+            { Valid: { } valid } => valid,
+        };
+
+        internal string? Empty => IsNullable ? null : Known?.Empty;
+
+        internal string Argument => _keywords.Contains(Lower(Name), StringComparer.Ordinal) ? "@" + Lower(Name) : Lower(Name);
+    }
+
     private sealed record Spec(
         string Prefix,
         string Features,
         string Name,
         string Kind,
         string? Aggregate,
+        IReadOnlyList<Parameter> Inputs,
         string? Dto,
         bool DtoExists,
-        bool DtoHasId,
         string? Manifest)
     {
         internal bool IsCommand => Kind == "command";
 
-        internal bool HasInput => Aggregate is not null;
+        internal bool HasId => Aggregate is not null;
 
         internal string Folder => IsCommand ? "Commands" : "Queries";
 
         internal string Input => Name + (IsCommand ? "Command" : "Query");
 
+        internal string Request => Name + "Request";
+
         internal string Namespace => $"{Prefix}.Application.Features.{Features}.UseCases.{Folder}.{Name}";
+
+        internal IReadOnlyList<Parameter> Parameters =>
+            Aggregate is null ? Inputs : [new Parameter($"{Aggregate}Id", "Guid", $"{Subject(Aggregate)} id is required."), .. Inputs];
+
+        internal Parameter[] Ruled => [.. Parameters.Where(parameter => parameter.Empty is not null)];
+
+        internal bool HasValidator => Ruled.Length > 0;
+
+        internal bool HasRequest => Inputs.Count > 0;
+
+        internal Parameter[] Unknown => [.. Inputs.Where(parameter => !parameter.IsKnown)];
     }
 
     private static int Main(string[] args)
@@ -239,12 +299,7 @@ internal static class NewUseCase
             problems.Add($"--kind '{kind}' is not a choice. It is command or query.");
         }
 
-        string input = request.Input ?? "id";
-
-        if (input is not ("id" or "none"))
-        {
-            problems.Add($"--input '{input}' is not a choice. It is id or none.");
-        }
+        var (hasId, inputs) = ReadInputs(request.Input ?? "id", problems);
 
         if (problems.Count > 0)
         {
@@ -318,17 +373,18 @@ internal static class NewUseCase
                 .Order(StringComparer.Ordinal)]
             : [];
 
-        if (input == "id")
+        if (hasId)
         {
             if (found.Length != 1)
             {
                 problems.Add(
                     found.Length == 0
-                        ? $"--input id carries the id of the feature's aggregate, and {features} declares no repository "
-                            + "under Repositories/ to name it. Pass --input none and add the request by hand."
-                        : $"--input id carries the id of the feature's aggregate, and {features} declares several "
-                            + $"({string.Join(", ", found)}), so which one is ambiguous. Pass --input none and add the "
-                            + "request by hand.");
+                        ? $"id in --input carries the id of the feature's aggregate, and {features} declares no repository "
+                            + "under Repositories/ to name it. Leave id out, or pass the id as an input of its own, e.g. "
+                            + "--input \"InvoiceId:Guid\"."
+                        : $"id in --input carries the id of the feature's aggregate, and {features} declares several "
+                            + $"({string.Join(", ", found)}), so which one is ambiguous. Leave id out, or pass the id as an "
+                            + "input of its own, e.g. --input \"InvoiceId:Guid\".");
 
                 return null;
             }
@@ -343,6 +399,24 @@ internal static class NewUseCase
 
                 return null;
             }
+        }
+
+        string message = name + (kind == "command" ? "Command" : "Query");
+        string[] taken =
+        [
+            .. aggregate is null ? [] : new[] { aggregate + "Id" },
+            .. aggregate is not null && kind == "command" ? new[] { "Precondition" } : [],
+            message,
+            name + "Request",
+        ];
+
+        if (inputs.FirstOrDefault(input => taken.Contains(input.Name, StringComparer.Ordinal)) is { } clash)
+        {
+            problems.Add(
+                $"The input {clash.Name} would clash with a name the generated types already hold ({string.Join(", ", taken)}). "
+                + "Name it otherwise.");
+
+            return null;
         }
 
         string? dto = null;
@@ -378,7 +452,7 @@ internal static class NewUseCase
             }
         }
 
-        return new Spec(prefix, features, name, kind, aggregate, dto, dtoExists, found.Length > 0, File.Exists(manifestFull) ? manifest : null);
+        return new Spec(prefix, features, name, kind, aggregate, inputs, dto, dtoExists, File.Exists(manifestFull) ? manifest : null);
     }
 
     private static List<string> NameProblems(string features, string name)
@@ -428,6 +502,286 @@ internal static class NewUseCase
         return problems;
     }
 
+    private static (bool HasId, List<Parameter> Inputs) ReadInputs(string input, List<string> problems)
+    {
+        var inputs = new List<Parameter>();
+        bool hasId = false;
+
+        if (input == "none")
+        {
+            return (false, inputs);
+        }
+
+        string[] entries = [.. TopLevelEntries(input).Select(entry => entry.Trim())];
+
+        for (int index = 0; index < entries.Length; index++)
+        {
+            string entry = entries[index];
+            int colon = entry.IndexOf(':', StringComparison.Ordinal);
+
+            if (entry.Length == 0)
+            {
+                problems.Add($"--input '{input}' holds an empty entry, a comma with nothing on one side of it.");
+            }
+            else if (entry == "id")
+            {
+                if (index > 0)
+                {
+                    problems.Add("id comes first in --input, once: it is the aggregate's id the route carries, e.g. --input \"id, Note:string\".");
+                }
+
+                hasId = true;
+            }
+            else if (entry == "none")
+            {
+                problems.Add("none stands alone in --input: it is a message without input.");
+            }
+            else if (colon < 0)
+            {
+                problems.Add($"'{entry}' in --input is neither id nor an input written Name:Type, e.g. MaxCount:int.");
+            }
+            else
+            {
+                string name = entry[..colon].Trim();
+                string type = entry[(colon + 1)..].Trim();
+                var (canonical, problem) = TypeSyntax.Read(type);
+                int refusedBefore = problems.Count;
+
+                if (!_pascalCase.IsMatch(name))
+                {
+                    problems.Add($"'{name}' in --input is not an input name: it is PascalCase, e.g. MaxCount.");
+                }
+                else if (_recordMembers.Contains(name, StringComparer.Ordinal))
+                {
+                    problems.Add($"'{name}' in --input is a member every record declares already. Name the input otherwise.");
+                }
+
+                if (problem is not null)
+                {
+                    problems.Add($"'{type}' in --input, the type of {name}, is not a C# type: {problem}.");
+                }
+
+                if (problems.Count == refusedBefore)
+                {
+                    inputs.Add(new Parameter(name, canonical!, $"{Sentence(name)} is required."));
+                }
+            }
+        }
+
+        foreach (string twice in inputs.GroupBy(parameter => parameter.Name, StringComparer.Ordinal).Where(group => group.Count() > 1).Select(group => group.Key))
+        {
+            problems.Add($"--input names {twice} more than once; an input is named once.");
+        }
+
+        return (hasId, inputs);
+    }
+
+    private static IEnumerable<string> TopLevelEntries(string input)
+    {
+        int depth = 0;
+        int start = 0;
+
+        for (int index = 0; index < input.Length; index++)
+        {
+            switch (input[index])
+            {
+                case '<' or '(' or '[':
+                    depth++;
+                    break;
+                case '>' or ')' or ']':
+                    depth--;
+                    break;
+                case ',' when depth == 0:
+                    yield return input[start..index];
+                    start = index + 1;
+                    break;
+            }
+        }
+
+        yield return input[start..];
+    }
+
+    private sealed class TypeSyntax
+    {
+        private static readonly Regex _token = new(@"\s*(?:([A-Za-z_][A-Za-z0-9_]*)|(::)|([<>,?\[\]().])|(\S))", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+        private readonly List<string> _tokens;
+
+        private int _at;
+
+        private TypeSyntax(List<string> tokens) => _tokens = tokens;
+
+        private string? Peek => _at < _tokens.Count ? _tokens[_at] : null;
+
+        internal static (string? Type, string? Problem) Read(string text)
+        {
+            var tokens = new List<string>();
+
+            foreach (Match match in _token.Matches(text))
+            {
+                if (match.Groups[4].Success)
+                {
+                    return (null, $"'{match.Groups[4].Value}' has no place in a type name");
+                }
+
+                tokens.Add(match.Value.Trim());
+            }
+
+            var reader = new TypeSyntax(tokens);
+
+            try
+            {
+                string type = reader.Type();
+
+                return reader.Peek is { } extra
+                    ? (null, $"'{extra}' follows a type that was already complete")
+                    : (type, null);
+            }
+            catch (FormatException exception)
+            {
+                return (null, exception.Message);
+            }
+        }
+
+        private string Next() =>
+            _at < _tokens.Count ? _tokens[_at++] : throw new FormatException("it stops short of a complete type");
+
+        private void Expect(string token)
+        {
+            if (Peek != token)
+            {
+                throw new FormatException(Peek is null ? $"it stops where '{token}' is due" : $"'{Peek}' stands where '{token}' is due");
+            }
+
+            _at++;
+        }
+
+        private string Identifier()
+        {
+            string token = Next();
+
+            if (!char.IsAsciiLetter(token[0]) && token[0] != '_')
+            {
+                throw new FormatException($"'{token}' stands where a name is due");
+            }
+
+            return token;
+        }
+
+        private string Type()
+        {
+            string type = Peek == "(" ? Tuple() : Named();
+
+            while (Peek is "?" or "[")
+            {
+                if (Next() == "?")
+                {
+                    type = type.EndsWith('?') ? throw new FormatException("a type is made nullable once") : type + "?";
+
+                    continue;
+                }
+
+                int rank = 0;
+
+                while (Peek == ",")
+                {
+                    _at++;
+                    rank++;
+                }
+
+                Expect("]");
+                type += "[" + new string(',', rank) + "]";
+            }
+
+            return type;
+        }
+
+        private string Tuple()
+        {
+            Expect("(");
+            var elements = new List<string> { Element() };
+
+            while (Peek == ",")
+            {
+                _at++;
+                elements.Add(Element());
+            }
+
+            Expect(")");
+
+            return elements.Count >= 2
+                ? "(" + string.Join(", ", elements) + ")"
+                : throw new FormatException("a tuple holds two elements or more");
+        }
+
+        private string Element()
+        {
+            string type = Type();
+
+            if (Peek is not { } name || !(char.IsAsciiLetter(name[0]) || name[0] == '_'))
+            {
+                return type;
+            }
+
+            return _keywords.Contains(name, StringComparer.Ordinal)
+                ? throw new FormatException($"'{name}' is a C# keyword, not an element name")
+                : type + " " + Next();
+        }
+
+        private string Named()
+        {
+            string global = string.Empty;
+
+            if (Peek == "global" && _at + 1 < _tokens.Count && _tokens[_at + 1] == "::")
+            {
+                _at += 2;
+                global = "global::";
+            }
+
+            string first = Identifier();
+
+            if (_keywords.Contains(first, StringComparer.Ordinal))
+            {
+                return _predefinedTypes.Contains(first, StringComparer.Ordinal) && global.Length == 0 && Peek is not ("." or "<")
+                    ? first
+                    : throw new FormatException($"'{first}' is a C# keyword, not a type");
+            }
+
+            string named = global + first + TypeArguments();
+
+            while (Peek == ".")
+            {
+                _at++;
+                string segment = Identifier();
+
+                named += "." + (_keywords.Contains(segment, StringComparer.Ordinal) ? throw new FormatException($"'{segment}' is a C# keyword, not a type") : segment) + TypeArguments();
+            }
+
+            return named;
+        }
+
+        private string TypeArguments()
+        {
+            if (Peek != "<")
+            {
+                return string.Empty;
+            }
+
+            _at++;
+            var arguments = new List<string> { Type() };
+
+            while (Peek == ",")
+            {
+                _at++;
+                arguments.Add(Type());
+            }
+
+            Expect(">");
+
+            return "<" + string.Join(", ", arguments) + ">";
+        }
+    }
+
     private static string ProductPrefix(string root)
     {
         string projectFile = Path.Combine(root, "cleanarch.json");
@@ -466,40 +820,64 @@ internal static class NewUseCase
                 ? separator + char.ToLowerInvariant(character).ToString()
                 : char.ToLowerInvariant(character).ToString()));
 
+    private static string Subject(string pascal)
+    {
+        string spoken = Separated(pascal, ' ');
+
+        return (IsVowel(spoken[0]) ? "An " : "A ") + spoken;
+    }
+
     private static Dictionary<string, string> Tokens(Spec spec)
     {
-        string spoken = spec.Aggregate is null ? string.Empty : Separated(spec.Aggregate, ' ');
         string result = spec.IsCommand ? "Result" : $"Result<{spec.Dto}>";
+        string lambda = spec.IsCommand ? "command" : "query";
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["P"] = spec.Prefix,
             ["F"] = spec.Features,
             ["U"] = spec.Name,
-            ["A"] = spec.Aggregate ?? string.Empty,
             ["K"] = spec.Folder,
             ["In"] = spec.Input,
-            ["in"] = spec.IsCommand ? "command" : "query",
+            ["in"] = lambda,
             ["D"] = spec.Dto ?? string.Empty,
             ["Dtos"] = spec.IsCommand ? string.Empty : $"{spec.Prefix}.Application.Features.{spec.Features}.Model.Dtos",
             ["Out"] = result,
             ["Kind"] = spec.IsCommand ? "Command" : "Query",
-            ["Concurrency"] = spec.IsCommand && spec.HasInput ? $"{spec.Prefix}.Application.Core.Common.Concurrency" : string.Empty,
+            ["Concurrency"] = spec.IsCommand && spec.HasId ? $"{spec.Prefix}.Application.Core.Common.Concurrency" : string.Empty,
             ["Message"] = Message(spec, result),
-            ["Subject"] = spoken.Length == 0 ? string.Empty : (IsVowel(spoken[0]) ? "An " : "A ") + spoken,
             ["Unwritten"] = Unwritten(spec),
+            ["Rules"] = string.Join(
+                "\n\n",
+                spec.Ruled.Select(parameter =>
+                    $"        RuleFor({lambda} => {lambda}.{parameter.Name})\n"
+                    + $"            .NotEmpty().WithMessage(\"{parameter.Required}\");")),
+            ["Refusals"] = string.Concat(
+                spec.Ruled.Select(parameter =>
+                    "\n"
+                    + "    [Fact]\n"
+                    + $"    public async Task AnEmpty{parameter.Name}_IsRefused() =>\n"
+                    + $"        (await _validator.ValidateAsync(AWellFormed{(spec.IsCommand ? "Command" : "Query")}() with {{ {parameter.Name} = {parameter.Empty} }}, TestToken))\n"
+                    + "            .IsValid.ShouldBeFalse();\n")),
+            ["Values"] = string.Join(", ", spec.Parameters.Select(parameter => parameter.Valid)) is { Length: <= 60 } values
+                ? values
+                : "\n" + string.Join(",\n", spec.Parameters.Select(parameter => "            " + parameter.Valid)),
+            ["Malformed"] = spec.Ruled.Length == 0 ? string.Empty : $"{spec.Ruled[0].Name} = {spec.Ruled[0].Empty}",
         };
     }
 
-    private static string Message(Spec spec, string result) => (spec.IsCommand, spec.HasInput) switch
+    private static string Message(Spec spec, string result)
     {
-        (true, true) => $"public sealed record {spec.Input}(Guid {spec.Aggregate}Id, VersionPrecondition? Precondition = null) : ICommand<{result}>;",
-        (false, true) => $"public sealed record {spec.Input}(Guid {spec.Aggregate}Id) : IQuery<{result}>;",
-        (true, false) => $"public sealed record {spec.Input} : ICommand<{result}>;",
-        _ => $"public sealed record {spec.Input} : IQuery<{result}>;",
-    };
+        string[] declared =
+        [
+            .. spec.Parameters.Select(parameter => $"{parameter.Type} {parameter.Name}"),
+            .. spec.IsCommand && spec.HasId ? new[] { "VersionPrecondition? Precondition = null" } : [],
+        ];
 
-    private static string Unwritten(Spec spec) => (spec.IsCommand, spec.HasInput) switch
+        return Record(spec.Input, declared, $" : I{(spec.IsCommand ? "Command" : "Query")}<{result}>");
+    }
+
+    private static string Unwritten(Spec spec) => (spec.IsCommand, spec.HasId) switch
     {
         (true, true) => $"\"{spec.Name} is not written yet: load the {spec.Aggregate}, call the method that holds the rule, then commit through IUnitOfWork.\"",
         (true, false) => $"\"{spec.Name} is not written yet: decide, then commit through IUnitOfWork.\"",
@@ -537,25 +915,31 @@ internal static class NewUseCase
 
         Add($"{folder}/{spec.Name}.cs", Templates.UseCase);
 
-        if (spec.HasInput)
+        if (spec.HasValidator)
         {
             Add($"{folder}/{spec.Input}Validator.cs", Templates.Validator);
         }
 
         if (spec.Dto is not null && !spec.DtoExists)
         {
-            Add($"{application}/Model/Dtos/{spec.Dto}.cs", spec.DtoHasId ? Templates.DtoWithId : Templates.Dto);
+            Add($"{application}/Model/Dtos/{spec.Dto}.cs", spec.HasId ? Templates.DtoWithId : Templates.Dto);
         }
 
         skippedTests = null;
 
-        if (spec.HasInput)
+        if (spec.HasValidator)
         {
             string tests = $"Tests/Application/{FolderOf(spec.Prefix, "Application.UnitTests")}";
+            string useCaseTests = $"{tests}/Features/{spec.Features}/UseCases/{spec.Folder}/{spec.Name}";
 
             if (Directory.Exists(Path.Combine(root, tests)))
             {
-                Add($"{tests}/Features/{spec.Features}/UseCases/{spec.Folder}/{spec.Name}/{spec.Input}ValidatorTests.cs", Templates.ValidatorTests);
+                Add($"{useCaseTests}/{spec.Input}ValidatorTests.cs", Templates.ValidatorTests);
+
+                if (File.Exists(Path.Combine(root, tests, "TestDoubles", "ValidatedHandler.cs")))
+                {
+                    Add($"{useCaseTests}/{spec.Name}Tests.cs", Templates.HandlerTests);
+                }
             }
             else
             {
@@ -672,6 +1056,12 @@ internal static class NewUseCase
         string p = spec.Prefix;
         string f = spec.Features;
         string u = spec.Name;
+        string kind = spec.IsCommand ? "Command" : "Query";
+        string validatorTests = $"{spec.Input}ValidatorTests";
+        bool testsWritten = plan.Any(emission => emission.Path.EndsWith($"/{validatorTests}.cs", StringComparison.Ordinal));
+        bool handlerTested = plan.Any(emission => emission.Path.EndsWith($"/{u}Tests.cs", StringComparison.Ordinal));
+        string api = $"Src/Presentation/{FolderOf(p, "Api")}";
+        bool hasApi = Directory.Exists(Path.Combine(root, api));
 
         output.WriteLine($"Wrote {plan.Count} files for the {spec.Kind} {u} in {f}:");
 
@@ -695,12 +1085,49 @@ internal static class NewUseCase
         {
             output.WriteLine($"Not written: '{skipped}' is not in this tree, so the use case's tests were skipped.");
         }
+        else if (testsWritten && !handlerTested)
+        {
+            output.WriteLine($"Not written: {u}Tests.cs, whose UseCase() runs the handler behind its validator through TestDoubles/ValidatedHandler.cs, which this tree's application tests do not hold.");
+        }
 
         output.WriteLine();
         output.WriteLine($"Nothing to register: AddFeature(\"{f}\") in ApplicationModule finds its validator by folder, and each host's generated mediator registers its handler.");
-        output.WriteLine(spec.HasInput
+        output.WriteLine(spec.HasValidator
             ? $"Until its body is written, {spec.Input}Handler throws NotImplementedException; the pipeline answers what its validator refuses before the handler is reached."
             : $"Until its body is written, {spec.Input}Handler throws NotImplementedException.");
+
+        if (!spec.HasValidator && spec.Parameters.Count > 0)
+        {
+            output.WriteLine(
+                "No validator and no test were written: no input is one this command writes a rule for, a bool or a nullable accepting every value. "
+                + $"Write {spec.Input}Validator beside {u}.cs once a value is refused, with {validatorTests} and {u}Tests beside the feature's other tests.");
+        }
+
+        if (spec.Unknown.Length > 0)
+        {
+            output.WriteLine();
+            output.WriteLine("Written as given, of a type this command knows no rule and no test value for:");
+
+            foreach (var parameter in spec.Unknown)
+            {
+                output.WriteLine($"  {parameter.Name}  {parameter.Type}");
+            }
+
+            output.WriteLine("For each, yours to write:");
+            output.WriteLine(spec.HasValidator
+                ? $"  - its rule in {spec.Input}Validator, when a value of it is refused, and that refusal's test in {validatorTests}"
+                : "  - its rule, when a value of it is refused, in the validator above");
+
+            if (testsWritten)
+            {
+                output.WriteLine($"  - a real value in AWellFormed{kind}() in {validatorTests}, which passes default! for it until then");
+            }
+
+            output.WriteLine(hasApi && spec.HasRequest
+                ? $"  - a using of its namespace in {u}.cs and in {spec.Request}.cs, unless the type is imported already"
+                : $"  - a using of its namespace in {u}.cs, unless the type is imported already");
+        }
+
         output.WriteLine();
         output.WriteLine("What it decides is yours to write, each with its test (docs/guides/testing.md):");
 
@@ -715,10 +1142,10 @@ internal static class NewUseCase
             output.WriteLine("  - the body: ask ICurrentUser for the caller when the feature is owned, then that method");
         }
 
-        output.WriteLine("  - its dependencies, in the handler's primary constructor");
+        output.WriteLine(handlerTested
+            ? $"  - its dependencies, in the handler's primary constructor; in {u}Tests, each one a substitute field passed where UseCase() builds the handler, the one place that does"
+            : "  - its dependencies, in the handler's primary constructor");
         output.WriteLine("  - one unit test per decision the body adds, each refusal with its control");
-        string api = $"Src/Presentation/{FolderOf(p, "Api")}";
-        bool hasApi = Directory.Exists(Path.Combine(root, api));
 
         //#if (api)
         if (hasApi)
@@ -732,7 +1159,7 @@ internal static class NewUseCase
         if (!hasApi)
         {
             output.WriteLine();
-            output.WriteLine($"To offer it, send {spec.Input} through ISender by hand where a host serves {f}, under:");
+            output.WriteLine($"To offer it, send {Construction(spec)} through ISender by hand where a host serves {f}, under:");
 
             foreach (string host in Hosts(root))
             {
@@ -757,6 +1184,11 @@ internal static class NewUseCase
         output.WriteLine($"  the usings it lacks  {spec.Namespace};");
         output.WriteLine("                       Mediator;");
 
+        if (spec.HasRequest)
+        {
+            output.WriteLine($"                       {p}.Api.Features.{f}.Contracts.Requests;");
+        }
+
         if (!spec.IsCommand)
         {
             output.WriteLine($"                       {p}.Application.Core.Common.Results;");
@@ -769,6 +1201,24 @@ internal static class NewUseCase
         foreach (string line in Action(spec))
         {
             output.WriteLine(line.Length == 0 ? string.Empty : "      " + line);
+        }
+
+        if (spec.HasRequest)
+        {
+            string carrier = spec.IsCommand ? "body" : "query string";
+            string summary = spec.HasId
+                ? $"The {carrier} of {Separated(u, ' ')}; the {Separated(spec.Aggregate!, ' ')} id travels in the route."
+                : $"The {carrier} of {Separated(u, ' ')}.";
+
+            output.WriteLine($"  and {api}/Features/{f}/Contracts/Requests/{spec.Request}.cs, with what a client sends:");
+            output.WriteLine($"      namespace {p}.Api.Features.{f}.Contracts.Requests;");
+            output.WriteLine(string.Empty);
+            output.WriteLine($"      /// <summary>{summary}</summary>");
+
+            foreach (string line in Record(spec.Request, spec.Inputs.Select(parameter => $"{parameter.Type} {parameter.Name}"), string.Empty).Split('\n'))
+            {
+                output.WriteLine("      " + line);
+            }
         }
 
         if (!spec.IsCommand)
@@ -796,6 +1246,21 @@ internal static class NewUseCase
         }
     }
 
+    private static string Construction(Spec spec) =>
+        $"new {spec.Input}({string.Join(", ", spec.Parameters.Select(parameter => parameter.Argument))})";
+
+    private static string Record(string type, IEnumerable<string> declared, string implemented)
+    {
+        string[] members = [.. declared];
+
+        return members.Length switch
+        {
+            0 => $"public sealed record {type}{implemented};",
+            1 => $"public sealed record {type}({members[0]}){implemented};",
+            _ => $"public sealed record {type}(\n{string.Join(",\n", members.Select(member => "    " + member))}){implemented};",
+        };
+    }
+
     private static IEnumerable<string> Hosts(string root)
     {
         string presentation = Path.Combine(root, "Src", "Presentation");
@@ -821,7 +1286,7 @@ internal static class NewUseCase
         string remainder = Remainder(spec);
         string segment = Kebab(!spec.IsCommand && remainder.StartsWith("Get", StringComparison.Ordinal) && remainder.Length > 3 ? remainder[3..] : remainder);
 
-        return spec.HasInput ? $"{{{IdName(spec)}:guid}}/{segment}" : segment;
+        return spec.HasId ? $"{{{IdName(spec)}:guid}}/{segment}" : segment;
     }
 
     private static string RouteRow(Spec spec)
@@ -833,74 +1298,98 @@ internal static class NewUseCase
 
     private static List<string> Action(Spec spec)
     {
-        string u = spec.Name;
         string method = Remainder(spec);
         string id = IdName(spec);
-        string route = RouteTemplate(spec);
-        string parameters = spec.HasInput ? $"Guid {id}, CancellationToken cancellationToken" : "CancellationToken cancellationToken";
+        string[] signature =
+        [
+            .. spec.HasId ? new[] { $"Guid {id}" } : [],
+            .. spec.HasRequest ? new[] { $"[{(spec.IsCommand ? "FromBody" : "FromQuery")}] {spec.Request} request" } : [],
+            "CancellationToken cancellationToken",
+        ];
+        string[] arguments =
+        [
+            .. spec.HasId ? new[] { id } : [],
+            .. spec.Inputs.Select(parameter => "request." + parameter.Name),
+            .. spec.IsCommand && spec.HasId ? new[] { "precondition" } : [],
+        ];
+        string message = $"new {spec.Input}({string.Join(", ", arguments)})";
+        string response = spec.IsCommand ? string.Empty : spec.Dto![..^"Dto".Length] + "Response";
+        string declaration = $"public async Task<ActionResult{(spec.IsCommand ? string.Empty : $"<{response}>")}> {method}";
 
         var lines = new List<string>
         {
-            $"/// <summary>{Sentence(u)}.</summary>",
-            $"[Http{(spec.IsCommand ? "Post" : "Get")}(\"{route}\")]",
+            $"/// <summary>{Sentence(spec.Name)}.</summary>",
+            $"[Http{(spec.IsCommand ? "Post" : "Get")}(\"{RouteTemplate(spec)}\")]",
+            spec.IsCommand
+                ? "[ProducesResponseType(StatusCodes.Status204NoContent)]"
+                : $"[ProducesResponseType(StatusCodes.Status200OK, Type = typeof({response}))]",
         };
 
-        if (spec.IsCommand)
+        if (spec.HasId || spec.HasRequest)
         {
-            lines.Add("[ProducesResponseType(StatusCodes.Status204NoContent)]");
+            lines.Add("[ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]");
+        }
 
-            if (spec.HasInput)
-            {
-                lines.AddRange(
-                [
-                    "[ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]",
-                    "[ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]",
-                    "[ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]",
-                    "[ProducesResponseType(StatusCodes.Status412PreconditionFailed, Type = typeof(ProblemDetails))]",
-                    "[ProducesResponseType(StatusCodes.Status428PreconditionRequired, Type = typeof(ProblemDetails))]",
-                    $"public async Task<ActionResult> {method}({parameters})",
-                    "{",
-                    "    if (ReadPrecondition(out var precondition, out bool requiresExistence) is { } refusal)",
-                    "    {",
-                    "        return refusal;",
-                    "    }",
-                    string.Empty,
-                    $"    var outcome = await sender.Send(new {spec.Input}({id}, precondition), cancellationToken);",
-                    string.Empty,
-                    "    return NoContentOrProblem(RequiringExistence(requiresExistence, outcome));",
-                    "}",
-                ]);
-            }
-            else
-            {
-                lines.AddRange(
-                [
-                    $"public async Task<ActionResult> {method}({parameters}) =>",
-                    $"    NoContentOrProblem(await sender.Send(new {spec.Input}(), cancellationToken));",
-                ]);
-            }
+        if (spec.HasId)
+        {
+            lines.Add("[ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]");
+        }
+
+        if (spec.IsCommand && spec.HasId)
+        {
+            lines.AddRange(
+            [
+                "[ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]",
+                "[ProducesResponseType(StatusCodes.Status412PreconditionFailed, Type = typeof(ProblemDetails))]",
+                "[ProducesResponseType(StatusCodes.Status428PreconditionRequired, Type = typeof(ProblemDetails))]",
+            ]);
+        }
+
+        string Answer(string sent) => spec.IsCommand
+            ? $"NoContentOrProblem(await sender.Send({sent}, cancellationToken))"
+            : $"OkOrProblem((await sender.Send({sent}, cancellationToken)).Map(_ => new {response}()))";
+
+        if (!spec.HasRequest && !(spec.IsCommand && spec.HasId))
+        {
+            lines.AddRange([$"{declaration}({string.Join(", ", signature)}) =>", $"    {Answer(message)};"]);
 
             return lines;
         }
 
-        string response = spec.Dto![..^"Dto".Length] + "Response";
-        string call = spec.HasInput ? $"new {spec.Input}({id}), cancellationToken" : $"new {spec.Input}(), cancellationToken";
+        lines.Add(spec.HasRequest
+            ? $"{declaration}(\n{string.Join(",\n", signature.Select(parameter => "    " + parameter))})"
+            : $"{declaration}({string.Join(", ", signature)})");
+        lines.Add("{");
 
-        lines.Add($"[ProducesResponseType(StatusCodes.Status200OK, Type = typeof({response}))]");
-
-        if (spec.HasInput)
+        if (spec.HasRequest)
         {
-            lines.Add("[ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]");
-            lines.Add("[ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]");
+            lines.AddRange(["    ArgumentNullException.ThrowIfNull(request);", string.Empty]);
         }
 
-        lines.AddRange(
-        [
-            $"public async Task<ActionResult<{response}>> {method}({parameters}) =>",
-            $"    OkOrProblem((await sender.Send({call})).Map(_ => new {response}()));",
-        ]);
+        if (spec.IsCommand && spec.HasId)
+        {
+            lines.AddRange(
+            [
+                "    if (ReadPrecondition(out var precondition, out bool requiresExistence) is { } refusal)",
+                "    {",
+                "        return refusal;",
+                "    }",
+                string.Empty,
+                $"    var outcome = await sender.Send({message}, cancellationToken);",
+                string.Empty,
+                "    return NoContentOrProblem(RequiringExistence(requiresExistence, outcome));",
+            ]);
+        }
+        else
+        {
+            string local = spec.IsCommand ? "command" : "query";
 
-        return lines;
+            lines.AddRange([$"    var {local} = {message};", string.Empty, $"    return {Answer(local)};"]);
+        }
+
+        lines.Add("}");
+
+        return [.. lines.SelectMany(line => line.Split('\n'))];
     }
 
     private static string Sentence(string pascal)
@@ -931,8 +1420,10 @@ internal static class NewUseCase
             Directory.CreateDirectory(scratch);
 
             ParserCases(scratch, Expect);
+            InputCases(scratch, Expect);
             TreeCases(scratch, Expect);
             ShapeCases(scratch, Expect);
+            ContentCases(scratch, Expect);
             DtoCases(scratch, Expect);
             ManifestCases(scratch, Expect);
             RollbackCases(scratch, Expect);
@@ -966,7 +1457,7 @@ internal static class NewUseCase
             "Src/Application/A.Application/Features/Invoices/UseCases/Commands/CreateInvoice",
             "Src/Application/A.Application/Features/Notes/Services",
             "Src/Presentation/A.Api/Features/Invoices/Controllers",
-            "Tests/Application/A.Application.UnitTests",
+            "Tests/Application/A.Application.UnitTests/TestDoubles",
         ];
 
         foreach (string directory in directories)
@@ -975,6 +1466,7 @@ internal static class NewUseCase
         }
 
         File.WriteAllText(Path.Combine(root, "cleanarch.json"), "{\n  \"name\": \"Acme\"\n}\n");
+        File.WriteAllText(Path.Combine(root, "Tests/Application/A.Application.UnitTests/TestDoubles/ValidatedHandler.cs"), "the test double a person keeps\n");
 
         foreach (string repository in repositories.Length == 0 ? ["Invoice"] : repositories)
         {
@@ -1030,7 +1522,7 @@ internal static class NewUseCase
             (["Invoices", "ApproveInvoice", "--kind", "event"], "--kind 'event' is not a choice"),
             (["Invoices", "ApproveInvoice", "--kind"], "'--kind' needs a value"),
             (["Invoices", "ApproveInvoice", "--kind", "command", "--kind", "query"], "is given twice"),
-            (["Invoices", "ApproveInvoice", "--kind", "command", "--input", "body"], "--input 'body' is not a choice"),
+            (["Invoices", "ApproveInvoice", "--kind", "command", "--input", "body"], "'body' in --input is neither id nor an input"),
             (["Invoices", "ApproveInvoice", "--kind", "command", "--route", "x"], "'--route' is not an option"),
             (["Invoices", "--kind", "command"], "Expected two names"),
             (["Invoices", "ApproveInvoice", "Extra", "--kind", "command"], "Expected two names"),
@@ -1054,6 +1546,133 @@ internal static class NewUseCase
         expect(
             several.Error.Split('\n').Count(line => line.StartsWith("error:", StringComparison.Ordinal)) >= 4,
             "Several mistakes in one command were not all reported.");
+    }
+
+    private static void InputCases(string scratch, Action<bool, string> expect)
+    {
+        (string Input, bool HasId, string[] Declared)[] accepted =
+        [
+            ("none", false, []),
+            ("id", true, []),
+            ("Name:string, MaxCount:int", false, ["string Name", "int MaxCount"]),
+            ("id, Tags:IReadOnlyList<string>", true, ["IReadOnlyList<string> Tags"]),
+            ("Lookup:Dictionary<string,int>", false, ["Dictionary<string, int> Lookup"]),
+            (" Map : Dictionary< string , List<int?> > , Ids:Guid[]", false, ["Dictionary<string, List<int?>> Map", "Guid[] Ids"]),
+            ("Grid:int[,], Note:string?, Due:DateOnly?, Matrix:int?[][]", false, ["int[,] Grid", "string? Note", "DateOnly? Due", "int?[][] Matrix"]),
+            ("Pairs:List<(string Key, int Value)>", false, ["List<(string Key, int Value)> Pairs"]),
+            ("Owner:global::System.Guid, Nested:Outer<int>.Inner", false, ["global::System.Guid Owner", "Outer<int>.Inner Nested"]),
+        ];
+
+        foreach (var (input, hasId, declared) in accepted)
+        {
+            var problems = new List<string>();
+            var (readId, inputs) = ReadInputs(input, problems);
+            string[] read = [.. inputs.Select(parameter => $"{parameter.Type} {parameter.Name}")];
+
+            expect(problems.Count == 0, $"[--input {input}] was refused: {string.Join(" ", problems)}");
+            expect(readId == hasId, $"[--input {input}] read the aggregate's id as {(readId ? "present" : "absent")}.");
+            expect(read.SequenceEqual(declared), $"[--input {input}] read {string.Join("; ", read)}, not {string.Join("; ", declared)}.");
+        }
+
+        (string Input, string Fragment)[] refused =
+        [
+            ("Name", "neither id nor an input written Name:Type"),
+            ("name:string", "'name' in --input is not an input name"),
+            (":string", "'' in --input is not an input name"),
+            ("Name:", "it stops short of a complete type"),
+            ("Name:List<string", "it stops where '>' is due"),
+            ("Name:List<>", "'>' stands where a name is due"),
+            ("Name:List<string>>", "'>' follows a type that was already complete"),
+            ("Name:int x", "'x' follows a type that was already complete"),
+            ("Name:int??", "a type is made nullable once"),
+            ("Name:class", "'class' is a C# keyword, not a type"),
+            ("Name:void", "'void' is a C# keyword, not a type"),
+            ("Name:System.string", "'string' is a C# keyword, not a type"),
+            ("Name:1abc", "'1' has no place in a type name"),
+            ("Name:(int)", "a tuple holds two elements or more"),
+            ("Name:(int, string in)", "'in' is a C# keyword, not an element name"),
+            ("Name:string, Name:int", "--input names Name more than once"),
+            ("Tags:string, id", "id comes first in --input"),
+            ("id, id", "id comes first in --input"),
+            ("none, Name:string", "none stands alone in --input"),
+            ("Name:string,", "holds an empty entry"),
+            ("ToString:string", "a member every record declares already"),
+        ];
+
+        string root = NewTree(scratch);
+
+        foreach (var (input, fragment) in refused)
+        {
+            ExpectRefusal(root, ["Invoices", "ApproveInvoice", "--kind", "command", "--input", input], fragment, expect);
+        }
+
+        ExpectRefusal(root, ["Invoices", "ApproveInvoice", "--kind", "command", "--input", "id, InvoiceId:Guid"], "The input InvoiceId would clash", expect);
+        ExpectRefusal(root, ["Invoices", "ApproveInvoice", "--kind", "command", "--input", "id, Precondition:string"], "The input Precondition would clash", expect);
+        ExpectRefusal(root, ["Invoices", "ApproveInvoice", "--kind", "command", "--input", "ApproveInvoiceCommand:int"], "would clash", expect);
+        expect(
+            Invoke(root, "Invoices", "ReviewInvoice", "--kind", "query", "--input", "id, Precondition:string").Code == 0,
+            "A query was refused an input named Precondition, a name only a command with an id holds.");
+    }
+
+    private static void ContentCases(string scratch, Action<bool, string> expect)
+    {
+        string useCases = "Src/Application/A.Application/Features/Invoices/UseCases";
+        string tests = "Tests/Application/A.Application.UnitTests/Features/Invoices/UseCases";
+        string root = NewTree(scratch);
+
+        string Read(string relative) => File.Exists(Path.Combine(root, relative)) ? File.ReadAllText(Path.Combine(root, relative)) : string.Empty;
+
+        void Holds(string text, string fragment, string what) =>
+            expect(text.Contains(fragment, StringComparison.Ordinal), $"{what} does not hold '{fragment}'.");
+
+        var query = Invoke(root, "Invoices", "FindInvoicesByCustomer", "--kind", "query", "--input", "Customer:string, Limit:int, Since:DateOnly?, Until:DateTimeOffset?");
+        string queryFolder = $"{useCases}/Queries/FindInvoicesByCustomer";
+        string queryTests = $"{tests}/Queries/FindInvoicesByCustomer";
+
+        expect(query.Code == 0, $"The parameterised query was refused: {query.Error}");
+        Holds(Read($"{queryFolder}/FindInvoicesByCustomer.cs"), "public sealed record FindInvoicesByCustomerQuery(\n    string Customer,\n    int Limit,\n    DateOnly? Since,\n    DateTimeOffset? Until) : IQuery<Result<FindInvoicesByCustomerDto>>;", "The query");
+        Holds(Read($"{queryFolder}/FindInvoicesByCustomerQueryValidator.cs"), "RuleFor(query => query.Customer)\n            .NotEmpty().WithMessage(\"Customer is required.\");", "The query's validator");
+        Holds(Read($"{queryFolder}/FindInvoicesByCustomerQueryValidator.cs"), "RuleFor(query => query.Limit)", "The query's validator");
+        expect(!Read($"{queryFolder}/FindInvoicesByCustomerQueryValidator.cs").Contains("Since", StringComparison.Ordinal), "A nullable input was given a rule.");
+        expect(!Read("Src/Application/A.Application/Features/Invoices/Model/Dtos/FindInvoicesByCustomerDto.cs").Contains("Id", StringComparison.Ordinal), "A query without the id answers a DTO carrying it.");
+        Holds(Read($"{queryTests}/FindInvoicesByCustomerQueryValidatorTests.cs"), "new(\n            \"customer\",\n            1,\n            new DateOnly(2026, 1, 1),\n            new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));", "The query's validator tests");
+        Holds(Read($"{queryTests}/FindInvoicesByCustomerQueryValidatorTests.cs"), "AWellFormedQuery() with { Customer = string.Empty }", "The query's validator tests");
+        Holds(Read($"{queryTests}/FindInvoicesByCustomerQueryValidatorTests.cs"), "AWellFormedQuery() with { Limit = 0 }", "The query's validator tests");
+        Holds(Read($"{queryTests}/FindInvoicesByCustomerTests.cs"), "new(new FindInvoicesByCustomerQueryHandler().Handle, new FindInvoicesByCustomerQueryValidator());", "The query's handler test");
+        expect(
+            Regex.Count(Read($"{queryTests}/FindInvoicesByCustomerTests.cs"), "QueryHandler\\(", RegexOptions.None, TimeSpan.FromSeconds(1)) == 1,
+            "The query's handler test builds its handler in more than one place.");
+        Holds(query.Output, "      [FromQuery] FindInvoicesByCustomerRequest request,", "The query's action");
+        Holds(query.Output, "          var query = new FindInvoicesByCustomerQuery(request.Customer, request.Limit, request.Since, request.Until);", "The query's action");
+        Holds(query.Output, "          return OkOrProblem((await sender.Send(query, cancellationToken)).Map(_ => new FindInvoicesByCustomerResponse()));", "The query's action");
+        Holds(query.Output, "                       Acme.Api.Features.Invoices.Contracts.Requests;", "The query's usings");
+        Holds(query.Output, "  and Src/Presentation/A.Api/Features/Invoices/Contracts/Requests/FindInvoicesByCustomerRequest.cs, with what a client sends:", "The query's request contract");
+        Holds(query.Output, "      public sealed record FindInvoicesByCustomerRequest(\n          string Customer,", "The query's request contract");
+        expect(!query.Output.Contains("Written as given", StringComparison.Ordinal), "Inputs of known types were listed as unknown.");
+
+        var command = Invoke(root, "Invoices", "RetagInvoice", "--kind", "command", "--input", "id, Tags:IReadOnlyList<string>");
+        string commandFolder = $"{useCases}/Commands/RetagInvoice";
+
+        expect(command.Code == 0, $"The command with the id and a body was refused: {command.Error}");
+        Holds(Read($"{commandFolder}/RetagInvoice.cs"), "    Guid InvoiceId,\n    IReadOnlyList<string> Tags,\n    VersionPrecondition? Precondition = null) : ICommand<Result>;", "The command");
+        Holds(Read($"{tests}/Commands/RetagInvoice/RetagInvoiceCommandValidatorTests.cs"), "        new(Guid.CreateVersion7(), default!);", "The command's validator tests");
+        Holds(Read($"{tests}/Commands/RetagInvoice/RetagInvoiceTests.cs"), "AWellFormedCommand() with { InvoiceId = Guid.Empty }", "The command's handler test");
+        Holds(command.Output, "Written as given, of a type this command knows no rule and no test value for:\n  Tags  IReadOnlyList<string>", "The command's report");
+        Holds(command.Output, "a real value in AWellFormedCommand() in RetagInvoiceCommandValidatorTests, which passes default! for it", "The command's report");
+        Holds(command.Output, "      [FromBody] RetagInvoiceRequest request,", "The command's action");
+        Holds(command.Output, "new RetagInvoiceCommand(invoiceId, request.Tags, precondition)", "The command's action");
+        Holds(command.Output, "/// <summary>The body of retag invoice; the invoice id travels in the route.</summary>", "The command's request contract");
+
+        var bare = Invoke(root, "Invoices", "FlagInvoices", "--kind", "command", "--input", "Labels:HashSet<string>, Urgent:bool");
+
+        expect(bare.Code == 0, $"A command without a rule to write was refused: {bare.Error}");
+        Holds(bare.Output, "No validator and no test were written", "The report of a command without a rule");
+        Holds(Read($"{useCases}/Commands/FlagInvoices/FlagInvoices.cs"), "    HashSet<string> Labels,\n    bool Urgent) : ICommand<Result>;", "The command without a rule");
+
+        var none = Invoke(root, "Invoices", "PingInvoices", "--kind", "command", "--input", "none");
+
+        expect(none.Code == 0, $"A command without input was refused: {none.Error}");
+        Holds(Read($"{useCases}/Commands/PingInvoices/PingInvoices.cs"), "public sealed record PingInvoicesCommand : ICommand<Result>;", "The command without input");
     }
 
     private static void TreeCases(string scratch, Action<bool, string> expect)
@@ -1113,14 +1732,24 @@ internal static class NewUseCase
         [
             (["ApproveInvoice", "--kind", "command"],
                 [$"{useCases}/Commands/ApproveInvoice/ApproveInvoice.cs", $"{useCases}/Commands/ApproveInvoice/ApproveInvoiceCommandValidator.cs",
-                 $"{tests}/Commands/ApproveInvoice/ApproveInvoiceCommandValidatorTests.cs"]),
+                 $"{tests}/Commands/ApproveInvoice/ApproveInvoiceCommandValidatorTests.cs", $"{tests}/Commands/ApproveInvoice/ApproveInvoiceTests.cs"]),
             (["CloseOverdueInvoices", "--kind", "command", "--input", "none"],
                 [$"{useCases}/Commands/CloseOverdueInvoices/CloseOverdueInvoices.cs"]),
             (["GetInvoiceTotals", "--kind", "query"],
                 [$"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotals.cs", $"{useCases}/Queries/GetInvoiceTotals/GetInvoiceTotalsQueryValidator.cs",
-                 $"{dtos}/InvoiceTotalsDto.cs", $"{tests}/Queries/GetInvoiceTotals/GetInvoiceTotalsQueryValidatorTests.cs"]),
+                 $"{dtos}/InvoiceTotalsDto.cs", $"{tests}/Queries/GetInvoiceTotals/GetInvoiceTotalsQueryValidatorTests.cs",
+                 $"{tests}/Queries/GetInvoiceTotals/GetInvoiceTotalsTests.cs"]),
             (["SummariseRevenue", "--kind", "query", "--input=none"],
                 [$"{useCases}/Queries/SummariseRevenue/SummariseRevenue.cs", $"{dtos}/SummariseRevenueDto.cs"]),
+            (["FindInvoicesByCustomer", "--kind", "query", "--input", "Customer:string, Limit:int, Since:DateOnly?"],
+                [$"{useCases}/Queries/FindInvoicesByCustomer/FindInvoicesByCustomer.cs", $"{useCases}/Queries/FindInvoicesByCustomer/FindInvoicesByCustomerQueryValidator.cs",
+                 $"{dtos}/FindInvoicesByCustomerDto.cs", $"{tests}/Queries/FindInvoicesByCustomer/FindInvoicesByCustomerQueryValidatorTests.cs",
+                 $"{tests}/Queries/FindInvoicesByCustomer/FindInvoicesByCustomerTests.cs"]),
+            (["RetagInvoice", "--kind", "command", "--input", "id, Tags:IReadOnlyList<string>"],
+                [$"{useCases}/Commands/RetagInvoice/RetagInvoice.cs", $"{useCases}/Commands/RetagInvoice/RetagInvoiceCommandValidator.cs",
+                 $"{tests}/Commands/RetagInvoice/RetagInvoiceCommandValidatorTests.cs", $"{tests}/Commands/RetagInvoice/RetagInvoiceTests.cs"]),
+            (["FlagInvoices", "--kind", "command", "--input", "Labels:HashSet<string>, Urgent:bool"],
+                [$"{useCases}/Commands/FlagInvoices/FlagInvoices.cs"]),
         ];
 
         foreach (var (args, files) in cases)
@@ -1147,6 +1776,9 @@ internal static class NewUseCase
                 "ApproveInvoice" => "| POST | `/{invoiceId}/approve` | 204 | |",
                 "CloseOverdueInvoices" => "| POST | `/close-overdue-invoices` | 204 | |",
                 "GetInvoiceTotals" => "| GET | `/{invoiceId}/totals` | 200 | |",
+                "FindInvoicesByCustomer" => "| GET | `/find-invoices-by-customer` | 200 | |",
+                "RetagInvoice" => "| POST | `/{invoiceId}/retag` | 204 | |",
+                "FlagInvoices" => "| POST | `/flag-invoices` | 204 | |",
                 _ => "| GET | `/summarise-revenue` | 200 | |",
             };
 
@@ -1170,6 +1802,19 @@ internal static class NewUseCase
 
         expect(skipped.Code == 0 && skipped.Output.Contains("tests were skipped", StringComparison.Ordinal), "A tree without the application tests was not told its tests were skipped.");
         expect(!Directory.Exists(Path.Combine(untested, "Tests/Application/A.Application.UnitTests")), "Tests were written into a project that does not exist.");
+
+        string undoubled = NewTree(scratch);
+        File.Delete(Path.Combine(undoubled, "Tests/Application/A.Application.UnitTests/TestDoubles/ValidatedHandler.cs"));
+
+        var halfTested = Invoke(undoubled, "Invoices", "ApproveInvoice", "--kind", "command");
+
+        expect(
+            halfTested.Code == 0 && halfTested.Output.Contains("Not written: ApproveInvoiceTests.cs", StringComparison.Ordinal),
+            "A tree without the ValidatedHandler double was not told the handler's test was left out.");
+        expect(
+            File.Exists(Path.Combine(undoubled, $"{tests}/Commands/ApproveInvoice/ApproveInvoiceCommandValidatorTests.cs"))
+            && !File.Exists(Path.Combine(undoubled, $"{tests}/Commands/ApproveInvoice/ApproveInvoiceTests.cs")),
+            "Without the ValidatedHandler double, the validator's tests were not written alone.");
     }
 
     private static void DtoCases(string scratch, Action<bool, string> expect)
@@ -1193,6 +1838,11 @@ internal static class NewUseCase
 
         expect(Invoke(fresh, "Invoices", "GetInvoiceTotals", "--kind", "query").Code == 0, "A query on a feature with a repository was refused.");
         expect(File.Exists(freshDto) && File.ReadAllText(freshDto).Contains("InvoiceTotalsDto(Guid Id);", StringComparison.Ordinal), "The generated DTO does not carry the aggregate's id.");
+
+        string unrelated = Path.Combine(fresh, "Src/Application/A.Application/Features/Invoices/Model/Dtos/SummariseRevenueDto.cs");
+
+        expect(Invoke(fresh, "Invoices", "SummariseRevenue", "--kind", "query", "--input", "none").Code == 0, "A query without input was refused.");
+        expect(File.Exists(unrelated) && !File.ReadAllText(unrelated).Contains("Id", StringComparison.Ordinal), "A query without input answers a DTO carrying an id it was never given.");
 
         string bare = NewTree(scratch, "Unused");
         File.Delete(Path.Combine(bare, "Src/Domain/A.Domain/Features/Invoices/Repositories/IUnusedRepository.cs"));
@@ -1235,7 +1885,7 @@ internal static class NewUseCase
         var after = Snapshot(root);
         string[] created = [.. after.Keys.Except(before.Keys, StringComparer.Ordinal).Where(key => after[key] != "<directory>")];
 
-        expect(created.Length == 7, $"Two use cases wrote {created.Length} files, not 7.");
+        expect(created.Length == 9, $"Two use cases wrote {created.Length} files, not 9.");
         expect(listed.Select(entry => entry.Path).SequenceEqual(listed.Select(entry => entry.Path).Order(StringComparer.Ordinal)), "The manifest's files are not in path order.");
         expect(listed.Count == created.Length + 1 && listed.Any(entry => entry.Path == generated && entry.Sha256 == new string('a', 64)), "The manifest lost the generator's own entry or gained a stranger.");
 
@@ -1267,7 +1917,14 @@ internal static class NewUseCase
 
     private static void WithoutTheApiCases(string scratch, Action<bool, string> expect)
     {
-        foreach (string[] args in new[] { new[] { "ApproveInvoice", "--kind", "command" }, ["GetInvoiceTotals", "--kind", "query"] })
+        string[][] cases =
+        [
+            ["ApproveInvoice", "--kind", "command"],
+            ["GetInvoiceTotals", "--kind", "query"],
+            ["FindInvoicesByCustomer", "--kind", "query", "--input", "id, Customer:string, Event:int"],
+        ];
+
+        foreach (string[] args in cases)
         {
             string root = NewTree(scratch);
             string label = string.Join(' ', args);
@@ -1286,6 +1943,15 @@ internal static class NewUseCase
                 result.Output.Contains("Src/Presentation/A.Portal/", StringComparison.Ordinal),
                 $"[{label}] without the API did not name the host that serves the feature.");
             expect(!Directory.Exists(Path.Combine(root, "Src/Presentation/A.Api")), $"[{label}] without the API wrote into it.");
+
+            string sent = args[0] switch
+            {
+                "ApproveInvoice" => "send new ApproveInvoiceCommand(invoiceId) through ISender",
+                "GetInvoiceTotals" => "send new GetInvoiceTotalsQuery(invoiceId) through ISender",
+                _ => "send new FindInvoicesByCustomerQuery(invoiceId, customer, @event) through ISender",
+            };
+
+            expect(result.Output.Contains(sent, StringComparison.Ordinal), $"[{label}] without the API did not print the message to send with its inputs: '{sent}'.");
         }
     }
 
@@ -1371,9 +2037,10 @@ internal static class Templates
 
         public sealed class %In%Validator : AbstractValidator<%In%>
         {
-            public %In%Validator() =>
-                RuleFor(%in% => %in%.%A%Id)
-                    .NotEmpty().WithMessage("%Subject% id is required.");
+            public %In%Validator()
+            {
+        %Rules%
+            }
         }
         """;
 
@@ -1416,17 +2083,47 @@ internal static class Templates
 
         public sealed class %In%ValidatorTests
         {
+            private readonly %In%Validator _validator = new();
+
             private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
             [Fact]
-            public async Task AnEmpty%A%Id_IsRefused() =>
-                (await new %In%Validator().ValidateAsync(new %In%(Guid.Empty), TestToken))
-                    .IsValid.ShouldBeFalse();
+            public async Task AWellFormed%Kind%_PassesValidation() =>
+                (await _validator.ValidateAsync(AWellFormed%Kind%(), TestToken))
+                    .IsValid.ShouldBeTrue();
+        %Refusals%
+            internal static %In% AWellFormed%Kind%() =>
+                new(%Values%);
+        }
+        """;
+
+    internal const string HandlerTests = """
+        using %P%.Application.Core.Common.Results;
+        using %P%.Application.Features.%F%.UseCases.%K%.%U%;
+        using %P%.Application.UnitTests.TestDoubles;
+        using %Dtos%;
+        using Shouldly;
+        using Xunit;
+
+        namespace %P%.Application.UnitTests.Features.%F%.UseCases.%K%.%U%;
+
+        public sealed class %U%Tests
+        {
+            private static CancellationToken TestToken => TestContext.Current.CancellationToken;
 
             [Fact]
-            public async Task AReal%A%Id_PassesValidation() =>
-                (await new %In%Validator().ValidateAsync(new %In%(Guid.CreateVersion7()), TestToken))
-                    .IsValid.ShouldBeTrue();
+            public async Task AMalformed%Kind%_NeverReachesTheHandler()
+            {
+                var malformed = %In%ValidatorTests.AWellFormed%Kind%() with { %Malformed% };
+
+                var result = await UseCase().Handle(malformed, TestToken);
+
+                result.IsFailure.ShouldBeTrue();
+                result.Error!.Type.ShouldBe(ErrorType.Validation);
+            }
+
+            private static ValidatedHandler<%In%, %Out%> UseCase() =>
+                new(new %In%Handler().Handle, new %In%Validator());
         }
         """;
 }

@@ -480,7 +480,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
 
-      # A generated feature builds in the layers that need no hand edit and passes its own tests there; the container and architecture tests wait for the edits new-feature prints. The aggregate one takes three more use cases from new-use-case, which refuses the record ones. The hygiene gates pass with three features present, and remove-feature --apply leaves the tree as it was.
+      # A generated feature builds in the layers that need no hand edit and passes its own tests there; the container and architecture tests wait for the edits new-feature prints. The aggregate one takes five more use cases from new-use-case, two with typed inputs, which refuses the record ones. The hygiene gates pass with three features present, and remove-feature --apply leaves the tree as it was.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
@@ -517,7 +517,7 @@ jobs:
               return
             fi
             local log
-            for usecase in "Approve${type} --kind command" "Get${type}Totals --kind query" "CloseOverdue${feature} --kind command --input none"; do
+            for usecase in "Approve${type} --kind command" "Get${type}Totals --kind query" "CloseOverdue${feature} --kind command --input none" "Find${feature}ByName --kind query --input=Name:string,MaxCount:int" "Retag${type} --kind command --input=id,Tags:IReadOnlyList<string>"; do
               log="${{ runner.temp }}/new-use-case-$feature-${usecase%% *}.log"
               # shellcheck disable=SC2086
               dotnet run Tools/Tasks.cs new-use-case "$feature" $usecase > "$log" 2>&1 || { cat "$log"; fail "new-use-case $feature $usecase failed."; }

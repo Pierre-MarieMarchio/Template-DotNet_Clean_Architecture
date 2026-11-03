@@ -28,6 +28,9 @@ public sealed class LayoutConventionTests
         ["Src/Domain/AT.Domain"] =
             ["Model/Entities", "Model/Events", "Model/ValueObjects", "Repositories"],
         ["Src/Domain/AT.Domain.Core"] = null,
+        //#if (aspire)
+        ["Src/AppHost/AT.AppHost"] = null,
+        //#endif
         ["Src/Infrastructure/AT.Infrastructure.Persistence"] =
             [
                 "Access/Queries", "Access/Repositories", "Access/Stores",
@@ -191,6 +194,9 @@ public sealed class LayoutConventionTests
         //#endif
         ["Src/Presentation/AT.Presentation.Core"] =
             ["Jobs", "Localization", "Observability", "Outbound", "Security"],
+        //#if (aspire)
+        ["Src/AppHost/AT.AppHost"] = ["Hosting"],
+        //#endif
         /*#if (presentationBlazorServer)
         ["Src/Presentation/AT.PresentationAppPortal"] = ["Hosting", "Security"],
         #endif*/

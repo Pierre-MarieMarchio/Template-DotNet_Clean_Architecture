@@ -95,7 +95,7 @@ internal static class ProjectFileCheck
         string Value(string symbol) => given.GetValueOrDefault(symbol) ?? symbols.GetProperty(symbol).GetProperty("defaultValue").GetString()!;
 
         var options = new JsonObject();
-        foreach (string option in new[] { "auth", "database", "examples", "files", "ci", "sonar", "agentFiles" })
+        foreach (string option in new[] { "auth", "database", "examples", "files", "ci", "sonar", "agentFiles", "aspire" })
         {
             options[option] = symbols.GetProperty(option).GetProperty("datatype").GetString() == "bool"
                 ? JsonValue.Create(bool.Parse(Value(option)))
@@ -174,7 +174,7 @@ internal static class ProjectFileCheck
 
         try
         {
-            string options = "--web vite-react --web-audience admin --presentation wpf --presentation worker --agent-files false";
+            string options = "--web vite-react --web-audience admin --presentation wpf --presentation worker --agent-files false --aspire true";
             File.WriteAllText(Path.Combine(scratch, "cleanarch.json"), Expected("Acme.Shop", [.. options.Split(' ')]));
 
             if (Run([scratch, "Acme.Shop", options]) != 0)
@@ -185,7 +185,7 @@ internal static class ProjectFileCheck
             string text = File.ReadAllText(Path.Combine(scratch, "cleanarch.json"));
             string[] expectations =
             [
-                "\"auth\": \"local\"", "\"agentFiles\": false", "\"client\": true", "\"scope\": \"acme-shop\"",
+                "\"auth\": \"local\"", "\"agentFiles\": false", "\"aspire\": true", "\"client\": true", "\"scope\": \"acme-shop\"",
                 "\"name\": \"Site\"", "\"audience\": \"admin\"", "\"rendering\": \"spa\"", "\"port\": 5173", "\"name\": \"Api\"",
                 "\"framework\": \"wpf\"", "\"name\": \"Worker\"",
             ];

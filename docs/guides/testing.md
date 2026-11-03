@@ -57,6 +57,9 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | A message its validator refuses never reaches its handler | unit; architecture for "every message" and "every validator" | `UseCasePipelineTests`; `ContainerCompositionTests`, `ValidatorTargetTests` |
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
 | Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
+<!--#if (aspire)-->
+| The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` leaves out with the suites that need Docker |
+<!--#endif-->
 | The HTTP contract | contract | `OpenApiDocumentTests` against the committed reference; `ErrorCodeTableTests` and `ErrorCodeStatusTests` against [the API reference](../reference/api.md#error-codes) |
 <!--#if (accounts)-->
 | Default deny | integration over every mapped endpoint; architecture for the anonymous list | `DefaultDenyAuthorizationTests`, `HttpSurfaceTests` |

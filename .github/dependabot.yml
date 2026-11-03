@@ -74,6 +74,14 @@ updates:
         applies-to: version-updates
         patterns:
           - OpenTelemetry.*
+      #if (aspire)
+
+      # The Aspire band with the app host's SDK, which global.json pins under msbuild-sdks.
+      aspire:
+        applies-to: version-updates
+        patterns:
+          - Aspire.*
+      #endif
 
   # GitHub Actions, pinned by SHA with the tag in a trailing comment.
   - package-ecosystem: github-actions

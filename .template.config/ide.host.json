@@ -88,6 +88,13 @@
         "text": "Agent instructions"
       },
       "isVisible": true
+    },
+    {
+      "id": "aspire",
+      "name": {
+        "text": "Aspire app host"
+      },
+      "isVisible": true
     }
   ]
 }

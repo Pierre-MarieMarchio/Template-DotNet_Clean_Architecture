@@ -97,6 +97,16 @@ Both are anonymous and outside the rate limiter. Readiness turns unhealthy the m
 starts, so an orchestrator stops sending traffic while `Shutdown:Timeout` drains what arrived.
 Liveness touches no dependency, so a brief database outage never restarts a healthy process.
 Neither says whether the jobs run: the `iterations` counters do.
+<!--#if (aspire)-->
+
+## In the Aspire dashboard
+
+The app host turns `OpenTelemetry:Enabled` on for every host it starts, and sets
+`OpenTelemetry:OtlpEndpoint`, `OpenTelemetry:OtlpProtocol` and `OpenTelemetry:ServiceName` to its
+dashboard's OTLP endpoint and protocol and to the resource's name: the logs, traces and metrics of a
+local run land in the dashboard with no setting of yours, and Compose keeps exporting nothing.
+[Running the app host](../guides/running-the-app-host.md) says how to start it.
+<!--#endif-->
 
 ## Configure
 

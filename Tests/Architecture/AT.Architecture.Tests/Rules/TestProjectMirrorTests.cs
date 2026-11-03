@@ -18,6 +18,12 @@ public sealed class TestProjectMirrorTests
             "a host written beside its <Name>.Core keeps its logic there, and <Name>.Core.UnitTests tests it; " +
             "the host itself is views and composition (a WPF host builds on Windows only)",
             (project, sourceNames) => sourceNames.Contains(project.Name + ".Core")),
+        //#if (aspire)
+        new(
+            "the app host composes the local stack and none of the product: LocalStackTests in its integration " +
+            "project starts it, and LocalStackParityTests holds it to the Compose files",
+            (project, _) => project.RelativePath.Replace('\\', '/').StartsWith("Src/AppHost/", StringComparison.Ordinal)),
+        //#endif
     ];
 
     [Fact]

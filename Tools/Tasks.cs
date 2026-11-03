@@ -92,6 +92,10 @@ internal static class Tasks
           --dry-run                        new-feature, new-use-case: print the files and the edits the
                                            command makes, and write and run nothing
           --keys, --dry-run                new-setting: forwarded to Tools/NewSetting.cs, whose
+                                           --help says what each one means; --dry-run also
+                                           reaches new-event
+          --fields, --consumer, --unconsumed
+                                           new-event: forwarded to Tools/NewEvent.cs, whose
                                            --help says what each one means
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
@@ -107,6 +111,7 @@ internal static class Tasks
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
           dotnet run Tools/Tasks.cs new-use-case TodoLists ArchiveTodoList --kind command
           dotnet run Tools/Tasks.cs new-setting TodoLists TodoListLimits --keys "MaxItems:int(1..500)=100"
+          dotnet run Tools/Tasks.cs new-event TodoLists TodoListArchivedDomainEvent --unconsumed "Nothing reacts to an archived list"
           dotnet run Tools/Tasks.cs remove-feature Widgets
           dotnet run Tools/Tasks.cs remove-feature Widgets --apply
           dotnet run Tools/Tasks.cs migration-add AddTodoItemPriority
@@ -127,6 +132,7 @@ internal static class Tasks
         "new-feature",
         "new-use-case",
         "new-setting",
+        "new-event",
         "remove-feature",
         "migration-initial",
         "migration-add",
@@ -451,7 +457,7 @@ internal static class Tasks
                     $"'{argument}' is not an option of this file. The options are --no-integration, --apply, --dry-run, "
                     + "--keep-stack, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
                     + $"new-feature {string.Join(", ", _featureOptionNames)}, for new-use-case {string.Join(", ", _useCaseOptionNames)}, "
-                    + $"for new-setting {string.Join(", ", _conventionOptionNames)}, "
+                    + $"for new-setting and new-event {string.Join(", ", _conventionOptionNames)}, "
                     + $"and for web-join {string.Join(", ", _webJoinOptionNames)}.");
             }
             else if (task is null)
@@ -491,10 +497,10 @@ internal static class Tasks
                 $"'{useCaseOptions[0]}' is an option of the new-use-case task, not of '{task ?? "(no task)"}'.");
         }
 
-        if (conventionOptions.Count > 0 && task != "new-setting")
+        if (conventionOptions.Count > 0 && task is not ("new-setting" or "new-event"))
         {
             throw new InvalidOperationException(
-                $"'{conventionOptions[0]}' is an option of the new-setting task, not of '{task ?? "(no task)"}'.");
+                $"'{conventionOptions[0]}' is an option of the new-setting and new-event tasks, not of '{task ?? "(no task)"}'.");
         }
 
         if (webOptions.Count > 0 && task != "web-join")
@@ -653,6 +659,18 @@ internal static class Tasks
                     [
                         "run", Path.Combine(repoRoot, "Tools", "NewSetting.cs"),
                         RequiredPair(task, name, second, "TodoLists TodoListLimits --keys \"MaxItems:int(1..500)=100\""),
+                        second!,
+                        "--root", repoRoot,
+                        .. conventionOptions,
+                    ]);
+                break;
+
+            case "new-event":
+                Step(
+                    "dotnet",
+                    [
+                        "run", Path.Combine(repoRoot, "Tools", "NewEvent.cs"),
+                        RequiredPair(task, name, second, "TodoLists TodoListArchivedDomainEvent --unconsumed \"Nothing reacts to it yet\""),
                         second!,
                         "--root", repoRoot,
                         .. conventionOptions,
@@ -1179,6 +1197,7 @@ internal static class Tasks
         Step("dotnet", "run", Gate(repoRoot, "NewFeature.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "NewUseCase.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "NewSetting.cs"), "--self-test");
+        Step("dotnet", "run", Gate(repoRoot, "NewEvent.cs"), "--self-test");
         Step("dotnet", "run", Gate(repoRoot, "RemoveFeature.cs"), "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", "--self-test");
         OptionalGate(repoRoot, "CheckDocPaths.cs", repoRoot);
@@ -2469,7 +2488,7 @@ internal static class Tasks
 
     private static readonly string[] _useCaseOptionNames = ["--kind", "--input"];
 
-    private static readonly string[] _conventionOptionNames = ["--keys", "--dry-run"];
+    private static readonly string[] _conventionOptionNames = ["--keys", "--dry-run", "--fields", "--consumer", "--unconsumed"];
 
     private static readonly string[] _webJoinOptionNames = ["--web", "--web-audience", "--web-rendering"];
 

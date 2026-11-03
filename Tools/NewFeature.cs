@@ -5682,33 +5682,33 @@ internal static partial class NewFeature
             unmigrated.Code == 1 && Same(bare, Snapshot(pending)) && ran.Count == 0 && unmigrated.Error.Contains("has no initial migration", StringComparison.Ordinal),
             "A context without its initial migration did not stop new-field before it wrote or ran.");
 
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         string failing = FieldTree(scratch);
 
         Invoke(failing, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
 
         var rolled = Snapshot(failing);
-        string record = System.IO.Path.Combine(failing, "Src/Infrastructure/A.Infrastructure.Persistence/Features/Things/Rows/Models");
+        string record = System.IO.Path.Combine(failing, "Src/Infrastructure/A.Infrastructure.Persistence/Features/Things/Rows/Models/ThingRecord.cs");
+        byte[] recorded = File.ReadAllBytes(record);
 
-        File.SetUnixFileMode(record, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-
-        try
+        int Blocked(TextEdits.Command command)
         {
-            var refused = InvokeField(failing, Recording([]), "Things", "Budget:decimal(12,2)>=0=5");
+            if (command.Display.EndsWith("migration-check", StringComparison.Ordinal))
+            {
+                File.Delete(record);
+                Directory.CreateDirectory(record);
+            }
 
-            expect(
-                refused.Code == 1 && refused.Error.Contains("nothing was left behind", StringComparison.Ordinal),
-                $"A write that failed half way was not reported as rolled back: {refused.Error}");
-        }
-        finally
-        {
-            File.SetUnixFileMode(record, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            return 0;
         }
 
+        var refused = InvokeField(failing, Blocked, "Things", "Budget:decimal(12,2)>=0=5");
+
+        expect(
+            refused.Code == 1 && refused.Error.Contains("nothing was left behind", StringComparison.Ordinal),
+            $"A write that failed half way was not reported as rolled back: {refused.Error}");
+
+        Directory.Delete(record);
+        File.WriteAllBytes(record, recorded);
         expect(Same(rolled, Snapshot(failing)), "A new-field whose write failed half way left some of its changes behind.");
     }
 

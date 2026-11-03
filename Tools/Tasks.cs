@@ -1008,26 +1008,6 @@ internal static class Tasks
         }
     }
 
-    private static void WebAudit(ProjectFile projectFile)
-    {
-        if (!File.Exists(Path.Combine(projectFile.Root, "Src", "Web", "package.json")))
-        {
-            return;
-        }
-
-        try
-        {
-            StepIn(Path.Combine(projectFile.Root, "Src", "Web"), _pnpm, "audit");
-        }
-        catch (InvalidOperationException error)
-        {
-            throw new InvalidOperationException(
-                error.Message + " A web package with a known advisory is locked, at any severity. Raise the dependency, "
-                + "or pin a patched release under overrides in Src/Web/pnpm-workspace.yaml with a comment saying when it can go; "
-                + "then run `pnpm install` in Src/Web and commit the lockfile.");
-        }
-    }
-
     private static IEnumerable<string> TreeDifferences(string committed, string written)
     {
         string[] Files(string root) => Directory.Exists(root)
@@ -1108,6 +1088,26 @@ internal static class Tasks
     }
 
     //#endif
+    private static void WebAudit(ProjectFile projectFile)
+    {
+        if (!File.Exists(Path.Combine(projectFile.Root, "Src", "Web", "package.json")))
+        {
+            return;
+        }
+
+        try
+        {
+            StepIn(Path.Combine(projectFile.Root, "Src", "Web"), _pnpm, "audit");
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException(
+                error.Message + " A web package with a known advisory is locked, at any severity. Raise the dependency, "
+                + "or pin a patched release under overrides in Src/Web/pnpm-workspace.yaml with a comment saying when it can go; "
+                + "then run `pnpm install` in Src/Web and commit the lockfile.");
+        }
+    }
+
     private static void Gates(string repoRoot)
     {
         Step("dotnet", "run", Gate(repoRoot, "Tasks.cs"), "--self-test");

@@ -1744,7 +1744,9 @@
           "exclude": [
             "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
-            "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs"
+            "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedToolMethodTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Fixtures/TemplateForms.cs"
           ]
         },
         {

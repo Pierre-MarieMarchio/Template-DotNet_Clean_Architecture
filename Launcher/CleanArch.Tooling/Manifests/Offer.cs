@@ -61,7 +61,9 @@ public sealed record Offer(IReadOnlyList<string> Values, IReadOnlyList<Refusal> 
             outcomes.Add(refused);
         }
 
-        List<Refusal> always = [.. outcomes.Skip(1).Aggregate(outcomes[0].AsEnumerable(), (common, refused) => common.Intersect(refused))];
+        List<Refusal> always = outcomes.Skip(1).Aggregate(
+            outcomes[0].Distinct().ToList(),
+            (common, refused) => [.. common.Intersect(refused)]);
         return always.Count > 0 ? always : [.. outcomes.SelectMany(refused => refused).Distinct()];
     }
 

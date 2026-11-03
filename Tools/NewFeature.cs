@@ -61,20 +61,6 @@ internal static class NewFeature
         "Policies", "Ports", "Presentation", "Rows", "Services", "UseCases",
     ];
 
-    internal static readonly string[] Keywords =
-    [
-        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
-        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
-        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
-        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
-        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
-        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
-        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
-    ];
-
-    internal static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
-
     private sealed record Emission(string Path, string Content);
 
     private sealed record Request(
@@ -527,7 +513,7 @@ internal static class NewFeature
         }
 
         string[]? operations = ParseOperations(request.Operations, problems);
-        var fields = request.Fields is null ? null : FieldGrammar.Parse(request.Fields, problems);
+        var fields = request.Fields is null ? null : FieldGrammar.Parse(request.Fields, FieldProfile.Feature, problems);
 
         if (problems.Count > 0 || operations is null)
         {
@@ -678,12 +664,12 @@ internal static class NewFeature
     {
         var problems = new List<string>();
 
-        if (!PascalCase.IsMatch(features))
+        if (!CSharpNames.PascalCase.IsMatch(features))
         {
             problems.Add($"'{features}' is not a folder name: <Features> is PascalCase and plural, e.g. Widgets.");
         }
 
-        if (!PascalCase.IsMatch(type))
+        if (!CSharpNames.PascalCase.IsMatch(type))
         {
             problems.Add($"'{type}' is not a type name: <Feature> is PascalCase and singular, e.g. Widget.");
         }
@@ -715,10 +701,10 @@ internal static class NewFeature
             }
         }
 
-        if (Keywords.Contains(Lower(type), StringComparer.Ordinal))
+        if (CSharpNames.Keywords.Contains(CSharpNames.Lower(type), StringComparer.Ordinal))
         {
             problems.Add(
-                $"'{type}' becomes the C# keyword '{Lower(type)}' once its first letter is lowered, which is "
+                $"'{type}' becomes the C# keyword '{CSharpNames.Lower(type)}' once its first letter is lowered, which is "
                 + "how the generated parameters are named. Choose another name.");
         }
 
@@ -763,8 +749,6 @@ internal static class NewFeature
                 + "and the feature's table test depends on it: the provider decides whether a schema holds the table or prefixes its name."),
         };
     }
-
-    internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 
     private static bool IsVowel(char letter) => "aeiou".Contains(char.ToLowerInvariant(letter), StringComparison.Ordinal);
 
@@ -1089,7 +1073,7 @@ internal static class NewFeature
 
         string a = spec.Type;
         string f = spec.Features;
-        string l = Lower(a);
+        string l = CSharpNames.Lower(a);
 
         var tokens = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -1168,7 +1152,7 @@ internal static class NewFeature
             : spec.Fields.Any(field => !FieldCode.InSummary(field)) ? ", without its texts" : string.Empty;
         tokens["SortDoc"] = string.Join(
             ", ",
-            (spec.Fields?.Where(FieldCode.IsSortable).Select(field => Lower(field.Name)) ?? ["name"])
+            (spec.Fields?.Where(FieldCode.IsSortable).Select(field => CSharpNames.Lower(field.Name)) ?? ["name"])
                 .Append("createdAt")
                 .Select(field => $"<c>{field}</c>"));
         tokens["DateKeys"] = string.Join(
@@ -1251,7 +1235,7 @@ internal static class NewFeature
             ", ",
             fields.Where(field => field.Kind == FieldKind.String)
                 .Select(field => $"{field.Name} = content.{field.Name}{(field.Nullable ? "?" : string.Empty)}.Trim()"));
-        tokens["FPolicyFields"] = FieldCode.Joined(sortable.Select(field => $"    public const string {field.Name}Field = \"{Lower(field.Name)}\";"), "\n\n");
+        tokens["FPolicyFields"] = FieldCode.Joined(sortable.Select(field => $"    public const string {field.Name}Field = \"{CSharpNames.Lower(field.Name)}\";"), "\n\n");
         tokens["FSortables"] = FieldCode.Joined(sortable.Select(field =>
             $"        SortableField.{(FieldCode.IsKeyset(field) ? "Keyset" : "OffsetOnly")}({field.Name}Field),"));
         tokens["FKeysetCases"] = FieldCode.Joined(keyset.Select(field =>
@@ -1440,7 +1424,7 @@ internal static class NewFeature
 
         if (spec.Fields is { } fields)
         {
-            problems.AddRange(FieldGrammar.Conflicts(
+            problems.AddRange(FieldCode.Conflicts(
                 fields,
                 spec.Features,
                 spec.Type,
@@ -1505,7 +1489,7 @@ internal static class NewFeature
         string singular = Separated(spec.Type, ' ');
         string one = (IsVowel(singular[0]) ? "an " : "a ") + singular;
         string route = $"/api/v1/{Kebab(spec.Features)}";
-        string item = $"{route}/{{{Lower(spec.Type)}Id}}";
+        string item = $"{route}/{{{CSharpNames.Lower(spec.Type)}Id}}";
 
         string access = spec.Access == "owner"
             ? $"each authenticated caller, on their own {plural} only; once an account is deleted, its {plural} are "
@@ -1556,15 +1540,7 @@ internal static class NewFeature
                 StringComparison.Ordinal);
     }
 
-    private static byte[] Bytes(Emission emission)
-    {
-        bool bom = emission.Path.EndsWith(".cs", StringComparison.Ordinal) || emission.Path.EndsWith(".md", StringComparison.Ordinal);
-        string text = emission.Content.ReplaceLineEndings("\n");
-
-        return bom
-            ? [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)]
-            : Encoding.UTF8.GetBytes(text);
-    }
+    private static byte[] Bytes(Emission emission) => TextEdits.Encode(emission.Path, emission.Content);
 
     private static string HashOf(Emission emission) =>
         Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
@@ -1990,7 +1966,7 @@ internal static class NewFeature
         return $"| [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |";
     }
 
-    private static string ErrorRow(Spec spec) => $"| `{Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |";
+    private static string ErrorRow(Spec spec) => $"| `{CSharpNames.Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |";
 
     private static readonly Regex _fileNamespace = new(@"^namespace\s+([A-Za-z0-9_.]+);", RegexOptions.Multiline, TimeSpan.FromSeconds(2));
 
@@ -2147,7 +2123,7 @@ internal static class NewFeature
             if (flags.Contains("notfound"))
             {
                 editor.Step = "the error-code row of docs/reference/api.md";
-                editor.Row("docs/reference/api.md", "### Resources", ErrorRow(spec), $"| `{Lower(a)}.notFound` |");
+                editor.Row("docs/reference/api.md", "### Resources", ErrorRow(spec), $"| `{CSharpNames.Lower(a)}.notFound` |");
             }
         }
 
@@ -2215,7 +2191,7 @@ internal static class NewFeature
 
     private static List<string> RouteSection(Spec spec)
     {
-        string item = $"/{{{Lower(spec.Type)}Id}}";
+        string item = $"/{{{CSharpNames.Lower(spec.Type)}Id}}";
 
         (string Operation, string Row)[] rows =
         [
@@ -3405,6 +3381,24 @@ internal static class NewFeature
 
         expect(result.Code == 1 && result.Error.Contains("nothing was left behind", StringComparison.Ordinal), "A write that fails half way was not reported as rolled back.");
         expect(Same(before, Snapshot(root)), "A write that failed half way left files or folders behind.");
+
+        string edited = NewTree(scratch);
+        const string program = "Src/Presentation/A.Api/Program.cs";
+        string full = System.IO.Path.Combine(edited, program);
+        byte[] original = File.ReadAllBytes(full);
+        var untouched = Snapshot(edited);
+        bool restored = false;
+
+        try
+        {
+            TextEdits.Commit(edited, [("Src/written.cs", [1])], [(program, original, [2]), ("Src", [], [3])]);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            restored = Same(untouched, Snapshot(edited));
+        }
+
+        expect(restored, "An edit that could not be written did not put back the files edited before it, and remove the files written and the staged copy.");
     }
 
     private static void ReactionCases(string scratch, Action<bool, string> expect)
@@ -3888,7 +3882,7 @@ internal static class NewFeature
         foreach (var (text, declarations) in accepted)
         {
             var problems = new List<string>();
-            var fields = FieldGrammar.Parse(text, problems);
+            var fields = FieldGrammar.Parse(text, FieldProfile.Feature, problems);
 
             expect(
                 fields is not null && string.Join(", ", fields.Select(field => field.Declaration)) == declarations,
@@ -4076,7 +4070,7 @@ internal static class NewFeature
             string[] declarations = [.. top.GetProperty("fields").EnumerateArray().Select(field => field.GetProperty("declaration").GetString()!)];
 
             expect(
-                string.Join(", ", declarations) == string.Join(", ", FieldGrammar.Parse(_everyType, [])!.Select(field => field.Declaration)),
+                string.Join(", ", declarations) == string.Join(", ", FieldGrammar.Parse(_everyType, FieldProfile.Feature, [])!.Select(field => field.Declaration)),
                 $"The manifest does not record the fields as declared: {string.Join(", ", declarations)}");
             expect(
                 top.GetProperty("edits").EnumerateArray().Any(edit => edit.GetProperty("path").GetString()!.EndsWith("TestDatabase.cs", StringComparison.Ordinal)),
@@ -8123,179 +8117,11 @@ internal static class Templates
         """;
 }
 
-internal enum FieldKind
+internal static class FieldCode
 {
-    String,
-    Text,
-    Int,
-    Long,
-    Decimal,
-    Bool,
-    DateOnly,
-    DateTimeOffset,
-    Guid,
-}
-
-internal sealed record FieldBound(string Operator, decimal Value, string Literal)
-{
-    internal bool IsLower => Operator[0] == '>';
-
-    internal bool IsInclusive => Operator.Length == 2;
-
-    internal string Suffix => (IsInclusive ? string.Empty : "Exclusive") + (IsLower ? "Minimum" : "Maximum");
-
-    internal string Wording => Operator switch
-    {
-        ">=" => "at least",
-        ">" => "greater than",
-        "<=" => "at most",
-        _ => "less than",
-    };
-}
-
-internal sealed record Field(
-    string Name,
-    FieldKind Kind,
-    bool Nullable,
-    int Length,
-    int Precision,
-    int Scale,
-    FieldBound? Lower,
-    FieldBound? Upper,
-    int Position)
-{
-    internal IEnumerable<FieldBound> Bounds => new[] { Lower, Upper }.OfType<FieldBound>();
-
-    internal string TypeText => Kind switch
-    {
-        FieldKind.String => $"string({Length})",
-        FieldKind.Text => $"text({Length})",
-        FieldKind.Decimal => $"decimal({Precision},{Scale})",
-        FieldKind.Int => "int",
-        FieldKind.Long => "long",
-        FieldKind.Bool => "bool",
-        FieldKind.DateOnly => "DateOnly",
-        FieldKind.DateTimeOffset => "DateTimeOffset",
-        _ => "Guid",
-    };
-
-    internal string Declaration =>
-        $"{Name}:{TypeText}{(Nullable ? "?" : string.Empty)}{string.Concat(Bounds.Select(bound => bound.Operator + bound.Literal))}";
-}
-
-internal static class FieldGrammar
-{
-    internal const int StringMaxLength = 400;
-
-    internal const int TextDefaultLength = 2_000;
-
-    internal const int TextMaxLength = 65_536;
-
-    internal const int DecimalDefaultPrecision = 18;
-
-    internal const int DecimalDefaultScale = 2;
-
-    internal const int DecimalMaxPrecision = 28;
-
-    internal const int NameMaxLength = 40;
-
     internal const string AnonymisedText = "[deleted account]";
 
     internal const int IndexNameMaxLength = 63;
-
-    internal const string Types = "string(n), text, text(n), int, long, decimal, decimal(p,s), bool, DateOnly, DateTimeOffset, Guid";
-
-    private static readonly string[] _reservedMembers =
-    [
-        "Id", "OwnerId", "Version", "CreatedAt", "CreatedBy", "LastModifiedAt", "LastModifiedBy", "Precondition",
-        "AnonymisedText", "DomainEvents", "ClearDomainEvents", "RaiseDomainEvent", "Create", "Rehydrate", "Update",
-        "Anonymise", "EqualityContract", "Deconstruct", "PrintMembers", "Equals", "GetHashCode", "GetType", "ToString",
-        "MemberwiseClone", "Finalize",
-    ];
-
-    private static readonly string[] _reservedTypes =
-    [
-        "Guid", "DateTimeOffset", "DateOnly", "TimeSpan", "String", "Decimal", "Math", "DomainException",
-        "ArgumentNullException", "UserId", "JsonRequired",
-    ];
-
-    private static readonly string[] _generatedSuffixes =
-        ["MaxLength", "Precision", "Scale", "Minimum", "ExclusiveMinimum", "Maximum", "ExclusiveMaximum", "Field"];
-
-    private static readonly string[] _generatedPrefixes = ["Require", "Valid"];
-
-    private static readonly string[] _contextualKeywords = ["await", "nameof", "var", "value"];
-
-    private static readonly Dictionary<string, string> _refusedTypes = new(StringComparer.Ordinal)
-    {
-        ["enum"] = "enum is not a field type: an enum's values are a decision of the domain, and a stored enum changes "
-            + "meaning when a member is reordered or renamed. Declare a string(n) and check its values by hand, or write a value object",
-        ["DateTime"] = "DateTime is not a field type: it carries no offset, so the instant it names depends on the server. Use DateTimeOffset",
-        ["double"] = "double is not a field type: it is not exact, and the providers store it differently. Use decimal or decimal(p,s)",
-        ["float"] = "float is not a field type: it is not exact, and the providers store it differently. Use decimal or decimal(p,s)",
-        ["short"] = "short is not a field type. Use int, with bounds if the range matters",
-        ["byte"] = "byte is not a field type. Use int, with bounds if the range matters",
-        ["uint"] = "uint is not a field type: no provider stores it alike. Use long, with >=0",
-        ["ulong"] = "ulong is not a field type: no provider stores it alike. Use long, with >=0, or decimal(20,0)",
-        ["char"] = "char is not a field type. Use string(1)",
-    };
-
-    private enum TokenKind
-    {
-        Name,
-        Number,
-        Symbol,
-        Unknown,
-        End,
-    }
-
-    private sealed record Token(TokenKind Kind, string Text, int Position);
-
-    internal static List<Field>? Parse(string text, List<string> problems)
-    {
-        int before = problems.Count;
-        var tokens = Tokenize(text);
-
-        if (tokens.Count == 1)
-        {
-            problems.Add(
-                "--fields is empty. It lists the fields, Name:type, comma separated, as in "
-                + "--fields \"Title:string(120), Budget:decimal>=0\".");
-
-            return null;
-        }
-
-        var fields = new List<Field>();
-        int at = 0;
-
-        while (true)
-        {
-            if (ParseField(tokens, ref at, problems) is not { } field)
-            {
-                return null;
-            }
-
-            fields.Add(field);
-
-            if (tokens[at].Kind == TokenKind.End)
-            {
-                break;
-            }
-
-            if (tokens[at].Text != ",")
-            {
-                problems.Add(Expected(tokens[at], "a comma before the next field, or the end of the list"));
-
-                return null;
-            }
-
-            at++;
-        }
-
-        problems.AddRange(NameProblems(fields));
-
-        return problems.Count == before ? fields : null;
-    }
 
     internal static List<string> Conflicts(
         IReadOnlyList<Field> fields,
@@ -8358,517 +8184,11 @@ internal static class FieldGrammar
     internal static string IndexName(string features, Field field, bool owner) =>
         owner ? $"IX_{features}_OwnerId_{field.Name}_Id" : $"IX_{features}_{field.Name}_Id";
 
-    private static Field? ParseField(List<Token> tokens, ref int at, List<string> problems)
-    {
-        var name = tokens[at];
-
-        if (name.Kind != TokenKind.Name)
-        {
-            problems.Add(Expected(name, "a field name, PascalCase, as Title"));
-
-            return null;
-        }
-
-        at++;
-
-        if (tokens[at].Text != ":")
-        {
-            problems.Add(Expected(tokens[at], $"':' after the field name {Shown(name.Text)}, then its type"));
-
-            return null;
-        }
-
-        at++;
-
-        var typeToken = tokens[at];
-
-        if (typeToken.Kind != TokenKind.Name)
-        {
-            problems.Add(Expected(typeToken, $"a type, one of {Types}"));
-
-            return null;
-        }
-
-        at++;
-
-        int length = 0, precision = 0, scale = 0;
-        FieldKind kind;
-
-        switch (typeToken.Text)
-        {
-            case "string":
-                if (tokens[at].Text != "(")
-                {
-                    problems.Add(
-                        $"--fields, at character {tokens[at].Position + 1}: string needs its maximum length, as string(120), "
-                        + "so that no column is unbounded; a long free text is text or text(n).");
-
-                    return null;
-                }
-
-                if (Arguments(tokens, ref at, 1, problems) is not [var maximum])
-                {
-                    return null;
-                }
-
-                if (maximum < 1 || maximum > StringMaxLength)
-                {
-                    problems.Add(
-                        $"--fields: {name.Text} is string({maximum}), and a string is 1 to {StringMaxLength} characters long: "
-                        + $"{StringMaxLength} keeps every string column indexable, and so sortable, on the three providers "
-                        + "(SQL Server's 1,700-byte index key holds an nvarchar(400) beside the owner and the id). A longer value is text(n).");
-                }
-
-                kind = FieldKind.String;
-                length = maximum;
-                break;
-
-            case "text":
-                length = TextDefaultLength;
-
-                if (tokens[at].Text == "(")
-                {
-                    if (Arguments(tokens, ref at, 1, problems) is not [var limit])
-                    {
-                        return null;
-                    }
-
-                    length = limit;
-                }
-
-                if (length < 1 || length > TextMaxLength)
-                {
-                    problems.Add(
-                        $"--fields: {name.Text} is text({length}), and a text is 1 to {TextMaxLength:N0} characters long: the API "
-                        + $"refuses a body over RequestLimits:MaxRequestBodyBytes, {TextMaxLength:N0} bytes by default, so a longer "
-                        + "field could not arrive in a request. A document is a file.");
-                }
-
-                kind = FieldKind.Text;
-                break;
-
-            case "decimal":
-                precision = DecimalDefaultPrecision;
-                scale = DecimalDefaultScale;
-
-                if (tokens[at].Text == "(")
-                {
-                    if (Arguments(tokens, ref at, 2, problems) is not [var digits, var decimals])
-                    {
-                        return null;
-                    }
-
-                    precision = digits;
-                    scale = decimals;
-                }
-
-                if (precision < 1 || precision > DecimalMaxPrecision || scale < 0 || scale > precision)
-                {
-                    problems.Add(
-                        $"--fields: {name.Text} is decimal({precision},{scale}), and a decimal(p,s) has 1 to {DecimalMaxPrecision} "
-                        + $"digits in all, the most a .NET decimal holds exactly, of which 0 to p after the point.");
-                }
-
-                kind = FieldKind.Decimal;
-                break;
-
-            case "int":
-                kind = FieldKind.Int;
-                break;
-
-            case "long":
-                kind = FieldKind.Long;
-                break;
-
-            case "bool":
-                kind = FieldKind.Bool;
-                break;
-
-            case "DateOnly":
-                kind = FieldKind.DateOnly;
-                break;
-
-            case "DateTimeOffset":
-                kind = FieldKind.DateTimeOffset;
-                break;
-
-            case "Guid":
-                kind = FieldKind.Guid;
-                break;
-
-            default:
-                problems.Add(_refusedTypes.TryGetValue(typeToken.Text, out string? refusal)
-                    ? $"--fields, at character {typeToken.Position + 1}: {refusal}."
-                    : Expected(typeToken, $"a type, one of {Types}, written as listed, case included"));
-
-                return null;
-        }
-
-        bool nullable = false;
-
-        if (tokens[at].Text == "?")
-        {
-            nullable = true;
-            at++;
-        }
-
-        FieldBound? lower = null, upper = null;
-
-        while (tokens[at].Text is ">=" or "<=" or ">" or "<")
-        {
-            var operation = tokens[at];
-
-            if (kind is not (FieldKind.Int or FieldKind.Long or FieldKind.Decimal))
-            {
-                problems.Add(
-                    $"--fields, at character {operation.Position + 1}: {name.Text} is {typeToken.Text}, and only int, long and decimal "
-                    + "take a bound. A string or a text is bounded by its length; a date's rule is usually relative to the clock, "
-                    + "\"in the future\", which belongs in the domain beside the clock, not in a constant.");
-
-                return null;
-            }
-
-            at++;
-
-            var number = tokens[at];
-
-            if (number.Kind != TokenKind.Number)
-            {
-                problems.Add(Expected(number, $"a number after '{operation.Text}'"));
-
-                return null;
-            }
-
-            at++;
-
-            if (Bound(name.Text, kind, precision, scale, operation.Text, number, problems) is not { } bound)
-            {
-                continue;
-            }
-
-            if (bound.IsLower ? lower is not null : upper is not null)
-            {
-                problems.Add(
-                    $"--fields, at character {operation.Position + 1}: {name.Text} already has {(bound.IsLower ? "a lower" : "an upper")} "
-                    + "bound; a field takes at most one of each.");
-
-                continue;
-            }
-
-            if (bound.IsLower)
-            {
-                lower = bound;
-            }
-            else
-            {
-                upper = bound;
-            }
-        }
-
-        var field = new Field(name.Text, kind, nullable, length, precision, scale, lower, upper, name.Position);
-
-        if (lower is not null || upper is not null)
-        {
-            problems.AddRange(RangeProblems(field));
-        }
-
-        return field;
-    }
-
-    private static int[]? Arguments(List<Token> tokens, ref int at, int count, List<string> problems)
-    {
-        at++;
-        var values = new List<int>();
-
-        for (int index = 0; index < count; index++)
-        {
-            if (index > 0)
-            {
-                if (tokens[at].Text != ",")
-                {
-                    problems.Add(Expected(tokens[at], "',' between the precision and the scale"));
-
-                    return null;
-                }
-
-                at++;
-            }
-
-            var number = tokens[at];
-
-            if (number.Kind != TokenKind.Number
-                || !int.TryParse(number.Text, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
-            {
-                problems.Add(Expected(number, "a whole number"));
-
-                return null;
-            }
-
-            values.Add(value);
-            at++;
-        }
-
-        if (tokens[at].Text != ")")
-        {
-            problems.Add(Expected(tokens[at], "')'"));
-
-            return null;
-        }
-
-        at++;
-
-        return [.. values];
-    }
-
-    private static FieldBound? Bound(string name, FieldKind kind, int precision, int scale, string operation, Token number, List<string> problems)
-    {
-        string where = $"--fields, at character {number.Position + 1}";
-
-        if (!decimal.TryParse(number.Text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal value))
-        {
-            problems.Add($"{where}: {Shown(number.Text)} is not a number this grammar reads.");
-
-            return null;
-        }
-
-        if (kind is FieldKind.Int or FieldKind.Long)
-        {
-            decimal minimum = kind == FieldKind.Int ? int.MinValue : long.MinValue;
-            decimal maximum = kind == FieldKind.Int ? int.MaxValue : long.MaxValue;
-            string type = kind == FieldKind.Int ? "int" : "long";
-
-            if (number.Text.Contains('.', StringComparison.Ordinal) || value < minimum || value > maximum)
-            {
-                problems.Add($"{where}: {Shown(number.Text)} is not a whole number an {type} holds.");
-
-                return null;
-            }
-
-            if ((operation == ">=" && value == minimum) || (operation == "<=" && value == maximum))
-            {
-                problems.Add($"{where}: {name}{operation}{number.Text} bounds nothing: every {type} satisfies it. Leave it out.");
-
-                return null;
-            }
-
-            return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
-        }
-
-        int decimals = number.Text.Contains('.', StringComparison.Ordinal) ? number.Text.Length - number.Text.IndexOf('.', StringComparison.Ordinal) - 1 : 0;
-        int digits = decimal.Truncate(Math.Abs(value)) == 0 ? 0 : decimal.Truncate(Math.Abs(value)).ToString(CultureInfo.InvariantCulture).Length;
-
-        if (decimals > scale || digits > precision - scale)
-        {
-            problems.Add(
-                $"{where}: {Shown(number.Text)} does not fit decimal({precision},{scale}), whose values have at most "
-                + $"{precision - scale} digits before the point and {scale} after it.");
-
-            return null;
-        }
-
-        return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
-    }
-
-    private static IEnumerable<string> RangeProblems(Field field)
-    {
-        decimal step = field.Kind == FieldKind.Decimal ? Step(field.Scale) : 1m;
-        decimal floor = field.Kind switch
-        {
-            FieldKind.Int => int.MinValue,
-            FieldKind.Long => long.MinValue,
-            _ => -Ceiling(field) + step,
-        };
-        decimal top = field.Kind switch
-        {
-            FieldKind.Int => int.MaxValue,
-            FieldKind.Long => long.MaxValue,
-            _ => Ceiling(field) - step,
-        };
-
-        decimal low = field.Lower is { } lower ? Math.Max(floor, lower.IsInclusive ? lower.Value : lower.Value + step) : floor;
-        decimal high = field.Upper is { } upper ? Math.Min(top, upper.IsInclusive ? upper.Value : upper.Value - step) : top;
-
-        if (low > high)
-        {
-            yield return $"--fields: no value satisfies the bounds of {field.Declaration}. Widen them.";
-        }
-    }
-
-    internal static decimal Step(int scale)
-    {
-        decimal step = 1m;
-
-        for (int index = 0; index < scale; index++)
-        {
-            step /= 10m;
-        }
-
-        return step;
-    }
-
-    internal static decimal Ceiling(Field field)
-    {
-        decimal ceiling = 1m;
-
-        for (int index = 0; index < field.Precision - field.Scale; index++)
-        {
-            ceiling *= 10m;
-        }
-
-        return ceiling;
-    }
-
-    private static List<string> NameProblems(List<Field> fields)
-    {
-        var problems = new List<string>();
-
-        foreach (var field in fields)
-        {
-            string where = $"--fields, at character {field.Position + 1}";
-
-            if (!NewFeature.PascalCase.IsMatch(field.Name))
-            {
-                problems.Add($"{where}: {Shown(field.Name)} is not a field name: PascalCase, letters and digits, as DueDate.");
-
-                continue;
-            }
-
-            if (field.Name.Length > NameMaxLength)
-            {
-                problems.Add($"{where}: {field.Name} is longer than {NameMaxLength} characters, which makes names some tools cannot hold. Shorten it.");
-            }
-
-            string parameter = NewFeature.Lower(field.Name);
-
-            if (NewFeature.Keywords.Contains(parameter, StringComparer.Ordinal) || _contextualKeywords.Contains(parameter, StringComparer.Ordinal))
-            {
-                problems.Add(
-                    $"{where}: {field.Name} becomes '{parameter}' once its first letter is lowered, which is how the generated "
-                    + "parameters are named, and C# reserves that word there. Choose another name.");
-            }
-
-            if (_reservedMembers.Contains(field.Name, StringComparer.Ordinal))
-            {
-                problems.Add(
-                    $"{where}: {field.Name} is a column or a member the feature already declares (the id, the owner, the version, "
-                    + "the audit stamps, or a method of the aggregate or of a record). Choose another name.");
-            }
-
-            if (_reservedTypes.Contains(field.Name, StringComparer.Ordinal))
-            {
-                problems.Add(
-                    $"{where}: {field.Name} names a type the generated code calls by name, which a property of that name would hide. "
-                    + "Choose another name.");
-            }
-
-            foreach (var other in fields.Where(other => !ReferenceEquals(other, field)))
-            {
-                if (_generatedSuffixes.Any(suffix => field.Name == other.Name + suffix)
-                    || _generatedPrefixes.Any(prefix => field.Name == prefix + other.Name))
-                {
-                    problems.Add(
-                        $"{where}: {field.Name} is the name the generated code gives a constant, a method or a local of {other.Name}. "
-                        + "Choose another name.");
-                }
-            }
-        }
-
-        foreach (var group in fields.GroupBy(field => field.Name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
-        {
-            problems.Add(
-                $"--fields names {string.Join(" and ", group.Select(field => field.Name))}, the same name but for its case: two "
-                + "columns a case-insensitive database cannot tell apart. Keep one.");
-        }
-
-        return problems;
-    }
-
-    private static List<Token> Tokenize(string text)
-    {
-        var tokens = new List<Token>();
-        int position = 0;
-
-        while (position < text.Length)
-        {
-            char current = text[position];
-
-            if (char.IsWhiteSpace(current))
-            {
-                position++;
-
-                continue;
-            }
-
-            int start = position;
-
-            if (char.IsAsciiLetter(current) || current == '_')
-            {
-                while (position < text.Length && (char.IsAsciiLetterOrDigit(text[position]) || text[position] == '_'))
-                {
-                    position++;
-                }
-
-                tokens.Add(new Token(TokenKind.Name, text[start..position], start));
-            }
-            else if (char.IsAsciiDigit(current) || (current == '-' && position + 1 < text.Length && char.IsAsciiDigit(text[position + 1])))
-            {
-                position++;
-
-                while (position < text.Length && (char.IsAsciiDigit(text[position]) || text[position] == '.'))
-                {
-                    position++;
-                }
-
-                tokens.Add(new Token(TokenKind.Number, text[start..position], start));
-            }
-            else if (current is '>' or '<')
-            {
-                position += position + 1 < text.Length && text[position + 1] == '=' ? 2 : 1;
-                tokens.Add(new Token(TokenKind.Symbol, text[start..position], start));
-            }
-            else if (current is ':' or ',' or '(' or ')' or '?')
-            {
-                position++;
-                tokens.Add(new Token(TokenKind.Symbol, current.ToString(), start));
-            }
-            else
-            {
-                position++;
-                tokens.Add(new Token(TokenKind.Unknown, current.ToString(), start));
-            }
-        }
-
-        tokens.Add(new Token(TokenKind.End, string.Empty, text.Length));
-
-        return tokens;
-    }
-
-    private static string Expected(Token token, string expected) =>
-        $"--fields, at character {token.Position + 1}: expected {expected}, and found "
-        + (token.Kind == TokenKind.End ? "the end of the list." : $"{Shown(token.Text)}.");
-
-    private static string Shown(string text) => text.Length <= 40 ? $"'{text}'" : $"'{text[..40]}...'";
-}
-
-internal static class FieldCode
-{
     internal static string Label(Field field) => NewFeature.Separated(field.Name, ' ');
 
-    internal static string Parameter(Field field) => NewFeature.Lower(field.Name);
+    internal static string Parameter(Field field) => CSharpNames.Lower(field.Name);
 
-    internal static string Clr(Field field) => field.Kind switch
-    {
-        FieldKind.String or FieldKind.Text => "string",
-        FieldKind.Int => "int",
-        FieldKind.Long => "long",
-        FieldKind.Decimal => "decimal",
-        FieldKind.Bool => "bool",
-        FieldKind.DateOnly => "DateOnly",
-        FieldKind.DateTimeOffset => "DateTimeOffset",
-        _ => "Guid",
-    };
-
-    internal static string Type(Field field) => Clr(field) + (field.Nullable ? "?" : string.Empty);
+    internal static string Type(Field field) => field.ClrType + (field.Nullable ? "?" : string.Empty);
 
     internal static bool IsReference(Field field) => field.Kind is FieldKind.String or FieldKind.Text;
 
@@ -8938,7 +8258,7 @@ internal static class FieldCode
 
         foreach (var bound in field.Bounds)
         {
-            yield return $"    public const {Clr(field)} {field.Name}{bound.Suffix} = {Literal(field, bound.Value)};";
+            yield return $"    public const {field.ClrType} {field.Name}{bound.Suffix} = {Literal(field, bound.Value)};";
         }
     }
 
@@ -9226,7 +8546,7 @@ internal static class FieldCode
             owner
                 ? $"        builder.HasIndex(record => new {{ record.OwnerId, record.{field.Name}, record.Id }})"
                 : $"        builder.HasIndex(record => new {{ record.{field.Name}, record.Id }})",
-            $"            .HasDatabaseName(\"{FieldGrammar.IndexName(features, field, owner)}\");",
+            $"            .HasDatabaseName(\"{FieldCode.IndexName(features, field, owner)}\");",
         ]);
 
     internal static (decimal Low, decimal High) Range(Field field)
@@ -9555,6 +8875,787 @@ internal static class FieldCode
     }
 }
 
+internal static class CSharpNames
+{
+    internal static readonly string[] Keywords =
+    [
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
+        "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
+        "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
+        "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
+        "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+        "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
+        "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
+        "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
+    ];
+
+    internal static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+    internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
+}
+
+internal enum FieldKind
+{
+    String,
+    Text,
+    Int,
+    Long,
+    Decimal,
+    Bool,
+    DateOnly,
+    DateTimeOffset,
+    Guid,
+}
+
+internal sealed record FieldBound(string Operator, decimal Value, string Literal)
+{
+    internal bool IsLower => Operator[0] == '>';
+
+    internal bool IsInclusive => Operator.Length == 2;
+
+    internal string Suffix => (IsInclusive ? string.Empty : "Exclusive") + (IsLower ? "Minimum" : "Maximum");
+
+    internal string Wording => Operator switch
+    {
+        ">=" => "at least",
+        ">" => "greater than",
+        "<=" => "at most",
+        _ => "less than",
+    };
+}
+
+internal sealed record Field(
+    string Name,
+    FieldKind Kind,
+    bool Nullable,
+    int Length,
+    int Precision,
+    int Scale,
+    FieldBound? Lower,
+    FieldBound? Upper,
+    int Position)
+{
+    internal IEnumerable<FieldBound> Bounds => new[] { Lower, Upper }.OfType<FieldBound>();
+
+    internal string TypeText => Kind switch
+    {
+        FieldKind.String => Length == 0 ? "string" : $"string({Length})",
+        FieldKind.Text => $"text({Length})",
+        FieldKind.Decimal => Precision == 0 ? "decimal" : $"decimal({Precision},{Scale})",
+        FieldKind.Int => "int",
+        FieldKind.Long => "long",
+        FieldKind.Bool => "bool",
+        FieldKind.DateOnly => "DateOnly",
+        FieldKind.DateTimeOffset => "DateTimeOffset",
+        _ => "Guid",
+    };
+
+    internal string ClrType => Kind switch
+    {
+        FieldKind.String or FieldKind.Text => "string",
+        FieldKind.Int => "int",
+        FieldKind.Long => "long",
+        FieldKind.Decimal => "decimal",
+        FieldKind.Bool => "bool",
+        FieldKind.DateOnly => "DateOnly",
+        FieldKind.DateTimeOffset => "DateTimeOffset",
+        _ => "Guid",
+    };
+
+    internal string Declaration =>
+        $"{Name}:{TypeText}{(Nullable ? "?" : string.Empty)}{string.Concat(Bounds.Select(bound => bound.Operator + bound.Literal))}";
+}
+
+internal sealed record FieldProfile(
+    string Holder,
+    string Types,
+    string Example,
+    FieldKind[] Kinds,
+    bool Stored,
+    string[] ReservedMembers,
+    string ReservedWording,
+    bool ReservesGeneratedNames,
+    string DuplicateReason,
+    string UnstoredReason)
+{
+    internal static FieldProfile Feature { get; } = new(
+        "a feature",
+        "string(n), text, text(n), int, long, decimal, decimal(p,s), bool, DateOnly, DateTimeOffset, Guid",
+        "--fields \"Title:string(120), Budget:decimal>=0\"",
+        Enum.GetValues<FieldKind>(),
+        Stored: true,
+        [
+            "Id", "OwnerId", "Version", "CreatedAt", "CreatedBy", "LastModifiedAt", "LastModifiedBy", "Precondition",
+            "AnonymisedText", "DomainEvents", "ClearDomainEvents", "RaiseDomainEvent", "Create", "Rehydrate", "Update",
+            "Anonymise", "EqualityContract", "Deconstruct", "PrintMembers", "Equals", "GetHashCode", "GetType", "ToString",
+            "MemberwiseClone", "Finalize",
+        ],
+        "a column or a member the feature already declares (the id, the owner, the version, the audit stamps, or a method "
+            + "of the aggregate or of a record)",
+        ReservesGeneratedNames: true,
+        "two columns a case-insensitive database cannot tell apart",
+        string.Empty);
+
+    internal static FieldProfile Event { get; } = new(
+        "an event",
+        "Guid, string, int, long, bool, decimal, DateOnly, DateTimeOffset",
+        "--fields \"InvoiceId:Guid, Amount:decimal\"",
+        [FieldKind.Guid, FieldKind.String, FieldKind.Int, FieldKind.Long, FieldKind.Bool, FieldKind.Decimal, FieldKind.DateOnly, FieldKind.DateTimeOffset],
+        Stored: false,
+        [
+            "OccurredOn", "EqualityContract", "Deconstruct", "PrintMembers", "Equals", "GetHashCode", "GetType", "ToString",
+            "MemberwiseClone", "Finalize",
+        ],
+        "a member the event declares itself (OccurredOn, or a method of a record)",
+        ReservesGeneratedNames: false,
+        "two properties a case-insensitive JSON reader cannot tell apart",
+        "No column holds an event's fields, and the aggregate checks a value before it raises the event with it: a length, a "
+            + "precision, a bound or a missing value is the aggregate's rule, not the event's");
+}
+
+internal static class FieldGrammar
+{
+    internal const int StringMaxLength = 400;
+
+    internal const int TextDefaultLength = 2_000;
+
+    internal const int TextMaxLength = 65_536;
+
+    internal const int DecimalDefaultPrecision = 18;
+
+    internal const int DecimalDefaultScale = 2;
+
+    internal const int DecimalMaxPrecision = 28;
+
+    internal const int NameMaxLength = 40;
+
+    private static readonly string[] _reservedTypes =
+    [
+        "Guid", "DateTimeOffset", "DateOnly", "TimeSpan", "String", "Decimal", "Math", "DomainException",
+        "ArgumentNullException", "UserId", "JsonRequired",
+    ];
+
+    private static readonly string[] _generatedSuffixes =
+        ["MaxLength", "Precision", "Scale", "Minimum", "ExclusiveMinimum", "Maximum", "ExclusiveMaximum", "Field"];
+
+    private static readonly string[] _generatedPrefixes = ["Require", "Valid"];
+
+    private static readonly string[] _contextualKeywords = ["await", "nameof", "var", "value"];
+
+    private static readonly Dictionary<string, (string Reason, string Stored, string Unstored)> _refusedTypes = new(StringComparer.Ordinal)
+    {
+        ["enum"] = (
+            "enum is not a field type: an enum's values are a decision of the domain, and a stored enum changes "
+                + "meaning when a member is reordered or renamed",
+            "Declare a string(n) and check its values by hand, or write a value object",
+            "Carry a string, whose values the aggregate checks"),
+        ["DateTime"] = ("DateTime is not a field type: it carries no offset, so the instant it names depends on the server", "Use DateTimeOffset", "Use DateTimeOffset"),
+        ["double"] = ("double is not a field type: it is not exact, and the providers store it differently", "Use decimal or decimal(p,s)", "Use decimal"),
+        ["float"] = ("float is not a field type: it is not exact, and the providers store it differently", "Use decimal or decimal(p,s)", "Use decimal"),
+        ["short"] = ("short is not a field type", "Use int, with bounds if the range matters", "Use int"),
+        ["byte"] = ("byte is not a field type", "Use int, with bounds if the range matters", "Use int"),
+        ["uint"] = ("uint is not a field type: no provider stores it alike", "Use long, with >=0", "Use long"),
+        ["ulong"] = ("ulong is not a field type: no provider stores it alike", "Use long, with >=0, or decimal(20,0)", "Use long or decimal"),
+        ["char"] = ("char is not a field type", "Use string(1)", "Use string"),
+    };
+
+    private static readonly Dictionary<string, FieldKind> _kinds = new(StringComparer.Ordinal)
+    {
+        ["string"] = FieldKind.String,
+        ["text"] = FieldKind.Text,
+        ["int"] = FieldKind.Int,
+        ["long"] = FieldKind.Long,
+        ["decimal"] = FieldKind.Decimal,
+        ["bool"] = FieldKind.Bool,
+        ["DateOnly"] = FieldKind.DateOnly,
+        ["DateTimeOffset"] = FieldKind.DateTimeOffset,
+        ["Guid"] = FieldKind.Guid,
+    };
+
+    private enum TokenKind
+    {
+        Name,
+        Number,
+        Symbol,
+        Unknown,
+        End,
+    }
+
+    private sealed record Token(TokenKind Kind, string Text, int Position);
+
+    internal static List<Field>? Parse(string text, FieldProfile profile, List<string> problems)
+    {
+        int before = problems.Count;
+        var tokens = Tokenize(text);
+
+        if (tokens.Count == 1)
+        {
+            problems.Add($"--fields is empty. It lists the fields, Name:type, comma separated, as in {profile.Example}.");
+
+            return null;
+        }
+
+        var fields = new List<Field>();
+        int at = 0;
+
+        while (true)
+        {
+            if (ParseField(tokens, ref at, profile, problems) is not { } field)
+            {
+                return null;
+            }
+
+            fields.Add(field);
+
+            if (tokens[at].Kind == TokenKind.End)
+            {
+                break;
+            }
+
+            if (tokens[at].Text != ",")
+            {
+                problems.Add(Expected(tokens[at], "a comma before the next field, or the end of the list"));
+
+                return null;
+            }
+
+            at++;
+        }
+
+        problems.AddRange(NameProblems(fields, profile));
+
+        return problems.Count == before ? fields : null;
+    }
+
+    private static Field? ParseField(List<Token> tokens, ref int at, FieldProfile profile, List<string> problems)
+    {
+        var name = tokens[at];
+
+        if (name.Kind != TokenKind.Name)
+        {
+            problems.Add(Expected(name, "a field name, PascalCase, as Title"));
+
+            return null;
+        }
+
+        at++;
+
+        if (tokens[at].Text != ":")
+        {
+            problems.Add(Expected(tokens[at], $"':' after the field name {Shown(name.Text)}, then its type"));
+
+            return null;
+        }
+
+        at++;
+
+        var typeToken = tokens[at];
+
+        if (typeToken.Kind != TokenKind.Name)
+        {
+            problems.Add(Expected(typeToken, $"a type, one of {profile.Types}"));
+
+            return null;
+        }
+
+        if (_kinds.TryGetValue(typeToken.Text, out FieldKind named) && !profile.Kinds.Contains(named))
+        {
+            problems.Add($"--fields, at character {typeToken.Position + 1}: {typeToken.Text} is not a type of {profile.Holder}, which carries {profile.Types}.");
+
+            return null;
+        }
+
+        at++;
+
+        if (!profile.Stored && tokens[at].Text == "(")
+        {
+            problems.Add(Unstored(tokens[at], profile, "length or precision"));
+
+            return null;
+        }
+
+        int length = 0, precision = 0, scale = 0;
+        FieldKind kind;
+
+        switch (typeToken.Text)
+        {
+            case "string" when !profile.Stored:
+                kind = FieldKind.String;
+                break;
+
+            case "string":
+                if (tokens[at].Text != "(")
+                {
+                    problems.Add(
+                        $"--fields, at character {tokens[at].Position + 1}: string needs its maximum length, as string(120), "
+                        + "so that no column is unbounded; a long free text is text or text(n).");
+
+                    return null;
+                }
+
+                if (Arguments(tokens, ref at, 1, problems) is not [var maximum])
+                {
+                    return null;
+                }
+
+                if (maximum < 1 || maximum > StringMaxLength)
+                {
+                    problems.Add(
+                        $"--fields: {name.Text} is string({maximum}), and a string is 1 to {StringMaxLength} characters long: "
+                        + $"{StringMaxLength} keeps every string column indexable, and so sortable, on the three providers "
+                        + "(SQL Server's 1,700-byte index key holds an nvarchar(400) beside the owner and the id). A longer value is text(n).");
+                }
+
+                kind = FieldKind.String;
+                length = maximum;
+                break;
+
+            case "text":
+                length = TextDefaultLength;
+
+                if (tokens[at].Text == "(")
+                {
+                    if (Arguments(tokens, ref at, 1, problems) is not [var limit])
+                    {
+                        return null;
+                    }
+
+                    length = limit;
+                }
+
+                if (length < 1 || length > TextMaxLength)
+                {
+                    problems.Add(
+                        $"--fields: {name.Text} is text({length}), and a text is 1 to {TextMaxLength:N0} characters long: the API "
+                        + $"refuses a body over RequestLimits:MaxRequestBodyBytes, {TextMaxLength:N0} bytes by default, so a longer "
+                        + "field could not arrive in a request. A document is a file.");
+                }
+
+                kind = FieldKind.Text;
+                break;
+
+            case "decimal" when !profile.Stored:
+                kind = FieldKind.Decimal;
+                break;
+
+            case "decimal":
+                precision = DecimalDefaultPrecision;
+                scale = DecimalDefaultScale;
+
+                if (tokens[at].Text == "(")
+                {
+                    if (Arguments(tokens, ref at, 2, problems) is not [var digits, var decimals])
+                    {
+                        return null;
+                    }
+
+                    precision = digits;
+                    scale = decimals;
+                }
+
+                if (precision < 1 || precision > DecimalMaxPrecision || scale < 0 || scale > precision)
+                {
+                    problems.Add(
+                        $"--fields: {name.Text} is decimal({precision},{scale}), and a decimal(p,s) has 1 to {DecimalMaxPrecision} "
+                        + $"digits in all, the most a .NET decimal holds exactly, of which 0 to p after the point.");
+                }
+
+                kind = FieldKind.Decimal;
+                break;
+
+            case "int":
+                kind = FieldKind.Int;
+                break;
+
+            case "long":
+                kind = FieldKind.Long;
+                break;
+
+            case "bool":
+                kind = FieldKind.Bool;
+                break;
+
+            case "DateOnly":
+                kind = FieldKind.DateOnly;
+                break;
+
+            case "DateTimeOffset":
+                kind = FieldKind.DateTimeOffset;
+                break;
+
+            case "Guid":
+                kind = FieldKind.Guid;
+                break;
+
+            default:
+                problems.Add(_refusedTypes.TryGetValue(typeToken.Text, out var refusal)
+                    ? $"--fields, at character {typeToken.Position + 1}: {refusal.Reason}. {(profile.Stored ? refusal.Stored : refusal.Unstored)}."
+                    : Expected(typeToken, $"a type, one of {profile.Types}, written as listed, case included"));
+
+                return null;
+        }
+
+        bool nullable = false;
+
+        if (tokens[at].Text == "?" && !profile.Stored)
+        {
+            problems.Add(Unstored(tokens[at], profile, "missing value"));
+
+            return null;
+        }
+
+        if (tokens[at].Text == "?")
+        {
+            nullable = true;
+            at++;
+        }
+
+        FieldBound? lower = null, upper = null;
+
+        while (tokens[at].Text is ">=" or "<=" or ">" or "<")
+        {
+            var operation = tokens[at];
+
+            if (!profile.Stored)
+            {
+                problems.Add(Unstored(operation, profile, "bound"));
+
+                return null;
+            }
+
+            if (kind is not (FieldKind.Int or FieldKind.Long or FieldKind.Decimal))
+            {
+                problems.Add(
+                    $"--fields, at character {operation.Position + 1}: {name.Text} is {typeToken.Text}, and only int, long and decimal "
+                    + "take a bound. A string or a text is bounded by its length; a date's rule is usually relative to the clock, "
+                    + "\"in the future\", which belongs in the domain beside the clock, not in a constant.");
+
+                return null;
+            }
+
+            at++;
+
+            var number = tokens[at];
+
+            if (number.Kind != TokenKind.Number)
+            {
+                problems.Add(Expected(number, $"a number after '{operation.Text}'"));
+
+                return null;
+            }
+
+            at++;
+
+            if (Bound(name.Text, kind, precision, scale, operation.Text, number, problems) is not { } bound)
+            {
+                continue;
+            }
+
+            if (bound.IsLower ? lower is not null : upper is not null)
+            {
+                problems.Add(
+                    $"--fields, at character {operation.Position + 1}: {name.Text} already has {(bound.IsLower ? "a lower" : "an upper")} "
+                    + "bound; a field takes at most one of each.");
+
+                continue;
+            }
+
+            if (bound.IsLower)
+            {
+                lower = bound;
+            }
+            else
+            {
+                upper = bound;
+            }
+        }
+
+        var field = new Field(name.Text, kind, nullable, length, precision, scale, lower, upper, name.Position);
+
+        if (lower is not null || upper is not null)
+        {
+            problems.AddRange(RangeProblems(field));
+        }
+
+        return field;
+    }
+
+    private static int[]? Arguments(List<Token> tokens, ref int at, int count, List<string> problems)
+    {
+        at++;
+        var values = new List<int>();
+
+        for (int index = 0; index < count; index++)
+        {
+            if (index > 0)
+            {
+                if (tokens[at].Text != ",")
+                {
+                    problems.Add(Expected(tokens[at], "',' between the precision and the scale"));
+
+                    return null;
+                }
+
+                at++;
+            }
+
+            var number = tokens[at];
+
+            if (number.Kind != TokenKind.Number
+                || !int.TryParse(number.Text, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
+            {
+                problems.Add(Expected(number, "a whole number"));
+
+                return null;
+            }
+
+            values.Add(value);
+            at++;
+        }
+
+        if (tokens[at].Text != ")")
+        {
+            problems.Add(Expected(tokens[at], "')'"));
+
+            return null;
+        }
+
+        at++;
+
+        return [.. values];
+    }
+
+    private static FieldBound? Bound(string name, FieldKind kind, int precision, int scale, string operation, Token number, List<string> problems)
+    {
+        string where = $"--fields, at character {number.Position + 1}";
+
+        if (!decimal.TryParse(number.Text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal value))
+        {
+            problems.Add($"{where}: {Shown(number.Text)} is not a number this grammar reads.");
+
+            return null;
+        }
+
+        if (kind is FieldKind.Int or FieldKind.Long)
+        {
+            decimal minimum = kind == FieldKind.Int ? int.MinValue : long.MinValue;
+            decimal maximum = kind == FieldKind.Int ? int.MaxValue : long.MaxValue;
+            string type = kind == FieldKind.Int ? "int" : "long";
+
+            if (number.Text.Contains('.', StringComparison.Ordinal) || value < minimum || value > maximum)
+            {
+                problems.Add($"{where}: {Shown(number.Text)} is not a whole number an {type} holds.");
+
+                return null;
+            }
+
+            if ((operation == ">=" && value == minimum) || (operation == "<=" && value == maximum))
+            {
+                problems.Add($"{where}: {name}{operation}{number.Text} bounds nothing: every {type} satisfies it. Leave it out.");
+
+                return null;
+            }
+
+            return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        int decimals = number.Text.Contains('.', StringComparison.Ordinal) ? number.Text.Length - number.Text.IndexOf('.', StringComparison.Ordinal) - 1 : 0;
+        int digits = decimal.Truncate(Math.Abs(value)) == 0 ? 0 : decimal.Truncate(Math.Abs(value)).ToString(CultureInfo.InvariantCulture).Length;
+
+        if (decimals > scale || digits > precision - scale)
+        {
+            problems.Add(
+                $"{where}: {Shown(number.Text)} does not fit decimal({precision},{scale}), whose values have at most "
+                + $"{precision - scale} digits before the point and {scale} after it.");
+
+            return null;
+        }
+
+        return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static IEnumerable<string> RangeProblems(Field field)
+    {
+        decimal step = field.Kind == FieldKind.Decimal ? Step(field.Scale) : 1m;
+        decimal floor = field.Kind switch
+        {
+            FieldKind.Int => int.MinValue,
+            FieldKind.Long => long.MinValue,
+            _ => -Ceiling(field) + step,
+        };
+        decimal top = field.Kind switch
+        {
+            FieldKind.Int => int.MaxValue,
+            FieldKind.Long => long.MaxValue,
+            _ => Ceiling(field) - step,
+        };
+
+        decimal low = field.Lower is { } lower ? Math.Max(floor, lower.IsInclusive ? lower.Value : lower.Value + step) : floor;
+        decimal high = field.Upper is { } upper ? Math.Min(top, upper.IsInclusive ? upper.Value : upper.Value - step) : top;
+
+        if (low > high)
+        {
+            yield return $"--fields: no value satisfies the bounds of {field.Declaration}. Widen them.";
+        }
+    }
+
+    internal static decimal Step(int scale)
+    {
+        decimal step = 1m;
+
+        for (int index = 0; index < scale; index++)
+        {
+            step /= 10m;
+        }
+
+        return step;
+    }
+
+    internal static decimal Ceiling(Field field)
+    {
+        decimal ceiling = 1m;
+
+        for (int index = 0; index < field.Precision - field.Scale; index++)
+        {
+            ceiling *= 10m;
+        }
+
+        return ceiling;
+    }
+
+    private static List<string> NameProblems(List<Field> fields, FieldProfile profile)
+    {
+        var problems = new List<string>();
+
+        foreach (var field in fields)
+        {
+            string where = $"--fields, at character {field.Position + 1}";
+
+            if (!CSharpNames.PascalCase.IsMatch(field.Name))
+            {
+                problems.Add($"{where}: {Shown(field.Name)} is not a field name: PascalCase, letters and digits, as DueDate.");
+
+                continue;
+            }
+
+            if (field.Name.Length > NameMaxLength)
+            {
+                problems.Add($"{where}: {field.Name} is longer than {NameMaxLength} characters, which makes names some tools cannot hold. Shorten it.");
+            }
+
+            string parameter = CSharpNames.Lower(field.Name);
+
+            if (CSharpNames.Keywords.Contains(parameter, StringComparer.Ordinal) || _contextualKeywords.Contains(parameter, StringComparer.Ordinal))
+            {
+                problems.Add(
+                    $"{where}: {field.Name} becomes '{parameter}' once its first letter is lowered, which is how the generated "
+                    + "parameters are named, and C# reserves that word there. Choose another name.");
+            }
+
+            if (profile.ReservedMembers.Contains(field.Name, StringComparer.Ordinal))
+            {
+                problems.Add($"{where}: {field.Name} is {profile.ReservedWording}. Choose another name.");
+            }
+
+            if (_reservedTypes.Contains(field.Name, StringComparer.Ordinal))
+            {
+                problems.Add(
+                    $"{where}: {field.Name} names a type the generated code calls by name, which a property of that name would hide. "
+                    + "Choose another name.");
+            }
+
+            foreach (var other in fields.Where(other => profile.ReservesGeneratedNames && !ReferenceEquals(other, field)))
+            {
+                if (_generatedSuffixes.Any(suffix => field.Name == other.Name + suffix)
+                    || _generatedPrefixes.Any(prefix => field.Name == prefix + other.Name))
+                {
+                    problems.Add(
+                        $"{where}: {field.Name} is the name the generated code gives a constant, a method or a local of {other.Name}. "
+                        + "Choose another name.");
+                }
+            }
+        }
+
+        foreach (var group in fields.GroupBy(field => field.Name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
+        {
+            problems.Add(
+                $"--fields names {string.Join(" and ", group.Select(field => field.Name))}, the same name but for its case: "
+                + $"{profile.DuplicateReason}. Keep one.");
+        }
+
+        return problems;
+    }
+
+    private static List<Token> Tokenize(string text)
+    {
+        var tokens = new List<Token>();
+        int position = 0;
+
+        while (position < text.Length)
+        {
+            char current = text[position];
+
+            if (char.IsWhiteSpace(current))
+            {
+                position++;
+
+                continue;
+            }
+
+            int start = position;
+
+            if (char.IsAsciiLetter(current) || current == '_')
+            {
+                while (position < text.Length && (char.IsAsciiLetterOrDigit(text[position]) || text[position] == '_'))
+                {
+                    position++;
+                }
+
+                tokens.Add(new Token(TokenKind.Name, text[start..position], start));
+            }
+            else if (char.IsAsciiDigit(current) || (current == '-' && position + 1 < text.Length && char.IsAsciiDigit(text[position + 1])))
+            {
+                position++;
+
+                while (position < text.Length && (char.IsAsciiDigit(text[position]) || text[position] == '.'))
+                {
+                    position++;
+                }
+
+                tokens.Add(new Token(TokenKind.Number, text[start..position], start));
+            }
+            else if (current is '>' or '<')
+            {
+                position += position + 1 < text.Length && text[position + 1] == '=' ? 2 : 1;
+                tokens.Add(new Token(TokenKind.Symbol, text[start..position], start));
+            }
+            else if (current is ':' or ',' or '(' or ')' or '?')
+            {
+                position++;
+                tokens.Add(new Token(TokenKind.Symbol, current.ToString(), start));
+            }
+            else
+            {
+                position++;
+                tokens.Add(new Token(TokenKind.Unknown, current.ToString(), start));
+            }
+        }
+
+        tokens.Add(new Token(TokenKind.End, string.Empty, text.Length));
+
+        return tokens;
+    }
+
+    private static string Unstored(Token token, FieldProfile profile, string part) =>
+        $"--fields, at character {token.Position + 1}: a field of {profile.Holder} takes no {part}. {profile.UnstoredReason}.";
+
+    private static string Expected(Token token, string expected) =>
+        $"--fields, at character {token.Position + 1}: expected {expected}, and found "
+        + (token.Kind == TokenKind.End ? "the end of the list." : $"{Shown(token.Text)}.");
+
+    private static string Shown(string text) => text.Length <= 40 ? $"'{text}'" : $"'{text[..40]}...'";
+}
+
 internal static class TextEdits
 {
     private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
@@ -9574,8 +9675,6 @@ internal static class TextEdits
 
         private readonly string _newline;
 
-        private readonly bool _finalNewline;
-
         private readonly List<string> _lines;
 
         private readonly List<bool> _inserted;
@@ -9589,8 +9688,8 @@ internal static class TextEdits
             string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
 
             _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-            _finalNewline = text.EndsWith('\n');
-            _lines = [.. (_finalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            FinalNewline = text.EndsWith('\n');
+            _lines = [.. (FinalNewline ? text[..^_newline.Length] : text).Split(_newline)];
             _inserted = [.. _lines.Select(_ => false)];
         }
 
@@ -9599,6 +9698,39 @@ internal static class TextEdits
         internal byte[] Original { get; }
 
         internal IReadOnlyList<string> Lines => _lines;
+
+        internal bool FinalNewline { get; private set; }
+
+        internal bool Rewritten { get; private set; }
+
+        internal string Text => string.Join('\n', _lines) + (FinalNewline ? "\n" : string.Empty);
+
+        internal void Rewrite(string text)
+        {
+            bool finalNewline = text.EndsWith('\n');
+            string[] next = (finalNewline ? text[..^1] : text).Split('\n');
+            int head = 0;
+
+            while (head < next.Length && head < _lines.Count && next[head] == _lines[head])
+            {
+                head++;
+            }
+
+            int tail = 0;
+
+            while (tail < next.Length - head && tail < _lines.Count - head && next[^(tail + 1)] == _lines[^(tail + 1)])
+            {
+                tail++;
+            }
+
+            int removed = _lines.Count - head - tail;
+
+            Rewritten |= removed > 0 || finalNewline != FinalNewline;
+            _lines.RemoveRange(head, removed);
+            _inserted.RemoveRange(head, removed);
+            Insert(head, next[head..^tail]);
+            FinalNewline = finalNewline;
+        }
 
         internal void Insert(int index, string[] lines)
         {
@@ -9634,7 +9766,7 @@ internal static class TextEdits
 
         internal byte[] Bytes()
         {
-            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (_finalNewline ? _newline : string.Empty));
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (FinalNewline ? _newline : string.Empty));
 
             return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
         }
@@ -9646,7 +9778,10 @@ internal static class TextEdits
 
         internal string Step { get; set; } = string.Empty;
 
-        internal IReadOnlyList<Edit> Applied => [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+        internal IReadOnlyList<Edit> Applied =>
+            _sheets.Values.OfType<Sheet>().Any(sheet => sheet.Rewritten)
+                ? throw new InvalidOperationException("An edit that changed or removed a line cannot be recorded to be undone, only one that adds lines.")
+                : [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
 
         internal List<string> Kept { get; } = [];
 
@@ -9731,6 +9866,23 @@ internal static class TextEdits
             }
 
             Insert(sheet, anchor, before, lines);
+        }
+
+        internal void Rewrite(string path, Func<string, string?> edit)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (edit(sheet.Text) is { } text)
+            {
+                sheet.Rewrite(text);
+            }
+            else
+            {
+                Fail($"its anchor is not in {path}, so nothing could be written.");
+            }
         }
 
         internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
@@ -9954,6 +10106,7 @@ internal static class TextEdits
         var written = new List<string>();
         var directories = new List<string>();
         var overwritten = new List<(string Full, byte[] Original)>();
+        string? staged = null;
 
         try
         {
@@ -9980,12 +10133,30 @@ internal static class TextEdits
             {
                 string full = System.IO.Path.Combine(root, path);
 
+                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+
+                using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
+                {
+                    stream.Write(bytes);
+                }
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(staged, File.GetUnixFileMode(full));
+                }
+
+                File.Move(staged, full, overwrite: true);
+                staged = null;
                 overwritten.Add((full, original));
-                File.WriteAllBytes(full, bytes);
             }
         }
         catch
         {
+            if (staged is not null && File.Exists(staged))
+            {
+                File.Delete(staged);
+            }
+
             foreach (var (full, original) in overwritten)
             {
                 File.WriteAllBytes(full, original);
@@ -10006,6 +10177,15 @@ internal static class TextEdits
 
             throw;
         }
+    }
+
+    internal static byte[] Encode(string path, string content)
+    {
+        byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
+
+        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+            ? [.. Encoding.UTF8.GetPreamble(), .. text]
+            : text;
     }
 
     internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>

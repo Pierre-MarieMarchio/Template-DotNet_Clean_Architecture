@@ -57,6 +57,52 @@ Each rule has one home, and a test holds it wherever a test can.
   wrote code, an `Assisted-by: <tool>:<model>` trailer and the pull request's Assistance section are
   recommended; bots such as Dependabot keep their own messages
   ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)).
+- Each commit follows [the commit message form](#commit-messages).
+
+## Commit messages
+
+A commit message is read long after the diff is forgotten, so it says what the diff cannot: the
+problem, and why this change solves it.
+
+- **The subject** is `<type>(<scope>): <summary>`, in the imperative, 72 characters at most, with no
+  final full stop. The type is one of [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+  `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `ci`, `chore` and so on. The scope names the
+  part touched and may be left out. A `!` after the type or scope, or a `BREAKING CHANGE:` footer,
+  marks a change that breaks a caller.
+- **The body** comes after a blank line and wraps at 72 characters. It describes the problem first,
+  then why this change solves it, then what it does where the diff does not show it. A reader who
+  stops after the first paragraph still knows why the commit exists.
+- **One concern per commit**, as for a pull request: a refactor and a change of behaviour are two
+  commits, and so is a rename and the feature that needed it.
+- **Trailers** close the message, one per line, each short:
+  - `Fixes: #<n>` or `Closes #<n>` for the issue the commit settles;
+  - `Reported-by: <name>` for who found the problem;
+  - `Link: <url>` for a discussion or a document the body cannot hold;
+  - `Assisted-by: <tool>:<model>` where a tool wrote part of the change.
+- **No `Co-Authored-By` naming an AI tool, and no "Generated with" line**: the author answers for
+  every line ([ADR 0028](docs/decisions/0028-the-author-answers-for-every-line.md)). This project
+  asks for no `Signed-off-by` line.
+
+For example:
+
+```text
+fix(<scope>): reject an empty name when a feature is created
+
+An empty name passed validation, so a record with no label reached the
+store and showed as a blank row in every list.
+
+The validator now requires one non-blank character, as the other
+create commands already do.
+
+Fixes: #<n>
+Assisted-by: <tool>:<model>
+```
+<!--#if (templateMaintenance)-->
+
+In this repository, release-please reads the types: a `feat` or a `fix` lands in the changelog, and a
+`!` makes the next version a major one
+([branches and releases](docs/template/maintaining-the-template.md#branches-and-releases)).
+<!--#endif-->
 
 <!--#if (templateMaintenance)-->
 ## Working on the template

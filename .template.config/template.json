@@ -1579,6 +1579,8 @@
             ".github/workflows/template-published-package.yml",
             ".github/release-please/**",
             ".github/ISSUE_TEMPLATE/**",
+            "CODE_OF_CONDUCT.md",
+            "SUPPORT.md",
             "Tools/CheckDocPaths.cs",
             "Tools/CheckWorkflows.cs",
             "Tools/CheckComments.cs",

@@ -88,6 +88,8 @@ This repository carries the documentation every generated project receives, in i
   reference and decisions.
 - [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md), which a
   project receives too; `--agent-files false` leaves out `AGENTS.md`, the only agent file there is.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [SUPPORT.md](SUPPORT.md), which stay in this repository:
+  the conduct it follows and where to ask a question or report a problem.
 
 [The template documentation](docs/template/README.md) is about the template alone: using it,
 maintaining it, its acceptance matrix and its own decisions. It never reaches a generated project.

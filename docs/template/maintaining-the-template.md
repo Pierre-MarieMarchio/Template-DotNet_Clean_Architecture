@@ -22,8 +22,9 @@ that fails without it. These three files are excluded from generation, and the p
 task asks the filesystem which gates its tree carries, so one task serves both.
 
 CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a generated project
-does not receive. Its end-to-end job skips its one step in this repository, whose stack includes web
-apps no CLI has created yet; the acceptance matrix runs the suite instead.
+does not receive. Its end-to-end job skips its steps in this repository, whose stack includes web
+apps no CLI has created yet, among them those that install the workspace and Chromium for the browser
+smoke; the acceptance matrix runs the suite and the smoke instead.
 
 ### The published package each week
 
@@ -92,7 +93,12 @@ attribute or an inline script the served `script-src` allows neither by its hash
 script's nonce, or when two responses share a nonce, or when a server-rendered app with accounts
 relays a `POST` without `X-CSRF` instead of refusing it itself, and reports its inline styles; a page that
 loads the WebAssembly authentication script must carry the origin of `EXTERNAL_AUTH_AUTHORITY` in
-its served `connect-src` and `frame-src`. The every-starter leg adds
+its served `connect-src` and `frame-src`. The leg then installs Chromium, cached by `actions/cache` under the
+Playwright release the lockfile resolves, and runs `packages/browser-smoke` over every app the stack
+serves: it fails on a Content-Security-Policy violation, a console error, an uncaught exception or a
+call through the `/api/` relay the API does not answer, which no `curl` above can see. `web.yml` never runs
+it, since that job starts no stack.
+The every-starter leg adds
 each framework starter its first app is not, so one workspace proves them all together. Every app,
 package and presentation project a leg adds with an item template is recorded by the project's
 `web-join` or `presentation-join` task, and a web leg runs `ProjectFileTests` once more after its

@@ -28,6 +28,9 @@ a SQLite file for the database.
 | End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AT.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
 <!--#endif-->
+<!--#if (anyWeb)-->
+| Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `Src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
+<!--#endif-->
 
 Unit and architecture tests need nothing and run in seconds.
 <!--#if (serverDatabase)-->
@@ -40,6 +43,9 @@ container.
 <!--#if (api)-->
 The end-to-end suite needs the whole stack built and started, and runs
 apart from both.
+<!--#endif-->
+<!--#if (anyWeb)-->
+The browser smoke needs the stack and Chromium, and runs with the end-to-end suite.
 <!--#endif-->
 
 ## The risks this project holds
@@ -72,6 +78,9 @@ apart from both.
 <!--#endif-->
 <!--#if (api)-->
 | The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AT.EndToEnd.Tests` |
+<!--#endif-->
+<!--#if (anyWeb)-->
+| What the browser blocks or breaks in a web app | browser smoke, one test per app | `Src/Web/packages/browser-smoke` |
 <!--#endif-->
 
 A feature that brings a risk of its own adds a row here.
@@ -207,6 +216,41 @@ formatted with the rest. `test --no-integration` runs only the projects that set
 <!--#if (ci)-->
 CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
 test.
+<!--#endif-->
+<!--#endif-->
+<!--#if (anyWeb)-->
+
+## The browser smoke
+
+After the end-to-end suite, `end-to-end` drives every web app in Chromium, through
+`pnpm --filter "*browser-smoke" smoke` in `Src/Web`. The package reads the apps `cleanarch.json` records
+and each one's port from `WEB_<APP>_HOST_PORT`, in the environment and then in `.env.example`, so an app
+added later is driven without an edit. For each app, one test:
+
+- loads `/`, which answers with a success status and renders text;
+- fails on any `securitypolicyviolation` the page raises, any console error and any uncaught exception;
+<!--#if (accounts)-->
+- calls `/api/v1/relay-check` from the page and expects the API's problem answer, `route.notFound` or
+  `auth.required`, so the relay and the page's `connect-src` are both held.
+<!--#endif-->
+<!--#if (!accounts)-->
+- calls `/api/v1/relay-check` from the page and expects the API's `route.notFound` problem answer, so
+  the relay and the page's `connect-src` are both held.
+<!--#endif-->
+
+A page rendered on the server is driven the same way, at the port of its Node server. The smoke
+needs the stack, so `pnpm test` leaves it out; `pnpm test` runs the unit tests of how the apps and
+their ports are found.
+
+Chromium is not installed by `pnpm install`. Install it once per machine with
+`pnpm --filter "*browser-smoke" exec playwright install --only-shell chromium` in `Src/Web`, adding
+`--with-deps` on a Linux that lacks the system libraries it loads.
+
+`end-to-end` fails with that command in its message when the browser is missing, and has no option to
+skip the smoke.
+<!--#if (ci)-->
+CI installs Chromium in the `end-to-end` job and caches it by the Playwright release the lockfile
+resolves.
 <!--#endif-->
 <!--#endif-->
 

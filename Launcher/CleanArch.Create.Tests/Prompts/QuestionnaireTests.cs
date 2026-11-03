@@ -102,12 +102,12 @@ public sealed class QuestionnaireTests
         var console = new TestConsole();
         console.Profile.Width = Terminal.UnwrappedWidth;
         var questionnaire = new Questionnaire(console, interactive: false, yes: false);
-        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false", ["has-api"] = "true" };
+        var given = new Dictionary<string, string> { ["project-name"] = "Acme.Shop", ["auth"] = "none", ["examples"] = "none", ["files"] = "false", ["database"] = "postgresql", ["agent-files"] = "true", ["has-client"] = "false", ["has-api"] = "false", ["ci"] = "true" };
 
         Dictionary<string, string> answers = questionnaire.Answer(presentation, given, _nothing, new Dictionary<string, Condition>());
 
-        presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop", "--auth", "none", "--examples", "none", "--files", "false"]);
-        console.Output.ShouldContain("Framework: blazor-server (the only option when Project authentication is none)");
+        presentation.CommandArguments(answers).ShouldBe(["--framework", "blazor-server", "--project-name", "Acme.Shop", "--auth", "none", "--examples", "none", "--files", "false", "--has-api", "false"]);
+        console.Output.ShouldContain("Framework: blazor-server (the only option when Project authentication is none and Project holds the API is No)");
     }
 
     [Theory]

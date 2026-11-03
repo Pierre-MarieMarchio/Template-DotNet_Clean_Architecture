@@ -93,8 +93,11 @@ the pages a framework's template wrote are this project's own.
 
 A project generated without one takes it later from `dotnet new cleanarch-presentation`, which
 writes the project, its tests and this page. `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`
-then makes the lines the `README.md` in the project's folder lists outside them, every one or none,
-and records the project in `cleanarch.json`; `presentation-scaffold` creates it the same way.
+then makes the lines the `README.md` in the project's folder lists outside them, leaving alone those
+in place already and making none when one cannot be placed, and records the project in
+`cleanarch.json`; `presentation-scaffold` creates it the same way. `--framework worker -n Worker` adds
+the worker instead, whose join moves the API's jobs into it, as
+[background jobs](background-jobs.md#several-instances) says.
 
 <!--#if (presentationBlazorServer)-->
 ## Portal

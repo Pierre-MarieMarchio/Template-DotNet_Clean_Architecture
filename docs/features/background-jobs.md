@@ -23,8 +23,8 @@ work twice.
 
 Every pass sends an application use case's message through `ISender`, exactly as a controller does;
 a job adds a trigger, not logic.
-<!--#if ((presentationBlazorServer || presentationMcp) && !jobsWorker)-->
-The jobs run in the API alone: the other hosts compose the same use cases and run none of them on
+<!--#if (!jobsWorker)-->
+The jobs run in the API alone: any other host composes the same use cases and runs none of them on
 a timer.
 <!--#endif-->
 <!--#if (jobsWorker && api)-->
@@ -161,15 +161,17 @@ mistaken double enable, but they are not a substitute for that choice.
 `/health/ready` says nothing about the jobs. The `iterations` counter of each loop, tagged with its
 `outcome`, does ([Observability](observability.md#metrics)): a flat series is a loop that stopped.
 
-A process of its own for the jobs is a worker host beside the API: a `Program.cs` on
-`Host.CreateApplicationBuilder` that composes the same features and modules, gives every scope no
-caller with `AddNoCallerIdentity()`, and calls `AddBackgroundJobs`. The API's `Common/Jobs` and
-`Features/*/Jobs` folders move into it, their namespaces with them, with the `Jobs` settings, and the
-API stops calling `AddBackgroundJobs`.
+A process of its own for the jobs is the worker, a host beside the API that composes the same
+features and modules, gives every scope no caller and calls `AddBackgroundJobs`. On a committed tree,
+`dotnet new cleanarch-presentation -n Worker --framework worker --project-name AppTemplate` writes it,
+then `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Worker` moves the API's `Common/Jobs`
+and `Features/*/Jobs` folders and their tests into it, their namespaces with them, with the `Jobs`
+settings, and the API stops calling `AddBackgroundJobs`.
 <!--#if (localAuth)-->
 The authentication purges move with `AddAuthMaintenanceJobs`, which the worker calls instead.
 <!--#endif-->
-A project generated with `--presentation worker` starts that way.
+A project generated with `--presentation worker` starts that way, and the `README.md` the item
+template writes in the worker's folder lists every other line the join changes.
 <!--#endif-->
 <!--#if (jobsWorker && api)-->
 Scale the API freely: it runs no pass.

@@ -405,8 +405,6 @@ internal static class LegSelector
             [_sqliteExternal, _webPlaceholder, _sqliteDefaults]),
         new("the SQL Server variant", "pull_request", [], [".template.config/variants/database-sqlserver/docker-compose.database.yml"],
             [_sqlServer]),
-        new("the feature-edit applier", "pull_request", [], [".template.config/acceptance/ApplyFeatureEdits.cs"],
-            ["defaults", _localNoFiles, _externalNoExamples]),
         new("a template-only page and the Vite Vue starter", "pull_request", [], ["docs/template/roadmap.md", ".template.config/starters/vite-vue/FrameworkSite/scaffold.json"],
             [_everyStarter]),
         new("the Vite Vue starter and the domain", "pull_request", [], [".template.config/starters/vite-vue/FrameworkSite/scaffold.json", "Src/Domain/AT.Domain/Common/Entity.cs"], null),

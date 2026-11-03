@@ -663,15 +663,15 @@ task stops:
 - in `docs/guides/adding-a-feature.md`, after the line:
 
   ```markdown
-  for the account-deletion sweep it brings with it.
+  make by hand and names the one that failed. An edit already in place counts as made, never repeated.
   ```
 
   add:
 
   ```markdown
   Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
-  owner feature writes and registers each host's account directory beside the API's; the printed edits
-  name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+  owner feature writes and registers each host's account directory beside the API's; the edits name
+  both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
   The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
   as the [presentation projects](../features/presentation.md#declaring-a-tool) shows.
   ```

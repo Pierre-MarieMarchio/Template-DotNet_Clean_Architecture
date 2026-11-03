@@ -1,7 +1,7 @@
 [
   {
     "name": "defaults",
-    "tags": ["generator"],
+    "tags": [],
     "options": "",
     "auth_context": "true",
     "integration": "true",
@@ -19,7 +19,7 @@
   },
   {
     "name": "local auth, no files, no ci, no sonar",
-    "tags": ["generator", "presentation-worker"],
+    "tags": ["presentation-worker"],
     "options": "--auth local --examples none --files false --ci false --sonar false --presentation api --presentation worker",
     "auth_context": "true",
     "generator": "true"
@@ -54,7 +54,7 @@
   },
   {
     "name": "external auth, no examples, no files",
-    "tags": ["generator", "presentation-avalonia", "presentation-item"],
+    "tags": ["presentation-avalonia", "presentation-item"],
     "options": "--auth external --examples none --files false",
     "auth_context": "false",
     "generator": "true",

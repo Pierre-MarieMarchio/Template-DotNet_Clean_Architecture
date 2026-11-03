@@ -17,7 +17,7 @@ internal static class NewFeature
         + "           [--operations get,list,create,update,delete]\n"
         + "           [--model record|aggregate]\n"
         + "           [--concurrency none|etag]\n"
-        + "           [--root <path>]\n"
+        + "           [--root <path>] [--dry-run]\n"
         + "  <Features>     the folder, PascalCase and plural, e.g. Widgets\n"
         + "  <Feature>      the type, PascalCase and singular, e.g. Widget\n"
         + "  --access       required. owner: every operation is scoped to the caller's id.\n"
@@ -32,6 +32,12 @@ internal static class NewFeature
         + "  --concurrency  default: none, last write wins. etag: a persisted version, ETag and If-Match.\n"
         + "                 aggregate needs etag.\n"
         + "  --root         the tree to write into, default the current directory.\n"
+        + "  --dry-run      print the files and the edits, and write and run nothing.\n"
+        + "  Without --dry-run it writes the feature's files, makes every edit that composes it, each\n"
+        + "  placed beside a line it finds, and records them in the manifest; when one of those lines is\n"
+        + "  missing it writes nothing. It refuses while a context has no initial migration or the\n"
+        + "  business model has a change no migration holds, then builds, adds the Add<Features>\n"
+        + "  migration and rewrites the OpenAPI reference and the clients written from it.\n"
         + "       dotnet run Tools/NewFeature.cs --self-test";
 
     private static readonly string[] _operationNames = ["get", "list", "create", "update", "delete"];
@@ -70,7 +76,8 @@ internal static class NewFeature
         string? Operations,
         string? Model,
         string? Concurrency,
-        string Root);
+        string Root,
+        bool DryRun);
 
     private sealed record Spec(
         string Prefix,
@@ -102,7 +109,7 @@ internal static class NewFeature
         }
 
         /*#if (!publicApi)*/
-        return Run(args, Console.Out, Console.Error);
+        return Run(args, Console.Out, Console.Error, TextEdits.Execute);
         /*#else
         int rootOption = Array.IndexOf(args, "--root");
         string target = rootOption >= 0 && rootOption + 1 < args.Length ? args[rootOption + 1] : ".";
@@ -122,13 +129,13 @@ internal static class NewFeature
             return 1;
         }
 
-        return Run(args, Console.Out, Console.Error);
+        return Run(args, Console.Out, Console.Error, TextEdits.Execute);
 
         static string ThisFile([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
         #endif*/
     }
 
-    private static int Run(string[] args, TextWriter output, TextWriter error)
+    private static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
     {
         var problems = new List<string>();
         var request = Parse(args, problems);
@@ -141,6 +148,15 @@ internal static class NewFeature
             return Refuse(error, problems);
         }
 
+        if (AlreadyGenerated(root, spec))
+        {
+            output.WriteLine(
+                $"{ManifestPath(spec)} records {spec.Features} with these options already: its files and edits are written, "
+                + "so nothing is written again.");
+
+            return request.DryRun ? 0 : Finish(root, spec, output, error, run, resumed: true);
+        }
+
         var plan = Plan(spec, root, out var skipped);
 
         problems.AddRange(Conflicts(root, spec, plan));
@@ -151,11 +167,50 @@ internal static class NewFeature
         }
 
         var page = PageOf(root, spec, plan, out string? unwritten);
-        var manifest = ManifestOf(spec, plan, page);
+        var editor = Edits(root, spec, plan);
+        var manifest = ManifestOf(spec, plan, page, editor.Applied);
+
+        if (editor.Failures.Count > 0)
+        {
+            Report(output, root, spec, plan, manifest.Path, skipped, Mode.Refused);
+            ReportPage(output, spec, page, unwritten, Mode.Refused);
+
+            foreach (string failure in editor.Failures)
+            {
+                error.WriteLine($"error: {failure}");
+            }
+
+            error.WriteLine(
+                "Nothing was written: every edit is made or none is. Put back the line each failed edit is placed beside, "
+                + "or write the feature by hand from the edits above.");
+
+            return 1;
+        }
+
+        if (request.DryRun)
+        {
+            Report(output, root, spec, plan, manifest.Path, skipped, Mode.DryRun);
+            ReportPage(output, spec, page, unwritten, Mode.DryRun);
+            output.WriteLine();
+            output.WriteLine("--dry-run: nothing was written and nothing was run.");
+
+            return 0;
+        }
+
+        if (Preconditions(root, spec, output, run) is { } refusal)
+        {
+            error.WriteLine($"error: {refusal}");
+            error.WriteLine("Nothing was written.");
+
+            return 1;
+        }
 
         try
         {
-            WriteAll(root, [.. plan, .. page is null ? Array.Empty<Emission>() : [page], manifest.Emission]);
+            TextEdits.Commit(
+                root,
+                [.. plan.Select(Created), .. page is null ? Array.Empty<(string, byte[])>() : [Created(page)], Created(manifest)],
+                [.. TextEdits.Replacements(editor)]);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -164,11 +219,137 @@ internal static class NewFeature
             return 1;
         }
 
-        Report(output, root, spec, plan, manifest.Emission.Path, skipped);
-        ReportPage(output, spec, page, unwritten);
+        Report(output, root, spec, plan, manifest.Path, skipped, Mode.Applied);
+        ReportPage(output, spec, page, unwritten, Mode.Applied);
 
-        return 0;
+        if (editor.Kept.Count > 0)
+        {
+            output.WriteLine();
+            output.WriteLine($"Already in place, so left as they were and not recorded: {string.Join("; ", editor.Kept.Distinct(StringComparer.Ordinal))}.");
+        }
+
+        return Finish(root, spec, output, error, run, resumed: false);
     }
+
+    private enum Mode
+    {
+        Applied,
+        DryRun,
+        Refused,
+    }
+
+    private const int _manifestSchemaVersion = 2;
+
+    private static (string Path, byte[] Bytes) Created(Emission emission) => (emission.Path, Bytes(emission));
+
+    private static bool AlreadyGenerated(string root, Spec spec)
+    {
+        string path = System.IO.Path.Combine(root, ManifestPath(spec));
+
+        if (!File.Exists(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllBytes(path));
+            var top = document.RootElement;
+            var options = top.GetProperty("options");
+
+            return top.GetProperty("schemaVersion").GetInt32() == _manifestSchemaVersion
+                && top.GetProperty("feature").GetString() == spec.Features
+                && top.GetProperty("type").GetString() == spec.Type
+                && options.GetProperty("access").GetString() == spec.Access
+                && options.GetProperty("model").GetString() == spec.Model
+                && options.GetProperty("concurrency").GetString() == spec.Concurrency
+                && (options.TryGetProperty("deletion", out var deletion) ? deletion.GetString() : string.Empty) == spec.Deletion
+                && options.GetProperty("operations").EnumerateArray().Select(operation => operation.GetString()).SequenceEqual(spec.Operations);
+        }
+        catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static string PersistenceProject(Spec spec) => ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence");
+
+    private static string? Preconditions(string root, Spec spec, TextWriter output, Func<TextEdits.Command, int> run)
+    {
+        string auth = ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Auth");
+        string[] contexts =
+        [
+            PersistenceProject(spec),
+            .. Directory.Exists(System.IO.Path.Combine(root, auth)) ? [auth] : Array.Empty<string>(),
+        ];
+
+        string[] missing = [.. contexts.Where(context => !HasInitialMigration(root, context))];
+
+        if (missing.Length > 0)
+        {
+            return $"{string.Join(" and ", missing)} has no initial migration, so the migration of {spec.Features} would have "
+                + "none to follow. Run `dotnet run Tools/Tasks.cs bootstrap`, or `dotnet run Tools/Tasks.cs migration-initial`, "
+                + "and commit the migrations first (docs/guides/migrations.md).";
+        }
+
+        var check = TextEdits.Task(root, "migration-check");
+
+        output.WriteLine($"Checking that no model change waits for a migration: {check.Display}");
+        output.Flush();
+
+        return run(check) == 0
+            ? null
+            : $"`{check.Display}` failed: the business model holds a change no migration holds yet, or it could not be checked. "
+                + $"The migration of {spec.Features} would carry that change too, so put it in a migration of its own with "
+                + "`dotnet run Tools/Tasks.cs migration-add <Name>`, or undo it, then run this again.";
+    }
+
+    private static bool HasInitialMigration(string root, string context)
+    {
+        string folder = System.IO.Path.Combine(root, context, "Migrations");
+
+        return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Any();
+    }
+
+    private static int Finish(string root, Spec spec, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run, bool resumed)
+    {
+        string migrations = System.IO.Path.Combine(root, PersistenceProject(spec), "Migrations");
+        bool migrated = resumed
+            && Directory.Exists(migrations)
+            && Directory.EnumerateFiles(migrations, $"*_Add{spec.Features}.cs").Any();
+
+        string done = resumed
+            ? "the feature's files and edits, written by an earlier run"
+            : "the feature's files, its edits and its manifest, which are consistent with each other";
+
+        return TextEdits.RunAll(Steps(root, spec, migrated), run, output, error, done) ? 0 : 1;
+    }
+
+    private static List<TextEdits.Command> Steps(string root, Spec spec, bool migrated = false) =>
+    [
+        TextEdits.Task(root, "build"),
+        .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.Task(root, "migration-add", $"Add{spec.Features}")],
+        .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client")) : [],
+    ];
+
+    private static string[] SweepMethod() =>
+    [
+        "public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)",
+        "{",
+        "    ArgumentNullException.ThrowIfNull(services);",
+        string.Empty,
+        "    return services.AddUseCasePipeline();",
+        "}",
+    ];
+
+    private static string[] DirectoryDouble() =>
+    [
+        "internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory",
+        "{",
+        "    public Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default) =>",
+        "        Task.FromResult(true);",
+        "}",
+    ];
 
     private static int Refuse(TextWriter error, List<string> problems)
     {
@@ -189,6 +370,7 @@ internal static class NewFeature
     {
         var positional = new List<string>();
         var options = new Dictionary<string, string>(StringComparer.Ordinal);
+        bool dryRun = false;
 
         for (int index = 0; index < args.Length; index++)
         {
@@ -197,6 +379,13 @@ internal static class NewFeature
             if (!argument.StartsWith('-'))
             {
                 positional.Add(argument);
+
+                continue;
+            }
+
+            if (argument == "--dry-run")
+            {
+                dryRun = true;
 
                 continue;
             }
@@ -213,7 +402,7 @@ internal static class NewFeature
 
             if (!_optionNames.Contains(name, StringComparer.Ordinal))
             {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])}.");
+                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])} and --dry-run.");
 
                 continue;
             }
@@ -253,7 +442,8 @@ internal static class NewFeature
             Option("--operations"),
             Option("--model"),
             Option("--concurrency"),
-            Option("--root") ?? ".");
+            Option("--root") ?? ".",
+            dryRun);
     }
 
     private static Spec? Check(Request request, string root, List<string> problems)
@@ -1070,14 +1260,14 @@ internal static class NewFeature
     private static string HashOf(Emission emission) =>
         Convert.ToHexStringLower(SHA256.HashData(Bytes(emission)));
 
-    private static (Emission Emission, int Files) ManifestOf(Spec spec, List<Emission> plan, Emission? page)
+    private static Emission ManifestOf(Spec spec, List<Emission> plan, Emission? page, IReadOnlyList<TextEdits.Edit> edits)
     {
         using var stream = new MemoryStream();
 
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
-            writer.WriteNumber("schemaVersion", 1);
+            writer.WriteNumber("schemaVersion", _manifestSchemaVersion);
             writer.WriteString("generator", "Tools/NewFeature.cs");
             writer.WriteString("feature", spec.Features);
             writer.WriteString("type", spec.Type);
@@ -1119,63 +1309,16 @@ internal static class NewFeature
                 writer.WriteString("page", page.Path);
             }
 
+            TextEdits.WriteEdits(writer, edits);
             writer.WriteEndObject();
         }
 
         string json = Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n";
 
-        return (new Emission(ManifestPath(spec), json), plan.Count);
+        return new Emission(ManifestPath(spec), json);
     }
 
-    private static void WriteAll(string root, List<Emission> emissions)
-    {
-        var files = new List<string>();
-        var directories = new List<string>();
-
-        try
-        {
-            foreach (var emission in emissions)
-            {
-                string full = System.IO.Path.Combine(root, emission.Path);
-                string directory = System.IO.Path.GetDirectoryName(full)!;
-
-                var missing = new Stack<string>();
-
-                for (string next = directory; !Directory.Exists(next); next = System.IO.Path.GetDirectoryName(next)!)
-                {
-                    missing.Push(next);
-                }
-
-                directories.AddRange(missing);
-                Directory.CreateDirectory(directory);
-
-                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
-                byte[] bytes = Bytes(emission);
-
-                stream.Write(bytes);
-                files.Add(full);
-            }
-        }
-        catch
-        {
-            foreach (string file in files)
-            {
-                File.Delete(file);
-            }
-
-            foreach (string directory in Enumerable.Reverse(directories))
-            {
-                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
-                {
-                    Directory.Delete(directory);
-                }
-            }
-
-            throw;
-        }
-    }
-
-    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped)
+    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped, Mode mode)
     {
         string p = spec.Prefix;
         string f = spec.Features;
@@ -1187,7 +1330,8 @@ internal static class NewFeature
         string[] hosts = ComposingHosts(root, spec);
 
         output.WriteLine(
-            $"Wrote {plan.Count} files for {f}/{a} "
+            (mode == Mode.Applied ? "Wrote" : "Would write")
+            + $" {plan.Count} files for {f}/{a} "
             + $"(access {spec.Access}, model {spec.Model}, operations {string.Join(',', spec.Operations)}, "
             + $"concurrency {spec.Concurrency}"
             + (owner ? $", deletion {spec.Deletion}" : string.Empty)
@@ -1199,7 +1343,9 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine($"Manifest: {manifest} (the options, and the SHA-256 of each file above).");
+        output.WriteLine(mode == Mode.Applied
+            ? $"Manifest: {manifest} (the options, the SHA-256 of each file above, and each edit below with the line it is placed beside)."
+            : $"Manifest: {manifest} (the options, the SHA-256 of each file above, and each edit below with the line it is placed beside), not written.");
 
         foreach (string project in skipped)
         {
@@ -1207,10 +1353,15 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine("The solution does not compile until edit 1 is made, and the feature does not compose until all are; nothing here edited a file it does not own.");
+        output.WriteLine(mode switch
+        {
+            Mode.Applied => "The feature composes through these edits, each placed beside a line it found and recorded in the manifest.",
+            Mode.DryRun => "A run without --dry-run makes these edits, each placed beside a line it finds, or none when a line is missing.",
+            _ => "None of these edits was made: the solution does not compile until edit 1 is made, nor the feature compose until all are.",
+        });
         output.WriteLine(spec.Reaction is null
-            ? "Six edits, each by hand, each somewhere an absence should be visible:"
-            : "Eleven edits, each by hand: six like every feature, and five more because this project was");
+            ? "Six edits, each somewhere an absence should be visible:"
+            : "Eleven edits: six like every feature, and five more because this project was");
         output.WriteLine(spec.Reaction is null
             ? string.Empty
             : "generated with no feature that owns user data, so its account-deleted reaction ships with this one.");
@@ -1314,7 +1465,12 @@ internal static class NewFeature
 
             output.WriteLine();
             output.WriteLine($"  7. {ProjectOf(spec, "Src/Application", "Application.Core")}/ApplicationCoreModule.cs: the AddDeletedAccountSweep()");
-            output.WriteLine("     method beside AddPurgeExpiredIdempotencyKeys, composing the use-case pipeline as it does");
+            output.WriteLine("     method before AddUseCasePipeline, composing the use-case pipeline as AddPurgeExpiredIdempotencyKeys does:");
+
+            foreach (string line in SweepMethod())
+            {
+                output.WriteLine(line.Length == 0 ? string.Empty : "     " + line);
+            }
             output.WriteLine();
             output.WriteLine($"  8. Src/Presentation/{jobsHost}/Program.cs: builder.Services.AddDeletedAccountSweep(); beside");
             output.WriteLine("     builder.Services.AddPurgeExpiredIdempotencyKeys();");
@@ -1337,11 +1493,10 @@ internal static class NewFeature
                 : "     and AddBackgroundOnlyAdapters the double that stands in for the directory the hosts compose:");
             output.WriteLine("       services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();");
             output.WriteLine("     declared beside the other doubles, or the container tests cannot resolve the feature's consumer:");
-            output.WriteLine("       internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory");
-            output.WriteLine("       {");
-            output.WriteLine("           public Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default) =>");
-            output.WriteLine("               Task.FromResult(true);");
-            output.WriteLine("       }");
+            foreach (string line in DirectoryDouble())
+            {
+                output.WriteLine("       " + line);
+            }
         }
 
         if (spec.HasApi)
@@ -1352,25 +1507,16 @@ internal static class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine("Then the schema, which this does not run. The model changed, so the business context needs a migration:");
-        output.WriteLine($"  dotnet run Tools/Tasks.cs migration-add Add{f}");
-        output.WriteLine("Before bootstrap has run, there is nothing to add to: the initial migration bootstrap creates takes the feature in.");
-        output.WriteLine($"While no database has applied that one, delete {ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence")}/Migrations and run migration-initial.");
-        output.WriteLine();
 
-        if (spec.HasApi)
+        if (mode != Mode.Applied)
         {
-            output.WriteLine("Then rewrite what the routes feed, which this does not run:");
-            output.WriteLine("  dotnet run Tools/Tasks.cs openapi    (the OpenAPI reference the contract test compares)");
+            output.WriteLine(mode == Mode.DryRun
+                ? "Then a run without --dry-run runs, in this order, and stops at the first that fails:"
+                : "Then, once the edits are made:");
 
-            if (Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", FolderOf(spec.Prefix, "Client"))))
+            foreach (var step in Steps(root, spec))
             {
-                output.WriteLine("  dotnet run Tools/Tasks.cs api-client");
-            }
-
-            if (File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs")))
-            {
-                output.WriteLine("  pnpm api    (in Src/Web)");
+                output.WriteLine($"  {step.Display}");
             }
 
             output.WriteLine();
@@ -1405,10 +1551,10 @@ internal static class NewFeature
         }
     }
 
-    private static void ReportPage(TextWriter output, Spec spec, Emission? page, string? unwritten)
+    private static void ReportPage(TextWriter output, Spec spec, Emission? page, string? unwritten, Mode mode)
     {
         string path = PagePath(spec.Features);
-        string title = Separated(spec.Features, ' ');
+        bool applied = mode == Mode.Applied;
 
         output.WriteLine();
 
@@ -1418,17 +1564,21 @@ internal static class NewFeature
         }
         else
         {
-            output.WriteLine($"Feature page: {path}, from {_pageTemplate}. The manifest records it, so remove-feature deletes it, edited or not.");
+            output.WriteLine(applied
+                ? $"Feature page: {path}, from {_pageTemplate}. The manifest records it, so remove-feature deletes it, edited or not."
+                : $"Feature page: {path}, from {_pageTemplate}, written with the files above.");
             output.WriteLine("Each heading says what its section holds; replace those lines with what this feature does.");
         }
 
-        output.WriteLine("Then its row under ## Features in docs/README.md:");
-        output.WriteLine($"  | [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |");
+        output.WriteLine(applied ? "Its row, added under ## Features in docs/README.md:" : "Then its row under ## Features in docs/README.md:");
+        output.WriteLine($"  {ReadmeRow(spec)}");
 
         //#if (api)
         if (spec.HasApi)
         {
-            output.WriteLine("And its section of the route table under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads:");
+            output.WriteLine(applied
+                ? "Its section, added to the route table under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads:"
+                : "And its section of the route table under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads:");
 
             foreach (string line in RouteSection(spec))
             {
@@ -1438,10 +1588,235 @@ internal static class NewFeature
 
         if (spec.HasApi && Flags(spec).Contains("notfound"))
         {
-            output.WriteLine("And the row of its refusal under ### Resources in docs/reference/api.md, which the error-code tests read:");
-            output.WriteLine($"  | `{Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |");
+            output.WriteLine(applied
+                ? "The row of its refusal, added under ### Resources in docs/reference/api.md, which the error-code tests read:"
+                : "And the row of its refusal under ### Resources in docs/reference/api.md, which the error-code tests read:");
+            output.WriteLine($"  {ErrorRow(spec)}");
         }
         //#endif
+    }
+
+    private static string ReadmeRow(Spec spec)
+    {
+        string title = Separated(spec.Features, ' ');
+
+        return $"| [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |";
+    }
+
+    private static string ErrorRow(Spec spec) => $"| `{Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |";
+
+    private static readonly Regex _fileNamespace = new(@"^namespace\s+([A-Za-z0-9_.]+);", RegexOptions.Multiline, TimeSpan.FromSeconds(2));
+
+    private static string NamespaceOf(List<Emission> plan, string type) =>
+        plan.FirstOrDefault(emission => emission.Path.EndsWith($"/{type}.cs", StringComparison.Ordinal)) is { } declaring
+            && _fileNamespace.Match(declaring.Content) is { Success: true } match
+                ? match.Groups[1].Value
+                : throw new InvalidOperationException($"No file of the plan declares {type}, which an edit names.");
+
+    private static TextEdits.Editor Edits(string root, Spec spec, List<Emission> plan)
+    {
+        var editor = new TextEdits.Editor(root);
+        string p = spec.Prefix;
+        string f = spec.Features;
+        string a = spec.Type;
+        bool record = spec.Model == "record";
+        bool owner = spec.Access == "owner";
+        var flags = Flags(spec);
+        string consumer = $"{(spec.Deletion == "anonymise" ? "Anonymise" : "Delete")}{a}OnAccountDeletedConsumer";
+        string[] hosts = ComposingHosts(root, spec);
+        string persistence = PersistenceProject(spec);
+        string composition = $"{ProjectOf(spec, "Tests/Architecture", "Architecture.Tests")}/Composition/HostComposition.cs";
+
+        string context = $"{persistence}/Common/Contexts/AppDbContext.cs";
+        editor.Step = $"edit 1 ({context})";
+        editor.Place(context, ["public const string PlatformSchema"], before: true, [$"    public const string {f}Schema = \"{Snake(f)}\";", string.Empty], $"public const string {f}Schema ");
+        editor.Place(context, ["internal DbSet<IdempotencyRecord>"], before: true, [$"    internal DbSet<{a}Record> {f} => Set<{a}Record>();", string.Empty], $"internal DbSet<{a}Record> {f} ");
+        editor.Place(
+            context,
+            ["modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());"],
+            before: true,
+            [$"        modelBuilder.ApplyConfiguration(new {a}RecordConfiguration());", string.Empty],
+            $"modelBuilder.ApplyConfiguration(new {a}RecordConfiguration());");
+        editor.Using(context, NamespaceOf(plan, $"{a}RecordConfiguration"));
+        editor.Using(context, NamespaceOf(plan, $"{a}Record"));
+
+        string module = $"{ProjectOf(spec, "Src/Application", "Application")}/ApplicationModule.cs";
+        bool service = record || flags.Contains("change");
+        editor.Step = $"edit 2 ({module})";
+        editor.Place(
+            module,
+            ["private static void AddFeature("],
+            before: true,
+            [
+                $"    public static IServiceCollection Add{f}(this IServiceCollection services)",
+                "    {",
+                "        ArgumentNullException.ThrowIfNull(services);",
+                string.Empty,
+                $"        services.AddFeature(\"{f}\");",
+                .. service ? [$"        services.AddScoped<I{a}Service, {a}Service>();"] : Array.Empty<string>(),
+                .. owner
+                    ? [
+                        string.Empty,
+                        $"        services.AddDomainEventConsumer<UserAccountDeleted, {consumer}>();",
+                        $"        services.AddScoped<IDeletedAccountDataPolicy, {consumer}>();",
+                    ]
+                    : Array.Empty<string>(),
+                string.Empty,
+                "        return services;",
+                "    }",
+                string.Empty,
+            ],
+            $"public static IServiceCollection Add{f}(");
+
+        if (service)
+        {
+            editor.Using(module, NamespaceOf(plan, $"I{a}Service"));
+        }
+
+        if (owner)
+        {
+            editor.Using(module, NamespaceOf(plan, consumer));
+            editor.Using(module, $"{p}.Application.Core");
+            editor.Using(module, $"{p}.Application.Core.Common.Events");
+            editor.Using(module, $"{p}.Application.Core.Common.Ports");
+        }
+
+        string persistenceModule = $"{persistence}/PersistenceModule.cs";
+        (string Line, string[] Types)[] adapters = record
+            ?
+            [
+                .. flags.Contains("stage") ? [($"services.TryAddScoped<I{a}Store, {a}Store>();", (string[])[$"I{a}Store", $"{a}Store"])] : Array.Empty<(string, string[])>(),
+                .. flags.Contains("rq") ? [($"services.TryAddScoped<I{a}Queries, {a}Queries>();", (string[])[$"I{a}Queries", $"{a}Queries"])] : Array.Empty<(string, string[])>(),
+            ]
+            :
+            [
+                ($"services.TryAddSingleton<I{a}Mapper, {a}Mapper>();", [$"I{a}Mapper", $"{a}Mapper"]),
+                ($"AddScopedTracker<{a}Tracker, I{a}Tracker>(services);", [$"{a}Tracker", $"I{a}Tracker"]),
+                ($"services.TryAddScoped<I{a}Repository, {a}Repository>();", [$"I{a}Repository", $"{a}Repository"]),
+                .. flags.Contains("rq") ? [($"services.TryAddScoped<I{a}Queries, {a}Queries>();", (string[])[$"I{a}Queries", $"{a}Queries"])] : Array.Empty<(string, string[])>(),
+            ];
+        editor.Step = $"edit 3 ({persistenceModule})";
+        editor.Place(persistenceModule, ["AddIdempotencyFeature(services, configuration);"], before: true, [$"        Add{f}Feature(services);"], $"Add{f}Feature(services);");
+        editor.Place(
+            persistenceModule,
+            ["private static void AddIdempotencyFeature("],
+            before: true,
+            [$"    private static void Add{f}Feature(IServiceCollection services)", "    {", .. adapters.Select(adapter => "        " + adapter.Line), "    }", string.Empty],
+            $"private static void Add{f}Feature(");
+
+        foreach (string space in adapters.SelectMany(adapter => adapter.Types).Select(type => NamespaceOf(plan, type)).Distinct(StringComparer.Ordinal))
+        {
+            editor.Using(persistenceModule, space);
+        }
+
+        foreach (string host in hosts)
+        {
+            string program = $"Src/Presentation/{host}/Program.cs";
+            editor.Step = $"edit 4 ({program})";
+            editor.Place(
+                program,
+                ["builder.Services.AddPurgeExpiredIdempotencyKeys();", "builder.Services.AddCacheStore();"],
+                before: true,
+                [$"builder.Services.Add{f}();", string.Empty],
+                $"builder.Services.Add{f}();");
+            editor.Using(program, $"{p}.Application");
+        }
+
+        editor.Step = $"edit 5 ({composition})";
+        editor.PlaceInEachMethod(composition, "services.AddPurgeExpiredIdempotencyKeys();", before: true, $"        services.Add{f}();");
+        editor.Using(composition, $"{p}.Application");
+
+        string moduleTests = $"{ProjectOf(spec, "Tests/Application", "Application.UnitTests")}/ApplicationModuleTests.cs";
+
+        if (File.Exists(System.IO.Path.Combine(root, moduleTests)))
+        {
+            editor.Step = $"edit 6 ({moduleTests})";
+            editor.AppendToMethod(moduleTests, "ServiceCollection ComposeEveryFeature()", "services.Add", $"        services.Add{f}();");
+        }
+
+        if (spec.Reaction is { } adapter)
+        {
+            Reaction(editor, root, spec, hosts, adapter, composition);
+        }
+
+        editor.Step = "the row of docs/README.md";
+        editor.Row("docs/README.md", "## Features", ReadmeRow(spec), $"](features/{Kebab(f)}.md)");
+
+        //#if (api)
+        if (spec.HasApi)
+        {
+            List<string> section = RouteSection(spec);
+
+            editor.Step = "the route section of docs/reference/api.md";
+            editor.Section("docs/reference/api.md", "## Routes", [.. section, string.Empty], section[2]);
+
+            if (flags.Contains("notfound"))
+            {
+                editor.Step = "the error-code row of docs/reference/api.md";
+                editor.Row("docs/reference/api.md", "### Resources", ErrorRow(spec), $"| `{Lower(a)}.notFound` |");
+            }
+        }
+
+        //#endif
+        return editor;
+    }
+
+    private static void Reaction(TextEdits.Editor editor, string root, Spec spec, string[] hosts, string adapter, string composition)
+    {
+        string p = spec.Prefix;
+        string jobsHost = JobsHost(root, p);
+        string directory = adapter == "Auth" ? "AccountUserAccountDirectory" : "ExternalIdentityUserAccountDirectory";
+        string module = adapter == "Auth" ? "services.AddAuthModule(configuration);" : "services.AddExternalIdentityPersistence(configuration);";
+
+        string core = $"{ProjectOf(spec, "Src/Application", "Application.Core")}/ApplicationCoreModule.cs";
+        editor.Step = $"edit 7 ({core})";
+        editor.Place(
+            core,
+            ["public static IServiceCollection AddUseCasePipeline("],
+            before: true,
+            [.. SweepMethod().Select(line => line.Length == 0 ? line : "    " + line), string.Empty],
+            "public static IServiceCollection AddDeletedAccountSweep(");
+
+        string program = $"Src/Presentation/{jobsHost}/Program.cs";
+        editor.Step = $"edit 8 ({program})";
+        editor.Place(
+            program,
+            ["builder.Services.AddPurgeExpiredIdempotencyKeys();"],
+            before: false,
+            [string.Empty, "builder.Services.AddDeletedAccountSweep();"],
+            "builder.Services.AddDeletedAccountSweep();");
+        editor.Using(program, $"{p}.Application.Core");
+
+        string jobs = $"Src/Presentation/{jobsHost}/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs";
+        editor.Step = $"edit 9 ({jobs})";
+        editor.Place(jobs, ["services.AddMaintenanceJobs(configuration);"], before: false, ["        services.AddDeletedAccountSweepJobs(configuration);"], "services.AddDeletedAccountSweepJobs(");
+
+        foreach (string host in hosts)
+        {
+            string hostComposition = HostComposition(root, host, adapter);
+            editor.Step = $"edit 10 ({hostComposition})";
+            editor.Place(
+                hostComposition,
+                [module],
+                before: false,
+                [string.Empty, $"        services.AddScoped<IUserAccountDirectory, {directory}>();"],
+                "services.AddScoped<IUserAccountDirectory, ");
+            editor.Using(hostComposition, $"{p}.Application.Core.Common.Ports");
+        }
+
+        editor.Step = $"edit 11 ({composition})";
+        editor.PlaceInEachMethod(composition, "services.AddPurgeExpiredIdempotencyKeys();", before: false, "        services.AddDeletedAccountSweep();");
+        editor.PlaceInEachMethod(
+            composition,
+            "services.AddScoped<ICurrentAccessToken, ArchitectureTestCurrentAccessToken>();",
+            before: false,
+            "        services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();");
+        editor.Place(
+            composition,
+            ["internal sealed class ArchitectureTestBackgroundAuditActor"],
+            before: true,
+            [.. DirectoryDouble(), string.Empty],
+            "internal sealed class ArchitectureTestUserAccountDirectory");
     }
 
     private static List<string> RouteSection(Spec spec)
@@ -1493,6 +1868,12 @@ internal static class NewFeature
             CombinationCases(scratch, Expect);
             NamingAndPrefixCases(scratch, Expect);
             SubsetCases(scratch, Expect);
+            AppliedCases(scratch, Expect);
+            AllOrNothingCases(scratch, Expect);
+            IdempotenceCases(scratch, Expect);
+            DryRunCases(scratch, Expect);
+            PreconditionCases(scratch, Expect);
+            StepCases(scratch, Expect);
             NoOverwriteCases(scratch, Expect);
             ManifestCases(scratch, Expect);
             RollbackCases(scratch, Expect);
@@ -1542,33 +1923,238 @@ internal static class NewFeature
 
         File.WriteAllText(System.IO.Path.Combine(root, "cleanarch.json"), "{\n  \"name\": \"Acme\"\n}\n");
 
-        File.WriteAllText(
-            System.IO.Path.Combine(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs"),
-            "// the context a person edits\n");
+        foreach (var (path, content) in ComposableFiles())
+        {
+            Put(root, path, content);
+        }
 
         if (reaction)
         {
-            string ports = System.IO.Path.Combine(root, "Src/Application/A.Application.Core/Common/Ports");
-
-            Directory.CreateDirectory(ports);
-            File.WriteAllText(
-                System.IO.Path.Combine(ports, "IDeletedAccountDataPolicy.cs"),
-                "// the reaction this tree already ships\n");
+            Put(root, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs", "// the reaction this tree already ships\n");
         }
         else
         {
-            Directory.CreateDirectory(System.IO.Path.Combine(root, "Src/Presentation/A.Api/Features/Auth"));
+            Put(root, "Src/Application/A.Application.Core/ApplicationCoreModule.cs", _coreModule);
+            Put(root, "Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs", "        services.AddAuthModule(configuration);\n");
+            Put(root, "Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "        services.AddMaintenanceJobs(configuration);\n");
         }
 
         return root;
     }
 
-    private static (int Code, string Output, string Error) Invoke(string root, params string[] args)
+    private static void Put(string root, string relative, string content)
+    {
+        string full = System.IO.Path.Combine(root, relative);
+
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+        File.WriteAllText(full, content);
+    }
+
+    private const string _coreModule =
+        """
+        namespace Acme.Application.Core;
+
+        public static class ApplicationCoreModule
+        {
+            public static IServiceCollection AddPurgeExpiredIdempotencyKeys(this IServiceCollection services) =>
+                services.AddUseCasePipeline();
+
+            public static IServiceCollection AddUseCasePipeline(this IServiceCollection services) => services;
+        }
+
+        """;
+
+    private const string _hostProgram =
+        """
+        using Acme.Application.Core;
+
+        builder.Services.AddPurgeExpiredIdempotencyKeys();
+
+        builder.Services.AddCacheStore();
+
+        """;
+
+    private static (string Path, string Content)[] ComposableFiles() =>
+    [
+        (
+            "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs",
+            """
+            using Microsoft.EntityFrameworkCore;
+
+            namespace Acme.Infrastructure.Persistence.Common.Contexts;
+
+            public sealed class AppDbContext : DbContext
+            {
+                public const string PlatformSchema = "platform";
+
+                internal DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
+                }
+            }
+
+            """),
+        ("Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "// the initial migration's snapshot\n"),
+        (
+            "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs",
+            """
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace Acme.Infrastructure.Persistence;
+
+            public static class PersistenceModule
+            {
+                public static IServiceCollection AddPersistenceModule(this IServiceCollection services, IConfiguration configuration)
+                {
+                    AddIdempotencyFeature(services, configuration);
+
+                    return services;
+                }
+
+                private static void AddIdempotencyFeature(IServiceCollection services, IConfiguration configuration)
+                {
+                }
+            }
+
+            """),
+        (
+            "Src/Application/A.Application/ApplicationModule.cs",
+            """
+            using Acme.Application.Core;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace Acme.Application;
+
+            public static class ApplicationModule
+            {
+                private static void AddFeature(this IServiceCollection services, string vertical)
+                {
+                }
+            }
+
+            """),
+        ("Src/Presentation/A.Api/Program.cs", _hostProgram),
+        (
+            "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs",
+            """
+            namespace Acme.Application.UnitTests;
+
+            public sealed class ApplicationModuleTests
+            {
+                [Fact]
+                public void EveryValidator_IsRegisteredOnce()
+                {
+                    var services = ComposeEveryFeature();
+                }
+
+                [Fact]
+                public void AFeatureCall_RegistersItsOwnVerticalAndNoOther()
+                {
+                    var services = new ServiceCollection();
+                    services.AddTodoLists();
+
+                    services.ShouldNotBeEmpty();
+                }
+
+                private static ServiceCollection ComposeEveryFeature()
+                {
+                    var services = new ServiceCollection();
+
+                    services.AddTodoLists();
+
+                    return services;
+                }
+            }
+
+            """),
+        (
+            "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs",
+            """
+            using Acme.Application.Core;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace Acme.Architecture.Tests.Composition;
+
+            internal static class HostComposition
+            {
+                internal static ServiceCollection ComposeApi(IConfiguration configuration)
+                {
+                    services.AddPurgeExpiredIdempotencyKeys();
+                    services.AddPersistenceModule(configuration);
+                }
+
+                internal static ServiceCollection ComposeBackgroundOnly(IConfiguration configuration)
+                {
+                    services.AddPurgeExpiredIdempotencyKeys();
+                    services.AddPersistenceModule(configuration);
+                }
+
+                private static void AddHostSuppliedAdapters(IServiceCollection services)
+                {
+                    services.AddScoped<ICurrentAccessToken, ArchitectureTestCurrentAccessToken>();
+                }
+
+                private static void AddBackgroundOnlyAdapters(IServiceCollection services)
+                {
+                    services.AddScoped<ICurrentAccessToken, ArchitectureTestCurrentAccessToken>();
+                }
+            }
+
+            internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor
+            {
+            }
+
+            """),
+        (
+            "docs/README.md",
+            """
+            # Documentation
+
+            ## Features
+
+            | Page | Answers |
+            |---|---|
+            | [Email](features/email.md) | how mail is sent |
+
+            ## Reference
+
+            """),
+        (
+            "docs/reference/api.md",
+            """
+            # API
+
+            ## Routes
+
+            ### Health
+
+            | Method | Route | Success | Notes |
+            |---|---|---|---|
+            | GET | `/health/live` | 200 | |
+
+            ## Error codes
+
+            ### Resources
+
+            | `code` | Status | When |
+            |---|---|---|
+            | `domain.invariantViolated` | 409 | A domain rule refused the change |
+
+            ### The request itself
+
+            """),
+    ];
+
+    private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, _ => 0, args);
+
+    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args)
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = Run([.. args, "--root", root], output, error);
+        int code = Run([.. args, "--root", root], output, error, run);
 
         return (code, output.ToString(), error.ToString());
     }
@@ -1720,13 +2306,24 @@ internal static class NewFeature
         Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
         File.WriteAllText(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
 
-        var contract = Invoke(contractRoot, "Notes", "Note", "--access", "shared");
+        var ran = new List<TextEdits.Command>();
+        var contract = Invoke(contractRoot, Recording(ran), "Notes", "Note", "--access", "shared");
 
         expect(
-            contract.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal)
-                && contract.Output.Contains("dotnet run Tools/Tasks.cs api-client", StringComparison.Ordinal)
-                && contract.Output.Contains("pnpm api    (in Src/Web)", StringComparison.Ordinal),
-            "The OpenAPI, client and web steps are not all printed for a project that holds the client and the web workspace.");
+            ran.Select(command => command.Display).SequenceEqual(
+            [
+                "dotnet run Tools/Tasks.cs migration-check",
+                "dotnet run Tools/Tasks.cs build",
+                "dotnet run Tools/Tasks.cs migration-add AddNotes",
+                "dotnet run Tools/Tasks.cs openapi",
+                "dotnet run Tools/Tasks.cs api-client",
+                "cd Src/Web && pnpm api",
+            ]),
+            $"The check, the build, the migration, the OpenAPI reference, the client and the web schema were not run in that order: {string.Join(" | ", ran.Select(command => command.Display))}");
+        expect(
+            ran.Last().WorkingDirectory == System.IO.Path.Combine(contractRoot, "Src", "Web") && ran.Last().Arguments.SequenceEqual(["api"]),
+            "pnpm api did not run in Src/Web.");
+        expect(contract.Output.Contains("Running cd Src/Web && pnpm api", StringComparison.Ordinal), "The web step was not announced.");
 
         string vowelRoot = NewTree(scratch);
         var vowel = Invoke(vowelRoot, "Invoices", "Invoice", "--access", "shared");
@@ -1737,6 +2334,312 @@ internal static class NewFeature
         expect(
             vowelTests.Contains("GetAsync_AnInvoiceThatIsNotThere_IsNotFound", StringComparison.Ordinal) && !vowelTests.Contains("_AInvoice", StringComparison.Ordinal),
             "A test name does not give a feature named with a vowel the article 'An'.");
+    }
+
+    private static Func<TextEdits.Command, int> Recording(List<TextEdits.Command> ran, string? failing = null) =>
+        command =>
+        {
+            ran.Add(command);
+
+            return command.Display == failing ? 1 : 0;
+        };
+
+    private static void AppliedCases(string scratch, Action<bool, string> expect)
+    {
+        string root = NewTree(scratch);
+        var before = Snapshot(root);
+        var ran = new List<TextEdits.Command>();
+        var result = Invoke(root, Recording(ran), "Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag");
+        var after = Snapshot(root);
+
+        expect(result.Code == 0, $"The applied run was refused: {result.Error}");
+
+        (string Path, string Line)[] wiring =
+        [
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "public const string WidgetsSchema = \"widgets\";"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "internal DbSet<WidgetRecord> Widgets => Set<WidgetRecord>();"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "modelBuilder.ApplyConfiguration(new WidgetRecordConfiguration());"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "using Acme.Infrastructure.Persistence.Features.Widgets.Rows.Configurations;"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "using Acme.Infrastructure.Persistence.Features.Widgets.Rows.Models;"),
+            ("Src/Application/A.Application/ApplicationModule.cs", "public static IServiceCollection AddWidgets(this IServiceCollection services)"),
+            ("Src/Application/A.Application/ApplicationModule.cs", "services.AddFeature(\"Widgets\");"),
+            ("Src/Application/A.Application/ApplicationModule.cs", "services.AddScoped<IWidgetService, WidgetService>();"),
+            ("Src/Application/A.Application/ApplicationModule.cs", "services.AddScoped<IDeletedAccountDataPolicy, DeleteWidgetOnAccountDeletedConsumer>();"),
+            ("Src/Application/A.Application/ApplicationModule.cs", "using Acme.Application.Features.Widgets.Services.Consumers;"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs", "AddWidgetsFeature(services);"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs", "AddScopedTracker<WidgetTracker, IWidgetTracker>(services);"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs", "services.TryAddScoped<IWidgetRepository, WidgetRepository>();"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs", "using Acme.Domain.Features.Widgets.Repositories;"),
+            ("Src/Presentation/A.Api/Program.cs", "builder.Services.AddWidgets();"),
+            ("Src/Presentation/A.Api/Program.cs", "using Acme.Application;"),
+            ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "using Acme.Application;"),
+            ("docs/README.md", "| [Widgets](features/widgets.md) | what a caller can do with it |"),
+            //#if (api)
+            ("docs/reference/api.md", "Under `/api/v1/widgets`."),
+            ("docs/reference/api.md", "| `widget.notFound` | 404 | Missing, or another caller's |"),
+            //#endif
+        ];
+
+        foreach (var (path, line) in wiring)
+        {
+            expect(Occurrences(root, path, line) == 1, $"The applied run did not leave '{line}' once in {path}.");
+        }
+
+        expect(
+            Occurrences(root, "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "services.AddWidgets();") == 2,
+            "The feature was not composed once in each composition of the architecture tests.");
+
+        string[] moduleTests = File.ReadAllLines(System.IO.Path.Combine(root, "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs"));
+        int composed = Array.FindIndex(moduleTests, line => line.Trim() == "services.AddWidgets();");
+
+        expect(
+            moduleTests.Count(line => line.Trim() == "services.AddWidgets();") == 1
+                && composed > Array.FindIndex(moduleTests, line => line.Contains("ServiceCollection ComposeEveryFeature()", StringComparison.Ordinal))
+                && moduleTests[composed - 1].Trim() == "services.AddTodoLists();",
+            "The feature was not composed in ComposeEveryFeature alone, after the features it composes.");
+
+        string[] usings = [.. File.ReadAllLines(System.IO.Path.Combine(root, "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs"))
+            .Where(line => line.StartsWith("using ", StringComparison.Ordinal))];
+
+        expect(
+            usings.SequenceEqual(usings.Order(StringComparer.OrdinalIgnoreCase)),
+            $"The usings added are out of order: {string.Join(" ", usings)}");
+
+        //#if (api)
+        string api = File.ReadAllText(System.IO.Path.Combine(root, "docs/reference/api.md"));
+
+        expect(
+            api.IndexOf("### Widgets", StringComparison.Ordinal) is var section and > 0
+                && section > api.IndexOf("### Health", StringComparison.Ordinal)
+                && section < api.IndexOf("## Error codes", StringComparison.Ordinal),
+            "The route section was not placed after the others under ## Routes.");
+        //#endif
+
+        using (var document = JsonDocument.Parse(File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest/Widgets.json"))))
+        {
+            var edits = document.RootElement.GetProperty("edits").EnumerateArray().ToList();
+
+            string[] edited = [.. before.Keys.Where(path => after[path] != before[path]).Order(StringComparer.Ordinal)];
+
+            expect(
+                edited.SequenceEqual(edits.Select(edit => edit.GetProperty("path").GetString()!).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)),
+                $"The manifest records edits in other files than the run edited: {string.Join(", ", edited)}");
+
+            foreach (string path in edited)
+            {
+                List<string> file = [.. File.ReadAllLines(System.IO.Path.Combine(root, path))];
+
+                foreach (var edit in edits.Where(edit => edit.GetProperty("path").GetString() == path))
+                {
+                    string anchor = edit.GetProperty("anchor").GetString()!;
+                    bool preceding = edit.GetProperty("position").GetString() == "before";
+                    string[] lines = [.. edit.GetProperty("lines").EnumerateArray().Select(line => line.GetString()!)];
+                    int at = Enumerable.Range(0, file.Count).FirstOrDefault(
+                        index => file[index] == anchor
+                            && (preceding
+                                ? index >= lines.Length && file.Skip(index - lines.Length).Take(lines.Length).SequenceEqual(lines)
+                                : file.Skip(index + 1).Take(lines.Length).SequenceEqual(lines)),
+                        -1);
+
+                    expect(at >= 0, $"The manifest records lines {(preceding ? "before" : "after")} '{anchor}' in {path} that are not there.");
+
+                    if (at >= 0)
+                    {
+                        file.RemoveRange(preceding ? at - lines.Length : at + 1, lines.Length);
+                    }
+                }
+
+                expect(
+                    Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', file) + "\n"))) == before[path],
+                    $"Undoing the edits the manifest records in {path} does not give back the file as it was.");
+            }
+
+            expect(
+                edits.Any(edit => edit.GetProperty("path").GetString() == "docs/README.md"),
+                "The manifest does not record the row of docs/README.md.");
+        }
+
+        expect(
+            ran.Select(command => command.Display).SequenceEqual(
+            [
+                "dotnet run Tools/Tasks.cs migration-check",
+                "dotnet run Tools/Tasks.cs build",
+                "dotnet run Tools/Tasks.cs migration-add AddWidgets",
+                "dotnet run Tools/Tasks.cs openapi",
+            ]),
+            $"The applied run did not check, build, migrate and rewrite the OpenAPI reference in that order: {string.Join(" | ", ran.Select(command => command.Display))}");
+        expect(ran.All(command => command.WorkingDirectory == root || command.WorkingDirectory.StartsWith(root, StringComparison.Ordinal)), "A step ran outside the tree.");
+    }
+
+    private static void AllOrNothingCases(string scratch, Action<bool, string> expect)
+    {
+        (string Path, string Line, string Edit)[] anchors =
+        [
+            ("Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", "    public const string PlatformSchema = \"platform\";", "edit 1"),
+            ("Src/Application/A.Application/ApplicationModule.cs", "    private static void AddFeature(this IServiceCollection services, string vertical)", "edit 2"),
+            ("Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs", "        AddIdempotencyFeature(services, configuration);", "edit 3"),
+            ("Src/Presentation/A.Api/Program.cs", "builder.Services.AddCacheStore();", "edit 4"),
+            ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "        services.AddPurgeExpiredIdempotencyKeys();", "edit 5"),
+            ("Src/Application/A.Application.Core/ApplicationCoreModule.cs", "    public static IServiceCollection AddUseCasePipeline(this IServiceCollection services) => services;", "edit 7"),
+            ("Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "        services.AddMaintenanceJobs(configuration);", "edit 9"),
+            ("Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs", "        services.AddAuthModule(configuration);", "edit 10"),
+            ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor", "edit 11"),
+            ("docs/README.md", "## Features", "docs/README.md"),
+            //#if (api)
+            ("docs/reference/api.md", "## Error codes", "the route section"),
+            //#endif
+        ];
+
+        foreach (var (path, line, edit) in anchors)
+        {
+            string root = WithPageTemplate(NewTree(scratch, reaction: false));
+            string full = System.IO.Path.Combine(root, path);
+
+            File.WriteAllLines(
+                full,
+                File.ReadAllLines(full).Where(candidate => candidate != line && !(edit == "edit 4" && candidate == "builder.Services.AddPurgeExpiredIdempotencyKeys();")));
+
+            var before = Snapshot(root);
+            var ran = new List<TextEdits.Command>();
+            var result = Invoke(root, Recording(ran), "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
+
+            expect(result.Code == 1, $"[{edit}] a missing anchor in {path} was not refused.");
+            expect(Same(before, Snapshot(root)), $"[{edit}] a missing anchor in {path} left a file written or edited.");
+            expect(ran.Count == 0, $"[{edit}] a missing anchor in {path} still ran {string.Join(", ", ran.Select(command => command.Display))}.");
+            expect(
+                result.Error.Contains($"error: {edit}", StringComparison.Ordinal) || result.Error.Contains(edit, StringComparison.Ordinal),
+                $"[{edit}] the refusal does not name the edit that failed: {result.Error.Split('\n')[0]}");
+            expect(result.Error.Contains("Nothing was written", StringComparison.Ordinal), $"[{edit}] the refusal does not say nothing was written.");
+            expect(
+                result.Output.Contains("Eleven edits", StringComparison.Ordinal) && result.Output.Contains(" 11. ", StringComparison.Ordinal),
+                $"[{edit}] the refusal does not print the edits to make by hand.");
+        }
+
+        string gone = NewTree(scratch);
+
+        File.Delete(System.IO.Path.Combine(gone, "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs"));
+
+        var goneBefore = Snapshot(gone);
+        var missing = Invoke(gone, "Widgets", "Widget", "--access", "shared");
+
+        expect(
+            missing.Code == 1 && Same(goneBefore, Snapshot(gone)) && missing.Error.Contains("PersistenceModule.cs does not exist", StringComparison.Ordinal),
+            "A shared file that is gone was not refused cleanly, naming it.");
+    }
+
+    private static void IdempotenceCases(string scratch, Action<bool, string> expect)
+    {
+        string root = NewTree(scratch);
+        string program = System.IO.Path.Combine(root, "Src/Presentation/A.Api/Program.cs");
+
+        File.WriteAllText(program, File.ReadAllText(program).Replace(
+            "builder.Services.AddPurgeExpiredIdempotencyKeys();",
+            "builder.Services.AddWidgets();\n\nbuilder.Services.AddPurgeExpiredIdempotencyKeys();",
+            StringComparison.Ordinal));
+
+        var first = Invoke(root, "Widgets", "Widget", "--access", "shared");
+
+        expect(first.Code == 0, $"A feature whose registration a person had written was refused: {first.Error}");
+        expect(Occurrences(root, "Src/Presentation/A.Api/Program.cs", "builder.Services.AddWidgets();") == 1, "An edit already in place was made a second time.");
+        expect(first.Output.Contains("Already in place", StringComparison.Ordinal), "An edit already in place was not reported as left alone.");
+        expect(
+            !File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest/Widgets.json")).Contains("builder.Services.AddWidgets();", StringComparison.Ordinal),
+            "An edit this run did not make is recorded in the manifest, so undoing the feature would remove a person's line.");
+
+        var afterFirst = Snapshot(root);
+
+        Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/20260101000000_AddWidgets.cs", "// the feature's migration\n");
+
+        var ran = new List<TextEdits.Command>();
+        var again = Invoke(root, Recording(ran), "Widgets", "Widget", "--access", "shared");
+        var afterAgain = Snapshot(root);
+
+        expect(again.Code == 0, $"Running the same command again failed: {again.Error}");
+        expect(
+            afterFirst.All(pair => afterAgain.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
+            "Running the same command again changed a file.");
+        expect(
+            ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs openapi"]),
+            $"Running the same command again did not resume with the build and the OpenAPI reference alone: {string.Join(" | ", ran.Select(command => command.Display))}");
+
+        foreach (string line in new[] { "builder.Services.AddWidgets();", "using Acme.Application;" })
+        {
+            expect(Occurrences(root, "Src/Presentation/A.Api/Program.cs", line) == 1, $"'{line}' is in Program.cs other than once after two runs.");
+        }
+
+        var dry = Invoke(root, Recording(ran = []), "Widgets", "Widget", "--access", "shared", "--dry-run");
+
+        expect(dry.Code == 0 && ran.Count == 0 && Same(afterAgain, Snapshot(root)), "A dry run over a feature already written ran or wrote something.");
+    }
+
+    private static void DryRunCases(string scratch, Action<bool, string> expect)
+    {
+        string root = WithPageTemplate(NewTree(scratch, reaction: false));
+        var before = Snapshot(root);
+        var ran = new List<TextEdits.Command>();
+        var result = Invoke(root, Recording(ran), "Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--dry-run");
+
+        expect(result.Code == 0, $"A dry run was refused: {result.Error}");
+        expect(Same(before, Snapshot(root)), "A dry run wrote or edited a file.");
+        expect(ran.Count == 0, $"A dry run ran {string.Join(", ", ran.Select(command => command.Display))}.");
+        expect(
+            result.Output.Contains("Eleven edits", StringComparison.Ordinal)
+                && result.Output.Contains("  1. Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", StringComparison.Ordinal)
+                && result.Output.Contains("dotnet run Tools/Tasks.cs migration-add AddWidgets", StringComparison.Ordinal)
+                && result.Output.Contains("nothing was written and nothing was run", StringComparison.Ordinal),
+            "A dry run did not print the edits and the steps a run makes.");
+    }
+
+    private static void PreconditionCases(string scratch, Action<bool, string> expect)
+    {
+        string pending = NewTree(scratch);
+        var before = Snapshot(pending);
+        var ran = new List<TextEdits.Command>();
+        var refused = Invoke(pending, Recording(ran, failing: "dotnet run Tools/Tasks.cs migration-check"), "Widgets", "Widget", "--access", "shared");
+
+        expect(refused.Code == 1 && Same(before, Snapshot(pending)), "A model change no migration holds did not stop the run before it wrote.");
+        expect(
+            ran.Select(command => command.Display).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check"]),
+            "A run refused for a pending model change ran more than the check.");
+        expect(
+            refused.Error.Contains("migration-add <Name>", StringComparison.Ordinal) && refused.Error.Contains("Nothing was written.", StringComparison.Ordinal),
+            "The refusal for a pending model change does not say what to do.");
+
+        string unmigrated = NewTree(scratch);
+
+        Directory.Delete(System.IO.Path.Combine(unmigrated, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations"), recursive: true);
+
+        var bare = Snapshot(unmigrated);
+        var none = Invoke(unmigrated, Recording(ran = []), "Widgets", "Widget", "--access", "shared");
+
+        expect(none.Code == 1 && Same(bare, Snapshot(unmigrated)) && ran.Count == 0, "A context without its initial migration did not stop the run before it wrote or ran.");
+        expect(none.Error.Contains("has no initial migration", StringComparison.Ordinal) && none.Error.Contains("bootstrap", StringComparison.Ordinal), "The refusal for a missing initial migration does not say what to do.");
+
+        string identity = NewTree(scratch);
+
+        Directory.CreateDirectory(System.IO.Path.Combine(identity, "Src/Infrastructure/A.Infrastructure.Auth"));
+
+        var withAuth = Invoke(identity, "Widgets", "Widget", "--access", "shared");
+
+        expect(withAuth.Code == 1 && withAuth.Error.Contains("A.Infrastructure.Auth has no initial migration", StringComparison.Ordinal), "The identity context's missing initial migration was not refused.");
+    }
+
+    private static void StepCases(string scratch, Action<bool, string> expect)
+    {
+        string root = NewTree(scratch);
+        var ran = new List<TextEdits.Command>();
+        var result = Invoke(root, Recording(ran, failing: "dotnet run Tools/Tasks.cs migration-add AddWidgets"), "Widgets", "Widget", "--access", "shared");
+
+        expect(result.Code == 1, "A failed step did not fail the command.");
+        expect(
+            ran.Select(command => command.Display).SequenceEqual(
+                ["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs migration-add AddWidgets"]),
+            $"The steps did not stop at the one that failed: {string.Join(" | ", ran.Select(command => command.Display))}");
+        expect(
+            result.Error.Contains("then `dotnet run Tools/Tasks.cs build`", StringComparison.Ordinal)
+                && result.Error.Contains("  dotnet run Tools/Tasks.cs migration-add AddWidgets\n  dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal),
+            $"A failed step does not say what is done and the commands that remain: {result.Error}");
+        expect(File.Exists(System.IO.Path.Combine(root, ".feature-manifest/Widgets.json")), "A failed step undid the files written, which are consistent without it.");
     }
 
     private static void SubsetCases(string scratch, Action<bool, string> expect)
@@ -1804,12 +2707,26 @@ internal static class NewFeature
 
                 string[] created = [.. after.Keys.Except(before.Keys, StringComparer.Ordinal).Where(path => path.EndsWith(".cs", StringComparison.Ordinal))];
 
-                expect(before.All(pair => after[pair.Key] == pair.Value), $"[{label}] edited a file that already existed.");
+                expect(
+                    before.All(pair => after[pair.Key] == pair.Value || _composingFiles.Contains(pair.Key, StringComparer.Ordinal)),
+                    $"[{label}] edited a file that already existed and composes no feature: {string.Join(", ", before.Where(pair => after[pair.Key] != pair.Value && !_composingFiles.Contains(pair.Key, StringComparer.Ordinal)).Select(pair => pair.Key))}");
 
                 SubsetExpectations(root, label, features, type, model, access, concurrency, deletion, operations, created, expect);
             }
         }
     }
+
+    private static readonly string[] _composingFiles =
+    [
+        "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs",
+        "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs",
+        "Src/Application/A.Application/ApplicationModule.cs",
+        "Src/Presentation/A.Api/Program.cs",
+        "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs",
+        "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs",
+        "docs/README.md",
+        "docs/reference/api.md",
+    ];
 
     private static void SubsetExpectations(
         string root,
@@ -1991,8 +2908,13 @@ internal static class NewFeature
         var second = Invoke(root, "Gadgets", "Gadget", "--access", "owner", "--deletion", "delete");
 
         expect(first.Code == 0, "The first generation was refused.");
-        expect(second.Code == 1 && second.Error.Contains("already exists", StringComparison.Ordinal), "Generating the same feature twice was not refused.");
-        expect(Same(afterFirst, Snapshot(root)), "The refused second generation changed the tree.");
+        expect(second.Code == 0 && second.Output.Contains("nothing is written again", StringComparison.Ordinal), "Generating the same feature twice did not say it had nothing to write.");
+        expect(Same(afterFirst, Snapshot(root)), "Generating the same feature twice changed the tree.");
+
+        var otherwise = Invoke(root, "Gadgets", "Gadget", "--access", "shared");
+
+        expect(otherwise.Code == 1 && otherwise.Error.Contains("already exists", StringComparison.Ordinal), "Generating the same feature with other options was not refused.");
+        expect(Same(afterFirst, Snapshot(root)), "The refused generation with other options changed the tree.");
 
         string other = NewTree(scratch);
         string inTheWay = System.IO.Path.Combine(other, "Src/Application/A.Application/Features/Widgets/Model/Errors/WidgetErrors.cs");
@@ -2043,7 +2965,7 @@ internal static class NewFeature
         var manifest = document.RootElement;
         var options = manifest.GetProperty("options");
 
-        expect(manifest.GetProperty("schemaVersion").GetInt32() == 1, "The manifest has no schema version.");
+        expect(manifest.GetProperty("schemaVersion").GetInt32() == 2, "The manifest does not have schema version 2, the one that records the edits.");
         expect(manifest.GetProperty("feature").GetString() == "Notes" && manifest.GetProperty("type").GetString() == "Note", "The manifest names the wrong feature.");
         expect(options.GetProperty("access").GetString() == "owner", "The manifest records the wrong access.");
         expect(options.GetProperty("concurrency").GetString() == "etag", "The manifest records the wrong concurrency.");
@@ -2095,6 +3017,9 @@ internal static class NewFeature
             "A tree that ships the reaction had its account directory re-emitted.");
         expect(present.Output.Contains("Six edits", StringComparison.Ordinal), "A tree that ships the reaction was told to edit more than six places.");
         expect(!present.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "A tree that ships the reaction was told to register its sweep again.");
+        expect(
+            !File.ReadAllText(System.IO.Path.Combine(shipped, "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs")).Contains("AddDeletedAccountSweep", StringComparison.Ordinal),
+            "A tree that ships the reaction had its sweep registered again.");
 
         string bare = NewTree(scratch, reaction: false);
         var bareTree = Snapshot(bare);
@@ -2125,6 +3050,25 @@ internal static class NewFeature
 
         expect(first.Output.Contains("Eleven edits", StringComparison.Ordinal), "The reaction's registrations were not printed as edits.");
         expect(first.Output.Contains("AddDeletedAccountSweep", StringComparison.Ordinal), "The sweep registration was not printed.");
+
+        (string Path, string Line, int Count)[] wiring =
+        [
+            ("Src/Application/A.Application.Core/ApplicationCoreModule.cs", "public static IServiceCollection AddDeletedAccountSweep(this IServiceCollection services)", 1),
+            ("Src/Presentation/A.Api/Program.cs", "builder.Services.AddDeletedAccountSweep();", 1),
+            ("Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "services.AddDeletedAccountSweepJobs(configuration);", 1),
+            ("Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs", "services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();", 1),
+            ("Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs", "using Acme.Application.Core.Common.Ports;", 1),
+            ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "services.AddDeletedAccountSweep();", 2),
+            ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "services.AddScoped<IUserAccountDirectory, ArchitectureTestUserAccountDirectory>();", 2),
+            ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "internal sealed class ArchitectureTestUserAccountDirectory : IUserAccountDirectory", 1),
+            ("Src/Application/A.Application/ApplicationModule.cs", "services.AddDomainEventConsumer<UserAccountDeleted, DeleteWidgetOnAccountDeletedConsumer>();", 1),
+            ("Src/Application/A.Application/ApplicationModule.cs", "using Acme.Application.Core.Common.Events;", 1),
+        ];
+
+        foreach (var (path, line, count) in wiring)
+        {
+            expect(Occurrences(bare, path, line) == count, $"The first owner feature did not leave '{line}' {count} time(s) in {path}.");
+        }
 
         int eleventh = first.Output.IndexOf(" 11. ", StringComparison.Ordinal);
         string hostEdit = eleventh < 0 ? string.Empty : first.Output[eleventh..];
@@ -2161,13 +3105,13 @@ internal static class NewFeature
         var shared = Invoke(other, "Widgets", "Widget", "--access", "shared");
 
         expect(shared.Code == 0, $"A shared feature into a bare tree was refused: {shared.Error.Split('\n')[0]}");
-        expect(!Directory.Exists(System.IO.Path.Combine(other, "Src/Application/A.Application.Core")), "A shared feature brought the reaction with it.");
+        expect(!File.Exists(System.IO.Path.Combine(other, "Src/Application/A.Application.Core/Common/Ports/IDeletedAccountDataPolicy.cs")), "A shared feature brought the reaction with it.");
         expect(shared.Output.Contains("Six edits", StringComparison.Ordinal), "A shared feature was told to edit more than six places.");
 
         string external = NewTree(scratch, reaction: false);
 
-        Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/A.Api/Features/Auth"));
-        Directory.CreateDirectory(System.IO.Path.Combine(external, "Src/Presentation/A.Api/Features/ExternalIdentity"));
+        Directory.Delete(System.IO.Path.Combine(external, "Src/Presentation/A.Api/Features/Auth"), recursive: true);
+        Put(external, "Src/Presentation/A.Api/Features/ExternalIdentity/Composition/ExternalAuthenticationComposition.cs", "        services.AddExternalIdentityPersistence(configuration);\n");
 
         var externalTree = Snapshot(external);
         var mapped = Invoke(external, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -2183,9 +3127,8 @@ internal static class NewFeature
         string presented = NewTree(scratch, reaction: false);
         string portal = System.IO.Path.Combine(presented, "Src/Presentation/A.Portal");
 
-        Directory.CreateDirectory(System.IO.Path.Combine(portal, "Features/Auth/Composition"));
-        File.WriteAllText(System.IO.Path.Combine(portal, "Program.cs"), "builder.Services.AddCookieSessions(builder.Configuration);\n");
-        File.WriteAllText(System.IO.Path.Combine(portal, "Features/Auth/Composition/CookieSessionComposition.cs"), "services.AddAuthModule(configuration);\n");
+        Put(presented, "Src/Presentation/A.Portal/Program.cs", "builder.Services.AddCookieSessions(builder.Configuration);\n\nbuilder.Services.AddCacheStore();\n");
+        Put(presented, "Src/Presentation/A.Portal/Features/Auth/Composition/CookieSessionComposition.cs", "        services.AddAuthModule(configuration);\n");
 
         var presentedTree = Snapshot(presented);
         var hosted = Invoke(presented, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -2202,6 +3145,10 @@ internal static class NewFeature
         expect(
             hosted.Output.Contains("Src/Presentation/A.Portal/Features/Auth/Composition/CookieSessionComposition.cs", StringComparison.Ordinal),
             "The directory's registration was not printed for the presentation host's composition.");
+        expect(
+            Occurrences(presented, "Src/Presentation/A.Portal/Program.cs", "builder.Services.AddWidgets();") == 1
+                && Occurrences(presented, "Src/Presentation/A.Portal/Features/Auth/Composition/CookieSessionComposition.cs", "services.AddScoped<IUserAccountDirectory, AccountUserAccountDirectory>();") == 1,
+            "The presentation host, which composes the features itself, was not given the feature's registration and the directory's.");
         ExpectRemovable(presented, presentedTree, "Widgets", 7, expect);
 
         string desktop = System.IO.Path.Combine(presented, "Src/Presentation/A.Desk");
@@ -2223,11 +3170,10 @@ internal static class NewFeature
         string working = NewTree(scratch, reaction: false);
         string worker = System.IO.Path.Combine(working, "Src/Presentation/A.Worker");
 
-        Directory.CreateDirectory(System.IO.Path.Combine(worker, "Features/BackgroundJobs/Jobs"));
-        Directory.CreateDirectory(System.IO.Path.Combine(worker, "Features/Auth/Composition"));
-        File.WriteAllText(System.IO.Path.Combine(worker, "Program.cs"), "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
-        File.WriteAllText(System.IO.Path.Combine(worker, "Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs"), "services.AddMaintenanceJobs(configuration);\n");
-        File.WriteAllText(System.IO.Path.Combine(worker, "Features/Auth/Composition/WorkerAuthComposition.cs"), "services.AddAuthModule(configuration);\n");
+        Directory.Delete(System.IO.Path.Combine(working, "Src/Presentation/A.Api/Features/BackgroundJobs"), recursive: true);
+        Put(working, "Src/Presentation/A.Worker/Program.cs", _hostProgram);
+        Put(working, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "        services.AddMaintenanceJobs(configuration);\n");
+        Put(working, "Src/Presentation/A.Worker/Features/Auth/Composition/WorkerAuthComposition.cs", "        services.AddAuthModule(configuration);\n");
 
         var workingTree = Snapshot(working);
         var swept = Invoke(working, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
@@ -2281,11 +3227,11 @@ internal static class NewFeature
     {
         Directory.Delete(System.IO.Path.Combine(root, "Src/Presentation/A.Api"), recursive: true);
         Directory.Delete(System.IO.Path.Combine(root, "Tests/Presentation/A.Api.UnitTests"), recursive: true);
+        File.Delete(System.IO.Path.Combine(root, "docs/reference/api.md"));
 
         foreach (string host in hosts)
         {
-            Directory.CreateDirectory(System.IO.Path.Combine(root, "Src/Presentation", host));
-            File.WriteAllText(System.IO.Path.Combine(root, "Src/Presentation", host, "Program.cs"), "builder.Services.AddPurgeExpiredIdempotencyKeys();\n");
+            Put(root, $"Src/Presentation/{host}/Program.cs", _hostProgram);
         }
 
         return root;
@@ -2329,6 +3275,11 @@ internal static class NewFeature
                 result.Output.Contains($"  4. Src/Presentation/A.Portal/Program.cs: builder.Services.Add{combination[0]}();", StringComparison.Ordinal)
                     && result.Output.Contains("     and Src/Presentation/A.Worker/Program.cs the same", StringComparison.Ordinal),
                 $"[{label}] without the API did not send the composition to the hosts that hold the feature.");
+            expect(
+                Occurrences(root, "Src/Presentation/A.Portal/Program.cs", $"builder.Services.Add{combination[0]}();") == 1
+                    && Occurrences(root, "Src/Presentation/A.Worker/Program.cs", $"builder.Services.Add{combination[0]}();") == 1
+                    && Occurrences(root, "Src/Presentation/A.Portal/Program.cs", $"using Acme.Application;") == 1,
+                $"[{label}] without the API did not compose the feature in each host's Program.cs.");
 
             string page = System.IO.Path.Combine(root, PagePath(combination[0]));
 
@@ -2340,10 +3291,9 @@ internal static class NewFeature
         string bare = WithPageTemplate(WithoutTheApi(NewTree(scratch, reaction: false), "A.Portal", "A.Worker"));
         string composition = "Src/Presentation/A.Portal/Features/ExternalIdentity/Composition/ExternalSignInComposition.cs";
 
-        Directory.CreateDirectory(System.IO.Path.Combine(bare, "Src/Presentation/A.Portal/Features/ExternalIdentity/Composition"));
-        File.WriteAllText(System.IO.Path.Combine(bare, composition), "services.AddExternalIdentityPersistence(configuration);\n");
-        Directory.CreateDirectory(System.IO.Path.Combine(bare, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs"));
-        File.WriteAllText(System.IO.Path.Combine(bare, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs"), "services.AddMaintenanceJobs(configuration);\n");
+        Put(bare, composition, "        services.AddExternalIdentityPersistence(configuration);\n");
+        Put(bare, "Src/Presentation/A.Worker/Features/ExternalIdentity/Composition/WorkerExternalIdentityComposition.cs", "        services.AddExternalIdentityPersistence(configuration);\n");
+        Put(bare, "Src/Presentation/A.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "        services.AddMaintenanceJobs(configuration);\n");
 
         var reacted = Invoke(bare, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
 
@@ -2466,7 +3416,7 @@ internal static class NewFeature
         var none = Invoke(bare, "Widgets", "Widget", "--access", "shared");
 
         expect(none.Code == 0, $"A tree without the page template was refused: {none.Error}");
-        expect(!Directory.Exists(System.IO.Path.Combine(bare, "docs")), "A page was written without a page template.");
+        expect(!Directory.Exists(System.IO.Path.Combine(bare, "docs/features")), "A page was written without a page template.");
         expect(none.Output.Contains($"'{_pageTemplate}' is not in this tree", StringComparison.Ordinal), "A missing page template is not reported.");
     }
 
@@ -2480,6 +3430,13 @@ internal static class NewFeature
         new(@"^Src/Presentation/[^/]+/Features/Auth/Composition/AccountUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
         new(@"^Src/Presentation/[^/]+/Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory\.cs$", RegexOptions.None, TimeSpan.FromSeconds(2)),
     ];
+
+    private static int Occurrences(string root, string path, string line)
+    {
+        string full = System.IO.Path.Combine(root, path);
+
+        return File.Exists(full) ? File.ReadAllLines(full).Count(candidate => candidate.Trim() == line) : -1;
+    }
 
     private static void ExpectRemovable(string root, Dictionary<string, string> before, string features, int count, Action<bool, string> expect)
     {
@@ -5902,4 +6859,526 @@ internal static class Templates
         }
         """;
 
+}
+
+internal static class TextEdits
+{
+    private static readonly UTF8Encoding _strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
+    internal sealed record Edit(string Path, string Anchor, string Position, string[] Lines);
+
+    internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments);
+
+    internal sealed class Sheet
+    {
+        private readonly bool _bom;
+
+        private readonly string _newline;
+
+        private readonly bool _finalNewline;
+
+        private readonly List<string> _lines;
+
+        private readonly List<bool> _inserted;
+
+        internal Sheet(string path, byte[] original)
+        {
+            Path = path;
+            Original = original;
+            _bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+
+            string text = _strictUtf8.GetString(original.AsSpan(_bom ? 3 : 0));
+
+            _newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+            _finalNewline = text.EndsWith('\n');
+            _lines = [.. (_finalNewline ? text[..^_newline.Length] : text).Split(_newline)];
+            _inserted = [.. _lines.Select(_ => false)];
+        }
+
+        internal string Path { get; }
+
+        internal byte[] Original { get; }
+
+        internal IReadOnlyList<string> Lines => _lines;
+
+        internal void Insert(int index, string[] lines)
+        {
+            _lines.InsertRange(index, lines);
+            _inserted.InsertRange(index, lines.Select(_ => true));
+        }
+
+        internal IEnumerable<Edit> Edits()
+        {
+            for (int start = 0; start < _lines.Count; start++)
+            {
+                if (!_inserted[start])
+                {
+                    continue;
+                }
+
+                int end = start;
+
+                while (end + 1 < _lines.Count && _inserted[end + 1])
+                {
+                    end++;
+                }
+
+                int next = end + 1 < _lines.Count ? end + 1 : -1;
+                int previous = start - 1;
+                bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+                yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", [.. _lines.Skip(start).Take(end - start + 1)]);
+
+                start = end;
+            }
+        }
+
+        internal byte[] Bytes()
+        {
+            byte[] text = Encoding.UTF8.GetBytes(string.Join(_newline, Lines) + (_finalNewline ? _newline : string.Empty));
+
+            return _bom ? [.. Encoding.UTF8.Preamble, .. text] : text;
+        }
+    }
+
+    internal sealed class Editor(string root)
+    {
+        private readonly Dictionary<string, Sheet?> _sheets = new(StringComparer.Ordinal);
+
+        internal string Step { get; set; } = string.Empty;
+
+        internal IReadOnlyList<Edit> Applied => [.. _sheets.Values.OfType<Sheet>().SelectMany(sheet => sheet.Edits())];
+
+        internal List<string> Kept { get; } = [];
+
+        internal List<string> Failures { get; } = [];
+
+        internal IEnumerable<Sheet> Changed =>
+            _sheets.Values.OfType<Sheet>().Where(sheet => !sheet.Original.AsSpan().SequenceEqual(sheet.Bytes()));
+
+        internal Sheet? Open(string path)
+        {
+            if (!_sheets.TryGetValue(path, out Sheet? sheet))
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                sheet = File.Exists(full) ? new Sheet(path, File.ReadAllBytes(full)) : null;
+                _sheets[path] = sheet;
+            }
+
+            if (sheet is null)
+            {
+                Fail($"{path} does not exist.");
+            }
+
+            return sheet;
+        }
+
+        internal void Fail(string reason) => Failures.Add(Step.Length == 0 ? reason : $"{Step}: {reason}");
+
+        internal static void Insert(Sheet sheet, int anchor, bool before, string[] lines) => sheet.Insert(before ? anchor : anchor + 1, lines);
+
+        internal static int Find(Sheet sheet, Func<string, bool> match, int from = 0, int to = -1)
+        {
+            int end = to < 0 ? sheet.Lines.Count : Math.Min(to, sheet.Lines.Count);
+
+            for (int index = Math.Max(from, 0); index < end; index++)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal static int FindLast(Sheet sheet, Func<string, bool> match, int from)
+        {
+            for (int index = Math.Min(from, sheet.Lines.Count - 1); index >= 0; index--)
+            {
+                if (match(sheet.Lines[index]))
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
+        internal void Place(string path, string[] anchors, bool before, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Trim().StartsWith(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int anchor = anchors
+                .Select(text => Find(sheet, line => line.Trim().StartsWith(text, StringComparison.Ordinal)))
+                .FirstOrDefault(index => index >= 0, -1);
+
+            if (anchor < 0)
+            {
+                Fail($"no line starts with '{string.Join("' or '", anchors)}', the line the edit is placed beside.");
+
+                return;
+            }
+
+            Insert(sheet, anchor, before, lines);
+        }
+
+        internal void PlaceInEachMethod(string path, string anchor, bool before, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int found = 0;
+
+            for (int index = 0; index < sheet.Lines.Count; index++)
+            {
+                if (sheet.Lines[index].Trim() != anchor)
+                {
+                    continue;
+                }
+
+                found++;
+
+                int start = FindLast(sheet, candidate => candidate == "    {", index);
+                int end = Find(sheet, candidate => candidate == "    }", index);
+
+                if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+                {
+                    Kept.Add(Step);
+
+                    continue;
+                }
+
+                Insert(sheet, index, before, [line]);
+                index++;
+            }
+
+            if (found == 0)
+            {
+                Fail($"no line reads '{anchor}', the line the edit is placed beside in each method.");
+            }
+        }
+
+        internal void AppendToMethod(string path, string method, string prefix, string line)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            int declaration = Find(sheet, candidate => candidate.Contains(method, StringComparison.Ordinal));
+            int start = declaration < 0 ? -1 : Find(sheet, candidate => candidate == "    {", declaration);
+            int end = start < 0 ? -1 : Find(sheet, candidate => candidate == "    }", start);
+
+            if (end < 0)
+            {
+                Fail($"no method{method} with a body was found to take the line.");
+
+                return;
+            }
+
+            if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int last = FindLast(sheet, candidate => candidate.Trim().StartsWith(prefix, StringComparison.Ordinal), end);
+
+            if (last <= start)
+            {
+                Fail($"the method{method} has no line starting with '{prefix}' to place the line after.");
+
+                return;
+            }
+
+            Insert(sheet, last, before: false, [line]);
+        }
+
+        internal void Using(string path, string space)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            string directive = $"using {space};";
+            int body = Find(sheet, line => !IsHeader(line));
+            int[] usings = [.. Enumerable.Range(0, body < 0 ? sheet.Lines.Count : body).Where(index => IsUsing(sheet.Lines[index]))];
+            string? own = sheet.Lines
+                .Select(line => line.Trim())
+                .FirstOrDefault(line => line.StartsWith("namespace ", StringComparison.Ordinal) && line.EndsWith(';'))?["namespace ".Length..^1];
+
+            if (usings.Any(index => sheet.Lines[index].Trim() == directive)
+                || (own is not null && (own == space || own.StartsWith(space + ".", StringComparison.Ordinal))))
+            {
+                return;
+            }
+
+            int following = usings.FirstOrDefault(index => Order(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
+
+            if (following >= 0)
+            {
+                Insert(sheet, following, before: true, [directive]);
+            }
+            else if (usings.Length > 0)
+            {
+                Insert(sheet, usings[^1], before: false, [directive]);
+            }
+            else
+            {
+                Insert(sheet, 0, before: true, [directive, string.Empty]);
+            }
+        }
+
+        internal void Row(string path, string heading, string row, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line.Contains(present, StringComparison.Ordinal)) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int level = heading.TakeWhile(character => character == '#').Count();
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith('#') && line.TakeWhile(character => character == '#').Count() <= level, section + 1);
+            int rule = section < 0 ? -1 : Find(sheet, line => line.StartsWith("|---", StringComparison.Ordinal), section + 1, next);
+
+            if (rule < 0)
+            {
+                Fail($"{path} has no table under '{heading}' to take the row.");
+
+                return;
+            }
+
+            int last = rule;
+
+            while (last + 1 < sheet.Lines.Count && sheet.Lines[last + 1].StartsWith('|'))
+            {
+                last++;
+            }
+
+            Insert(sheet, last, before: false, [row]);
+        }
+
+        internal void Section(string path, string heading, string[] lines, string present)
+        {
+            if (Open(path) is not { } sheet)
+            {
+                return;
+            }
+
+            if (Find(sheet, line => line == present) >= 0)
+            {
+                Kept.Add(Step);
+
+                return;
+            }
+
+            int section = Find(sheet, line => line == heading);
+            int next = section < 0 ? -1 : Find(sheet, line => line.StartsWith("## ", StringComparison.Ordinal), section + 1);
+
+            if (next < 0)
+            {
+                Fail($"{path} has no '{heading}' section followed by another, before which the section is placed.");
+
+                return;
+            }
+
+            Insert(sheet, next, before: true, lines);
+        }
+
+        private static bool IsUsing(string line) =>
+            line.StartsWith("using ", StringComparison.Ordinal) && line.TrimEnd().EndsWith(';') && !line.Contains('=', StringComparison.Ordinal);
+
+        private static bool IsHeader(string line) =>
+            line.Trim().Length == 0 || line.TrimStart().StartsWith("//", StringComparison.Ordinal) || IsUsing(line);
+
+        private static int Order(string left, string right)
+        {
+            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
+
+            int system = IsSystem(right).CompareTo(IsSystem(left));
+
+            return system != 0 ? system
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
+                : StringComparer.Ordinal.Compare(left, right);
+        }
+    }
+
+    internal static void WriteEdits(Utf8JsonWriter writer, IEnumerable<Edit> edits)
+    {
+        writer.WriteStartArray("edits");
+
+        foreach (Edit edit in edits)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("path", edit.Path);
+            writer.WriteString("anchor", edit.Anchor);
+            writer.WriteString("position", edit.Position);
+            writer.WriteStartArray("lines");
+
+            foreach (string line in edit.Lines)
+            {
+                writer.WriteStringValue(line);
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced)
+    {
+        var written = new List<string>();
+        var directories = new List<string>();
+        var overwritten = new List<(string Full, byte[] Original)>();
+
+        try
+        {
+            foreach (var (path, bytes) in created)
+            {
+                string full = System.IO.Path.Combine(root, path);
+                var missing = new Stack<string>();
+
+                for (string next = System.IO.Path.GetDirectoryName(full)!; !Directory.Exists(next); next = System.IO.Path.GetDirectoryName(next)!)
+                {
+                    missing.Push(next);
+                }
+
+                directories.AddRange(missing);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+
+                using var stream = new FileStream(full, FileMode.CreateNew, FileAccess.Write);
+
+                written.Add(full);
+                stream.Write(bytes);
+            }
+
+            foreach (var (path, original, bytes) in replaced)
+            {
+                string full = System.IO.Path.Combine(root, path);
+
+                overwritten.Add((full, original));
+                File.WriteAllBytes(full, bytes);
+            }
+        }
+        catch
+        {
+            foreach (var (full, original) in overwritten)
+            {
+                File.WriteAllBytes(full, original);
+            }
+
+            foreach (string full in written.Where(File.Exists))
+            {
+                File.Delete(full);
+            }
+
+            foreach (string directory in Enumerable.Reverse(directories))
+            {
+                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                {
+                    Directory.Delete(directory);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    internal static IEnumerable<(string Path, byte[] Original, byte[] Bytes)> Replacements(Editor editor) =>
+        editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
+
+    internal static Command Task(string root, params string[] task) =>
+        new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
+
+    internal static List<Command> ContractSteps(string root, string client) =>
+    [
+        Task(root, "openapi"),
+        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
+            ? [new Command("cd Src/Web && pnpm api", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api"])]
+            : Array.Empty<Command>(),
+    ];
+
+    internal static int Execute(Command command)
+    {
+        var start = new System.Diagnostics.ProcessStartInfo(command.FileName) { WorkingDirectory = command.WorkingDirectory, UseShellExecute = false };
+
+        foreach (string argument in command.Arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(start)!;
+
+            process.WaitForExit();
+
+            return process.ExitCode;
+        }
+        catch (System.ComponentModel.Win32Exception exception)
+        {
+            Console.Error.WriteLine($"{command.FileName} could not be started: {exception.Message}");
+
+            return 127;
+        }
+    }
+
+    internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
+    {
+        for (int index = 0; index < steps.Count; index++)
+        {
+            output.WriteLine();
+            output.WriteLine($"Running {steps[index].Display}");
+            output.Flush();
+
+            int code = run(steps[index]);
+
+            if (code == 0)
+            {
+                continue;
+            }
+
+            error.WriteLine($"error: `{steps[index].Display}` failed with exit code {code}.");
+            error.WriteLine($"Done: {done}{string.Concat(steps.Take(index).Select(step => $", then `{step.Display}`"))}.");
+            error.WriteLine("What remains, in this order, once the failure is fixed:");
+
+            foreach (Command remaining in steps.Skip(index))
+            {
+                error.WriteLine($"  {remaining.Display}");
+            }
+
+            return false;
+        }
+
+        output.WriteLine();
+        output.WriteLine($"Done: {done}{string.Concat(steps.Select(step => $", then `{step.Display}`"))}.");
+
+        return true;
+    }
 }

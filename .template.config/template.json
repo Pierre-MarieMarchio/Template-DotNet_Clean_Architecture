@@ -1814,7 +1814,8 @@
           "condition": "(!accounts)",
           "exclude": [
             "docs/features/accounts.md",
-            "docs/decisions/0009-ownership-is-in-the-query.md"
+            "docs/decisions/0009-ownership-is-in-the-query.md",
+            "docs/decisions/0031-the-feature-generator-composes-what-it-writes.md"
           ]
         },
         {

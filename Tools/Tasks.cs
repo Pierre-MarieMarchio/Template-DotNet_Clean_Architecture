@@ -62,6 +62,9 @@ internal static class Tasks
                                            when the model has not changed since the last migration
           database-update                  apply the pending migrations of the business context, or of
                                            the identity context with --context auth; needs the database
+          migration-check                  fail when the business context's model, or the identity
+                                           context's with --context auth, holds a change no migration
+                                           holds yet; new-feature runs it before it writes
           migration-initial                restore, then create each context's initial migration,
                                            InitialCreate, where its Migrations folder holds no model
                                            snapshot; a context that has one is left alone. bootstrap
@@ -69,10 +72,10 @@ internal static class Tasks
                                            migration-bundle and verify refuse until it has run
 
         Options:
-          --context <auth>                 migration-add, database-update: the context to target, the
-                                           business context when left out; auth is the identity
-                                           context, which only a project generated with --auth local
-                                           holds
+          --context <auth>                 migration-add, migration-check, database-update: the
+                                           context to target, the business context when left out;
+                                           auth is the identity context, which only a project
+                                           generated with --auth local holds
           --no-integration                 test: run only the projects that set IsTestProject and
                                            reference no Testcontainers, so no Docker daemon is needed
           --configuration <Debug|Release>  build, test, check, coverage, migration-bundle, verify, and end-to-end
@@ -86,6 +89,8 @@ internal static class Tasks
                                            --help says what each one means
           --kind, --input                  new-use-case: forwarded to Tools/NewUseCase.cs, whose
                                            --help says what each one means
+          --dry-run                        new-feature, new-use-case: print the files and the edits the
+                                           command makes, and write and run nothing
           --apply                          remove-feature: delete an untouched generated skeleton
                                            instead of reporting what removing it involves
           --web, --web-audience, --web-rendering
@@ -121,6 +126,7 @@ internal static class Tasks
         "remove-feature",
         "migration-initial",
         "migration-add",
+        "migration-check",
         "database-update",
         "migration-bundle",
         //#if (api)
@@ -311,6 +317,7 @@ internal static class Tasks
         var webOptions = new Dictionary<string, string>(StringComparer.Ordinal);
         bool noIntegration = false;
         bool apply = false;
+        bool dryRun = false;
         bool keepStack = false;
         bool check = false;
         string configuration = "Debug";
@@ -332,6 +339,10 @@ internal static class Tasks
             else if (argument is "--apply")
             {
                 apply = true;
+            }
+            else if (argument is "--dry-run")
+            {
+                dryRun = true;
             }
             else if (argument is "--keep-stack")
             {
@@ -418,7 +429,7 @@ internal static class Tasks
             else if (argument.StartsWith('-'))
             {
                 throw new InvalidOperationException(
-                    $"'{argument}' is not an option of this file. The options are --no-integration, --apply, "
+                    $"'{argument}' is not an option of this file. The options are --no-integration, --apply, --dry-run, "
                     + "--keep-stack, --context <auth>, -m:<N> and --configuration <Debug|Release>, the last after a -- separator, for "
                     + $"new-feature {string.Join(", ", _featureOptionNames)}, for new-use-case {string.Join(", ", _useCaseOptionNames)}, "
                     + $"and for web-join {string.Join(", ", _webJoinOptionNames)}.");
@@ -471,16 +482,21 @@ internal static class Tasks
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
         }
 
+        if (dryRun && task is not ("new-feature" or "new-use-case"))
+        {
+            throw new InvalidOperationException($"'--dry-run' is an option of the new-feature and new-use-case tasks, not of '{task ?? "(no task)"}'.");
+        }
+
         if (maxCpuCount is not null && task is not ("restore" or "build" or "test" or "check" or "coverage" or "verify"))
         {
             throw new InvalidOperationException(
                 $"'-m:{maxCpuCount}' is an option of the restore, build, test, check, coverage and verify tasks, not of '{task ?? "(no task)"}'.");
         }
 
-        if (context is not null && task is not ("migration-add" or "database-update"))
+        if (context is not null && task is not ("migration-add" or "migration-check" or "database-update"))
         {
             throw new InvalidOperationException(
-                $"'--context' is an option of the migration-add and database-update tasks, not of '{task ?? "(no task)"}'.");
+                $"'--context' is an option of the migration-add, migration-check and database-update tasks, not of '{task ?? "(no task)"}'.");
         }
 
         if (keepStack && task != "end-to-end")
@@ -588,6 +604,7 @@ internal static class Tasks
                         RequiredSecond(task, second),
                         "--root", repoRoot,
                         .. featureOptions,
+                        .. dryRun ? ["--dry-run"] : Array.Empty<string>(),
                     ]);
                 break;
 
@@ -600,6 +617,7 @@ internal static class Tasks
                         RequiredUseCase(task, second),
                         "--root", repoRoot,
                         .. useCaseOptions,
+                        .. dryRun ? ["--dry-run"] : Array.Empty<string>(),
                     ]);
                 break;
 
@@ -624,6 +642,15 @@ internal static class Tasks
                 string addTarget = MigrationContext(context, projectFile.LocalAuth, persistence, auth);
                 RequireInitialMigrations(task, addTarget);
                 AddMigration(addTarget, RequiredName(task, name));
+                break;
+
+            case "migration-check":
+                string checkTarget = MigrationContext(context, projectFile.LocalAuth, persistence, auth);
+                RequireInitialMigrations(task, checkTarget);
+                Step(
+                    "dotnet", "ef", "migrations", "has-pending-model-changes",
+                    "--project", checkTarget,
+                    "--startup-project", checkTarget);
                 break;
 
             case "database-update":

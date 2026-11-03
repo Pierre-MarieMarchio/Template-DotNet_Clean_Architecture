@@ -139,22 +139,27 @@ dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --dele
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
 dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
-dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton
+dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton whose edits are undone
 ```
 
 <!--#endif-->
 <!--#if (canAddFeature && api)-->
-`new-feature` writes the skeleton, its manifest and its page, then prints the hand edits, the
-`docs/README.md` row and the `docs/reference/api.md` row; its fields (`Name`, `Description`) are
-placeholders you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is
-promoted first) and prints its action.
+`new-feature` writes the skeleton, its manifest and its page, and makes the edits that compose it
+with its rows in `docs/README.md` and `docs/reference/api.md`: every edit or none, each recorded in
+the manifest. It refuses while a model change waits for a migration, then builds, adds the
+`Add<Features>` migration and rewrites the OpenAPI reference and what is written from it;
+`--dry-run` prints all of it and writes nothing. Its fields (`Name`, `Description`) are placeholders
+you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is promoted first),
+with its action, its contracts and its route's row, then rewrites the OpenAPI reference.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
 `new-feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
-with its manifest and its page, then prints the hand edits, each host's `Program.cs` among them, and
-the `docs/README.md` row; its fields (`Name`, `Description`) are placeholders you rewrite.
-`new-use-case` adds one operation to a rich feature (a simple one is promoted first) and prints the
-hosts that may offer it.
+with its manifest and its page, and makes the edits that compose it, each host's `Program.cs` among
+them, with its row in `docs/README.md`: every edit or none, each recorded in the manifest. It refuses
+while a model change waits for a migration, then builds and adds the `Add<Features>` migration;
+`--dry-run` prints all of it and writes nothing. Its fields (`Name`, `Description`) are placeholders
+you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is promoted first) and
+prints the hosts that may offer it.
 <!--#endif-->
 <!--#if (canAddFeature)-->
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.

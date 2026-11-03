@@ -17,7 +17,7 @@ or write a public feature by hand from the steps below.
 ```bash
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared \
     [--deletion delete|anonymise] [--operations get,list,create,update,delete] \
-    [--model record|aggregate] [--concurrency none|etag]
+    [--model record|aggregate] [--concurrency none|etag] [--dry-run]
 ```
 
 `<Features>` is the folder, plural (`Orders`); `<Feature>` the type, singular (`Order`).
@@ -29,13 +29,15 @@ dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared
 | `--operations` | all five | any subset of `get`, `list`, `create`, `update`, `delete`; `create` needs `get` |
 | `--model` | `record` | `record`: a service over a store, no domain model. `aggregate`: a domain aggregate and one use case per operation |
 | `--concurrency` | `none` | `none`: last write wins. `etag`: a persisted version, `ETag` on reads, `If-Match` on writes. `aggregate` needs `etag` |
+| `--dry-run` | off | print the files, the edits and the commands, and write and run nothing |
 
 Every refused combination is refused before anything is written, with the change that fixes it.
 
-The command writes files and edits none. It writes:
+The command writes:
 
 - the feature's folders in each layer, and tests that hold for any feature of its shape;
-- `.feature-manifest/<Features>.json`: the options and the SHA-256 of every file written;
+- `.feature-manifest/<Features>.json`: the options, the SHA-256 of every file written, and each edit
+  made, with the line it is placed beside, so the edit can be undone exactly;
 - the feature page `docs/features/<features>.md`, from `docs/_page-templates/feature.md`.
 
 <!--#if (!api)-->
@@ -43,24 +45,48 @@ This project holds no HTTP API, so it writes no controller, no contract and no A
 offer the feature through its use cases.
 
 <!--#endif-->
-Then it prints the edits that compose the feature: the schema, set and configuration in
+Then it makes the edits that compose the feature: the schema, set and configuration in
 `AppDbContext`, an `Add<Features>()` in `ApplicationModule`, the adapters in `PersistenceModule`, the
-call in `Program.cs`, and the two test compositions. The solution compiles again after the first edit,
-and the feature composes after the last. An owner feature that is the project's first prints five more,
-for the account-deletion sweep it brings with it.
+call in `Program.cs`, and the two test compositions, with the usings each needs, and the feature's row
+under `## Features` in `docs/README.md`.
+<!--#if (api)-->
+Its section of the route table and the row of its refusal go to `docs/reference/api.md`.
+<!--#endif-->
+An owner feature that is the project's first makes five more, for the account-deletion sweep it brings
+with it. Each edit is placed beside a line the command finds, and every one is checked before anything
+is written: when a line is missing because the file changed, it writes nothing, prints the edits to
+make by hand and names the one that failed. An edit already in place counts as made, never repeated.
 <!--#if ((presentationBlazorServer || presentationMcp) && api)-->
 Each host composes itself, so the call goes in the `Program.cs` of the portal or the MCP server too, and a first
-owner feature writes and registers each host's account directory beside the API's; the printed edits
-name both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
+owner feature writes and registers each host's account directory beside the API's; the edits name
+both ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 <!--#endif-->
 <!--#if (!api)-->
 Each host composes itself, so the call goes in every host's `Program.cs`, and a first owner feature
-writes and registers each host's account directory; the printed edits name every host
+writes and registers each host's account directory; the edits name every host
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
 <!--#endif-->
 <!--#if (presentationMcp)-->
 The feature brings no tool: the MCP server offers a use case only once its tool is declared by hand,
 as the [presentation projects](../features/presentation.md#declaring-a-tool) shows.
+<!--#endif-->
+
+Before it writes, it refuses while a context has no initial migration, or while
+`dotnet run Tools/Tasks.cs migration-check` finds a model change no migration holds, which the
+feature's migration would otherwise carry. After it writes, it runs in this order, and stops at the
+first that fails, naming what is done and the commands that remain:
+
+1. `dotnet run Tools/Tasks.cs build`
+2. `dotnet run Tools/Tasks.cs migration-add Add<Features>`, on the business context
+<!--#if (api)-->
+3. `dotnet run Tools/Tasks.cs openapi`, then `api-client` when the project holds the .NET client, and
+   `pnpm api` in the web workspace when it holds one
+<!--#endif-->
+
+Run again with the same options, it writes nothing and resumes these steps; the migration it added
+is not added twice.
+<!--#if (accounts)-->
+Why it makes the edits rather than print them is [ADR 0031](../decisions/0031-the-feature-generator-composes-what-it-writes.md).
 <!--#endif-->
 
 ## What you write by hand
@@ -114,19 +140,20 @@ The rules the feature protects, each with a test you have seen fail;
 ### Migration
 
 <!--#if (localAuth)-->
-The business context needs a migration; authentication's is untouched.
+`new-feature` added `Add<Features>` to the business context; authentication's is untouched. Each
+column, index or constraint you add to the record's configuration then needs a migration of its own:
 <!--#endif-->
 <!--#if (!localAuth)-->
-The business context needs a migration.
+`new-feature` added `Add<Features>` to the business context. Each column, index or constraint you
+add to the record's configuration then needs a migration of its own:
 <!--#endif-->
 
 ```bash
-dotnet run Tools/Tasks.cs migration-add Add<Features>
+dotnet run Tools/Tasks.cs migration-add <Name>
 ```
 
-It refuses until bootstrap has created the initial migration; a feature added before bootstrap is
-in that one. While no database has applied the initial migration, recreate it instead, as
-[migrations](migrations.md#the-initial-migration) shows.
+A migration a database has applied is never rewritten, as [migrations](migrations.md#add-a-migration)
+says.
 
 ## Add a use case
 
@@ -155,7 +182,7 @@ value; a nullable one and a `bool` accept every value, so they get a test value 
 other type is written as given, with no rule, and its tests pass `default!` for it: the command lists
 it, and its rule, its test value and the using of its namespace are yours to write.
 
-The command writes in the application layer and edits nothing:
+The command writes in the application layer:
 
 - the use case's folder: `<UseCase>.cs`, holding its command or query and that message's handler,
   and, when an input has a rule, the message's validator;
@@ -185,10 +212,14 @@ The handler throws `NotImplementedException` until its body is written: the rule
 the load, the call and the commit, each decision with its test. Until a host sends its message,
 `MessageRoutingTests` names it.
 <!--#if (api)-->
-The command prints the action that sends the message over HTTP and its usings: the id travels in
-the route, the other inputs in a request contract, read from the query string for a query and
-from the body for a command; and for a query the response contract. Then rewrite the OpenAPI
-reference with `dotnet run Tools/Tasks.cs openapi`.
+Where the API serves the feature, the command also adds the action that sends the message over HTTP
+to the feature's controller, with its usings and the `ISender` the controller lacks: the id travels in
+the route, the other inputs in a request contract it writes, read from the query string for a query
+and from the body for a command; and for a query it writes the response contract. It adds the
+route's row to the feature's table in `docs/reference/api.md`, every edit or none as `new-feature`
+does, then runs `openapi`, `api-client` and `pnpm api` as `new-feature` does. `--dry-run` prints them
+and writes nothing. The contracts join the manifest, and the controller's recorded hash follows the
+action when the controller was untouched.
 <!--#endif-->
 <!--#if (!api)-->
 The command prints the message to send, with its inputs, and the hosts that may offer it: send it
@@ -233,7 +264,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 
 1. Replace each prompt line of the feature page with what the feature does: what a caller gets, the
    rules, the routes, the settings, the tests.
-2. Add the row the generator printed under `## Features` in `docs/README.md`.
+2. Rewrite the answer of the row the generator added under `## Features` in `docs/README.md`.
 3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
    linked from the page's `## Decisions`.
 
@@ -282,8 +313,9 @@ The migration is empty unless the rule needs a column or an index.
 <!--#if (anyWeb)-->
 ## Web pages for it
 
-Run `pnpm api` in `Src/Web` once the API serves the routes: the generated client then holds their
-types, and an app calls them through it. [The web front end](../features/web-frontend.md#calling-the-api)
+`new-feature` and `new-use-case` run `pnpm api` in `Src/Web` once the API serves the routes; run it
+yourself after a route you change by hand. The generated client then holds their types, and an app
+calls them through it. [The web front end](../features/web-frontend.md#calling-the-api)
 shows the call.
 <!--#endif-->
 

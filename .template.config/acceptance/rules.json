@@ -35,10 +35,6 @@
       "tags": ["none"]
     },
     {
-      "paths": [".template.config/acceptance/ApplyFeatureEdits.cs"],
-      "tags": ["generator"]
-    },
-    {
       "paths": [
         ".template.config/variants/project-file-web/**",
         ".template.config/variants/project-file-presentation/**",

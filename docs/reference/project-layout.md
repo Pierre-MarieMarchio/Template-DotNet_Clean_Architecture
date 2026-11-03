@@ -44,7 +44,12 @@ content for.
 
 ```
 Src/Domain/
+<!--#if (reminders || files)-->
+  AT.Domain.Core                        Common/{Abstractions,Events,Exceptions,Primitives,Retries}
+<!--#endif-->
+<!--#if (!(reminders || files))-->
   AT.Domain.Core                        Common/{Abstractions,Events,Exceptions,Primitives}
+<!--#endif-->
                                         no Features/
 <!--#if (tagging)-->
   AT.Domain                             Common/{Tagging}

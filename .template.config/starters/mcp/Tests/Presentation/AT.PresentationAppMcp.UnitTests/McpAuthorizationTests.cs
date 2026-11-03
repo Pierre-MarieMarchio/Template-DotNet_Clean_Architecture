@@ -8,7 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 //#if (notes)
 using Microsoft.Extensions.DependencyInjection.Extensions;
 //#endif
+//#if (localAuth)
 using ModelContextProtocol;
+//#endif
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Shouldly;

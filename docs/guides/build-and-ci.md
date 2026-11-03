@@ -21,7 +21,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
-| `end-to-end` | the end-to-end suite against a Compose stack of its own, removed afterwards unless `--keep-stack` |
+| `end-to-end` | the end-to-end suite against a Compose stack of its own, then with a web app the browser smoke over each app, the stack removed afterwards unless `--keep-stack` |
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `new-use-case` | one more use case in a feature of the rich shape |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
@@ -181,7 +181,7 @@ adds it.
 
 | Workflow | When | Does |
 |---|---|---|
-| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack; the load smoke |
+| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack, then the browser smoke with a web app; the load smoke |
 <!--#endif-->
 <!--#if (ci && serverDatabase)-->
 | `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |

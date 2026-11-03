@@ -60,6 +60,9 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 <!--#if (dotnetClient)-->
 | After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
 <!--#endif-->
+<!--#if (anyWeb)-->
+| After changing a route or a contract, with the web workspace | `pnpm api` in `Src/Web`, after `openapi` | the .NET SDK, Node.js and pnpm |
+<!--#endif-->
 | Every task and option | `dotnet run Tools/Tasks.cs help [<task>]`; `-m:<N>` caps build and test parallelism | nothing |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
 <!--#if (api)-->

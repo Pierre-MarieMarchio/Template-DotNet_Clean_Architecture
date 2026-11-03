@@ -60,6 +60,12 @@ build, the tests, the migration drift check for every context, and the vulnerabi
 coverage floor is a separate task, `coverage`.
 When the project holds the .NET client, it runs `api-client --check` after `hygiene`, so a contract
 change without its regenerated client fails.
+<!--#if (anyWeb)-->
+With a web workspace it then runs `pnpm install --frozen-lockfile` and compares
+`Src/Web/packages/api-client/src/generated/schema.ts` with what `openapi-typescript` writes from the
+OpenAPI reference, so a contract change without `pnpm api` fails and the message names that command;
+that step needs Node.js and pnpm.
+<!--#endif-->
 
 On a machine short of memory, `-m:<N>` caps `restore`, `build`, `test`, `coverage` and `verify` at
 N MSBuild nodes and N test projects running at once, as in `dotnet run Tools/Tasks.cs verify -m:4`.

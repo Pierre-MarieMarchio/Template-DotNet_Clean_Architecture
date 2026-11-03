@@ -1,10 +1,32 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import openapiTS, { astToString } from 'openapi-typescript';
+import { fileURLToPath } from 'node:url';
+import { isStale, schemaFrom } from './schema.ts';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const schema = join(packageRoot, 'src', 'generated', 'schema.ts');
+const checkIndex = process.argv.indexOf('--check');
+
+if (checkIndex >= 0) {
+  const checked = process.argv[checkIndex + 1];
+
+  if (checked === undefined) {
+    throw new Error('--check takes the OpenAPI document to compare the schema with.');
+  }
+
+  if (isStale(readFileSync(schema, 'utf8'), await schemaFrom(checked))) {
+    console.error(
+      'src/generated/schema.ts differs from what openapi-typescript writes from the OpenAPI reference. ' +
+        'Run `pnpm api` in Src/Web and commit what it writes.',
+    );
+    process.exit(1);
+  }
+
+  console.log('src/generated/schema.ts is what openapi-typescript writes from the OpenAPI reference.');
+  process.exit(0);
+}
+
 const presentation = join(packageRoot, '..', '..', '..', 'Presentation');
 const apiFolder = readdirSync(presentation).find((entry) => entry.endsWith('.Api'));
 const apiProjectFile =
@@ -17,7 +39,6 @@ if (apiProjectFile === undefined) {
 const apiName = apiProjectFile.slice(0, -'.csproj'.length);
 const apiProject = join(presentation, apiFolder);
 const document = join(packageRoot, 'openapi', 'document.json');
-const schema = join(packageRoot, 'src', 'generated', 'schema.ts');
 
 rmSync(join(apiProject, 'obj', `${apiName}.OpenApiFiles.cache`), { force: true });
 rmSync(document, { force: true });
@@ -36,9 +57,7 @@ execFileSync(
   },
 );
 
-const ast = await openapiTS(pathToFileURL(document), { alphabetize: true });
-
 mkdirSync(dirname(schema), { recursive: true });
-writeFileSync(schema, astToString(ast));
+writeFileSync(schema, await schemaFrom(document));
 
 console.log(`Wrote ${schema}`);

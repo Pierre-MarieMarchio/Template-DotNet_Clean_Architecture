@@ -1358,6 +1358,24 @@ internal static class NewFeature
         output.WriteLine($"While no database has applied that one, delete {ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence")}/Migrations and run migration-initial.");
         output.WriteLine();
 
+        if (spec.HasApi)
+        {
+            output.WriteLine("Then rewrite what the routes feed, which this does not run:");
+            output.WriteLine("  dotnet run Tools/Tasks.cs openapi    (the OpenAPI reference the contract test compares)");
+
+            if (Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", FolderOf(spec.Prefix, "Client"))))
+            {
+                output.WriteLine("  dotnet run Tools/Tasks.cs api-client");
+            }
+
+            if (File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs")))
+            {
+                output.WriteLine("  pnpm api    (in Src/Web)");
+            }
+
+            output.WriteLine();
+        }
+
         if (!record)
         {
             output.WriteLine("The aggregate raises no event. The first one it raises needs a consumer, or its name in");
@@ -1691,6 +1709,24 @@ internal static class NewFeature
         expect(result.Output.Contains("TodoListsSchema", StringComparison.Ordinal), "The composition steps do not name the schema constant.");
         expect(result.Output.Contains("migration-add", StringComparison.Ordinal), "The migration step is not printed.");
         expect(result.Output.Contains("last-write-wins", StringComparison.Ordinal), "The last-write-wins consequence of --concurrency none is not printed.");
+        expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), "The OpenAPI step is not printed.");
+        expect(
+            !result.Output.Contains("api-client", StringComparison.Ordinal) && !result.Output.Contains("pnpm api", StringComparison.Ordinal),
+            "A step is printed for a client and a web workspace the project does not hold.");
+
+        string contractRoot = NewTree(scratch);
+
+        Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Clients/A.Client"));
+        Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
+        File.WriteAllText(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
+
+        var contract = Invoke(contractRoot, "Notes", "Note", "--access", "shared");
+
+        expect(
+            contract.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal)
+                && contract.Output.Contains("dotnet run Tools/Tasks.cs api-client", StringComparison.Ordinal)
+                && contract.Output.Contains("pnpm api    (in Src/Web)", StringComparison.Ordinal),
+            "The OpenAPI, client and web steps are not all printed for a project that holds the client and the web workspace.");
 
         string vowelRoot = NewTree(scratch);
         var vowel = Invoke(vowelRoot, "Invoices", "Invoice", "--access", "shared");

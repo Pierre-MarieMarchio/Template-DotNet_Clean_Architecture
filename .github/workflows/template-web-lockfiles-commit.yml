@@ -1,0 +1,85 @@
+name: Template web lockfiles commit
+
+# Template repository only: a Dependabot pull request on Src/Web receives the lockfiles Template web lockfiles wrote for it, as a commit made through the API from the uploaded files alone, so nothing from the pull request runs where the token can write.
+on:
+  workflow_run:
+    workflows: [Template web lockfiles]
+    types: [completed]
+
+# One commit at a time per branch; a second run finds the branch moved and stops.
+concurrency:
+  group: template-web-lockfiles-commit-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+# Least privilege; the one job that writes opts in below.
+permissions:
+  contents: read
+
+jobs:
+  commit:
+    name: Commit the web lockfiles to the Dependabot pull request
+    if: >-
+      github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.conclusion == 'failure'
+      && github.event.workflow_run.actor.login == 'dependabot[bot]'
+      && github.event.workflow_run.head_repository.full_name == github.repository
+      && startsWith(github.event.workflow_run.head_branch, 'dependabot/npm_and_yarn/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # contents writes the commit and moves the branch; actions reads the artifact of the run that triggered this one.
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      # Each file must be a regular file at a lockfile path the branch already holds; the ref moves only from the commit the lockfiles were written for, so a newer push wins.
+      - name: Commit the lockfiles the pull request's run wrote onto its branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          LOCKFILES: ${{ runner.temp }}/web-lockfiles
+        run: |
+          set -euo pipefail
+          fail() { echo "::error title=Web lockfiles commit::$1"; exit 1; }
+          [[ "$BRANCH" =~ ^dependabot/npm_and_yarn/[A-Za-z0-9._/-]+$ ]] || fail "'$BRANCH' is not a branch Dependabot opens for the web workspace."
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "'$HEAD_SHA' is not a commit."
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?name=web-lockfiles" --jq .total_count)" = 0 ]; then
+            echo "::notice title=Web lockfiles commit::Run $RUN_ID uploaded no lockfile, so it failed on something else; its log says what."
+            exit 0
+          fi
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name web-lockfiles --dir "$LOCKFILES"
+          cd "$LOCKFILES"
+          mapfile -t entries < <(find . -mindepth 1 ! -type d | sed 's#^\./##' | sort)
+          [ "${#entries[@]}" -gt 0 ] || fail "The artifact holds no lockfile."
+          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq .object.sha)
+          if [ "$current" != "$HEAD_SHA" ]; then
+            echo "::notice title=Web lockfiles commit::$BRANCH moved past $HEAD_SHA; the run of its newer commit writes the lockfiles."
+            exit 0
+          fi
+          tree='[]'
+          for entry in "${entries[@]}"; do
+            [[ "$entry" =~ ^\.template\.config/variants/web-[A-Za-z0-9]+/Src/Web/pnpm-lock\.yaml$ ]] || fail "The artifact holds '$entry', which is not a generated web shape's lockfile."
+            [ -f "$entry" ] && [ ! -L "$entry" ] || fail "'$entry' is not a regular file."
+            [ "$(stat -c %s "$entry")" -le 10485760 ] || fail "'$entry' is larger than any lockfile."
+            gh api "repos/$GITHUB_REPOSITORY/contents/$entry?ref=$HEAD_SHA" --silent || fail "$BRANCH holds no '$entry' to replace."
+            blob=$(base64 -w0 "$entry" | jq -Rs '{content: ., encoding: "base64"}' | gh api "repos/$GITHUB_REPOSITORY/git/blobs" --input - --jq .sha)
+            tree=$(jq -c --arg path "$entry" --arg sha "$blob" '. + [{path: $path, mode: "100644", type: "blob", sha: $sha}]' <<< "$tree")
+          done
+          base=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$HEAD_SHA" --jq .tree.sha)
+          written=$(jq -n --arg base "$base" --argjson tree "$tree" '{base_tree: $base, tree: $tree}' | gh api "repos/$GITHUB_REPOSITORY/git/trees" --input - --jq .sha)
+          if [ "$written" = "$base" ]; then
+            echo "$BRANCH already holds these lockfiles."
+            exit 0
+          fi
+          message="build(deps): lock each generated web shape on the versions of Src/Web/pnpm-lock.yaml"
+          commit=$(jq -n --arg tree "$written" --arg parent "$HEAD_SHA" --arg message "$message" '{message: $message, tree: $tree, parents: [$parent]}' \
+            | gh api "repos/$GITHUB_REPOSITORY/git/commits" --input - --jq .sha)
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" -f sha="$commit" -F force=false --silent
+          {
+            echo "Committed ${#entries[@]} lockfile(s) to \`$BRANCH\` as $commit."
+            echo
+            echo "A commit made with GITHUB_TOKEN starts no workflow: update the branch with develop, or close and reopen the pull request, to run its checks."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Web lockfiles commit::Committed ${#entries[@]} lockfile(s) to $BRANCH as $commit; update the branch, or close and reopen the pull request, to run its checks."

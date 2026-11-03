@@ -85,6 +85,11 @@ dotnet run Tools/Tasks.cs verify
 It refuses to start while a context has no migration, then runs `hygiene`, restore, `format`, the
 build, the tests, the migration drift check for every context, and the vulnerability listing. The
 coverage floor is a separate task, `coverage`.
+<!--#if (templateMaintenance)-->
+In this repository the acceptance matrix also runs `coverage` in a generated project unlike this
+checkout, against the same `coverage.minimum`, as
+[maintaining the template](../template/maintaining-the-template.md#the-acceptance-matrix) says.
+<!--#endif-->
 When the project holds the .NET client, it runs `api-client --check` after `hygiene`, so a contract
 change without its regenerated client fails.
 <!--#if (anyWeb)-->
@@ -199,6 +204,9 @@ because a hosted runner's timings say nothing about this code. Run it against yo
 
 Every action is pinned to a commit SHA and every image to a digest, `permissions` is
 `contents: read` unless a job needs more, and a newer run on a branch other than `main` cancels the older one.
+`WorkflowPinningTests` reads every file under `.github/workflows` and fails on an action named by
+anything but its 40-character commit SHA, a local `./` action excepted, and on an image a workflow
+runs, as a `container:`, a service, a `docker://` step or the BuildKit driver, without its digest.
 <!--#endif-->
 
 <!--#if (sonar)-->

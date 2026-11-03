@@ -26,7 +26,8 @@ from it, naming each difference. A change to a route, a contract or a summary th
 its new reference, and the review reads what a client will read.
 The document declares every problem answer as `application/problem+json`, and its `ProblemDetails` and
 `ValidationProblemDetails` schemas require the `type`, `code` and `traceId` the API always writes, so a
-generated client types them; `OpenApiDocumentTests` holds both.
+generated client types them. The document carries both whichever endpoints remain, `ValidationProblemDetails`
+included when none declares a `400`; `OpenApiDocumentTests` holds both.
 <!--#if (anyWeb)-->
 The web apps' API client is generated from the same document, written at build time
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)).

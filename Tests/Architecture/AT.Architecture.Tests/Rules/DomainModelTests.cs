@@ -255,9 +255,9 @@ public sealed class DomainModelTests
     }
 
     [Theory]
-    [InlineData("AppTemplate.Domain.Features.Orders.Model.Events", true)]
-    [InlineData("AppTemplate.Domain.Features.Orders.Model", false)]
-    [InlineData("AppTemplate.Domain.Features.Orders.Model.Events.Deeper", false)]
+    [InlineData("AppTemplate.Domain.Features.Parcels.Model.Events", true)]
+    [InlineData("AppTemplate.Domain.Features.Parcels.Model", false)]
+    [InlineData("AppTemplate.Domain.Features.Parcels.Model.Events.Deeper", false)]
     [InlineData("AppTemplate.Domain.Core.Common.Events", false)]
     public void TheEventsNamespace_IsSensitive_AndMatchesOnlyAFeaturesEventsFolder(string @namespace, bool matches) =>
         Regex.IsMatch(@namespace, _eventsNamespace, RegexOptions.None, TimeSpan.FromSeconds(5)).ShouldBe(matches);

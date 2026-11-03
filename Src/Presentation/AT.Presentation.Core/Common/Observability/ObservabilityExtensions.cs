@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.UseCases;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -75,9 +76,22 @@ public static class ObservabilityExtensions
                     exporter.Endpoint = endpoint;
                     exporter.Protocol = telemetry.OtlpProtocol;
                 });
-            });
+            })
+            .WithLogging(
+                builder => builder.AddOtlpExporter(exporter =>
+                {
+                    exporter.Endpoint = endpoint;
+                    exporter.Protocol = telemetry.OtlpProtocol;
+                }),
+                ExportWhatTheJsonConsoleWrites);
 
         return services;
+    }
+
+    private static void ExportWhatTheJsonConsoleWrites(OpenTelemetryLoggerOptions options)
+    {
+        options.IncludeFormattedMessage = true;
+        options.IncludeScopes = true;
     }
 
     private static string SimpleNameOf(Assembly host) =>

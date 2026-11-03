@@ -76,6 +76,9 @@ Which page answers your question, and where a new page goes.
 | [Adding a setting](guides/adding-a-setting.md) | a value a deployment chooses, validated at start-up and documented |
 | [Migrations](guides/migrations.md) | adding, checking and applying a migration |
 | [Testing](guides/testing.md) | running the suites and writing new tests |
+<!--#if (aspire)-->
+| [Running the app host](guides/running-the-app-host.md) | the local stack from one command, with the Aspire dashboard |
+<!--#endif-->
 | [Build and CI](guides/build-and-ci.md) | the gate, locally and in CI |
 | [Deployment](guides/deployment.md) | shipping the image to an environment |
 | [Upgrading](guides/upgrading.md) | what a newer version of the package that generated this project changes, and taking it |

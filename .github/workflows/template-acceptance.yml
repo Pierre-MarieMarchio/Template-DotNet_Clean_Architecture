@@ -485,7 +485,7 @@ jobs:
           fi
           for project in "${projects[@]}"; do
             echo "::group::$project"
-            dotnet test "$project" --configuration Release --no-build --output Detailed
+            dotnet test --project "$project" --configuration Release --no-build --output Detailed
             echo "::endgroup::"
           done
 
@@ -500,7 +500,7 @@ jobs:
             echo "::error title=No app host test::The generated project holds ${#projects[@]} test projects that reference Aspire.Hosting.Testing, where --aspire true writes one."
             exit 1
           fi
-          dotnet test "${projects[0]}" --configuration Release --no-build --output Detailed
+          dotnet test --project "${projects[0]}" --configuration Release --no-build --output Detailed
 
       # The generated project's own task, every suite again under coverage: a shape far from this checkout's must hold the same coverage.minimum, never lowered to pass.
       - name: Measure the coverage against coverage.minimum (coverage leg)
@@ -601,12 +601,12 @@ jobs:
           prove() {
             local feature home persistence
             dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once new-feature has composed $*."
-            dotnet test "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once new-feature has composed $*."
+            dotnet test --project "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once new-feature has composed $*."
             for feature in "$@"; do
               mapfile -t homes < <(for home in "${docker_free[@]}"; do [ -n "$(find "$(dirname "$home")" -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*')" ] && echo "$home"; done)
               [ "${#homes[@]}" -gt 0 ] || fail "new-feature $feature wrote no test in a Docker-free test project."
               for home in "${homes[@]}"; do
-                dotnet test "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
+                dotnet test --project "$home" --configuration Release --no-build --output Detailed --filter-namespace "*.Features.$feature.*"
               done
             done
             persistence=$(find Src/Infrastructure -maxdepth 1 -type d -name '*.Infrastructure.Persistence')
@@ -670,7 +670,7 @@ jobs:
           prove "${written[@]}"
           if [ "$INTEGRATION" = "true" ]; then
             integration=$(find Tests/Integration -name '*.Api.IntegrationTests.csproj')
-            dotnet test "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests new-feature --fields wrote fail against the database."
+            dotnet test --project "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests new-feature --fields wrote fail against the database."
           fi
           dotnet run Tools/Tasks.cs hygiene
           commit "the four features"

@@ -65,7 +65,7 @@ jobs:
           minimum_tests=3000
           floor_option="--minimum-expected-tests ${minimum_tests}"
           #endif
-          dotnet test "$SOLUTION" \
+          dotnet test --solution "$SOLUTION" \
             --configuration "$CONFIGURATION" \
             --no-build \
             ${floor_option}

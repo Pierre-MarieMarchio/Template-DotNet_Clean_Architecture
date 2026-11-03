@@ -41,6 +41,32 @@ public sealed class CoverageSettingsTests
         ExcludePatternsIn(settings, "Attribute").ShouldBe(["A"]);
     }
 
+    [Theory]
+    [InlineData("/home/runner/work/_temp/generated/Src/Domain/P.Domain/Things/Thing.cs")]
+    [InlineData("/srv/Migrations/obj/Generated/checkout/Src/Application/P.Application/Features/Things/Thing.cs")]
+    [InlineData(@"C:\Users\me\Generated\Migrations\Src\Infrastructure\P.Infrastructure.Persistence\Things\ThingStore.cs")]
+    public void ASourceOfTheProject_IsMeasured_WhateverTheFoldersItIsCheckedOutUnder(string source)
+    {
+        ExcludingSources(source, ExcludePatterns("Source")).ShouldBeEmpty(
+            "the collector matches a source's full path without case, so a pattern on a bare folder name such as "
+            + "Generated, Migrations or obj also matches a folder the project sits in, and leaves every file out of "
+            + "the report. Anchor the pattern below the project in the Exclude/Source list of coverage.runsettings.");
+    }
+
+    [Theory]
+    [InlineData("/home/me/app/Src/Clients/P.Client/Generated/Models/LoginRequest.cs")]
+    [InlineData("/home/me/app/Src/Infrastructure/P.Infrastructure.Auth/Migrations/20261103_InitialCreate.cs")]
+    [InlineData("/home/me/app/Src/Application/P.Application/obj/Release/net10.0/Mediator.g.cs")]
+    [InlineData(@"C:\app\Src\Presentation\P.Desktop\obj\Debug\net10.0-windows\App.g.cs")]
+    public void TheCodeAToolWrote_IsLeftOut(string source)
+    {
+        ExcludingSources(source, ExcludePatterns("Source")).ShouldNotBeEmpty(
+            "this file is written by a tool, which coverage.runsettings leaves out of the report.");
+    }
+
+    private static string[] ExcludingSources(string source, IEnumerable<string> patterns) =>
+        [.. patterns.Where(pattern => Regex.IsMatch(source, pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5)))];
+
     private static string[] ExcludingAttributes(Type stateMachine, IEnumerable<string> patterns) =>
         [.. stateMachine
             .GetCustomAttributesData()

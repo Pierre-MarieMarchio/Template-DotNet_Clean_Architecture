@@ -81,6 +81,13 @@ It is registered once, reads UTC, and every stored instant is UTC: a column mixi
 values makes every comparison silently wrong. A use case reads the clock and passes `now` to the
 aggregate, which never reads time itself.
 
+An instant a client sends is the same instant with another offset, and it reaches storage in UTC:
+PostgreSQL's `timestamptz` refuses a `DateTimeOffset` whose offset is not zero, and the other
+providers would store a column mixing offsets. An aggregate that takes such an instant keeps it
+through `ToUniversalTime()` (`Reminder.DueAt`), a service over a store does it where it receives the
+instant (an access key's expiry), and a query does it where it parses a filter or decodes a cursor
+key. The instant is never altered, only its offset, and a response always carries it in UTC.
+
 In tests, the in-memory module replaces it with a `FakeTimeProvider`, which moves only when told to.
 
 ## Current user and audit actor

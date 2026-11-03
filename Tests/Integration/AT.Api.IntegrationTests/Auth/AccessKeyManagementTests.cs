@@ -44,6 +44,26 @@ public sealed class AccessKeyManagementTests(ApiFixture fixture) : IntegrationTe
     }
 
     [Fact]
+    public async Task AnExpiry_SentWithANonZeroOffset_IsStoredAndAnsweredAsTheSameInstantInUtc()
+    {
+        var (client, user, _) = await SignInAsync();
+        var expiresAt = Clock.GetUtcNow().AddDays(30);
+
+        using var created = await CreateAsync(
+            client,
+            new CreateAccessKeyRequest("CI", _read, expiresAt.ToOffset(TimeSpan.FromHours(2)), user.Password));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var key = await ApiJson.ReadAsync<CreatedAccessKeyResponse>(created, TestToken);
+        key.ExpiresAt.ShouldBe(expiresAt);
+        key.ExpiresAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
+
+        var listed = (await ListAsync(client)).ShouldHaveSingleItem();
+        listed.ExpiresAt.ShouldBe(expiresAt);
+        listed.ExpiresAt!.Value.Offset.ShouldBe(TimeSpan.Zero);
+    }
+
+    [Fact]
     public async Task CreatingAKey_WithoutTheRightPassword_IsRefused_AndCreatesNothing()
     {
         var (client, user, _) = await SignInAsync();

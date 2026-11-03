@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json;
+using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -28,9 +29,72 @@ public sealed class ConfigurationSurfaceTests
         TimeSpan.FromSeconds(5));
 
     private static readonly Regex _sectionHeading = new(
-        @"^### `([A-Za-z:]+)`",
+        @"^### `([A-Za-z0-9:]+)`",
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _environmentKey = new(
+        @"^\s*(?<key>[A-Za-z][A-Za-z0-9]*(?:__[A-Za-z0-9]+)+)\s*[:=]",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
+    [Fact]
+    public void EveryKeyOfAShippedAppsettings_IsDocumentedUnderItsSection()
+    {
+        var keys = ShippedAppsettingsKeys();
+
+        keys.ShouldNotBeEmpty("No key was read from the shipped appsettings files, so the scan reads nothing.");
+
+        UndocumentedKeys(keys, BoundSections().Keys, DocumentedSections()).ShouldBeEmpty(
+            $"These keys are shipped in an appsettings file under a section '{_configurationGuide}' covers, " +
+            "and have no row there. A key an operator finds in the file and cannot look up is a default " +
+            "nobody explained: add its row to that section's table, or drop it from the file.");
+    }
+
+    [Fact]
+    public void EveryKeyTheComposeFilesAndEnvExampleSet_IsDocumentedUnderItsSection()
+    {
+        var keys = EnvironmentKeys();
+
+        keys.ShouldNotBeEmpty("No Section__Key variable was read from the Compose files, so the scan reads nothing.");
+
+        UndocumentedKeys(keys, BoundSections().Keys, DocumentedSections()).ShouldBeEmpty(
+            "These environment variables set a key (`Section__Key` is `Section:Key`) of a section " +
+            $"'{_configurationGuide}' covers, and have no row there. A deployment copies what the Compose " +
+            "files and .env.example show: add the key's row to that section's table, or stop setting it.");
+    }
+
+    [Fact]
+    public void TheKeyCheck_IsSensitive()
+    {
+        var documented = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Gadget"] = "### `Gadget`\n\n| Key | Type |\n|---|---|\n| `Size` | int |\n| `Colours:<n>:Name` | string |\n",
+            ["Gadget:Nested"] = "### `Gadget:Nested`\n\n| Key | Type |\n|---|---|\n| `Depth` | int |\n",
+        };
+
+        string[] bound = ["Gadget"];
+
+        UndocumentedKeys(
+            [
+                ("Gadget:Size", "a.json"),
+                ("Gadget:Colours:0:Name", "a.json"),
+                ("Gadget:Nested:Depth", "a.json"),
+                ("Gadget:Weight", "a.json"),
+                ("Gadget:Nested:Width", "b.yml"),
+                ("Logging:LogLevel:Default", "a.json"),
+            ],
+            bound,
+            documented).ShouldBe(
+            [
+                "Gadget:Nested:Width (b.yml)",
+                "Gadget:Weight (a.json)",
+            ]);
+
+        _environmentKey.Matches("  Gadget__Size: ${X:-1}\n  # Gadget__Skipped: 1\nPLAIN_VARIABLE=1\nGadget__Nested__Depth=2\n")
+            .Select(match => match.Groups["key"].Value)
+            .ShouldBe(["Gadget__Size", "Gadget__Nested__Depth"]);
+    }
 
     [Fact]
     public void EveryBoundSection_HasATableInThe_configurationGuide()
@@ -191,6 +255,107 @@ public sealed class ConfigurationSurfaceTests
     private const string _configurationGuide = "docs/reference/configuration.md";
 
     private sealed record SectionFacts(IReadOnlySet<string> Keys, string Origin);
+
+    private static List<string> UndocumentedKeys(
+        IEnumerable<(string Key, string Origin)> keys,
+        IEnumerable<string> bound,
+        IReadOnlyDictionary<string, string> documented)
+    {
+        string[] boundSections = [.. bound];
+        string[] covered = [.. boundSections.Concat(documented.Keys).Distinct(StringComparer.Ordinal)];
+        var undocumented = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach ((string key, string origin) in keys)
+        {
+            var sections = covered.Where(section => key.StartsWith(section + ":", StringComparison.Ordinal)).ToList();
+
+            if (!sections.Intersect(boundSections, StringComparer.Ordinal).Any())
+            {
+                continue;
+            }
+
+            string section = sections.OrderByDescending(candidate => candidate.Length).First();
+            string first = key[(section.Length + 1)..].Split(':')[0];
+
+            bool documentedUnderIt = (documented.TryGetValue(section, out string? text) && KeysIn(text).Contains(first))
+                || documented.ContainsKey($"{section}:{first}");
+
+            if (!documentedUnderIt)
+            {
+                undocumented.Add($"{key} ({origin})");
+            }
+        }
+
+        return [.. undocumented];
+    }
+
+    private static List<(string Key, string Origin)> ShippedAppsettingsKeys()
+    {
+        var keys = new List<(string Key, string Origin)>();
+        string presentation = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation");
+        var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+
+        foreach (string file in Directory.EnumerateFiles(presentation, "appsettings*.json", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)))
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(file), options);
+            string origin = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
+
+            Flatten(document.RootElement, string.Empty, origin, keys);
+        }
+
+        return keys;
+    }
+
+    private static void Flatten(JsonElement element, string path, string origin, List<(string Key, string Origin)> keys)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    Flatten(property.Value, path.Length == 0 ? property.Name : $"{path}:{property.Name}", origin, keys);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                int index = 0;
+
+                foreach (var item in element.EnumerateArray())
+                {
+                    Flatten(item, $"{path}:{index++}", origin, keys);
+                }
+
+                break;
+            default:
+                keys.Add((path, origin));
+                break;
+        }
+    }
+
+    private static List<(string Key, string Origin)> EnvironmentKeys()
+    {
+        var keys = new List<(string Key, string Origin)>();
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        string[] files =
+        [
+            .. Directory.EnumerateFiles(root, "docker-compose*.yml"),
+            Path.Combine(root, ".env.example"),
+        ];
+
+        foreach (string file in files.Where(File.Exists))
+        {
+            string origin = Path.GetFileName(file);
+
+            keys.AddRange(_environmentKey
+                .Matches(File.ReadAllText(file))
+                .Select(match => (match.Groups["key"].Value.Replace("__", ":", StringComparison.Ordinal), origin)));
+        }
+
+        return keys;
+    }
 
     private static SortedDictionary<string, SectionFacts> BoundSections()
     {

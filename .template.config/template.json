@@ -1700,6 +1700,7 @@
             "docs/architecture/http-api.md",
             "docs/architecture/request-pipeline.md",
             "docs/reference/api.md",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/ApiRouteTableTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/ErrorCodeTableTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/HttpSurfaceTests.cs",

@@ -13,6 +13,8 @@ public sealed class DocumentationCitationTests
 
     private static readonly string[] _exemptPages = ["CHANGELOG.md"];
 
+    private static readonly string[] _pagesWithoutCitations = ["docs/template/", "docs/_page-templates/"];
+
     private static readonly string[] _skippedDirectories = ["bin", "obj", "node_modules", "plans"];
 
     private static readonly string[] _keptDotDirectories = [".github", ".template.config"];
@@ -135,47 +137,24 @@ public sealed class DocumentationCitationTests
     }
 
     [Fact]
-    public void EveryPathTheRootPagesAndAgentFilesCite_Exists()
+    public void EveryPathTheDocumentationCites_Exists()
     {
-        var pages = CitingPages();
         var names = NamesInTree();
-        var missing = new List<string>();
-        int checkedPaths = 0;
+        var pages = PathCitingPages().ToDictionary(Relative, File.ReadAllText, StringComparer.Ordinal);
 
-        foreach (string page in pages)
-        {
-            string text = File.ReadAllText(page);
+        var (missing, checkedPaths) = MissingPaths(
+            pages,
+            path => Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, path)),
+            names.Contains);
 
-            foreach (Match span in _codeSpan.Matches(text))
-            {
-                string cited = span.Groups["span"].Value.Trim();
-                cited = cited.StartsWith("./", StringComparison.Ordinal) ? cited[2..] : cited;
-
-                if (_rootedPath.IsMatch(cited))
-                {
-                    checkedPaths++;
-
-                    if (!Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, cited)))
-                    {
-                        missing.Add($"{Relative(page)}: `{cited}`");
-                    }
-                }
-                else if (_bareFileName.IsMatch(cited))
-                {
-                    checkedPaths++;
-
-                    if (!names.Contains(cited))
-                    {
-                        missing.Add($"{Relative(page)}: `{cited}`, found nowhere in the tree");
-                    }
-                }
-            }
-        }
-
-        checkedPaths.ShouldBeGreaterThan(0, "the agent files cite paths; a scan that checks none is broken.");
+        pages.Keys.ShouldContain(
+            page => page.StartsWith("docs/", StringComparison.Ordinal),
+            "the documentation pages are read; a scan that finds none is broken.");
+        checkedPaths.ShouldBeGreaterThan(0, "the pages cite paths; a scan that checks none is broken.");
         missing.ShouldBeEmpty(
-            "A root page or an AGENTS.md cites a path that does not exist, so whoever follows it is lost. "
-            + "Correct the path, or write an illustration as a placeholder (`<Feature>`) or as prose.");
+            "A page cites a path that does not exist in this project, so whoever follows it is lost. "
+            + "Correct the path, or write an illustration as a placeholder (`<Feature>`) or as prose. "
+            + "A page a feature or an option conditions must cite only what that form keeps.");
     }
 
     [Fact]
@@ -239,6 +218,69 @@ public sealed class DocumentationCitationTests
         Slug("`ConnectionStrings:Default`").ShouldBe("connectionstringsdefault");
     }
 
+    [Fact]
+    public void ThePathScan_IsSensitive()
+    {
+        var pages = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["one.md"] = "See `Src/Present/File.cs`, `./Tests/Gone/File.cs`, `Missing.json` and `Src/Gone/`.",
+            ["two.md"] = "A placeholder `Src/<Feature>/File.cs`, prose `Src/Gone/File.cs here`, "
+                + "a name `Known.json` and a type `Item.Name` name nothing missing.",
+        };
+
+        var (missing, checkedPaths) = MissingPaths(
+            pages,
+            path => path == "Src/Present/File.cs",
+            name => name == "Known.json");
+
+        checkedPaths.ShouldBe(5);
+        missing.ShouldBe(
+            [
+                "one.md: `Tests/Gone/File.cs`",
+                "one.md: `Missing.json`, found nowhere in the tree",
+                "one.md: `Src/Gone/`",
+            ]);
+    }
+
+    private static (List<string> Missing, int Checked) MissingPaths(
+        IReadOnlyDictionary<string, string> pages,
+        Func<string, bool> pathExists,
+        Func<string, bool> nameExists)
+    {
+        var missing = new List<string>();
+        int checkedPaths = 0;
+
+        foreach ((string page, string text) in pages)
+        {
+            foreach (Match span in _codeSpan.Matches(text))
+            {
+                string cited = span.Groups["span"].Value.Trim();
+                cited = cited.StartsWith("./", StringComparison.Ordinal) ? cited[2..] : cited;
+
+                if (_rootedPath.IsMatch(cited))
+                {
+                    checkedPaths++;
+
+                    if (!pathExists(cited))
+                    {
+                        missing.Add($"{page}: `{cited}`");
+                    }
+                }
+                else if (_bareFileName.IsMatch(cited))
+                {
+                    checkedPaths++;
+
+                    if (!nameExists(cited))
+                    {
+                        missing.Add($"{page}: `{cited}`, found nowhere in the tree");
+                    }
+                }
+            }
+        }
+
+        return (missing, checkedPaths);
+    }
+
     private sealed record Citation(string Page, string Task, string Rest);
 
     private static HashSet<string> LauncherTasks()
@@ -283,6 +325,12 @@ public sealed class DocumentationCitationTests
             .Select(name => Path.Combine(ProjectReferenceGraph.RepositoryRoot, name))
             .Where(File.Exists)
             .Concat(MarkdownPages().Where(page => Path.GetFileName(page) == _agentFileName))
+            .Distinct(StringComparer.Ordinal)];
+
+    private static List<string> PathCitingPages() =>
+        [.. CitingPages()
+            .Concat(MarkdownPages().Where(page => Relative(page).StartsWith("docs/", StringComparison.Ordinal)
+                && !_pagesWithoutCitations.Any(prefix => Relative(page).StartsWith(prefix, StringComparison.Ordinal))))
             .Distinct(StringComparer.Ordinal)];
 
     private static List<string> MarkdownPages() =>

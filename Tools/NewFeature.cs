@@ -1408,12 +1408,47 @@ internal static class NewFeature
         output.WriteLine($"  | [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |");
 
         //#if (api)
+        if (spec.HasApi)
+        {
+            output.WriteLine("And its section of the route table under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads:");
+
+            foreach (string line in RouteSection(spec))
+            {
+                output.WriteLine("  " + line);
+            }
+        }
+
         if (spec.HasApi && Flags(spec).Contains("notfound"))
         {
             output.WriteLine("And the row of its refusal under ### Resources in docs/reference/api.md, which the error-code tests read:");
             output.WriteLine($"  | `{Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |");
         }
         //#endif
+    }
+
+    private static List<string> RouteSection(Spec spec)
+    {
+        string item = $"/{{{Lower(spec.Type)}Id}}";
+
+        (string Operation, string Row)[] rows =
+        [
+            ("list", "| GET | `/` | 200 | |"),
+            ("get", $"| GET, HEAD | `{item}` | 200 | |"),
+            ("create", "| POST | `/` | 201 | |"),
+            ("update", $"| PUT | `{item}` | 200 | |"),
+            ("delete", $"| DELETE | `{item}` | 204 | |"),
+        ];
+
+        return
+        [
+            $"### {char.ToUpperInvariant(spec.Features[0]) + Separated(spec.Features, ' ')[1..].ToLowerInvariant()}",
+            string.Empty,
+            $"Under `/api/v1/{Kebab(spec.Features)}`.",
+            string.Empty,
+            "| Method | Route | Success | Notes |",
+            "|---|---|---|---|",
+            .. rows.Where(row => spec.Has(row.Operation)).Select(row => row.Row),
+        ];
     }
 
     private static int SelfTest()
@@ -2360,6 +2395,10 @@ internal static class NewFeature
 
         expect(result.Output.Contains($"Feature page: {pagePath}", StringComparison.Ordinal), "The page written was not reported.");
         expect(result.Output.Contains("| [Todo lists](features/todo-lists.md) |", StringComparison.Ordinal), "The row of docs/README.md was not printed.");
+        //#if (api)
+        expect(result.Output.Contains("Under `/api/v1/todo-lists`.", StringComparison.Ordinal), "The route section of docs/reference/api.md was not printed.");
+        expect(result.Output.Contains("| GET, HEAD | `/{todoListId}` | 200 | |", StringComparison.Ordinal), "The row of the get route was not printed.");
+        //#endif
 
         string shared = WithPageTemplate(NewTree(scratch));
         var sharedResult = Invoke(shared, "Widgets", "Widget", "--access", "shared");

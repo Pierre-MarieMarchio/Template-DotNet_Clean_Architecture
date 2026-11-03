@@ -785,6 +785,11 @@ internal static class NewUseCase
         output.WriteLine();
         output.WriteLine("Then rewrite the OpenAPI reference the contract test compares:  dotnet run Tools/Tasks.cs openapi");
 
+        //#if (api)
+        output.WriteLine($"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:");
+        output.WriteLine("  " + RouteRow(spec));
+        //#endif
+
         if (File.Exists(Path.Combine(root, page)))
         {
             output.WriteLine($"and add the route to {page}.");
@@ -804,16 +809,34 @@ internal static class NewUseCase
             : [];
     }
 
+    private static string Remainder(Spec spec) =>
+        spec.Aggregate is { Length: > 0 } aggregate && spec.Name.Contains(aggregate, StringComparison.Ordinal) && spec.Name.Length > aggregate.Length
+            ? spec.Name.Replace(aggregate, string.Empty, StringComparison.Ordinal)
+            : spec.Name;
+
+    private static string IdName(Spec spec) => spec.Aggregate is null ? string.Empty : Lower(spec.Aggregate) + "Id";
+
+    private static string RouteTemplate(Spec spec)
+    {
+        string remainder = Remainder(spec);
+        string segment = Kebab(!spec.IsCommand && remainder.StartsWith("Get", StringComparison.Ordinal) && remainder.Length > 3 ? remainder[3..] : remainder);
+
+        return spec.HasInput ? $"{{{IdName(spec)}:guid}}/{segment}" : segment;
+    }
+
+    private static string RouteRow(Spec spec)
+    {
+        string documented = "/" + RouteTemplate(spec).Replace(":guid", string.Empty, StringComparison.Ordinal);
+
+        return $"| {(spec.IsCommand ? "POST" : "GET")} | `{documented}` | {(spec.IsCommand ? "204" : "200")} | |";
+    }
+
     private static List<string> Action(Spec spec)
     {
         string u = spec.Name;
-        string remainder = spec.Aggregate is { Length: > 0 } aggregate && u.Contains(aggregate, StringComparison.Ordinal) && u.Length > aggregate.Length
-            ? u.Replace(aggregate, string.Empty, StringComparison.Ordinal)
-            : u;
-        string method = remainder;
-        string segment = Kebab(!spec.IsCommand && remainder.StartsWith("Get", StringComparison.Ordinal) && remainder.Length > 3 ? remainder[3..] : remainder);
-        string id = spec.Aggregate is null ? string.Empty : Lower(spec.Aggregate) + "Id";
-        string route = spec.HasInput ? $"{{{id}:guid}}/{segment}" : segment;
+        string method = Remainder(spec);
+        string id = IdName(spec);
+        string route = RouteTemplate(spec);
         string parameters = spec.HasInput ? $"Guid {id}, CancellationToken cancellationToken" : "CancellationToken cancellationToken";
 
         var lines = new List<string>
@@ -1117,6 +1140,19 @@ internal static class NewUseCase
             expect(!Directory.Exists(Path.Combine(root, _manifestFolder)), $"[{label}] wrote a manifest where the feature had none.");
             expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");
             expect(result.Output.Contains("Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs", StringComparison.Ordinal), $"[{label}] did not name the feature's controller.");
+
+            //#if (api)
+            string row = args[0] switch
+            {
+                "ApproveInvoice" => "| POST | `/{invoiceId}/approve` | 204 | |",
+                "CloseOverdueInvoices" => "| POST | `/close-overdue-invoices` | 204 | |",
+                "GetInvoiceTotals" => "| GET | `/{invoiceId}/totals` | 200 | |",
+                _ => "| GET | `/summarise-revenue` | 200 | |",
+            };
+
+            expect(result.Output.Contains("ApiRouteTableTests", StringComparison.Ordinal), $"[{label}] did not name the test that reads the route table.");
+            expect(result.Output.Contains($"  {row}", StringComparison.Ordinal), $"[{label}] did not print the route's row '{row}'.");
+            //#endif
 
             foreach (string file in created)
             {

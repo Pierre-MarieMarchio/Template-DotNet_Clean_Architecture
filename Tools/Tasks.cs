@@ -203,8 +203,10 @@ internal static class Tasks
                                            .env.example under a project name of its own, so the
                                            development stack keeps its data; wait until every
                                            service is healthy, run
-                                           Tests/EndToEnd against it, print the stack's logs on a
-                                           failure, then remove the stack and its volumes. A variable
+                                           Tests/EndToEnd against it, then, with a web app, drive each
+                                           one in Chromium (packages/browser-smoke in Src/Web), print
+                                           the stack's logs on a failure, then remove the stack and
+                                           its volumes. A variable
                                            set in the environment overrides .env.example, for the
                                            stack and the suite alike
           --keep-stack                     end-to-end: leave the stack it started running, data included,
@@ -1190,6 +1192,7 @@ internal static class Tasks
                 "dotnet", "run",
                 "--project", Path.Combine(projectFile.ProjectFolder("Tests", "EndToEnd", "EndToEnd.Tests"), projectFile.ProjectName("EndToEnd.Tests") + ".csproj"),
                 "--configuration", configuration);
+            BrowserSmoke(projectFile, environment);
             passed = true;
         }
         finally
@@ -1203,6 +1206,28 @@ internal static class Tasks
             {
                 Launch(repoRoot, environment, "docker", [.. compose, "down", "--volumes"]);
             }
+        }
+    }
+
+    private static void BrowserSmoke(ProjectFile projectFile, Dictionary<string, string> environment)
+    {
+        if (!projectFile.HasWebApps)
+        {
+            return;
+        }
+
+        var smoke = new Dictionary<string, string>(environment, StringComparer.Ordinal) { ["SMOKE_ENV_FILE"] = ".env.example" };
+
+        try
+        {
+            Launch(Path.Combine(projectFile.Root, "Src", "Web"), smoke, _pnpm, ["--filter", "*browser-smoke", "smoke"]);
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException(
+                error.Message + " The browser smoke needs `pnpm install --frozen-lockfile` in Src/Web and Chromium: install it with "
+                + "`pnpm --filter *browser-smoke exec playwright install --only-shell chromium` in Src/Web, adding `--with-deps` on Linux "
+                + "for the system libraries it loads.");
         }
     }
 
@@ -3659,6 +3684,8 @@ internal sealed class ProjectFile
         _json["presentation"] is JsonArray presentations ? [.. presentations.OfType<JsonObject>().Select(entry => Text(entry, "name"))] : [];
 
     internal bool HasWebWorkspace => _json["web"] is JsonObject;
+
+    internal bool HasWebApps => _json["web"]?["apps"] is JsonArray { Count: > 0 };
 
     internal bool RendersAWebAppOnTheServer =>
         _json["web"]?["apps"] is JsonArray apps

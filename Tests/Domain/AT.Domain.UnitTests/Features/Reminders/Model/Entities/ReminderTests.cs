@@ -39,6 +39,31 @@ public sealed class ReminderTests
         });
 
     [Fact]
+    public void Schedule_StoresTheDueDate_AsTheSameInstantInUtc()
+    {
+        var dueAt = new DateTimeOffset(2026, 8, 3, 15, 30, 0, TimeSpan.FromHours(2));
+
+        var reminder = AReminder(dueAt);
+
+        reminder.DueAt.Offset.ShouldBe(TimeSpan.Zero);
+        reminder.DueAt.ShouldBe(dueAt);
+        reminder.DueAt.UtcDateTime.ShouldBe(new DateTime(2026, 8, 3, 13, 30, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public void Reschedule_StoresTheNewDueDate_AsTheSameInstantInUtc()
+    {
+        var reminder = AReminder();
+        var newDueAt = new DateTimeOffset(2026, 8, 5, 9, 0, 0, TimeSpan.FromHours(-5));
+
+        reminder.Reschedule(newDueAt, _now);
+
+        reminder.DueAt.Offset.ShouldBe(TimeSpan.Zero);
+        reminder.DueAt.ShouldBe(newDueAt);
+        reminder.DueAt.UtcDateTime.ShouldBe(new DateTime(2026, 8, 5, 14, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
     public void Schedule_Rejects_AnEmptyTodoListId()
     {
         var exception = Should.Throw<DomainException>(

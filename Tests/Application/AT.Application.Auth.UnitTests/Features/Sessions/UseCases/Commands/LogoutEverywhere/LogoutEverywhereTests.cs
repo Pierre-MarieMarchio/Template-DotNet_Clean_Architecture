@@ -42,7 +42,7 @@ public sealed class LogoutEverywhereTests
     {
         await UseCase().Handle(new LogoutEverywhereCommand(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.RefreshTokenRevoked(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.RefreshTokenRevoked(_callerId));
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class LogoutEverywhereTests
     {
         await UseCase().Handle(new LogoutEverywhereCommand(), TestToken);
 
-        _securityEventLog.DidNotReceive().Record(SecurityEvent.SecurityStampRotated(_callerId));
+        await _securityEventLog.DidNotReceive().RecordAsync(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
     private LogoutEverywhereCommandHandler UseCaseFor(ICurrentUser currentUser) =>

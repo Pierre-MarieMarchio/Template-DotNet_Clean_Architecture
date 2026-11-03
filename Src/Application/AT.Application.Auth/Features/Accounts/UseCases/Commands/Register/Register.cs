@@ -37,7 +37,7 @@ public sealed class RegisterCommandHandler(
 
         if (registration.Status is AccountRegistrationStatus.Created)
         {
-            securityEventLog.Record(SecurityEvent.Registered(registration.UserId));
+            await securityEventLog.RecordAsync(SecurityEvent.Registered(registration.UserId));
         }
 
         await TrySendAsync(request.Email, registration, cancellationToken);

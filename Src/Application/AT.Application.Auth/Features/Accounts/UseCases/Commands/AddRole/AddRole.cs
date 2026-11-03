@@ -27,7 +27,7 @@ public sealed class AddRoleCommandHandler(
         }
 
         await CredentialInvalidationPolicy.InvalidateAsync(sessionTokens, securityEventLog, request.UserId, cancellationToken);
-        securityEventLog.Record(SecurityEvent.RoleGranted(request.UserId, request.Role));
+        await securityEventLog.RecordAsync(SecurityEvent.RoleGranted(request.UserId, request.Role));
 
         return Result.Success();
     }

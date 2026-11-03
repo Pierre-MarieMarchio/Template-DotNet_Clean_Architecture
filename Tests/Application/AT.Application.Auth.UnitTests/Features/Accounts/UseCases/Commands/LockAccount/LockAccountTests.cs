@@ -92,8 +92,8 @@ public sealed class LockAccountTests
 
         await UseCase().Handle(new LockAccountCommand(_targetId), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.AccountLockedByAdministrator(_targetId));
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_targetId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.AccountLockedByAdministrator(_targetId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(_targetId));
     }
 
     [Fact]

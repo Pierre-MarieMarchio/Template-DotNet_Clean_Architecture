@@ -1,4 +1,5 @@
 ﻿using AppTemplate.Application.Core.Common.Concurrency;
+using AppTemplate.Infrastructure.Core.Common.Contexts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTemplate.Infrastructure.Core.Common.Saving;
@@ -16,6 +17,12 @@ internal sealed class EfUnitOfWork<TContext>(TContext context) : IContextUnitOfW
         {
             throw new ConcurrencyConflictException(
                 "A concurrent modification of the same aggregate was detected; this write was rejected.",
+                exception);
+        }
+        catch (DbUpdateException exception) when (DatabaseProvider.IsUniqueViolation(exception))
+        {
+            throw new UniquenessConflictException(
+                "A row with the same unique key was written by another request; this write was rejected.",
                 exception);
         }
     }

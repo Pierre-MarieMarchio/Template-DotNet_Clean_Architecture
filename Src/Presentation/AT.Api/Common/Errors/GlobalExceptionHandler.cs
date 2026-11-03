@@ -24,6 +24,12 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "concurrency.conflict",
                 "The resource was changed by another request. Reload it and apply the change again."),
 
+            UniquenessConflictException => (
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                "uniqueness.conflict",
+                "A resource with the same unique value already exists."),
+
             DomainException => (
                 StatusCodes.Status400BadRequest,
                 "Invalid request",

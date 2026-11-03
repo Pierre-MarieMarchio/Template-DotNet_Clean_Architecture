@@ -91,7 +91,8 @@ on every read of it and every write that returns it. A collection is never versi
 | A write whose `If-Match` is not a list of quoted tags | `400` `precondition.malformed` |
 
 Whatever the header said, a write that loses a race between its load and its commit answers `409`
-`concurrency.conflict`: reload, and apply the change again.
+`concurrency.conflict`: reload, and apply the change again. A write that loses a race on a unique
+index answers `409` `uniqueness.conflict` the same way, unless the endpoint translates that key itself.
 
 ```http
 GET /api/v1/{resource}/{id}

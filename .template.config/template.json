@@ -1600,6 +1600,7 @@
             "Src/Presentation/AT.Api/Common/Observability/DatabaseInstrumentation.cs",
             "docker-compose.database.yml",
             "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Contexts/DatabaseProviderTests.cs",
+            "Tests/Infrastructure/AT.Infrastructure.Core.UnitTests/Common/Saving/UniqueViolationFault.cs",
             "Tests/Infrastructure/AT.Infrastructure.Auth.UnitTests/Fixtures/DatabaseFaults.cs",
             "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Features/Files/Adapters/Locks/OwnerQuotaLockTests.cs",
             "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/PersistenceModuleConnectionStringTests.cs",

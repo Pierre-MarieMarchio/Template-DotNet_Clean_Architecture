@@ -29,17 +29,33 @@ public sealed class EfUnitOfWorkTests
     }
 
     [Fact]
-    public async Task SaveChangesAsync_LeavesEveryOtherUpdateFailureAlone()
+    public async Task SaveChangesAsync_TranslatesAUniqueViolation_AndKeepsTheOriginal()
     {
-        var violation = new DbUpdateException("duplicate key value violates a unique constraint");
+        var violation = UniqueViolationFault.Create();
 
         await using var context = AContextThatFailsWith(violation);
+
+        var failure = await Should.ThrowAsync<UniquenessConflictException>(
+            async () => await new EfUnitOfWork<EmptyContext>(context)
+                .SaveChangesAsync(TestContext.Current.CancellationToken));
+
+        failure.InnerException.ShouldBeSameAs(
+            violation,
+            "the log still has to say which index refused, and only the database's exception knows.");
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_LeavesEveryOtherUpdateFailureAlone()
+    {
+        var failureOfAnotherKind = new DbUpdateException("a foreign key was refused");
+
+        await using var context = AContextThatFailsWith(failureOfAnotherKind);
 
         var failure = await Should.ThrowAsync<DbUpdateException>(
             async () => await new EfUnitOfWork<EmptyContext>(context)
                 .SaveChangesAsync(TestContext.Current.CancellationToken));
 
-        failure.ShouldBeSameAs(violation);
+        failure.ShouldBeSameAs(failureOfAnotherKind);
     }
 
     [Fact]

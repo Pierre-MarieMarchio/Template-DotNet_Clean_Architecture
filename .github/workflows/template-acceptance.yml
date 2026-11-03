@@ -879,6 +879,31 @@ jobs:
             echo "Presentation project on $port: page or sign-in redirect, sign-in form under local accounts, and /health verified."
           done
 
+      # The curl checks above read headers and bytes; only a browser reports what it blocks or breaks. Chromium is cached by the Playwright release the project's lockfile resolves, since another release looks for another build; the install runs on a hit too, for the system libraries, and downloads nothing it holds.
+      - name: Find the Playwright release (web legs)
+        id: playwright
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated/Src/Web
+        run: echo "version=$(pnpm --filter '*browser-smoke' exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Chromium (web legs)
+        if: matrix.web == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium (web legs)
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated/Src/Web
+        run: pnpm --filter '*browser-smoke' exec playwright install --only-shell --with-deps chromium
+
+      # Every app cleanarch.json records, on the port .env gives it: its page loads, the browser reports no Content-Security-Policy violation, console error or uncaught exception, and a call through its /api/ relay reaches the API.
+      - name: Drive every web app in Chromium (web legs)
+        if: matrix.web == 'true'
+        working-directory: ${{ runner.temp }}/generated/Src/Web
+        run: pnpm --filter '*browser-smoke' smoke
+
       # The worker runs its first maintenance pass as it starts; the API, which leaves the jobs to it, starts none. Each verdict greps logs captured whole: grep -q closing a pipe early fails the pipeline under pipefail, so a logged pass would read as none.
       - name: Assert the worker runs the jobs and the API none (worker legs)
         if: matrix.worker == 'true'

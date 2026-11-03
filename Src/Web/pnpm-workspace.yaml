@@ -6,9 +6,18 @@ peerDependencyRules:
   allowedVersions:
     openapi-typescript>typescript: "6"
 
+# GHSA-g3hv-75wg-m249: minimatch below 11.0.1. Drop the overrides and the patch once eslint, typescript-eslint and @redocly/openapi-core depend on a release at 11.0.1 or above.
+overrides:
+  minimatch@10: 11.0.4
+  minimatch@5: 11.0.4
+
 # Install scripts the Angular CLI's build tools ship, refused: each package has a prebuilt binary to fall back on.
 allowBuilds:
   "@parcel/watcher": false
   esbuild: false
   lmdb: false
   msgpackr-extract: false
+
+# minimatch 11 exports a named function where 5 exported the function itself, which @redocly/openapi-core 1.34.21 still requires; a newer openapi-typescript brings another @redocly version, so re-check this patch then.
+patchedDependencies:
+  '@redocly/openapi-core@1.34.21': patches/@redocly__openapi-core@1.34.21.patch

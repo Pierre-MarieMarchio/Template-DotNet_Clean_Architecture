@@ -276,6 +276,39 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void EveryGeneratedProject_ReceivesItsOwnIssueFormsAndPullRequestTemplate()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        string variant = Path.Combine(root, ".template.config", "variants", "project", ".github");
+
+        IssueFormTests.AssertForms(Path.Combine(variant, "ISSUE_TEMPLATE"));
+        PullRequestTemplateTests.AssertCarriesTheAuthorshipRule(Path.Combine(variant, "pull_request_template.md"));
+
+        var files = Directory.EnumerateFiles(variant, "*", SearchOption.AllDirectories)
+            .Select(file => File.ReadAllText(file))
+            .ToList();
+        files.ShouldNotBeEmpty("The project's .github variant holds no file.");
+        files.Where(text => text.Contains("dotnet new", StringComparison.Ordinal) || text.Contains("template", StringComparison.OrdinalIgnoreCase))
+            .ShouldBeEmpty("A file generated into a project talks about the template: it is written for the project.");
+    }
+
+    [Fact]
+    public void TheTemplatesCommunityFiles_ReachNeitherAProjectNorTheTemplatePackage()
+    {
+        string[] files = ["CODE_OF_CONDUCT.md", "SUPPORT.md"];
+
+        foreach (string file in files)
+        {
+            File.Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, file)).ShouldBeTrue($"{file} was not found.");
+        }
+
+        files.Except(UnconditionalExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "template.json generates files that are about this repository alone: add each to its unconditional excludes.");
+        files.Except(PackageExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "The template package carries files that are about this repository alone: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
     public void ThePackage_LeavesOutEveryScratchAndMaintenancePath()
     {
         string[] scratch =

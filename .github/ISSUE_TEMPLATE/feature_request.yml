@@ -2,10 +2,14 @@ name: Feature request
 description: Something a generated project should have, or an option the template should offer.
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem before the solution: a proposal is judged by the need it settles. Report a vulnerability privately, never here: see SECURITY.md.
   - type: textarea
     id: need
     attributes:
-      label: The need
+      label: The problem
       description: What a team building on a generated project cannot do today, and how it works around it.
     validations:
       required: true
@@ -16,6 +20,13 @@ body:
       description: What the project, a page or an option would hold; for an option, which shapes it creates or refuses.
     validations:
       required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: The other ways to settle the problem, and why this one is better.
+    validations:
+      required: false
   - type: textarea
     id: decisions
     attributes:

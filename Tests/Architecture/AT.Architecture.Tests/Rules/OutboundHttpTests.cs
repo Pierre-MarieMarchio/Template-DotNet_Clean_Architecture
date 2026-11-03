@@ -23,7 +23,11 @@ public sealed class OutboundHttpTests
         var sources = SourceFiles();
 
         sources.Count.ShouldBeGreaterThanOrEqualTo(
+            /*#if (api)*/
             170,
+            /*#else
+            100,
+            #endif*/
             "Far fewer source files were found than this repository holds, so this rule is reading " +
             "the wrong tree and passing for the wrong reason.");
 

@@ -204,6 +204,87 @@ dotnet run Tools/Tasks.cs migration-add <Name>
 
 A migration a database has applied is never rewritten, as [migrations](migrations.md#add-a-migration)
 says.
+<!--#if (!publicApi)-->
+A field of a feature `new-feature --fields` generated is [`new-field`'s](#add-a-field), which adds
+its migration itself.
+<!--#endif-->
+
+## Add a field
+
+<!--#if (!publicApi)-->
+```bash
+dotnet run Tools/Tasks.cs new-field <Features> "<Name:type>=<default>, ..." [--dry-run]
+dotnet run Tools/Tasks.cs new-field Projects "Budget:decimal(12,2)>=0=0, Code:string(20)='none', Notes:text?"
+```
+
+`new-field` adds one or more fields to a feature `new-feature --fields` generated, in every member
+`--fields` writes a field in, and leaves the feature as `new-feature --fields` would have written it
+with the new fields last. The fields read as [`--fields`](#fields) reads them, with one addition: a
+field that cannot be null takes a default after `=`, the value the rows the table already holds
+receive, which its rules must accept. A number, `true` or `false` is written bare; a string, a text,
+a `DateOnly` (`'2026-01-31'`), a `DateTimeOffset` with its offset (`'2026-01-31T09:00:00Z'`) or a
+`Guid` goes between quotes, a quote inside doubled. A nullable field takes none, and the rows hold
+`null`.
+
+It finds each member through the file's syntax tree, whatever its formatting, and leaves the members
+a person added where they are. It refuses, and writes nothing, when the feature has no manifest,
+being written by hand as the example features are, or was generated without `--fields`, whose `Name`
+and `Description` are placeholders; when a member the field changes was changed by hand or is gone,
+naming the file and the member with the lines to add and to remove; and when a field is there already
+or breaks a rule `--fields` checks. Every change is made or none is.
+
+<!--#if (api)-->
+A field that cannot be null is a breaking change of the HTTP contract: once the API ships, a create
+or an update without it answers `400`, so the command names it, and the clients it breaks ship with
+the API. A nullable field breaks no client, but an update replaces the whole resource, so one that
+leaves it out stores `null`: a client that does not know the field yet clears it.
+<!--#endif-->
+<!--#if (!api)-->
+A field that cannot be null changes what the create and update operations take, and the command says
+so: every caller passes it. A nullable field breaks no caller.
+<!--#endif-->
+
+Before it writes, it refuses as `new-feature` does while a context has no initial migration or a
+model change waits for one. After it writes, it builds once, adds the `Add<Field>To<Features>`
+migration (`Add<Field>And<Field>To<Features>` for two fields, `Add<Field>And<N>MoreFieldsTo<Features>`
+for more), sets each default as the `defaultValue` of the migration's `AddColumn`, which `dotnet ef`
+writes as the type's empty value,
+<!--#if (api)-->
+then rewrites the OpenAPI reference and the clients written from it,
+<!--#endif-->
+and stops at the first step that fails; the same command resumes once the failure is fixed. The
+manifest records each field with its default, the new SHA-256 of each file, and under `addedFields`
+the declaration, the migration and each file's change, so `remove-feature` reads the files as
+untouched.
+<!--#if (accounts)-->
+Why a field is written through the syntax tree while the feature's edits are lines placed beside an
+anchor is [ADR 0031](../decisions/0031-the-feature-generator-composes-what-it-writes.md).
+<!--#endif-->
+
+### By hand
+
+A feature written by hand takes a field by hand, in each place `new-field` reaches:
+<!--#endif-->
+<!--#if (publicApi)-->
+This project authenticates nobody, so no feature here comes from `new-feature`, and a field goes in
+by hand, in each place below:
+<!--#endif-->
+
+- the aggregate: its property, its constants, its invariant in the factory, the rehydration and the
+  update, with its message; or, for a record feature, the input policy's constants;
+- the commands or the content DTO, the DTOs, the summary when it holds the field, the validator's
+  rule with the same message, and the mapping from the aggregate or the record;
+- the record's property, its column in the EF configuration with its length or precision, and the
+  sort index and the collection policy's field when it sorts; the mapper both ways, the store's
+  writes and the queries' projections;
+<!--#if (api)-->
+- the request contracts, with `[property: JsonRequired]` on a value type and the documentation of
+  each parameter, the responses, their mapping and the controller's call;
+<!--#endif-->
+- the tests of the validator, the aggregate, the mapper and the configuration, and the integration
+  test that creates a resource with the field;
+- a migration, `dotnet run Tools/Tasks.cs migration-add Add<Field>To<Features>`, whose `AddColumn`
+  gives the rows already stored the `defaultValue` the field's rules accept.
 
 ## Add a use case
 

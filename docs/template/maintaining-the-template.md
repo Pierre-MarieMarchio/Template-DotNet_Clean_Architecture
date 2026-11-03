@@ -82,8 +82,12 @@ tests pass in every Docker-free test project, and the business context has no pe
 Every file no manifest lists then goes back to the commit, the edits, the migration and the
 rewritten references among them, untracked files included, since `remove-feature` refuses a feature
 still composed; `remove-feature --apply` then leaves `git status` empty. Then all four are written
-together, proved the same way, and on the defaults leg, which has Docker, the integration tests
-`--fields` wrote run against PostgreSQL, about half a minute more; `hygiene` passes, and they are
+together, `new-field` adds a required string and a required int, each with its default, and a
+nullable decimal to the record and to the aggregate written with `--fields`, and the leg fails when it
+does not name the breaking change, record the addition in the manifest, or give the stored rows each
+default in the migration it adds; the two runs add about a minute and a half. The four are then
+proved the same way, and on the defaults leg, which has Docker, the integration tests
+`--fields` and `new-field` wrote run against PostgreSQL, about half a minute more; `hygiene` passes, and they are
 removed last in first out. A web leg also checks its
 lockfile, adds a second app and a package with the item templates, scaffolds, runs the workspace's
 install, lint, test and build, fails when an app with a build script has no built page, checks a

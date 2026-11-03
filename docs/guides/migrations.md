@@ -80,6 +80,14 @@ When the model has not changed since the context's last migration, the task dele
 migration `dotnet ef` wrote, restores the model snapshot and fails, so nothing is written: a new entity
 needs its schema constant, its set and its `ApplyConfiguration` call in the context first.
 
+A column that cannot be null, added to a table that already holds rows, needs the value those rows
+take. `dotnet ef` writes the type's empty value as the `defaultValue` of its `AddColumn`, which the
+field's rule may refuse, an empty string or a zero below a bound: set the one the rule accepts in
+the migration before a database applies it.
+<!--#if (!publicApi)-->
+`new-field` sets it itself, from the default each field declares.
+<!--#endif-->
+
 ## Check it against the model
 
 <!--#if (localAuth)-->
@@ -104,12 +112,12 @@ It compares the snapshot with the model and needs no database. `verify` runs it 
 and `PendingModelChangesTests` proves the same inside the suite, which is how CI catches drift.
 <!--#if (localAuth)-->
 `dotnet run Tools/Tasks.cs migration-check` runs it for the business context, or for the
-authentication context with `--context auth`; `new-feature` runs it before it writes, so the
-feature's migration carries the feature alone.
+authentication context with `--context auth`; `new-feature` and `new-field` run it before they
+write, so the migration of a feature, or of a field, carries it alone.
 <!--#endif-->
 <!--#if (!localAuth)-->
-`dotnet run Tools/Tasks.cs migration-check` runs it for the business context; `new-feature` runs it
-before it writes, so the feature's migration carries the feature alone.
+`dotnet run Tools/Tasks.cs migration-check` runs it for the business context; `new-feature` and
+`new-field` run it before they write, so the migration of a feature, or of a field, carries it alone.
 <!--#endif-->
 
 ## Apply them

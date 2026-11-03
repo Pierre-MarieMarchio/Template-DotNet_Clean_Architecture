@@ -15,12 +15,12 @@
               </Exclude>
             </ModulePaths>
 
-            <!-- Code a tool wrote: EF migrations, and every source generator's output under obj/. -->
+            <!-- Code a tool wrote, each anchored below the project: the collector matches a source's full path without case, so a bare folder name also matches the folder a project sits in. -->
             <Sources>
               <Exclude>
-                <Source>.*[\\/]Migrations[\\/].*</Source>
-                <Source>.*[\\/]obj[\\/].*</Source>
-                <Source>.*[\\/]Generated[\\/].*</Source>
+                <Source>.*[\\/]Src[\\/]Infrastructure[\\/][^\\/]+[\\/]Migrations[\\/].*</Source>
+                <Source>.*[\\/]obj[\\/][^\\/]+[\\/]net\d+\.\d+[^\\/]*[\\/].*</Source>
+                <Source>.*[\\/]Src[\\/]Clients[\\/][^\\/]+[\\/]Generated[\\/].*</Source>
               </Exclude>
             </Sources>
 

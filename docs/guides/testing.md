@@ -222,7 +222,10 @@ It runs the suite with coverage and compares the merged line coverage with the f
 `--coverage-settings`; `--settings` is accepted and ignored.
 
 `coverage.runsettings` leaves out the test assemblies, the migrations, what a source generator wrote
-under `obj/`, auto-properties and a member marked `[ExcludeFromCodeCoverage]`. It keeps the types
+under `obj/`, the code Kiota writes for a .NET client, auto-properties and a member marked
+`[ExcludeFromCodeCoverage]`. Each source it leaves out is named by its folder below the project,
+since the collector matches a source's full path without case: a project checked out under a folder
+named generated would otherwise be left out whole. It keeps the types
 the compiler generates: an async method, an iterator and a lambda have their body in one, and
 excluding them leaves a file whose code is all async out of the report. `CoverageSettingsTests`
 holds it.

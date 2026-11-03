@@ -1,12 +1,18 @@
 ﻿#:property UseAppHost=false
+#:property ManagePackageVersionsCentrally=false
+#:package Microsoft.CodeAnalysis.CSharp@5.9.0
 
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-internal static class NewFeature
+internal static partial class NewFeature
 {
     private const string _manifestFolder = ".feature-manifest";
 
@@ -104,6 +110,18 @@ internal static class NewFeature
             Console.WriteLine(_usage);
 
             return 0;
+        }
+
+        if (args is ["new-field", "--help" or "-h"])
+        {
+            Console.WriteLine(_fieldUsage);
+
+            return 0;
+        }
+
+        if (args is ["new-field", ..])
+        {
+            return RunField(args[1..], Console.Out, Console.Error, TextEdits.Execute);
         }
 
         /*#if (!publicApi)*/
@@ -2257,6 +2275,12 @@ internal static class NewFeature
             InstantCases(scratch, Expect);
             FieldGrammarCases(scratch, Expect);
             FieldEmissionCases(scratch, Expect);
+            FieldAdditionCases(scratch, Expect);
+            FieldFormattingCases(scratch, Expect);
+            FieldRefusalCases(scratch, Expect);
+            FieldHandEditCases(scratch, Expect);
+            FieldResumeCases(scratch, Expect);
+            FieldShapeCases(scratch, Expect);
             TemplateGuardCases(Expect);
         }
         finally
@@ -4580,6 +4604,1600 @@ internal static class NewFeature
 
         return comments;
     }
+}
+
+internal static partial class NewFeature
+{
+    private const string _fieldUsage =
+        "Usage: dotnet run Tools/NewFeature.cs new-field <Features> \"<Name:type>=<default>, ...\" [--root <path>] [--dry-run]\n"
+        + "  <Features>     a feature new-feature generated with --fields, which its manifest records\n"
+        + "  <fields>       the fields to add, in the grammar of --fields. A field that cannot be null takes a\n"
+        + "                 default after '=', the value the rows the table already holds receive, which its rules\n"
+        + "                 must accept: a number, true or false, or a value between quotes for a string, a text, a\n"
+        + "                 DateOnly, a DateTimeOffset or a Guid: \"Budget:decimal(12,2)>=0=0, Code:string(20)='none', Notes:text?\".\n"
+        + "  --root         the tree to write into, default the current directory.\n"
+        + "  --dry-run      print what changes, and write and run nothing.\n"
+        + "  It adds each field to every member --fields writes it in, found through each file's syntax tree whatever its\n"
+        + "  formatting; a member changed by hand since new-feature wrote it, or missing, writes nothing and prints the\n"
+        + "  change to make by hand. It refuses while a context has no initial migration or the business model has a\n"
+        + "  change no migration holds, then builds, adds the Add<Field>To<Features> migration with each default, and\n"
+        + "  rewrites the OpenAPI reference and the clients written from it.";
+
+    private const string _inProcess = "";
+
+    private sealed record FieldRequest(string? Features, string? Declaration, string Root, bool DryRun);
+
+    private sealed record Addition(Spec Before, Spec After, IReadOnlyList<Field> Added, string Migration, JsonObject Manifest, bool Pending);
+
+    private sealed record FieldChange(string Path, byte[]? Original, byte[] Bytes, List<string> Members);
+
+    private static int RunField(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    {
+        var problems = new List<string>();
+        var request = ParseFieldRequest(args, problems);
+        string root = System.IO.Path.GetFullPath(request.Root);
+        var addition = problems.Count == 0 ? CheckField(request, root, problems) : null;
+
+        if (addition is null)
+        {
+            return RefuseField(error, problems);
+        }
+
+        if (addition.Pending)
+        {
+            output.WriteLine(
+                $"{ManifestPath(addition.After)} records {string.Join(", ", addition.Added.Select(field => field.Declared))} already, "
+                + $"and its migration {addition.Migration} is not complete: its files are written, so nothing is written again.");
+
+            return request.DryRun ? 0 : FinishField(root, addition, output, error, run);
+        }
+
+        var changes = FieldChanges(root, addition, problems);
+
+        if (problems.Count > 0)
+        {
+            ReportField(output, root, addition, changes, Mode.Refused);
+
+            foreach (string problem in problems)
+            {
+                error.WriteLine($"error: {problem}");
+            }
+
+            error.WriteLine("Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
+
+            return 1;
+        }
+
+        var manifest = UpdatedManifest(addition, changes);
+
+        if (request.DryRun)
+        {
+            ReportField(output, root, addition, changes, Mode.DryRun);
+            output.WriteLine();
+            output.WriteLine("--dry-run: nothing was written and nothing was run.");
+
+            return 0;
+        }
+
+        if (Preconditions(root, addition.After, output, run) is { } refusal)
+        {
+            error.WriteLine($"error: {refusal}");
+            error.WriteLine("Nothing was written.");
+
+            return 1;
+        }
+
+        try
+        {
+            TextEdits.Commit(
+                root,
+                [.. changes.Where(change => change.Original is null).Select(change => (change.Path, change.Bytes))],
+                [
+                    .. changes.Where(change => change.Original is not null).Select(change => (change.Path, change.Original!, change.Bytes)),
+                    (ManifestPath(addition.After), File.ReadAllBytes(System.IO.Path.Combine(root, ManifestPath(addition.After))), manifest),
+                ]);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
+
+            return 1;
+        }
+
+        ReportField(output, root, addition, changes, Mode.Applied);
+
+        return FinishField(root, addition, output, error, run);
+    }
+
+    private static int RefuseField(TextWriter error, List<string> problems)
+    {
+        foreach (string problem in problems)
+        {
+            error.WriteLine($"error: {problem}");
+        }
+
+        error.WriteLine();
+        error.WriteLine(_fieldUsage);
+        error.WriteLine();
+        error.WriteLine("Nothing was written.");
+
+        return 1;
+    }
+
+    private static FieldRequest ParseFieldRequest(string[] args, List<string> problems)
+    {
+        var positional = new List<string>();
+        string? root = null;
+        bool dryRun = false;
+
+        for (int index = 0; index < args.Length; index++)
+        {
+            string argument = args[index];
+
+            if (argument == "--dry-run")
+            {
+                dryRun = true;
+            }
+            else if (argument == "--root" && index + 1 < args.Length && root is null)
+            {
+                root = args[++index];
+            }
+            else if (argument.StartsWith("--", StringComparison.Ordinal))
+            {
+                problems.Add($"'{argument}' is not an option of new-field, which takes --root <path> and --dry-run.");
+            }
+            else
+            {
+                positional.Add(argument);
+            }
+        }
+
+        if (positional.Count != 2)
+        {
+            problems.Add(
+                $"Expected the feature and its new fields, and found {positional.Count} argument(s): "
+                + "new-field Projects \"Budget:decimal(12,2)>=0=0\".");
+        }
+
+        return new FieldRequest(
+            positional.Count > 0 ? positional[0] : null,
+            positional.Count > 1 ? positional[1] : null,
+            root ?? ".",
+            dryRun);
+    }
+
+    private static Addition? CheckField(FieldRequest request, string root, List<string> problems)
+    {
+        string features = request.Features ?? string.Empty;
+
+        if (!CSharpNames.PascalCase.IsMatch(features))
+        {
+            problems.Add($"'{features}' is not a feature's folder: <Features> is PascalCase and plural, e.g. Projects.");
+
+            return null;
+        }
+
+        string prefix;
+        bool tablePrefixes;
+
+        try
+        {
+            prefix = ProductPrefix(root);
+            tablePrefixes = TablePrefixes(root);
+        }
+        catch (InvalidOperationException exception)
+        {
+            problems.Add(exception.Message);
+
+            return null;
+        }
+
+        string manifestPath = $"{_manifestFolder}/{features}.json";
+        string manifestFile = System.IO.Path.Combine(root, manifestPath);
+
+        if (!File.Exists(manifestFile))
+        {
+            problems.Add(WrittenByHand(root, features)
+                ? $"{features} has no manifest, {manifestPath}: it was written by hand, as the project's example features (TodoLists, "
+                    + "Notes and the others) are, so new-field cannot know which members a field reaches. Add the field by hand: "
+                    + "docs/guides/adding-a-feature.md, under Adding a field, lists every place it goes."
+                : $"No feature called {features}: {manifestPath} does not exist. new-field adds a field to a feature that "
+                    + "new-feature --fields generated.");
+
+            return null;
+        }
+
+        JsonObject manifest;
+
+        try
+        {
+            manifest = JsonNode.Parse(File.ReadAllText(manifestFile))?.AsObject() ?? throw new JsonException("empty");
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
+        {
+            problems.Add($"{manifestPath} is not the JSON object new-feature writes: {exception.Message}");
+
+            return null;
+        }
+
+        if (ManifestSpec(manifest, manifestPath, prefix, tablePrefixes, root, problems) is not { } before)
+        {
+            return null;
+        }
+
+        var added = FieldGrammar.Parse(request.Declaration ?? string.Empty, FieldProfile.AddedField, problems);
+
+        for (int index = 0; index < problems.Count; index++)
+        {
+            problems[index] = problems[index].Replace("--fields", "The fields to add", StringComparison.Ordinal);
+        }
+
+        if (added is null)
+        {
+            return null;
+        }
+
+        var existing = before.Fields!;
+        string migration = MigrationName(features, added);
+        string declared = string.Join(", ", added.Select(field => field.Declared));
+
+        if (added.Any(field => existing.Any(present => string.Equals(present.Name, field.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            bool recorded = manifest["addedFields"] is JsonArray additions
+                && additions.Any(entry => entry?["declaration"]?.GetValue<string>() == declared && entry["migration"]?.GetValue<string>() == migration);
+            var after = before with { Fields = existing };
+
+            if (recorded && !Migrated(root, after, migration, added))
+            {
+                return new Addition(before with { Fields = [.. existing.Where(field => !added.Any(one => one.Name == field.Name))] }, after, added, migration, manifest, Pending: true);
+            }
+
+            foreach (var field in added.Where(field => existing.Any(present => string.Equals(present.Name, field.Name, StringComparison.OrdinalIgnoreCase))))
+            {
+                var present = existing.First(other => string.Equals(other.Name, field.Name, StringComparison.OrdinalIgnoreCase));
+
+                problems.Add(
+                    $"{features} already has a field {present.Name} ({present.Declaration}), which {manifestPath} records: a field is added "
+                    + "once. To change it, edit it by hand in each layer and add a migration.");
+            }
+
+            return null;
+        }
+
+        IReadOnlyList<Field> combined = [.. existing, .. added];
+        var known = FieldGrammar.NameProblems(existing, FieldProfile.Feature).ToHashSet(StringComparer.Ordinal);
+
+        problems.AddRange(FieldGrammar.NameProblems(combined, FieldProfile.Feature)
+            .Where(problem => !known.Contains(problem))
+            .Select(problem => problem.Replace("--fields", "The fields to add", StringComparison.Ordinal)));
+
+        var widened = before with { Fields = combined };
+        var plan = Plan(widened, root, out _);
+        var names = plan.Select(emission => System.IO.Path.GetFileNameWithoutExtension(emission.Path)).ToList();
+        var conflicts = FieldCode.Conflicts(existing, features, before.Type, names, before.Deletion, before.Access == "owner", before.Has("list")).ToHashSet(StringComparer.Ordinal);
+
+        problems.AddRange(FieldCode.Conflicts(combined, features, before.Type, names, before.Deletion, before.Access == "owner", before.Has("list"))
+            .Where(problem => !conflicts.Contains(problem)));
+
+        if (Directory.Exists(System.IO.Path.Combine(root, PersistenceProject(before), "Migrations"))
+            && Directory.EnumerateFiles(System.IO.Path.Combine(root, PersistenceProject(before), "Migrations"), $"*_{migration}.cs").Any())
+        {
+            problems.Add($"A migration named {migration} already exists, and the migration of these fields takes that name. Rename that one first.");
+        }
+
+        return problems.Count > 0 ? null : new Addition(before, widened, added, migration, manifest, Pending: false);
+    }
+
+    private static string MigrationName(string features, List<Field> added) =>
+        added.Count <= 2
+            ? $"Add{string.Join("And", added.Select(field => field.Name))}To{features}"
+            : $"Add{added[0].Name}And{added.Count - 1}MoreFieldsTo{features}";
+
+    private static readonly string[] _sourceLayers = ["Src/Domain", "Src/Application", "Src/Infrastructure", "Src/Presentation"];
+
+    private static bool WrittenByHand(string root, string features) =>
+        _sourceLayers
+            .Select(layer => System.IO.Path.Combine(root, layer))
+            .Where(Directory.Exists)
+            .SelectMany(Directory.EnumerateDirectories)
+            .Any(project => Directory.Exists(System.IO.Path.Combine(project, "Features", features)));
+
+    private static Spec? ManifestSpec(JsonObject manifest, string path, string prefix, bool tablePrefixes, string root, List<string> problems)
+    {
+        try
+        {
+            if (manifest["schemaVersion"]?.GetValue<int>() != _manifestSchemaVersion || manifest["generator"]?.GetValue<string>() != "Tools/NewFeature.cs")
+            {
+                problems.Add(
+                    $"{path} is not a manifest of schema version {_manifestSchemaVersion} written by Tools/NewFeature.cs, the one new-field reads. "
+                    + "Add the field by hand: docs/guides/adding-a-feature.md, under Adding a field, lists every place it goes.");
+
+                return null;
+            }
+
+            var options = manifest["options"]!.AsObject();
+            string features = manifest["feature"]!.GetValue<string>();
+            string type = manifest["type"]!.GetValue<string>();
+            string access = options["access"]!.GetValue<string>();
+            string[] operations = [.. options["operations"]!.AsArray().Select(operation => operation!.GetValue<string>())];
+
+            if (manifest["fields"] is not JsonArray recorded)
+            {
+                problems.Add(
+                    $"{features} was generated without --fields: its Name and Description are placeholders a person replaces by hand, so "
+                    + "what its files hold is not a shape new-field can read. Add the field by hand: docs/guides/adding-a-feature.md, "
+                    + "under Adding a field, lists every place it goes.");
+
+                return null;
+            }
+
+            var reading = new List<string>();
+            var fields = FieldGrammar.Parse(
+                string.Join(", ", recorded.Select(field => field!["declaration"]!.GetValue<string>())),
+                FieldProfile.Feature,
+                reading);
+
+            if (fields is null)
+            {
+                problems.Add($"{path} records fields this grammar no longer reads: {string.Join(" ", reading)}");
+
+                return null;
+            }
+
+            bool hasApi = Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", FolderOf(prefix, "Api")));
+
+            return new Spec(
+                prefix,
+                features,
+                type,
+                access,
+                options["deletion"]?.GetValue<string>() ?? string.Empty,
+                operations,
+                options["model"]!.GetValue<string>(),
+                options["concurrency"]!.GetValue<string>(),
+                null,
+                hasApi,
+                fields,
+                tablePrefixes);
+        }
+        catch (Exception exception) when (exception is NullReferenceException or InvalidOperationException or FormatException)
+        {
+            problems.Add($"{path} lacks what new-feature records, the options and the fields among them: {exception.Message}");
+
+            return null;
+        }
+    }
+
+    private static List<FieldChange> FieldChanges(string root, Addition addition, List<string> problems)
+    {
+        var before = Plan(addition.Before, root, out _).ToDictionary(emission => emission.Path, StringComparer.Ordinal);
+        var after = Plan(addition.After, root, out _);
+        var recorded = (addition.Manifest["files"] as JsonArray ?? [])
+            .Select(file => file?["path"]?.GetValue<string>())
+            .OfType<string>()
+            .ToHashSet(StringComparer.Ordinal);
+        var changes = new List<FieldChange>();
+
+        foreach (string path in before.Keys.Where(path => after.All(emission => emission.Path != path)))
+        {
+            problems.Add($"{path}: these fields would remove it, which new-field never does. Add the fields by hand.");
+        }
+
+        foreach (var emission in after)
+        {
+            string full = System.IO.Path.Combine(root, emission.Path);
+
+            if (!before.TryGetValue(emission.Path, out var earlier))
+            {
+                if (File.Exists(full))
+                {
+                    problems.Add($"{emission.Path} exists, and these fields need it written by the generator: move it away, or add the fields by hand.");
+                }
+                else
+                {
+                    changes.Add(new FieldChange(emission.Path, null, Bytes(emission), ["written"]));
+                }
+
+                continue;
+            }
+
+            if (earlier.Content == emission.Content)
+            {
+                continue;
+            }
+
+            if (!File.Exists(full))
+            {
+                if (recorded.Contains(emission.Path))
+                {
+                    problems.Add($"{emission.Path}, which new-feature wrote and {ManifestPath(addition.After)} records, is gone, so the fields cannot reach it. Put it back.");
+                }
+
+                continue;
+            }
+
+            byte[] original = File.ReadAllBytes(full);
+            var merged = SyntaxMerge.Merge(emission.Path, earlier.Content, emission.Content, original);
+
+            if (merged.Problems.Count > 0)
+            {
+                problems.AddRange(merged.Problems);
+
+                continue;
+            }
+
+            changes.Add(new FieldChange(emission.Path, original, merged.Bytes!, merged.Changes));
+        }
+
+        return changes;
+    }
+
+    private static byte[] UpdatedManifest(Addition addition, List<FieldChange> changes)
+    {
+        var manifest = addition.Manifest.DeepClone().AsObject();
+        var fields = manifest["fields"]!.AsArray();
+
+        using (var stream = new MemoryStream())
+        {
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                WriteFields(writer, addition.Added);
+                writer.WriteEndObject();
+            }
+
+            var written = JsonNode.Parse(stream.ToArray())!["fields"]!.AsArray();
+
+            for (int index = 0; index < addition.Added.Count; index++)
+            {
+                var entry = written[index]!.DeepClone().AsObject();
+
+                if (addition.Added[index].Default is { } value)
+                {
+                    entry["default"] = value.Literal;
+                }
+
+                fields.Add((JsonNode)entry);
+            }
+        }
+
+        string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+        var files = (manifest["files"] as JsonArray ?? [])
+            .Select(file => (Path: file!["path"]!.GetValue<string>(), Sha: file["sha256"]!.GetValue<string>()))
+            .ToDictionary(file => file.Path, file => file.Sha, StringComparer.Ordinal);
+
+        foreach (var change in changes)
+        {
+            files[change.Path] = Hash(change.Bytes);
+        }
+
+        manifest["files"] = new JsonArray([.. files
+            .OrderBy(file => file.Key, StringComparer.Ordinal)
+            .Select(file => (JsonNode)new JsonObject { ["path"] = file.Key, ["sha256"] = file.Value })]);
+
+        var additions = manifest["addedFields"] as JsonArray ?? [];
+
+        additions.Add((JsonNode)new JsonObject
+        {
+            ["declaration"] = string.Join(", ", addition.Added.Select(field => field.Declared)),
+            ["migration"] = addition.Migration,
+            ["files"] = new JsonArray([.. changes.Select(change => (JsonNode)new JsonObject
+            {
+                ["path"] = change.Path,
+                ["before"] = change.Original is null ? null : Hash(change.Original),
+                ["after"] = Hash(change.Bytes),
+                ["changes"] = new JsonArray([.. change.Members.Select(member => (JsonNode)JsonValue.Create(member))]),
+            })]),
+        });
+        manifest["addedFields"] = additions;
+
+        using var output = new MemoryStream();
+
+        using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Indented = true }))
+        {
+            manifest.WriteTo(writer);
+        }
+
+        return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(output.ToArray()).ReplaceLineEndings("\n") + "\n");
+    }
+
+    private static bool Migrated(string root, Spec spec, string migration, IReadOnlyList<Field> added)
+    {
+        string folder = System.IO.Path.Combine(root, PersistenceProject(spec), "Migrations");
+        string? file = Directory.Exists(folder) ? Directory.EnumerateFiles(folder, $"*_{migration}.cs").FirstOrDefault() : null;
+
+        return file is not null && MigrationDefaults.Apply(File.ReadAllText(file), TableOf(spec), added) is { Problem: null, Changed: false };
+    }
+
+    private static string TableOf(Spec spec) => spec.TablePrefixes ? $"{Snake(spec.Features)}_{spec.Features}" : spec.Features;
+
+    private static List<TextEdits.Command> FieldSteps(string root, Addition addition)
+    {
+        string folder = System.IO.Path.Combine(root, PersistenceProject(addition.After), "Migrations");
+        bool written = Directory.Exists(folder) && Directory.EnumerateFiles(folder, $"*_{addition.Migration}.cs").Any();
+        var defaults = addition.Added.Where(field => field.Default is not null).ToList();
+
+        return
+        [
+            .. written ? Array.Empty<TextEdits.Command>() : [TextEdits.Task(root, "build"), TextEdits.FromLastBuild(root, "migration-add", addition.Migration)],
+            .. defaults.Count == 0
+                ? Array.Empty<TextEdits.Command>()
+                : [new TextEdits.Command(
+                    $"new-field sets the defaultValue of {string.Join(", ", defaults.Select(field => $"{field.Name} ({field.Default!.Expression})"))} "
+                        + $"in the AddColumn of the {addition.Migration} migration",
+                    root,
+                    _inProcess,
+                    [])],
+            .. addition.After.HasApi ? TextEdits.ContractSteps(root, FolderOf(addition.After.Prefix, "Client"), built: !written) : [],
+        ];
+    }
+
+    private static int FinishField(string root, Addition addition, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    {
+        int Run(TextEdits.Command command)
+        {
+            if (command.FileName != _inProcess)
+            {
+                return run(command);
+            }
+
+            string folder = System.IO.Path.Combine(root, PersistenceProject(addition.After), "Migrations");
+            string? file = Directory.Exists(folder) ? Directory.EnumerateFiles(folder, $"*_{addition.Migration}.cs").FirstOrDefault() : null;
+
+            if (file is null)
+            {
+                error.WriteLine($"error: no migration named {addition.Migration} was found in {PersistenceProject(addition.After)}/Migrations.");
+
+                return 1;
+            }
+
+            byte[] original = File.ReadAllBytes(file);
+            bool bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+            string text = Encoding.UTF8.GetString(original.AsSpan(bom ? 3 : 0));
+            var applied = MigrationDefaults.Apply(text, TableOf(addition.After), addition.Added);
+
+            if (applied.Problem is { } problem)
+            {
+                error.WriteLine($"error: {problem}");
+                error.WriteLine("Set each defaultValue by hand in the migration's Up, the value the rows the table already holds receive.");
+
+                return 1;
+            }
+
+            if (applied.Changed)
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(applied.Text!);
+
+                TextEdits.Commit(root, [], [(System.IO.Path.GetRelativePath(root, file), original, bom ? [.. Encoding.UTF8.Preamble, .. bytes] : bytes)]);
+            }
+
+            output.WriteLine($"Set in {System.IO.Path.GetFileName(file)}: {string.Join(", ", addition.Added.Where(field => field.Default is not null).Select(field => $"{field.Name} = {field.Default!.Expression}"))}.");
+
+            return 0;
+        }
+
+        string done = $"the fields in every layer and in {ManifestPath(addition.After)}";
+
+        if (TextEdits.RunAll(FieldSteps(root, addition), Run, output, error, done))
+        {
+            return 0;
+        }
+
+        error.WriteLine("Once the failure is fixed, the same new-field command resumes these steps, and writes nothing again.");
+
+        return 1;
+    }
+
+    private static void ReportField(TextWriter output, string root, Addition addition, List<FieldChange> changes, Mode mode)
+    {
+        var spec = addition.After;
+        string verb = mode == Mode.Applied ? "Added" : "Would add";
+
+        output.WriteLine(
+            $"{verb} {string.Join(", ", addition.Added.Select(field => field.Declared))} to {spec.Features}/{spec.Type} "
+            + $"(access {spec.Access}, model {spec.Model}, operations {string.Join(',', spec.Operations)}, concurrency {spec.Concurrency}"
+            + (spec.Access == "owner" ? $", deletion {spec.Deletion}" : string.Empty) + "), "
+            + $"{(mode == Mode.Applied ? "changing" : "changes")} {changes.Count} file(s), each through its syntax tree:");
+
+        foreach (var change in changes)
+        {
+            output.WriteLine($"  {change.Path}");
+
+            foreach (string member in change.Members)
+            {
+                output.WriteLine($"      {member}");
+            }
+        }
+
+        output.WriteLine();
+        output.WriteLine(
+            $"Manifest: {ManifestPath(spec)}{(mode == Mode.Applied ? string.Empty : ", not written")}: the fields join its fields, with each "
+            + "default, its files their new SHA-256, and addedFields the declaration, the migration and each file's change, "
+            + "with its SHA-256 before and after.");
+
+        output.WriteLine();
+        output.WriteLine("Each field is checked by the validator and by the aggregate or the service, stored in a column of its length or");
+        output.WriteLine("precision, and carried by the contracts and the generated tests, as --fields writes it.");
+
+        foreach (var field in addition.Added)
+        {
+            output.WriteLine();
+            output.WriteLine(Compatibility(spec, field));
+        }
+
+        if (spec.Has("list") && addition.Added.Where(FieldCode.IsSortable).Select(field => field.Name).ToList() is { Count: > 0 } sortable)
+        {
+            output.WriteLine();
+            output.WriteLine($"The list now sorts by {string.Join(", ", sortable)} too, each with its index, which the migration creates.");
+        }
+
+        if (mode != Mode.Applied)
+        {
+            output.WriteLine();
+            output.WriteLine(mode == Mode.DryRun
+                ? "Then a run without --dry-run checks that no model change waits for a migration, writes, and runs in this order, stopping at the first that fails:"
+                : "Then, once the changes are made:");
+
+            foreach (var step in FieldSteps(root, addition))
+            {
+                output.WriteLine($"  {step.Display}");
+            }
+        }
+    }
+
+    private static string Compatibility(Spec spec, Field field)
+    {
+        string route = $"/api/v1/{Kebab(spec.Features)}";
+        string item = $"{route}/{{{CSharpNames.Lower(spec.Type)}Id}}";
+        string[] writes =
+        [
+            .. spec.Has("create") ? [spec.HasApi ? $"POST {route}" : "the create operation"] : Array.Empty<string>(),
+            .. spec.Has("update") ? [spec.HasApi ? $"PUT {item}" : "the update operation"] : Array.Empty<string>(),
+        ];
+
+        if (writes.Length == 0)
+        {
+            return $"{field.Name}: only read, so it adds a member to what the feature returns and breaks no caller.";
+        }
+
+        if (!field.Nullable)
+        {
+            return spec.HasApi
+                ? $"Breaking change: {field.Name} is required, so {string.Join(" and ", writes)} answer 400 to a request without it from now "
+                    + "on, and every client that does not send it yet breaks. Release the clients with the API, or declare the field "
+                    + $"nullable ({(field with { Nullable = true }).Declaration}), which breaks none. The rows already stored take {field.Default!.Literal}."
+                : $"Breaking change: {field.Name} is required, so every caller of {string.Join(" and ", writes)} passes it from now on. "
+                    + $"The rows already stored take {field.Default!.Literal}.";
+        }
+
+        return $"{field.Name} is nullable: a {(spec.HasApi ? "request" : "caller")} may leave it out, so none breaks; the rows already stored hold null"
+            + (spec.Has("update")
+                ? $". An update replaces the whole {Separated(spec.Type, ' ')}, so one that leaves {field.Name} out stores null: a client that does not know the field yet clears it."
+                : ".");
+    }
+
+    private const string _existingFields = "Title:string(120), Size:int>=1";
+
+    private const string _everyAdded =
+        "Nickname:string(40)?, Code:string(40)='none', Notes:text?, Summary:text(500)='', Count:int>=0<=1000=0, Total:long?>-5, "
+        + "Budget:decimal(12,2)>=0=0, Ratio:decimal(5,4)?, Paid:bool=false, Due:DateOnly='2026-01-01', "
+        + "StartsAt:DateTimeOffset='2026-01-01T02:00:00+02:00', Reference:Guid?, Batch:Guid='3f2504e0-4f89-41d3-9a0c-0305e82c3301'";
+
+    private static readonly (string Label, string[] Options)[] _fieldShapes =
+    [
+        ("record, owner, delete", ["--access", "owner", "--deletion", "delete"]),
+        ("record, shared, etag, get,list,update", ["--access", "shared", "--concurrency", "etag", "--operations", "get,list,update"]),
+        ("aggregate, owner, anonymise", ["--access", "owner", "--deletion", "anonymise", "--model", "aggregate", "--concurrency", "etag"]),
+        ("aggregate, shared, get,list,create", ["--access", "shared", "--model", "aggregate", "--concurrency", "etag", "--operations", "get,list,create"]),
+    ];
+
+    private const string _thingMigrations = "Src/Infrastructure/A.Infrastructure.Persistence/Migrations";
+
+    private static (int Code, string Output, string Error) InvokeField(string root, Func<TextEdits.Command, int> run, params string[] args)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        int code = RunField([.. args, "--root", root], output, error, run);
+
+        return (code, output.ToString(), error.ToString());
+    }
+
+    private static Func<TextEdits.Command, int> Migrating(string root, List<TextEdits.Command> ran, string table) =>
+        command =>
+        {
+            ran.Add(command);
+
+            if (command.Arguments.Contains("migration-add", StringComparer.Ordinal))
+            {
+                string name = command.Arguments[command.Arguments.ToList().IndexOf("migration-add") + 1];
+                var manifest = JsonNode.Parse(File.ReadAllText(Directory.EnumerateFiles(System.IO.Path.Combine(root, _manifestFolder)).Single()))!;
+                var fields = FieldGrammar.Parse(
+                    manifest["addedFields"]!.AsArray().Last()!["declaration"]!.GetValue<string>(),
+                    FieldProfile.AddedField,
+                    [])!;
+
+                Put(root, $"{_thingMigrations}/20260101000000_{name}.cs", SampleMigration(name, table, fields));
+            }
+
+            return 0;
+        };
+
+    private static string SampleMigration(string name, string table, IReadOnlyList<Field> fields)
+    {
+        string Column(Field field, int index) =>
+            $$"""
+                        migrationBuilder.AddColumn<{{FieldCode.Type(field).TrimEnd('?')}}>(
+                            name: "{{field.Name}}",
+                            schema: "things",
+                            table: "{{table}}",
+                            nullable: {{(field.Nullable ? "true" : "false")}}{{(field.Nullable || index % 2 == 1 ? ");" : $",\n                defaultValue: default({FieldCode.Type(field)}));")}}
+            """;
+
+        return $$"""
+            using Microsoft.EntityFrameworkCore.Migrations;
+
+            namespace Acme.Infrastructure.Persistence.Migrations
+            {
+                public partial class {{name}} : Migration
+                {
+                    protected override void Up(MigrationBuilder migrationBuilder)
+                    {
+            {{string.Join("\n\n", fields.Select(Column))}}
+                    }
+
+                    protected override void Down(MigrationBuilder migrationBuilder)
+                    {
+                    }
+                }
+            }
+
+            """;
+    }
+
+    private static Dictionary<string, string> FeatureFiles(string root) =>
+        Snapshot(root)
+            .Where(pair => !pair.Key.StartsWith(_manifestFolder, StringComparison.Ordinal) && !pair.Key.StartsWith(_thingMigrations + "/2026", StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+
+    private static string Differing(Dictionary<string, string> expected, Dictionary<string, string> actual) =>
+        string.Join(", ", expected.Keys.Union(actual.Keys).Where(path => !expected.TryGetValue(path, out string? want) || !actual.TryGetValue(path, out string? got) || want != got).Take(8));
+
+    private static string Plain(string declaration) =>
+        string.Join(", ", FieldGrammar.Parse(declaration, FieldProfile.AddedField, [])!.Select(field => field.Declaration));
+
+    private static void FieldAdditionCases(string scratch, Action<bool, string> expect)
+    {
+        foreach (var (label, options) in _fieldShapes)
+        {
+            string widened = FieldTree(scratch);
+            var expected = Invoke(widened, ["Things", "Thing", .. options, "--fields", $"{_existingFields}, {Plain(_everyAdded)}"]);
+
+            string root = FieldTree(scratch);
+            var created = Invoke(root, ["Things", "Thing", .. options, "--fields", _existingFields]);
+            var ran = new List<TextEdits.Command>();
+            var added = InvokeField(root, Migrating(root, ran, "Things"), "Things", _everyAdded);
+
+            expect(expected.Code == 0 && created.Code == 0, $"[{label}] new-feature refused the fields new-field is compared with: {expected.Error}{created.Error}");
+            expect(added.Code == 0, $"[{label}] new-field refused a field of every type: {added.Error}");
+            expect(
+                Same(FeatureFiles(widened), FeatureFiles(root)),
+                $"[{label}] new-field did not leave each file as new-feature --fields writes it with the fields added: {Differing(FeatureFiles(widened), FeatureFiles(root))}");
+
+            var want = JsonNode.Parse(File.ReadAllText(System.IO.Path.Combine(widened, ".feature-manifest/Things.json")))!;
+            var got = JsonNode.Parse(File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest/Things.json")))!;
+
+            expect(
+                got["files"]!.ToJsonString() == want["files"]!.ToJsonString(),
+                $"[{label}] the manifest does not record the SHA-256 of each file as it now stands, so remove-feature would read them as edited.");
+            expect(
+                string.Join(", ", got["fields"]!.AsArray().Select(field => field!["declaration"]!.GetValue<string>()))
+                    == string.Join(", ", want["fields"]!.AsArray().Select(field => field!["declaration"]!.GetValue<string>())),
+                $"[{label}] the manifest does not record the fields added after the others.");
+            expect(
+                got["fields"]!.AsArray().Single(field => field!["name"]!.GetValue<string>() == "Budget")!["default"]!.GetValue<string>() == "0"
+                    && got["fields"]!.AsArray().Single(field => field!["name"]!.GetValue<string>() == "Notes")!["default"] is null,
+                $"[{label}] the manifest does not record the default of each field that has one, and only those.");
+
+            var addition = got["addedFields"]!.AsArray().Single()!;
+
+            expect(
+                addition["declaration"]!.GetValue<string>() == string.Join(", ", FieldGrammar.Parse(_everyAdded, FieldProfile.AddedField, [])!.Select(field => field.Declared))
+                    && addition["migration"]!.GetValue<string>() == "AddNicknameAnd12MoreFieldsToThings"
+                    && addition["files"]!.AsArray().Count > 0
+                    && addition["files"]!.AsArray().All(file => file!["after"] is not null && file["changes"]!.AsArray().Count > 0),
+                $"[{label}] addedFields does not record the declaration, the migration and each file's change with its SHA-256.");
+            expect(
+                ran.Select(command => command.Display).SequenceEqual(
+                [
+                    "dotnet run Tools/Tasks.cs migration-check",
+                    "dotnet run Tools/Tasks.cs build",
+                    "dotnet run Tools/Tasks.cs -- migration-add AddNicknameAnd12MoreFieldsToThings --no-build",
+                    "dotnet run Tools/Tasks.cs -- openapi --no-build",
+                ]),
+                $"[{label}] new-field did not check, build once, add the migration and rewrite the OpenAPI reference, in that order: {string.Join(" | ", ran.Select(command => command.Display))}");
+
+            string migration = File.ReadAllText(Directory.EnumerateFiles(System.IO.Path.Combine(root, _thingMigrations), "*_AddNicknameAnd12MoreFieldsToThings.cs").Single());
+
+            foreach (string value in new[]
+            {
+                "defaultValue: \"none\"", "defaultValue: \"\"", "defaultValue: 0)", "defaultValue: 0m", "defaultValue: false", "defaultValue: new DateOnly(2026, 1, 1)",
+                "defaultValue: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)", "defaultValue: new Guid(\"3f2504e0-4f89-41d3-9a0c-0305e82c3301\")",
+            })
+            {
+                expect(migration.Contains(value, StringComparison.Ordinal), $"[{label}] the migration does not set '{value}' for the rows the table holds:\n{migration}");
+            }
+
+            expect(
+                !migration.Contains("default(", StringComparison.Ordinal) && Regex.Count(migration, "defaultValue:") == 8,
+                $"[{label}] the migration keeps a default dotnet ef wrote, or gives one to a nullable column:\n{migration}");
+            expect(
+                added.Output.Contains("Breaking change: Code is required", StringComparison.Ordinal)
+                    && added.Output.Contains("Notes is nullable: a request may leave it out, so none breaks", StringComparison.Ordinal),
+                $"[{label}] the report does not say which field breaks the clients and which does not: {added.Output}");
+
+            var again = InvokeField(root, Recording(ran = []), "Things", _everyAdded);
+
+            expect(
+                again.Code == 1 && again.Error.Contains("Things already has a field Nickname", StringComparison.Ordinal) && ran.Count == 0
+                    && Same(FeatureFiles(widened), FeatureFiles(root)),
+                $"[{label}] adding the same fields again was not refused before anything was written or run: {again.Error}");
+        }
+    }
+
+    private static void FieldFormattingCases(string scratch, Action<bool, string> expect)
+    {
+        string[] options = ["--access", "owner", "--deletion", "anonymise", "--model", "aggregate", "--concurrency", "etag"];
+        const string fields = "Budget:decimal(12,2)>=0=5, Due:DateOnly?";
+        string widened = FieldTree(scratch);
+
+        Invoke(widened, ["Things", "Thing", .. options, "--fields", $"{_existingFields}, {Plain(fields)}"]);
+
+        string root = FieldTree(scratch);
+
+        Invoke(root, ["Things", "Thing", .. options, "--fields", _existingFields]);
+
+        string[] featureFiles = [.. Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(path => path.Contains($"{System.IO.Path.DirectorySeparatorChar}Things{System.IO.Path.DirectorySeparatorChar}", StringComparison.Ordinal))];
+
+        foreach (string file in featureFiles)
+        {
+            string reformatted = CSharpSyntaxTree.ParseText(File.ReadAllText(file)).GetRoot().NormalizeWhitespace("\t", "\n").ToFullString();
+
+            File.WriteAllText(file, reformatted + "\n", new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        }
+
+        const string aggregate = "Src/Domain/A.Domain/Features/Things/Model/Entities/Thing.cs";
+        const string own = "public bool IsTitled(string title) => Title == title;";
+        string aggregateFile = System.IO.Path.Combine(root, aggregate);
+
+        File.WriteAllText(aggregateFile, File.ReadAllText(aggregateFile).Replace("public void Anonymise()", own + "\n\tpublic void Anonymise()", StringComparison.Ordinal));
+
+        var added = InvokeField(root, Migrating(root, [], "Things"), "Things", fields);
+
+        expect(added.Code == 0, $"new-field refused a feature whose files were reformatted: {added.Error}");
+
+        foreach (string file in featureFiles)
+        {
+            string relative = System.IO.Path.GetRelativePath(root, file).Replace('\\', '/');
+            string got = File.ReadAllText(file);
+            string want = File.ReadAllText(System.IO.Path.Combine(widened, relative));
+
+            if (relative == aggregate)
+            {
+                expect(got.Contains(own, StringComparison.Ordinal), "new-field dropped a member a person added to the aggregate.");
+                got = got.Replace(own, string.Empty, StringComparison.Ordinal);
+            }
+
+            expect(
+                SyntaxMerge.Normalized(CSharpSyntaxTree.ParseText(got).GetRoot()) == SyntaxMerge.Normalized(CSharpSyntaxTree.ParseText(want).GetRoot()),
+                $"{relative}: once reformatted, new-field did not give it the members new-feature --fields writes with the field.");
+        }
+
+        expect(
+            File.ReadAllText(aggregateFile).Contains("\n\tprivate static string RequireTitle(string value)", StringComparison.Ordinal),
+            "new-field rewrote the formatting of a member the field does not change.");
+    }
+
+    private static void FieldRefusalCases(string scratch, Action<bool, string> expect)
+    {
+        string root = FieldTree(scratch);
+
+        Invoke(root, "Things", "Thing", "--access", "owner", "--deletion", "anonymise", "--model", "aggregate", "--concurrency", "etag", "--fields", _existingFields);
+        Invoke(root, "Plains", "Plain", "--access", "shared");
+        Directory.CreateDirectory(System.IO.Path.Combine(root, "Src/Application/A.Application/Features/Notes"));
+
+        (string[] Args, string Fragment)[] refusals =
+        [
+            (["Notes", "Budget:decimal=0"], "it was written by hand, as the project's example features (TodoLists, Notes and the others) are"),
+            (["Gizmos", "Budget:decimal=0"], "No feature called Gizmos"),
+            (["Plains", "Budget:decimal=0"], "Plains was generated without --fields"),
+            (["things", "Budget:decimal=0"], "is not a feature's folder"),
+            (["Things"], "Expected the feature and its new fields"),
+            (["Things", "Budget:decimal=0", "--force"], "'--force' is not an option of new-field"),
+            (["Things", "Budget:decimal"], "Budget cannot be null, and the rows the table already holds need a value for it: give one its rules accept after '=', as Budget:decimal(18,2)=0"),
+            (["Things", "Due:DateOnly"], "as Due:DateOnly='2026-01-01'"),
+            (["Things", "Notes:text?=''"], "Notes is nullable, so the rows the table already holds start with null"),
+            (["Things", "Count:int>=1=0"], "the default of Count, 0, breaks the rule the field checks: it must be at least 1"),
+            (["Things", "Count:int<10=10"], "it must be less than 10"),
+            (["Things", "Count:int=1.5"], "is not a whole number an int holds"),
+            (["Things", "Count:long=x"], "expected a number after '=', the default of Count"),
+            (["Things", "Budget:decimal(5,2)=1000"], "does not fit decimal(5,2)"),
+            (["Things", "Paid:bool=1"], "expected true or false after '='"),
+            (["Things", "Code:string(10)=' '"], "is blank, which the field refuses"),
+            (["Things", "Code:string(10)=' x'"], "starts or ends with a space"),
+            (["Things", "Code:string(3)='abcd'"], "is 4 characters long, and the field holds 3 at most"),
+            (["Things", "Body:text(3)='abcd'"], "is 4 characters long, and the field holds 3 at most"),
+            (["Things", "Code:string(10)=none"], "expected a value between quotes after '='"),
+            (["Things", "Code:string(10)='none"], "a quote opens the default of Code and none closes it"),
+            (["Things", "Due:DateOnly='2026-13-01'"], "is not a date written yyyy-MM-dd"),
+            (["Things", "Due:DateOnly='0001-01-01'"], "is the empty value, which the field refuses"),
+            (["Things", "At:DateTimeOffset='2026-01-01T00:00:00'"], "is not an instant written yyyy-MM-ddTHH:mm:ss with its offset"),
+            (["Things", "Batch:Guid='00000000-0000-0000-0000-000000000000'"], "is the empty value"),
+            (["Things", "Batch:Guid='x'"], "is not a Guid written with its hyphens"),
+            (["Things", "Title:string(10)='x'"], "Things already has a field Title (Title:string(120))"),
+            (["Things", "TITLE:string(10)='x'"], "Things already has a field Title"),
+            (["Things", "TitleMaxLength:int=0"], "is the name the generated code gives a constant, a method or a local of Title"),
+            (["Things", "Code:string(16)='x'"], "Give it string(17)"),
+            (["Things", "Code:string(10)='x' Count:int=0"], "The fields to add, at character 21: expected a comma"),
+        ];
+
+        var before = Snapshot(root);
+
+        foreach (var (args, fragment) in refusals)
+        {
+            var ran = new List<TextEdits.Command>();
+            var result = InvokeField(root, Recording(ran), args);
+            string label = string.Join(' ', args);
+
+            expect(
+                result.Code == 1 && result.Error.Contains(fragment, StringComparison.Ordinal) && result.Error.Contains("Nothing was written.", StringComparison.Ordinal),
+                $"[new-field {label}] was not refused with '{fragment}': {result.Error.Split('\n')[0]}");
+            expect(Same(before, Snapshot(root)) && ran.Count == 0, $"[new-field {label}] wrote or ran something.");
+        }
+
+        var onFeature = Invoke(root, "Widgets", "Widget", "--access", "shared", "--fields", "Code:string(10)='x'");
+
+        expect(
+            onFeature.Code == 1 && onFeature.Error.Contains("is what new-field gives the rows a table already holds", StringComparison.Ordinal),
+            $"new-feature --fields took a default, which only new-field gives: {onFeature.Error.Split('\n')[0]}");
+    }
+
+    private static void FieldHandEditCases(string scratch, Action<bool, string> expect)
+    {
+        const string aggregate = "Src/Domain/A.Domain/Features/Things/Model/Entities/Thing.cs";
+        const string record = "Src/Infrastructure/A.Infrastructure.Persistence/Features/Things/Rows/Models/ThingRecord.cs";
+        const string validator = "Src/Application/A.Application/Features/Things/UseCases/Commands/UpdateThing/UpdateThingCommandValidator.cs";
+
+        (string Label, Action<string> Edit, string Fragment)[] edits =
+        [
+            ("a statement added to a member the field changes", root => Rewrite(root, aggregate, "        Title = validTitle;", "        Title = validTitle;\n        Size = validSize;"),
+                "Thing.Update(string, int) differs from what new-feature wrote, so new-field leaves it to you. Make this change in it by hand:"),
+            ("a member the field changes, removed", root => Rewrite(root, validator, "    public UpdateThingCommandValidator()", "    private void Unused()"),
+                "the constructor of UpdateThingCommandValidator, which new-feature wrote, is not in the file"),
+            ("a member the field declares, declared already", root => Rewrite(root, record, "    public int Size { get; set; }", "    public int Size { get; set; }\n\n    public decimal Budget { get; set; }"),
+                "ThingRecord.Budget is declared already, and these fields declare it"),
+            ("a file the field changes, deleted", root => File.Delete(System.IO.Path.Combine(root, record)), $"{record}, which new-feature wrote and .feature-manifest/Things.json records, is gone"),
+            ("a file that does not parse", root => File.AppendAllText(System.IO.Path.Combine(root, record), "}\n"), $"{record} does not parse, at line"),
+        ];
+
+        foreach (var (label, edit, fragment) in edits)
+        {
+            string root = FieldTree(scratch);
+
+            Invoke(root, "Things", "Thing", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag", "--fields", _existingFields);
+            edit(root);
+
+            var before = Snapshot(root);
+            var ran = new List<TextEdits.Command>();
+            var result = InvokeField(root, Recording(ran), "Things", "Budget:decimal(12,2)>=0=0");
+
+            expect(
+                result.Code == 1 && result.Error.Contains(fragment, StringComparison.Ordinal) && result.Error.Contains("Nothing was written", StringComparison.Ordinal),
+                $"[{label}] new-field was not refused with '{fragment}': {result.Error}");
+            expect(Same(before, Snapshot(root)) && ran.Count == 0, $"[{label}] new-field wrote some of its changes, or ran something, before refusing.");
+        }
+
+        string hinted = FieldTree(scratch);
+
+        Invoke(hinted, "Things", "Thing", "--access", "owner", "--deletion", "delete", "--model", "aggregate", "--concurrency", "etag", "--fields", _existingFields);
+        Rewrite(hinted, aggregate, "        Title = validTitle;", "        Title = validTitle;\n        Size = validSize;");
+
+        var hint = InvokeField(hinted, Recording([]), "Things", "Budget:decimal(12,2)>=0=0");
+
+        expect(
+            hint.Error.Contains("  + " + "        decimal validBudget = RequireBudget(budget);", StringComparison.Ordinal)
+                && hint.Error.Contains("  - " + "    public void Update(string title, int size)", StringComparison.Ordinal),
+            $"The refusal of a member changed by hand does not show the lines to add and to remove: {hint.Error}");
+
+        static void Rewrite(string root, string path, string from, string to)
+        {
+            string full = System.IO.Path.Combine(root, path);
+
+            File.WriteAllText(full, File.ReadAllText(full).Replace(from, to, StringComparison.Ordinal), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        }
+    }
+
+    private static void FieldResumeCases(string scratch, Action<bool, string> expect)
+    {
+        string root = FieldTree(scratch);
+
+        Invoke(root, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
+
+        var dryRan = new List<TextEdits.Command>();
+        var before = Snapshot(root);
+        var dry = InvokeField(root, Recording(dryRan), "Things", "Budget:decimal(12,2)>=0=5", "--dry-run");
+
+        expect(dry.Code == 0 && dryRan.Count == 0 && Same(before, Snapshot(root)), $"new-field --dry-run wrote or ran something: {dry.Error}");
+        expect(
+            dry.Output.Contains("Would add Budget:decimal(12,2)>=0=5", StringComparison.Ordinal)
+                && dry.Output.Contains("new-field sets the defaultValue of Budget (5m) in the AddColumn of the AddBudgetToThings migration", StringComparison.Ordinal),
+            $"new-field --dry-run does not print what it would change and run: {dry.Output}");
+
+        var stopped = InvokeField(root, Recording([]), "Things", "Budget:decimal(12,2)>=0=5");
+
+        expect(
+            stopped.Code == 1 && stopped.Error.Contains("no migration named AddBudgetToThings", StringComparison.Ordinal)
+                && stopped.Error.Contains("the same new-field command resumes these steps", StringComparison.Ordinal),
+            $"A migration that was not added did not stop the run with the way to resume it: {stopped.Error}");
+
+        var written = FeatureFiles(root);
+        string manifest = File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest/Things.json"));
+        var ran = new List<TextEdits.Command>();
+        var resumed = InvokeField(root, Migrating(root, ran, "Things"), "Things", "Budget:decimal(12,2)>=0=5");
+
+        expect(
+            resumed.Code == 0 && resumed.Output.Contains("so nothing is written again", StringComparison.Ordinal)
+                && ran.Any(command => command.Display.Contains("migration-add AddBudgetToThings", StringComparison.Ordinal)),
+            $"The same new-field after a failed step did not resume its steps: {resumed.Error}");
+        expect(
+            Same(written, FeatureFiles(root)) && manifest == File.ReadAllText(System.IO.Path.Combine(root, ".feature-manifest/Things.json")),
+            "Resuming new-field wrote its changes or its manifest a second time.");
+        expect(
+            Directory.EnumerateFiles(System.IO.Path.Combine(root, _thingMigrations), "*_AddBudgetToThings.cs").Select(File.ReadAllText).Single().Contains("defaultValue: 5m", StringComparison.Ordinal),
+            "Resuming new-field did not set the default in the migration it added.");
+
+        var done = InvokeField(root, Recording(ran = []), "Things", "Budget:decimal(12,2)>=0=5");
+
+        expect(done.Code == 1 && done.Error.Contains("already has a field Budget", StringComparison.Ordinal) && ran.Count == 0, "A field added and migrated was not refused the second time.");
+
+        string pending = FieldTree(scratch);
+
+        Invoke(pending, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
+
+        var untouched = Snapshot(pending);
+        var check = InvokeField(pending, Recording(ran = [], failing: "dotnet run Tools/Tasks.cs migration-check"), "Things", "Budget:decimal(12,2)>=0=5");
+
+        expect(
+            check.Code == 1 && Same(untouched, Snapshot(pending)) && check.Error.Contains("migration-add <Name>", StringComparison.Ordinal),
+            "A model change no migration holds did not stop new-field before it wrote.");
+
+        Directory.Delete(System.IO.Path.Combine(pending, _thingMigrations), recursive: true);
+
+        var bare = Snapshot(pending);
+        var unmigrated = InvokeField(pending, Recording(ran = []), "Things", "Budget:decimal(12,2)>=0=5");
+
+        expect(
+            unmigrated.Code == 1 && Same(bare, Snapshot(pending)) && ran.Count == 0 && unmigrated.Error.Contains("has no initial migration", StringComparison.Ordinal),
+            "A context without its initial migration did not stop new-field before it wrote or ran.");
+
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string failing = FieldTree(scratch);
+
+        Invoke(failing, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
+
+        var rolled = Snapshot(failing);
+        string record = System.IO.Path.Combine(failing, "Src/Infrastructure/A.Infrastructure.Persistence/Features/Things/Rows/Models");
+
+        File.SetUnixFileMode(record, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+        try
+        {
+            var refused = InvokeField(failing, Recording([]), "Things", "Budget:decimal(12,2)>=0=5");
+
+            expect(
+                refused.Code == 1 && refused.Error.Contains("nothing was left behind", StringComparison.Ordinal),
+                $"A write that failed half way was not reported as rolled back: {refused.Error}");
+        }
+        finally
+        {
+            File.SetUnixFileMode(record, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        expect(Same(rolled, Snapshot(failing)), "A new-field whose write failed half way left some of its changes behind.");
+    }
+
+    private static void FieldShapeCases(string scratch, Action<bool, string> expect)
+    {
+        string strings = FieldTree(scratch);
+        string numbered = FieldTree(scratch);
+
+        Invoke(strings, "Things", "Thing", "--access", "shared", "--fields", "Title:string(120)");
+        Invoke(numbered, "Things", "Thing", "--access", "shared", "--fields", "Title:string(120), Size:int>=0");
+
+        var sized = InvokeField(strings, Migrating(strings, [], "Things"), "Things", "Size:int>=0=0");
+
+        expect(
+            sized.Code == 0 && Same(FeatureFiles(numbered), FeatureFiles(strings))
+                && File.ReadAllText(System.IO.Path.Combine(strings, "Src/Presentation/A.Api/Features/Things/Contracts/Requests/CreateThingRequest.cs"))
+                    .Contains("using System.Text.Json.Serialization;", StringComparison.Ordinal),
+            $"The first field of a value type did not bring the using its JsonRequired needs, as new-feature --fields writes it: {Differing(FeatureFiles(numbered), FeatureFiles(strings))}{sized.Error}");
+
+        string readOnly = FieldTree(scratch);
+
+        Invoke(readOnly, "Things", "Thing", "--access", "shared", "--operations", "get,list", "--fields", _existingFields);
+
+        var read = InvokeField(readOnly, Migrating(readOnly, [], "Things"), "Things", "Code:string(10)='x'");
+
+        expect(read.Code == 0 && read.Output.Contains("Code: only read, so it adds a member to what the feature returns and breaks no caller", StringComparison.Ordinal), $"A field of a feature that only reads was said to break a caller: {read.Output}{read.Error}");
+
+        string noApi = WithoutTheApi(FieldTree(scratch), "A.Worker");
+
+        Invoke(noApi, "Things", "Thing", "--access", "owner", "--deletion", "delete", "--fields", _existingFields);
+
+        var ran = new List<TextEdits.Command>();
+        var hosted = InvokeField(noApi, Migrating(noApi, ran, "Things"), "Things", "Budget:decimal(12,2)>=0=0, Due:DateOnly?");
+
+        expect(hosted.Code == 0, $"new-field refused a feature of a project without the API: {hosted.Error}");
+        expect(
+            hosted.Output.Contains("every caller of the create operation and the update operation passes it", StringComparison.Ordinal)
+                && !hosted.Output.Contains("POST ", StringComparison.Ordinal)
+                && !ran.Any(command => command.Display.Contains("openapi", StringComparison.Ordinal)),
+            $"Without the API, new-field spoke of routes or rewrote an OpenAPI reference: {hosted.Output}");
+
+        string sqlite = NewTree(scratch, database: "sqlite");
+
+        Put(sqlite, "Tests/Integration/A.Api.IntegrationTests/Infrastructure/TestDatabase.cs", "        [\n            AppDbContext.PlatformSchema,\n        ];\n");
+        Invoke(sqlite, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
+
+        var prefixed = InvokeField(sqlite, Migrating(sqlite, [], "things_Things"), "Things", "Budget:decimal(12,2)>=0=7");
+
+        expect(
+            prefixed.Code == 0
+                && Directory.EnumerateFiles(System.IO.Path.Combine(sqlite, _thingMigrations), "*_AddBudgetToThings.cs").Select(File.ReadAllText).Single().Contains("defaultValue: 7m", StringComparison.Ordinal),
+            $"On SQLite, whose table name carries its schema, the default was not set: {prefixed.Error}");
+
+        const string written =
+            """
+            protected override void Up(MigrationBuilder migrationBuilder)
+            {
+                migrationBuilder.AddColumn<int>(
+                    name: "Count",
+                    table: "Things",
+                    nullable: false);
+
+                migrationBuilder.AddColumn<int>(
+                    name: "Count",
+                    table: "Others",
+                    nullable: false,
+                    defaultValue: 0);
+            }
+            """;
+        var count = FieldGrammar.Parse("Count:int>=1=3", FieldProfile.AddedField, [])!;
+        var inserted = MigrationDefaults.Apply($"class M {{ {written} }}", "Things", count);
+        var twice = MigrationDefaults.Apply(inserted.Text!, "Things", count);
+        var other = MigrationDefaults.Apply(inserted.Text!, "Gizmos", count);
+
+        expect(
+            inserted is { Changed: true, Problem: null } && inserted.Text!.Contains("nullable: false,\n        defaultValue: 3)", StringComparison.Ordinal)
+                && inserted.Text.Contains("table: \"Others\",\n        nullable: false,\n        defaultValue: 0)", StringComparison.Ordinal),
+            $"A default dotnet ef did not write was not added to the AddColumn of its table alone: {inserted.Text}");
+        expect(twice is { Changed: false, Problem: null }, "Setting a default already set changed the migration again.");
+        expect(other.Problem is { } missing && missing.Contains("0 AddColumn of Count to Gizmos", StringComparison.Ordinal), "A migration without the field's column was not refused.");
+
+        var problems = new List<string>();
+        var quoted = FieldGrammar.Parse(
+            "Budget:decimal(12,2)>=0=0.50, Code:string(10)='it''s', At:DateTimeOffset='2026-01-01T10:00:00+02:00', Total:long<0=-3",
+            FieldProfile.AddedField,
+            problems);
+
+        expect(
+            quoted is not null
+                && string.Join(", ", quoted.Select(field => field.Declared)) == "Budget:decimal(12,2)>=0=0.50, Code:string(10)='it''s', At:DateTimeOffset='2026-01-01T08:00:00Z', Total:long<0=-3"
+                && string.Join(" | ", quoted.Select(field => field.Default!.Expression)) == "0.50m | \"it's\" | new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero) | -3L",
+            $"The defaults were not read as written, nor carried to C# as the migration needs them: {string.Join(" | ", problems)}{(quoted is null ? string.Empty : string.Join(", ", quoted.Select(field => field.Declared)))}");
+    }
+}
+
+internal static class SyntaxMerge
+{
+    internal sealed record Outcome(byte[]? Bytes, List<string> Changes, List<string> Problems);
+
+    private static readonly CSharpParseOptions _options = new(LanguageVersion.Preview);
+
+    internal static Outcome Merge(string path, string before, string after, byte[] disk)
+    {
+        var changes = new List<string>();
+        var problems = new List<string>();
+        bool bom = disk.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+        string text = Encoding.UTF8.GetString(disk.AsSpan(bom ? 3 : 0));
+        string newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        var tree = CSharpSyntaxTree.ParseText(text, _options);
+
+        if (tree.GetDiagnostics().FirstOrDefault(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error) is { } failure)
+        {
+            problems.Add(
+                $"{path} does not parse, at line {failure.Location.GetLineSpan().StartLinePosition.Line + 1}: {failure.GetMessage(CultureInfo.InvariantCulture)} "
+                + "Its members cannot be found until it does.");
+
+            return new Outcome(null, changes, problems);
+        }
+
+        var merger = new Merger(path, changes, problems);
+        var merged = merger.Unit(Parse(before), Parse(after), (CompilationUnitSyntax)tree.GetRoot());
+
+        if (problems.Count > 0 || merged is null)
+        {
+            return new Outcome(null, changes, problems);
+        }
+
+        byte[] bytes = Encoding.UTF8.GetBytes(merged.ToFullString().ReplaceLineEndings(newline));
+
+        return new Outcome(bom ? [.. Encoding.UTF8.Preamble, .. bytes] : bytes, changes, problems);
+    }
+
+    private static CompilationUnitSyntax Parse(string text) => (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(text, _options).GetRoot();
+
+    internal static string Normalized(SyntaxNode node) => node.NormalizeWhitespace("    ", "\n").ToFullString().Trim();
+
+    private static bool Same(SyntaxNode left, SyntaxNode right) => Normalized(left) == Normalized(right);
+
+    private sealed class Merger(string path, List<string> changes, List<string> problems)
+    {
+        internal CompilationUnitSyntax? Unit(CompilationUnitSyntax old, CompilationUnitSyntax @new, CompilationUnitSyntax disk)
+        {
+            var withUsings = Usings(old, @new, disk);
+            var members = Members(string.Empty, old.Members, @new.Members, withUsings.Members);
+
+            return members is null ? null : withUsings.WithMembers(members.Value);
+        }
+
+        private CompilationUnitSyntax Usings(CompilationUnitSyntax old, CompilationUnitSyntax @new, CompilationUnitSyntax disk)
+        {
+            static string Key(UsingDirectiveSyntax directive) => Normalized(directive.WithoutTrivia());
+
+            var oldKeys = old.Usings.Select(Key).ToHashSet(StringComparer.Ordinal);
+            var newKeys = @new.Usings.Select(Key).ToHashSet(StringComparer.Ordinal);
+            var usings = disk.Usings.ToList();
+            bool hadNone = usings.Count == 0;
+
+            foreach (string removed in oldKeys.Where(key => !newKeys.Contains(key)))
+            {
+                if (usings.FindIndex(directive => Key(directive) == removed) is var index and >= 0)
+                {
+                    usings.RemoveAt(index);
+                    changes.Add($"removed {removed}");
+                }
+            }
+
+            foreach (var directive in @new.Usings.Where(directive => !oldKeys.Contains(Key(directive))))
+            {
+                if (usings.Any(present => Key(present) == Key(directive)))
+                {
+                    continue;
+                }
+
+                int following = usings.FindIndex(present => Order(directive.NamespaceOrType?.ToString() ?? string.Empty, present.NamespaceOrType?.ToString() ?? string.Empty) < 0);
+
+                usings.Insert(following < 0 ? usings.Count : following, directive.WithLeadingTrivia().WithTrailingTrivia(SyntaxFactory.EndOfLine("\n")));
+                changes.Add($"added {Key(directive)}");
+            }
+
+            var updated = disk.WithUsings(SyntaxFactory.List(usings));
+
+            if (hadNone && usings.Count > 0 && updated.Members.FirstOrDefault() is { } first)
+            {
+                updated = updated.ReplaceNode(first, first.WithLeadingTrivia(first.GetLeadingTrivia().Insert(0, SyntaxFactory.EndOfLine("\n"))));
+            }
+
+            return updated;
+        }
+
+        private static int Order(string left, string right)
+        {
+            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
+
+            int system = IsSystem(right).CompareTo(IsSystem(left));
+
+            return system != 0 ? system
+                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
+                : StringComparer.Ordinal.Compare(left, right);
+        }
+
+        private SyntaxList<MemberDeclarationSyntax>? Members(
+            string container,
+            SyntaxList<MemberDeclarationSyntax> old,
+            SyntaxList<MemberDeclarationSyntax> @new,
+            SyntaxList<MemberDeclarationSyntax> disk)
+        {
+            var oldKeys = Keys(old);
+            var newKeys = Keys(@new);
+            var result = disk.ToList();
+            var resultKeys = Keys(disk);
+            int before = problems.Count;
+
+            for (int index = 0; index < old.Count; index++)
+            {
+                if (newKeys.Contains(oldKeys[index]) || resultKeys.IndexOf(oldKeys[index]) is not (var at and >= 0))
+                {
+                    continue;
+                }
+
+                if (Same(result[at], old[index]))
+                {
+                    result.RemoveAt(at);
+                    resultKeys.RemoveAt(at);
+                    changes.Add($"removed {Name(container, old[index])}");
+                }
+                else
+                {
+                    problems.Add($"{path}: {Name(container, old[index])} was changed by hand, and these fields remove it. Remove it by hand.");
+                }
+            }
+
+            for (int index = 0; index < @new.Count; index++)
+            {
+                int earlier = oldKeys.IndexOf(newKeys[index]);
+
+                if (earlier < 0 || (Same(old[earlier], @new[index]) && old[earlier] is not BaseNamespaceDeclarationSyntax))
+                {
+                    continue;
+                }
+
+                int at = resultKeys.IndexOf(newKeys[index]);
+
+                if (at < 0)
+                {
+                    problems.Add(
+                        $"{path}: {Name(container, @new[index])}, which new-feature wrote, is not in the file, and these fields change it. Put it "
+                        + $"back, or make the change by hand:\n{Indented(@new[index])}");
+
+                    continue;
+                }
+
+                if (Member(container, old[earlier], @new[index], result[at]) is { } merged)
+                {
+                    result[at] = merged;
+                }
+            }
+
+            for (int index = 0; index < @new.Count; index++)
+            {
+                if (oldKeys.Contains(newKeys[index]))
+                {
+                    continue;
+                }
+
+                if (resultKeys.Contains(newKeys[index]))
+                {
+                    problems.Add(
+                        $"{path}: {Name(container, @new[index])} is declared already, and these fields declare it: rename that member first.");
+
+                    continue;
+                }
+
+                int previous = Enumerable.Range(0, index).Reverse().Select(candidate => resultKeys.IndexOf(newKeys[candidate])).FirstOrDefault(found => found >= 0, -1);
+                int next = Enumerable.Range(index + 1, @new.Count - index - 1).Select(candidate => resultKeys.IndexOf(newKeys[candidate])).FirstOrDefault(found => found >= 0, -1);
+                int position = previous >= 0 ? previous + 1 : next >= 0 ? next : result.Count;
+
+                if (position == 0 && result.Count > 0 && newKeys.IndexOf(resultKeys[0]) is var shifted and >= 0
+                    && result[0].GetLeadingTrivia().All(trivia => trivia.IsKind(SyntaxKind.WhitespaceTrivia) || trivia.IsKind(SyntaxKind.EndOfLineTrivia)))
+                {
+                    result[0] = result[0].WithLeadingTrivia(@new[shifted].GetLeadingTrivia());
+                }
+
+                result.Insert(position, @new[index]);
+                resultKeys.Insert(position, newKeys[index]);
+                changes.Add($"added {Name(container, @new[index])}");
+            }
+
+            return problems.Count > before ? null : SyntaxFactory.List(result);
+        }
+
+        private MemberDeclarationSyntax? Member(string container, MemberDeclarationSyntax old, MemberDeclarationSyntax @new, MemberDeclarationSyntax disk)
+        {
+            switch (old, @new, disk)
+            {
+                case (BaseNamespaceDeclarationSyntax oldSpace, BaseNamespaceDeclarationSyntax newSpace, BaseNamespaceDeclarationSyntax diskSpace):
+                    return Members(container, oldSpace.Members, newSpace.Members, diskSpace.Members) is { } inside ? diskSpace.WithMembers(inside) : null;
+
+                case (TypeDeclarationSyntax oldType, TypeDeclarationSyntax newType, TypeDeclarationSyntax diskType) when oldType.Kind() == diskType.Kind():
+                    return Type(container, oldType, newType, diskType);
+
+                default:
+                    if (Same(disk, old))
+                    {
+                        changes.Add($"rewrote {Name(container, @new)}");
+
+                        return @new;
+                    }
+
+                    problems.Add(
+                        $"{path}: {Name(container, old)} differs from what new-feature wrote, so new-field leaves it to you. Make this change "
+                        + $"in it by hand:\n{Difference(old, @new)}");
+
+                    return null;
+            }
+        }
+
+        private TypeDeclarationSyntax? Type(string container, TypeDeclarationSyntax old, TypeDeclarationSyntax @new, TypeDeclarationSyntax disk)
+        {
+            string name = Qualified(container, old.Identifier.Text);
+
+            if (Members(name, old.Members, @new.Members, disk.Members) is not { } members)
+            {
+                return null;
+            }
+
+            if (Same(Header(old), Header(@new)))
+            {
+                return disk.WithMembers(members);
+            }
+
+            if (Same(Header(disk), Header(old)))
+            {
+                changes.Add($"rewrote the declaration of {name}");
+
+                return @new.WithMembers(members);
+            }
+
+            problems.Add(
+                $"{path}: the declaration of {name} differs from what new-feature wrote, so new-field leaves it to you. Make this change "
+                + $"in it by hand:\n{Difference(Header(old), Header(@new))}");
+
+            return null;
+        }
+
+        private static TypeDeclarationSyntax Header(TypeDeclarationSyntax type) => type.WithMembers(default);
+
+        private static List<string> Keys(SyntaxList<MemberDeclarationSyntax> members)
+        {
+            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            return [.. members.Select(member =>
+            {
+                string key = Key(member);
+                int count = seen.TryGetValue(key, out int earlier) ? earlier + 1 : 0;
+
+                seen[key] = count;
+
+                return count == 0 ? key : $"{key}#{count}";
+            })];
+        }
+
+        private static string Key(MemberDeclarationSyntax member) => member switch
+        {
+            BaseNamespaceDeclarationSyntax space => $"namespace {space.Name}",
+            BaseTypeDeclarationSyntax type => $"{type.Kind()} {type.Identifier.Text}",
+            DelegateDeclarationSyntax @delegate => $"delegate {@delegate.Identifier.Text}",
+            MethodDeclarationSyntax method => $"method {method.ExplicitInterfaceSpecifier}{method.Identifier.Text}`{method.Arity}",
+            ConstructorDeclarationSyntax constructor => constructor.Modifiers.Any(SyntaxKind.StaticKeyword) ? "static constructor" : "constructor",
+            PropertyDeclarationSyntax property => $"property {property.ExplicitInterfaceSpecifier}{property.Identifier.Text}",
+            EventDeclarationSyntax @event => $"event {@event.Identifier.Text}",
+            BaseFieldDeclarationSyntax field => $"field {string.Join(",", field.Declaration.Variables.Select(variable => variable.Identifier.Text))}",
+            OperatorDeclarationSyntax @operator => $"operator {@operator.OperatorToken.Text}",
+            ConversionOperatorDeclarationSyntax conversion => $"conversion {conversion.Type}",
+            _ => member.Kind().ToString(),
+        };
+
+        private static string Name(string container, MemberDeclarationSyntax member) => member switch
+        {
+            BaseTypeDeclarationSyntax type => Qualified(container, type.Identifier.Text),
+            MethodDeclarationSyntax method => $"{Qualified(container, method.Identifier.Text)}({string.Join(", ", method.ParameterList.Parameters.Select(parameter => parameter.Type?.ToString()))})",
+            ConstructorDeclarationSyntax => $"the constructor of {container}",
+            PropertyDeclarationSyntax property => Qualified(container, property.Identifier.Text),
+            BaseFieldDeclarationSyntax field => Qualified(container, string.Join(", ", field.Declaration.Variables.Select(variable => variable.Identifier.Text))),
+            _ => $"{Key(member)} of {container}",
+        };
+
+        private static string Qualified(string container, string name) => container.Length == 0 ? name : $"{container}.{name}";
+
+        private static string Indented(SyntaxNode node) =>
+            string.Join('\n', node.ToFullString().Trim('\n', '\r').Split('\n').Select(line => "    " + line.TrimEnd('\r')));
+
+        private static string Difference(SyntaxNode old, SyntaxNode @new)
+        {
+            string[] left = old.ToFullString().Trim('\n', '\r').Split('\n');
+            string[] right = @new.ToFullString().Trim('\n', '\r').Split('\n');
+            int[,] common = new int[left.Length + 1, right.Length + 1];
+
+            for (int i = left.Length - 1; i >= 0; i--)
+            {
+                for (int j = right.Length - 1; j >= 0; j--)
+                {
+                    common[i, j] = left[i] == right[j] ? common[i + 1, j + 1] + 1 : Math.Max(common[i + 1, j], common[i, j + 1]);
+                }
+            }
+
+            var lines = new List<string>();
+            int l = 0, r = 0;
+
+            while (l < left.Length || r < right.Length)
+            {
+                if (l < left.Length && r < right.Length && left[l] == right[r])
+                {
+                    l++;
+                    r++;
+                }
+                else if (r < right.Length && (l == left.Length || common[l, r + 1] >= common[l + 1, r]))
+                {
+                    lines.Add("  + " + right[r++].TrimEnd('\r'));
+                }
+                else
+                {
+                    lines.Add("  - " + left[l++].TrimEnd('\r'));
+                }
+            }
+
+            return string.Join('\n', lines);
+        }
+    }
+}
+
+internal static class MigrationDefaults
+{
+    internal sealed record Result(string? Text, bool Changed, string? Problem);
+
+    internal static Result Apply(string text, string table, IReadOnlyList<Field> fields)
+    {
+        var root = CSharpSyntaxTree.ParseText(text, new CSharpParseOptions(LanguageVersion.Preview)).GetRoot();
+        var up = root.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(method => method.Identifier.Text == "Up");
+
+        if (up is null)
+        {
+            return new Result(null, false, "the migration declares no Up method, where its AddColumn calls are.");
+        }
+
+        var replacements = new Dictionary<SyntaxNode, SyntaxNode>();
+
+        foreach (var field in fields.Where(field => field.Default is not null))
+        {
+            var calls = up.DescendantNodes()
+                .OfType<InvocationExpressionSyntax>()
+                .Where(call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "AddColumn" })
+                .Where(call => Argument(call, "name") == field.Name && Argument(call, "table") == table)
+                .ToList();
+
+            if (calls.Count != 1)
+            {
+                return new Result(null, false, $"the migration's Up has {calls.Count} AddColumn of {field.Name} to {table}, where new-field sets its defaultValue in one.");
+            }
+
+            var call = calls[0];
+            var value = SyntaxFactory.ParseExpression(field.Default!.Expression);
+            var present = call.ArgumentList.Arguments.FirstOrDefault(argument => argument.NameColon?.Name.Identifier.Text == "defaultValue");
+
+            if (present is not null && SyntaxMerge.Normalized(present.Expression) == SyntaxMerge.Normalized(value))
+            {
+                continue;
+            }
+
+            var arguments = call.ArgumentList.Arguments;
+
+            replacements[call.ArgumentList] = call.ArgumentList.WithArguments(present is not null
+                ? arguments.Replace(present, present.WithExpression(value.WithTriviaFrom(present.Expression)))
+                : SyntaxFactory.SeparatedList(
+                    [.. arguments, SyntaxFactory.Argument(
+                        SyntaxFactory.NameColon(SyntaxFactory.IdentifierName("defaultValue"), SyntaxFactory.Token(SyntaxKind.ColonToken).WithTrailingTrivia(SyntaxFactory.Space)),
+                        default,
+                        value).WithLeadingTrivia(arguments.Last().GetLeadingTrivia())],
+                    [.. arguments.GetSeparators(), SyntaxFactory.Token(SyntaxKind.CommaToken).WithTrailingTrivia(SyntaxFactory.EndOfLine("\n"))]));
+        }
+
+        return replacements.Count == 0
+            ? new Result(text, false, null)
+            : new Result(root.ReplaceNodes(replacements.Keys, (original, _) => replacements[original]).ToFullString(), true, null);
+    }
+
+    private static string? Argument(InvocationExpressionSyntax call, string name) =>
+        call.ArgumentList.Arguments.FirstOrDefault(argument => argument.NameColon?.Name.Identifier.Text == name)?.Expression is LiteralExpressionSyntax literal
+            ? literal.Token.ValueText
+            : null;
 }
 
 internal static class Template
@@ -8996,6 +10614,14 @@ internal sealed record FieldBound(string Operator, decimal Value, string Literal
         "<=" => "at most",
         _ => "less than",
     };
+
+    internal bool Holds(decimal value) => Operator switch
+    {
+        ">=" => value >= Value,
+        ">" => value > Value,
+        "<=" => value <= Value,
+        _ => value < Value,
+    };
 }
 
 internal sealed record Field(
@@ -9038,7 +10664,13 @@ internal sealed record Field(
 
     internal string Declaration =>
         $"{Name}:{TypeText}{(Nullable ? "?" : string.Empty)}{string.Concat(Bounds.Select(bound => bound.Operator + bound.Literal))}";
+
+    internal FieldDefault? Default { get; init; }
+
+    internal string Declared => Default is { } value ? $"{Declaration}={value.Literal}" : Declaration;
 }
+
+internal sealed record FieldDefault(string Literal, string Expression);
 
 internal sealed record FieldProfile(
     string Holder,
@@ -9052,6 +10684,8 @@ internal sealed record FieldProfile(
     string DuplicateReason,
     string UnstoredReason)
 {
+    internal bool TakesDefault { get; init; }
+
     internal static FieldProfile Feature { get; } = new(
         "a feature",
         "string(n), text, text(n), int, long, decimal, decimal(p,s), bool, DateOnly, DateTimeOffset, Guid",
@@ -9085,6 +10719,8 @@ internal sealed record FieldProfile(
         "two properties a case-insensitive JSON reader cannot tell apart",
         "No column holds an event's fields, and the aggregate checks a value before it raises the event with it: a length, a "
             + "precision, a bound or a missing value is the aggregate's rule, not the event's");
+
+    internal static FieldProfile AddedField { get; } = Feature with { TakesDefault = true };
 }
 
 internal static class FieldGrammar
@@ -9151,6 +10787,7 @@ internal static class FieldGrammar
         Name,
         Number,
         Symbol,
+        Quoted,
         Unknown,
         End,
     }
@@ -9451,7 +11088,266 @@ internal static class FieldGrammar
             problems.AddRange(RangeProblems(field));
         }
 
-        return field;
+        if (tokens[at].Text != "=")
+        {
+            if (profile.TakesDefault && !nullable)
+            {
+                problems.Add(
+                    $"--fields, at character {tokens[at].Position + 1}: {name.Text} cannot be null, and the rows the table already "
+                    + $"holds need a value for it: give one its rules accept after '=', as {field.Declaration}={DefaultExample(field)}, "
+                    + "or make it nullable with '?'.");
+            }
+
+            return field;
+        }
+
+        var equals = tokens[at];
+
+        if (!profile.TakesDefault)
+        {
+            problems.Add(
+                $"--fields, at character {equals.Position + 1}: a default, '=' and a value, is what new-field gives the rows a table "
+                + "already holds when it adds a field to them; here the field has no such rows. Leave it out.");
+
+            return null;
+        }
+
+        if (nullable)
+        {
+            problems.Add(
+                $"--fields, at character {equals.Position + 1}: {name.Text} is nullable, so the rows the table already holds start "
+                + "with null, which it accepts; a default is for a field that cannot be null. Leave the default out, or the '?'.");
+
+            return null;
+        }
+
+        at++;
+
+        if (DefaultOf(field, tokens[at], problems) is not { } value)
+        {
+            return null;
+        }
+
+        at++;
+
+        var defaulted = field with { Default = value };
+
+        problems.AddRange(DefaultProblems(defaulted));
+
+        return defaulted;
+    }
+
+    private static string DefaultExample(Field field) => field.Kind switch
+    {
+        FieldKind.Int or FieldKind.Long or FieldKind.Decimal => SatisfyingValue(field).ToString(CultureInfo.InvariantCulture),
+        FieldKind.Bool => "false",
+        FieldKind.Text => "''",
+        FieldKind.DateOnly => "'2026-01-01'",
+        FieldKind.DateTimeOffset => "'2026-01-01T00:00:00Z'",
+        FieldKind.Guid => "'00000000-0000-0000-0000-000000000001'",
+        _ => "'none'",
+    };
+
+    private static decimal SatisfyingValue(Field field)
+    {
+        decimal step = field.Kind == FieldKind.Decimal ? Step(field.Scale) : 1m;
+
+        return field.Bounds.All(bound => bound.Holds(0m)) ? 0m
+            : field.Lower is { } lower && !lower.Holds(0m) ? (lower.IsInclusive ? lower.Value : lower.Value + step)
+            : field.Upper!.IsInclusive ? field.Upper.Value : field.Upper.Value - step;
+    }
+
+    private static FieldDefault? DefaultOf(Field field, Token token, List<string> problems)
+    {
+        string where = $"--fields, at character {token.Position + 1}";
+
+        switch (field.Kind)
+        {
+            case FieldKind.Int or FieldKind.Long or FieldKind.Decimal:
+                if (token.Kind != TokenKind.Number
+                    || !decimal.TryParse(token.Text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal number))
+                {
+                    problems.Add(Expected(token, $"a number after '=', the default of {field.Name}"));
+
+                    return null;
+                }
+
+                if (field.Kind != FieldKind.Decimal)
+                {
+                    string type = field.Kind == FieldKind.Int ? "int" : "long";
+                    decimal minimum = field.Kind == FieldKind.Int ? int.MinValue : long.MinValue;
+                    decimal maximum = field.Kind == FieldKind.Int ? int.MaxValue : long.MaxValue;
+
+                    if (token.Text.Contains('.', StringComparison.Ordinal) || number < minimum || number > maximum)
+                    {
+                        problems.Add($"{where}: {Shown(token.Text)} is not a whole number an {type} holds.");
+
+                        return null;
+                    }
+
+                    string whole = number.ToString(CultureInfo.InvariantCulture);
+
+                    return new FieldDefault(whole, field.Kind == FieldKind.Long ? whole + "L" : whole);
+                }
+
+                if (Misfit(token.Text, number, field.Precision, field.Scale) is { } misfit)
+                {
+                    problems.Add($"{where}: {misfit}");
+
+                    return null;
+                }
+
+                string exact = number.ToString(CultureInfo.InvariantCulture);
+
+                return new FieldDefault(exact, exact + "m");
+
+            case FieldKind.Bool:
+                return token.Text is "true" or "false"
+                    ? new FieldDefault(token.Text, token.Text)
+                    : Refused(Expected(token, $"true or false after '=', the default of {field.Name}"));
+
+            default:
+                if (token.Kind != TokenKind.Quoted)
+                {
+                    return Refused(token.Text == "'"
+                        ? $"{where}: a quote opens the default of {field.Name} and none closes it."
+                        : Expected(token, $"a value between quotes after '=', as {DefaultExample(field)}, the default of {field.Name}"));
+                }
+
+                return QuotedDefault(field, token, where, problems);
+        }
+
+        FieldDefault? Refused(string problem)
+        {
+            problems.Add(problem);
+
+            return null;
+        }
+    }
+
+    private static FieldDefault? QuotedDefault(Field field, Token token, string where, List<string> problems)
+    {
+        string text = token.Text;
+
+        switch (field.Kind)
+        {
+            case FieldKind.DateOnly:
+                if (!DateOnly.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
+                {
+                    problems.Add($"{where}: {Shown(text)} is not a date written yyyy-MM-dd, as '2026-01-31'.");
+
+                    return null;
+                }
+
+                return new FieldDefault($"'{date:yyyy-MM-dd}'", $"new DateOnly({date.Year}, {date.Month}, {date.Day})");
+
+            case FieldKind.DateTimeOffset:
+                if (!Regex.IsMatch(text, @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:\d{2})$", RegexOptions.None, TimeSpan.FromSeconds(1))
+                    || !DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset instant))
+                {
+                    problems.Add(
+                        $"{where}: {Shown(text)} is not an instant written yyyy-MM-ddTHH:mm:ss with its offset, as '2026-01-31T09:00:00Z' "
+                        + "or '2026-01-31T10:00:00+01:00'.");
+
+                    return null;
+                }
+
+                var utc = instant.ToUniversalTime();
+
+                return new FieldDefault(
+                    $"'{utc:yyyy-MM-ddTHH:mm:ss}Z'",
+                    $"new DateTimeOffset({utc.Year}, {utc.Month}, {utc.Day}, {utc.Hour}, {utc.Minute}, {utc.Second}, TimeSpan.Zero)");
+
+            case FieldKind.Guid:
+                if (!Guid.TryParseExact(text, "D", out Guid identifier))
+                {
+                    problems.Add($"{where}: {Shown(text)} is not a Guid written with its hyphens, as '3f2504e0-4f89-41d3-9a0c-0305e82c3301'.");
+
+                    return null;
+                }
+
+                return new FieldDefault($"'{identifier:D}'", $"new Guid(\"{identifier:D}\")");
+
+            default:
+                return new FieldDefault($"'{text.Replace("'", "''", StringComparison.Ordinal)}'", Quote(text));
+        }
+    }
+
+    private static string Quote(string text)
+    {
+        var quoted = new StringBuilder("\"");
+
+        foreach (char character in text)
+        {
+            quoted.Append(character switch
+            {
+                '"' => "\\\"",
+                '\\' => "\\\\",
+                '\n' => "\\n",
+                '\r' => "\\r",
+                '\t' => "\\t",
+                _ when char.IsControl(character) || char.IsSurrogate(character) => $"\\u{(int)character:x4}",
+                _ => character.ToString(),
+            });
+        }
+
+        return quoted.Append('"').ToString();
+    }
+
+    private static IEnumerable<string> DefaultProblems(Field field)
+    {
+        string where = $"--fields: the default of {field.Name}, {field.Default!.Literal},";
+
+        switch (field.Kind)
+        {
+            case FieldKind.Int or FieldKind.Long or FieldKind.Decimal:
+                decimal value = decimal.Parse(field.Default.Literal, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
+
+                foreach (var bound in field.Bounds.Where(bound => !bound.Holds(value)))
+                {
+                    yield return $"{where} breaks the rule the field checks: it must be {bound.Wording} {bound.Literal}.";
+                }
+
+                break;
+
+            case FieldKind.String or FieldKind.Text:
+                string text = Unquoted(field.Default.Literal);
+
+                if (field.Kind == FieldKind.String && text.Trim().Length == 0)
+                {
+                    yield return $"{where} is blank, which the field refuses: a required string holds at least one character once trimmed.";
+                }
+                else if (field.Kind == FieldKind.String && text != text.Trim())
+                {
+                    yield return $"{where} starts or ends with a space, which every write trims away: write it trimmed.";
+                }
+
+                if (text.Length > field.Length)
+                {
+                    yield return $"{where} is {text.Length:N0} characters long, and the field holds {field.Length:N0} at most.";
+                }
+
+                break;
+
+            case FieldKind.DateOnly when field.Default.Literal == "'0001-01-01'":
+            case FieldKind.DateTimeOffset when field.Default.Literal == "'0001-01-01T00:00:00Z'":
+            case FieldKind.Guid when field.Default.Literal == $"'{Guid.Empty:D}'":
+                yield return $"{where} is the empty value, which the field refuses: a required {field.ClrType} is never the default one.";
+
+                break;
+        }
+    }
+
+    private static string Unquoted(string literal) => literal[1..^1].Replace("''", "'", StringComparison.Ordinal);
+
+    private static string? Misfit(string text, decimal value, int precision, int scale)
+    {
+        int decimals = text.Contains('.', StringComparison.Ordinal) ? text.Length - text.IndexOf('.', StringComparison.Ordinal) - 1 : 0;
+        int digits = decimal.Truncate(Math.Abs(value)) == 0 ? 0 : decimal.Truncate(Math.Abs(value)).ToString(CultureInfo.InvariantCulture).Length;
+
+        return decimals > scale || digits > precision - scale
+            ? $"{Shown(text)} does not fit decimal({precision},{scale}), whose values have at most {precision - scale} digits before the point and {scale} after it."
+            : null;
     }
 
     private static int[]? Arguments(List<Token> tokens, ref int at, int count, List<string> problems)
@@ -9533,14 +11429,9 @@ internal static class FieldGrammar
             return new FieldBound(operation, value, value.ToString(CultureInfo.InvariantCulture));
         }
 
-        int decimals = number.Text.Contains('.', StringComparison.Ordinal) ? number.Text.Length - number.Text.IndexOf('.', StringComparison.Ordinal) - 1 : 0;
-        int digits = decimal.Truncate(Math.Abs(value)) == 0 ? 0 : decimal.Truncate(Math.Abs(value)).ToString(CultureInfo.InvariantCulture).Length;
-
-        if (decimals > scale || digits > precision - scale)
+        if (Misfit(number.Text, value, precision, scale) is { } misfit)
         {
-            problems.Add(
-                $"{where}: {Shown(number.Text)} does not fit decimal({precision},{scale}), whose values have at most "
-                + $"{precision - scale} digits before the point and {scale} after it.");
+            problems.Add($"{where}: {misfit}");
 
             return null;
         }
@@ -9597,7 +11488,7 @@ internal static class FieldGrammar
         return ceiling;
     }
 
-    private static List<string> NameProblems(List<Field> fields, FieldProfile profile)
+    internal static List<string> NameProblems(IReadOnlyList<Field> fields, FieldProfile profile)
     {
         var problems = new List<string>();
 
@@ -9703,10 +11594,15 @@ internal static class FieldGrammar
                 position += position + 1 < text.Length && text[position + 1] == '=' ? 2 : 1;
                 tokens.Add(new Token(TokenKind.Symbol, text[start..position], start));
             }
-            else if (current is ':' or ',' or '(' or ')' or '?')
+            else if (current is ':' or ',' or '(' or ')' or '?' or '=')
             {
                 position++;
                 tokens.Add(new Token(TokenKind.Symbol, current.ToString(), start));
+            }
+            else if (current == '\'' && Closing(text, position) is var closing and > 0)
+            {
+                position = closing + 1;
+                tokens.Add(new Token(TokenKind.Quoted, text[(start + 1)..closing].Replace("''", "'", StringComparison.Ordinal), start));
             }
             else
             {
@@ -9718,6 +11614,28 @@ internal static class FieldGrammar
         tokens.Add(new Token(TokenKind.End, string.Empty, text.Length));
 
         return tokens;
+    }
+
+    private static int Closing(string text, int opening)
+    {
+        for (int index = opening + 1; index < text.Length; index++)
+        {
+            if (text[index] != '\'')
+            {
+                continue;
+            }
+
+            if (index + 1 < text.Length && text[index + 1] == '\'')
+            {
+                index++;
+
+                continue;
+            }
+
+            return index;
+        }
+
+        return -1;
     }
 
     private static string Unstored(Token token, FieldProfile profile, string part) =>

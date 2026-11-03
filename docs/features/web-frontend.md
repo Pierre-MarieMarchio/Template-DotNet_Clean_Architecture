@@ -13,6 +13,7 @@ from the `packageManager` field of `Src/Web/package.json`, which Corepack reads;
 | `Src/Web/apps/<Name>` | one app: its sources, `Dockerfile`, `nginx.conf`, `compose.yml` and `README.md` |
 | `Src/Web/packages/api-client` | the TypeScript client generated from the API's OpenAPI document |
 | `Src/Web/packages/tsconfig`, `Src/Web/packages/eslint-config` | the shared compiler and lint settings |
+| `Src/Web/packages/browser-smoke` | the Playwright smoke that drives every app in Chromium against the stack |
 
 Each app is its own deployable. Its development server, and in Compose its nginx container or, for
 an app rendered on the server, its Node server, relays `/api/` and `/health` to the API, so the
@@ -91,6 +92,15 @@ pnpm --filter <app> dev
 the API on the host. Under Compose, `docker compose up --build --wait` serves each app's build
 through nginx, or an app rendered on the server through its own Node server, on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
 `pnpm lint` and `pnpm test` in `Src/Web` run every app and package.
+
+## Driving the apps in a browser
+
+`Src/Web/packages/browser-smoke` opens each app `cleanarch.json` records in Chromium, at the port
+`WEB_<APP>_HOST_PORT` gives it, and fails when the page does not load, when the browser reports a
+Content-Security-Policy violation, a console error or an uncaught exception, or when a call from the
+page through `/api/` does not reach the API. An app added later is driven without an edit. It needs
+the Compose stack and Chromium, so it is not part of `pnpm test`: `dotnet run Tools/Tasks.cs end-to-end`
+runs it after the end-to-end suite, and [testing](../guides/testing.md) says how to install the browser.
 
 ## Calling the API
 

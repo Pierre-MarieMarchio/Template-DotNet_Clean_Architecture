@@ -1342,11 +1342,13 @@ internal static class NewFeature
                             cursor.Key,
                             CultureInfo.InvariantCulture,
                             DateTimeStyles.RoundtripKind,
-                            out DateTimeOffset key))
+                            out DateTimeOffset parsed))
                         {
                             throw new InvalidOperationException(
                                 "The cursor's key is not a valid date/time: CursorKeys should have rejected it first.");
                         }
+
+                        var key = parsed.ToUniversalTime();
 
                         return direction == SortDirection.Ascending
                             ? source.Where(record =>
@@ -2252,6 +2254,7 @@ internal static class NewFeature
             WithoutTheApiCases(scratch, Expect);
             WithoutFieldsCases(scratch, Expect);
             ProviderCases(scratch, Expect);
+            InstantCases(scratch, Expect);
             FieldGrammarCases(scratch, Expect);
             FieldEmissionCases(scratch, Expect);
             TemplateGuardCases(Expect);
@@ -4096,17 +4099,46 @@ internal static class NewFeature
 
     private static readonly (string Group, string Digest)[] _withoutFieldsDigests =
     [
-        ("record, owner, delete", "e163bf80ae69729e7f326fc38ecc9dab57f66b9c4594f02873f4a5b7c7124850"),
-        ("record, owner, anonymise", "36cbb1cea5755de5ea1c2b35311fa9b69eab642376ffb225da33826dccb00a50"),
-        ("record, shared", "5e72b73401b1fa87c9c616e34a8734a27e17bc7c32ffaff4c200e4b69518e92e"),
-        ("aggregate, owner, delete", "6bdc4580d8a672555f961c4130dc5af2452b2697c4bee4a75a7bc6b5cf3f35f6"),
-        ("aggregate, owner, anonymise", "e4e3ec095d0a76adbd25c3b81d19968225b4d3e4c8f9a7824ca8f5b0d84c9c51"),
-        ("aggregate, shared", "98a62c8b370c718eb3e1436fab9cad52f5823b75d87e4bb9f560dafb53d9967f"),
-        ("record, owner, delete, the project's first owner feature", "e880bd15eac462476f4b80e1a48e6fd8b2db491453b2cd478b7bbbcf28dd194a"),
-        ("record, owner, delete, without the API", "2acdd9553a3b112bda2f331606c60487785993cfc8a87d483470dbcdc332cf69"),
-        ("record, owner, delete, on SQL Server", "e163bf80ae69729e7f326fc38ecc9dab57f66b9c4594f02873f4a5b7c7124850"),
-        ("record, owner, delete, on SQLite", "2aa9c005001729a66e9772bd79ae80e97c918097eabb5786d4bc7bc42317c676"),
+        ("record, owner, delete", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
+        ("record, owner, anonymise", "0cf7120009b637161c96f36121de5d578ffca153e9494c9cf3f8118d630f2b5f"),
+        ("record, shared", "a81685781a3374c06df0b09e2dfa1f47756744c5373a07f800558afccabdf224"),
+        ("aggregate, owner, delete", "84ca6f603f9825a0ee59f19e8c361f91b2602e32b17a017a009bb0d7da19da38"),
+        ("aggregate, owner, anonymise", "af9ccf5589b50e3c8fc58e9d608dbaf6d32d0347474a77c288a4bf8fd976951e"),
+        ("aggregate, shared", "243428d42bdb09feda6574751fecc0fa90ab22eae14397a61ff3648e40088a74"),
+        ("record, owner, delete, the project's first owner feature", "f7ac7e7ae67929722429d6dabaa88c87fa8ea08114a5d5861e8c7b3c7804a67f"),
+        ("record, owner, delete, without the API", "202898ec8aab47611c279ef7d718969417b419a9e90eb22fcd1fe243dba64f3e"),
+        ("record, owner, delete, on SQL Server", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
+        ("record, owner, delete, on SQLite", "cbd08b65e7342c61910a236649ae780d3ce8fae0e5f64528a20020c966e0c977"),
     ];
+
+    private static void InstantCases(string scratch, Action<bool, string> expect)
+    {
+        const string decoded = "var key = parsed.ToUniversalTime();";
+
+        string plain = NewTree(scratch);
+        var widgets = Invoke(plain, "Widgets", "Widget", "--access", "shared");
+        string widgetMap = File.ReadAllText(System.IO.Path.Combine(plain, "Src/Infrastructure/A.Infrastructure.Persistence/Features/Widgets/Access/Queries/WidgetSortMap.cs"));
+
+        expect(
+            widgets.Code == 0 && Occurrences(widgetMap, decoded) == 1 && !widgetMap.Contains("out DateTimeOffset key", StringComparison.Ordinal),
+            $"The created-at cursor key a client sends is not decoded in UTC, which PostgreSQL requires: {widgets.Error}");
+
+        string fielded = FieldTree(scratch);
+        var invoices = Invoke(fielded, "Invoices", "Invoice", "--access", "owner", "--deletion", "anonymise", "--model", "aggregate", "--concurrency", "etag", "--fields", _everyType);
+        string invoiceMap = File.ReadAllText(System.IO.Path.Combine(fielded, "Src/Infrastructure/A.Infrastructure.Persistence/Features/Invoices/Access/Queries/InvoiceSortMap.cs"));
+        string apiTests = File.ReadAllText(System.IO.Path.Combine(fielded, "Tests/Integration/A.Api.IntegrationTests/Features/Invoices/InvoiceFieldTests.cs"));
+
+        expect(
+            invoices.Code == 0 && Occurrences(invoiceMap, decoded) == 2 && !invoiceMap.Contains("out DateTimeOffset key", StringComparison.Ordinal),
+            $"A cursor key of a DateTimeOffset field or of the creation instant is not decoded in UTC: {invoices.Error}");
+        expect(
+            apiTests.Contains("ACursorKey_SentWithANonZeroOffset_ResumesAfterTheSameInstant()", StringComparison.Ordinal)
+                && apiTests.Contains("first.ToOffset(TimeSpan.FromHours(2))", StringComparison.Ordinal)
+                && apiTests.Contains("using Acme.Application.Core.Common.Collections;", StringComparison.Ordinal),
+            "The integration test of a cursor key sent with an offset was not written.");
+
+        static int Occurrences(string text, string part) => (text.Length - text.Replace(part, string.Empty, StringComparison.Ordinal).Length) / part.Length;
+    }
 
     private static void ProviderCases(string scratch, Action<bool, string> expect)
     {
@@ -7047,11 +7079,13 @@ internal static class Templates
                     cursor.Key,
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.RoundtripKind,
-                    out DateTimeOffset key))
+                    out DateTimeOffset parsed))
                 {
                     throw new InvalidOperationException(
                         "The cursor's key is not a valid date/time: CursorKeys should have rejected it first.");
                 }
+
+                var key = parsed.ToUniversalTime();
 
                 return direction == SortDirection.Ascending
                     ? source.Where(record =>
@@ -7976,9 +8010,12 @@ internal static class Templates
     internal const string FieldApiTests = """
         using System.Net;
         using System.Net.Http.Json;
+        using %P%.Api.Common.Contracts; //?PagedResponse
         using %P%.Api.Features.%F%.Contracts.Requests;
         using %P%.Api.Features.%F%.Contracts.Responses;
         using %P%.Api.IntegrationTests.Infrastructure;
+        using %P%.Application.Core.Common.Collections; //?Cursor
+        using %P%.Application.Features.%F%.Model.Policies; //?%A%CollectionPolicy
         using Shouldly;
         using Xunit;
 
@@ -8005,6 +8042,41 @@ internal static class Templates
         %FApiInstants%
 
         %FApiRefusal%
+
+        %if list%
+            [Fact]
+            public async Task ACursorKey_SentWithANonZeroOffset_ResumesAfterTheSameInstant()
+            {
+                var (client, _, _) = await SignInAsync();
+                var first = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+                Clock.AdjustTime(first);
+                var firstId = await PostedIdAsync(client);
+
+                Clock.AdjustTime(first.AddDays(1));
+                var secondId = await PostedIdAsync(client);
+
+                var term = SortOrder.Parse(%A%CollectionPolicy.CreatedAtField, %A%CollectionPolicy.Instance).Value.Terms[0];
+                string cursor = Cursor.After(term, first.ToOffset(TimeSpan.FromHours(2)).ToString("O"), firstId).Encode();
+
+                using var response = await client.GetAsync(
+                    new Uri($"{_route}?paging=cursor&sort=createdAt:asc&pageSize=5&cursor={Uri.EscapeDataString(cursor)}", UriKind.Relative),
+                    TestToken);
+
+                response.StatusCode.ShouldBe(HttpStatusCode.OK);
+                (await ApiJson.ReadAsync<PagedResponse<%A%SummaryResponse>>(response, TestToken)).Items.Select(item => item.Id).ShouldBe([secondId]);
+            }
+
+            private static async Task<Guid> PostedIdAsync(HttpClient client)
+            {
+                using var response = await client.PostAsJsonAsync(_route, AValidRequest(), TestToken);
+
+                response.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+                return (await ApiJson.ReadAsync<%A%Response>(response, TestToken)).Id;
+            }
+
+        %end%
 
             private static Create%A%Request AValidRequest() => %FRequestSample%;
         }
@@ -8099,11 +8171,13 @@ internal static class Templates
                     cursor.Key,
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.RoundtripKind,
-                    out DateTimeOffset key))
+                    out DateTimeOffset parsed))
                 {
                     throw new InvalidOperationException(
                         "The cursor's key is not a valid date/time: CursorKeys should have rejected it first.");
                 }
+
+                var key = parsed.ToUniversalTime();
 
                 return direction == SortDirection.Ascending
                     ? source.Where(record =>

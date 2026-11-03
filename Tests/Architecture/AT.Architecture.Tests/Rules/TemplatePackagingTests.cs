@@ -709,7 +709,7 @@ public sealed class TemplatePackagingTests
 
     [Theory]
     [InlineData(".template.config", "presentation", "./.template.config/starters/", new string[0])]
-    [InlineData(".template.config/presentation/.template.config", "framework", "../starters/", new[] { _workerStarter })]
+    [InlineData(".template.config/presentation/.template.config", "framework", "../starters/", new string[0])]
     public void EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt(string folder, string option, string startersSource, string[] notOffered)
     {
         string[] folders = [.. PresentationStarters().Except(notOffered, StringComparer.Ordinal)];
@@ -1075,7 +1075,7 @@ public sealed class TemplatePackagingTests
             ChoiceValues(symbol.Value).ShouldBe(ChoiceValues(declared), $"cleanarch-presentation offers other values of {symbol.Name} than the project template.");
         }
 
-        foreach (string starter in PresentationStarters().Where(starter => starter != _workerStarter))
+        foreach (string starter in PresentationStarters())
         {
             JsonNode.DeepEquals(StarterModifiers(project.RootElement, "./.template.config/starters/", starter), StarterModifiers(item.RootElement, "../starters/", starter)).ShouldBeTrue(
                 $"cleanarch-presentation must leave out of the {starter} starter exactly what the project template leaves out, under the same conditions.");
@@ -1112,8 +1112,15 @@ public sealed class TemplatePackagingTests
             "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln",
             "docs/getting-started/overview.md", "docs/features/web-frontend.md",
         })]
+    [InlineData(
+        "worker/Src/Presentation/AT.Worker/README.md",
+        "jobsWorker",
+        12,
+        new[] { "docs/decisions/0025-jobs-run-in-a-worker-under-a-lease.md", "docs/features/presentation.md" })]
     public void TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders(string readme, string symbols, int files, string[] notListed) =>
-        ReadmeListsEveryLineWrittenFor(Path.Combine(StartersFolder, readme), readme, symbols, elsewhere: null, files, notListed);
+        ReadmeListsEveryLineWrittenFor(Path.Combine(StartersFolder, readme), readme, symbols, readme.StartsWith(_workerStarter, StringComparison.Ordinal) ? _withoutTheApi : null, files, notListed);
+
+    private const string _withoutTheApi = @"!\(?api\b";
 
     [Theory]
     [InlineData(
@@ -1155,7 +1162,7 @@ public sealed class TemplatePackagingTests
             .Select(line => line.Trim())
             .ToHashSet(StringComparer.Ordinal);
         var starterSymbol = new Regex($@"(!?)\b(?:{symbols})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
-        Regex? listedElsewhere = elsewhere is null ? null : new Regex($@"(?<!!)\b(?:{elsewhere})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+        Regex? listedElsewhere = elsewhere is null ? null : new Regex(elsewhere.StartsWith('!') ? elsewhere : $@"(?<!!\(?)\b(?:{elsewhere})\b", RegexOptions.None, TimeSpan.FromSeconds(5));
         var written = new List<(string File, string Line)>();
 
         foreach (string file in ProjectFiles(root))
@@ -1175,7 +1182,7 @@ public sealed class TemplatePackagingTests
             "that adds it with an item template: add each to the edits under 'Joining a project generated without one'.");
     }
 
-    private static readonly Regex _templateOnly = new(@"(?<!!)\btemplateMaintenance\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+    private static readonly Regex _templateOnly = new(@"(?<!!\(?)\btemplateMaintenance\b", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     private static readonly Regex _condition = new(@"#(?:if|elseif)\s*(\(.*\))", RegexOptions.None, TimeSpan.FromSeconds(5));
 
@@ -1211,7 +1218,8 @@ public sealed class TemplatePackagingTests
             {
                 if (line.Trim().Length > 0
                     && branches.Any(branch => IsStarterBranch(starterSymbol, branch.Condition, branch.Otherwise))
-                    && !branches.Any(branch => !branch.Otherwise && (_templateOnly.IsMatch(branch.Condition) || listedElsewhere?.IsMatch(branch.Condition) == true)))
+                    && !branches.Select(branch => branch.Otherwise ? "!" + branch.Condition : branch.Condition)
+                        .Any(condition => _templateOnly.IsMatch(condition) || listedElsewhere?.IsMatch(condition) == true))
                 {
                     written.Add(line.Trim());
                 }

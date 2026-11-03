@@ -174,9 +174,9 @@ public sealed class BackgroundWorkTests
         _authenticationReference.IsMatch("using AppTemplate.Application.Auth.Features.Sessions.UseCases;")
             .ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Infrastructure.Auth;").ShouldBeTrue();
-        _authenticationReference.IsMatch("using AppTemplate.Api.Features.Auth.Jobs;").ShouldBeTrue();
+        _authenticationReference.IsMatch("using AppTemplate.Api.Features.Auth.Composition;").ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Worker.Features.Auth.Jobs;").ShouldBeTrue();
-        _authenticationReference.IsMatch("using AppTemplate.Api.Features.Maintenance.Jobs;").ShouldBeFalse();
+        _authenticationReference.IsMatch("using AppTemplate.Worker.Features.Maintenance.Jobs;").ShouldBeFalse();
     }
 
     private static ProjectNode JobsHost()

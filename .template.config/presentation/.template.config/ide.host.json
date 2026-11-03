@@ -67,6 +67,13 @@
         "text": "Project holds the API"
       },
       "isVisible": true
+    },
+    {
+      "id": "ci",
+      "name": {
+        "text": "Project generated with --ci"
+      },
+      "isVisible": true
     }
   ]
 }

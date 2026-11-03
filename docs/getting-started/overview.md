@@ -244,7 +244,7 @@ To change a value, remove the part by hand or add it:
   them to this project.
 <!--#endif-->
 - `dotnet new cleanarch-presentation -n <Name> --framework blazor-server --project-name AppTemplate`
-  adds a presentation project (`mcp`, `avalonia` or `wpf` work too). Pass this project's `--auth`,
+  adds a presentation project (`mcp`, `avalonia`, `wpf`, or `worker` with `-n Worker`, work too). Pass this project's `--auth`,
   `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults; then
   `dotnet run Tools/Tasks.cs presentation-join AppTemplate.<Name>` makes the lines the README it
   writes in the new project's folder lists outside it.

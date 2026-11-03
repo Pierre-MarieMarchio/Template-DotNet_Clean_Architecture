@@ -51,6 +51,25 @@
       "longName": "has-api",
       "shortName": ""
     },
+    "ci": {
+      "longName": "ci",
+      "shortName": ""
+    },
+    "workerIsNamedWorker": {
+      "longName": "worker-is-named-worker",
+      "shortName": "",
+      "isHidden": true
+    },
+    "workerTakesTheJobsOfTheApi": {
+      "longName": "worker-takes-the-jobs-of-the-api",
+      "shortName": "",
+      "isHidden": true
+    },
+    "workerNeedsServerDatabase": {
+      "longName": "worker-needs-server-database",
+      "shortName": "",
+      "isHidden": true
+    },
     "presentationNeedsTheApi": {
       "longName": "presentation-needs-the-api",
       "shortName": "",

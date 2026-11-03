@@ -22,18 +22,61 @@ change the business migration.
 
 ```bash
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
-dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton whose edits are undone
+dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # removes it, edited or not
 ```
 
-The report reads `.feature-manifest/<Features>.json`: the files the feature owns, the lines that
-register or use it elsewhere, and the checks to run after. `--apply` deletes the files, the manifest,
-the emptied folders and the feature page, but refuses, deleting nothing, once a file was edited or
-added or a registration exists; remove such a feature by hand from the report. Every edit
-`new-feature` made is such a registration: the manifest's `edits` name each one, the file, the line
-it is placed beside and the lines added, so undo them first, the rows it added to the documentation
-among them. The migration it added, `Add<Features>`, names the feature too, and goes as
-[below](#migrations) says. The first owner feature holds the account-deletion files later ones share,
-so it goes last.
+The report reads `.feature-manifest/<Features>.json` and sorts what removing the feature involves:
+
+- what `--apply` removes: the files the generators wrote and nobody changed since, the files the
+  fields `new-field` added changed among them, the feature page, and each edit the manifest records,
+  those `new-use-case`, `new-setting` and `new-event` made among them, each undone exactly as it was
+  made;
+- what it removes though it changed since: a file of the feature edited, or one added to its folders;
+- what is already gone, which it leaves as it is;
+- what is left to you, with its file and line: what still names the feature outside it and no
+  manifest records. Code that uses its types, its namespace or its registration stops `--apply`,
+  since the build breaks once the feature is gone.
+<!--#if (api)-->
+  The keys of its settings in the hosts' settings files, `.env.example` and Compose, their
+  sections in [the configuration reference](../reference/configuration.md), the links to its page,
+  and its routes and error codes in [the API reference](../reference/api.md) and the `.http` samples
+  break nothing and go stale: the report lists them, and `--apply` prints them again once done.
+<!--#endif-->
+<!--#if (!api)-->
+  The keys of its settings in the hosts' settings files, `.env.example` and Compose, their
+  sections in [the configuration reference](../reference/configuration.md) and the links to its page
+  break nothing and go stale: the report lists them, and `--apply` prints them again once done.
+<!--#endif-->
+
+A line is listed when it names the feature where a name means something: an identifier in code, with
+its strings and comments set aside, a key in a settings file, a heading of the configuration
+reference, a link to the feature's page, its route or its error code. The feature's name in a
+sentence refers to nothing, so the report leaves it out.
+<!--#if (api)-->
+It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, nor what is written
+again from the code: the generated clients, the web workspace's API schema, the OpenAPI reference and
+the migrations.
+<!--#endif-->
+<!--#if (!api)-->
+It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, nor the migrations.
+<!--#endif-->
+
+`--apply` changes nothing while a file it would delete or edit is not committed as it stands, since
+only `git restore` gives back what it removes, while a model change waits for a migration
+(`migration-check`), or while code outside the feature uses it.
+<!--#if (api)-->
+It then deletes and undoes everything or nothing, builds once, and from that build adds the
+`Remove<Features>` migration, as [below](#migrations) says, and rewrites the OpenAPI reference and
+what is written from it.
+<!--#endif-->
+<!--#if (!api)-->
+It then deletes and undoes everything or nothing, builds once, and from that build adds the
+`Remove<Features>` migration, as [below](#migrations) says.
+<!--#endif-->
+An edit is found by its lines, beside the line it was placed beside or, when another feature's lines
+came between, wherever its lines stand once; an edit whose lines changed since stops `--apply`, naming
+the file, until they are put back or removed by hand and committed. The first owner feature holds the
+account-deletion files later ones share, so it goes last, and a feature another one uses goes after it.
 
 <!--#if (todoLists || notes)-->
 ## Remove the examples
@@ -180,11 +223,11 @@ While no database has applied the initial migration, recreate it as
 [migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
 migration that drops the tables, and review it line by line.
 
-`remove-feature --apply` refuses while a migration names the feature, which the `Add<Features>`
-migration `new-feature` added does. While no database has applied that one and it is the last,
-`dotnet ef migrations remove --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence`
-takes it back before `--apply`; once a database has applied it, remove the feature by hand from the
-report, its tables dropped in a migration of their own.
+`remove-feature --apply` leaves `Add<Features>`, the migration `new-feature` added, and each
+`Add<Field>To<Features>` that `new-field` added, as they are, since a database may have applied them,
+and adds `Remove<Features>` after them: it drops the feature's tables, and its schema when
+`Add<Features>` created one, and its `Down` puts them back. A database that applied the others
+applies it next; one that applied none applies them all and ends without the feature.
 
 <!--#if (localAuth && api)-->
 ## Remove authentication

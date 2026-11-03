@@ -59,6 +59,9 @@ and two instances of it must still not run the same pass at once.
 
 - Two images and two deployments, released from the same commit: a pass and the route that shares
   its lease must spell the lease's name the same, or both run during a rolling deployment.
+- Moving the jobs from the API to a new worker is safe in a rolling deployment: a pass that must not
+  run twice takes `ILeaderLease` in its use case, so the API that still runs the jobs and the worker
+  that starts running them never run it together, and the other passes are idempotent.
 - Scaling the API never multiplies the passes. One worker instance runs them; a second one is stood
   by by the lease, which is not a reason to run two.
 - A setting a pass reads is set on the worker; a setting a use case reads is set on every host that

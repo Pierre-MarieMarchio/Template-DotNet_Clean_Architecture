@@ -374,20 +374,20 @@ public sealed partial class GuidedFlowTests : IDisposable
         AGeneratedProject();
         TestConsole console = Terminal();
         console.Profile.Width = 240;
-        PushEnters(console, 3);
+        PushEnters(console, 4);
 
         Run(console, "presentation");
 
         string output = Plain(console);
         output.ShouldContain("┌  Add a presentation project to Acme.Shop");
-        output.ShouldContain("●  Taken from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false, --has-client false, --has-api true");
-        output.ShouldContain("◊  Framework\n│  blazor-server · the only option when Project authentication is none");
+        output.ShouldContain("●  Taken from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false, --has-client false, --has-api true, --ci false");
+        output.ShouldContain("◊  Framework\n│  blazor-server\n");
         Order(output, "◊  Presentation name\n│  Portal", "Summary", "◊  Added Portal", "◊  Join done", "◊  Scaffold done", "Next time, skip the questions with", "└  All set.");
         output.ShouldNotContain("Now run:");
         Closing(output).ShouldContain("Commit Src/Presentation/AS.Portal and its tests");
         _processes.CommandLines.Where(line => !line.StartsWith("dotnet new uninstall", StringComparison.Ordinal) && !line.StartsWith("dotnet new install", StringComparison.Ordinal)).ShouldBe(
         [
-            "dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --auth none --examples none --files false --agent-files false",
+            "dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --auth none --examples none --files false --agent-files false --ci false",
             "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal",
             "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal",
         ]);
@@ -475,7 +475,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         TestConsole console = Terminal();
         console.Profile.Width = 240;
 
-        Run(console, "presentation", "--yes");
+        Run(console, "presentation", "--framework", "blazor-server", "--yes");
 
         Plain(console).ShouldNotContain("migration-add");
     }
@@ -492,7 +492,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "presentation", "--yes");
 
         Plain(console).ShouldContain("Framework: blazor-server (the only option when Project authentication is local and Project holds the API is No)");
-        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Portal --framework blazor-server ", StringComparison.Ordinal) && line.EndsWith("--has-api false", StringComparison.Ordinal));
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Portal --framework blazor-server ", StringComparison.Ordinal) && line.Contains(" --has-api false", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -508,6 +508,33 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Presentation);
         console.Output.ShouldContain(manifest.Refusals.Single(refusal => refusal.Symbol == "presentationNeedsTheApi").Explanation);
+        _processes.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheWorker_IsNamedWorker_AndJoinedUnderThatName()
+    {
+        AGeneratedProject();
+        TestConsole console = Terminal();
+        console.Profile.Width = 240;
+
+        Run(console, "presentation", "--framework", "worker", "--yes");
+
+        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Worker --framework worker ", StringComparison.Ordinal));
+        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Worker");
+    }
+
+    [Fact]
+    public void TheWorker_UnderAnotherName_IsRefused_BeforeAnythingIsInstalled()
+    {
+        AGeneratedProject();
+        var console = new TestConsole();
+        console.Profile.Width = 240;
+
+        new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "--framework", "worker", "-n", "Jobs", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
+
+        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Presentation);
+        console.Output.ShouldContain(manifest.Refusals.Single(refusal => refusal.Symbol == "workerIsNamedWorker").Explanation);
         _processes.Calls.ShouldBeEmpty();
     }
 
@@ -614,7 +641,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         AGeneratedProject();
         TestConsole console = Terminal();
 
-        Run(console, "presentation", "--yes");
+        Run(console, "presentation", "--framework", "blazor-server", "--yes");
 
         string output = Plain(console);
         Order(output, _created, "Join done.", "Scaffold done.");

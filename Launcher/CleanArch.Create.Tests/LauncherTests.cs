@@ -111,7 +111,7 @@ public sealed class LauncherTests : IDisposable
     [Theory]
     [InlineData("web-app", "--framework placeholder|angular", "--has-client")]
     [InlineData("web-package", "web-package [options]", "--scope")]
-    [InlineData("presentation", "--framework blazor-server|avalonia|mcp|wpf", "--has-api")]
+    [InlineData("presentation", "--framework blazor-server|avalonia|mcp|wpf|worker", "--has-api")]
     public void TheHelpOfACommand_ShowsThatCommandsOptions_NotTheProjects(string command, string shown, string alsoShown)
     {
         var console = new TestConsole();

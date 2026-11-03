@@ -84,7 +84,7 @@ internal static class Tasks
           -m:<N>, -maxcpucount:<N>         restore, build, test, check, coverage, verify: at most N MSBuild nodes,
                                            and at most N test projects running at once; test and
                                            coverage then build first and test with --no-build
-          --access, --deletion, --operations, --model, --concurrency
+          --access, --deletion, --operations, --model, --concurrency, --fields
                                            new-feature: forwarded to Tools/NewFeature.cs, whose
                                            --help says what each one means
           --kind, --input                  new-use-case: forwarded to Tools/NewUseCase.cs, whose
@@ -2426,7 +2426,7 @@ internal static class Tasks
 
     private static readonly string[] _maxCpuCountPrefixes = ["-m:", "-maxcpucount:"];
 
-    private static readonly string[] _featureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency"];
+    private static readonly string[] _featureOptionNames = ["--access", "--deletion", "--operations", "--model", "--concurrency", "--fields"];
 
     private static readonly string[] _useCaseOptionNames = ["--kind", "--input"];
 

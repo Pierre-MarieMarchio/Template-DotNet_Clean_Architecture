@@ -504,10 +504,12 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs hygiene
 
-      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference; the solution then builds with warnings as errors and the architecture and feature tests pass. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. The hygiene gates pass with four features present, and remove-feature --apply leaves the tree as it was.
+      # new-feature writes a feature, makes the edits that compose it, adds its migration and rewrites the OpenAPI reference, the record and the aggregate with a field of every type; the solution then builds with warnings as errors and the architecture and feature tests pass, and where the leg has Docker the integration tests --fields wrote pass against the database. The aggregate one takes five more use cases from new-use-case, which adds each action, two with typed inputs, and refuses the record ones. The hygiene gates pass with four features present, and remove-feature --apply leaves the tree as it was.
       - name: Assert the feature generator round trip leaves the tree untouched
         if: matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
+        env:
+          INTEGRATION: ${{ matrix.integration }}
         run: |
           set -euo pipefail
           fail() { echo "::error title=Generator round trip::$1"; exit 1; }
@@ -515,15 +517,17 @@ jobs:
           git add -A
           git -c user.name=acceptance -c user.email=acceptance@localhost commit --quiet -m generated
           cases=(
-            "Orders Order --access owner --deletion delete"
+            "Orders Order --access owner --deletion delete --fields=Title:string(120),Nickname:string(40)?,Notes:text?,Summary:text(500),Count:int>=0<=1000,Total:long?>-5,Budget:decimal(12,2)>=0,Ratio:decimal(5,4)?,Paid:bool,Due:DateOnly,StartsAt:DateTimeOffset,Reference:Guid?"
             "Tags Tag --access shared"
-            "Invoices Invoice --access owner --deletion anonymise --model aggregate --concurrency etag"
+            "Invoices Invoice --access owner --deletion anonymise --model aggregate --concurrency etag --fields=Title:string(120),Nickname:string(40)?,Notes:text?,Summary:text(500),Count:int>=0<=1000,Total:long?>-5,Budget:decimal(12,2)>=0,Ratio:decimal(5,4)?,Paid:bool,Due:DateOnly,StartsAt:DateTimeOffset,Reference:Guid?"
             "Receipts Receipt --access owner --deletion delete --model aggregate --concurrency etag --operations get,list,create"
           )
           mapfile -t docker_free < <(grep -rl --include='*.csproj' '<IsTestProject>true</IsTestProject>' Tests | xargs -r grep -L 'Testcontainers' | sort)
           mapfile -t architecture < <(find Tests/Architecture -name '*.csproj')
           write() {
             local log="${{ runner.temp }}/new-feature-${1%% *}.log"
+            local -
+            set -f
             # shellcheck disable=SC2086
             dotnet run Tools/Tasks.cs new-feature $1 > "$log" 2>&1 || { cat "$log"; fail "new-feature $1 failed."; }
             grep -q 'Feature page: docs/features/' "$log" || fail "new-feature $1 named no feature page."
@@ -601,6 +605,10 @@ jobs:
             written=("${one%% *}" "${written[@]}")
           done
           prove "${written[@]}"
+          if [ "$INTEGRATION" = "true" ]; then
+            integration=$(find Tests/Integration -name '*.Api.IntegrationTests.csproj')
+            dotnet test "$integration" --configuration Release --no-build --output Detailed --filter-namespace "*.IntegrationTests.Features.*" || fail "the integration tests new-feature --fields wrote fail against the database."
+          fi
           dotnet run Tools/Tasks.cs hygiene
           detach
           remove "${written[@]}"

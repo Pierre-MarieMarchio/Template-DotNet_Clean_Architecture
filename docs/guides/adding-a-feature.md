@@ -17,7 +17,7 @@ or write a public feature by hand from the steps below.
 ```bash
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared \
     [--deletion delete|anonymise] [--operations get,list,create,update,delete] \
-    [--model record|aggregate] [--concurrency none|etag] [--dry-run]
+    [--model record|aggregate] [--concurrency none|etag] [--fields "<Name:type>, ..."] [--dry-run]
 ```
 
 `<Features>` is the folder, plural (`Orders`); `<Feature>` the type, singular (`Order`).
@@ -29,13 +29,56 @@ dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner|shared
 | `--operations` | all five | any subset of `get`, `list`, `create`, `update`, `delete`; `create` needs `get` |
 | `--model` | `record` | `record`: a service over a store, no domain model. `aggregate`: a domain aggregate and one use case per operation |
 | `--concurrency` | `none` | `none`: last write wins. `etag`: a persisted version, `ETag` on reads, `If-Match` on writes. `aggregate` needs `etag` |
+| `--fields` | `Name`, `Description` | the feature's fields, as the grammar below reads them |
 | `--dry-run` | off | print the files, the edits and the commands, and write and run nothing |
 
 Every refused combination is refused before anything is written, with the change that fixes it.
 
+### Fields
+
+```bash
+dotnet run Tools/Tasks.cs new-feature Projects Project --access owner --deletion delete \
+    --fields "Title:string(120), Notes:text?, Budget:decimal(12,2)>=0, Due:DateOnly"
+```
+
+`--fields` lists the fields as `Name:type`, comma separated. A name is PascalCase; a type is one of
+this closed set, and anything else is refused with the character where reading stopped and what it
+expected:
+
+| Type | Holds | Column |
+|---|---|---|
+| `string(n)` | a line of 1 to `n` characters once trimmed, `n` from 1 to 400 | `n` characters |
+| `text`, `text(n)` | free text, which may be empty, up to `n` characters: 2,000 by default, 65,536 at most | `n` characters |
+| `int`, `long` | a whole number | the provider's integer |
+| `decimal`, `decimal(p,s)` | an exact number of `p` digits, `s` after the point: (18,2) by default, 28 digits at most | precision `p`, scale `s` |
+| `bool` | true or false | the provider's boolean |
+| `DateOnly` | a date, sent as `yyyy-MM-dd` | a date |
+| `DateTimeOffset` | an instant, kept in UTC whatever offset it was sent with | the provider's instant |
+| `Guid` | an identifier, never the empty one when required | the provider's identifier |
+
+`?` after the type makes the field nullable, and adds `null` to what it accepts and nothing else.
+`>=`, `<=`, `>` or `<` and a number bound an `int`, a `long` or a `decimal`, one lower and one upper
+at most: `Count:int>=1<=10`. A date takes no bound, its usual rule being relative to the clock, which
+belongs in the domain. An `enum`, a `DateTime`, a `double` and their kin are refused with the type to
+use instead.
+
+Every field is checked twice, by the validator and by the aggregate's invariant, or by the validator
+the service runs for `--model record`, with the same message; a string or a text is bounded in both
+and in its column, so no column is unbounded. A name that is a C# keyword once lowered, a member the
+feature already declares (`Id`, `OwnerId`, `Version`, the audit stamps), a type the generated code
+calls by name, or another field's name with a case change or a generated suffix is refused.
+
+The list sorts by `createdAt` and by each required `string(n)`, `int`, `long`, `DateOnly` and
+`DateTimeOffset` field, each with its index; a `text` is long, SQLite orders no `decimal`, a `bool`
+or a `Guid` sorts nothing useful, and a nullable field orders its nulls apart on each provider. A
+cursor carries a string or an instant; a number or a date sorts by page only. `--deletion anonymise`
+writes `[deleted account]` in each required `string(n)`, an empty text in each required `text` and
+`null` in each nullable field, and keeps the others, which the command names.
+
 The command writes:
 
-- the feature's folders in each layer, and tests that hold for any feature of its shape;
+- the feature's folders in each layer, and tests that hold for any feature of its shape, or, with
+  `--fields`, tests of each field's rules in the validator, the aggregate and the mapper;
 - `.feature-manifest/<Features>.json`: the options, the SHA-256 of every file written, and each edit
   made, with the line it is placed beside, so the edit can be undone exactly;
 - the feature page `docs/features/<features>.md`, from `docs/_page-templates/feature.md`.
@@ -50,7 +93,10 @@ Then it makes the edits that compose the feature: the schema, set and configurat
 call in `Program.cs`, and the two test compositions, with the usings each needs, and the feature's row
 under `## Features` in `docs/README.md`.
 <!--#if (api)-->
-Its section of the route table and the row of its refusal go to `docs/reference/api.md`.
+Its section of the route table and the row of its refusal go to `docs/reference/api.md`. With
+`--fields`, it also writes an integration test that creates a resource with every field and sees an
+invalid one answered `400`, and adds the feature's schema to those `TestDatabase` truncates between
+tests.
 <!--#endif-->
 An owner feature that is the project's first makes five more, for the account-deletion sweep it brings
 with it. Each edit is placed beside a line the command finds, and every one is checked before anything

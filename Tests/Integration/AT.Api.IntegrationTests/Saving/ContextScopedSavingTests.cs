@@ -3,6 +3,7 @@ using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
 using AppTemplate.Domain.Features.TodoLists.Model.Entities;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using AppTemplate.Domain.Features.TodoLists.Repositories;
 //#if (localAuth)
 using AppTemplate.Infrastructure.Auth.Common.Contexts;
@@ -32,11 +33,11 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
         services.GetRequiredService<AuthDbContext>().Users.Add(AnAccount());
         await services.GetRequiredService<IContextUnitOfWork<AuthDbContext>>().SaveChangesAsync(TestToken);
 
-        Fixture.DomainEvents.CompletedItems.ShouldBeEmpty("the account commit did not complete the item");
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldBeEmpty("the account commit did not complete the item");
 
         await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestToken);
 
-        Fixture.DomainEvents.CompletedItems.ShouldHaveSingleItem().TodoItemId.ShouldBe(itemId);
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem().TodoItemId.ShouldBe(itemId);
     }
 
     //#endif
@@ -54,12 +55,12 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
             .ClaimAsync(AKey("complete-the-item"), now.AddHours(24), now.AddMinutes(15), TestToken);
 
         claim.Status.ShouldBe(IdempotencyStatus.Claimed);
-        Fixture.DomainEvents.CompletedItems.ShouldBeEmpty(
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldBeEmpty(
             "the claim committed in a transaction of its own; the completion is not written yet");
 
         await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestToken);
 
-        Fixture.DomainEvents.CompletedItems.ShouldHaveSingleItem().TodoItemId.ShouldBe(itemId);
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem().TodoItemId.ShouldBe(itemId);
     }
 
     private async Task<(Guid ListId, Guid ItemId)> AListWithOneItemAsync()

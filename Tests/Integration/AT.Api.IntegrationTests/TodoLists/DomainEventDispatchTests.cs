@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using AppTemplate.Api.IntegrationTests.Infrastructure;
+using AppTemplate.Domain.Features.TodoLists.Model.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shouldly;
@@ -24,7 +25,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         using var response = await CompleteAsync(client, listId, itemId);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var received = Fixture.DomainEvents.CompletedItems.ShouldHaveSingleItem();
+        var received = Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem();
 
         received.TodoListId.ShouldBe(listId);
         received.TodoItemId.ShouldBe(itemId);
@@ -71,8 +72,8 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         using var completedSecond = await CompleteAsync(client, listId, second);
         completedSecond.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        Fixture.DomainEvents.CompletedItems.Count.ShouldBe(2);
-        Fixture.DomainEvents.CompletedItems.Select(completed => completed.TodoItemId)
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().Count.ShouldBe(2);
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().Select(completed => completed.TodoItemId)
             .ShouldBe([first, second], ignoreOrder: true);
     }
 
@@ -91,7 +92,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         using var again = await CompleteAsync(client, listId, itemId);
         again.StatusCode.ShouldBe(HttpStatusCode.Conflict);
 
-        Fixture.DomainEvents.CompletedItems.ShouldBeEmpty();
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldBeEmpty();
     }
 
     [Fact]
@@ -104,7 +105,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         using var response = await CompleteAsync(client, listId, itemId);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        Fixture.DomainEvents.CompletedItems.ShouldHaveSingleItem();
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem();
 
         await using var scope = Fixture.Factory.Services.CreateAsyncScope();
 
@@ -121,7 +122,7 @@ public sealed class DomainEventDispatchTests(ApiFixture fixture) : IntegrationTe
         var listId = await CreateTodoListAsync(client, "Nobody listens");
 
         listId.ShouldNotBe(Guid.Empty);
-        Fixture.DomainEvents.CompletedItems.ShouldBeEmpty();
+        Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldBeEmpty();
     }
 
     private static Task<HttpResponseMessage> CompleteAsync(HttpClient client, Guid listId, Guid itemId) =>

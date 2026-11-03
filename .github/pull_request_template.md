@@ -1,10 +1,16 @@
-﻿## What changes, and why
+﻿## The problem, and why this change solves it
 
-<what this pull request changes and the reason>
+<what is wrong or missing today, and the reason this change is the fix; say it before what the change does>
+
+## What changes
+
+<what the change does where the diff does not show it>
 
 ## The one concern
 
 <the single concern this pull request addresses; a refactor and a behaviour change are two pull requests>
+
+Closes #<issue>
 
 ## What ran
 
@@ -26,7 +32,9 @@ Optional: fill it when a tool wrote part of this change; nothing to declare othe
 
 ## Checklist
 
-- [ ] The docs moved with the code: pages, reference rows, ADR.
+- [ ] Each commit subject reads `<type>(<scope>): <summary>`, in the imperative, 72 characters at most, and its body gives the problem before the change (`CONTRIBUTING.md`).
+- [ ] The trailers are short: `Closes #<n>` or `Fixes: #<n>`, `Reported-by:`, `Link:`, `Assisted-by:`.
+- [ ] The docs moved with the code: pages, reference rows, ADR, and `docs/template/` where the template changed.
 - [ ] No commit or description names an AI tool as co-author: no `Co-Authored-By`, no "Generated with" line.
 - [ ] Where a tool wrote code, I added an `Assisted-by: <tool>:<model>` trailer to the commit and filled in Assistance above (recommended).
 - [ ] I answer for every line of this pull request, generated or not, and can explain and maintain it

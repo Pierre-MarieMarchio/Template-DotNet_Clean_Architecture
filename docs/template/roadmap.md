@@ -43,9 +43,9 @@ Each group comes in no fixed order:
   ([#121](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/121)):
   MVC, Razor Pages, gRPC and a console.
 - **Around the apps**
-  ([#122](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122)): an
-  Aspire app host beside Docker Compose, Playwright flows beyond the browser smoke of each web app,
-  Storybook, and mobile apps from Expo or Capacitor on the same API client.
+  ([#122](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122)): 
+  Playwright flows beyond the browser smoke of each web app, Storybook, and mobile apps from Expo or
+  Capacitor on the same API client.
 - **A project's tasks from a pinned .NET tool**
   ([#163](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/163)):
   `Tools/Tasks.cs` and its generators leave the generated tree for `dotnet cleanarch`, pinned

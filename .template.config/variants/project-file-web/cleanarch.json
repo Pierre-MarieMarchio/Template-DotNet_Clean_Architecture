@@ -11,7 +11,8 @@
     "files": true,
     "ci": true,
     "sonar": true,
-    "agentFiles": true
+    "agentFiles": true,
+    "aspire": false
   },
   "client": false,
   "web": {

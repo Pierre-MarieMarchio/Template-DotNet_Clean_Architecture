@@ -723,7 +723,7 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
 | Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview and its `cleanarch.json`, as [template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) allows |
-| Metadata | id, authors, description, tags, licence, the repository `README.md` and `.template.config/icon.png`, all in the package project |
+| Metadata | id, authors, description, tags, licence, the repository `README.md`, `CHANGELOG.md` and `.template.config/icon.png`, all in the package project, at the package's root and outside `content/`, so no project receives them |
 
 ## Branches and releases
 
@@ -853,11 +853,31 @@ dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tm
 
 runs it from the checkout; pass `--template-source` a `.nupkg` to try a packed one.
 
+## The upgrade report
+
+A project's `upgrade-report` task runs `Tools/UpgradeReport.cs`, which generates the project from
+the package at the version `cleanarch.json` records and at a newer one, then compares both with the
+project's files ([template decision 0021](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md));
+`docs/guides/upgrading.md` is its page. It holds three things in step with the rest of this
+repository:
+
+| What | Kept in step with |
+|---|---|
+| `_writtenByBootstrap` and `_editedByBootstrap` | the files `bootstrap` in `Tools/Tasks.cs` writes or edits |
+| `PlanOf`, which turns `cleanarch.json` into a generation and item templates | the options the project file records, the names generation gives each host, and the item templates' options |
+| the changelog range | the version headings release-please writes in `CHANGELOG.md`, which the package carries |
+
+Its `--self-test`, which `hygiene` runs, judges the comparison on fixtures. The real path, two
+generations from two packed versions, runs by hand: pack a copy of the checkout under two
+`templateVersion` values, generate a project from the first in a scratch hive, and run
+`upgrade-report --source <folder>` with the folder holding both packages.
+
 ## Changelog
 
-`CHANGELOG.md` follows Keep a Changelog and stays here. Record what changes a generated project: a
-layer's shape, a rule the tests hold, a setting, a default that affects security or deployment. A major
-version means adopting the change in an existing project takes manual work.
+`CHANGELOG.md` follows Keep a Changelog and stays here, and the package carries it at its root for
+the upgrade report. Record what changes a generated project: a layer's shape, a rule the tests
+hold, a setting, a default that affects security or deployment. A major version means adopting the
+change in an existing project takes manual work.
 
 ## Decisions
 
@@ -881,3 +901,4 @@ version means adopting the change in an existing project takes manual work.
 - [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
 - [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004
 - [0020. A project is the presentation projects it holds](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)
+- [0021. A project reads a newer version by generating both](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md)

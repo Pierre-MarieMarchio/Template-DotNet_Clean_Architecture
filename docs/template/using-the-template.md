@@ -93,7 +93,9 @@ dotnet new update
 dotnet new uninstall CleanArch.WebApi.Templates
 ```
 
-`dotnet new update` moves an installed package to its latest version.
+`dotnet new update` moves an installed package to its latest version. It changes no project
+generated already: a project reads what a newer version changes with its `upgrade-report` task, as
+`docs/guides/upgrading.md` says.
 
 From a GitHub Release: download the asset `CleanArch.WebApi.Templates.<version>.nupkg` from the
 release `v<version>` on the repository's Releases page, then, in the folder holding it:

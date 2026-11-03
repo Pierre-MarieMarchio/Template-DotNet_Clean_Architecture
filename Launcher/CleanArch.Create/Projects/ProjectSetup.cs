@@ -1,4 +1,5 @@
-﻿using CleanArch.Tooling;
+﻿using System.Text.RegularExpressions;
+using CleanArch.Tooling;
 
 namespace CleanArch.Create.Projects;
 
@@ -16,7 +17,7 @@ public sealed record SetupOutcome(SetupStep Step, SetupStatus Status, string? Wh
     public string Text => Step.Title + " " + Status.ToString().ToLowerInvariant();
 }
 
-public sealed class ProjectSetup
+public sealed partial class ProjectSetup
 {
     public const string BootstrapTask = "bootstrap";
     public const string BootstrapCommand = "dotnet run Tools/Tasks.cs " + BootstrapTask;
@@ -67,6 +68,8 @@ public sealed class ProjectSetup
         + ". Needs internet.";
 
     private const int _tail = 6;
+    private const string _journalFolder = "artifacts";
+    private const string _toolPackage = "CleanArch.Cli";
     private const string _init = "git init";
     private const string _longPaths = "git config --global core.longpaths true";
 
@@ -77,11 +80,20 @@ public sealed class ProjectSetup
     private readonly string _root;
     private readonly string _generatedMessage;
     private readonly Action<string>? _echo;
+    private readonly Func<string, string?> _environment;
+    private readonly string _version;
 
     public ProjectSetup(IProcessRunner processes, string root, string version, Action<string>? echo)
+        : this(processes, root, version, echo, Environment.GetEnvironmentVariable)
+    {
+    }
+
+    public ProjectSetup(IProcessRunner processes, string root, string version, Action<string>? echo, Func<string, string?> environment)
     {
         _processes = processes;
         _root = root;
+        _version = version;
+        _environment = environment;
         _generatedMessage = $"chore: generate from cleanarch-webapi {version}";
         _echo = echo;
     }
@@ -130,15 +142,71 @@ public sealed class ProjectSetup
         }
     }
 
-    internal static string Why(string command, ProcessResult result)
+    internal static string Why(string command, ProcessResult result, string? journal = null, string? knownCause = null)
     {
-        string[] tail = [.. result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).TakeLast(_tail)];
-        return string.Join(Environment.NewLine, tail.Prepend($"{command} exited with code {result.ExitCode}."));
+        string[] lines = [.. result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+        string[] tail = [.. lines.TakeLast(_tail)];
+        string? lastError = lines.LastOrDefault(line => ErrorLine().IsMatch(line));
+        var why = new List<string> { $"{command} exited with code {result.ExitCode}." };
+        if (knownCause is not null)
+        {
+            why.Add("Last error: " + (lastError ?? lines.LastOrDefault() ?? "none printed."));
+            why.Add(knownCause);
+        }
+        else
+        {
+            if (lastError is not null && !tail.Contains(lastError))
+            {
+                why.Add("Last error: " + lastError);
+            }
+
+            why.AddRange(tail);
+        }
+
+        if (journal is not null)
+        {
+            why.Add("The full output is in " + journal);
+        }
+
+        return string.Join(Environment.NewLine, why);
     }
 
-    private static SetupOutcome Failed(SetupStep step, string command, ProcessResult result, IReadOnlyList<string> rerun)
+    internal static string? Journal(string root, string name, string command, ProcessResult result)
     {
-        string why = Why(command, result);
+        try
+        {
+            string folder = Path.Combine(root, _journalFolder);
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, name + ".log");
+            File.WriteAllText(path, $"> {command}{Environment.NewLine}exit code {result.ExitCode}{Environment.NewLine}{Environment.NewLine}{result.Output}");
+            return path;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    internal static bool ProjectToolNotFound(string output) =>
+        output.Contains(_toolPackage, StringComparison.Ordinal) && MissingPackage().IsMatch(output);
+
+    internal static string ProjectToolCause(string version) =>
+        $"{_toolPackage} {version}, the tool this project pins, isn't on a NuGet source this machine uses: nuget.org holds only published releases, "
+        + "so a version not released yet, or a template packed locally, has no package there. "
+        + $"Put {_toolPackage}.{version}.nupkg (dotnet pack Launcher/{_toolPackage} in the template's repository) in a folder, install it from there, then run bootstrap again.";
+
+    internal static string ProjectToolInstall(string version) =>
+        $"dotnet tool install {_toolPackage} --local --version {version} --add-source <folder holding {_toolPackage}.{version}.nupkg>";
+
+    [GeneratedRegex(@"\berror\s+[A-Z]{2,}\d+|^error:|\bNU\d{4}\b|\bfatal:|not found in NuGet feeds|unhandled exception", RegexOptions.IgnoreCase)]
+    private static partial Regex ErrorLine();
+
+    [GeneratedRegex(@"NU110[123]|Unable to find package|not found in NuGet feeds", RegexOptions.IgnoreCase)]
+    private static partial Regex MissingPackage();
+
+    private static SetupOutcome Failed(SetupStep step, string command, ProcessResult result, IReadOnlyList<string> rerun, string? journal = null)
+    {
+        string why = Why(command, result, journal);
         if (result.Output.Contains("Filename too long", StringComparison.Ordinal))
         {
             why += Environment.NewLine + "Some paths in the project are too long for git on Windows. Turn on long paths, or create the project in a shorter folder.";
@@ -177,7 +245,8 @@ public sealed class ProjectSetup
             return new SetupOutcome(
                 step,
                 SetupStatus.Skipped,
-                $"git doesn't know who you are yet: {string.Join(" and ", missing)} {(missing.Count == 1 ? "isn't" : "aren't")} set.",
+                $"git doesn't know who you are yet: {string.Join(" and ", missing)} {(missing.Count == 1 ? "isn't" : "aren't")} set. "
+                + "Set them as the commands below say, or through GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL, GIT_COMMITTER_NAME and GIT_COMMITTER_EMAIL.",
                 [.. missing.Select(setting => $"git config --global {setting} \"<your {setting[(setting.IndexOf('.') + 1)..]}>\""), .. rerun]);
         }
 
@@ -199,9 +268,15 @@ public sealed class ProjectSetup
     private SetupOutcome Bootstrapped()
     {
         ProcessResult result = _processes.Run(new ProcessCall("dotnet", _root, ["run", "Tools/Tasks.cs", "bootstrap"], _noVariables), _echo);
-        return result.ExitCode == 0
-            ? new SetupOutcome(Bootstrap, SetupStatus.Done, null, [])
-            : Failed(Bootstrap, BootstrapCommand, result, [BootstrapCommand]);
+        if (result.ExitCode == 0)
+        {
+            return new SetupOutcome(Bootstrap, SetupStatus.Done, null, []);
+        }
+
+        string? journal = Journal(_root, BootstrapTask, BootstrapCommand, result);
+        return ProjectToolNotFound(result.Output)
+            ? new SetupOutcome(Bootstrap, SetupStatus.Failed, Why(BootstrapCommand, result, journal, ProjectToolCause(_version)), [ProjectToolInstall(_version), BootstrapCommand])
+            : Failed(Bootstrap, BootstrapCommand, result, [BootstrapCommand], journal);
     }
 
     private SetupOutcome CopiedEnvironment()
@@ -248,7 +323,13 @@ public sealed class ProjectSetup
     private bool Configured(string setting)
     {
         ProcessResult result = Git("config", setting);
-        return result.ExitCode == 0 && result.Output.Trim().Length > 0;
+        if (result.ExitCode == 0 && result.Output.Trim().Length > 0)
+        {
+            return true;
+        }
+
+        string field = setting[(setting.IndexOf('.') + 1)..].ToUpperInvariant();
+        return !string.IsNullOrWhiteSpace(_environment($"GIT_AUTHOR_{field}")) && !string.IsNullOrWhiteSpace(_environment($"GIT_COMMITTER_{field}"));
     }
 
     private ProcessResult Git(params string[] arguments) =>

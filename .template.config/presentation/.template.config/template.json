@@ -178,7 +178,7 @@
         }
       ],
       "isRequired": "((framework == \"avalonia\" || framework == \"wpf\") && auth == \"none\")",
-      "description": "Never set. --framework avalonia and --framework wpf call the API's versioned routes, and a project generated with --auth none publishes none."
+      "description": "Never set. --framework avalonia and --framework wpf call the API's versioned routes, and a project generated with --auth none publishes none: add the presentation to a project generated with --auth local or external."
     },
     "mcpNeedsAccounts": {
       "type": "parameter",
@@ -190,7 +190,7 @@
         }
       ],
       "isRequired": "(framework == \"mcp\" && auth == \"none\")",
-      "description": "Never set. --framework mcp acts for the caller an access key or a provider's token names, and a project generated with --auth none names nobody."
+      "description": "Never set. --framework mcp acts for the caller an access key or a provider's token names, and a project generated with --auth none names nobody: add the presentation to a project generated with --auth local or external."
     },
     "presentationNeedsTheApi": {
       "type": "parameter",
@@ -214,7 +214,7 @@
         }
       ],
       "isRequired": "(database == \"mysql\")",
-      "description": "Never set. No project is generated with --database mysql."
+      "description": "Never set. This version of the template does not generate --database mysql yet: choose --database postgresql."
     },
     "localAuth": {
       "type": "computed",

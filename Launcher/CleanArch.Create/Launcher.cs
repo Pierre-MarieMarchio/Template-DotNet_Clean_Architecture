@@ -737,7 +737,7 @@ public sealed partial class Launcher
             running,
             () => _processes.Run(new ProcessCall("dotnet", root, arguments, _nothing), session.Conversation.EchoesTheTemplateEngine ? _console.Verbatim : null));
         bool done = result.ExitCode == 0;
-        session.Conversation.Reported(title + (done ? " done" : " failed"), done, done ? null : ProjectSetup.Why(command, result), done ? [] : [command]);
+        session.Conversation.Reported(title + (done ? " done" : " failed"), done, done ? null : ProjectSetup.Why(command, result, ProjectSetup.Journal(root, title.ToLowerInvariant(), command, result)), done ? [] : [command]);
         return done;
     }
 

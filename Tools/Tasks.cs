@@ -670,15 +670,34 @@ internal static class Tasks
                 OpenApiReference(projectFile, api);
                 //#endif
 
+                string finished = "the formatting";
+                //#if (api)
+                finished += " and the OpenAPI reference";
+                //#endif
+
                 try
                 {
                     PinTheProjectsTool(repoRoot, projectFile);
+                }
+                catch (InvalidOperationException error)
+                {
+                    string version = projectFile.TemplateVersion;
+                    throw new InvalidOperationException(
+                        error.Message + $" CleanArch.Cli {version}, the tool this project pins, could not be installed: most likely that version is not on a NuGet source this machine uses "
+                        + "(nuget.org holds only published releases, so a version not released yet, or a template packed locally, has no package there), or the machine is offline. "
+                        + $"Done: {finished}. Not done: the tools' restore, the initial migrations and what follows. "
+                        + $"Fix: put CleanArch.Cli.{version}.nupkg (dotnet pack Launcher/CleanArch.Cli in the template's repository) in a folder, run "
+                        + $"'dotnet tool install CleanArch.Cli --local --version {version} --add-source <that folder>', then run bootstrap again.");
+                }
+
+                try
+                {
                     Step("dotnet", "tool", "restore");
                 }
                 catch (InvalidOperationException error)
                 {
                     throw new InvalidOperationException(
-                        error.Message + " The formatting is done. The local tools are not restored, so the initial migrations "
+                        error.Message + $" Done: {finished}. The local tools are not restored, so the initial migrations "
                         + "are not created and the tasks that run dotnet ef cannot work yet: migration-add, database-update, "
                         + "migration-bundle and verify. Fix the restore and run bootstrap again.");
                 }

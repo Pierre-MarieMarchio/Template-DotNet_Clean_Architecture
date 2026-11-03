@@ -138,6 +138,27 @@ public sealed class LauncherTests : IDisposable
         console.Output.ShouldContain("dotnet new cleanarch-webapi -n Acme.Shop -o Acme.Shop --debug:custom-hive hive");
     }
 
+    [Theory]
+    [InlineData("--examples", "all", "add --examples none")]
+    [InlineData("--files", "true", "add --files false")]
+    public void ARefusedCombination_IsExplainedInWordsWithItsFix_AndLeavesNoFolderBehind(string option, string value, string fix)
+    {
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        new Launcher(console, _root, interactive: false, processes)
+            .Run(["new", "-n", "Acme.Shop", "--yes", "--template-source", Repository.Root, "--auth", "none", option, value])
+            .ShouldBe(1);
+
+        console.Output.ShouldContain(fix);
+        console.Output.ShouldContain("Nothing was written");
+        console.Output.ShouldNotContain("auth-none-needs");
+        console.Output.ShouldNotContain("refused by --");
+        Directory.Exists(Path.Combine(_root, "Acme.Shop")).ShouldBeFalse();
+        processes.Calls.ShouldBeEmpty();
+    }
+
     [Fact]
     public void AnExistingOutputFolder_WithFiles_IsRefusedBeforeAnythingIsInstalled()
     {

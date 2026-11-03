@@ -29,8 +29,12 @@ the output stays plain text.
 Its last question offers to set the project up as [the first run](../getting-started/first-run.md)
 asks: a first commit, after `git init` unless the folder is in a work tree already, then
 `dotnet run Tools/Tasks.cs bootstrap`, a commit of what it wrote, and `.env` copied from
-`.env.example`. The commits carry your own git identity, a step that fails says why without stopping
-the independent ones, and the commands printed at the end are only those left to run. When it runs
+`.env.example`. The commits carry your own git identity, set in git's configuration or through
+`GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`. A step that
+fails says why without stopping the independent ones: the last error, the cause it recognises (a
+`CleanArch.Cli` version no NuGet source holds, for one, with the install to run from a local
+folder), and the file in the project's ignored `artifacts` folder that holds the step's full
+output. The commands printed at the end are only those left to run. When it runs
 bootstrap, it leaves out the instructions `dotnet new` ends with, which ask for it. Without
 questions, `--setup` runs every step.
 
@@ -200,7 +204,9 @@ it, and the generated solution builds and passes its tests.
 | `--presentation worker`, or presentation projects that hold neither the API nor the worker, such as `--presentation blazor-server` alone, with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or leave the jobs to the API with `--presentation api` |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
-naming it, before writing anything. Passing the parameter by hand gets past the engine and generates
+naming it, before writing any file, though `-o` leaves its empty folder to delete. The launcher
+checks the same refusals before it calls `dotnet new` or creates a folder, and says in words what
+each one refuses and the option to change. Passing the parameter by hand gets past the engine and generates
 `RefusedGenerationOptions.cs`, whose `#error` fails the build with the same explanation.
 [Template decision 0001](decisions/0001-options-remove-parts-and-refuse-combinations.md) gives the
 reasons.

@@ -115,6 +115,7 @@ public sealed class TemplateManifestTests
         {
             combinations.ShouldContain(answers => manifest.Holds(refusal.When, answers), $"No combination of options fires {refusal.Symbol}.");
             refusal.Explanation.ShouldNotStartWith("Never set");
+            refusal.Explanation.ShouldMatch("(add|choose|leave) ", $"{refusal.Symbol} says what it refuses but not what to change.");
             manifest.ParametersBehind(refusal.When).ShouldBeSubsetOf(manifest.Options.Select(option => option.Symbol).Append(_itemName));
         }
     }

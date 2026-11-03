@@ -209,7 +209,7 @@
         { "choice": "refused", "description": "Not an option to set: it names the refusal." }
       ],
       "isRequired": "(audience == \"admin\" && auth == \"none\")",
-      "description": "Never set. --audience admin signs administrators in, which --auth none cannot."
+      "description": "Never set. --audience admin signs administrators in, which --auth none cannot: add the app to a project generated with --auth local or external, or choose another --audience."
     },
     "serverRenderingNeedsAServerStarter": {
       "type": "parameter",
@@ -227,7 +227,7 @@
         { "choice": "refused", "description": "Not an option to set: it names the refusal." }
       ],
       "isRequired": "(framework == \"blazor-wasm\" && auth == \"none\")",
-      "description": "Never set. --framework blazor-wasm calls the API's versioned routes, and a project generated with --auth none publishes none."
+      "description": "Never set. --framework blazor-wasm calls the API's versioned routes, and a project generated with --auth none publishes none: add the app to a project generated with --auth local or external."
     },
     "localAuth": { "type": "computed", "value": "(auth == \"local\")" },
     "externalAuth": { "type": "computed", "value": "(auth == \"external\")" },

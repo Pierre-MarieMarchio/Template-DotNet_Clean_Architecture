@@ -71,7 +71,7 @@ module (`OnlyAHost_ReferencesInfrastructureModules`). The modules themselves are
 |---|---|
 | One outbound HTTP policy on `IHttpClientFactory`'s defaults | `AddOutboundHttp()` |
 | The default language of everything a host writes | `LocalizationOptions` |
-| OTLP traces and metrics, named after the host's assembly | `AddObservability` |
+| OTLP logs, traces and metrics, named after the host's assembly | `AddObservability` |
 | The caller of a process that has no request | `NoCallerCurrentUser` |
 | The loop recurring work runs on | `PeriodicJob` |
 | The scope a pass runs in, whose ports answer that no one is calling | `CreateBackgroundScope()` |

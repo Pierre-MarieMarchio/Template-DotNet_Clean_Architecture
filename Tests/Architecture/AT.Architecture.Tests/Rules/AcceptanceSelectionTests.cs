@@ -262,6 +262,66 @@ public sealed class AcceptanceSelectionTests
         return string.Join('\n', workflow.Skip(start + 1).TakeWhile(line => !jobKey.IsMatch(line)));
     }
 
+    [Fact]
+    public void TheTagDerivation_IsSensitive_AndReadsWhatALegsOptionsChoose()
+    {
+        var leg = JsonNode.Parse(
+            """
+            {
+              "options": "--presentation worker --web react",
+              "database": "sqlite",
+              "web": "true",
+              "first_presentation": "--framework avalonia",
+              "more_apps": "admin:angular"
+            }
+            """)!.AsObject();
+
+        ChosenTags(leg, ["react", "angular", "vue"], ["worker", "avalonia", "wpf"])
+            .Order(StringComparer.Ordinal)
+            .ShouldBe(
+                [
+                    "database-sqlite",
+                    "presentation-avalonia",
+                    "presentation-item",
+                    "presentation-worker",
+                    "starter-angular",
+                    "starter-react",
+                    "web",
+                ]);
+
+        ChosenTags(JsonNode.Parse("{}")!.AsObject(), ["react"], ["worker"]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheChoiceMatcher_IsSensitive_AndNeedsTheOptionBeforeItsValue()
+    {
+        Chooses(["--web", "react"], "--web", "react").ShouldBeTrue();
+        Chooses(["--web", "none", "--presentation", "react"], "--web", "react").ShouldBeFalse();
+        Chooses(["react"], "--web", "react").ShouldBeFalse();
+        Chooses(["--web"], "--web", "react").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TheJobReader_IsSensitive_AndStopsAtTheNextJob()
+    {
+        string[] workflow =
+        [
+            "jobs:",
+            "  linux:",
+            "    runs-on: ${{ matrix.runner }}",
+            "  template-windows:",
+            "    steps:",
+            "      - run: echo ${{ matrix.options }}",
+            "  after:",
+            "    steps:",
+            "      - run: echo ${{ matrix.web }}",
+        ];
+
+        JobBlock(workflow, "template-windows").ShouldContain("matrix.options");
+        JobBlock(workflow, "template-windows").ShouldNotContain("matrix.web");
+        JobBlock(workflow, "template-windows").ShouldNotContain("matrix.runner");
+    }
+
     private static string[] Words(string? arguments) =>
         arguments?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
 

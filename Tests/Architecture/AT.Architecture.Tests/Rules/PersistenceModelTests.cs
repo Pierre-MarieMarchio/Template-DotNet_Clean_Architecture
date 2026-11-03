@@ -93,16 +93,34 @@ public sealed partial class PersistenceModelTests
         return files.Count;
     }
 
+    private static HashSet<string> AppliedIn(string source) =>
+        ApplyConfiguration()
+            .Matches(source)
+            .Select(match => match.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+    [Fact]
+    public void TheApplyScan_IsSensitive_AndReadsEachDirectCallButNotAnAssemblyScan()
+    {
+        const string context = """
+            builder.ApplyConfiguration(new TodoListConfiguration());
+            builder
+                .ApplyConfiguration(
+                    new StoredFileConfiguration());
+            builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+            builder.ApplyConfiguration(CreateOne());
+            """;
+
+        AppliedIn(context).ShouldBe(["StoredFileConfiguration", "TodoListConfiguration"], ignoreOrder: true);
+    }
+
     private static HashSet<string> AppliedConfigurationNames()
     {
         File.Exists(_contextPath).ShouldBeTrue(
             $"'{_contextPath}' was not found, so this rule cannot read the calls it exists to check. "
             + "The context moved and this path did not follow it.");
 
-        var names = ApplyConfiguration()
-            .Matches(File.ReadAllText(_contextPath))
-            .Select(match => match.Groups[1].Value)
-            .ToHashSet(StringComparer.Ordinal);
+        var names = AppliedIn(File.ReadAllText(_contextPath));
 
         names.ShouldNotBeEmpty(
             $"No ApplyConfiguration call was parsed out of '{_contextPath}'. The calls are written "

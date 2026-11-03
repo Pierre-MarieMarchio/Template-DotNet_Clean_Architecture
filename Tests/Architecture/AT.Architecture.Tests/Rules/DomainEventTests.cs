@@ -54,17 +54,11 @@ public sealed class DomainEventTests
             "this rule would be checking a list against nothing.");
 
         //#endif
-        var unaccounted = events
-            .Select(domainEvent => domainEvent.Name)
-            .Where(name => !consumed.Contains(name))
-            .Where(name => !_deliberatelyUnconsumed.Contains(name, StringComparer.Ordinal))
-            .Order(StringComparer.Ordinal)
-            .ToList();
-
-        unaccounted.ShouldBeEmpty(
+        Unaccounted(events.Select(domainEvent => domainEvent.Name), consumed, _deliberatelyUnconsumed).ShouldBeEmpty(
             "An event with no consumer is fine, but it has to be written down as a decision. Add " +
-            "the consumer, or add the event to the list above with the reason nothing listens to " +
-            "it — and check that no comment anywhere claims a consumer that does not exist.");
+            "a class implementing IDomainEventConsumer<TheEvent> in the application layer, or add " +
+            "the event's name to _deliberatelyUnconsumed in this file with the reason nothing " +
+            "listens to it — and check that no comment anywhere claims a consumer that does not exist.");
     }
 
     [Fact]
@@ -85,11 +79,32 @@ public sealed class DomainEventTests
             .Select(contract => contract.GetGenericArguments()[0].Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        _deliberatelyUnconsumed
-            .Where(name => !eventNames.Contains(name) || consumed.Contains(name))
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                "This entry no longer describes anything: the event was renamed or removed, or it " +
-                "has gained a consumer. Either way the line is now excusing nothing and should go.");
+        StaleEntries(_deliberatelyUnconsumed, eventNames, consumed).ShouldBeEmpty(
+            "This entry no longer describes anything: the event was renamed or removed, or it " +
+            "has gained a consumer. Either way the line is now excusing nothing: delete each name " +
+            "listed here from _deliberatelyUnconsumed in this file.");
     }
+
+    [Fact]
+    public void TheAccounting_IsSensitive_AndSeesAnEventNobodyConsumesAndAStaleExcuse()
+    {
+        string[] excused = ["Quiet", "Renamed", "NowConsumed"];
+        HashSet<string> consumed = ["Heard", "NowConsumed"];
+
+        Unaccounted(["Heard", "Quiet", "Orphan"], consumed, excused).ShouldBe(["Orphan"]);
+
+        StaleEntries(excused, new HashSet<string> { "Heard", "Quiet", "NowConsumed" }, consumed)
+            .ShouldBe(["NowConsumed", "Renamed"]);
+    }
+
+    private static List<string> Unaccounted(IEnumerable<string> events, HashSet<string> consumed, IEnumerable<string> excused) =>
+        [.. events
+            .Where(name => !consumed.Contains(name))
+            .Where(name => !excused.Contains(name, StringComparer.Ordinal))
+            .Order(StringComparer.Ordinal)];
+
+    private static List<string> StaleEntries(IEnumerable<string> excused, HashSet<string> eventNames, HashSet<string> consumed) =>
+        [.. excused
+            .Where(name => !eventNames.Contains(name) || consumed.Contains(name))
+            .Order(StringComparer.Ordinal)];
 }

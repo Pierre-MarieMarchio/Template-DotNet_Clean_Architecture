@@ -46,7 +46,8 @@ public sealed class ConfigurationSurfaceTests
         missing.ShouldBeEmpty(
             "A section an options class binds is one an operator has to be able to look up. " +
             $"'{_configurationGuide}' has no '### `<section>`' heading for these, so every key in " +
-            "them is a setting the guide's own opening promise does not cover.");
+            "them is a setting the guide's own opening promise does not cover. Add a '### `<section>`' " +
+            "heading with a table of its keys to that page, as 'Adding a setting' describes.");
     }
 
     [Fact]
@@ -55,23 +56,9 @@ public sealed class ConfigurationSurfaceTests
         var bound = BoundSections();
         var documented = DocumentedSections();
 
-        var undocumented = new List<string>();
+        var undocumented = Undocumented(bound, documented);
 
-        foreach ((string section, SectionFacts facts) in bound)
-        {
-            if (!documented.TryGetValue(section, out string? text))
-            {
-                continue;
-            }
-
-            var rows = KeysIn(text);
-
-            undocumented.AddRange(facts.Keys
-                .Where(key => !rows.Contains(key) && !documented.ContainsKey($"{section}:{key}"))
-                .Select(key => $"{section}:{key} — bound by {facts.Origin}"));
-        }
-
-        undocumented.Order(StringComparer.Ordinal).ShouldBeEmpty(
+        undocumented.ShouldBeEmpty(
             $"These keys are bound and validated at startup and named nowhere in '{_configurationGuide}'. " +
             "A key an operator cannot find is one they cannot set, and its default is then a decision " +
             "nobody made. Add a row to that section's table, or a '### `Section:Key`' heading of its own " +
@@ -84,24 +71,13 @@ public sealed class ConfigurationSurfaceTests
         var bound = BoundSections();
         var documented = DocumentedSections();
 
-        var invented = new List<string>();
+        var invented = Invented(bound, documented);
 
-        foreach ((string section, SectionFacts facts) in bound)
-        {
-            if (!documented.TryGetValue(section, out string? text))
-            {
-                continue;
-            }
-
-            invented.AddRange(KeysIn(text)
-                .Where(key => !facts.Keys.Contains(key))
-                .Select(key => $"{section}:{key} — no such member on {facts.Origin}"));
-        }
-
-        invented.Order(StringComparer.Ordinal).ShouldBeEmpty(
+        invented.ShouldBeEmpty(
             $"'{_configurationGuide}' documents these keys and no options class binds them. Setting " +
             "one changes nothing, and it reads as a knob that exists — which is how a renamed key " +
-            "leaves its old name behind in the guide.");
+            "leaves its old name behind in the guide. Delete the row of each key named here, or rename " +
+            "it to the member the options class declares.");
     }
 
     [Fact]
@@ -154,6 +130,64 @@ public sealed class ConfigurationSurfaceTests
         #endif*/
     }
 
+    [Fact]
+    public void TheScan_IsSensitive_AndReadsASectionItsKeysAndTheGuidesHeadings()
+    {
+        const string options = """
+            public sealed class WidgetOptions
+            {
+                public const string SectionName = "Widget:Limits";
+
+                public int MaxCount { get; set; }
+
+                public TimeSpan Lifetime { get; init; }
+
+                private int Hidden { get; set; }
+            }
+            """;
+
+        _sectionName.Match(options).Groups[1].Value.ShouldBe("Widget:Limits");
+        _bindableMember.Matches(options).Select(match => match.Groups[1].Value).ShouldBe(["MaxCount", "Lifetime"]);
+
+        const string guide = """
+            ## Widget
+
+            ### `Widget:Limits`
+
+            | Key | Default |
+            |---|---|
+            | `MaxCount` | 10 |
+            | `Ghost` | 1 |
+
+            ### Prose heading
+            """;
+
+        var documented = SectionsOf(guide);
+
+        documented.Keys.ShouldBe(["Widget:Limits"]);
+        KeysIn(documented["Widget:Limits"]).ShouldBe(["MaxCount", "Ghost"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void TheComparison_IsSensitive_AndNamesAnUndocumentedKeyAndAnInventedOne()
+    {
+        var bound = new SortedDictionary<string, SectionFacts>(StringComparer.Ordinal)
+        {
+            ["Widget"] = new(new HashSet<string>(["MaxCount", "Lifetime"], StringComparer.Ordinal), "Widget.cs"),
+            ["Gadget"] = new(new HashSet<string>(["Size"], StringComparer.Ordinal), "Gadget.cs"),
+        };
+        var documented = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Widget"] = "### `Widget`\n| `MaxCount` | 1 |\n| `Ghost` | 2 |\n",
+        };
+
+        Undocumented(bound, documented).ShouldBe(["Widget:Lifetime \u2014 bound by Widget.cs"]);
+        Invented(bound, documented).ShouldBe(["Widget:Ghost \u2014 no such member on Widget.cs"]);
+
+        documented["Widget:Lifetime"] = "### `Widget:Lifetime`\n";
+        Undocumented(bound, documented).ShouldBeEmpty();
+    }
+
     private const string _configurationGuide = "docs/reference/configuration.md";
 
     private sealed record SectionFacts(IReadOnlySet<string> Keys, string Origin);
@@ -195,11 +229,56 @@ public sealed class ConfigurationSurfaceTests
         return sections;
     }
 
-    private static Dictionary<string, string> DocumentedSections()
-    {
-        string guide = File.ReadAllText(
-            Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "reference", "configuration.md"));
+    private static Dictionary<string, string> DocumentedSections() =>
+        SectionsOf(File.ReadAllText(
+            Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "reference", "configuration.md")));
 
+    private static List<string> Undocumented(
+        SortedDictionary<string, SectionFacts> bound,
+        Dictionary<string, string> documented)
+    {
+        var undocumented = new List<string>();
+
+        foreach ((string section, SectionFacts facts) in bound)
+        {
+            if (!documented.TryGetValue(section, out string? text))
+            {
+                continue;
+            }
+
+            var rows = KeysIn(text);
+
+            undocumented.AddRange(facts.Keys
+                .Where(key => !rows.Contains(key) && !documented.ContainsKey($"{section}:{key}"))
+                .Select(key => $"{section}:{key} — bound by {facts.Origin}"));
+        }
+
+        return [.. undocumented.Order(StringComparer.Ordinal)];
+    }
+
+    private static List<string> Invented(
+        SortedDictionary<string, SectionFacts> bound,
+        Dictionary<string, string> documented)
+    {
+        var invented = new List<string>();
+
+        foreach ((string section, SectionFacts facts) in bound)
+        {
+            if (!documented.TryGetValue(section, out string? text))
+            {
+                continue;
+            }
+
+            invented.AddRange(KeysIn(text)
+                .Where(key => !facts.Keys.Contains(key))
+                .Select(key => $"{section}:{key} — no such member on {facts.Origin}"));
+        }
+
+        return [.. invented.Order(StringComparer.Ordinal)];
+    }
+
+    private static Dictionary<string, string> SectionsOf(string guide)
+    {
         var headings = _anyHeading.Matches(guide);
         var sections = new Dictionary<string, string>(StringComparer.Ordinal);
 

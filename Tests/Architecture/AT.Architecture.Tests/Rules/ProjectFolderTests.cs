@@ -57,4 +57,24 @@ public sealed class ProjectFolderTests
             .Concat(Directory.EnumerateDirectories(directory)
                 .Where(child => !_skippedFolders.Contains(Path.GetFileName(child)))
                 .SelectMany(ProjectFilesUnder));
+
+    [Fact]
+    public void TheRule_IsSensitive_AndSeesAMisplacedAndAMisnamedProject()
+    {
+        string product = ProjectFolders.ProductName;
+        string name = $"{product}.Domain";
+        string folder = ProjectFolders.FolderOf(name);
+
+        Misplacement($"Src/Domain/{folder}/{name}.csproj").ShouldBeNull();
+        Misplacement($"Src/Domain/Elsewhere/{name}.csproj").ShouldBe($"Src/Domain/Elsewhere/{name}.csproj belongs in Src/Domain/{folder}/");
+        Misplacement("Src/Domain/Other/Other.Domain.csproj").ShouldNotBeNull().ShouldContain("does not start with");
+    }
+
+    [Theory]
+    [InlineData("Acme.Shop", "AS")]
+    [InlineData("AcmeShop", "AS")]
+    [InlineData("Acme", "A")]
+    [InlineData("acme.shop", "AS")]
+    public void TheInitials_AreSensitive_AndTakeCapitalsOrTheFirstLetter(string product, string initials) =>
+        ProjectFolders.InitialsOf(product).ShouldBe(initials);
 }

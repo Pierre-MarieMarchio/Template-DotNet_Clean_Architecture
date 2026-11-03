@@ -13,12 +13,9 @@ public sealed class CoverageFloorTests
     [Fact]
     public void TheFile_CarriesNoByteOrderMark()
     {
-        byte[] first = File.ReadAllBytes(Path).Take(3).ToArray();
-
-        first.ShouldNotBe(
-            [0xEF, 0xBB, 0xBF],
+        StartsWithAByteOrderMark(File.ReadAllBytes(Path)).ShouldBeFalse(
             "coverage.minimum is read by a POSIX shell as well as by .NET. A BOM makes the two "
-            + "disagree about where the first line starts.");
+            + "disagree about where the first line starts. Save the file as UTF-8 without BOM.");
     }
 
     [Fact]
@@ -26,7 +23,8 @@ public sealed class CoverageFloorTests
     {
         NumericLines().Count.ShouldBe(
             1,
-            "the floor is the one bare number in this file; every other line is a comment.");
+            "the floor is the one bare number in this file; every other line is a comment. Keep one "
+            + "number line and prefix every other line with '#'.");
     }
 
     [Fact]
@@ -55,10 +53,26 @@ public sealed class CoverageFloorTests
             "coverage.minimum promises one floor to CI and to `dotnet run Tools/Tasks.cs coverage`.");
     }
 
-    private static List<string> NumericLines() =>
-        [.. File
-            .ReadAllLines(Path)
+    [Fact]
+    public void TheReaders_AreSensitive_AndSeeABomAndTellTheFloorFromComments()
+    {
+        StartsWithAByteOrderMark([0xEF, 0xBB, 0xBF, 0x37]).ShouldBeTrue();
+        StartsWithAByteOrderMark([0x37, 0x30]).ShouldBeFalse();
+        StartsWithAByteOrderMark([]).ShouldBeFalse();
+
+        NumericLinesOf(["# the floor, in percent", "", "70.5\r", "7o", "# 80"]).ShouldBe(["70.5"]);
+        NumericLinesOf(["70", "80"]).Count.ShouldBe(2);
+        NumericLinesOf(["# only a comment"]).ShouldBeEmpty();
+    }
+
+    private static bool StartsWithAByteOrderMark(byte[] content) =>
+        content.Length >= 3 && content[0] == 0xEF && content[1] == 0xBB && content[2] == 0xBF;
+
+    private static List<string> NumericLines() => NumericLinesOf(File.ReadAllLines(Path));
+
+    private static List<string> NumericLinesOf(IEnumerable<string> lines) =>
+        [.. lines
             .Select(line => line.Trim('\r', ' ', '\t'))
             .Where(line => line.Length > 0
-                && line.All(character => char.IsAsciiDigit(character) || character == '.')) ];
+                && line.All(character => char.IsAsciiDigit(character) || character == '.'))];
 }

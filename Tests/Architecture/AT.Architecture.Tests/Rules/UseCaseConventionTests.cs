@@ -45,8 +45,8 @@ public sealed class UseCaseConventionTests
             .ShouldBeEmpty(
                 "A use case belongs in Features/<Vertical>/UseCases/<Commands|Queries>/<UseCase>/ of " +
                 "the project that declares it. The folder layout is the only index of what the " +
-                "application can do. Expected namespace shape: " +
-                $"<Project>{_useCaseFolderNamespaceSuffixPattern}");
+                "application can do. Move each type named here, and its namespace with it, to that " +
+                $"folder: its namespace is <Project>{_useCaseFolderNamespaceSuffixPattern}");
     }
 
     [Fact]
@@ -56,32 +56,37 @@ public sealed class UseCaseConventionTests
 
         useCases.ShouldNotBeEmpty("No use case was found in the application layer.");
 
-        useCases
+        NotSealedAndPublic(useCases).ShouldBeEmpty(
+            "A use case is one operation with one implementation, so it is sealed: an open one " +
+            "invites a subclass, and a caller that depends on the subclass instead of the " +
+            "operation. It is public, as its message is, because a host's generated mediator " +
+            "names it. Declare each type named here as 'public sealed class'.");
+    }
+
+    private static List<string> NotSealedAndPublic(IEnumerable<Type> useCases) =>
+        [.. useCases
             .Where(useCase => !useCase.IsSealed || !useCase.IsPublic)
             .Select(useCase => useCase.FullName ?? useCase.Name)
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                "A use case is one operation with one implementation, so it is sealed: an open one " +
-                "invites a subclass, and a caller that depends on the subclass instead of the " +
-                "operation. It is public, as its message is, because a host's generated mediator " +
-                "names it.");
-    }
+            .Order(StringComparer.Ordinal)];
 
     private static string RootOf(Type type) =>
         type.Assembly.GetName().Name
         ?? throw new InvalidOperationException(
             $"'{type.FullName}' is declared in an assembly with no simple name.");
 
-    private static bool MatchesInItsOwnProject(Type type, string suffixPattern) =>
-        type.Namespace is { } declared
+    private static bool MatchesInItsOwnProject(string root, string? declared, string suffixPattern) =>
+        declared is not null
         && Regex.IsMatch(
             declared,
-            $"^{Regex.Escape(RootOf(type))}{suffixPattern}",
+            $"^{Regex.Escape(root)}{suffixPattern}",
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
     private static bool IsInAUseCaseFolder(Type type) =>
-        MatchesInItsOwnProject(type, _useCaseFolderNamespaceSuffixPattern);
+        IsInAUseCaseFolder(RootOf(type), type.Namespace);
+
+    private static bool IsInAUseCaseFolder(string root, string? @namespace) =>
+        MatchesInItsOwnProject(root, @namespace, _useCaseFolderNamespaceSuffixPattern);
 
     [Fact]
     public void EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt()
@@ -126,7 +131,8 @@ public sealed class UseCaseConventionTests
                 failures.Add(
                     $"{folder.Key} holds {useCases.Count} use cases " +
                     $"({string.Join(", ", useCases.Select(type => type.Name).Order(StringComparer.Ordinal))}), " +
-                    "expected exactly one.");
+                    "expected exactly one: keep one use case here and move each other to a folder " +
+                    "of its own, named for it.");
 
                 continue;
             }
@@ -136,30 +142,39 @@ public sealed class UseCaseConventionTests
                 operation,
                 nature,
                 useCases[0],
-                UseCaseTypes.ContractOf(useCases[0])));
+                UseCaseTypes.ContractOf(useCases[0]).GetGenericArguments()[0]));
 
-            failures.AddRange(folder
-                .Where(TypeFacts.IsRecord)
-                .Where(type => _inputContractSuffixes.Any(
-                    suffix => type.Name.EndsWith(suffix, StringComparison.Ordinal)))
-                .Where(type => !_inputContractSuffixes.Any(
-                    suffix => string.Equals(type.Name, operation + suffix, StringComparison.Ordinal)))
-                .Select(type =>
-                    $"{folder.Key} holds input contract '{type.Name}', which names an operation other " +
-                    $"than '{operation}'. The input a use case accepts is named for that use case."));
+            failures.AddRange(MisnamedInputContracts(folder.Key, operation, folder));
         }
 
         failures.Order(StringComparer.Ordinal).ShouldBeEmpty(
             "The folder layout is the only index of what the application can do. A folder that does " +
-            "not say what is in it, or holds more than one operation, breaks that index.");
+            "not say what is in it, or holds more than one operation, breaks that index: give each " +
+            "operation its own folder under UseCases/<Commands|Queries>/, named for it, holding its " +
+            "message and its handler, as each line above says.");
     }
+
+    private static IEnumerable<string> MisnamedInputContracts(string folder, string operation, IEnumerable<Type> types) =>
+        types
+            .Where(TypeFacts.IsRecord)
+            .Where(type => _inputContractSuffixes.Any(
+                suffix => type.Name.EndsWith(suffix, StringComparison.Ordinal)))
+            .Where(type => !_inputContractSuffixes.Any(
+                suffix => string.Equals(type.Name, operation + suffix, StringComparison.Ordinal)))
+            .Select(type =>
+                $"{folder} holds input contract '{type.Name}', which names an operation other " +
+                $"than '{operation}'. The input a use case accepts is named for that use case: " +
+                $"rename it '{operation}{SuffixOf(type)}', or move it to the folder of the operation it names.");
+
+    private static string SuffixOf(Type type) =>
+        _inputContractSuffixes.First(suffix => type.Name.EndsWith(suffix, StringComparison.Ordinal));
 
     private static IEnumerable<string> HandlerFailures(
         string folder,
         string operation,
         string nature,
         Type handler,
-        Type contract)
+        Type handled)
     {
         string message = operation + nature;
 
@@ -167,22 +182,92 @@ public sealed class UseCaseConventionTests
         {
             yield return
                 $"{folder} is named '{operation}' and sits under {nature} use cases, but holds " +
-                $"'{handler.Name}'. Its handler is '{message}Handler'.";
+                $"'{handler.Name}'. Rename the handler '{message}Handler', or move it to the folder of the operation it handles.";
         }
-
-        var handled = contract.GetGenericArguments()[0];
 
         if (!string.Equals(handled.Name, message, StringComparison.Ordinal)
             || !string.Equals(handled.Namespace, folder, StringComparison.Ordinal))
         {
             yield return
                 $"{folder} holds a handler of '{handled.FullName}'. A use case's handler handles the " +
-                $"message '{message}' declared beside it.";
+                $"message '{message}' declared beside it: declare that record in {folder} and handle it.";
         }
 
         if (!TypeFacts.IsRecord(handled) || !handled.IsSealed || !handled.IsPublic)
         {
-            yield return $"{folder}: '{handled.Name}' is a message, and a message is a public sealed record.";
+            yield return
+                $"{folder}: '{handled.Name}' is a message, and a message is a public sealed record: " +
+                $"declare it 'public sealed record {handled.Name}(...)'.";
         }
     }
+
+    [Fact]
+    public void TheFolderRule_IsSensitive_AndTellsAUseCaseFolderFromAnyOtherNamespace()
+    {
+        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.UseCases.Commands.Place").ShouldBeTrue();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.UseCases.Queries.List").ShouldBeTrue();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.Commands.Place").ShouldBeFalse();
+        IsInAUseCaseFolder("Shop", "Shop.Features.Orders.UseCases.Commands.Place.Extra").ShouldBeFalse();
+        IsInAUseCaseFolder("Shop", "Billing.Features.Orders.UseCases.Commands.Place").ShouldBeFalse();
+        IsInAUseCaseFolder("Shop", null).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TheSealedRule_IsSensitive_AndSeesAnOpenAndANonPublicUseCase()
+    {
+        NotSealedAndPublic([typeof(string), typeof(Exception), typeof(HiddenUseCase)])
+            .ShouldBe(
+                [typeof(Exception).FullName!, typeof(HiddenUseCase).FullName!],
+                ignoreOrder: true);
+    }
+
+    [Fact]
+    public void TheInputContractRule_IsSensitive_AndSeesAContractNamedForAnotherOperation()
+    {
+        var failures = MisnamedInputContracts(
+                "Shop.Folder",
+                "Place",
+                [typeof(PlaceCommand), typeof(CancelCommand), typeof(PlaceRequest), typeof(PlaceSummary)])
+            .ToList();
+
+        failures.ShouldHaveSingleItem().ShouldContain("rename it 'PlaceCommand'");
+    }
+
+    [Fact]
+    public void TheHandlerRule_IsSensitive_AndSeesAMisnamedHandlerAnotherMessageAndAnImproperMessage()
+    {
+        string folder = typeof(UseCaseConventionTests).Namespace!;
+
+        HandlerFailures(folder, "Shape", "Command", typeof(ShapeCommandHandler), typeof(ShapeCommand))
+            .ShouldBeEmpty();
+
+        HandlerFailures(folder, "Shape", "Command", typeof(ShapeHandlerNamedWrong), typeof(ShapeCommand))
+            .ShouldHaveSingleItem()
+            .ShouldContain("ShapeCommandHandler");
+
+        HandlerFailures(folder, "Shape", "Command", typeof(ShapeCommandHandler), typeof(PlaceCommand))
+            .ShouldNotBeEmpty();
+
+        HandlerFailures(folder, "Place", "Command", typeof(PlaceCommandHandler), typeof(PlaceCommand))
+            .ShouldHaveSingleItem()
+            .ShouldContain("public sealed record");
+    }
+
+    private sealed class HiddenUseCase;
+
+    private sealed record PlaceCommand;
+
+    private sealed record CancelCommand;
+
+    private sealed record PlaceRequest;
+
+    private sealed record PlaceSummary;
+
+    private sealed class PlaceCommandHandler;
+
+    private sealed class ShapeCommandHandler;
+
+    private sealed class ShapeHandlerNamedWrong;
 }
+
+public sealed record ShapeCommand;

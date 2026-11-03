@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
 using AppTemplate.Domain.Core.Common.Events;
 using AppTemplate.Domain.Core.Common.Primitives;
@@ -10,6 +11,8 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed class DomainModelTests
 {
+    private const string _eventsNamespace = @"^AppTemplate\.Domain\.Features\.[A-Za-z]+\.Model\.Events$";
+
     private static readonly string[] _expectedEntities =
     [
         //#if (todoLists)
@@ -36,17 +39,27 @@ public sealed class DomainModelTests
             "discovery has stopped working; either way the rule below would pass for nothing.");
 
         //#endif
-        roots.Where(type => !type.IsSealed)
-            .Select(type => type.FullName ?? type.Name)
-            .ShouldBeEmpty(
-                "An aggregate root is a consistency boundary. Subclassing one lets a derived type " +
-                "add state the root's own invariants do not cover.");
+        Unsealed(roots).ShouldBeEmpty(
+            "An aggregate root is a consistency boundary. Subclassing one lets a derived type " +
+            "add state the root's own invariants do not cover. Declare each type named here " +
+            "'sealed', or stop it being an IAggregateRoot.");
     }
+
+    private static List<string> Unsealed(IEnumerable<Type> roots) =>
+        [.. roots.Where(type => !type.IsSealed).Select(type => type.FullName ?? type.Name)];
 
     [Fact]
     public void Entities_HaveNoPubliclySettableState()
     {
-        var entities = DomainEntities();
+        PubliclySettable(DomainEntities()).ShouldBeEmpty(
+            "A domain entity's state is changed by its own behaviour, not by assignment. Audit " +
+            "values are written through the explicit IAuditable implementation, which is why those " +
+            "members are declared on the interface rather than as public setters. Make each setter " +
+            "named here private, or an init accessor, and add a method that changes the state.");
+    }
+
+    private static List<string> PubliclySettable(IEnumerable<Type> entities)
+    {
         var offenders = new List<string>();
 
         foreach (var entity in entities)
@@ -72,16 +85,20 @@ public sealed class DomainModelTests
             }
         }
 
-        offenders.ShouldBeEmpty(
-            "A domain entity's state is changed by its own behaviour, not by assignment. Audit " +
-            "values are written through the explicit IAuditable implementation, which is why those " +
-            "members are declared on the interface rather than as public setters.");
+        return offenders;
     }
 
     [Fact]
     public void Entities_HaveNoPublicFields()
     {
-        var entities = DomainEntities();
+        PublicFields(DomainEntities()).ShouldBeEmpty(
+            "A public field bypasses every rule the type enforces, and cannot later be made to " +
+            "enforce one without a breaking change. Turn each field named here into a property with " +
+            "a private or init setter.");
+    }
+
+    private static List<string> PublicFields(IEnumerable<Type> entities)
+    {
         var offenders = new List<string>();
 
         foreach (var entity in entities)
@@ -101,9 +118,7 @@ public sealed class DomainModelTests
             }
         }
 
-        offenders.ShouldBeEmpty(
-            "A public field bypasses every rule the type enforces, and cannot later be made to " +
-            "enforce one without a breaking change.");
+        return offenders;
     }
 
     [Fact]
@@ -121,6 +136,14 @@ public sealed class DomainModelTests
             "as records; if that has changed, this rule needs rewriting rather than deleting.");
 
         //#endif
+        SettableAfterConstruction(records).ShouldBeEmpty(
+            "A value object or a domain event is a value: settable after construction, its equality " +
+            "and every rule its factory enforced become advisory. Declare each property named here " +
+            "with 'init' or no setter.");
+    }
+
+    private static List<string> SettableAfterConstruction(IEnumerable<Type> records)
+    {
         var offenders = new List<string>();
 
         foreach (var record in records)
@@ -138,9 +161,7 @@ public sealed class DomainModelTests
             }
         }
 
-        offenders.ShouldBeEmpty(
-            "A value object or a domain event is a value: settable after construction, its equality " +
-            "and every rule its factory enforced become advisory.");
+        return offenders;
     }
 
     [Fact]
@@ -148,7 +169,7 @@ public sealed class DomainModelTests
     {
         var events = Types.InAssembly(ArchitectureAssemblies.Domain)
             .That()
-            .ResideInNamespaceMatching(@"^AppTemplate\.Domain\.Features\.[A-Za-z]+\.Model\.Events$")
+            .ResideInNamespaceMatching(_eventsNamespace)
             .And()
             .AreClasses();
 
@@ -164,7 +185,9 @@ public sealed class DomainModelTests
             .ShouldHold(
                 "Everything in an Events namespace is a sealed domain event implementing " +
                 "IDomainEvent. The persistence dispatcher finds consumers through that marker, so a " +
-                "type that misses it is collected by nothing and silently never dispatched.");
+                "type that misses it is collected by nothing and silently never dispatched. Declare " +
+                "each type named here 'sealed' and implementing IDomainEvent, or move it out of the " +
+                "Events namespace if it is not an event.");
     }
 
     private const BindingFlags _declaredState =
@@ -200,5 +223,70 @@ public sealed class DomainModelTests
         }
 
         return entities;
+    }
+
+    [Fact]
+    public void TheSealedRule_IsSensitive_AndSeesAnOpenRoot() =>
+        Unsealed([typeof(SealedState), typeof(OpenState)]).ShouldBe([typeof(OpenState).FullName!]);
+
+    [Fact]
+    public void TheStateRule_IsSensitive_AndSeesAPublicSetterOnTheTypeOrItsBase()
+    {
+        PubliclySettable([typeof(DerivedState)]).ShouldBe(
+            [$"{nameof(OpenState)}.{nameof(OpenState.Assigned)} has a public setter"]);
+
+        PubliclySettable([typeof(SealedState)]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheFieldRule_IsSensitive_AndSeesAPublicFieldOnTheTypeOrItsBase()
+    {
+        PublicFields([typeof(DerivedState)]).ShouldBe(
+            [$"{nameof(OpenState)}.{nameof(OpenState.Exposed)} is a public field"]);
+
+        PublicFields([typeof(SealedState)]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheImmutabilityRule_IsSensitive_AndSeesASetterOnARecordButNotAnInit()
+    {
+        SettableAfterConstruction([typeof(MutableValue), typeof(FrozenValue), typeof(InitOnlyValue)])
+            .ShouldBe([$"{nameof(MutableValue)}.{nameof(MutableValue.Amount)} is settable after construction"]);
+    }
+
+    [Theory]
+    [InlineData("AppTemplate.Domain.Features.Orders.Model.Events", true)]
+    [InlineData("AppTemplate.Domain.Features.Orders.Model", false)]
+    [InlineData("AppTemplate.Domain.Features.Orders.Model.Events.Deeper", false)]
+    [InlineData("AppTemplate.Domain.Core.Common.Events", false)]
+    public void TheEventsNamespace_IsSensitive_AndMatchesOnlyAFeaturesEventsFolder(string @namespace, bool matches) =>
+        Regex.IsMatch(@namespace, _eventsNamespace, RegexOptions.None, TimeSpan.FromSeconds(5)).ShouldBe(matches);
+
+    private sealed class SealedState
+    {
+        public int Read { get; private set; }
+
+        public int Initialised { get; init; }
+    }
+
+    private class OpenState
+    {
+        public int Assigned { get; set; }
+
+        public int Exposed = 1;
+    }
+
+    private sealed class DerivedState : OpenState;
+
+    private sealed record MutableValue
+    {
+        public int Amount { get; set; }
+    }
+
+    private sealed record FrozenValue(int Amount);
+
+    private sealed record InitOnlyValue
+    {
+        public int Amount { get; init; }
     }
 }

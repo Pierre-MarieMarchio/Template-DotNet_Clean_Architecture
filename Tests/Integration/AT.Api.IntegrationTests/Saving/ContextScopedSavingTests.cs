@@ -1,4 +1,7 @@
 ﻿using AppTemplate.Api.IntegrationTests.Infrastructure;
+//#if (localAuth)
+using AppTemplate.Application.Core.Common.Concurrency;
+//#endif
 using AppTemplate.Application.Core.Common.Idempotency;
 using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Domain.Core.Common.Primitives;
@@ -38,6 +41,44 @@ public sealed class ContextScopedSavingTests(ApiFixture fixture) : IntegrationTe
         await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestToken);
 
         Fixture.DomainEvents.Of<TodoItemCompletedDomainEvent>().ShouldHaveSingleItem().TodoItemId.ShouldBe(itemId);
+    }
+
+    [Fact]
+    public async Task TwoConcurrentSavesOfTheSameUniqueKey_CommitOnce_AndTheOtherIsAUniquenessConflict()
+    {
+        string email = $"twin-{Guid.NewGuid():N}@example.invalid";
+        var rendezvous = new Rendezvous(2);
+
+        var losses = await Task.WhenAll(
+            SaveAnAccountWithAsync(email, rendezvous),
+            SaveAnAccountWithAsync(email, rendezvous));
+
+        losses.Count(loss => loss is null).ShouldBe(1, "the unique index lets exactly one of the two rows in");
+        losses.Single(loss => loss is not null)!.InnerException.ShouldNotBeNull();
+    }
+
+    private async Task<UniquenessConflictException?> SaveAnAccountWithAsync(string email, Rendezvous rendezvous)
+    {
+        await using var scope = Fixture.Factory.Services.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+
+        var account = AnAccount();
+        account.Email = email;
+        account.NormalizedEmail = email.ToUpperInvariant();
+        services.GetRequiredService<AuthDbContext>().Users.Add(account);
+
+        await rendezvous.ArriveAsync(TestToken);
+
+        try
+        {
+            await services.GetRequiredService<IContextUnitOfWork<AuthDbContext>>().SaveChangesAsync(TestToken);
+
+            return null;
+        }
+        catch (UniquenessConflictException conflict)
+        {
+            return conflict;
+        }
     }
 
     //#endif

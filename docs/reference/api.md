@@ -246,6 +246,7 @@ carries once one does.
 <!--#endif-->
 | `domain.invariantViolated` | 409 | A domain rule refused the change |
 | `concurrency.conflict` | 409 | The row changed between the write's read and its commit; reload and retry |
+| `uniqueness.conflict` | 409 | A write broke a unique index that no endpoint answers with a code of its own; the other request won, read again before writing |
 
 ### The request itself
 

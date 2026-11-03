@@ -12,6 +12,11 @@ not, the simple one. Size and importance do not enter into it.
 A feature with no rule that is given an aggregate pays for a mapper, a tracker and a repository that
 guard nothing. A feature with a rule that is given a service has nowhere to put the rule.
 
+Uniqueness is held by a unique index, never by a read before the write: two requests can both pass
+the read. A save that breaks the index answers `409` `uniqueness.conflict` through `EfUnitOfWork`; a
+feature that wants a message of its own for a key catches the violation in its store and answers its
+own code.
+
 ## The simple shape
 
 The feature has no domain folder. One application service, `I<Feature>Service`, holds one method per

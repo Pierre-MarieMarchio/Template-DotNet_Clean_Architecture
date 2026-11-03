@@ -195,6 +195,10 @@ A write puts the version it loaded in its `WHERE` clause, so a writer that loses
 `concurrency.conflict`. Nothing retries it: re-applying a decision made against a state that no
 longer exists is the lost update the version prevents.
 
+A save that breaks a unique index is turned the same way into `UniquenessConflictException`, answered
+`409` `uniqueness.conflict`. A store that has a message of its own for a given key (a name already
+taken) catches the violation first and answers its own code; the central translation covers the rest.
+
 When the caller sends `If-Match`, the use case compares it with the version it just loaded, and
 answers `412` when they differ. [HTTP API](http-api.md#etag-and-if-match)
 states the client's side.

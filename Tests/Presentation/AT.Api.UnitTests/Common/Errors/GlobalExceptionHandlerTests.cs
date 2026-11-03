@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using AppTemplate.Api.Common.Errors;
 using AppTemplate.Api.UnitTests.TestSupport;
+using AppTemplate.Application.Core.Common.Concurrency;
 using AppTemplate.Application.Core.Common.Validation;
 using AppTemplate.Domain.Core.Common.Exceptions;
 using Microsoft.AspNetCore.Http;
@@ -50,6 +51,27 @@ public sealed class GlobalExceptionHandlerTests
         bool handled = await handler.TryHandleAsync(httpContext, new OperationCanceledException(), TestContext.Current.CancellationToken);
 
         handled.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_AUniquenessConflict_Answers409WithItsCode()
+    {
+        var handler = new GlobalExceptionHandler(NullLogger<GlobalExceptionHandler>.Instance);
+        var httpContext = HttpContextFactory.Create();
+        using var body = new MemoryStream();
+        httpContext.Response.Body = body;
+
+        bool handled = await handler.TryHandleAsync(
+            httpContext,
+            new UniquenessConflictException("lost the race"),
+            TestContext.Current.CancellationToken);
+
+        handled.ShouldBeTrue();
+        httpContext.Response.StatusCode.ShouldBe(StatusCodes.Status409Conflict);
+
+        body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(body, cancellationToken: TestContext.Current.CancellationToken);
+        document.RootElement.GetProperty("code").GetString().ShouldBe("uniqueness.conflict");
     }
 
     [Fact]

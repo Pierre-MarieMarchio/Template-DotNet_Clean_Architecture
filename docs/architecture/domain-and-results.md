@@ -63,6 +63,7 @@ An expected outcome is a value; only a bug is an exception.
 | An invariant the use case expects the aggregate may refuse | the call wrapped in `DomainGuard.Try` | `409` `domain.invariantViolated` |
 | An invariant violated where nothing expected it | `DomainException`, uncaught | `409` `domain.invariantViolated` with a fixed message |
 | A lost update at commit | `ConcurrencyConflictException` | `409` `concurrency.conflict` |
+| A save that breaks a unique index nobody translated | `UniquenessConflictException` | `409` `uniqueness.conflict` |
 | A programming error, an infrastructure failure | any other exception | `500` with a `traceId` and no detail |
 
 "Not found" is one of two normal answers to a lookup. As a `Result` it is visible in the use case's

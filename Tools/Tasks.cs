@@ -35,8 +35,29 @@ internal static class Tasks
         Tasks:
         <tasks>
 
+        Checks:
+          check                            while you work, in under a minute on a change of a file or two:
+                                           over what git diff touches, which is the working tree, the
+                                           files not yet tracked, and the commits of this branch since
+                                           the merge-base with origin/develop, or with the first of
+                                           origin/HEAD, origin/main, origin/master, develop, main and
+                                           master that exists; nothing touched is reported, and passes.
+                                           It checks the format of the C# files touched, as format
+                                           does; builds the projects touched and every project that
+                                           references them, or the solution when a file that sets the
+                                           build for all of them is touched (Directory.* props and
+                                           targets, .editorconfig, global.json, nuget.config, a project
+                                           or solution file); then runs the architecture tests and the
+                                           unit tests of those projects, never the projects that need
+                                           Docker. It leaves out verify's gates over the whole tree,
+                                           the integration tests, coverage, the migration drift check,
+                                           the vulnerability listing and the generated clients
+          format-fix                       dotnet format over the solution, then a pass naming each file
+                                           and line whose name breaks a naming rule (IDE1006), which
+                                           dotnet format cannot rename; the task fails while one is left
+
         Migrations:
-          migration-add <Name>             add a migration to the business context, or to the identity
+          migration-add <Name>           add a migration to the business context, or to the identity
                                            context with --context auth; refused, with nothing written,
                                            when the model has not changed since the last migration
           database-update                  apply the pending migrations of the business context, or of
@@ -54,10 +75,10 @@ internal static class Tasks
                                            holds
           --no-integration                 test: run only the projects that set IsTestProject and
                                            reference no Testcontainers, so no Docker daemon is needed
-          --configuration <Debug|Release>  build, test, coverage, migration-bundle, verify, and end-to-end
+          --configuration <Debug|Release>  build, test, check, coverage, migration-bundle, verify, and end-to-end
                                            where the project holds the API; after a -- separator,
                                            because dotnet run claims the name
-          -m:<N>, -maxcpucount:<N>         restore, build, test, coverage, verify: at most N MSBuild nodes,
+          -m:<N>, -maxcpucount:<N>         restore, build, test, check, coverage, verify: at most N MSBuild nodes,
                                            and at most N test projects running at once; test and
                                            coverage then build first and test with --no-build
           --access, --deletion, --operations, --model, --concurrency
@@ -75,6 +96,7 @@ internal static class Tasks
         Examples:
           dotnet run Tools/Tasks.cs test
           dotnet run Tools/Tasks.cs test --no-integration
+          dotnet run Tools/Tasks.cs check
           dotnet run Tools/Tasks.cs new-feature Widgets Widget --access shared
           dotnet run Tools/Tasks.cs new-use-case TodoLists ArchiveTodoList --kind command
           dotnet run Tools/Tasks.cs remove-feature Widgets
@@ -90,6 +112,7 @@ internal static class Tasks
         "restore",
         "build",
         "test",
+        "check",
         "coverage",
         "format",
         "format-fix",
@@ -448,10 +471,10 @@ internal static class Tasks
             throw new InvalidOperationException($"'--apply' is an option of the remove-feature task, not of '{task ?? "(no task)"}'.");
         }
 
-        if (maxCpuCount is not null && task is not ("restore" or "build" or "test" or "coverage" or "verify"))
+        if (maxCpuCount is not null && task is not ("restore" or "build" or "test" or "check" or "coverage" or "verify"))
         {
             throw new InvalidOperationException(
-                $"'-m:{maxCpuCount}' is an option of the restore, build, test, coverage and verify tasks, not of '{task ?? "(no task)"}'.");
+                $"'-m:{maxCpuCount}' is an option of the restore, build, test, check, coverage and verify tasks, not of '{task ?? "(no task)"}'.");
         }
 
         if (context is not null && task is not ("migration-add" or "database-update"))
@@ -549,6 +572,11 @@ internal static class Tasks
 
             case "format-fix":
                 Step("dotnet", "format", solution);
+                RequireNamingStyle(repoRoot, solution);
+                break;
+
+            case "check":
+                Check(projectFile, solution, configuration, nodes, modules);
                 break;
 
             case "new-feature":
@@ -1077,6 +1105,234 @@ internal static class Tasks
 
     private static void VerifyWhatTheBuildDoesNotCheck(string solution, params string[] options) =>
         Step("dotnet", ["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", .. options]);
+
+    private static readonly string[] _baseCandidates = ["origin/develop", "origin/HEAD", "origin/main", "origin/master", "develop", "main", "master"];
+
+    private static readonly string[] _buildWideFileNames = ["Directory.Build.rsp", "global.json", "nuget.config", ".editorconfig", ".globalconfig"];
+
+    private static readonly string[] _buildWideExtensions = [".csproj", ".props", ".targets", ".sln", ".slnx"];
+
+    private static readonly Regex _namingViolation = new(
+        @"^(?<file>.+?)\((?<line>\d+),\d+\): (?:error|warning) IDE1006: (?<message>.+?) \[[^\]]+\]\s*$",
+        RegexOptions.Multiline | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(5));
+
+    private sealed record ProjectNode(string Path, string Folder, IReadOnlyList<string> References, bool DockerFreeTests);
+
+    private sealed record CheckScope(bool BuildWide, IReadOnlyList<string> Projects);
+
+    private static void Check(ProjectFile projectFile, string solution, string configuration, string[] nodes, string[] modules)
+    {
+        string repoRoot = projectFile.Root;
+        string[] changed = ChangedFiles(repoRoot);
+
+        if (changed.Length == 0)
+        {
+            Write("Nothing is touched: the working tree and this branch hold no change from the base, so there is nothing to check.", ConsoleColor.Yellow);
+            return;
+        }
+
+        ProjectNode[] graph = SolutionProjects(repoRoot, solution);
+        string architecture = ProjectPath(projectFile, "Tests", "Architecture", "Architecture.Tests");
+
+        if (graph.All(project => project.Path != architecture))
+        {
+            throw new InvalidOperationException($"The solution holds no {architecture}, the project whose rules every check runs.");
+        }
+
+        CheckScope scope = ScopeOf(changed, graph);
+        string[] formatted = FormattableFiles(changed, graph, file => File.Exists(Path.Combine(repoRoot, file)));
+        string[] built = [.. scope.Projects.Append(architecture).Distinct(StringComparer.Ordinal)];
+        string[] tested = [.. built.Where(path => path == architecture || graph.First(project => project.Path == path).DockerFreeTests)];
+        string scopeLine = scope.BuildWide
+            ? "A file that sets the build for every project is touched: the whole solution is built and its Docker-free tests run."
+            : $"Touched: {changed.Length} files, {scope.Projects.Count} projects with the ones that reference them.";
+        Write(scopeLine, ConsoleColor.DarkGray);
+
+        if (formatted.Length > 0)
+        {
+            try
+            {
+                Step("dotnet", ["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", "--include", .. formatted]);
+            }
+            catch (InvalidOperationException error)
+            {
+                throw new InvalidOperationException(
+                    error.Message + " Run `dotnet run Tools/Tasks.cs format-fix`: it fixes what it can and names what it cannot.");
+            }
+        }
+
+        string[] filters = [];
+        try
+        {
+            string buildTarget = solution;
+            string testTarget;
+
+            if (scope.BuildWide)
+            {
+                testTarget = DockerFreeSolutionFilter(repoRoot, solution);
+                filters = [testTarget];
+            }
+            else
+            {
+                buildTarget = SolutionFilter(repoRoot, solution, "check-build.slnf", built.Select(path => Path.Combine(repoRoot, path)));
+                testTarget = SolutionFilter(repoRoot, solution, "check-test.slnf", tested.Select(path => Path.Combine(repoRoot, path)));
+                filters = [buildTarget, testTarget];
+            }
+
+            Step("dotnet", ["build", buildTarget, "--configuration", configuration, .. nodes]);
+            Step("dotnet", ["test", "--solution", testTarget, "--configuration", configuration, "--no-build", .. modules]);
+        }
+        finally
+        {
+            foreach (string filter in filters)
+            {
+                File.Delete(filter);
+            }
+        }
+
+        Write(
+            $"Format of {formatted.Length} C# file(s), build of {(scope.BuildWide ? "the solution" : built.Length + " project(s)")}, tests of {(scope.BuildWide ? "every Docker-free project" : tested.Length + " project(s)")}: all passed. "
+            + "The integration tests, coverage and the other gates of verify are left to verify, coverage and CI.",
+            ConsoleColor.DarkGray);
+    }
+
+    private static string ProjectPath(ProjectFile projectFile, string tree, string layer, string part) =>
+        $"{tree}/{layer}/{projectFile.FolderOf(part)}/{projectFile.ProjectName(part)}.csproj";
+
+    private static string[] ChangedFiles(string repoRoot)
+    {
+        if (Capture(repoRoot, echo: false, "git", "rev-parse", "--show-toplevel").ExitCode != 0)
+        {
+            throw new InvalidOperationException($"check reads what git diff touches, and {repoRoot} is not inside a git working tree.");
+        }
+
+        string? baseline = PickBase(candidate => Capture(repoRoot, echo: false, "git", "rev-parse", "--verify", "--quiet", candidate + "^{commit}").ExitCode == 0);
+        string baseCommit = "HEAD";
+
+        if (baseline is not null)
+        {
+            (int exit, string output) = Capture(repoRoot, echo: false, "git", "merge-base", "HEAD", baseline);
+            baseCommit = exit == 0 ? output.Trim() : baseline;
+        }
+
+        Write($"Compared with {(baseCommit == "HEAD" ? "HEAD" : baseline + " at " + baseCommit[..Math.Min(8, baseCommit.Length)])}, the working tree and the files not yet tracked.", ConsoleColor.DarkGray);
+
+        return
+        [
+            .. GitLines(repoRoot, "diff", "--name-only", "--no-renames", "--relative", "-z", baseCommit),
+            .. GitLines(repoRoot, "ls-files", "--others", "--exclude-standard", "-z"),
+        ];
+    }
+
+    private static string? PickBase(Func<string, bool> exists) => _baseCandidates.FirstOrDefault(exists);
+
+    private static string[] GitLines(string repoRoot, params string[] arguments)
+    {
+        (int exit, string output) = Capture(repoRoot, echo: true, "git", arguments);
+
+        return exit == 0
+            ? [.. output.Split('\0', StringSplitOptions.RemoveEmptyEntries)]
+            : throw new InvalidOperationException($"'git {string.Join(' ', arguments)}' exited with {exit}: {output.Trim()}");
+    }
+
+    private static ProjectNode[] SolutionProjects(string repoRoot, string solution)
+    {
+        string[] paths =
+        [
+            .. Regex.Matches(File.ReadAllText(solution), @"""([^""]+\.csproj)""")
+                .Select(match => match.Groups[1].Value.Replace('\\', '/'))
+                .Order(StringComparer.Ordinal),
+        ];
+        string Relative(string full) => Path.GetRelativePath(repoRoot, full).Replace('\\', '/');
+
+        return
+        [
+            .. paths.Select(path =>
+            {
+                string full = Path.GetFullPath(Path.Combine(repoRoot, path));
+                string text = File.ReadAllText(full);
+                string[] references =
+                [
+                    .. XDocument.Parse(text).Descendants("ProjectReference")
+                        .Select(reference => reference.Attribute("Include")?.Value)
+                        .OfType<string>()
+                        .Select(include => Relative(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(full)!, include.Replace('\\', '/'))))),
+                ];
+
+                return new ProjectNode(path, Path.GetDirectoryName(path)!.Replace('\\', '/'), references, IsDockerFreeTestProject(text));
+            }),
+        ];
+    }
+
+    private static CheckScope ScopeOf(IEnumerable<string> changed, IReadOnlyList<ProjectNode> graph)
+    {
+        string[] files = [.. changed];
+
+        if (files.Any(file => SetsTheBuildForEveryProject(file, graph)))
+        {
+            return new CheckScope(BuildWide: true, [.. graph.Select(project => project.Path)]);
+        }
+
+        HashSet<string> affected = [.. files.Select(file => OwnerOf(file, graph)).OfType<ProjectNode>().Select(project => project.Path)];
+
+        for (bool grew = true; grew;)
+        {
+            ProjectNode[] dependents = [.. graph.Where(project => !affected.Contains(project.Path) && project.References.Any(affected.Contains))];
+            grew = dependents.Length > 0;
+            affected.UnionWith(dependents.Select(project => project.Path));
+        }
+
+        return new CheckScope(BuildWide: false, [.. affected.Order(StringComparer.Ordinal)]);
+    }
+
+    private static ProjectNode? OwnerOf(string file, IReadOnlyList<ProjectNode> graph) =>
+        graph.Where(project => file.StartsWith(project.Folder + "/", StringComparison.Ordinal)).MaxBy(project => project.Folder.Length);
+
+    private static bool SetsTheBuildForEveryProject(string file, IReadOnlyList<ProjectNode> graph)
+    {
+        int slash = file.LastIndexOf('/');
+        string name = file[(slash + 1)..];
+        string folder = slash < 0 ? string.Empty : file[..slash];
+
+        bool buildWide = _buildWideFileNames.Contains(name, StringComparer.OrdinalIgnoreCase)
+            || _buildWideExtensions.Any(extension => name.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+
+        return buildWide
+            && (folder.Length == 0
+                || graph.Any(project => project.Folder == folder
+                    || project.Folder.StartsWith(folder + "/", StringComparison.Ordinal)
+                    || folder.StartsWith(project.Folder + "/", StringComparison.Ordinal)));
+    }
+
+    private static string[] FormattableFiles(IEnumerable<string> changed, IReadOnlyList<ProjectNode> graph, Func<string, bool> exists) =>
+        [.. changed.Where(file => file.EndsWith(".cs", StringComparison.Ordinal) && exists(file) && OwnerOf(file, graph) is not null).Order(StringComparer.Ordinal)];
+
+    private static void RequireNamingStyle(string repoRoot, string solution)
+    {
+        (int exit, string output) = Capture(repoRoot, echo: true, "dotnet", "format", solution, "--diagnostics", "IDE1006", "--verify-no-changes", "--no-restore");
+        string[] violations = NamingViolations(repoRoot, output);
+
+        if (violations.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "dotnet format cannot rename a symbol, so these names break a naming rule of .editorconfig (IDE1006) and are left as they are:"
+                + Environment.NewLine + string.Join(Environment.NewLine, violations.Select(violation => "  " + violation))
+                + Environment.NewLine + "Rename each one, with the IDE's rename or by hand, then run format-fix again.");
+        }
+
+        if (exit != 0)
+        {
+            Console.Write(output);
+            throw new InvalidOperationException($"dotnet format exited with {exit} and named no naming violation: its output is above.");
+        }
+    }
+
+    private static string[] NamingViolations(string repoRoot, string output) =>
+        [.. _namingViolation.Matches(output)
+            .Select(match => $"{Path.GetRelativePath(repoRoot, match.Groups["file"].Value).Replace('\\', '/')}:{match.Groups["line"].Value}: {match.Groups["message"].Value}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
 
     //#if (templateMaintenance)
     private static void LauncherGate(string repoRoot, string configuration)
@@ -2367,6 +2623,7 @@ internal static class Tasks
             ("--context auth targets the identity context", MigrationContext("auth", true, "persistence", "auth") == "auth"),
             ("--context auth is refused where there is no identity context", Refused(() => MigrationContext("auth", false, "persistence", "auth"), "--auth local")),
             ("an unknown context is refused", Refused(() => MigrationContext("billing", true, "persistence", "auth"), "not a context")),
+            .. CheckCases(),
         ];
 
         foreach ((string label, bool passed) in cases)
@@ -2375,6 +2632,54 @@ internal static class Tasks
         }
 
         return cases.All(result => result.Passed) ? 0 : 1;
+    }
+
+    private static (string Case, bool Passed)[] CheckCases()
+    {
+        ProjectNode[] graph =
+        [
+            new("Src/Domain/P.Domain.Core/X.Domain.Core.csproj", "Src/Domain/P.Domain.Core", [], false),
+            new("Src/Domain/P.Domain/X.Domain.csproj", "Src/Domain/P.Domain", ["Src/Domain/P.Domain.Core/X.Domain.Core.csproj"], false),
+            new("Src/Application/P.Application/X.Application.csproj", "Src/Application/P.Application", ["Src/Domain/P.Domain/X.Domain.csproj"], false),
+            new("Src/Infrastructure/P.Infrastructure/X.Infrastructure.csproj", "Src/Infrastructure/P.Infrastructure", ["Src/Application/P.Application/X.Application.csproj"], false),
+            new("Tests/Domain/P.Domain.UnitTests/X.Domain.UnitTests.csproj", "Tests/Domain/P.Domain.UnitTests", ["Src/Domain/P.Domain/X.Domain.csproj"], true),
+            new("Tests/Domain/P.Domain.Core.UnitTests/X.Domain.Core.UnitTests.csproj", "Tests/Domain/P.Domain.Core.UnitTests", ["Src/Domain/P.Domain.Core/X.Domain.Core.csproj"], true),
+            new("Tests/Integration/P.Integration/X.Integration.csproj", "Tests/Integration/P.Integration", ["Src/Infrastructure/P.Infrastructure/X.Infrastructure.csproj"], false),
+        ];
+
+        string[] Projects(params string[] changed) => [.. ScopeOf(changed, graph).Projects.Select(path => path[(path.LastIndexOf('/') + 1)..]).Order(StringComparer.Ordinal)];
+
+        const string violations =
+            "/r/Src/A.cs(14,17): error IDE1006: Naming rule violation: Missing prefix: '_' [/r/Src/X.csproj]\n"
+            + "/r/Src/A.cs(14,17): error IDE1006: Naming rule violation: Missing prefix: '_' [/r/Src/X.csproj]\r\n"
+            + "/r/Src/B.cs(3,9): warning IDE0055: Fix formatting [/r/Src/X.csproj]\n";
+
+        return
+        [
+            ("a file of a project touches it and every project that references it, however far", Projects("Src/Domain/P.Domain/Features/Notes/Note.cs").SequenceEqual(
+                ["X.Application.csproj", "X.Domain.UnitTests.csproj", "X.Domain.csproj", "X.Infrastructure.csproj", "X.Integration.csproj"])),
+            ("the nearest project owns a file, not the project whose folder name it starts with", Projects("Src/Domain/P.Domain.Core/Id.cs").SequenceEqual(
+                ["X.Application.csproj", "X.Domain.Core.UnitTests.csproj", "X.Domain.Core.csproj", "X.Domain.UnitTests.csproj", "X.Domain.csproj", "X.Infrastructure.csproj", "X.Integration.csproj"])),
+            ("a folder whose name merely starts with a project's folder name belongs to no project", Projects("Src/Domain/P.DomainExtras/Id.cs").Length == 0),
+            ("a test project touches nothing but itself", Projects("Tests/Domain/P.Domain.UnitTests/NoteTests.cs").SequenceEqual(["X.Domain.UnitTests.csproj"])),
+            ("a file outside every project touches none", Projects("docs/README.md", "Tools/Tasks.cs").Length == 0),
+            ("a file is placed by its path alone, so a deleted one still touches its project", Projects("Src/Application/P.Application/Gone.cs").Length == 3),
+            ("Directory.Build.props sets the build for every project", ScopeOf(["Directory.Build.props"], graph) is { BuildWide: true, Projects.Count: 7 }),
+            ("a root .editorconfig sets the build for every project", ScopeOf(["Src/Domain/P.Domain/Note.cs", ".editorconfig"], graph).BuildWide),
+            ("a project file sets the build for every project", ScopeOf(["Src/Domain/P.Domain/X.Domain.csproj"], graph).BuildWide),
+            ("an .editorconfig above no project does not", !ScopeOf(["Launcher/.editorconfig"], graph).BuildWide),
+            ("an .editorconfig inside a project does", ScopeOf(["Src/Domain/P.Domain/Generated/.editorconfig"], graph).BuildWide),
+            ("a Markdown file in the root does not", !ScopeOf(["README.md"], graph).BuildWide),
+            ("only C# files that exist and belong to a project are formatted", FormattableFiles(
+                ["Src/Domain/P.Domain/B.cs", "Src/Domain/P.Domain/A.cs", "Src/Domain/P.Domain/Gone.cs", "Src/Domain/P.Domain/a.md", "Tools/Tasks.cs"],
+                graph,
+                file => !file.EndsWith("Gone.cs", StringComparison.Ordinal)).SequenceEqual(["Src/Domain/P.Domain/A.cs", "Src/Domain/P.Domain/B.cs"])),
+            ("the base is the first candidate that exists", PickBase(candidate => candidate is "origin/main" or "develop") == "origin/main"),
+            ("origin/develop comes before the remote's default branch", PickBase(candidate => candidate is "origin/develop" or "origin/HEAD") == "origin/develop"),
+            ("no candidate leaves HEAD as the base", PickBase(_ => false) is null),
+            ("a naming violation is named once with its file and line, relative to the root", NamingViolations("/r", violations).SequenceEqual(
+                ["Src/A.cs:14: Naming rule violation: Missing prefix: '_'"])),
+        ];
     }
 
     private static bool Refused(Action action, string saying)
@@ -2433,9 +2738,7 @@ internal static class Tasks
 
         if (dockerFreeOnly)
         {
-            projects = projects.Where(path => File.ReadAllText(path) is var project
-                && project.Contains("<IsTestProject>true</IsTestProject>", StringComparison.Ordinal)
-                && !project.Contains("Testcontainers", StringComparison.OrdinalIgnoreCase));
+            projects = projects.Where(path => IsDockerFreeTestProject(File.ReadAllText(path)));
         }
 
         string[] paths = [.. projects.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)];
@@ -2448,11 +2751,18 @@ internal static class Tasks
         return paths;
     }
 
-    private static string DockerFreeSolutionFilter(string repoRoot, string solution)
+    private static bool IsDockerFreeTestProject(string projectText) =>
+        projectText.Contains("<IsTestProject>true</IsTestProject>", StringComparison.Ordinal)
+        && !projectText.Contains("Testcontainers", StringComparison.OrdinalIgnoreCase);
+
+    private static string DockerFreeSolutionFilter(string repoRoot, string solution) =>
+        SolutionFilter(repoRoot, solution, "docker-free.slnf", TestProjects(repoRoot, dockerFreeOnly: true));
+
+    private static string SolutionFilter(string repoRoot, string solution, string fileName, IEnumerable<string> projects)
     {
         string directory = Path.Combine(repoRoot, "artifacts", "test");
         Directory.CreateDirectory(directory);
-        string filter = Path.Combine(directory, "docker-free.slnf");
+        string filter = Path.Combine(directory, fileName);
         string solutionDirectory = Path.GetDirectoryName(solution) ?? repoRoot;
 
         var content = new JsonObject
@@ -2460,7 +2770,7 @@ internal static class Tasks
             ["solution"] = new JsonObject
             {
                 ["path"] = Path.GetRelativePath(directory, solution).Replace('\\', '/'),
-                ["projects"] = new JsonArray([.. TestProjects(repoRoot, dockerFreeOnly: true)
+                ["projects"] = new JsonArray([.. projects
                     .Select(project => JsonValue.Create(Path.GetRelativePath(solutionDirectory, project).Replace('\\', '/')))]),
             },
         };
@@ -2555,6 +2865,44 @@ internal static class Tasks
         defaults
             .Where(variable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
             .ToDictionary(variable => variable.Key, variable => variable.Value, StringComparer.Ordinal);
+
+    private static (int ExitCode, string Output) Capture(string? directory, bool echo, string executable, params string[] arguments)
+    {
+        if (echo)
+        {
+            Write("> " + executable + " " + string.Join(' ', arguments), ConsoleColor.Cyan);
+            Console.Out.Flush();
+        }
+
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = executable,
+            UseShellExecute = false,
+            WorkingDirectory = directory ?? string.Empty,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using Process process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException($"'{executable}' started no process.");
+            Task<string> errors = process.StandardError.ReadToEndAsync();
+            string output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+
+            return (process.ExitCode, output + errors.GetAwaiter().GetResult());
+        }
+        catch (Win32Exception)
+        {
+            throw new InvalidOperationException($"'{executable}' is not on PATH.");
+        }
+    }
 
     private static void Launch(string? directory, Dictionary<string, string> environment, string executable, string[] arguments, bool closeInput = false)
     {

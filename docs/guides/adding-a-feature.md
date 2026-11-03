@@ -133,7 +133,7 @@ in that one. While no database has applied the initial migration, recreate it in
 A feature of the rich shape grows one operation at a time:
 
 ```bash
-dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query [--input id|none]
+dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query [--input id|none|"<Inputs>"]
 ```
 
 `<UseCase>` names the operation, a verb and its subject: `Approve<Feature>`, `Get<Feature>Totals`.
@@ -141,14 +141,40 @@ dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 | Option | Default | Meaning |
 |---|---|---|
 | `--kind` | required | `command`: changes state and answers a `Result`, under `UseCases/Commands/`. `query`: reads and answers a `Result` of a DTO named for it, under `UseCases/Queries/` |
-| `--input` | `id` | `id`: a command or query carrying the id of the aggregate the feature's repository names, with its validator and its tests. `none`: an empty message, no validator, no test |
+| `--input` | `id` | What the message carries, comma separated. `id`: the id of the aggregate the feature's repository names, which the route carries, first when inputs follow it. `Name:Type`: an input in PascalCase, of any C# type, written as given. `none`: a message without input |
+
+```bash
+dotnet run Tools/Tasks.cs new-use-case <Features> Find<Features>ByName --kind query --input "Name:string, MaxCount:int"
+dotnet run Tools/Tasks.cs new-use-case <Features> Retag<Feature> --kind command --input "id, Tags:IReadOnlyList<string>"
+```
+
+A type may be generic, nullable, an array or a tuple: `Dictionary<string, int>`, `DateOnly?`,
+`Guid[]`. An input of a known type (`string`, `int`, `long`, `decimal`, `bool`, `Guid`,
+`DateTimeOffset`, `DateOnly`) gets a rule, `NotEmpty`, which refuses its type's default, and a test
+value; a nullable one and a `bool` accept every value, so they get a test value and no rule. Any
+other type is written as given, with no rule, and its tests pass `default!` for it: the command lists
+it, and its rule, its test value and the using of its namespace are yours to write.
 
 The command writes in the application layer and edits nothing:
 
 - the use case's folder: `<UseCase>.cs`, holding its command or query and that message's handler,
-  and with `--input id` the message's validator;
-- for a query, its DTO under `Model/Dtos/`, holding the aggregate's `Guid Id` and nothing else, unless the feature already declares one of that name;
-- with `--input id`, the validator's tests: an empty id is refused, a real one passes.
+  and, when an input has a rule, the message's validator;
+- for a query, its DTO under `Model/Dtos/`, holding the aggregate's `Guid Id` when the input holds
+  `id` and nothing otherwise, unless the feature already declares one of that name;
+- with the validator, its tests, where `AWellFormed<Command|Query>()` builds the one valid message
+  and each rule has its refusal; and the handler's test, which proves a malformed message never
+  reaches the handler.
+
+The handler's test builds the handler in one place, `UseCase()`, behind its validator, as the
+hand-written tests do. A dependency the handler gains is a substitute field of the test passed
+there, and no test changes:
+
+```csharp
+private readonly I<Feature>Repository _repository = Substitute.For<I<Feature>Repository>();
+
+private ValidatedHandler<<UseCase>Command, Result> UseCase() =>
+    new(new <UseCase>CommandHandler(_repository).Handle, new <UseCase>CommandValidator());
+```
 
 Nothing is registered by hand: `AddFeature` in `ApplicationModule` finds the validator by folder, and
 each host's generated mediator registers the handler, behind the use-case pipeline that runs the
@@ -159,17 +185,20 @@ The handler throws `NotImplementedException` until its body is written: the rule
 the load, the call and the commit, each decision with its test. Until a host sends its message,
 `MessageRoutingTests` names it.
 <!--#if (api)-->
-The command prints the action that sends the message over HTTP and its usings, and for a query the
-response contract; then rewrite the OpenAPI reference with `dotnet run Tools/Tasks.cs openapi`.
+The command prints the action that sends the message over HTTP and its usings: the id travels in
+the route, the other inputs in a request contract, read from the query string for a query and
+from the body for a command; and for a query the response contract. Then rewrite the OpenAPI
+reference with `dotnet run Tools/Tasks.cs openapi`.
 <!--#endif-->
 <!--#if (!api)-->
-The command prints the hosts that may offer it: send its message through `ISender` where one of
-them serves the feature.
+The command prints the message to send, with its inputs, and the hosts that may offer it: send it
+through `ISender` where one of them serves the feature.
 <!--#endif-->
 
 It refuses, writing nothing, a feature that does not exist, a feature of the simple shape, whose
-operations are methods of its service, a use case the feature already has, and `--input id` where the
-feature's repositories do not name one aggregate.
+operations are methods of its service, a use case the feature already has, an input that is not
+`Name:Type` or whose type does not read as C#, a name given twice, and `id` where the feature's
+repositories do not name one aggregate.
 
 ## The closed lists a feature joins
 

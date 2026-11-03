@@ -50,7 +50,8 @@ SQLite defaults legs then run the generated project's `dotnet run Tools/Tasks.cs
 its Compose stack. The defaults leg, the local-auth leg without examples and the external-auth leg
 without examples also run the generator round trip: `new-feature` writes an owner feature, a shared one, an aggregate one and an
 aggregate one on `get,list,create` in turn, the aggregates after `new-use-case` adds a command, a
-query and a command without input to each while refusing the others.
+query, a command without input, a query with typed inputs and a command with the id and a body to
+each while refusing the others.
 `.template.config/acceptance/ApplyFeatureEdits.cs` then makes the hand edits `new-feature` printed,
 read from its output; the whole solution builds with warnings as errors, the architecture tests pass,
 and the feature's own tests pass in every Docker-free test project. The edits are undone and

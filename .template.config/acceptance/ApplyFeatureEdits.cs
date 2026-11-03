@@ -18,7 +18,7 @@ internal static class FeatureEdits
         output and nothing else, so an edit the output no longer prints in its usual form fails here
         before it misleads a reader. Given a new-use-case run, it makes the HTTP edit that run printed:
         the usings, the ISender the controller lacks, the action before the controller's closing brace,
-        a query's response record, and the action's row in its feature's route table.
+        the request and response records it prints, and the action's row in its feature's route table.
 
         Exit code 0 once every edit is applied; 2, writing nothing, when the output holds an edit
         given as prose only (the first owner feature of a project generated without one); 1 on any
@@ -172,15 +172,16 @@ internal static class FeatureEdits
         Write(root, controller, lines);
         Console.WriteLine($"Applied the action: {controller}");
 
-        if (actionEnd >= 0 && output[actionEnd].StartsWith("  and ", StringComparison.Ordinal))
+        for (int contract = actionEnd; contract >= 0 && output[contract].StartsWith("  and ", StringComparison.Ordinal);)
         {
-            string response = output[actionEnd]["  and ".Length..].Split(',')[0];
-            int responseEnd = Array.FindIndex(output, actionEnd + 1, line => line.StartsWith("Then ", StringComparison.Ordinal));
-            string[] body = [.. Indented(output[(actionEnd + 1)..(responseEnd < 0 ? output.Length : responseEnd)], "      ").Reverse().SkipWhile(line => line.Length == 0).Reverse()];
+            string path = output[contract]["  and ".Length..].Split(',')[0];
+            int contractEnd = Array.FindIndex(output, contract + 1, line => line.StartsWith("  and ", StringComparison.Ordinal) || line.StartsWith("Then ", StringComparison.Ordinal));
+            string[] body = [.. Indented(output[(contract + 1)..(contractEnd < 0 ? output.Length : contractEnd)], "      ").Reverse().SkipWhile(line => line.Length == 0).Reverse()];
 
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(root, response))!);
-            Write(root, response, [.. body]);
-            Console.WriteLine($"Wrote the response: {response}");
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(root, path))!);
+            Write(root, path, [.. body]);
+            Console.WriteLine($"Wrote the contract: {path}");
+            contract = contractEnd;
         }
     }
 

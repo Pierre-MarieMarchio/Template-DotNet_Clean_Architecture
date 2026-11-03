@@ -113,11 +113,14 @@ and `PendingModelChangesTests` proves the same inside the suite, which is how CI
 <!--#if (localAuth)-->
 `dotnet run Tools/Tasks.cs migration-check` runs it for the business context, or for the
 authentication context with `--context auth`; `new-feature` and `new-field` run it before they
-write, so the migration of a feature, or of a field, carries it alone.
+write, so the migration of a feature, or of a field, carries it alone, and `remove-feature --apply`
+before it removes a feature, so `Remove<Features>` carries the removal alone.
 <!--#endif-->
 <!--#if (!localAuth)-->
 `dotnet run Tools/Tasks.cs migration-check` runs it for the business context; `new-feature` and
-`new-field` run it before they write, so the migration of a feature, or of a field, carries it alone.
+`new-field` run it before they write, so the migration of a feature, or of a field, carries it alone,
+and `remove-feature --apply` before it removes a feature, so `Remove<Features>` carries the removal
+alone.
 <!--#endif-->
 
 ## Apply them

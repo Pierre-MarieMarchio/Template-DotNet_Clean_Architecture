@@ -16,7 +16,7 @@ public sealed class SilencedDiagnosticTests
     private static readonly string _page = Path.Combine("docs", "guides", "build-and-ci.md");
 
     private static readonly HashSet<string> _skippedDirectories =
-        new(["bin", "obj", "node_modules", ".git", ".claude", ".vs", ".idea", "artifacts", "TestResults"], StringComparer.Ordinal);
+        new(["bin", "obj", "node_modules", ".git", ".nuget", ".claude", ".vs", ".idea", "artifacts", "TestResults"], StringComparer.Ordinal);
 
     private static readonly string[] _projectExtensions = [".csproj", ".props", ".targets"];
 

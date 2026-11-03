@@ -50,11 +50,12 @@ which one calls it. When the hosts chosen hold neither the API nor the worker, i
 as answered for you, since the jobs run in it, and passes `--presentation worker`.
 
 It adds a presentation project to a project generated without it the same way: the project's name,
-authentication, example features, Files module, database, agent files and whether it holds the API
-are read from its files, so it asks only the framework and the presentation name, proposing the
-framework's own (`Portal`, `Mcp`, `Desktop`). After
+authentication, example features, Files module, database, workflows, agent files and whether it
+holds the API are read from its files, so it asks only the framework and the presentation name,
+proposing the framework's own (`Portal`, `Mcp`, `Desktop`, `Worker`). After
 `dotnet new cleanarch-presentation` it runs the project's `presentation-join` task, which makes the
-lines the new `README.md` lists outside the project's folders, then `presentation-scaffold`, which
+lines the new `README.md` lists outside the project's folders, and for the worker first moves the
+API's jobs into it on a committed tree, then `presentation-scaffold`, which
 needs the network; a step that fails says why and what to run again. It leaves out the instructions
 `dotnet new` ends with, which ask for those two tasks.
 
@@ -213,7 +214,9 @@ reasons.
 
 `cleanarch-presentation` refuses the same combinations of the project's options it repeats, as `-n`
 each name of a project the template writes, and with `--has-api false` a desktop client, or the MCP
-server under `--auth local`, which call the API.
+server under `--auth local`, which call the API. `--framework worker` takes `-n Worker` and nothing
+else, and is refused with `--has-api false`, whose project runs its jobs in a worker already, and
+with `--database sqlite`.
 
 ## What a project receives and what stays here
 
@@ -246,7 +249,7 @@ dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-
 |---|---|
 | `cleanarch-webapp` | `--framework placeholder\|vue\|vite-react\|vite-vue\|vite-svelte\|react-router\|angular\|react\|blazor-wasm` (required), `--audience public\|admin`, `--rendering spa\|ssr` (`ssr` for `angular` and `react-router`), `--scope`, `--port`, and the project's `--auth` and `--ci` when they are not the defaults. `blazor-wasm` also takes `--project-name` (required: the project's `-n`), the project's `--examples`, `--files` and `--agent-files`, and `--has-client true` where the project holds the .NET client already, which it then uses instead of writing; it is refused with `--auth none`. `--workspace` also creates `Src/Web` and `web.yml`, for the first app of a project generated with `--web none`, and needs `--project-name`; it is refused where `Src/Web` exists |
 | `cleanarch-webpackage` | `--scope`: a framework-agnostic TypeScript package, exporting its sources, with one function and its test |
-| `cleanarch-presentation` | `--framework blazor-server\|avalonia\|wpf\|mcp` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` and `wpf` take `--has-client true` where the project holds the .NET client already; `mcp` is refused with `--auth none`; `--has-api false` where the project holds no API, which refuses `avalonia`, `wpf`, and `mcp` under `--auth local`. `-n` is the presentation project's name, `Portal` by default (pass `-n Mcp` for an MCP server, `-n Desktop` for a desktop app), refused when it names one of the template's projects: a presentation project the project was generated without |
+| `cleanarch-presentation` | `--framework blazor-server\|avalonia\|wpf\|mcp\|worker` (required), `--project-name` (required: the project's `-n`, which names `<Project>.<name>`), and the project's `--auth`, `--examples`, `--files`, `--database` and `--agent-files` when they are not the defaults, with the same values and refusals; `avalonia` and `wpf` take `--has-client true` where the project holds the .NET client already; `mcp` is refused with `--auth none`; `--has-api false` where the project holds no API, which refuses `avalonia`, `wpf`, and `mcp` under `--auth local`. `-n` is the presentation project's name, `Portal` by default (pass `-n Mcp` for an MCP server, `-n Desktop` for a desktop app), refused when it names one of the template's projects: a presentation project the project was generated without |
 
 An item template can add files but not edit them, so the `README.md` it writes lists each line its
 option writes elsewhere, in the form the join tasks read: `cleanarch-webapp` the app's `include:`

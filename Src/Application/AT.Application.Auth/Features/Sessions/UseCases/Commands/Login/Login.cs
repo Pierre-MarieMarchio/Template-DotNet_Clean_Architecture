@@ -33,10 +33,10 @@ public sealed class LoginCommandHandler(
         {
             if (credential is { Status: CredentialCheckStatus.LockedOut, Account: { } lockedOut })
             {
-                securityEventLog.Record(SecurityEvent.AccountLockedOut(lockedOut.UserId));
+                await securityEventLog.RecordAsync(SecurityEvent.AccountLockedOut(lockedOut.UserId));
             }
 
-            securityEventLog.Record(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Status));
+            await securityEventLog.RecordAsync(SecurityEvent.AuthenticationFailed(credential.Account?.UserId, credential.Status));
 
             return Result.Failure<LoginOutcome>(SessionsErrors.InvalidCredentials);
         }
@@ -48,7 +48,7 @@ public sealed class LoginCommandHandler(
             return Result.Success<LoginOutcome>(new LoginOutcome.TwoFactorRequired(challenge.ChallengeToken));
         }
 
-        securityEventLog.Record(SecurityEvent.LoginSucceeded(account.UserId));
+        await securityEventLog.RecordAsync(SecurityEvent.LoginSucceeded(account.UserId));
 
         var refreshToken = await sessionTokens.IssueRefreshTokenAsync(
             account.UserId,

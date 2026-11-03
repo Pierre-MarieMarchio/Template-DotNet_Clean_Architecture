@@ -106,7 +106,7 @@ public sealed class DisableTwoFactorTests
 
         await UseCase().Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.TwoFactorDisabled(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.TwoFactorDisabled(_callerId));
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class DisableTwoFactorTests
             _callerId,
             _currentSession.SessionId,
             Arg.Any<CancellationToken>());
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(_callerId));
     }
 
     [Fact]

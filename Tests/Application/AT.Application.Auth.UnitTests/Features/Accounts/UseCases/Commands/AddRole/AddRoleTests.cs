@@ -90,8 +90,8 @@ public sealed class AddRoleTests
 
         await UseCase().Handle(new AddRoleCommand(_targetId, _role), TestToken);
 
-        _securityEventLog.Received(1).Record(SecurityEvent.RoleGranted(_targetId, _role));
-        _securityEventLog.Received(1).Record(SecurityEvent.SecurityStampRotated(_targetId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.RoleGranted(_targetId, _role));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.SecurityStampRotated(_targetId));
     }
 
     [Fact]

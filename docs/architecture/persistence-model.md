@@ -134,6 +134,7 @@ They are interceptors rather than steps of the unit of work, so a stray `SaveCha
 and publishes too, while the synchronous `SaveChanges()` is refused
 ([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)). The business context
 attaches all three with `UseAggregateFlushing`, `UseAuditStamping` and `UseDomainEventDispatch`.
+No code under `Src` calls the synchronous `SaveChanges()` on any context, and an architecture test holds it.
 <!--#if (localAuth)-->
 The identity context attaches none: it has no aggregate and no audited row.
 <!--#endif-->

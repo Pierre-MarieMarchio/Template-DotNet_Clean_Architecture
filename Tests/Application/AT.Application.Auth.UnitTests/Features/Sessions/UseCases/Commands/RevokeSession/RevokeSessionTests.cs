@@ -62,7 +62,7 @@ public sealed class RevokeSessionTests
         var result = await UseCase().Handle(new RevokeSessionCommand(sessionId), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        _securityEventLog.Received(1).Record(SecurityEvent.RefreshTokenRevoked(_callerId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.RefreshTokenRevoked(_callerId));
     }
 
     [Fact]

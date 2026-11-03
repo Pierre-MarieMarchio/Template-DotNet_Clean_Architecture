@@ -45,7 +45,7 @@ public sealed class CompletePasskeySignInTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.passkeySignIn.invalid");
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeySignInFailed && e.UserId == null));
     }
 
@@ -73,7 +73,7 @@ public sealed class CompletePasskeySignInTests
         result.IsFailure.ShouldBeTrue();
         result.Error!.Code.ShouldBe("auth.passkeySignIn.invalid");
         _sessionTokens.ReceivedCalls().ShouldBeEmpty();
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeySignInFailed && e.UserId == _userId));
     }
 
@@ -119,7 +119,7 @@ public sealed class CompletePasskeySignInTests
 
         await UseCase().Handle(ARequest(), TestToken);
 
-        _securityEventLog.Received(1).Record(
+        await _securityEventLog.Received(1).RecordAsync(
             Arg.Is<SecurityEvent>(e => e.Kind == SecurityEventKind.PasskeySignInSucceeded && e.UserId == _userId));
     }
 

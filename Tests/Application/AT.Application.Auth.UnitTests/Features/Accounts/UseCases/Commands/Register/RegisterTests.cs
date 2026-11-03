@@ -66,7 +66,7 @@ public sealed class RegisterTests
         var result = await _useCase.Handle(AValidRequest(), TestToken);
 
         result.IsSuccess.ShouldBeTrue();
-        _securityEventLog.Received(1).Record(SecurityEvent.Registered(userId));
+        await _securityEventLog.Received(1).RecordAsync(SecurityEvent.Registered(userId));
         await _emailSender.Received(1).SendAsync(_email, _confirmation.Subject, _confirmation.HtmlBody, Arg.Any<CancellationToken>());
         await _emailFactory.DidNotReceive().CreateAlreadyRegisteredAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

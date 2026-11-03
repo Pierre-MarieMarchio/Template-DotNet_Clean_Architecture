@@ -170,6 +170,11 @@ application, and the platform runs the modules the solution lists. A test projec
 `AppTemplate.sln` never runs, so a new one needs `<IsTestProject>true</IsTestProject>` and an entry in
 the solution; CI fails when one is missing.
 
+Under that runner `dotnet test` takes the solution as `--solution <path>` and a project as `--project <path>`;
+[the runner's reference](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp) lists both from
+SDK 10.0.100, and a newer SDK refuses the positional path. `DotnetTestTargetTests` reads the tasks, the
+workflows, the scripts and the pages, and fails on a `dotnet test` that names its target any other way.
+
 <!--#if (serverDatabase || files)-->
 A run killed outright leaves its containers behind, because the resource reaper is off
 (`ResourceReaperSwitch`). Remove them by label:

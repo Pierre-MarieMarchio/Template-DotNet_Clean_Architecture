@@ -51,34 +51,20 @@ public sealed class EmailTemplateCoverageTests
     public void EveryMail_ShipsTheSameLanguagesAsEveryOther()
     {
         var families = Families();
-        var expected = families.Values.SelectMany(cultures => cultures).ToHashSet(StringComparer.Ordinal);
-
-        var mismatched = families
-            .Where(family => !expected.All(culture => family.Value.Contains(culture, StringComparer.Ordinal)))
-            .Select(family =>
-                $"{family.Key} has [{string.Join(", ", family.Value.Order(StringComparer.Ordinal))}], "
-                + $"and the mails together have [{string.Join(", ", expected.Order(StringComparer.Ordinal))}]")
-            .Order(StringComparer.Ordinal)
-            .ToList();
-
-        mismatched.ShouldBeEmpty(
+        LanguageMismatches(families).ShouldBeEmpty(
             "A language one mail can be written in and another cannot is a deployment that answers "
-            + "its users in two languages. Add the missing template, or remove the language "
-            + "everywhere.");
+            + "its users in two languages. Add the missing template, named "
+            + "<Mail>EmailTemplate.<culture>.html, in the same folder as its siblings, or remove the "
+            + "language everywhere.");
     }
 
     [Fact]
     public void EveryMail_ShipsTheFallbackLanguage()
     {
-        var without = Families()
-            .Where(family => !family.Value.Contains(_fallbackCulture, StringComparer.Ordinal))
-            .Select(family => family.Key)
-            .Order(StringComparer.Ordinal)
-            .ToList();
-
-        without.ShouldBeEmpty(
+        WithoutTheFallback(Families()).ShouldBeEmpty(
             $"'{_fallbackCulture}' is what a reader with no matching template receives, so a mail "
-            + "without it has readers it cannot be written for at all.");
+            + $"without it has readers it cannot be written for at all. Add <Mail>EmailTemplate.{_fallbackCulture}.html "
+            + "for each mail named here.");
     }
 
     [Fact]
@@ -91,28 +77,17 @@ public sealed class EmailTemplateCoverageTests
             .ToList();
 
         offenders.ShouldBeEmpty(
-            "A mail's subject is its template's <title>. Without one there is no subject to send.");
+            "A mail's subject is its template's <title>. Without one there is no subject to send. " +
+            "Give each template named here a <title> holding the subject in its own language.");
     }
 
     [Fact]
     public void NoMail_UsesOneSubjectForTwoLanguages()
     {
-        var offenders = new List<string>();
-
-        foreach (var family in Templates().GroupBy(file => file.Mail, StringComparer.Ordinal))
-        {
-            var bySubject = family
-                .GroupBy(file => Subject(File.ReadAllText(file.Path)), StringComparer.OrdinalIgnoreCase)
-                .Where(group => group.Count() > 1);
-
-            offenders.AddRange(bySubject.Select(group =>
-                $"{family.Key}: '{group.Key}' is the subject of "
-                + string.Join(" and ", group.Select(file => file.Culture).Order(StringComparer.Ordinal))));
-        }
-
-        offenders.Order(StringComparer.Ordinal).ShouldBeEmpty(
+        SharedSubjects(Templates().Select(file => (file, Subject(File.ReadAllText(file.Path))))).ShouldBeEmpty(
             "One subject serving two languages means a template was translated in the body and not "
-            + "in the title — which is the half of the mail a reader sees first.");
+            + "in the title — which is the half of the mail a reader sees first. Translate the "
+            + "<title> of each template named here.");
     }
 
     private static Dictionary<string, HashSet<string>> Families()
@@ -163,6 +138,89 @@ public sealed class EmailTemplateCoverageTests
         }
 
         return found;
+    }
+
+    private static List<string> LanguageMismatches(Dictionary<string, HashSet<string>> families)
+    {
+        var expected = families.Values.SelectMany(cultures => cultures).ToHashSet(StringComparer.Ordinal);
+
+        return
+        [
+            .. families
+                .Where(family => !expected.All(culture => family.Value.Contains(culture, StringComparer.Ordinal)))
+                .Select(family =>
+                    $"{family.Key} has [{string.Join(", ", family.Value.Order(StringComparer.Ordinal))}], "
+                    + $"and the mails together have [{string.Join(", ", expected.Order(StringComparer.Ordinal))}]")
+                .Order(StringComparer.Ordinal),
+        ];
+    }
+
+    private static List<string> WithoutTheFallback(Dictionary<string, HashSet<string>> families) =>
+        [.. families
+            .Where(family => !family.Value.Contains(_fallbackCulture, StringComparer.Ordinal))
+            .Select(family => family.Key)
+            .Order(StringComparer.Ordinal)];
+
+    private static List<string> SharedSubjects(IEnumerable<(TemplateFile File, string Subject)> templates)
+    {
+        var offenders = new List<string>();
+
+        foreach (var family in templates.GroupBy(template => template.File.Mail, StringComparer.Ordinal))
+        {
+            var bySubject = family
+                .GroupBy(template => template.Subject, StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1);
+
+            offenders.AddRange(bySubject.Select(group =>
+                $"{family.Key}: '{group.Key}' is the subject of "
+                + string.Join(" and ", group.Select(template => template.File.Culture).Order(StringComparer.Ordinal))));
+        }
+
+        return [.. offenders.Order(StringComparer.Ordinal)];
+    }
+
+    [Fact]
+    public void TheCoverageRules_AreSensitive_AndSeeAMissingLanguageAMissingFallbackAndASharedSubject()
+    {
+        var families = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["RegisterEmailTemplate"] = ["en", "fr"],
+            ["ResetEmailTemplate"] = ["en"],
+            ["ReminderEmailTemplate"] = ["fr"],
+        };
+
+        LanguageMismatches(families).ShouldBe(
+            [
+                "ReminderEmailTemplate has [fr], and the mails together have [en, fr]",
+                "ResetEmailTemplate has [en], and the mails together have [en, fr]",
+            ]);
+        WithoutTheFallback(families).ShouldBe(["ReminderEmailTemplate"]);
+
+        var english = new TemplateFile("RegisterEmailTemplate", "en", "RegisterEmailTemplate.en.html", "a");
+        var french = new TemplateFile("RegisterEmailTemplate", "fr", "RegisterEmailTemplate.fr.html", "b");
+
+        SharedSubjects([(english, "Welcome"), (french, "welcome")])
+            .ShouldBe(["RegisterEmailTemplate: 'Welcome' is the subject of en and fr"]);
+        SharedSubjects([(english, "Welcome"), (french, "Bienvenue")]).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("RegisterEmailTemplate.en.html", true)]
+    [InlineData("RegisterEmailTemplate.pt-BR.html", true)]
+    [InlineData("RegisterEmailTemplate.html", false)]
+    [InlineData("Register.en.html", false)]
+    [InlineData("RegisterEmailTemplate.eng.html", false)]
+    public void TheFileName_IsSensitive_AndMatchesOnlyAMailAndACulture(string name, bool matches) =>
+        _templateName.IsMatch(name).ShouldBe(matches);
+
+    [Theory]
+    [InlineData("<html><title>Welcome</title></html>", true, "Welcome")]
+    [InlineData("<title>  </title>", false, "")]
+    [InlineData("<html></html>", false, "")]
+    public void TheTitleRule_IsSensitive_AndNeedsANonBlankTitle(string content, bool has, string subject)
+    {
+        HasTitle(content).ShouldBe(has);
+        Subject(content).ShouldBe(subject);
     }
 
     private static bool HasTitle(string content)

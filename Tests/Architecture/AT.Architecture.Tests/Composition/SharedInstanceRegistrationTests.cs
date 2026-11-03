@@ -35,15 +35,15 @@ public sealed class SharedInstanceRegistrationTests
 
             foreach (var contract in contracts)
             {
-                scope.ServiceProvider
-                    .GetServices(contract)
-                    .Count(resolved => ReferenceEquals(resolved, instance))
+                SameInstanceCount(scope.ServiceProvider, contract, instance)
                     .ShouldBe(
                         1,
                         $"{tracker.Name} must appear exactly once behind {contract.Name}, as the " +
                         "same object the repository fills. A second instance means the repository " +
                         "fills one identity map while the interceptor flushes another — every " +
-                        "write would report success and persist nothing.");
+                        "write would report success and persist nothing. Register the tracker once, and " +
+                        "register each contract it serves with a factory that resolves that one " +
+                        "registration, instead of registering the tracker again under the contract.");
             }
         }
     }
@@ -77,6 +77,39 @@ public sealed class SharedInstanceRegistrationTests
             "the tracker holds a per-request identity map; sharing it across scopes would carry one " +
             "request's aggregates into another.");
     }
+
+    [Fact]
+    public void TheRule_IsSensitive_AndSeesASecondInstanceBehindAContract()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<ProbeTracker>();
+        services.AddScoped<IProbeReader>(provider => provider.GetRequiredService<ProbeTracker>());
+        services.AddScoped<IProbeWriter, ProbeTracker>();
+        services.AddScoped(typeof(IDomainEventConsumer), typeof(ProbeTracker));
+        services.AddScoped<IProbeWriter, UnrelatedService>();
+
+        TrackerTypes(services).ShouldBe([typeof(ProbeTracker)]);
+        ContractsServedBy(services, typeof(ProbeTracker))
+            .ShouldBe([typeof(ProbeTracker), typeof(IProbeReader), typeof(IProbeWriter)], ignoreOrder: true);
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        object instance = scope.ServiceProvider.GetRequiredService<ProbeTracker>();
+
+        SameInstanceCount(scope.ServiceProvider, typeof(IProbeReader), instance).ShouldBe(1);
+        SameInstanceCount(scope.ServiceProvider, typeof(IProbeWriter), instance).ShouldBe(0);
+    }
+
+    private static int SameInstanceCount(IServiceProvider provider, Type contract, object instance) =>
+        provider.GetServices(contract).Count(resolved => ReferenceEquals(resolved, instance));
+
+    private interface IProbeReader;
+
+    private interface IProbeWriter;
+
+    private sealed class ProbeTracker : IProbeReader, IProbeWriter;
+
+    private sealed class UnrelatedService : IProbeWriter;
 
     private static Type[] TrackerTypes(IServiceCollection services) =>
         [.. services

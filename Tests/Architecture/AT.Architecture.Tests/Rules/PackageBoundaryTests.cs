@@ -16,12 +16,7 @@ public sealed class PackageBoundaryTests
             Assert.Skip("No project under Src/ declares IsSdkProject, so there is no SDK project to hold to this rule.");
         }
 
-        var offences = sdkProjects
-            .SelectMany(project => project.References
-                .Where(reference => !ProjectReferenceGraph.IsSdkProject(reference))
-                .Select(reference => $"{project.RelativePath} -> {reference} ({Describe(reference)})"))
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        var offences = OutwardReferences(sdkProjects, ProjectReferenceGraph.IsSdkProject, Describe);
 
         offences.ShouldBeEmpty(
             "An SDK project references a project that is not one. These projects are "
@@ -31,6 +26,41 @@ public sealed class PackageBoundaryTests
             + "the very application the project is supposed to know nothing about. Invert the "
             + "dependency behind a port, or move what is shared down into the SDK.");
     }
+
+    private static List<string> OutwardReferences(
+        IEnumerable<ProjectNode> sdkProjects,
+        Func<string, bool> isSdkProject,
+        Func<string, string> describe) =>
+        [.. sdkProjects
+            .SelectMany(project => project.References
+                .Where(reference => !isSdkProject(reference))
+                .Select(reference => $"{project.RelativePath} -> {reference} ({describe(reference)})"))
+            .Order(StringComparer.Ordinal)];
+
+    [Fact]
+    public void TheRule_IsSensitive_AndSeesAnSdkProjectReachingOutside()
+    {
+        HashSet<string> sdk = ["Sdk.Core", "Sdk.Http"];
+        var projects = new[]
+        {
+            Node("Sdk.Http", "Sdk.Core"),
+            Node("Sdk.Bad", "Sdk.Core", "Shop.Orders"),
+        };
+
+        OutwardReferences(projects, sdk.Contains, _ => "outside").ShouldBe(["Sdk.Bad.csproj -> Shop.Orders (outside)"]);
+        OutwardReferences(projects.Take(1), sdk.Contains, _ => "outside").ShouldBeEmpty();
+    }
+
+    private static ProjectNode Node(string name, params string[] references) =>
+        new(
+            name,
+            $"{name}.csproj",
+            new HashSet<string>(references, StringComparer.Ordinal),
+            IsSdkProject: true,
+            HasProgram: false,
+            Sdk: "Microsoft.NET.Sdk",
+            FrameworkReferences: new HashSet<string>(StringComparer.Ordinal),
+            Packages: new HashSet<string>(StringComparer.Ordinal));
 
     private static string Describe(string reference)
     {

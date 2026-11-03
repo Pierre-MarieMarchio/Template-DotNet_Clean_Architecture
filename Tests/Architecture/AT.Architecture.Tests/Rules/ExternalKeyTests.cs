@@ -44,16 +44,11 @@ public sealed class ExternalKeyTests
             "Far fewer options classes were found than this template holds, so this rule is reading " +
             "the wrong tree and passing for the wrong reason.");
 
-        var offenders = declared
-            .Where(entry => Expected(entry.Key) != entry.Value.Replace(":", "", StringComparison.Ordinal))
-            .Select(entry => $"{entry.Key}.SectionName is \"{entry.Value}\", expected " +
-                $"\"{Expected(entry.Key)}\"")
-            .Order(StringComparer.Ordinal)
-            .ToList();
-
-        offenders.ShouldBeEmpty(
+        MisnamedSections(declared).ShouldBeEmpty(
             "A configuration section name is a key in an operator's file. Anchoring it to the type " +
-            "name is what makes a rename of the type fail here instead of at the next deployment.");
+            "name is what makes a rename of the type fail here instead of at the next deployment. " +
+            "Set each SectionName named here to the value shown as expected, or, for a name that has " +
+            "to stay, add the type to _sectionExceptions in this file with the section it binds.");
     }
     //#if (localAuth)
 
@@ -74,9 +69,35 @@ public sealed class ExternalKeyTests
 
         offenders.ShouldBeEmpty(
             "A provider name is written into AspNetUserTokens. A value that no longer matches its " +
-            "type name is either a rename nobody meant, or one that needs a migration.");
+            "type name is either a rename nobody meant, or one that needs a migration. Restore the " +
+            "constant to the type's name without 'TokenProviderName', or rename the type to match and " +
+            "add a migration for the stored rows.");
     }
     //#endif
+
+    private static List<string> MisnamedSections(Dictionary<string, string> declared) =>
+        [.. declared
+            .Where(entry => Expected(entry.Key) != entry.Value.Replace(":", "", StringComparison.Ordinal))
+            .Select(entry => $"{entry.Key}.SectionName is \"{entry.Value}\", expected " +
+                $"\"{Expected(entry.Key)}\"")
+            .Order(StringComparer.Ordinal)];
+
+    [Fact]
+    public void TheSectionRule_IsSensitive_AndSeesAMismatchButAllowsAColonAndAListedException()
+    {
+        var declared = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["WidgetOptions"] = "Widget",
+            ["GadgetOptions"] = "Gadgets",
+            ["NestedPartOptions"] = "Nested:Part",
+            ["TelemetryOptions"] = "OpenTelemetry",
+        };
+
+        MisnamedSections(declared).ShouldBe(["GadgetOptions.SectionName is \"Gadgets\", expected \"Gadget\""]);
+
+        _sectionName.Match("public const string SectionName = \"Widget\";").Groups[1].Value.ShouldBe("Widget");
+        _sectionName.IsMatch("private const string SectionName = \"Widget\";").ShouldBeFalse();
+    }
 
     private static string Expected(string typeName) =>
         _sectionExceptions.TryGetValue(typeName, out string? section)

@@ -35,7 +35,8 @@ public sealed partial class HttpCommonBoundaryTests
             + "every feature shares — the controller base, problem details, preconditions, "
             + "idempotency, the pipeline — and they have to work for a feature that does not exist "
             + "yet. Invert the dependency: let the feature pass in what differs, or move the code "
-            + "into the feature that owns it.");
+            + "into the feature that owns it. Remove the namespace or 'Features.' reference named in "
+            + "each line above.");
     }
 
     private static List<string> CommonSourceFiles()
@@ -59,11 +60,13 @@ public sealed partial class HttpCommonBoundaryTests
         return files;
     }
 
-    private static IEnumerable<string> Offences(string file)
-    {
-        string text = File.ReadAllText(file);
-        string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file);
+    private static IEnumerable<string> Offences(string file) =>
+        OffencesIn(
+            Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file),
+            File.ReadAllText(file));
 
+    private static IEnumerable<string> OffencesIn(string relative, string text)
+    {
         foreach (string featureNamespace in _featureNamespaces)
         {
             if (text.Contains(featureNamespace + ".", StringComparison.Ordinal)
@@ -77,5 +80,19 @@ public sealed partial class HttpCommonBoundaryTests
         {
             yield return $"{relative}: names a 'Features.' namespace relative to its own";
         }
+    }
+
+    [Fact]
+    public void TheRule_IsSensitive_AndSeesAFeatureNamespaceAndARelativeFeatureReference()
+    {
+        string feature = _featureNamespaces[0];
+
+        OffencesIn("a.cs", $"using {feature}.Todo;").ShouldBe([$"a.cs: names '{feature}'"]);
+        OffencesIn("a.cs", $"namespace {feature};").ShouldBe([$"a.cs: names '{feature}'"]);
+        OffencesIn("a.cs", "var x = Features.Todo.Create();").ShouldBe(["a.cs: names a 'Features.' namespace relative to its own"]);
+
+        OffencesIn("a.cs", "using Microsoft.Extensions.Features.Collection;").ShouldBeEmpty();
+        OffencesIn("a.cs", "var x = MyFeatures.Todo;").ShouldBeEmpty();
+        OffencesIn("a.cs", "using System.Linq;").ShouldBeEmpty();
     }
 }

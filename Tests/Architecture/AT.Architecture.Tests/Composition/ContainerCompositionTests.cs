@@ -298,6 +298,8 @@ public sealed class ContainerCompositionTests
         #endif*/
     }
 
+    private sealed record Resolution(List<string> Failures, int Resolved, List<string> OpenGenerics);
+
     private static void AssertEveryServiceResolves(IServiceCollection services, string because)
     {
         var descriptors = services.ToList();
@@ -308,14 +310,29 @@ public sealed class ContainerCompositionTests
             "accounts (the context, the interceptor pipeline, the application layer). Far fewer means " +
             "the composition failed quietly and this test is walking an almost-empty collection.");
 
-        using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
+        var resolution = Resolve(services, HostComposition.StrictValidation);
+
+        resolution.Resolved.ShouldBeGreaterThan(
+            45,
+            $"Only {resolution.Resolved} services were resolved out of {descriptors.Count} descriptors " +
+            $"({resolution.OpenGenerics.Count} open generics skipped), which is too few to be a real check.");
+
+        resolution.Failures.ShouldBeEmpty(
+            $"{because} Register what each service named here depends on, or stop registering the " +
+            $"service.{Environment.NewLine}Unresolvable registrations:{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", resolution.Failures));
+    }
+
+    private static Resolution Resolve(IServiceCollection services, ServiceProviderOptions options)
+    {
+        using var provider = services.BuildServiceProvider(options);
         using var scope = provider.CreateScope();
 
         var failures = new List<string>();
         var openGenerics = new List<string>();
         int resolved = 0;
 
-        foreach (var descriptor in descriptors)
+        foreach (var descriptor in services)
         {
             var serviceType = descriptor.ServiceType;
 
@@ -360,14 +377,7 @@ public sealed class ContainerCompositionTests
             }
         }
 
-        resolved.ShouldBeGreaterThan(
-            45,
-            $"Only {resolved} services were resolved out of {descriptors.Count} descriptors " +
-            $"({openGenerics.Count} open generics skipped), which is too few to be a real check.");
-
-        failures.ShouldBeEmpty(
-            $"{because}{Environment.NewLine}Unresolvable registrations:{Environment.NewLine}  " +
-            string.Join($"{Environment.NewLine}  ", failures));
+        return new Resolution(failures, resolved, openGenerics);
     }
 
     private static void AssertResolvable(
@@ -382,13 +392,21 @@ public sealed class ContainerCompositionTests
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
         using var scope = provider.CreateScope();
 
+        Unresolvable(scope.ServiceProvider, serviceTypes).ShouldBeEmpty(
+            $"{because} Register the adapter of each service named here in the module that owns it, " +
+            $"and compose that module in the host.{Environment.NewLine}Could not resolve:{Environment.NewLine}  " +
+            string.Join($"{Environment.NewLine}  ", Unresolvable(scope.ServiceProvider, serviceTypes)));
+    }
+
+    private static List<string> Unresolvable(IServiceProvider provider, IEnumerable<Type> serviceTypes)
+    {
         var failures = new List<string>();
 
         foreach (var serviceType in serviceTypes)
         {
             try
             {
-                scope.ServiceProvider.GetRequiredService(serviceType).ShouldNotBeNull();
+                provider.GetRequiredService(serviceType).ShouldNotBeNull();
             }
             catch (Exception exception)
             {
@@ -396,8 +414,43 @@ public sealed class ContainerCompositionTests
             }
         }
 
-        failures.ShouldBeEmpty(
-            $"{because}{Environment.NewLine}Could not resolve:{Environment.NewLine}  " +
-            string.Join($"{Environment.NewLine}  ", failures));
+        return failures;
     }
+
+    [Fact]
+    public void TheResolutionCheck_IsSensitive_AndNamesAServiceWhoseDependencyIsMissing()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IProbeAdapter, ProbeAdapter>();
+        services.AddScoped<IProbeStandalone, ProbeStandalone>();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var failures = Unresolvable(scope.ServiceProvider, [typeof(IProbeAdapter), typeof(IProbeStandalone), typeof(IProbeUnregistered)]);
+
+        failures.Count.ShouldBe(2);
+        failures.ShouldContain(failure => failure.StartsWith(typeof(IProbeAdapter).FullName!, StringComparison.Ordinal));
+        failures.ShouldContain(failure => failure.StartsWith(typeof(IProbeUnregistered).FullName!, StringComparison.Ordinal));
+
+        var everything = Resolve(services, new ServiceProviderOptions());
+
+        everything.Failures.Count.ShouldBe(1);
+        everything.Resolved.ShouldBe(1);
+    }
+
+    private interface IProbeAdapter;
+
+    private interface IProbeStandalone;
+
+    private interface IProbeUnregistered;
+
+    private interface IProbeMissing;
+
+    private sealed class ProbeAdapter(IProbeMissing missing) : IProbeAdapter
+    {
+        public IProbeMissing Missing { get; } = missing;
+    }
+
+    private sealed class ProbeStandalone : IProbeStandalone;
 }

@@ -273,14 +273,11 @@ public sealed class ModuleDependencyTests
             .Select(project => project.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        domainProjects
-            .SelectMany(project => project.References
-                .Where(reference => !withinTheLayer.Contains(reference))
-                .Select(reference => $"{project.RelativePath} -> {reference}"))
-            .Order(StringComparer.Ordinal)
+        References(domainProjects, (_, reference) => !withinTheLayer.Contains(reference))
             .ShouldBeEmpty(
                 "The domain is the innermost layer: a project in it may reference another project " +
-                "of the same layer and nothing else at all.");
+                "of the same layer and nothing else at all. Remove each reference named here, and move " +
+                "what it was used for into the domain, or behind a port in the application layer.");
 
         ProjectReferenceGraph.Project(_domainCoreProject)
             .References
@@ -304,15 +301,12 @@ public sealed class ModuleDependencyTests
             .Concat(ProjectReferenceGraph.ProjectsInLayer("Domain").Select(project => project.Name))
             .ToHashSet(StringComparer.Ordinal);
 
-        applicationProjects
-            .SelectMany(project => project.References
-                .Where(reference => !permitted.Contains(reference))
-                .Select(reference => $"{project.RelativePath} -> {reference}"))
-            .Order(StringComparer.Ordinal)
+        References(applicationProjects, (_, reference) => !permitted.Contains(reference))
             .ShouldBeEmpty(
                 "A project of the application layer may reference the domain and another project of " +
                 "its own layer, and nothing else. A port belongs here; the project that implements " +
-                "it must not be visible from here.");
+                "it must not be visible from here. Remove each reference named here and declare a port " +
+                "that the infrastructure module implements instead.");
 
         ProjectReferenceGraph.Project(_applicationProject)
             .References
@@ -373,6 +367,38 @@ public sealed class ModuleDependencyTests
             "permission this rule grants describes nothing.");
     }
 
+    private static List<string> References(IEnumerable<ProjectNode> projects, Func<ProjectNode, string, bool> offends) =>
+        [.. projects
+            .SelectMany(project => project.References
+                .Where(reference => offends(project, reference))
+                .Select(reference => $"{project.RelativePath} -> {reference}"))
+            .Order(StringComparer.Ordinal)];
+
+    [Fact]
+    public void TheReferenceListing_IsSensitive_AndNamesTheProjectAndTheReferenceThatOffends()
+    {
+        var projects = new[]
+        {
+            Node("Shop.Domain", "Shop.Domain.Core", "Newtonsoft.Json"),
+            Node("Shop.Domain.Core"),
+        };
+        HashSet<string> allowed = ["Shop.Domain.Core"];
+
+        References(projects, (_, reference) => !allowed.Contains(reference)).ShouldBe(["Shop.Domain.csproj -> Newtonsoft.Json"]);
+        References(projects, (_, reference) => reference == "Nothing").ShouldBeEmpty();
+    }
+
+    private static ProjectNode Node(string name, params string[] references) =>
+        new(
+            name,
+            $"{name}.csproj",
+            new HashSet<string>(references, StringComparer.Ordinal),
+            IsSdkProject: false,
+            HasProgram: false,
+            Sdk: "Microsoft.NET.Sdk",
+            FrameworkReferences: new HashSet<string>(StringComparer.Ordinal),
+            Packages: new HashSet<string>(StringComparer.Ordinal));
+
     private static bool IsOfTheInfrastructureLayer(string projectName) =>
         projectName.StartsWith("AppTemplate.Infrastructure.", StringComparison.Ordinal);
 
@@ -407,14 +433,11 @@ public sealed class ModuleDependencyTests
 
         hosts.ShouldNotBeEmpty("No host was found, so this rule would pass having checked nothing.");
 
-        hosts
-            .SelectMany(host => host.References
-                .Where(names.Contains)
-                .Select(reference => $"{host.RelativePath} -> {reference}"))
-            .Order(StringComparer.Ordinal)
+        References(hosts, (_, reference) => names.Contains(reference))
             .ShouldBeEmpty(
                 "Each host composes itself. One that referenced another would reach its jobs and its development "
-                + "migrations, which run in the API alone, and every registration of its own.");
+                + "migrations, which run in the API alone, and every registration of its own. Remove each "
+                + "reference named here and register in the host what it needs from the other.");
     }
 
     [Fact]
@@ -437,15 +460,14 @@ public sealed class ModuleDependencyTests
             .Select(project => project.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        ProjectReferenceGraph.ProjectsInLayer("Clients")
-            .Concat(ProjectReferenceGraph.Clients.Where(client => !withinTheClients.Contains(client.Name)))
-            .SelectMany(client => client.References
-                .Where(reference => !withinTheClients.Contains(reference) && reference != $"{client.Name}.Core")
-                .Select(reference => $"{client.RelativePath} -> {reference}"))
-            .Order(StringComparer.Ordinal)
+        References(
+                ProjectReferenceGraph.ProjectsInLayer("Clients")
+                    .Concat(ProjectReferenceGraph.Clients.Where(client => !withinTheClients.Contains(client.Name))),
+                (client, reference) => !withinTheClients.Contains(reference) && reference != $"{client.Name}.Core")
             .ShouldBeEmpty(
                 "A client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
                 + "that calls the API through it, with the <Name>.Core that holds its view models: a reference to a domain, "
-                + "application, infrastructure or other presentation project would ship the server's code to it (ADR 0022, ADR 0023).");
+                + "application, infrastructure or other presentation project would ship the server's code to it (ADR 0022, ADR 0023). "
+                + "Remove each reference named here and call the API over HTTP through the generated client instead.");
     }
 }

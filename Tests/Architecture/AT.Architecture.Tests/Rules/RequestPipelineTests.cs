@@ -37,7 +37,7 @@ public sealed partial class RequestPipelineTests
             + "the limit, request logging never runs for an oversized request, and the one status "
             + "the API can return without any record of it is the one a caller is most likely to "
             + "retry. Order in UseHttpPipeline is the whole of the fix, and the whole of the "
-            + "defect.");
+            + "defect: move the UseApiRequestLogging call above UseApiRequestLimits there.");
     }
 
     [Fact]
@@ -50,7 +50,8 @@ public sealed partial class RequestPipelineTests
             "the first middleware has to be the one that rewrites the client address and the "
             + $"scheme, and it is '{order[0]}'. Anything ahead of it reads the proxy's address "
             + "instead of the caller's, which partitions the rate limiter by proxy and makes every "
-            + "caller behind it share one bucket.");
+            + "caller behind it share one bucket. Move the UseApiForwardedHeaders call to the first "
+            + "line of UseHttpPipeline.");
     }
 
     [Fact]
@@ -63,7 +64,8 @@ public sealed partial class RequestPipelineTests
             "the host's first middleware has to be the HTTP pipeline, and it is "
             + $"'{order[0]}'. Anything ahead of it runs before the forwarded headers have been "
             + "applied, so it reads the proxy's address and the proxy's scheme — which is the exact "
-            + "defect the ordering inside that pipeline exists to prevent.");
+            + "defect the ordering inside that pipeline exists to prevent. Move the UseHttpPipeline "
+            + "call above every other app.Use call in Program.cs.");
     }
 
     private static List<string> MiddlewareOrder() => MiddlewareOrderIn(_pipelinePath, floor: 8);
@@ -74,10 +76,7 @@ public sealed partial class RequestPipelineTests
             $"'{path}' was not found, so this rule cannot read the pipeline it exists to "
             + "check. What it reads moved and this path did not follow it.");
 
-        var order = Middleware()
-            .Matches(File.ReadAllText(path))
-            .Select(match => match.Groups[1].Value)
-            .ToList();
+        var order = MiddlewareIn(File.ReadAllText(path));
 
         order.Count.ShouldBeGreaterThanOrEqualTo(
             floor,
@@ -86,6 +85,27 @@ public sealed partial class RequestPipelineTests
             + "this pattern has to change with it.");
 
         return order;
+    }
+
+    private static List<string> MiddlewareIn(string source) =>
+        [.. Middleware().Matches(source).Select(match => match.Groups[1].Value)];
+
+    [Fact]
+    public void TheMiddlewareScan_IsSensitive_AndReadsRegistrationsInOrderAndNothingElse()
+    {
+        const string pipeline = """
+            public static void UseHttpPipeline(this WebApplication app)
+            {
+                app.UseApiForwardedHeaders();
+                // app.UseCommentedOut();
+                app.UseApiRequestLogging(options);
+                var routes = app.MapControllers();
+                services.UseNotTheApp();
+                    app.UseApiRequestLimits ();
+            }
+            """;
+
+        MiddlewareIn(pipeline).ShouldBe(["UseApiForwardedHeaders", "UseApiRequestLogging", "UseApiRequestLimits"]);
     }
 
     private static int IndexOf(List<string> order, string middleware)

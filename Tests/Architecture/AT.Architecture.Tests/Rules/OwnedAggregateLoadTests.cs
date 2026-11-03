@@ -20,23 +20,50 @@ public sealed class OwnedAggregateLoadTests
             "stopped working; either way the rule below would pass for nothing.");
 
         //#endif
-        loads.Where(load => !Array.Exists(load.GetParameters(), parameter => parameter.ParameterType == typeof(UserId)))
-            .Select(load => $"{load.DeclaringType?.Name}.{load.Name}")
-            .ShouldBeEmpty(
+        WithoutAnOwner(loads).ShouldBeEmpty(
                 "Another caller's record answers 404 because the owner is in the query (ADR 0009). A port " +
                 "that loads one owned aggregate takes the caller's UserId, so its adapter filters by owner " +
                 "and id in the same statement and never reads another user's row. A load with no caller " +
-                "behind it, such as a sweep, reads a batch under a name of its own.");
+                "behind it, such as a sweep, reads a batch under a name of its own. Add a UserId " +
+                "parameter to each load named here and filter by it in the adapter's query.");
     }
 
+    [Fact]
+    public void TheRule_IsSensitive_AndSeesALoadWithNoOwnerButNotOneWithAnOwnerOrABatch()
+    {
+        var loads = LoadsOfOneOwnedAggregate([typeof(IProbeRepository)]);
+
+        loads.Select(load => load.Name).ShouldBe([nameof(IProbeRepository.ByOwnerAndId), nameof(IProbeRepository.ById)], ignoreOrder: true);
+        WithoutAnOwner(loads).ShouldBe([$"{nameof(IProbeRepository)}.{nameof(IProbeRepository.ById)}"]);
+    }
+
+    private static List<string> WithoutAnOwner(IEnumerable<MethodInfo> loads) =>
+        [.. loads
+            .Where(load => !Array.Exists(load.GetParameters(), parameter => parameter.ParameterType == typeof(UserId)))
+            .Select(load => $"{load.DeclaringType?.Name}.{load.Name}")];
+
     private static List<MethodInfo> LoadsOfOneOwnedAggregate() =>
-        ArchitectureAssemblies.Domain
-            .GetTypes()
+        LoadsOfOneOwnedAggregate(ArchitectureAssemblies.Domain.GetTypes());
+
+    private static List<MethodInfo> LoadsOfOneOwnedAggregate(IEnumerable<Type> types) =>
+        [.. types
             .Where(type => type.IsInterface)
             .SelectMany(port => port.GetMethods())
             .Where(method => LoadedType(method.ReturnType) is { } loaded
-                && typeof(IOwnedAggregate).IsAssignableFrom(loaded))
-            .ToList();
+                && typeof(IOwnedAggregate).IsAssignableFrom(loaded))];
+
+    private sealed record Owned(UserId OwnerId) : IOwnedAggregate;
+
+    private interface IProbeRepository
+    {
+        Task<Owned?> ByOwnerAndId(UserId owner, Guid id);
+
+        Task<Owned?> ById(Guid id);
+
+        Task<List<Owned>> Sweep();
+
+        Task<int> Count(Guid id);
+    }
 
     private static Type? LoadedType(Type returned) =>
         returned.IsGenericType

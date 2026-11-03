@@ -140,4 +140,40 @@ public sealed class PortabilityTests
         through == subject
             ? $"{subject.RelativePath}: declares {dependency}"
             : $"{subject.RelativePath}: reaches {dependency} through {through.Name}";
+
+    [Fact]
+    public void TheAspNetDetection_IsSensitive_AndSeesEachWayInAndNoneInAnOrdinaryProject()
+    {
+        AspNetDependencies(Project("Microsoft.NET.Sdk.Web")).ShouldBe(["the Microsoft.NET.Sdk.Web SDK"]);
+        AspNetDependencies(Project("Microsoft.NET.Sdk", frameworks: ["Microsoft.AspNetCore.App"]))
+            .ShouldBe(["a FrameworkReference to Microsoft.AspNetCore.App"]);
+        AspNetDependencies(Project("Microsoft.NET.Sdk", packages: ["Microsoft.AspNetCore.Authentication.JwtBearer", "Asp.Versioning.Mvc"]))
+            .ShouldBe(["the package Asp.Versioning.Mvc", "the package Microsoft.AspNetCore.Authentication.JwtBearer"]);
+
+        AspNetDependencies(Project(
+            "Microsoft.NET.Sdk",
+            packages: ["Microsoft.AspNetCore.Identity.EntityFrameworkCore", "Microsoft.EntityFrameworkCore", "Mediator.Abstractions"]))
+            .ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheOffenceText_IsSensitive_AndTellsADeclarationFromAReachThroughAnotherProject()
+    {
+        var subject = Project("Microsoft.NET.Sdk");
+        var through = subject with { Name = "Shop.Adapter", RelativePath = "Shop.Adapter.csproj" };
+
+        Describe(subject, subject, "a package").ShouldBe("Subject.csproj: declares a package");
+        Describe(subject, through, "a package").ShouldBe("Subject.csproj: reaches a package through Shop.Adapter");
+    }
+
+    private static ProjectNode Project(string sdk, string[]? frameworks = null, string[]? packages = null) =>
+        new(
+            "Subject",
+            "Subject.csproj",
+            new HashSet<string>(StringComparer.Ordinal),
+            IsSdkProject: false,
+            HasProgram: false,
+            Sdk: sdk,
+            FrameworkReferences: new HashSet<string>(frameworks ?? [], StringComparer.Ordinal),
+            Packages: new HashSet<string>(packages ?? [], StringComparer.Ordinal));
 }

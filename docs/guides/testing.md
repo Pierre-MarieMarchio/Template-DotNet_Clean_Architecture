@@ -48,7 +48,7 @@ apart from both.
 |---|---|---|
 | Domain invariants and rehydration | unit | the domain suites, one test per invariant and per refused row |
 | A use case's decisions | unit | the application suites, one test per branch of its handler, each refusal with its control |
-| A message its validator refuses never reaches its handler | unit; architecture for "every validated message" | `UseCasePipelineTests`; `ContainerCompositionTests` |
+| A message its validator refuses never reaches its handler | unit; architecture for "every message" and "every validator" | `UseCasePipelineTests`; `ContainerCompositionTests`, `ValidatorTargetTests` |
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
 | Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
 | The HTTP contract | contract | `OpenApiDocumentTests` against the committed reference; `ErrorCodeTableTests` and `ErrorCodeStatusTests` against [the API reference](../reference/api.md#error-codes) |

@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using AppTemplate.Architecture.Tests.Fixtures;
+﻿using AppTemplate.Architecture.Tests.Fixtures;
 using NetArchTest.Rules;
 using Shouldly;
 using Xunit;
@@ -222,46 +221,6 @@ public sealed class LayerDependencyTests
                     "nor handles one.");
         }
     }
-
-    [Fact]
-    public void NoProject_ReferencesMediatR()
-    {
-        string root = ProjectReferenceGraph.RepositoryRoot;
-
-        string[] files =
-        [
-            Path.Combine(root, "Directory.Packages.props"),
-            .. _projectFolders
-                .Select(folder => Path.Combine(root, folder))
-                .Where(Directory.Exists)
-                .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj", SearchOption.AllDirectories)),
-        ];
-
-        files.Length.ShouldBeGreaterThan(1, "No project file was read, so this rule would hold by reading nothing.");
-
-        files
-            .Where(file => _mediatRReference.IsMatch(File.ReadAllText(file)))
-            .Select(file => Path.GetRelativePath(root, file))
-            .Order(StringComparer.Ordinal)
-            .ShouldBeEmpty(
-                "MediatR is refused in every layer: its licence is commercial. Use cases are sent " +
-                "through the source-generated Mediator, whose licence is MIT.");
-    }
-
-    [Fact]
-    public void TheMediatRMatcher_IsSensitive_AndTellsItFromMediator()
-    {
-        _mediatRReference.IsMatch("<PackageReference Include=\"MediatR\" />").ShouldBeTrue();
-        _mediatRReference.IsMatch("<PackageVersion Include=\"MediatR.Contracts\" Version=\"2.0.1\" />").ShouldBeTrue();
-        _mediatRReference.IsMatch("<PackageReference Include=\"Mediator.Abstractions\" />").ShouldBeFalse();
-    }
-
-    private static readonly string[] _projectFolders = ["Src", "Tests"];
-
-    private static readonly Regex _mediatRReference = new(
-        "Include=\"MediatR(\\.[^\"]*)?\"",
-        RegexOptions.None,
-        TimeSpan.FromSeconds(5));
 
     [Fact]
     public void TheDomainRule_IsSensitive_AndDetectsARealViolation()

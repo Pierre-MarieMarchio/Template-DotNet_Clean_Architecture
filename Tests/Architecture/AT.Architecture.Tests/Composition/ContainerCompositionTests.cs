@@ -2,14 +2,9 @@
 //#if (localAuth)
 using AppTemplate.Application.Core.Common.Ports;
 //#endif
-//#if (aggregates || localAuth)
 using AppTemplate.Application.Core.Common.UseCases;
-//#endif
 using AppTemplate.Architecture.Tests.Fixtures;
-//#if (aggregates || localAuth)
-using FluentValidation;
 using Mediator;
-//#endif
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -114,24 +109,22 @@ public sealed class ContainerCompositionTests
             string.Join($"{Environment.NewLine}  ", failures));
     }
 
-    //#if (aggregates || localAuth)
     [Fact]
-    public void EveryMessageWithAValidator_PassesThroughTheValidationBehaviour()
+    public void EveryMessage_PassesThroughTheValidationBehaviour()
     {
         var services = HostComposition.ComposeApi(HostComposition.Configuration());
 
         using var provider = services.BuildServiceProvider(HostComposition.StrictValidation);
         using var scope = provider.CreateScope();
 
-        var validated = UseCaseTypes.InTheApplicationLayer
+        var messages = UseCaseTypes.InTheApplicationLayer
             .Select(UseCaseTypes.ContractOf)
             .Select(contract => (Message: contract.GetGenericArguments()[0], Response: contract.GetGenericArguments()[1]))
-            .Where(pair => scope.ServiceProvider.GetService(typeof(IValidator<>).MakeGenericType(pair.Message)) is not null)
             .ToList();
 
-        validated.ShouldNotBeEmpty("No message has a validator in the composed container, so this rule reads nothing.");
+        messages.ShouldNotBeEmpty("No message was found in the application layer, so this rule reads nothing.");
 
-        validated
+        messages
             .Where(pair => !((IEnumerable)scope.ServiceProvider.GetRequiredService(
                     typeof(IEnumerable<>).MakeGenericType(typeof(IPipelineBehavior<,>).MakeGenericType(pair.Message, pair.Response))))
                 .Cast<object>()
@@ -140,12 +133,11 @@ public sealed class ContainerCompositionTests
             .Select(pair => pair.Message.FullName)
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "A message with a validator reaches its handler only through the validation behaviour. " +
-                "These would reach it unchecked: the behaviour is not composed, or their answer is not a " +
-                "Result the behaviour can fail with.");
+                "A message reaches its handler through the validation behaviour, so that the validator " +
+                "written for it, now or later, is run. These would reach it unchecked: the behaviour is " +
+                "not composed, or their answer is not a Result the behaviour can fail with.");
     }
 
-    //#endif
     [Fact]
     public void TheApiContainer_ResolvesEveryApplicationPort()
     {

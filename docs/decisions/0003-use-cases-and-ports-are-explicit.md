@@ -57,8 +57,10 @@ second intent and a split.
   never reaches its handler; `ContainerCompositionTests` holds that every message with a validator
   passes through the validation behaviour in the composed API.
 - `UseCaseConventionTests` holds the shape of a use case's folder and `LayoutConventionTests` the pair
-  its own file holds. `LayerDependencyTests` refuses MediatR in every project and Mediator in the
-  domain and the infrastructure, which neither send nor handle a message.
+  its own file holds. `BannedPackageTests` refuses MediatR and AutoMapper in every project, and
+  `LayerDependencyTests` Mediator in the domain and the infrastructure, which neither send nor handle
+  a message. `ValidatorTargetTests` holds that each validator targets a message or is taken by the
+  service that runs it.
 - `StorageVocabularyTests` holds the four words; `PortConventionTests` holds the six-operation
   ceiling and requires every port to have a consumer in the application layer; `StorageShapeTests`
   refuses an `IQueryable` on a port.

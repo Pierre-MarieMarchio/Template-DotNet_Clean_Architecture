@@ -137,6 +137,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 ```bash
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete|anonymise
 dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared
+dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access shared --fields "Title:string(120), Budget:decimal>=0"
 dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command|query
 dotnet run Tools/Tasks.cs remove-feature <Features>           # reports, writes nothing
 dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untouched skeleton whose edits are undone
@@ -148,8 +149,10 @@ dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # deletes an untou
 with its rows in `docs/README.md` and `docs/reference/api.md`: every edit or none, each recorded in
 the manifest. It refuses while a model change waits for a migration, then builds, adds the
 `Add<Features>` migration and rewrites the OpenAPI reference and what is written from it;
-`--dry-run` prints all of it and writes nothing. Its fields (`Name`, `Description`) are placeholders
-you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is promoted first),
+`--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
+validator and the aggregate and carried down to its column, its contracts and its tests, an
+integration test among them; without it the fields are `Name` and `Description`, placeholders you
+rewrite. `new-use-case` adds one operation to a rich feature (a simple one is promoted first),
 with its action, its contracts and its route's row, then rewrites the OpenAPI reference.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
@@ -157,9 +160,10 @@ with its action, its contracts and its route's row, then rewrites the OpenAPI re
 with its manifest and its page, and makes the edits that compose it, each host's `Program.cs` among
 them, with its row in `docs/README.md`: every edit or none, each recorded in the manifest. It refuses
 while a model change waits for a migration, then builds and adds the `Add<Features>` migration;
-`--dry-run` prints all of it and writes nothing. Its fields (`Name`, `Description`) are placeholders
-you rewrite. `new-use-case` adds one operation to a rich feature (a simple one is promoted first) and
-prints the hosts that may offer it.
+`--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
+validator and the aggregate and carried down to its column and its tests; without it the fields are
+`Name` and `Description`, placeholders you rewrite. `new-use-case` adds one operation to a rich
+feature (a simple one is promoted first) and prints the hosts that may offer it.
 <!--#endif-->
 <!--#if (canAddFeature)-->
 [Adding a feature](docs/guides/adding-a-feature.md) and [removing features](docs/guides/removing-features.md) give the steps.

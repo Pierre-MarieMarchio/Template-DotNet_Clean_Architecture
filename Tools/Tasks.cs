@@ -82,7 +82,8 @@ internal static class Tasks
                                            auth is the identity context, which only a project
                                            generated with --auth local holds
           --no-integration                 test: run only the projects that set IsTestProject and
-                                           reference no Testcontainers, so no Docker daemon is needed
+                                           reference neither Testcontainers nor Aspire.Hosting.Testing,
+                                           so no Docker daemon is needed
           --configuration <Debug|Release>  build, test, check, coverage, migration-bundle, verify, and end-to-end
                                            where the project holds the API; after a -- separator,
                                            because dotnet run claims the name
@@ -3436,7 +3437,8 @@ internal static class Tasks
 
     private static bool IsDockerFreeTestProject(string projectText) =>
         projectText.Contains("<IsTestProject>true</IsTestProject>", StringComparison.Ordinal)
-        && !projectText.Contains("Testcontainers", StringComparison.OrdinalIgnoreCase);
+        && !projectText.Contains("Testcontainers", StringComparison.OrdinalIgnoreCase)
+        && !projectText.Contains("Aspire.Hosting.Testing", StringComparison.OrdinalIgnoreCase);
 
     private static string DockerFreeSolutionFilter(string repoRoot, string solution) =>
         SolutionFilter(repoRoot, solution, "docker-free.slnf", TestProjects(repoRoot, dockerFreeOnly: true));

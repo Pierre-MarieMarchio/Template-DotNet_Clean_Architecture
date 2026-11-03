@@ -56,10 +56,28 @@ public sealed class TemplatePackagingTests
 
         declared
             .Except(SolutionGuids(), StringComparer.OrdinalIgnoreCase)
+            .Except(UserSecretsGuids().Select(secrets => secrets.Guid), StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
-                "The template manifest lists a guid the solution does not contain. It was left " +
-                "behind by a removed project, and a stale list is one nobody trusts.");
+                "The template manifest lists a guid neither the solution nor a UserSecretsId contains. It was " +
+                "left behind by a removed project, and a stale list is one nobody trusts.");
+    }
+
+    [Fact]
+    public void EveryUserSecretsId_IsRegeneratedOnGeneration()
+    {
+        var declared = DeclaredGuids();
+        var secrets = UserSecretsGuids();
+
+        secrets.ShouldNotBeEmpty("The API's project declares a UserSecretsId; a search that finds none is broken.");
+
+        secrets
+            .Where(secret => !declared.Contains(secret.Guid, StringComparer.OrdinalIgnoreCase))
+            .Select(secret => $"{secret.Project}: {secret.Guid}")
+            .ShouldBeEmpty(
+                "A UserSecretsId the template writes is not in the manifest's 'guids' list, so every project " +
+                "generated from this template would read and write the same secrets on a machine, the signing key " +
+                "among them. Add it there.");
     }
 
     [Fact]
@@ -1535,6 +1553,22 @@ public sealed class TemplatePackagingTests
             .GetProperty("guids")
             .EnumerateArray()
             .Select(element => element.GetString()!)];
+    }
+
+    private static List<(string Project, string Guid)> UserSecretsGuids()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        string[] folders = ["Src", "Tests", Path.Combine(".template.config", "starters")];
+
+        return [.. folders
+            .Select(folder => Path.Combine(root, folder))
+            .Where(Directory.Exists)
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj", SearchOption.AllDirectories))
+            .Where(project => !project.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(project => XDocument.Load(project)
+                .Descendants("UserSecretsId")
+                .Select(id => (Path.GetRelativePath(root, project).Replace('\\', '/'), id.Value.Trim())))
+            .Order()];
     }
 
     private static HashSet<string> SolutionGuids()

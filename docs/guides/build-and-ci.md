@@ -276,6 +276,13 @@ When the build stops on an `NU1901`, `NU1902`, `NU1903` or `NU1904`:
 Never lower the level, switch the audit to `direct`, or put the code in a `<NoWarn>`:
 `NuGetAuditPolicyTests` fails on each. `dotnet list package --vulnerable --include-transitive` exits
 zero whatever it finds, so `verify` and CI read what it prints.
+<!--#if (anyWeb)-->
+
+`pnpm audit` holds the web packages to the same rule: `verify` and the web workflow run it, and any
+advisory fails, whatever its severity. The answer is the same too: raise the dependency, or pin a
+patched release under `overrides` in `Src/Web/pnpm-workspace.yaml` with a comment saying when it can go;
+a package that cannot take the pinned release as it is gets a pnpm patch in `Src/Web/patches/`.
+<!--#endif-->
 
 <!--#if (templateMaintenance)-->
 The template builds what nuget.org serves each week, so an advisory published since the last release

@@ -771,6 +771,8 @@ internal static class Tasks
                 WebSchema(projectFile);
                 //#endif
 
+                WebAudit(projectFile);
+
                 //#if (templateMaintenance)
                 WebLockfiles(repoRoot, check: true);
                 //#endif
@@ -1003,6 +1005,26 @@ internal static class Tasks
             throw new InvalidOperationException(
                 error.Message + " Src/Web/packages/api-client/src/generated/schema.ts is out of date with the OpenAPI reference: "
                 + "run `pnpm api` in Src/Web, then commit what it writes.");
+        }
+    }
+
+    private static void WebAudit(ProjectFile projectFile)
+    {
+        if (!File.Exists(Path.Combine(projectFile.Root, "Src", "Web", "package.json")))
+        {
+            return;
+        }
+
+        try
+        {
+            StepIn(Path.Combine(projectFile.Root, "Src", "Web"), _pnpm, "audit");
+        }
+        catch (InvalidOperationException error)
+        {
+            throw new InvalidOperationException(
+                error.Message + " A web package with a known advisory is locked, at any severity. Raise the dependency, "
+                + "or pin a patched release under overrides in Src/Web/pnpm-workspace.yaml with a comment saying when it can go; "
+                + "then run `pnpm install` in Src/Web and commit the lockfile.");
         }
     }
 

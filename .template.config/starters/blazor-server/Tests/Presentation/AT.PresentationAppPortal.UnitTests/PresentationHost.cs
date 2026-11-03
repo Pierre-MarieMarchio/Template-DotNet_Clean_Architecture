@@ -23,11 +23,14 @@ internal sealed class PresentationHost : WebApplicationFactory<Program>
 {
     private readonly ClaimsPrincipal _caller;
 
+    private readonly Action<IServiceCollection>? _configure;
+
     private readonly List<Type> _useCases = [];
 
-    internal PresentationHost(ClaimsPrincipal? caller = null)
+    internal PresentationHost(ClaimsPrincipal? caller = null, Action<IServiceCollection>? configure = null)
     {
         _caller = caller ?? new ClaimsPrincipal(new ClaimsIdentity());
+        _configure = configure;
     }
 
     internal IReadOnlyList<Type> UseCases
@@ -70,6 +73,8 @@ internal sealed class PresentationHost : WebApplicationFactory<Program>
                     && (type.GetGenericTypeDefinition() == typeof(ICommandHandler<,>)
                         || type.GetGenericTypeDefinition() == typeof(IQueryHandler<,>)))
                 .Distinct());
+
+            _configure?.Invoke(services);
 
             services.RemoveAll<AuthenticationStateProvider>();
             services.AddScoped<AuthenticationStateProvider>(_ => new FixedAuthenticationStateProvider(_caller));

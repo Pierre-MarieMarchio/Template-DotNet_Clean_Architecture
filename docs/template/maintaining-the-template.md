@@ -78,7 +78,8 @@ compiles it and its tests run with the others. After the build, every leg checks
 whitespace and encoding unchanged; the `defaults` leg alone runs the `format` task, whose rules need a
 compilation, as `ci.yml` runs it on the template. The three web legs that pass `--presentation
 blazor-server`, one per authentication mode, create the presentation project, build and test it, and
-ask it in the stack for its page and `/health`. The leg that adds a first app adds the presentation project too, with
+ask it in the stack for its page or its redirect to the sign-in page, for the sign-in form under local accounts,
+and for `/health`. The leg that adds a first app adds the presentation project too, with
 `cleanarch-presentation`, makes the edits its `README.md` lists with the generated project's
 `presentation-join` task, and from there runs as those three do. The legs that pass `--presentation worker`
 build and test the worker with the rest; the generator leg among them writes the deleted-account sweep
@@ -490,7 +491,9 @@ lacks. It adds the project to the solution with its `<Name>.Core` sibling when i
 tests of each. A project that references the .NET client, itself or through that sibling, brings the
 client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
-`--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires.
+`--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires: the
+starter keeps its own `Components/App.razor`, a copy of the one the template writes without its `<ImportMap />`, so
+resynchronise it with the new version's, and drop that component again.
 
 `presentationNameIsTaken` refuses each `-n` of `cleanarch-presentation` that would make
 `<Project>.<Name>` or its test project one of the template's own projects;

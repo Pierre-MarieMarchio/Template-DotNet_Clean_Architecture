@@ -261,6 +261,25 @@ task stops:
   ```
 
 <!--#if (api)-->
+- in `Tests/Architecture/AT.Architecture.Tests/Rules/HttpSurfaceTests.cs`, replace the line:
+
+  ```csharp
+      private const int _fluentlyAnonymousEndpoints = 4;
+  ```
+
+  with:
+
+  ```csharp
+<!--#if (externalAuth)-->
+      private const int _fluentlyAnonymousEndpoints = 8;
+<!--#endif-->
+<!--#if (!externalAuth)-->
+      private const int _fluentlyAnonymousEndpoints = 7;
+<!--#endif-->
+  ```
+
+<!--#endif-->
+<!--#if (api)-->
 - in `docs/architecture/layers-and-projects.md`, replace the line:
 
   ```markdown
@@ -420,6 +439,18 @@ task stops:
   ```
 
 <!--#endif-->
+- in `SECURITY.md`, after the line:
+
+  ```markdown
+  | An unprivileged image exposing 8080 only | [Deployment › The image](docs/guides/deployment.md#the-image) |
+  ```
+
+  add:
+
+  ```markdown
+  | The portal sends the API's security headers and a policy that allows no script but its own and forbids framing; where the project authenticates, every page asks for a signed-in user unless it opts out | [Presentation projects › Portal security headers](docs/features/presentation.md#portal-security-headers) |
+  ```
+
 - in `docs/README.md`, before the lines:
 
   ```markdown
@@ -431,6 +462,18 @@ task stops:
 
   ```markdown
   | [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
+  ```
+
+- in `docs/reference/configuration.md`, replace the line:
+
+  ```markdown
+  | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | Sent on every API response. |
+  ```
+
+  with:
+
+  ```markdown
+  | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | Sent on every API response, and on every portal response, which starts from a default of its own ([portal security headers](../features/presentation.md#portal-security-headers)). A blank value, or one without `frame-ancestors`, stops the host. |
   ```
 
 <!--#if (externalAuth)-->

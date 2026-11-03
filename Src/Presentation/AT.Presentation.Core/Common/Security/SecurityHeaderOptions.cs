@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace AppTemplate.Api.Common.Security;
+namespace AppTemplate.Presentation.Core.Common.Security;
 
 public sealed class SecurityHeaderOptions
 {

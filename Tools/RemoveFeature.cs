@@ -1322,7 +1322,7 @@ internal static class RemoveFeature
             Put(root, $"{project}/Acme{Path.GetFileName(project)[1..]}.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
         }
 
-        Put(root, "cleanarch.json", "{\n  \"name\": \"Acme\"\n}\n");
+        Put(root, "cleanarch.json", "{\n  \"name\": \"Acme\",\n  \"options\": {\n    \"database\": \"postgresql\"\n  }\n}\n");
         Put(root, "Tools/Tasks.cs", "return 0;\n");
         Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations/AppDbContextModelSnapshot.cs", "// the initial migration's snapshot\n");
         Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs", _appDbContext);

@@ -147,7 +147,8 @@ After any change to the API's contract, run `pnpm api` in `Src/Web`: it builds t
 OpenAPI document and regenerates `Src/Web/packages/api-client/src/generated/schema.ts`, which is
 committed so an app type-checks without the .NET SDK
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)). `pnpm api --no-build` writes the
-document from the API's last build instead, as `new-feature` and `new-use-case` run it after theirs.
+document from the API's last build instead, as `new-feature`, `new-field` and `new-use-case` run it
+after theirs.
 
 ## Signing in
 

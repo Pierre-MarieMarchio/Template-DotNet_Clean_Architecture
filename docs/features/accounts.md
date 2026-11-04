@@ -1,3 +1,9 @@
+---
+type: feature
+title: Accounts
+description: How an account lives in this project, from its creation to its deletion.
+---
+
 # Accounts
 
 How an account lives in this project, from its creation to its deletion. How a caller signs in is

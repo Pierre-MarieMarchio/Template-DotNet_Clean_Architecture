@@ -1,3 +1,9 @@
+---
+type: template
+title: <Feature>
+description: <description>
+---
+
 # <Feature>
 
 ## What you get

@@ -1,3 +1,9 @@
+---
+type: reference
+title: Documentation
+description: Which page answers a question about this project, and where a new page goes.
+---
+
 # Documentation
 
 Which page answers your question, and where a new page goes.
@@ -122,6 +128,28 @@ records the choices this project started with.
 | A decision | `decisions/NNNN-<title>.md`, numbered from 1000, and a row in the decision index | [the ADR template](_page-templates/adr.md) |
 | A setting | a section in the configuration reference | the table shape there |
 | A route or a code | a row in the API reference | the table shape there |
+
+Every page opens with its frontmatter, at the first byte of the file, before its `# ` heading:
+
+```yaml
+---
+type: guide
+title: Adding a feature
+description: How to add a feature of your own, in the shape its rules call for, with its tests and its page.
+---
+```
+
+| Field | Holds |
+|---|---|
+| `type` | the folder's: `guide` under getting-started and guides, `concept` under architecture, `reference` under reference, `feature` under features, `decision` under decisions; a folder's `README.md` takes the one that fits it |
+| `title` | the page's `# ` heading, word for word |
+| `description` | one sentence: the question the page answers |
+| `status` | on a decision only: the state its `Status:` line opens with, such as `Proposed`, `Accepted` or `Superseded` |
+| `tags` | optional, a list such as `[persistence, http]`; left out rather than empty |
+
+A template carries `type: template` and a placeholder in each other field: set the type of the page's
+folder and replace every placeholder. `DocumentationFrontmatterTests` fails on a page whose
+frontmatter is missing, holds a type outside the list, or disagrees with its heading or its status.
 
 <!--#if (agentFiles)-->
 [AGENTS.md › Writing docs](../AGENTS.md#writing-docs) holds the rules for writing them.

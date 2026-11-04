@@ -1,3 +1,9 @@
+---
+type: feature
+title: Authentication
+description: Who may call this project, and how a caller proves who it is.
+---
+
 # Authentication
 
 Who may call the API, and how a caller proves who it is.

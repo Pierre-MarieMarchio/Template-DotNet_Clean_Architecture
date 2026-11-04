@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0006. Events after commit, without an outbox
+description: Why domain events are published in process after the commit, at most once, with no outbox and no retry.
+status: Accepted
+---
+
 # 0006. Events after commit, without an outbox
 
 Status: Accepted

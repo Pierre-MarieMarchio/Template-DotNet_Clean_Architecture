@@ -1,3 +1,9 @@
+---
+type: reference
+title: Project layout
+description: Where a file goes in this project and what it is called.
+---
+
 # Project layout
 
 Where a file goes and what it is called. Every rule on this page is held by a test in

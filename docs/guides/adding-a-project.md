@@ -1,3 +1,9 @@
+---
+type: guide
+title: Adding a project
+description: How to add a project to the solution so that it builds, ships in each host's image, has its tests and is read by every structural rule.
+---
+
 # Adding a project
 
 ## When

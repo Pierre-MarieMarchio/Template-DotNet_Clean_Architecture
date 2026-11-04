@@ -1,3 +1,9 @@
+---
+type: concept
+title: Feature shapes
+description: Which of the two shapes a feature takes, an aggregate with use cases or a service over a store, and the one question that chooses.
+---
+
 # Feature shapes
 
 A feature in this project takes one of two shapes: an aggregate with use cases, or a service over a

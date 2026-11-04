@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0010. A pull request runs the legs its change can affect
+description: Why a pull request runs only the acceptance legs its changed paths can affect, and how a selector chooses them.
+status: Accepted
+---
+
 # 0010. A pull request runs the legs its change can affect
 
 Status: Accepted

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0019. One generated API client
+description: Why every web app calls the API through one TypeScript client generated from the API's own OpenAPI document.
+status: Accepted
+---
+
 # 0019. One generated API client
 
 Status: Accepted

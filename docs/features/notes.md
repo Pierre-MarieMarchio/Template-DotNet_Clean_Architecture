@@ -1,4 +1,4 @@
-﻿# Notes
+# Notes
 
 How this project keeps a caller's notes: a title and a body, owned by whoever wrote them. Notes is
 the simple example, a service over a store with no domain model.

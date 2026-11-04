@@ -1,4 +1,4 @@
-﻿# 0031. The feature generator composes what it writes
+# 0031. The feature generator composes what it writes
 
 Status: Accepted
 

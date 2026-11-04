@@ -1,4 +1,4 @@
-﻿# 0003. Use cases and ports are explicit
+# 0003. Use cases and ports are explicit
 
 Status: Superseded by [0033](0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
 

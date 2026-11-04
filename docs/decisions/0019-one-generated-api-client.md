@@ -1,4 +1,4 @@
-﻿# 0019. One generated API client
+# 0019. One generated API client
 
 Status: Accepted
 

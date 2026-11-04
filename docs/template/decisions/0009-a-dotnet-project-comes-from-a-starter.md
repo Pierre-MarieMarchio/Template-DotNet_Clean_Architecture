@@ -1,4 +1,4 @@
-﻿# 0009. A .NET project comes from a starter
+# 0009. A .NET project comes from a starter
 
 Status: Accepted
 

@@ -1,4 +1,4 @@
-﻿# 0038. Deleting removes rows
+# 0038. Deleting removes rows
 
 Status: Accepted
 

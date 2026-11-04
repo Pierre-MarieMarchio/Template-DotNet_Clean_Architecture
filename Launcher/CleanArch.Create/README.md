@@ -1,4 +1,4 @@
-﻿# CleanArch.Create
+# CleanArch.Create
 
 Creates a .NET 10 HTTP API on Clean Architecture by asking for each option of the
 `cleanarch-webapi` template, then runs `dotnet new` with the answers. Run inside a project it

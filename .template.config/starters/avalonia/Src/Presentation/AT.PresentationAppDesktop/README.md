@@ -1,4 +1,4 @@
-﻿# PresentationAppDesktop
+# PresentationAppDesktop
 
 The presentation project beside the API: an Avalonia desktop app that calls the API through the
 .NET client of `Src/Clients`. [Presentation project](../../../docs/features/presentation.md)

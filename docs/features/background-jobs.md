@@ -1,4 +1,4 @@
-﻿# Background jobs
+# Background jobs
 
 What this project runs on a timer, in which process, and how two instances avoid doing the same
 work twice.

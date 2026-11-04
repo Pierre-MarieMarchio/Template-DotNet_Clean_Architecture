@@ -1,4 +1,4 @@
-﻿# 0027. An MCP server acts for the caller its credential names
+# 0027. An MCP server acts for the caller its credential names
 
 Status: Accepted
 

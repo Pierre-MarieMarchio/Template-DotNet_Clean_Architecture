@@ -1,4 +1,4 @@
-﻿# Web front end
+# Web front end
 
 How web apps run beside the API in this project, call it, and sign their users in.
 

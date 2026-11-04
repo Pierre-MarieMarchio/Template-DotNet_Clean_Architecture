@@ -1,4 +1,4 @@
-﻿# Reminders
+# Reminders
 
 How this project reminds a caller of a to-do item at a chosen moment, by mail, and what it does when
 the mail cannot be sent. Reminders is the example of a flat aggregate that a timer drives.

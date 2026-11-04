@@ -1,6 +1,6 @@
 ﻿using System.Windows;
-using AppTemplate.PresentationAppDesktop.Core.Common.Hosting;
-using AppTemplate.PresentationAppDesktop.Core.ViewModels;
+using AppTemplate.PresentationAppDesktop.Common.Hosting;
+using AppTemplate.PresentationAppDesktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

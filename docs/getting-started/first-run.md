@@ -61,7 +61,7 @@ It adds the MCP server, which comes written whole, and its tests to the solution
 ([Presentation projects](../features/presentation.md#creating-the-project)).
 <!--#endif-->
 <!--#if (presentationWpf)-->
-It adds the desktop app, its `.Core` project and their tests to the solution
+It adds the desktop app and its tests to the solution
 ([Presentation projects](../features/presentation.md#creating-the-project)), and last writes the
 .NET client from the OpenAPI reference.
 <!--#endif-->

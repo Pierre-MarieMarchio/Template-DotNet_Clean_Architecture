@@ -38,7 +38,7 @@
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, its view models and host in <project>.<name>.Core, calling the API through the .NET client of Src/Clients, which comes with it."
+          "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, calling the API through the .NET client of Src/Clients, which comes with it; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
         },
         {
           "choice": "worker",
@@ -71,8 +71,8 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"AppHost\" || name == \"AppHost.IntegrationTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\" || (framework == \"wpf\" && (name == \"Infrastructure\" || name == \"Presentation\"))))",
-      "description": "Never set. -n names a project the template already writes, which would be overwritten, or with --framework wpf one whose <name>.Core is: choose another name, such as Portal."
+      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"AppHost\" || name == \"AppHost.IntegrationTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\"))",
+      "description": "Never set. -n names a project the template already writes, which would be overwritten: choose another name, such as Portal."
     },
     "auth": {
       "type": "parameter",

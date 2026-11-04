@@ -732,7 +732,7 @@
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, its view models and host in <Project>.Desktop.Core, calling the API through the .NET client of Src/Clients."
+          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, calling the API through the .NET client of Src/Clients; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
         },
         {
           "choice": "worker",

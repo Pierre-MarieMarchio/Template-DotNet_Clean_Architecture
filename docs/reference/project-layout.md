@@ -30,9 +30,9 @@ The MCP server keeps each feature's tools under `Features/<F>/Tools`, one class 
 `<F>Tools`, and what every tool shares under `Common/Tools`.
 <!--#endif-->
 <!--#if (presentationWpf)-->
-The desktop app's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
-markup, in the shape `dotnet new wpf` gives them, and its `.Core` project's root holds `ViewModels/`;
-a file named `<Type>.xaml.cs` declares `<Type>`.
+The desktop app's root also holds `ViewModels/`, and `App.xaml.cs` and `MainWindow.xaml.cs` beside
+their markup, in the shape `dotnet new wpf` gives them; a file named `<Type>.xaml.cs` declares
+`<Type>`.
 <!--#endif-->
 <!--#if (dotnetClient)-->
 The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
@@ -170,19 +170,15 @@ Src/Presentation/
   <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                         Features/<F>/{Composition,Configuration/Options,Tools}
 <!--#endif-->
-<!--#if (presentationWpf)-->
-  <Initials>.Desktop                    no Common/, no Features/
-                                        App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
-<!--#endif-->
 <!--#if (presentationWpf && localAuth)-->
-  <Initials>.Desktop.Core               Common/{Hosting}
+  <Initials>.Desktop                    Common/{Hosting}
                                         no Features/
-                                        ViewModels/
+                                        ViewModels/; App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#endif-->
 <!--#if (presentationWpf && externalAuth)-->
-  <Initials>.Desktop.Core               Common/{Hosting,Sessions}
+  <Initials>.Desktop                    Common/{Hosting,Sessions}
                                         no Features/
-                                        ViewModels/
+                                        ViewModels/; App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#endif-->
 <!--#if (jobsWorker)-->
   <Initials>.Worker                     Common/{Jobs,Security}
@@ -350,9 +346,11 @@ references. Its folder takes the initials, as [the folder map](#the-folder-map) 
 `ProjectFolderTests` names the folder a misplaced project belongs in.
 
 Each project under `Src/` has one unit test project, `<Name>.UnitTests`, in the same layer folder under
-`Tests/`, and `TestProjectMirrorTests` names the one that is missing. Two kinds of
-project go without one: an app of the web workspace, the output of an official CLI, and a host written
-beside its `<Name>.Core`, which holds the host's logic and its unit tests.
+`Tests/`, and `TestProjectMirrorTests` names the one that is missing. An app of the web workspace,
+the output of an official CLI, goes without one.
+<!--#if (aspire)-->
+So does the app host, which `LocalStackTests` starts from its integration test project.
+<!--#endif-->
 
 ## The rules the tests hold
 

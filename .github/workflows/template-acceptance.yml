@@ -461,10 +461,30 @@ jobs:
             dotnet format whitespace --folder . --verify-no-changes --verbosity normal
           fi
 
-      # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers or Aspire.Hosting.Testing reference, which leaves the end-to-end suite out.
+      # Selected by the csproj, not by a name pattern: IsTestProject set and no Testcontainers or Aspire.Hosting.Testing reference, which leaves the end-to-end suite out, and on Linux no Windows target framework, which the log captured whole must name before the run and after it.
       - name: Run the Docker-free tests
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release
+        env:
+          OPTIONS: ${{ matrix.options }}
+          FIRST_PRESENTATION: ${{ matrix.first_presentation }}
+        run: |
+          set -euo pipefail
+          log="${{ runner.temp }}/docker-free-tests.log"
+          dotnet run Tools/Tasks.cs -- test --no-integration --configuration Release 2>&1 | tee "$log"
+          windows_only=$(grep -rlE --include='*.csproj' '<TargetFramework>net[0-9.]+-windows' Tests || true)
+          if [[ "$OPTIONS $FIRST_PRESENTATION" == *wpf* && -z "$windows_only" ]]; then
+            echo "::error title=No Windows-only tests::A project with the WPF app holds no test project on a Windows target framework."
+            exit 1
+          fi
+          for project in $windows_only; do
+            framework=$(sed -nE 's#.*<TargetFramework>([^<]+)</TargetFramework>.*#\1#p' "$project")
+            line="Skipped $(dirname "$project"): it targets $framework and runs on Windows alone."
+            announced=$(grep -cF "$line" "$log" || true)
+            if [ "$announced" -ne 2 ]; then
+              echo "::error title=Skipped tests not named::test --no-integration named $(dirname "$project") $announced times, not before and after the run."
+              exit 1
+            fi
+          done
 
       # The projects the Docker-free step leaves out, against the runner's Docker: the HTTP surface the options change most.
       - name: Run the integration tests (Testcontainers)

@@ -10,6 +10,6 @@
     "api": "pnpm --filter @app-template/api-client api",
     "build": "pnpm --recursive --if-present build",
     "lint": "pnpm --recursive --if-present lint",
-    "test": "pnpm --recursive --if-present test"
+    "test": "pnpm --recursive --if-present --workspace-concurrency=1 test"
   }
 }

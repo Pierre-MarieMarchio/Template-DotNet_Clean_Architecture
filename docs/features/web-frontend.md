@@ -91,7 +91,9 @@ pnpm --filter <app> dev
 `<app>` is the folder's kebab name. The development server relays to `API_UPSTREAM`, by default
 the API on the host. Under Compose, `docker compose up --build --wait` serves each app's build
 through nginx, or an app rendered on the server through its own Node server, on `127.0.0.1`, on the port its `WEB_<NAME>_HOST_PORT` sets in `.env`. `pnpm build`,
-`pnpm lint` and `pnpm test` in `Src/Web` run every app and package.
+`pnpm lint` and `pnpm test` in `Src/Web` run every app and package; `pnpm test` runs them one after
+another, since Vitest keeps one module cache for the whole workspace and two runs clear it under
+each other once the installed lockfile changes.
 
 ## Driving the apps in a browser
 

@@ -129,6 +129,6 @@ dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 | `-n`, `--name` | the project, app, package or presentation name |
 | `-o`, `--output` | where `new` writes the project, `./<name>` by default |
 | `-y`, `--yes` | the default of every option not given, or the only value the template leaves it |
-| `--setup` | after `new`, every step of [Set the project up](#set-the-project-up), without asking |
+| `--setup` | after `new`, every step of "Set the project up" above, without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |
 | `--hive <folder>` | the template engine's settings folder, passed as `--debug:custom-hive` |

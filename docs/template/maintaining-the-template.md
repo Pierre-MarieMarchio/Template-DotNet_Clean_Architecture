@@ -1,3 +1,9 @@
+---
+type: guide
+title: Maintaining the template
+description: How to change the template and prove every generated shape still holds, from its gates to the rules of conditioned files.
+---
+
 # Maintaining the template
 
 This repository builds, tests and runs as the default generation does: every condition is a comment
@@ -361,6 +367,10 @@ No object store runs.
 <!--#endif-->
 ```
 
+- A page opens with its frontmatter, which holds in every generated form: no marker inside it, and
+  none between it and the page's `# ` heading. A marker goes after the heading. The pages under
+  `docs/template/` take `type: guide`, its decisions `type: decision`, and
+  `DocumentationFrontmatterTests` holds both.
 - Use only real symbols of `template.json`, negated with `!` for the other branch; never a bare
   else, elseif or a marker inline in a sentence.
 - A branch holds whole sentences, whole list items or whole table rows; a table's header stays outside

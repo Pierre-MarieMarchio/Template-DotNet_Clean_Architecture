@@ -152,7 +152,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 
 - One question per page, in the voice of "this project": no history, no plan vocabulary.
 - A new page starts from `docs/_page-templates/` and gets its row in
-  [the documentation index](docs/README.md#adding-a-page).
+  [the documentation index](docs/README.md#adding-a-page), which lists the fields of the
+  frontmatter every page under `docs/` opens with.
 - A choice another team could reasonably have made otherwise is an ADR;
   [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
 - Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.

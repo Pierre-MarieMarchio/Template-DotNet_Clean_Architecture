@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0040. The signing key rotates through previous keys that only validate
+description: Why one key signs access tokens while the previous keys only validate, and how a rotation uses them.
+status: Accepted
+---
+
 # 0040. The signing key rotates through previous keys that only validate
 
 Status: Accepted

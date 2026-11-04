@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0036. Mappings are written by hand
+description: Why every mapping is a method written by hand on the side that produces the type, with no mapping library.
+status: Accepted
+---
+
 # 0036. Mappings are written by hand
 
 Status: Accepted

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0031. The feature generator composes what it writes
+description: Why the feature generator makes the edits that compose a feature into the shared files instead of printing them.
+status: Accepted
+---
+
 # 0031. The feature generator composes what it writes
 
 Status: Accepted

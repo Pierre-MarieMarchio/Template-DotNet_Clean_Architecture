@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0008. Optimistic concurrency, end to end
+description: Why a write is checked against the version the client read, from the database's version to the ETag a client sends back.
+status: Accepted
+---
+
 # 0008. Optimistic concurrency, end to end
 
 Status: Accepted

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0020. A project is the presentation projects it holds
+description: Why one multi-valued option names every host a project holds, the API among them.
+status: Accepted
+---
+
 # 0020. A project is the presentation projects it holds
 
 Status: Accepted

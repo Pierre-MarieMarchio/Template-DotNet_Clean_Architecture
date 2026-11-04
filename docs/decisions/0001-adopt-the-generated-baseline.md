@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0001. Adopt the generated baseline
+description: Which stack, tools, foundations and deployment shape this project inherited, and what changing each one costs.
+status: Accepted
+---
+
 # 0001. Adopt the generated baseline
 
 Status: Accepted

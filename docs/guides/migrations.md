@@ -1,3 +1,9 @@
+---
+type: guide
+title: Migrations
+description: How to create, check and apply the migrations of each database context.
+---
+
 # Migrations
 
 ## When

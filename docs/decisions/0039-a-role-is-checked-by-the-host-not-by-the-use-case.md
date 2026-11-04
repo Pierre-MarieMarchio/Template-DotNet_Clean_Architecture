@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0039. A role is checked by the host, not by the use case
+description: Why a role is a policy each host checks, and a use case never reads the caller's roles.
+status: Accepted
+---
+
 # 0039. A role is checked by the host, not by the use case
 
 Status: Accepted

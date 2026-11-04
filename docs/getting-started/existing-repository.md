@@ -1,3 +1,9 @@
+---
+type: guide
+title: Moving into an existing repository
+description: How to make this project a repository of its own, or move it into one that already has a history.
+---
+
 # Moving into an existing repository
 
 This project can become a repository of its own, or move into one that already has a history. Do this

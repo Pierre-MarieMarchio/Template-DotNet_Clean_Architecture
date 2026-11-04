@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0021. A project reads a newer version by generating both
+description: Why a project reads what a newer template version changes by generating both versions and comparing three ways.
+status: Accepted
+---
+
 # 0021. A project reads a newer version by generating both
 
 Status: Accepted

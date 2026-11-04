@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0005. A project carries one database provider
+description: Why a generated project holds one database provider, chosen at generation, and no other provider's code.
+status: Accepted
+---
+
 # 0005. A project carries one database provider
 
 Status: Accepted

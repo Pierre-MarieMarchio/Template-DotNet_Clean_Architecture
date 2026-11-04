@@ -1,3 +1,9 @@
+---
+type: guide
+title: Upgrading
+description: How to see what a newer version of the package that generated this project changes here before taking any of it.
+---
+
 # Upgrading
 
 ## When

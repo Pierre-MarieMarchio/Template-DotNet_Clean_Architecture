@@ -81,6 +81,11 @@ public sealed class LocalStackParityTests
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
+    private static readonly Regex _buildPath = new(
+        @"^      (?<key>context|dockerfile):\s*(?<path>\S+)\s*$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
     private static readonly Regex _publishedPort = new(
         @"^\s+-\s+""127\.0\.0\.1:\$\{[A-Z0-9_]+:-(?<port>\d+)\}:\d+""\s*$",
         RegexOptions.CultureInvariant,
@@ -148,6 +153,22 @@ public sealed class LocalStackParityTests
             .ShouldBeEmpty(
                 "The app host binds each web app on the port cleanarch.json records for it, the one its compose.yml publishes, "
                 + "so the app answers at the same address under either stack; record the port with web-join.");
+    }
+
+    [Fact]
+    public void EveryImageTheAppHostBuilds_ComesFromTheContextAndDockerfileItsComposeServiceNames()
+    {
+        var builds = ComposeBuilds();
+
+        AppHostResources()
+            .OfType<ContainerResource>()
+            .Where(container => builds.ContainsKey(container.Name))
+            .Select(container => (container.Name, Compose: builds[container.Name], AppHost: BuildOf(container)))
+            .Where(image => image.Compose != image.AppHost)
+            .Select(image => $"{image.Name}: Compose builds {image.Compose}, the app host {image.AppHost}")
+            .ShouldBeEmpty(
+                "The app host builds each image Compose builds from the same context and Dockerfile, so the Dockerfile's "
+                + "COPY lines find the same files under either stack.");
     }
 
     [Fact]
@@ -252,6 +273,17 @@ public sealed class LocalStackParityTests
         return [.. context.EnvironmentVariables.Keys];
     }
 
+    private static string BuildOf(ContainerResource container) =>
+        container.Annotations.OfType<DockerfileBuildAnnotation>().LastOrDefault() is { } build
+            ? Build(build.ContextPath, build.DockerfilePath)
+            : "no image of its own";
+
+    private static string Build(string context, string dockerfile) =>
+        $"{FromTheRoot(context)} with {FromTheRoot(Path.Combine(context, dockerfile))}";
+
+    private static string FromTheRoot(string path) =>
+        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, Path.GetFullPath(path)).Replace('\\', '/');
+
     private static string ImageOf(ContainerResource container)
     {
         var image = container.Annotations.OfType<ContainerImageAnnotation>().Last();
@@ -286,6 +318,34 @@ public sealed class LocalStackParityTests
         }
 
         return services;
+    }
+
+    private static Dictionary<string, string> ComposeBuilds()
+    {
+        var builds = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (string file in ServiceFiles())
+        {
+            var paths = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+
+            foreach ((string service, string line) in ServiceLines([file]))
+            {
+                if (_buildPath.Match(line) is { Success: true } path)
+                {
+                    paths.TryAdd(service, new Dictionary<string, string>(StringComparer.Ordinal));
+                    paths[service][path.Groups["key"].Value] = path.Groups["path"].Value;
+                }
+            }
+
+            foreach ((string service, var build) in paths.Where(build => build.Value.ContainsKey("context")))
+            {
+                string context = Path.Combine(Path.GetDirectoryName(file)!, build["context"]);
+
+                builds[service] = Build(context, build.GetValueOrDefault("dockerfile", "Dockerfile"));
+            }
+        }
+
+        return builds;
     }
 
     private static Dictionary<string, HashSet<string>> ComposeEnvironments()

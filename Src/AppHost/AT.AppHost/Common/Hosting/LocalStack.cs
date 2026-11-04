@@ -227,8 +227,12 @@ internal sealed partial class LocalStack
 
     private void AddWebApp(WebApp app, IResourceBuilder<ProjectResource> api)
     {
+        string workspace = Path.Combine(_project.Root, "Src", "Web");
+        string context = PublishesTheDotNetClient(app) ? _project.Root : workspace;
+        string dockerfile = Path.Combine(workspace, "apps", app.Name, "Dockerfile");
+
         var web = _builder
-            .AddDockerfile($"web-{Kebab(app.Name)}", Path.Combine(_project.Root, "Src", "Web"), $"apps/{app.Name}/Dockerfile")
+            .AddDockerfile($"web-{Kebab(app.Name)}", context, Path.GetRelativePath(context, dockerfile))
             .WithHttpEndpoint(port: app.Port, targetPort: 8080, name: "http")
             .WithHttpHealthCheck("/")
             .WithEnvironment("API_UPSTREAM", api.GetEndpoint("http"))
@@ -253,6 +257,8 @@ internal sealed partial class LocalStack
         }
         #endif*/
     }
+
+    private static bool PublishesTheDotNetClient(WebApp app) => app.Framework == "blazor-wasm";
 
     private IResourceBuilder<ProjectResource> AddHost(string name, PresentationProject host)
     {

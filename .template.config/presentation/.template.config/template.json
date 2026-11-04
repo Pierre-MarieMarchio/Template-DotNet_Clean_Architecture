@@ -365,6 +365,11 @@
       "type": "computed",
       "value": "(hasApi)"
     },
+    "jobsWorker": {
+      "type": "computed",
+      "value": "(!hasApi)",
+      "description": "True when a worker runs the project's jobs already: a project without the API, which refuses another. A project with the API runs them there until the worker joins."
+    },
     "developmentConnectionString": {
       "type": "generated",
       "generator": "switch",

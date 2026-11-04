@@ -70,11 +70,11 @@ ever passed and let the review catch the rest.
 <!--#endif-->
 <!--#if (postgreSql)-->
 - Ownership and a controller's HTTP behaviour are proved against PostgreSQL, so a run without Docker
-  no longer exercises them.
+  does not exercise them.
 <!--#endif-->
 <!--#if (sqlServer)-->
 - Ownership and a controller's HTTP behaviour are proved against SQL Server, so a run without Docker
-  no longer exercises them.
+  does not exercise them.
 <!--#endif-->
 <!--#if (sqlite)-->
 - Ownership and a controller's HTTP behaviour are proved against a SQLite file, which needs no

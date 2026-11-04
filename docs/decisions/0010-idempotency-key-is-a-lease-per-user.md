@@ -35,6 +35,12 @@ claiming a key and finishing the work.
   itself, reused a key or replayed a finished request.
 - A response too large to keep answers a later retry with `idempotency.notReplayable` rather than a
   partial replay.
+- At most once does not hold between the business commit and the stored response. The action's use
+  case commits through the request's unit of work, and `IdempotencyStore.CompleteAsync` then keeps
+  the response through a context of its own, a second commit. A process that stops between the two
+  leaves the key claimed: a retry answers `idempotency.inProgress` until `Idempotency:ClaimLease`
+  (15 minutes by default) has passed, then reclaims the key and runs the action again, so the write
+  can happen twice.
 - `IdempotencyLeaseTests` proves the lease and the race against a real database;
   `IdempotentActionTests` holds the opt-in to `POST`.
 - Expired keys are purged by a background job, in bounded batches.

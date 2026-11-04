@@ -12,7 +12,7 @@ Until it is replaced, a reporter has no private channel to use.
 <!--#if (templateMaintenance)-->
 
 For the template itself, report privately in a
-[security advisory](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/security/advisories/new),
+[security advisory](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/security/advisories/new),
 never in a public issue.
 <!--#endif-->
 

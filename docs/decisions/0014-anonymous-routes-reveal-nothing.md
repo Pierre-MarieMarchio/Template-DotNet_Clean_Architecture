@@ -1,4 +1,4 @@
-﻿# 0014. Anonymous routes reveal nothing
+# 0014. Anonymous routes reveal nothing
 
 Status: Accepted
 

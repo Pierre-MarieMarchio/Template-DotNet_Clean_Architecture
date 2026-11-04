@@ -1,4 +1,4 @@
-﻿# 0033. Use cases are Mediator messages, and ports are explicit
+# 0033. Use cases are Mediator messages, and ports are explicit
 
 Status: Accepted; supersedes ADR 0003
 

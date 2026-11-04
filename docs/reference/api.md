@@ -1,4 +1,4 @@
-﻿# API reference
+# API reference
 
 Every route and every refusal `code`. The rules all endpoints follow are in
 [HTTP API](../architecture/http-api.md). In Development the OpenAPI document is at

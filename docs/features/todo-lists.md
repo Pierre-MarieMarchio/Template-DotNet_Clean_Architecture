@@ -1,4 +1,4 @@
-﻿# To-do lists
+# To-do lists
 
 How this project keeps a caller's to-do lists and the items on them. TodoLists is the rich example:
 an aggregate that protects its own rules, and the feature [Reminders](reminders.md) leans on.

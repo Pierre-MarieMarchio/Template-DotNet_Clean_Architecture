@@ -1,4 +1,4 @@
-﻿# Adding a feature
+# Adding a feature
 
 ## When
 

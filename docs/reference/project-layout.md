@@ -1,4 +1,4 @@
-﻿# Project layout
+# Project layout
 
 Where a file goes and what it is called. Every rule on this page is held by a test in
 `Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails a test there. Why the

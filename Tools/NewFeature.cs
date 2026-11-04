@@ -3734,10 +3734,10 @@ internal static partial class NewFeature
         string text = Encoding.UTF8.GetString(bytes);
         string template = File.ReadAllText(System.IO.Path.Combine(root, _pageTemplate));
 
-        expect(bytes.Length > 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, "The page has no UTF-8 BOM, which every Markdown file of the tree has.");
+        expect(bytes is not [0xEF, 0xBB, 0xBF, ..], "The page starts with a UTF-8 BOM, which no Markdown file of the tree has.");
         expect(!text.Contains('\r', StringComparison.Ordinal) && text.EndsWith('\n') && !text.EndsWith("\n\n", StringComparison.Ordinal), "The page is not LF only, ending in one newline.");
         expect(!Regex.IsMatch(text, "<[A-Za-z]+>", RegexOptions.None, TimeSpan.FromSeconds(2)), "A placeholder of the page template survived.");
-        expect(text.TrimStart('\uFEFF').StartsWith("# Todo lists\n", StringComparison.Ordinal), "The page's title is not the feature's name in words.");
+        expect(text.StartsWith("# Todo lists\n", StringComparison.Ordinal), "The page's title is not the feature's name in words.");
 
         string[] headings = [.. template.Split('\n').Where(line => line.StartsWith("## ", StringComparison.Ordinal))];
 
@@ -12113,7 +12113,7 @@ internal static class TextEdits
     {
         byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
 
-        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+        return path.EndsWith(".cs", StringComparison.Ordinal)
             ? [.. Encoding.UTF8.GetPreamble(), .. text]
             : text;
     }

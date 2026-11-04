@@ -1,4 +1,4 @@
-﻿# 0036. Mappings are written by hand
+# 0036. Mappings are written by hand
 
 Status: Accepted
 

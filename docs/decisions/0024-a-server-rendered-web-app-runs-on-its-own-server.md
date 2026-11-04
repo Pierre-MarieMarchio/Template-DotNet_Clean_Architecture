@@ -1,4 +1,4 @@
-﻿# 0024. A server-rendered web app runs on its own server
+# 0024. A server-rendered web app runs on its own server
 
 Status: Accepted
 

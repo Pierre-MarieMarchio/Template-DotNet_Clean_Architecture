@@ -1,4 +1,4 @@
-﻿# PlaceholderSite
+# PlaceholderSite
 
 A static page standing where a web front end goes, served by nginx, which relays `/api/` and
 `/health` to the API so the browser talks to a single origin.

@@ -1,4 +1,4 @@
-﻿# HTTP API
+# HTTP API
 
 Every endpoint of this API offers a client the same contract: one version in the path, one error
 format, conditional writes on versioned resources, safe retries of a create, and one shape for every

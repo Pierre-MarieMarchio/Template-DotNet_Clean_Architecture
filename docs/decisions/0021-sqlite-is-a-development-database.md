@@ -1,4 +1,4 @@
-﻿# 0021. SQLite is a development database
+# 0021. SQLite is a development database
 
 Status: Accepted
 

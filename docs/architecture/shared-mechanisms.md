@@ -1,4 +1,4 @@
-﻿# Shared mechanisms
+# Shared mechanisms
 
 A feature composes these mechanisms without writing them: a cache, an outbound HTTP budget, a clock,
 and the answer to who is calling. Each is installed once, by the host or a module, and none can be

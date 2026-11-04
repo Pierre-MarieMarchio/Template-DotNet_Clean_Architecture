@@ -1,4 +1,4 @@
-﻿# 0006. develop integrates, main holds the releases
+# 0006. develop integrates, main holds the releases
 
 Status: Superseded by [0027](0027-develop-integrates-main-holds-the-releases.md)
 

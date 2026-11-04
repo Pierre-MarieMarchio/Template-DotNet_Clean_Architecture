@@ -1,4 +1,4 @@
-﻿# Testing
+# Testing
 
 Each risk this project carries is held by one type of test, the cheapest that can fail for its real
 cause. A second type is added only when it can fail for a cause the first cannot see
@@ -365,7 +365,8 @@ Async calls pass `TestContext.Current.CancellationToken`; NSubstitute placeholde
 <!--#endif-->
 - A unit-test project with no test exits with code 8; the domain and application projects ignore it
   only while they hold no test folder.
-- `.cs` and `.md` files are UTF-8 with BOM, and a file without one fails `format`.
+- `.cs` files are UTF-8 with BOM, and one without it fails `format`; `.md` files are UTF-8 without
+  BOM, and one with it, or with a CR, fails `MarkdownEncodingTests`.
 - An unused `using` and a stale `<see cref="…"/>` fail the build, since every project generates its
   documentation file.
 

@@ -1,4 +1,4 @@
-﻿# 0004. The launcher reads the templates' manifests
+# 0004. The launcher reads the templates' manifests
 
 Status: Superseded by [0026](0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md)
 

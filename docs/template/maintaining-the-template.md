@@ -390,8 +390,8 @@ No object store runs.
   in a `templateMaintenance` block, which is always false at generation.
 - A project ADR the template supersedes stays here, with its `Superseded by` status, and reaches no
   project: `template.json` excludes it under `(!templateMaintenance)`, the package project leaves it
-  out, and its row of the decisions index sits in a `templateMaintenance` block. The ADR that
-  replaces it names it in prose, never by a link, since a project lacks it.
+  out, and the index lists it in this checkout alone, where the file is. The ADR that replaces it
+  names it in prose, never by a link, since a project lacks it.
 - A shared file conditions a line on a part a project can gain later (a web app, a presentation host,
   the worker) only when the item template that adds the part rewrites the file or its join edits it;
   otherwise the project that gains the part reads otherwise than one generated with it, and
@@ -583,8 +583,7 @@ says. `ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresTh
 fails when a symbol the starters read is missing or differs, or when the two templates leave out
 different files. What `--presentation` writes outside the project's folders, an item template
 cannot edit: the starter's `README.md` lists each of those lines under "Joining a project generated
-without one", as an edit placed after or before the lines around it, in their place, or, for a
-row of the decisions index, at its rank, and
+without one", as an edit placed after or before the lines around it, or in their place, and
 `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders` fails, for each
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
@@ -609,12 +608,10 @@ the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
-lines, then the added ones. A row a part adds to `docs/decisions/README.md` has no anchor, since no
-row is in every shape and each new ADR can come between a row and its neighbour: its bullet reads
-``- in `docs/decisions/README.md`, at the rank of its number, add:`` (or "their numbers"), then the
-fenced rows alone. Each row goes before the first row of the table with a greater number, or at the
-end of the table, never past it, so the project's own rows from 1000 stay where they are; a row the
-table lists already is left alone, and one whose number it lists as another row is refused.
+lines, then the added ones. A page a part brings, its feature page or its ADR, needs no edit to be
+listed: `presentation-join` and `web-join` run `docs-index` once their edits are made, and the
+folder's index lists the page as it lists those of a project generated with the part, so no shared
+file under `docs/` conditions a listing of pages on a part.
 
 `presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
@@ -703,7 +700,8 @@ is conditioned on `!jobsWorker` alone, so that no presentation project's README 
 literal that names a job namespace names the worker's, which the rename leaves alone. A launcher test
 generates a project with `--presentation api --presentation worker` and the same project without the
 worker, adds it with the item template and the join, and requires the two trees to be the same but
-for ADR 0011, superseded, and its row in the decisions index.
+for ADR 0011, superseded, and its line in the decisions index, once `docs-index` has written each
+tree's index as bootstrap would.
 
 ## Web lockfiles
 
@@ -929,8 +927,11 @@ server under an external provider, and the same project without it, to which `cl
 --workspace` and `web-join` add the app: the two trees must match but for the options the overview
 records, so an edit of `Src/Web/README.md` or of the app's `README.md` that is missing, wrong or
 placed elsewhere than the project template writes its lines fails it. A third adds two
-server-rendered apps to a project generated with a single-page app and requires ADR 0024, its index
-row and the lines citing it as `--web-rendering ssr` writes them, once.
+server-rendered apps to a project generated with a single-page app and requires ADR 0024, its line
+in the decisions index and the lines citing it as `--web-rendering ssr` writes them, once. Each of
+these runs `docs-index` in the tree generated with the part, as its bootstrap would, so the indexes
+the joins write are compared too, and a fourth requires the indexes of a project that added the MCP
+server to be those of one generated with it.
 
 A multi-valued option, `--presentation`, is one multi-select that keeps at least one value and
 reaches `dotnet new` as the option repeated once per value; the launcher's conditions read `==` as
@@ -979,30 +980,5 @@ change in an existing project takes manual work.
 
 ## Decisions
 
-- [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)
-- [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md), superseded by 0018
-- [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md), superseded by 0008
-- [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md), superseded by 0026
-- [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
-- [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md), superseded by 0027
-- [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)
-- [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md), superseded by 0023
-- [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)
-- [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)
-- [0011. A starter may render on the server](decisions/0011-a-starter-may-render-on-the-server.md), superseded by 0023
-- [0012. Where the jobs run is an option](decisions/0012-where-the-jobs-run-is-an-option.md), superseded by 0024
-- [0013. A starter the generator cannot add to is written whole](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)
-- [0014. A Windows-only shape is proved on a Windows runner](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)
-- [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md), superseded by 0025
-- [0016. The launcher draws only glyphs every console font carries](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md)
-- [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)
-- [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
-- [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md)
-- [0020. A project is the presentation projects it holds](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)
-- [0021. A project reads a newer version by generating both](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md)
-- [0022. A WPF app is one Windows project, tested on Windows](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)
-- [0023. A web app comes from a starter, static or server-rendered](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md), supersedes 0008 and 0011
-- [0024. The worker takes the jobs out of the API](decisions/0024-the-worker-takes-the-jobs-out-of-the-api.md), supersedes 0012
-- [0025. An MCP server is a presentation project, written whole](decisions/0025-an-mcp-server-is-a-presentation-project-written-whole.md), supersedes 0015
-- [0026. The launcher and the project's tool read the templates' manifests](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md), supersedes 0004
-- [0027. develop integrates, main holds the releases](decisions/0027-develop-integrates-main-holds-the-releases.md), supersedes 0006
+[The index of the template's decisions](decisions/index.md) lists each one by number, with its
+status.

@@ -96,8 +96,8 @@ offer the feature through its use cases.
 <!--#endif-->
 Then it makes the edits that compose the feature: the schema, set and configuration in
 `AppDbContext`, an `Add<Features>()` in `ApplicationModule`, the adapters in `PersistenceModule`, the
-call in `Program.cs`, and the two test compositions, with the usings each needs, and the feature's row
-under `## Features` in `docs/README.md`.
+call in `Program.cs`, and the two test compositions, with the usings each needs. It then runs
+`docs-index`, which lists the feature's page in the index of `docs/features/` by its frontmatter.
 <!--#if (api)-->
 Its section of the route table and the row of its refusal go to `docs/reference/api.md`. With
 `--fields`, it also writes an integration test that creates a resource with every field and sees an
@@ -448,7 +448,8 @@ Some lists change only on purpose, and a test fails until they name what you add
 1. Replace each prompt line of the feature page with what the feature does: what a caller gets, the
    rules, the routes, the settings, the tests; and the `description` of its frontmatter with the
    question the page answers, in one sentence.
-2. Rewrite the answer of the row the generator added under `## Features` in `docs/README.md`.
+2. Run `dotnet run Tools/Tasks.cs docs-index`, so that the features index shows the description you
+   wrote.
 3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
    linked from the page's `## Decisions`.
 

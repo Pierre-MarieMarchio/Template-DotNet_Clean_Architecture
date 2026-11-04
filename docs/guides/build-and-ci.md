@@ -220,8 +220,8 @@ and IDE0049, whose analyzers the SDK's build does not carry. `verify` runs it be
 `.cs` files are UTF-8 with BOM: one created without it fails `format`, and `format-fix` adds it.
 `.md` files are UTF-8 without BOM, with LF line endings: `MarkdownEncodingTests` fails on a BOM or a
 CR, and `format-fix` removes both.
-
 <!--#if (ci)-->
+
 ## Workflows
 
 | Workflow | When | Does |
@@ -274,8 +274,8 @@ A newer run of `web.yml` cancels the older one on every branch but `main`.
 anything but its 40-character commit SHA, a local `./` action excepted, and on an image a workflow
 runs, as a `container:`, a service, a `docker://` step or the BuildKit driver, without its digest.
 <!--#endif-->
-
 <!--#if (sonar)-->
+
 ## Sonar
 
 Sonar is not one of the gates: it needs a server and a token, which a clone does not have.
@@ -303,9 +303,9 @@ The scanner needs a JRE, which `Tools/sonar-scanner.Dockerfile` supplies, so you
 It builds into `artifacts/sonar`, leaving your `bin/` and `obj/` alone. It runs the Docker-free tests
 only, so it reports less coverage than CI, and, the scanner running on Linux, names and leaves out
 [the ones that run on Windows alone](#tests-that-run-on-windows-alone).
-
 <!--#endif-->
 <!--#if (ci && serverDatabase)-->
+
 ## Release
 
 <!--#endif-->
@@ -316,7 +316,6 @@ the worker's when the project holds one, each as
 a signed provenance attestation, and uploads the migration bundles built from the same commit. It
 needs no secret beyond `GITHUB_TOKEN`. Applying the bundles is yours:
 [deployment](deployment.md#migrations-at-release).
-
 <!--#endif-->
 <!--#if (ci && serverDatabase && !api)-->
 Push a tag such as `v1.2.3`. The release re-runs the gate, then publishes the worker's image to GHCR as
@@ -324,8 +323,8 @@ Push a tag such as `v1.2.3`. The release re-runs the gate, then publishes the wo
 a signed provenance attestation, and uploads the migration bundles built from the same commit. It
 needs no secret beyond `GITHUB_TOKEN`. Applying the bundles is yours:
 [deployment](deployment.md#migrations-at-release).
-
 <!--#endif-->
+
 ## Supply chain
 
 Every dependency but the SDK is at an exact version, and `.github/dependabot.yml` proposes updates

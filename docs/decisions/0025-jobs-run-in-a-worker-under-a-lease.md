@@ -66,8 +66,10 @@ and two instances of it must still not run the same pass at once.
   by by the lease, which is not a reason to run two.
 - A setting a pass reads is set on the worker; a setting a use case reads is set on every host that
   composes it.
-- `new-feature` writes the deleted-account sweep's jobs into the worker and prints the feature's
-  registration for it, as for every host that composes features.
+<!--#if (accounts)-->
+- `new-feature` writes the deleted-account sweep's jobs into the worker and adds the feature's
+  registration to the worker's `Program.cs`, as to every host that composes features.
+<!--#endif-->
 - `WorkerCompositionTests` builds the worker from its own `Program.cs` as Development does, with
   every registration validated, resolves each use case it composes in a background scope, and holds
   that it runs the jobs and no server; `BackgroundWorkTests` reads the worker's jobs;

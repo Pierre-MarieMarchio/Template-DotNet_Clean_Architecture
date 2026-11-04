@@ -28,16 +28,16 @@ name, checked out a few folders deep, reaches either limit.
 
 - **Leaving the folders as the projects' names**: the paths grow with the name, and a long name in a
   deep checkout fails on Windows.
-- **Dropping the layer folders**: shorter still, but the tree no longer reads by layer, and the rules
+- **Dropping the layer folders**: shorter still, but the tree would not read by layer, and the rules
   that find a project by its layer change with it.
 - **Shortening the feature folders instead**: they name what the code does, and the product's name
   says nothing a reader of the path needs.
 
 ## Consequences
 
-- A folder no longer matches its project's name: a path is found from the name by replacing the
+- A folder does not match its project's name: a path is found from the name by replacing the
   product's name with its initials, and the IDE's solution explorer shows the projects by name,
-  grouped by layer, as before.
+  grouped by layer.
 - A module promoted to a project of its own follows the rule, `<Name>.Domain.Billing` in
   `Src/Domain/<Initials>.Domain.Billing`; a second product with the same initials goes in a root
   folder of its own, as the tasks find a project by its `cleanarch.json`.

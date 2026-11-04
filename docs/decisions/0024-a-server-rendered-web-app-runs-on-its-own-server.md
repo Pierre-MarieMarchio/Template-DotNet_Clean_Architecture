@@ -166,8 +166,7 @@ changes the forces nginx answers for the others:
 - The API's rate limits see the browser's address once `ReverseProxy` names the web server, as they
   do for nginx ([Behind a proxy](../guides/deployment.md#behind-a-proxy)).
 <!--#if (localAuth)-->
-- ADR 0016 still governs the single-page apps; its revisit condition named this backend-for-frontend.
-  No row of
+- [ADR 0016](0016-browser-refresh-token-in-a-cookie.md) governs the single-page apps. No row of
   [ADR 0001](0001-adopt-the-generated-baseline.md) changes.
 <!--#else-->
 - No row of [ADR 0001](0001-adopt-the-generated-baseline.md) changes.

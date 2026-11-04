@@ -5,8 +5,8 @@ Status: Accepted
 ## Context
 
 The acceptance matrix generates every shape the options produce and gates each one as an adopter
-would; its seventeen legs ran on every pull request to `develop`, and the web legs build images and
-start the whole stack, so a page of template documentation waited as long as a change to the domain.
+would. Its web legs build images and start the whole stack, so with every leg on every pull request
+to `develop`, a page of template documentation waits as long as a change to the domain.
 The `develop` ruleset requires each leg's check by name, `Template acceptance (<leg>)`. A workflow
 filtered by `paths:` never starts, and a job skipped by its `if:` reports one check under its
 unexpanded name, so either leaves the required checks pending and the pull request blocked. Most
@@ -41,13 +41,13 @@ legs, a template-only page none.
 - **Every leg on every pull request.** Nothing to keep in step, but the slowest leg sets the pace of
   every change, a typo in a template page included.
 - **A `paths:` filter per workflow.** No code, but a workflow that does not start leaves its required
-  checks pending, and one workflow per leg would duplicate the steps seventeen times.
+  checks pending, and one workflow per leg would duplicate the steps once per leg.
 - **A fast subset on pull requests, the full matrix nightly.** A break in a skipped shape is found
   after the merge, by someone else, instead of on the change that made it. Only the run after the
   merge is nightly here: the pull request keeps every leg its change can reach.
-- **The full matrix on every push to `develop`.** Each merge held every runner the account allows
-  for the length of the slowest leg, and the pull requests open at the time waited behind it, for a
-  tree whose changed paths its own pull request had already proved leg by leg.
+- **The full matrix on every push to `develop`.** Each merge would hold every runner the account
+  allows for the length of the slowest leg, and the pull requests open at the time would wait behind
+  it, for a tree whose changed paths its own pull request has already proved leg by leg.
 - **Dropping the `labeled` type.** The `full-acceptance` label would start nothing; GitHub offers no
   filter on the label name before the workflow starts.
 - **A job-level `if:` that skips the whole run on a label.** The jobs skipped report under their

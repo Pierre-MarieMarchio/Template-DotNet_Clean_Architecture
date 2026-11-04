@@ -3382,6 +3382,30 @@ internal static partial class NewFeature
         }
 
         expect(restored, "An edit that could not be written did not put back the files edited before it, and remove the files written and the staged copy.");
+
+        string tight = NewTree(scratch);
+        string kept = System.IO.Path.Combine(tight, program);
+        string taken = kept + ".~1";
+        string spare = TextEdits.Spare(kept);
+
+        File.WriteAllText(taken, "left by an interrupted run\n");
+
+        string second = TextEdits.Spare(kept);
+        var occupied = Snapshot(tight);
+        bool setBack = false;
+
+        try
+        {
+            TextEdits.Commit(tight, [], [], [program, "Src/absent.cs"]);
+        }
+        catch (IOException)
+        {
+            setBack = Same(occupied, Snapshot(tight));
+        }
+
+        expect(spare.Length - kept.Length <= 3, $"A temporary name costs {spare.Length - kept.Length} characters on a path Windows already limits to 260.");
+        expect(second != taken && !File.Exists(second), "A temporary name reused one a run left behind.");
+        expect(setBack, "A deletion that failed after another did not set the first file back, or touched a temporary name it found.");
     }
 
     private static void ReactionCases(string scratch, Action<bool, string> expect)
@@ -12033,7 +12057,7 @@ internal static class TextEdits
             {
                 string full = System.IO.Path.Combine(root, path);
 
-                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+                staged = Spare(full);
 
                 using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
                 {
@@ -12053,7 +12077,7 @@ internal static class TextEdits
             foreach (string path in deleted ?? [])
             {
                 string full = System.IO.Path.Combine(root, path);
-                string aside = $"{full}.{Guid.NewGuid():N}.tmp";
+                string aside = Spare(full);
 
                 File.Move(full, aside);
                 setAside.Add((full, aside));
@@ -12095,6 +12119,19 @@ internal static class TextEdits
         foreach (var (_, aside) in setAside)
         {
             File.Delete(aside);
+        }
+    }
+
+    internal static string Spare(string full)
+    {
+        for (int number = 1; ; number++)
+        {
+            string name = $"{full}.~{number}";
+
+            if (!File.Exists(name) && !Directory.Exists(name))
+            {
+                return name;
+            }
         }
     }
 

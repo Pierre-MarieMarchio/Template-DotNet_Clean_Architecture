@@ -207,6 +207,7 @@ it, and the generated solution builds and passes its tests.
 | `--presentation avalonia` with `--presentation wpf` | `--desktop-is-one-framework` | choose one of them |
 | `--presentation worker`, or presentation projects that hold neither the API nor the worker, such as `--presentation blazor-server` alone, with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or leave the jobs to the API with `--presentation api` |
 | `--aspire true` with `--database sqlite` | `--aspire-needs-server-database` | choose `--database postgresql` or `sqlserver`, or `--aspire false` |
+| `-n` of one character, whose folder `W.Api` a solution takes for its project `w.Api`; the item templates refuse such a `--project-name` too | `--name-needs-two-characters` | choose a name of two characters or more |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing any file, though `-o` leaves its empty folder to delete. The launcher

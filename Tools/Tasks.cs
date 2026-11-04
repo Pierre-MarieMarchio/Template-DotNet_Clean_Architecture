@@ -2148,7 +2148,7 @@ internal static class Tasks
             written[path] = (string.Join('\n', files[path]), HasBom(Path.Combine(root, path)));
         }
 
-        string Renamed(string text) => namespaces.Aggregate(text, (current, space) => current.Replace(space.From, space.To, StringComparison.Ordinal));
+        string Renamed(string text) => RenamedNamespaces(text, namespaces);
 
         foreach ((string from, string to) in moves)
         {
@@ -2300,8 +2300,15 @@ internal static class Tasks
             .OfType<string>()
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
-            .Select(space => (space, space.Replace($"{projectFile.Name}.Api.", $"{projectFile.Name}.{_workerName}.", StringComparison.Ordinal)))];
+            .Select(space => (space, WorkerNamespace(projectFile.Name, space)))];
     }
+
+    private static string WorkerNamespace(string product, string space) =>
+        $"{product}.{_workerName}{space[$"{product}.Api".Length..]}";
+
+    private static string RenamedNamespaces(string text, (string From, string To)[] namespaces) =>
+        namespaces.Aggregate(text, (current, space) => Regex.Replace(
+            current, $@"(?<![\w.]){Regex.Escape(space.From)}(?!\w)", _ => space.To, RegexOptions.None, TimeSpan.FromSeconds(5)));
 
     private static IEnumerable<string> ProjectTextFiles(string root) =>
         Directory.EnumerateFiles(root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
@@ -3448,8 +3455,16 @@ internal static class Tasks
         Dictionary<string, List<string>> chained = File("services:");
         MakeEdits([Edit(1, "before", ["services:"], ["include:"]), Edit(2, "after", ["include:"], ["  - path: a"])], chained);
 
+        (string From, string To)[] toTheWorker = [("n.Api.Features.Invoices.Jobs", "n.Worker.Features.Invoices.Jobs")];
+
         return
         [
+            ("a namespace the worker takes keeps what follows the API's, whatever the product's name holds",
+                WorkerNamespace("n", "n.Api.Features.Region.Api.Jobs") == "n.Worker.Features.Region.Api.Jobs"
+                && WorkerNamespace("n", "n.Api.UnitTests.Features.Invoices.Jobs") == "n.Worker.UnitTests.Features.Invoices.Jobs"),
+            ("a namespace the worker takes is renamed where it stands whole, never inside a longer name",
+                RenamedNamespaces("using n.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.Jobs.Purge;\nusing Common.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.JobsArchive;", toTheWorker)
+                == "using n.Worker.Features.Invoices.Jobs;\nusing n.Worker.Features.Invoices.Jobs.Purge;\nusing Common.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.JobsArchive;"),
             ("an edit in place already is left alone and the others are made", made is [{ Number: 2 }] && inPlace is [{ Number: 1 }]
                 && partly["file"].SequenceEqual(["include:", "  - path: a", "  - path: b", "services:"])),
             ("an edit is placed by the lines an earlier edit made", chained["file"].SequenceEqual(["include:", "  - path: a", "services:"])),

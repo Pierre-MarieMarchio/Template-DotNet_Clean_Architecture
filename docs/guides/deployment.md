@@ -154,8 +154,8 @@ Each carries no connection string and needs no SDK on the target:
 ./efbundle --connection "Server=…;Database=…;User Id=<migration user>;Password=…;TrustServerCertificate=True"
 ```
 <!--#endif-->
-
 <!--#if (ci)-->
+
 The release workflow builds the bundles from the tagged commit and uploads them as artifacts;
 running them is the deployment's step.
 <!--#endif-->
@@ -163,8 +163,8 @@ running them is the deployment's step.
 Running migrations at release is a row of [ADR 0001](../decisions/0001-adopt-the-generated-baseline.md).
 Moving them into the process would give the runtime user DDL rights and race every replica on the
 history table.
-<!--#endif-->
 
+<!--#endif-->
 ## Configuration and secrets
 
 Configuration loads `appsettings.json`, then `appsettings.Development.json` in Development only, then

@@ -237,13 +237,14 @@ feature leaves `examples` as it was. A part added later is recorded by the task 
 `web-join` for a web app or package and `presentation-join` for a presentation project. A key this
 table does not name is kept by every task that writes the file. `ProjectFileTests` fails when the
 file and the tree disagree.
-
 <!--#if (localAuth && api)-->
+
 The API's `Features/Auth/` is one host feature over the authentication features: one route
 tree, one composition entry, `AddAuthFeature`, and one folder to delete for a host without local
 accounts.
 <!--#endif-->
 <!--#if (localAuth && !api)-->
+
 Each host's `Features/Auth/` is one host feature over the authentication features: one composition
 entry and one folder to delete for a host without local accounts.
 <!--#endif-->
@@ -282,8 +283,8 @@ Services/                           the gate every command loads its aggregate t
 Services/Consumers/<Event>/         one folder per event the feature answers
 ```
 <!--#endif-->
-
 <!--#if (notes)-->
+
 A simple feature has no operation folders, so an input DTO's validator sits beside the DTO:
 
 ```

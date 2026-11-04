@@ -1394,6 +1394,7 @@ internal static class RemoveFeature
 
     private static List<TextEdits.Command> Steps(string root, Analysis analysis) =>
     [
+        TextEdits.Task(root, "docs-index"),
         TextEdits.Task(root, "build"),
         .. analysis.Migration is { } migration ? [TextEdits.FromLastBuild(root, "migration-add", migration.Name)] : Array.Empty<TextEdits.Command>(),
     ];
@@ -1780,7 +1781,7 @@ internal static class RemoveFeature
         expect(!after.Keys.Any(key => key.Contains("Widgets", StringComparison.Ordinal)), "A folder of the feature was left behind.");
         expect(File.Exists(Path.Combine(root, "README.md")) && File.Exists(Path.Combine(root, "Src/Presentation/A.Api/Program.cs")), "A file the feature did not own was deleted.");
         expect(
-            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
             $"A feature without a migration did not build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
 
         var again = Invoke(root, "Widgets", "--apply");
@@ -2078,7 +2079,7 @@ internal static class RemoveFeature
         Put(root, "Src/Infrastructure/A.Infrastructure.Persistence/PersistenceModule.cs", "        AddIdempotencyFeature(services, configuration);\n    private static void AddIdempotencyFeature(\n");
         Put(root, "Src/Application/A.Application/ApplicationModule.cs", "    private static void AddFeature(this IServiceCollection services, string vertical)\n");
         Put(root, "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", _hostComposition);
-        Put(root, "docs/README.md", "## Features\n\n| Page | Answers |\n|---|---|\n");
+        Put(root, "docs/README.md", "# Documentation\n");
         //#if (api)
         Put(root, "docs/reference/api.md", "## Routes\n\n## Error codes\n\n### Resources\n\n| `code` | Status | When |\n|---|---|---|\n");
         //#endif
@@ -2151,8 +2152,8 @@ internal static class RemoveFeature
             expect(applied.Code == 0, $"A composed {features}, one of its files edited, was refused: {applied.Output}{applied.Error}");
             expect(Same(original, after), $"After removing {features} the tree is not the one that was there before it was generated: {Differences(original, after)}");
             expect(
-                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
-                $"Removing {features} did not check the model, then build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
+                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+                $"Removing {features} did not check the model, then rewrite the index, build once and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
 
             foreach (string empty in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories).Where(folder => !folder.Contains($"{Path.DirectorySeparatorChar}.git", StringComparison.Ordinal) && !Directory.EnumerateFileSystemEntries(folder).Any()))
             {
@@ -2182,7 +2183,7 @@ internal static class RemoveFeature
 
         expect(applied.Code == 0, $"A feature with its migration was refused: {applied.Output}{applied.Error}");
         expect(
-            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add RemoveWidgets --no-build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add RemoveWidgets --no-build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
             $"--apply did not check, build once, then add RemoveWidgets and rewrite the OpenAPI reference from that build: {string.Join(" | ", Launched(ran))}");
         expect(File.Exists(Path.Combine(root, Added)) && Sha(root, Added) == addedBefore, "The migration that added the feature, which a database may have applied, was deleted or rewritten.");
 
@@ -2480,13 +2481,13 @@ internal static class RemoveFeature
         var report = Invoke(fresh, "Widgets");
 
         expect(report.Output.Contains($"Feature page: {pagePath}, written by the generator", StringComparison.Ordinal), $"The report does not name the page: {report.Output}");
-        expect(report.Output.Contains("docs/README.md: 1 line after", StringComparison.Ordinal), $"The report does not list the row of docs/README.md among the edits it undoes: {report.Output}");
+        expect(!report.Output.Contains("docs/README.md:", StringComparison.Ordinal), $"The report lists an edit of docs/README.md, whose pages docs-index lists instead: {report.Output}");
         expect(!report.Output.Contains($"{pagePath}:", StringComparison.Ordinal), "The page's own lines were listed as matches.");
 
         var applied = Invoke(fresh, "Widgets", "--apply");
 
         expect(applied.Code == 0, $"A feature with its page was refused: {applied.Output}{applied.Error}");
-        expect(Same(original, Snapshot(fresh)), $"After removing the feature, its page, its row or the folder of pages was left behind, or the template went with it: {Differences(original, Snapshot(fresh))}");
+        expect(Same(original, Snapshot(fresh)), $"After removing the feature, its page or the folder of pages was left behind, or the template went with it: {Differences(original, Snapshot(fresh))}");
 
         string edited = PagedTree(scratch);
 
@@ -2603,7 +2604,7 @@ internal static class RemoveFeature
             expect(applied.Code == 0, $"A fresh {features} without the API was refused: {applied.Output}{applied.Error}");
             expect(Same(original, Snapshot(root)), $"After removing {features} without the API the tree is not the one that was there before it was generated: {Differences(original, Snapshot(root))}");
             expect(
-                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build"]),
+                Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build"]),
                 $"Removing {features} without the API ran more than the check and the build: {string.Join(" | ", Launched(ran))}");
         }
     }

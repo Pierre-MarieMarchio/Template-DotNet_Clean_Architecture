@@ -1,6 +1,7 @@
 # Documentation
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page: edit the pages, then run it again.
+Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+edit the pages, then run it again.
 
 - [Documentation](README.md) - Which page answers a question about this project, and where a new page goes.
 

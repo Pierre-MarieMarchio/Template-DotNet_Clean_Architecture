@@ -650,7 +650,6 @@ public sealed class TemplatePackagingTests
 
     [Theory]
     [InlineData("sqlserver", "sqlServer")]
-    [InlineData("mysql", "mySql")]
     [InlineData("sqlite", "sqlite")]
     public void ADatabase_IsRefusedExactlyUntilItsOverlayIsWired(string choice, string symbol)
     {

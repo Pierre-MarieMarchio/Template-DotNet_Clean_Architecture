@@ -210,9 +210,8 @@ jobs:
         run: |
           set -euo pipefail
           case "$DATABASE" in
-            postgresql) forbidden='SqlServer|SqlClient|MsSql|MySql|Pomelo|VersionStamping|SchemaAsTablePrefix|database-(sqlserver|mysql|sqlite)' ;;
+            postgresql) forbidden='SqlServer|SqlClient|MsSql|MySql|Pomelo|VersionStamping|SchemaAsTablePrefix|database-(sqlserver|sqlite)' ;;
             sqlserver) forbidden='Npgsql|PostgreSql|xmin|pg_|MySql|Pomelo|SchemaAsTablePrefix' ;;
-            mysql) forbidden='Npgsql|PostgreSql|xmin|pg_|SqlServer|SqlClient|MsSql' ;;
             sqlite) forbidden='Npgsql|PostgreSql|xmin|pg_|SqlServer|SqlClient|MsSql|MySql|Pomelo' ;;
             *) echo "::error title=Unknown database::$DATABASE"; exit 1 ;;
           esac
@@ -1233,7 +1232,7 @@ jobs:
           refuse ssr-single-page --auth none --examples none --files false --web vite-react --web-rendering ssr
           # The app host's processes cannot share the SQLite file Compose keeps in a volume.
           refuse aspire-sqlite --database sqlite --aspire true
-          # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
+          # A database value the template does not offer is an invalid choice: refused, with nothing written.
           refuse mysql --database mysql
           # A one-letter name puts w.Api in the folder W.Api, which a solution takes for the same name, and _1 has no initials.
           refuse_name() {

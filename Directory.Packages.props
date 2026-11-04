@@ -166,9 +166,6 @@
     <!--#if (sqlServer)-->
     <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
     <!--#endif-->
-    <!--#if (mySql)-->
-    <PackageVersion Include="Testcontainers.MySql" Version="4.15.0" />
-    <!--#endif-->
     <!--#if (postgreSql)-->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <!--#endif-->

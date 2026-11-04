@@ -111,7 +111,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\") || (aspire && database == \"sqlite\") || (name == \"_\" || name == \"a\" || name == \"b\" || name == \"c\" || name == \"d\" || name == \"e\" || name == \"f\" || name == \"g\" || name == \"h\" || name == \"i\" || name == \"j\" || name == \"k\" || name == \"l\" || name == \"m\" || name == \"n\" || name == \"o\" || name == \"p\" || name == \"q\" || name == \"r\" || name == \"s\" || name == \"t\" || name == \"u\" || name == \"v\" || name == \"w\" || name == \"x\" || name == \"y\" || name == \"z\") || nameLacksALeadingLetter)"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\") || (aspire && database == \"sqlite\") || (name == \"_\" || name == \"a\" || name == \"b\" || name == \"c\" || name == \"d\" || name == \"e\" || name == \"f\" || name == \"g\" || name == \"h\" || name == \"i\" || name == \"j\" || name == \"k\" || name == \"l\" || name == \"m\" || name == \"n\" || name == \"o\" || name == \"p\" || name == \"q\" || name == \"r\" || name == \"s\" || name == \"t\" || name == \"u\" || name == \"v\" || name == \"w\" || name == \"x\" || name == \"y\" || name == \"z\") || nameLacksALeadingLetter)"
     },
     "database": {
       "type": "parameter",
@@ -128,27 +128,11 @@
           "description": "SQL Server: a schema per feature, a version counter the save stamps, application locks for the leases."
         },
         {
-          "choice": "mysql",
-          "description": "MySQL 8.4: a table prefix per feature, a version counter the save stamps, named locks for the leases."
-        },
-        {
           "choice": "sqlite",
           "description": "SQLite, for development only: one file, a table prefix per feature, in-process leases; the API refuses to start outside Development."
         }
       ],
       "description": "The database the project runs on. The project only carries this one."
-    },
-    "mySqlNotYetGenerated": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        {
-          "choice": "refused",
-          "description": "Not an option to set: it names the refusal."
-        }
-      ],
-      "isRequired": "(database == \"mysql\")",
-      "description": "Never set. This version of the template does not generate --database mysql yet: choose --database postgresql."
     },
     "postgreSql": {
       "type": "computed",
@@ -158,17 +142,13 @@
       "type": "computed",
       "value": "(database == \"sqlserver\")"
     },
-    "mySql": {
-      "type": "computed",
-      "value": "(database == \"mysql\")"
-    },
     "sqlite": {
       "type": "computed",
       "value": "(database == \"sqlite\")"
     },
     "tablePrefixes": {
       "type": "computed",
-      "value": "(mySql || sqlite)"
+      "value": "(sqlite)"
     },
     "versionCounter": {
       "type": "computed",
@@ -188,10 +168,6 @@
           {
             "condition": "(sqlServer)",
             "value": "Server=localhost,1433;Database=appdb;User Id=sa;Password=Local_dev_sa_1;TrustServerCertificate=True"
-          },
-          {
-            "condition": "(mySql)",
-            "value": "Server=localhost;Port=3306;Database=appdb;User=appuser;Password=appuser_local_dev"
           },
           {
             "condition": "(sqlite)",

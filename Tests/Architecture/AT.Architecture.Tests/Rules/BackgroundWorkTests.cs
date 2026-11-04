@@ -13,7 +13,7 @@ public sealed class BackgroundWorkTests
         TimeSpan.FromSeconds(5));
 
     private static readonly Regex _authenticationReference = new(
-        @"AppTemplate\.(?:Application|Infrastructure)\.Auth\b|AppTemplate\.\w+\.Features\.Auth\b",
+        @"(?<![\w.])AppTemplate\.(?:(?:Application|Infrastructure)\.Auth|\w+\.Features\.Auth)\b",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
@@ -177,6 +177,8 @@ public sealed class BackgroundWorkTests
         _authenticationReference.IsMatch("using AppTemplate.Api.Features.Auth.Composition;").ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Worker.Features.Auth.Jobs;").ShouldBeTrue();
         _authenticationReference.IsMatch("using AppTemplate.Worker.Features.Maintenance.Jobs;").ShouldBeFalse();
+        _authenticationReference.IsMatch("using OtherAppTemplate.Infrastructure.Auth;").ShouldBeFalse();
+        _authenticationReference.IsMatch("using Other.AppTemplate.Api.Features.Auth;").ShouldBeFalse();
     }
 
     private static ProjectNode JobsHost()

@@ -128,7 +128,9 @@ generator, the removal command and the coverage gate, each against faulted and s
 also refuses to pass on nothing: a test run that executed no test and a coverage total over no
 assembly both fail. A rule added to a gate comes with the fixture that fails without it.
 
-`TreatWarningsAsErrors` is set in `Directory.Build.props` for every project. A diagnostic is
+`TreatWarningsAsErrors` and `MSBuildTreatWarningsAsErrors` are set in `Directory.Build.props` for
+every project: the first fails the build on a compiler's warning, the second on a warning a build
+task logs, such as the Avalonia XAML compiler's. A diagnostic is
 silenced only by a row of the table below, whatever the form: a `#pragma warning disable`, a
 `[SuppressMessage]`, a `#nullable disable`, a `<NoWarn>` or a `<WarningsNotAsErrors>`, a severity
 lowered to `none`, `silent` or `suggestion`, a `generated_code` section, a test's `Skip`, or a build

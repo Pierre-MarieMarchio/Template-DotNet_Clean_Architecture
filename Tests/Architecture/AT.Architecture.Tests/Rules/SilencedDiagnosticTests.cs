@@ -45,7 +45,7 @@ public sealed class SilencedDiagnosticTests
         _timeout);
 
     private static readonly Regex _fileBasedProperty = new(
-        @"^#:property[ \t]+(?:(?<name>NoWarn|WarningsNotAsErrors)=(?<ids>[^\r\n]*)|(?<name>TreatWarningsAsErrors)=false\b)",
+        @"^#:property[ \t]+(?:(?<name>NoWarn|WarningsNotAsErrors)=(?<ids>[^\r\n]*)|(?<name>(?:MSBuild)?TreatWarningsAsErrors)=false\b)",
         RegexOptions.Multiline | RegexOptions.IgnoreCase,
         _timeout);
 
@@ -55,14 +55,14 @@ public sealed class SilencedDiagnosticTests
         _timeout);
 
     private static readonly Regex _projectSwitch = new(
-        @"<(?<name>TreatWarningsAsErrors|CodeAnalysisTreatWarningsAsErrors|EnforceCodeStyleInBuild|EnableNETAnalyzers|RunAnalyzers|RunAnalyzersDuringBuild)>[ \t]*false[ \t]*<"
+        @"<(?<name>TreatWarningsAsErrors|MSBuildTreatWarningsAsErrors|CodeAnalysisTreatWarningsAsErrors|EnforceCodeStyleInBuild|EnableNETAnalyzers|RunAnalyzers|RunAnalyzersDuringBuild)>[ \t]*false[ \t]*<"
         + @"|<(?<name>AnalysisLevel|AnalysisMode[A-Za-z]*)>[ \t]*(?:[\w.]+-)?none[ \t]*<",
         RegexOptions.IgnoreCase,
         _timeout);
 
     private static readonly Regex _commandLine = new(
         @"[-/]p(?:roperty)?:(?<name>NoWarn|WarningsNotAsErrors)="
-        + @"|[-/]p(?:roperty)?:(?<name>TreatWarningsAsErrors)=false\b"
+        + @"|[-/]p(?:roperty)?:(?<name>(?:MSBuild)?TreatWarningsAsErrors)=false\b"
         + @"|(?<![\w-])(?<name>-nowarn|-warnaserror-)(?![\w-])",
         RegexOptions.IgnoreCase,
         _timeout);
@@ -164,6 +164,7 @@ public sealed class SilencedDiagnosticTests
 
         DiagnosticsIn(_fileBasedProperty, "#:property NoWarn=CS1591;CA1848").ShouldBe(["CS1591", "CA1848"]);
         DiagnosticsIn(_fileBasedProperty, "#:property TreatWarningsAsErrors=false").ShouldBe(["TreatWarningsAsErrors"]);
+        DiagnosticsIn(_fileBasedProperty, "#:property MSBuildTreatWarningsAsErrors=false").ShouldBe(["MSBuildTreatWarningsAsErrors"]);
         _fileBasedProperty.IsMatch("#:property UseAppHost=false").ShouldBeFalse();
     }
 
@@ -175,6 +176,7 @@ public sealed class SilencedDiagnosticTests
         DiagnosticsIn(_projectList, "<PackageReference Include=\"A\" NoWarn=\"NU1701\" />").ShouldBe(["NU1701"]);
 
         DiagnosticsIn(_projectSwitch, "<TreatWarningsAsErrors>false</TreatWarningsAsErrors>").ShouldBe(["TreatWarningsAsErrors"]);
+        DiagnosticsIn(_projectSwitch, "<MSBuildTreatWarningsAsErrors>false</MSBuildTreatWarningsAsErrors>").ShouldBe(["MSBuildTreatWarningsAsErrors"]);
         DiagnosticsIn(_projectSwitch, "<RunAnalyzers>false</RunAnalyzers>").ShouldBe(["RunAnalyzers"]);
         DiagnosticsIn(_projectSwitch, "<AnalysisLevel>latest-none</AnalysisLevel>").ShouldBe(["AnalysisLevel"]);
         _projectSwitch.IsMatch("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>").ShouldBeFalse();
@@ -182,6 +184,7 @@ public sealed class SilencedDiagnosticTests
 
         DiagnosticsIn(_commandLine, "dotnet build -p:NoWarn=CS1591").ShouldBe(["NoWarn"]);
         DiagnosticsIn(_commandLine, "dotnet build /p:TreatWarningsAsErrors=false").ShouldBe(["TreatWarningsAsErrors"]);
+        DiagnosticsIn(_commandLine, "dotnet build -p:MSBuildTreatWarningsAsErrors=false").ShouldBe(["MSBuildTreatWarningsAsErrors"]);
         DiagnosticsIn(_commandLine, "csc -nowarn:CS0168").ShouldBe(["-nowarn"]);
         _commandLine.IsMatch("dotnet build -p:TreatWarningsAsErrors=true").ShouldBeFalse();
     }

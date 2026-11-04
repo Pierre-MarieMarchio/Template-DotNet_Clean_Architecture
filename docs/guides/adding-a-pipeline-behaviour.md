@@ -8,7 +8,7 @@ message it applies to, at a place in the order that a test holds.
 
 A behaviour wraps messages only. What belongs to one feature stays in its handler; a reaction to a
 fact is a domain event's consumer, which no behaviour reaches
-([ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md)).
+([ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)).
 <!--#if (api)-->
 What belongs to HTTP, a header, a status or a route's precondition, belongs to the
 [request pipeline](../architecture/request-pipeline.md) of the API.
@@ -17,7 +17,7 @@ What belongs to HTTP, a header, a status or a route's precondition, belongs to t
 What belongs to a host's transport, a header, a cookie or a tool's answer, belongs to that host.
 <!--#endif-->
 
-## The pipeline today
+## The behaviours the pipeline runs
 
 `AddUseCasePipeline` in `Src/Application/AT.Application.Core/ApplicationCoreModule.cs` registers
 the behaviours once. Each registration that brings use cases calls it, a feature's as much as the
@@ -85,9 +85,12 @@ one does.
    and a message it leaves alone. `ThePipeline_IsRegisteredOnce_HoweverManyFeaturesAskForIt` lists
    the order and says why it is so; it fails until the new behaviour is in its list. Break the
    behaviour once and watch its test go red.
-8. Add its row to the table of [use cases are messages](../architecture/domain-and-results.md#use-cases-are-messages),
-   and change the sentence of [ADR 0003](../decisions/0003-use-cases-and-ports-are-explicit.md) that
-   names the behaviours; a behaviour another team could have done without is an ADR of its own.
+8. Add its row to the table of [use cases are messages](../architecture/domain-and-results.md#use-cases-are-messages)
+   and to the table above. Write the project ADR that records it, numbered from 1000 as
+   [changing an inherited choice](../decisions/README.md#changing-an-inherited-choice) says: it names
+   the behaviour, its place in the order, and what it adds to
+   [ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md), which
+   stays as it is.
 
 ## Check
 

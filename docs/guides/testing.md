@@ -190,8 +190,8 @@ Under that runner `dotnet test` takes the solution as `--solution <path>` and a 
 [the runner's reference](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp) lists both from
 SDK 10.0.100, and a newer SDK refuses the positional path. `DotnetTestTargetTests` reads the tasks, the
 workflows, the scripts and the pages, and fails on a `dotnet test` that names its target any other way.
-
 <!--#if (serverDatabase || files)-->
+
 A run killed outright leaves its containers behind, because the resource reaper is off
 (`ResourceReaperSwitch`). Remove them by label:
 
@@ -199,8 +199,8 @@ A run killed outright leaves its containers behind, because the resource reaper 
 docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 ```
 <!--#endif-->
-
 <!--#if (api)-->
+
 ## The end-to-end suite
 
 `dotnet run Tools/Tasks.cs end-to-end` builds and starts the Compose stack from `.env.example` under a

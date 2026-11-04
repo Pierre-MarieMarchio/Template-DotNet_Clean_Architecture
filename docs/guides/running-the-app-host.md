@@ -8,8 +8,8 @@ starts what `docker compose up` starts. Compose stays the reference of the deplo
 host follows it ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)): it reads each
 container's image from the Compose files when it starts, and `LocalStackParityTests` fails when a
 service or a host setting of the Compose files is missing from the app host, when the app host
-starts something Compose does not, or when a web app listens on another port than its `compose.yml`
-publishes.
+starts something Compose does not, or when a web app listens on another port than its
+`Src/Web/apps/<App>/compose.yml` publishes.
 
 | Resource | Started as | Compose service |
 |---|---|---|

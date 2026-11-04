@@ -37,7 +37,7 @@ Each group comes in no fixed order:
   framework's grain.
 - **Desktop and mobile clients of the API**
   ([#120](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/120)):
-  WPF and Windows Forms, built on a Windows runner; .NET MAUI; Uno Platform; WinUI, which has no
+  Windows Forms, built on a Windows runner; .NET MAUI; Uno Platform; WinUI, which has no
   `dotnet new` template and so is written by the template.
 - **Server hosts on the application layer**
   ([#121](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/121)):

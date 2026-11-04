@@ -1,3 +1,9 @@
+---
+type: guide
+title: Deployment
+description: How to ship this project to an environment other than your machine, from its images and migrations to its secrets and instances.
+---
+
 # Deployment
 
 ## When

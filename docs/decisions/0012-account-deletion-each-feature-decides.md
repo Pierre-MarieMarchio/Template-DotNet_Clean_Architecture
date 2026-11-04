@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0012. On account deletion, each feature decides
+description: Why a deleted account is a fact the account module publishes, and each feature decides whether to delete or anonymise its records.
+status: Accepted
+---
+
 # 0012. On account deletion, each feature decides
 
 Status: Accepted

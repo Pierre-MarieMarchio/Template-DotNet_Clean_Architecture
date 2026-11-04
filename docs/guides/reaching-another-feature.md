@@ -1,3 +1,9 @@
+---
+type: guide
+title: Reaching another feature
+description: How one feature reads, changes or reacts to another through a port or a domain event, so that each stays removable.
+---
+
 # Reaching another feature
 
 ## When

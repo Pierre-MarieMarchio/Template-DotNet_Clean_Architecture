@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0003. Use cases and ports are explicit
+description: Why a use case was an interface a controller called directly, with no dispatcher, until Mediator messages replaced it.
+status: Superseded
+---
+
 # 0003. Use cases and ports are explicit
 
 Status: Superseded by [0033](0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)

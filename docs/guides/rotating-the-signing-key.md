@@ -1,3 +1,9 @@
+---
+type: guide
+title: Rotating the signing key
+description: How to replace the key that signs access tokens without refusing a signed-in caller.
+---
+
 # Rotating the signing key
 
 ## When

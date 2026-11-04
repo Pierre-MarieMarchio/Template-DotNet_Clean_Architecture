@@ -1,3 +1,9 @@
+---
+type: concept
+title: Persistence model
+description: How this project stores its data, from the schema per feature and the rows apart from the aggregates to the save, deletion and concurrency.
+---
+
 # Persistence model
 
 <!--#if (postgreSql)-->

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0026. An access key stands for its owner where a token cannot be refreshed
+description: Why a client that cannot refresh a token signs in with an access key its owner creates, lists and revokes.
+status: Accepted
+---
+
 # 0026. An access key stands for its owner where a token cannot be refreshed
 
 Status: Accepted

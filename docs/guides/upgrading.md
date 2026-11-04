@@ -54,7 +54,9 @@ your decision, file by file.
   is never offered to take as is.
 - **What is not a difference.** Line endings and a leading byte order mark, which
   `.gitattributes` and the editor settle; the order of a C# file's using directives, which bootstrap
-  sets; the GUIDs `dotnet new` draws for a solution's entries, read as the entries they name.
+  sets; the GUIDs `dotnet new` draws for a solution's entries, read as the entries they name; and
+  the ones it draws for the `guids` a template declares, such as each host's `UserSecretsId`: a GUID
+  neither package holds is read as drawn, so one the template writes as is still counts.
 - **Parts added since.** The generation takes the hosts under the names it gives them and the first
   web app; every other app, package and host replays its item template, in the order
   `cleanarch.json` records, with the defaults of what the file does not record: an app is replayed

@@ -1,6 +1,7 @@
 ﻿#:property UseAppHost=false
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -1552,7 +1553,7 @@ internal static class RemoveFeature
 
     private static int SelfTest()
     {
-        string scratch = Path.Combine(Path.GetTempPath(), "removefeature-selftest-" + Guid.CreateVersion7().ToString("N"));
+        string scratch = Path.Combine(Path.GetTempPath(), "rf-" + Guid.NewGuid().ToString("N")[..8]);
         var problems = new List<string>();
         int checks = 0;
 
@@ -1639,15 +1640,29 @@ internal static class RemoveFeature
 
     private static string[] Launched(List<TextEdits.Command> ran) => [.. ran.Select(command => command.Display)];
 
+    private static int _trees;
+
+    private static string NewRoot(string scratch) => Path.Combine(scratch, (++_trees).ToString(CultureInfo.InvariantCulture));
+
     private static void Commit(string root)
     {
         if (!Directory.Exists(Path.Combine(root, ".git")))
         {
-            Git(root, "init", "--quiet");
+            Succeeded(root, "init", "--quiet");
         }
 
-        Git(root, "add", "-A");
-        Git(root, "-c", "user.name=self-test", "-c", "user.email=self-test@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "self-test");
+        Succeeded(root, "add", "-A");
+        Succeeded(root, "-c", "user.name=self-test", "-c", "user.email=self-test@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "self-test");
+    }
+
+    private static void Succeeded(string root, params string[] arguments)
+    {
+        var (code, output) = Git(root, arguments);
+
+        if (code != 0)
+        {
+            throw new InvalidOperationException($"git {string.Join(' ', arguments)} failed in {root} with exit code {code}: {output}");
+        }
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>
@@ -1708,7 +1723,7 @@ internal static class RemoveFeature
 
     private static string Skeleton(string scratch, string edits = "")
     {
-        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+        string root = NewRoot(scratch);
 
         foreach (string file in _skeletonFiles)
         {
@@ -2081,7 +2096,7 @@ internal static class RemoveFeature
 
     private static string Tree(string scratch, Action<string>? ground = null)
     {
-        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+        string root = NewRoot(scratch);
 
         Projects(root);
         Put(root, "Src/Presentation/A.Api/Program.cs", _program);
@@ -2283,7 +2298,7 @@ internal static class RemoveFeature
 
     private static string BareTree(string scratch, string adapter = "Auth")
     {
-        string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
+        string root = NewRoot(scratch);
 
         Projects(root);
 

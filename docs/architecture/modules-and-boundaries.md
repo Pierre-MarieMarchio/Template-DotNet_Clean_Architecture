@@ -90,7 +90,9 @@ earns the domain or application project its first one.
 A folder in the business `Common/` is earned by naming a business type, not by being repeated: the
 version precondition and the paged read every feature performs name no feature, so they live one
 project inwards. `EveryModuleCommon_KnowsNoFeature`, `ThePersistenceMechanisms_KnowNoFeature` and
-`TheCommonHttpCode_NamesNoFeature` hold the rule.
+`TheCommonHttpCode_NamesNoFeature` hold the rule. The first, and the rule that Persistence depends
+on no module, read the modules from the tree, so a module added later is held by them with no list
+to edit.
 <!--#if (anyFeature)-->
 `AppDbContext` is its one exception: it applies every feature's configuration, and
 `TheContext_IsTheOneThingInCommonThatNamesAFeature` asserts that it really does.

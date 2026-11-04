@@ -2453,7 +2453,9 @@ internal static class Tasks
         int start = Array.FindIndex(lines, line => line.TrimEnd('\r') == _joiningSection);
         int next = Array.FindIndex(lines, start + 1, line => line.StartsWith("## ", StringComparison.Ordinal));
 
-        return string.Join('\n', next < 0 ? [.. lines[..start], string.Empty] : [.. lines[..start], .. lines[next..]]);
+        return next < 0
+            ? string.Join('\n', lines[..start]).TrimEnd() + "\n"
+            : string.Join('\n', [.. lines[..start], .. lines[next..]]);
     }
 
     private static void WriteTheJoin(string root, Dictionary<string, (string Text, bool Bom)> written, string[] leaving)

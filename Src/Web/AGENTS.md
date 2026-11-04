@@ -1,4 +1,4 @@
-﻿# Agents: the web workspace
+# Agents: the web workspace
 
 What a change under `Src/Web` needs beyond [the root AGENTS.md](../../AGENTS.md), which still applies.
 [The web front end](../../docs/features/web-frontend.md) says how the apps run and call the API.

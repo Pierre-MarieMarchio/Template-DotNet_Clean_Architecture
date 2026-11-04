@@ -1,4 +1,4 @@
-﻿# Feature shapes
+# Feature shapes
 
 A feature in this project takes one of two shapes: an aggregate with use cases, or a service over a
 store. Both are first-class, and one question chooses between them.

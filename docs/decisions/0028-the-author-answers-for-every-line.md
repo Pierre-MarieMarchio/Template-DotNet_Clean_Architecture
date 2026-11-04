@@ -1,4 +1,4 @@
-﻿# 0028. The author answers for every line
+# 0028. The author answers for every line
 
 Status: Accepted
 

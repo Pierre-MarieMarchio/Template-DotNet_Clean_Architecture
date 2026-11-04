@@ -1,4 +1,4 @@
-﻿# Running the app host
+# Running the app host
 
 ## When
 

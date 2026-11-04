@@ -1,4 +1,4 @@
-﻿# 0008. Optimistic concurrency, end to end
+# 0008. Optimistic concurrency, end to end
 
 Status: Accepted
 

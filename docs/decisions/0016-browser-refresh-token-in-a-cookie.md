@@ -1,4 +1,4 @@
-﻿# 0016. A browser's refresh token travels in a cookie
+# 0016. A browser's refresh token travels in a cookie
 
 Status: Accepted
 

@@ -1,4 +1,4 @@
-﻿# PresentationAppDesktop
+# PresentationAppDesktop
 
 The presentation project beside the API: a WPF desktop app for Windows that calls the API through
 the .NET client of `Src/Clients`. [Presentation project](../../../docs/features/presentation.md)

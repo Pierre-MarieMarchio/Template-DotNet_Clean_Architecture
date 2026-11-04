@@ -1,4 +1,4 @@
-﻿# 0010. An idempotency key is a lease per user
+# 0010. An idempotency key is a lease per user
 
 Status: Accepted
 

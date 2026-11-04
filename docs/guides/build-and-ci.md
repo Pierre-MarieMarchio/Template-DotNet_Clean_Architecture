@@ -16,7 +16,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
 | `check` | what `verify` would catch on the files you touched, in under a minute once built: [below](#check) |
-| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder; `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
+| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder; off Windows, `test` also names and leaves out [the tests that run on Windows alone](#tests-that-run-on-windows-alone); `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
 | `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | `run` | the API on the host |
@@ -65,7 +65,8 @@ does. With nothing touched it says so and passes. In this order it:
    `Directory.Build.targets`, `Directory.Packages.props`, `.editorconfig`, `global.json` or
    `nuget.config`;
 3. runs the architecture tests, whatever was touched, and the unit tests of those projects, which are
-   the projects that need no Docker.
+   the projects that need no Docker and, off Windows, not
+   [the ones that run on Windows alone](#tests-that-run-on-windows-alone).
 
 The build fails on an `IDE1006` naming rule like any warning. `check` stands in for `verify` on a
 small change and for nothing else: it runs no test project that needs Docker, and leaves out
@@ -75,6 +76,22 @@ project has them, the comparison of the generated clients with the OpenAPI refer
 <!--#if (templateMaintenance)-->
 It also leaves out the template's own gates.
 <!--#endif-->
+
+## Tests that run on Windows alone
+
+A test project whose own project file sets a Windows target framework, such as
+`<TargetFramework>net10.0-windows</TargetFramework>`, runs on Windows alone. Off Windows, `test`,
+`check`, `coverage` and `verify` build it with the rest and leave its tests out, through a solution
+filter written under the ignored artifacts folder, and name it before the run and again after it:
+
+```text
+Skipped Tests/Presentation/<Folder>: it targets net10.0-windows and runs on Windows alone.
+```
+
+The run then passes or fails on the other projects; on Windows nothing is left out. The tasks read
+the target framework in the test project's own file alone, so `WindowsTestProjectTests` fails when a
+test project that targets Windows, or references a project that does, does not set it there, names
+several target frameworks, or takes a Windows one from a `.props` or `.targets` file.
 
 ## The gate
 
@@ -239,7 +256,8 @@ dotnet run Tools/Tasks.cs sonar                         # after setting SONAR_TO
 
 The scanner needs a JRE, which `Tools/sonar-scanner.Dockerfile` supplies, so your machine needs none.
 It builds into `artifacts/sonar`, leaving your `bin/` and `obj/` alone. It runs the Docker-free tests
-only, so it reports less coverage than CI.
+only, so it reports less coverage than CI, and, the scanner running on Linux, names and leaves out
+[the ones that run on Windows alone](#tests-that-run-on-windows-alone).
 
 <!--#endif-->
 <!--#if (ci && serverDatabase)-->

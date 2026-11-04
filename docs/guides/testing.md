@@ -146,6 +146,10 @@ dotnet test --project Tests/Architecture/AT.Architecture.Tests # the architectur
 ```
 <!--#endif-->
 
+Off Windows, `test`, `check`, `coverage` and `verify` leave out a test project that targets Windows
+and name it before and after the run, as
+[tests that run on Windows alone](build-and-ci.md#tests-that-run-on-windows-alone) says.
+
 <!--#if (postgreSql)-->
 Each integration project starts one PostgreSQL container and one host for the whole suite, and every
 class joins one collection, so tests run one after another.

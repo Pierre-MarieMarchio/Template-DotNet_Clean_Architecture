@@ -133,7 +133,7 @@ jobs:
             /d:sonar.qualitygate.wait=true
 
       #endif
-      # TreatWarningsAsErrors lives in Directory.Build.props, and no flag here overrides it; under the Sonar scanner, begin relaxes it for Sonar's own rules only.
+      # The warnings-as-errors properties live in Directory.Build.props and Directory.Build.targets, and no flag here overrides them; under the Sonar scanner, a warning does not fail the analysis build, so the quality gate judges Sonar's findings.
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 
@@ -236,6 +236,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET SDK (from global.json)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
 
       - name: The doc-path gate can fail
         run: dotnet run Tools/CheckDocPaths.cs --self-test

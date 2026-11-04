@@ -38,7 +38,7 @@
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, its view models and host in <project>.<name>.Core, calling the API through the .NET client of Src/Clients, which comes with it."
+          "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, calling the API through the .NET client of Src/Clients, which comes with it; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
         },
         {
           "choice": "worker",
@@ -71,8 +71,8 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"AppHost\" || name == \"AppHost.IntegrationTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\" || (framework == \"wpf\" && (name == \"Infrastructure\" || name == \"Presentation\"))))",
-      "description": "Never set. -n names a project the template already writes, which would be overwritten, or with --framework wpf one whose <name>.Core is: choose another name, such as Portal."
+      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"AppHost\" || name == \"AppHost.IntegrationTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\"))",
+      "description": "Never set. -n names a project the template already writes, which would be overwritten: choose another name, such as Portal."
     },
     "auth": {
       "type": "parameter",
@@ -171,6 +171,30 @@
       ],
       "isRequired": "(auth == \"none\" && files)",
       "description": "Never set. A project generated with --auth none has no Files module: add --files false."
+    },
+    "projectNameNeedsTwoCharacters": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(projectName == \"_\" || projectName == \"a\" || projectName == \"b\" || projectName == \"c\" || projectName == \"d\" || projectName == \"e\" || projectName == \"f\" || projectName == \"g\" || projectName == \"h\" || projectName == \"i\" || projectName == \"j\" || projectName == \"k\" || projectName == \"l\" || projectName == \"m\" || projectName == \"n\" || projectName == \"o\" || projectName == \"p\" || projectName == \"q\" || projectName == \"r\" || projectName == \"s\" || projectName == \"t\" || projectName == \"u\" || projectName == \"v\" || projectName == \"w\" || projectName == \"x\" || projectName == \"y\" || projectName == \"z\")",
+      "description": "Never set. --project-name takes two characters or more, as the project template's -n does: a project's folder carries the name's initials upper-cased, so a one-letter name such as w would put the project w.Api in the folder W.Api, which a solution compares without case and takes for the same name: add it to a project whose name has two characters or more."
+    },
+    "projectNameNeedsALeadingLetter": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(projectName != \"\" && (projectName < \"A\" || projectName >= \"[\"))",
+      "description": "Never set. --project-name starts with a letter from A to Z, as the project template's -n does: a project's folder carries the name's initials, taken from its letters A to Z, which a name starting otherwise, such as _1 or __, may lack, putting its projects in folders such as .Api: add it to a project whose name starts with a letter from A to Z."
     },
     "clientPresentationNeedsAccounts": {
       "type": "parameter",

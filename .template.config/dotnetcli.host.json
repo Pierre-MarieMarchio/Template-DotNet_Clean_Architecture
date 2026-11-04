@@ -19,6 +19,16 @@
       "shortName": "",
       "isHidden": true
     },
+    "nameNeedsTwoCharacters": {
+      "longName": "name-needs-two-characters",
+      "shortName": "",
+      "isHidden": true
+    },
+    "nameNeedsALeadingLetter": {
+      "longName": "name-needs-a-leading-letter",
+      "shortName": "",
+      "isHidden": true
+    },
     "authNoneNeedsFilesFalse": {
       "longName": "auth-none-needs-files-false",
       "shortName": "",

@@ -13,16 +13,12 @@ public sealed class TestProjectMirrorTests
         new(
             "a project of the web workspace is the output of an official CLI (dotnet new blazorwasm for a " +
             "WebAssembly app) and the web acceptance legs run it; one that brings its own unit tests keeps them",
-            (project, _) => project.RelativePath.Replace('\\', '/').StartsWith("Src/Web/", StringComparison.Ordinal)),
-        new(
-            "a host written beside its <Name>.Core keeps its logic there, and <Name>.Core.UnitTests tests it; " +
-            "the host itself is views and composition (a WPF host builds on Windows only)",
-            (project, sourceNames) => sourceNames.Contains(project.Name + ".Core")),
+            project => project.RelativePath.Replace('\\', '/').StartsWith("Src/Web/", StringComparison.Ordinal)),
         //#if (aspire)
         new(
             "the app host composes the local stack and none of the product: LocalStackTests in its integration " +
             "project starts it, and LocalStackParityTests holds it to the Compose files",
-            (project, _) => project.RelativePath.Replace('\\', '/').StartsWith("Src/AppHost/", StringComparison.Ordinal)),
+            project => project.RelativePath.Replace('\\', '/').StartsWith("Src/AppHost/", StringComparison.Ordinal)),
         //#endif
     ];
 
@@ -35,7 +31,7 @@ public sealed class TestProjectMirrorTests
 
         sources.ShouldNotBeEmpty("No source project was read, so this rule would hold by reading nothing.");
 
-        MissingMirrors(sources, TestProjectPaths(), SourceNames())
+        MissingMirrors(sources, TestProjectPaths())
             .ShouldBeEmpty(
                 "A source project has one unit test project, named for it with .UnitTests and placed " +
                 "under Tests/ in the same layer folder, as the project layout says. Add the project " +
@@ -46,9 +42,7 @@ public sealed class TestProjectMirrorTests
     [Fact]
     public void EveryUnitTestProject_MirrorsASourceProject()
     {
-        var sourceNames = ProjectReferenceGraph.SourceProjects.Keys.ToHashSet(StringComparer.Ordinal);
-
-        Orphans(TestProjectPaths(), sourceNames)
+        Orphans(TestProjectPaths(), SourceNames())
             .ShouldBeEmpty(
                 "A unit test project with no source project of its name tests nothing that exists: " +
                 "the project it mirrored was removed or renamed. Delete it, or rename it with its source.");
@@ -60,17 +54,14 @@ public sealed class TestProjectMirrorTests
         string product = ProjectFolders.ProductName;
         var lonely = Source($"Src/Domain/{ProjectFolders.FolderOf(product + ".Domain.Core")}/{product}.Domain.Core.csproj");
         var webApp = Source($"Src/Web/apps/AnySite/{product}.AnySite.csproj");
-        var hostWithCore = Source($"Src/Presentation/{ProjectFolders.FolderOf(product + ".Desktop")}/{product}.Desktop.csproj");
+        var desktop = Source($"Src/Presentation/{ProjectFolders.FolderOf(product + ".Desktop")}/{product}.Desktop.csproj");
         string mirror = ExpectedPath(lonely);
         HashSet<string> none = new(StringComparer.Ordinal);
 
-        MissingMirrors([lonely, webApp, hostWithCore], none, new HashSet<string>([product + ".Desktop.Core"], StringComparer.Ordinal))
-            .ShouldBe([mirror], "A source project with no test project is reported; a web app and a host beside its .Core are not.");
+        MissingMirrors([lonely, webApp, desktop], none)
+            .ShouldBe([mirror, ExpectedPath(desktop)], "A source project with no test project is reported, a desktop app among them; a web app is not.");
 
-        MissingMirrors([hostWithCore], none, none)
-            .ShouldBe([ExpectedPath(hostWithCore)], "A host with no .Core beside it needs its own unit test project.");
-
-        MissingMirrors([lonely], new HashSet<string>([mirror], StringComparer.Ordinal), none)
+        MissingMirrors([lonely], new HashSet<string>([mirror], StringComparer.Ordinal))
             .ShouldBeEmpty("A source project whose mirror exists is not reported.");
 
         Orphans(
@@ -79,13 +70,10 @@ public sealed class TestProjectMirrorTests
             .ShouldNotBeEmpty("A test project whose source does not exist is reported.");
     }
 
-    private static List<string> MissingMirrors(
-        IEnumerable<ProjectNode> sources,
-        HashSet<string> testProjectPaths,
-        HashSet<string> sourceNames) =>
+    private static List<string> MissingMirrors(IEnumerable<ProjectNode> sources, HashSet<string> testProjectPaths) =>
         [
             .. sources
-                .Where(project => !Array.Exists(_withoutAUnitTestProject, exception => exception.Applies(project, sourceNames)))
+                .Where(project => !Array.Exists(_withoutAUnitTestProject, exception => exception.Applies(project)))
                 .Select(ExpectedPath)
                 .Where(path => !testProjectPaths.Contains(path))
                 .Order(StringComparer.Ordinal),
@@ -133,5 +121,5 @@ public sealed class TestProjectMirrorTests
         ];
     }
 
-    private sealed record MirrorException(string Reason, Func<ProjectNode, HashSet<string>, bool> Applies);
+    private sealed record MirrorException(string Reason, Func<ProjectNode, bool> Applies);
 }

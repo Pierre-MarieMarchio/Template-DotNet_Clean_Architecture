@@ -161,6 +161,101 @@ public sealed class LauncherTests : IDisposable
         processes.Calls.ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData("w", false)]
+    [InlineData("W", false)]
+    [InlineData("Wx", true)]
+    [InlineData("AB", true)]
+    public void AProjectName_UnderTwoCharacters_IsRefusedWithTheMinimum_BeforeAnythingRuns(string name, bool generated)
+    {
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        new Launcher(console, _root, interactive: false, processes)
+            .Run(["new", "-n", name, "--yes", "--template-source", Repository.Root])
+            .ShouldBe(generated ? 0 : 1, console.Output);
+
+        if (generated)
+        {
+            console.Output.ShouldContain($"dotnet new cleanarch-webapi -n {name} -o {name}");
+            return;
+        }
+
+        console.Output.ShouldContain($"--name '{name}': -n takes two characters or more");
+        console.Output.ShouldNotContain("name-needs-two-characters");
+        Directory.Exists(Path.Combine(_root, name)).ShouldBeFalse();
+        processes.Calls.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("_")]
+    [InlineData("_Foo")]
+    [InlineData("_1")]
+    [InlineData("1a")]
+    [InlineData("Acme._Shop")]
+    [InlineData("Acme.1Shop")]
+    [InlineData("Acme-Shop")]
+    [InlineData("Acme..Shop")]
+    [InlineData("Acme.")]
+    [InlineData("Ab")]
+    [InlineData("A_b")]
+    [InlineData("Ab1.C_2")]
+    [InlineData("Northwind.Billing")]
+    public void AProjectName_IsRefusedExactlyWhenItBreaksTheRuleItsMessageStates(string name)
+    {
+        const string rule = "use the letters A to Z, digits, underscores and dots, with each part starting with a letter, like Acme.Shop.";
+        bool followsTheRule = name.Split('.').All(part => part.Length > 0 && char.IsAsciiLetter(part[0]) && part.All(character => char.IsAsciiLetterOrDigit(character) || character == '_'));
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        new Launcher(console, _root, interactive: false, processes)
+            .Run(["new", "-n", name, "--yes", "--template-source", Repository.Root])
+            .ShouldBe(followsTheRule ? 0 : 1, console.Output);
+
+        if (followsTheRule)
+        {
+            console.Output.ShouldNotContain(rule);
+            return;
+        }
+
+        console.Output.ShouldContain($"--name '{name}': {rule}");
+        processes.Calls.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("presentation", "w", "--project-name takes two characters or more")]
+    [InlineData("web-app", "w", "--project-name takes two characters or more")]
+    [InlineData("presentation", "_1", "--project-name starts with a letter from A to Z")]
+    [InlineData("web-app", "__", "--project-name starts with a letter from A to Z")]
+    [InlineData("presentation", "Wx", null)]
+    [InlineData("web-app", "Wx", null)]
+    public void AnItemCommand_InAProjectWhoseNameTheItemTemplateRefuses_IsRefusedBeforeAnythingRuns(string command, string project, string? rule)
+    {
+        File.WriteAllText(Path.Combine(_root, project + ".sln"), string.Empty);
+        Directory.CreateDirectory(Path.Combine(_root, "Tools"));
+        File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        int exit = new Launcher(console, _root, interactive: false, processes)
+            .Run([command, "-n", command == "presentation" ? "Portal" : "Site", "--framework", command == "presentation" ? "blazor-server" : "vite-react", "--yes", "--template-source", Repository.Root]);
+
+        if (rule is null)
+        {
+            exit.ShouldBe(0, console.Output);
+            processes.Calls.ShouldNotBeEmpty();
+            return;
+        }
+
+        exit.ShouldBe(1);
+        console.Output.ShouldContain($"refuses {project}, whatever the answers: {rule}");
+        console.Output.ShouldContain("Nothing was written");
+        processes.Calls.ShouldBeEmpty();
+    }
+
     [Fact]
     public void AnExistingOutputFolder_WithFiles_IsRefusedBeforeAnythingIsInstalled()
     {

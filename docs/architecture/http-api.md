@@ -136,6 +136,7 @@ string of at most 128 characters, on an action that accepts one.
 | Same key, a different body | `409` `idempotency.keyReused` |
 | Same key while the first is still running | `409` `idempotency.inProgress` |
 | Same key after the first attempt failed | the request runs: a failure releases its claim |
+| Same key after the process stopped between the write's commit and the stored response | `409` `idempotency.inProgress` until `Idempotency:ClaimLease` (15 minutes by default) has passed, then the request runs again: at most once does not hold in that window |
 | A stored response too large to keep | `409` `idempotency.notReplayable` |
 | A key on a request with no identifiable caller | `400` `idempotency.callerNotIdentifiable` |
 
@@ -212,7 +213,7 @@ one caller's response to another. A value an endpoint sets itself is never overw
 ## Decisions
 
 - [0008. Optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
-- [0010. Idempotency-Key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
+- [0010. An idempotency key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): MVC controllers, `Asp.Versioning`, the framework's OpenAPI generator.
 <!--#if (anyWeb)-->
 - [0019. One generated API client](../decisions/0019-one-generated-api-client.md)

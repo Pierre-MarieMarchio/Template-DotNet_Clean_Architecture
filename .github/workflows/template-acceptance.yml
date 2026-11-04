@@ -1235,30 +1235,38 @@ jobs:
           refuse aspire-sqlite --database sqlite --aspire true
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
-          # A one-letter name would put the project w.Api in the folder W.Api, which a solution takes for the same name.
-          out="${{ runner.temp }}/refused-one-letter"
-          if dotnet new cleanarch-webapi -n w -o "$out"; then
-            echo "::error title=Accepted::'dotnet new cleanarch-webapi -n w' must be refused."
-            exit 1
-          fi
-          if [ -e "$out" ] && [ -n "$(find "$out" -type f -print -quit)" ]; then
-            echo "::error title=Wrote files::'dotnet new cleanarch-webapi -n w' was refused but left files behind."
-            exit 1
-          fi
-          refuse_item() {
-            local out="${{ runner.temp }}/refused-one-letter-$1"
-            mkdir -p "$out"
-            if (cd "$out" && dotnet new "$@" --project-name w); then
-              echo "::error title=Accepted::'dotnet new $* --project-name w' must be refused."
+          # A one-letter name would put the project w.Api in the folder W.Api, which a solution takes for the same name,
+          # and a name that does not start with a letter from A to Z, as _1, has no initials to put in front of .Api.
+          refuse_name() {
+            local out="${{ runner.temp }}/refused-name-$1"
+            if dotnet new cleanarch-webapi -n "$1" -o "$out"; then
+              echo "::error title=Accepted::'dotnet new cleanarch-webapi -n $1' must be refused."
               exit 1
             fi
-            if [ -n "$(find "$out" -type f -print -quit)" ]; then
-              echo "::error title=Wrote files::'dotnet new $* --project-name w' was refused but left files behind."
+            if [ -e "$out" ] && [ -n "$(find "$out" -type f -print -quit)" ]; then
+              echo "::error title=Wrote files::'dotnet new cleanarch-webapi -n $1' was refused but left files behind."
               exit 1
             fi
           }
-          refuse_item cleanarch-presentation -n Portal --framework blazor-server
-          refuse_item cleanarch-webapp -n Site --framework vite-react --scope sample
+          refuse_item() {
+            local name=$1
+            shift
+            local out="${{ runner.temp }}/refused-name-$name-$1"
+            mkdir -p "$out"
+            if (cd "$out" && dotnet new "$@" --project-name "$name"); then
+              echo "::error title=Accepted::'dotnet new $* --project-name $name' must be refused."
+              exit 1
+            fi
+            if [ -n "$(find "$out" -type f -print -quit)" ]; then
+              echo "::error title=Wrote files::'dotnet new $* --project-name $name' was refused but left files behind."
+              exit 1
+            fi
+          }
+          for name in w _1; do
+            refuse_name "$name"
+            refuse_item "$name" cleanarch-presentation -n Portal --framework blazor-server
+            refuse_item "$name" cleanarch-webapp -n Site --framework vite-react --scope sample
+          done
           # The item template refuses as -n each name the template writes a project under.
           out="${{ runner.temp }}/refused-presentation"
           mkdir -p "$out"

@@ -31,4 +31,7 @@
 //#if (name == "_" || name == "a" || name == "b" || name == "c" || name == "d" || name == "e" || name == "f" || name == "g" || name == "h" || name == "i" || name == "j" || name == "k" || name == "l" || name == "m" || name == "n" || name == "o" || name == "p" || name == "q" || name == "r" || name == "s" || name == "t" || name == "u" || name == "v" || name == "w" || name == "x" || name == "y" || name == "z")
 #error The template refuses a -n of one character, whose project w.Api would sit in the folder W.Api, a name a solution compares without case and takes for the same: generate with a name of two characters or more.
 //#endif
+//#if (nameLacksALeadingLetter)
+#error The template refuses a -n that does not start with a letter from A to Z: a project's folder carries the initials taken from those letters, which a name such as _1 lacks, putting its projects in folders such as .Api: generate with a name that starts with a letter from A to Z.
+//#endif
 #error Generate the project again without the hidden option that let the combination through.

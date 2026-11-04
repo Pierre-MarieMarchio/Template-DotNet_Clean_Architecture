@@ -37,6 +37,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "projectNameNeedsALeadingLetter": {
+      "longName": "project-name-needs-a-leading-letter",
+      "shortName": "",
+      "isHidden": true
+    },
     "clientPresentationNeedsAccounts": {
       "longName": "client-presentation-needs-accounts",
       "shortName": "",

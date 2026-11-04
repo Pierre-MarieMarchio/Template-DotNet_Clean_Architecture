@@ -77,6 +77,22 @@
       "isRequired": "(name == \"_\" || name == \"a\" || name == \"b\" || name == \"c\" || name == \"d\" || name == \"e\" || name == \"f\" || name == \"g\" || name == \"h\" || name == \"i\" || name == \"j\" || name == \"k\" || name == \"l\" || name == \"m\" || name == \"n\" || name == \"o\" || name == \"p\" || name == \"q\" || name == \"r\" || name == \"s\" || name == \"t\" || name == \"u\" || name == \"v\" || name == \"w\" || name == \"x\" || name == \"y\" || name == \"z\")",
       "description": "Never set. -n takes two characters or more: a project's folder carries the name's initials upper-cased, so a one-letter name such as w would put the project w.Api in the folder W.Api, which a solution compares without case and takes for the same name: choose a longer name."
     },
+    "nameNeedsALeadingLetter": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "refused",
+          "description": "Not an option to set: it names the refusal."
+        }
+      ],
+      "isRequired": "(name < \"A\" || name >= \"[\")",
+      "description": "Never set. -n starts with a letter from A to Z: a project's folder carries the name's initials, taken from its letters A to Z, which a name starting otherwise, such as _1 or __, may lack, putting its projects in folders such as .Api: choose a name that starts with a letter from A to Z."
+    },
+    "nameLacksALeadingLetter": {
+      "type": "computed",
+      "value": "(name < \"A\" || name >= \"[\")"
+    },
     "localAuth": {
       "type": "computed",
       "value": "(auth == \"local\")"
@@ -95,7 +111,7 @@
     },
     "refusedOptions": {
       "type": "computed",
-      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\") || (aspire && database == \"sqlite\") || (name == \"_\" || name == \"a\" || name == \"b\" || name == \"c\" || name == \"d\" || name == \"e\" || name == \"f\" || name == \"g\" || name == \"h\" || name == \"i\" || name == \"j\" || name == \"k\" || name == \"l\" || name == \"m\" || name == \"n\" || name == \"o\" || name == \"p\" || name == \"q\" || name == \"r\" || name == \"s\" || name == \"t\" || name == \"u\" || name == \"v\" || name == \"w\" || name == \"x\" || name == \"y\" || name == \"z\"))"
+      "value": "((auth == \"none\" && (examples != \"none\" || files)) || (web != \"none\" && webAudience == \"admin\" && auth == \"none\") || database == \"mysql\" || ((presentation == \"avalonia\" || presentation == \"wpf\") && auth == \"none\") || (presentation == \"mcp\" && auth == \"none\") || (web == \"blazor-wasm\" && auth == \"none\") || (webRendering == \"ssr\" && web != \"angular\" && web != \"react-router\") || (presentation == \"avalonia\" && presentation == \"wpf\") || (database == \"sqlite\" && presentation == \"worker\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && presentation != \"mcp\") || (database == \"sqlite\" && presentation != \"api\" && presentation != \"avalonia\" && presentation != \"wpf\" && web == \"none\" && auth != \"local\") || (aspire && database == \"sqlite\") || (name == \"_\" || name == \"a\" || name == \"b\" || name == \"c\" || name == \"d\" || name == \"e\" || name == \"f\" || name == \"g\" || name == \"h\" || name == \"i\" || name == \"j\" || name == \"k\" || name == \"l\" || name == \"m\" || name == \"n\" || name == \"o\" || name == \"p\" || name == \"q\" || name == \"r\" || name == \"s\" || name == \"t\" || name == \"u\" || name == \"v\" || name == \"w\" || name == \"x\" || name == \"y\" || name == \"z\") || nameLacksALeadingLetter)"
     },
     "database": {
       "type": "parameter",

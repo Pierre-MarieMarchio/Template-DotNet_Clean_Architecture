@@ -40,6 +40,17 @@ public sealed class ConditionTests
     public void AValueOfSeveral_IsEqualToEachOfItsValues_AndToNoOther(string text, bool expected) =>
         Condition.Parse(text).IsTrue(new Dictionary<string, string> { ["presentation"] = "mcp|worker" }.GetValueOrDefault).ShouldBe(expected);
 
+    [Theory]
+    [InlineData("(auth < \"o\")", true)]
+    [InlineData("(auth < \"N\")", false)]
+    [InlineData("(auth <= \"NONE\")", true)]
+    [InlineData("(auth > \"nond\")", true)]
+    [InlineData("(auth >= \"nonea\")", false)]
+    [InlineData("(auth >= \"[\")", false)]
+    [InlineData("(unknown < \"z\" || unknown >= \"a\")", false)]
+    public void AnOrdering_ComparesTextOrdinallyWithoutCase_AsTheTemplateEngineDoes(string text, bool expected) =>
+        Condition.Parse(text).IsTrue(_values.GetValueOrDefault).ShouldBe(expected);
+
     [Fact]
     public void Symbols_AreTheNamesTheConditionReads() =>
         Condition.Parse("(auth == \"none\" && (examples != \"none\" || files))").Symbols
@@ -51,7 +62,8 @@ public sealed class ConditionTests
     [InlineData("auth == \"none")]
     [InlineData("auth ==")]
     [InlineData("auth none")]
-    [InlineData("auth < 3")]
+    [InlineData("auth + 3")]
+    [InlineData("auth <")]
     public void Parse_RefusesWhatItCannotRead(string text) =>
         Should.Throw<FormatException>(() => Condition.Parse(text));
 }

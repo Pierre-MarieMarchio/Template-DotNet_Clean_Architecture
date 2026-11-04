@@ -54,14 +54,14 @@ public sealed class Condition
                 tokens.Add(new Token(TokenKind.Operator, current.ToString()));
                 index++;
             }
-            else if (index + 1 < text.Length && text.Substring(index, 2) is "==" or "!=" or "&&" or "||")
+            else if (index + 1 < text.Length && text.Substring(index, 2) is "==" or "!=" or "<=" or ">=" or "&&" or "||")
             {
                 tokens.Add(new Token(TokenKind.Operator, text.Substring(index, 2)));
                 index += 2;
             }
-            else if (current == '!')
+            else if (current is '!' or '<' or '>')
             {
-                tokens.Add(new Token(TokenKind.Operator, "!"));
+                tokens.Add(new Token(TokenKind.Operator, current.ToString()));
                 index++;
             }
             else if (current == '"')
@@ -133,8 +133,17 @@ public sealed class Condition
             "&&" => Of(IsTruthy(Left.Evaluate(resolve)) && IsTruthy(Right.Evaluate(resolve))),
             "||" => Of(IsTruthy(Left.Evaluate(resolve)) || IsTruthy(Right.Evaluate(resolve))),
             "==" => Of(ShareAValue(Left.Evaluate(resolve), Right.Evaluate(resolve))),
-            _ => Of(!ShareAValue(Left.Evaluate(resolve), Right.Evaluate(resolve))),
+            "!=" => Of(!ShareAValue(Left.Evaluate(resolve), Right.Evaluate(resolve))),
+            _ => Of(Orders(Left.Evaluate(resolve), Right.Evaluate(resolve))),
         };
+
+        private bool Orders(string? left, string? right) =>
+            left is not null && right is not null && string.Compare(left, right, StringComparison.OrdinalIgnoreCase) switch
+            {
+                < 0 => Operator is "<" or "<=",
+                0 => Operator is "<=" or ">=",
+                > 0 => Operator is ">" or ">=",
+            };
 
         private static bool ShareAValue(string? left, string? right) =>
             left is null || right is null
@@ -190,7 +199,7 @@ public sealed class Condition
         private Node Comparison()
         {
             Node left = Unary();
-            while (Peek() is { Kind: TokenKind.Operator, Text: "==" or "!=" } token)
+            while (Peek() is { Kind: TokenKind.Operator, Text: "==" or "!=" or "<" or "<=" or ">" or ">=" } token)
             {
                 _position++;
                 left = new BinaryNode(token.Text, left, Unary());

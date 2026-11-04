@@ -18,7 +18,7 @@ constraint between parameters.
   are excluded by conditions in `template.json`; content shared by several shapes is conditioned
   with template markers.
 - **A forbidden combination is refused at generation.** Each refusal is a hidden parameter that the
-  combination makes required: `authNoneNeedsExamplesNone`, `authNoneNeedsFilesFalse`,
+  combination makes required, such as `authNoneNeedsExamplesNone`, `authNoneNeedsFilesFalse` or
   `adminWebNeedsAccounts`. The engine stops and prints the parameter's description, which names the
   option to change.
 - **A refusal that slips through cannot build.** The same combinations select the `refused`

@@ -4,9 +4,8 @@ Status: Accepted
 
 ## Context
 
-[0008](0008-a-web-app-comes-from-a-starter.md) made each web app a starter: a pinned CLI that
-`web-scaffold` runs with pnpm, and an overlay. It left a `kind` for a starter that is no pnpm app
-until one arrived. `--presentation blazor-server` is the first: a Blazor Web App written by
+A web app is a starter: a pinned CLI that `web-scaffold` runs with pnpm, and an overlay. A .NET
+project is not a pnpm app: `--presentation blazor-server`, for one, is a Blazor Web App written by
 `dotnet new blazor`, from Microsoft's ASP.NET Core templates. Its output is C#, built by the
 solution and held by the architecture tests, so it has to come under the repository's rules: the
 central package versions, the properties `Directory.Build.props` already sets, the solution, the
@@ -15,8 +14,8 @@ pins and refuses an install of another version beside it.
 
 ## Decision
 
-- **A descriptor says its kind.** `scaffold.json` holds `kind`: `pnpm` when absent, so every web
-  starter reads as before, and `dotnet` for a template package. A `dotnet` descriptor names the
+- **A descriptor says its kind.** `scaffold.json` holds `kind`: `pnpm` when absent, so a web starter
+  of pnpm needs none, and `dotnet` for a template package. A `dotnet` descriptor names the
   package, its exact version, the template's short name, its arguments, and the generated folders
   the project keeps.
 - **The template runs in a hive of its own.** `presentation-scaffold`, or `web-scaffold` for a web

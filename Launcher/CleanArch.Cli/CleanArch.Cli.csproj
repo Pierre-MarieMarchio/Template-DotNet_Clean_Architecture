@@ -18,8 +18,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageProjectUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Pierre-MarieMarchio/cleanarch-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Pierre-MarieMarchio/cleanarch-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

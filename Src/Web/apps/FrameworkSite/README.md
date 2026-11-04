@@ -109,6 +109,9 @@ What the template adds to the CLI's starter, and nothing else:
 - `react-router.config.ts`, replaced whole: `ssr: false`, a single-page app with no server, built
   into the dist folder; React Router writes the page and its assets in its client folder, which is
   what the image serves;
+- `app/root.tsx`, the CLI's, without its links to Google Fonts: the policy refuses a stylesheet or a
+  font from another origin, so the CLI's Tailwind theme falls back from Inter to the system font; a
+  font the app wants is served from the app, as a package or a file of its own;
 - `vite.config.ts`, replaced whole, since a Vite dev server is configured there and nowhere else:
   the CLI's Tailwind and React Router plugins and its path aliases, kept as it writes them, plus
   port 5173 and `/api/` and `/health` relayed to the API (`API_UPSTREAM`, default
@@ -128,9 +131,7 @@ The page React Router builds starts the app from inline scripts, which the Conte
 allows by their hash and no other way: when the image is built, the `Dockerfile` computes the
 SHA-256 of each inline script in the built page and writes the server's configuration with those
 hashes added to `script-src`. A change to the app that changes those scripts changes the hashes at
-the next image build, with nothing to edit by hand. The starter's page links Google Fonts, which
-the policy refuses like any other origin: serve the font from the app, or add its origins to
-`style-src` and `font-src`.
+the next image build, with nothing to edit by hand.
 <!--#endif-->
 <!--#if (webReactRouter && webServerRendering)-->
 What the template adds to the CLI's starter, and nothing else:
@@ -154,6 +155,9 @@ What the template adds to the CLI's starter, and nothing else:
   `<ServerRouter nonce>` writes on each script and link React Router renders, and React on the
   scripts it streams;
 - `app/context.ts`, the CLI's, plus `renderContext`;
+- `app/root.tsx`, the CLI's, without its links to Google Fonts: the policy refuses a stylesheet or a
+  font from another origin, so the CLI's Tailwind theme falls back from Inter to the system font; a
+  font the app wants is served from the app, as a package or a file of its own;
 - `server.js`, the CLI's server, replaced by the development server alone: Vite in middleware mode,
   its hot-reload socket on the same port, and `server/app.ts` loaded for each request, so
   `pnpm dev` relays `/api/` and `/health` through the server's relay, the session included, on port
@@ -173,9 +177,6 @@ What the template adds to the CLI's starter, and nothing else:
   and `morgan` and their types are removed, since `server/app.ts` uses neither. The CLI writes no
   linter, and the workspace's `pnpm lint` skips an app without a `lint` script;
 - the CLI's own Dockerfile and .dockerignore are removed: the image is this folder's.
-
-The starter's page links Google Fonts, which the policy refuses like any other origin: serve the font
-from the app, or add its origins to `style-src` and `font-src` in `server/app.ts`.
 <!--#endif-->
 <!--#if (webAngular && !webServerRendering)-->
 What the template adds to the CLI's starter, and nothing else; no file the CLI writes is replaced:

@@ -93,10 +93,9 @@ A folder word of a layer that no feature is filed under any more fails
 `EveryFeatureFolder_IsNamedFromItsLayersVocabulary` in `LayoutConventionTests`: drop the word from that
 layer's vocabulary there, and from the folder map of [the project layout](../reference/project-layout.md).
 <!--#endif-->
-
 <!--#if (todoLists || notes)-->
-## Remove the examples
 
+## Remove the examples
 <!--#endif-->
 <!--#if (todoLists)-->
 
@@ -211,8 +210,8 @@ conditional `GET`, and the tests whose subject is a to-do list.
 
 With Notes goes the only example of the simple shape.
 <!--#endif-->
-
 <!--#if (files)-->
+
 ## Remove Files
 
 Files is a working capability: a product that stores files re-points it at its own bucket. To remove
@@ -229,12 +228,12 @@ edit:
 - the `Files` and `Jobs:Files` settings, and the object store in Compose and `.env.example`;
 - [the Files page](../features/files.md) and [ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md),
   then `docs-index`, which drops both from the index.
-
 <!--#endif-->
 <!--#if (todoLists && files)-->
-`Common/Tagging/` goes when neither TodoLists nor Files is left.
 
+`Common/Tagging/` goes when neither TodoLists nor Files is left.
 <!--#endif-->
+
 ## Migrations
 
 <!--#if (localAuth)-->

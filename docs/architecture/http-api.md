@@ -117,7 +117,6 @@ string of at most 128 characters, on an action that accepts one.
 <!--#if (anyFeature || localAuth)-->
 | Action | Accepts a key |
 |---|---|
-<!--#endif-->
 <!--#if (todoLists)-->
 | `POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items` | yes |
 <!--#endif-->
@@ -135,6 +134,7 @@ string of at most 128 characters, on an action that accepts one.
 | the authentication endpoints | never: replaying a sign-in would keep a token at rest |
 <!--#endif-->
 
+<!--#endif-->
 | Situation | Answer |
 |---|---|
 | First use of the key | the request runs |
@@ -148,8 +148,8 @@ string of at most 128 characters, on an action that accepts one.
 
 Keys are scoped per user, so two callers may use the same string. A completed key stays replayable
 for `Idempotency:Retention`, and the maintenance job purges the expired ones.
-
 <!--#if (publicApi)-->
+
 This API identifies no caller, so it accepts no key; an action marks itself `[Idempotent]` once
 callers exist.
 <!--#endif-->

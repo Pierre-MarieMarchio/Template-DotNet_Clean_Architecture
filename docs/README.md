@@ -65,7 +65,7 @@ description: How to add a feature of your own, in the shape its rules call for, 
 A template carries `type: template` and a placeholder in each other field: set the type of the page's
 folder and replace every placeholder. `DocumentationFrontmatterTests` fails on a page whose
 frontmatter is missing, holds a type outside the list, or disagrees with its heading or its status.
-
 <!--#if (agentFiles)-->
+
 [AGENTS.md › Writing docs](../AGENTS.md#writing-docs) holds the rules for writing them.
 <!--#endif-->

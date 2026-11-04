@@ -16,5 +16,5 @@ public static class IdempotencyErrors
 
     public static readonly Error NotReplayable = Error.Conflict(
         "idempotency.notReplayable",
-        "The original response for this 'Idempotency-Key' was too large to store; it cannot be replayed.");
+        "The original response for this 'Idempotency-Key' completed with a body this server did not keep; it cannot be replayed.");
 }

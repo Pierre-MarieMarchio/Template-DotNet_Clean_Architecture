@@ -1,4 +1,4 @@
-﻿# 0029. A project folder carries the product's initials, not its name
+# 0029. A project folder carries the product's initials, not its name
 
 Status: Accepted
 

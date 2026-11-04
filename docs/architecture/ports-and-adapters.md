@@ -1,4 +1,4 @@
-﻿# Ports and adapters
+# Ports and adapters
 
 The application reaches storage and the outside world only through ports: interfaces it declares
 and an infrastructure module implements. It can be read and tested without knowing that EF Core,

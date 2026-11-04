@@ -1,4 +1,4 @@
-﻿# 0020. One risk, one type of test
+# 0020. One risk, one type of test
 
 Status: Accepted
 

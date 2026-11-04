@@ -1,4 +1,4 @@
-﻿# Maintaining the template
+# Maintaining the template
 
 This repository builds, tests and runs as the default generation does: every condition is a comment
 the compiler ignores. A change is done when the project's gate passes here and every generated shape

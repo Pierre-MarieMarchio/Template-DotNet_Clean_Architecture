@@ -1,4 +1,4 @@
-﻿# Architecture
+# Architecture
 
 This project is a .NET HTTP API built in four layers. Source dependencies point inward, and the
 tests in `Tests/Architecture/AT.Architecture.Tests` fail the build when one points the

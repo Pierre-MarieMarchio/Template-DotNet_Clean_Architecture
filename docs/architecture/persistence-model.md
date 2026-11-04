@@ -1,4 +1,4 @@
-﻿# Persistence model
+# Persistence model
 
 <!--#if (postgreSql)-->
 This project stores everything in one PostgreSQL database through EF Core.

@@ -1,4 +1,4 @@
-﻿# 0001. Adopt the generated baseline
+# 0001. Adopt the generated baseline
 
 Status: Accepted
 

@@ -1,3 +1,10 @@
+---
+type: template
+title: NNNN. <Title>
+description: <description>
+status: Proposed
+---
+
 # NNNN. <Title>
 
 Status: Proposed

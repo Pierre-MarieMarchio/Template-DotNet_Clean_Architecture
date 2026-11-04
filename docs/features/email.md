@@ -1,3 +1,9 @@
+---
+type: feature
+title: Email
+description: How this project sends mail, and how it picks the language a mail is written in.
+---
+
 # Email
 
 How this project sends mail, and how it picks the language a mail is written in.

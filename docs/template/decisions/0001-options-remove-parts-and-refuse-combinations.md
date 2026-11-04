@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0001. Options remove parts and refuse combinations
+description: Why an option removes what it leaves out of a generated project rather than disabling it, and refuses the combinations that cannot hold.
+status: Accepted
+---
+
 # 0001. Options remove parts and refuse combinations
 
 Status: Accepted

@@ -1,3 +1,9 @@
+---
+type: concept
+title: Shared mechanisms
+description: The mechanisms a feature composes without writing them, such as the cache, the outbound HTTP budget, the clock and the current caller.
+---
+
 # Shared mechanisms
 
 A feature composes these mechanisms without writing them: a cache, an outbound HTTP budget, a clock,

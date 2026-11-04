@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0024. A server-rendered web app runs on its own server
+description: Why a server-rendered web app is served by its own Node server in place of nginx, and how it relays the API.
+status: Accepted
+---
+
 # 0024. A server-rendered web app runs on its own server
 
 Status: Accepted

@@ -312,7 +312,7 @@ task stops:
   add:
 
   ```markdown
-  | A WPF desktop app for Windows beside the API, in the shape of `dotnet new wpf`, one project developed, run and tested on Windows, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases | [Presentation project](../features/presentation.md) | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) |
+  | A WPF desktop app for Windows beside the API, in the shape of `dotnet new wpf`, one project developed, run and tested on Windows, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases ([ADR 0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)) | [Presentation project](../features/presentation.md) | — |
   ```
 
 - in `docs/decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md`,

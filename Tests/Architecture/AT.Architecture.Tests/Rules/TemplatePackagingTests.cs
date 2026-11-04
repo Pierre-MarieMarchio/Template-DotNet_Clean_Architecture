@@ -367,6 +367,27 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void ThePackagesMetadataFiles_AreAtItsRootAndNotAlsoUnderContent()
+    {
+        string project = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "TemplatePackage.csproj");
+        var packageExcludes = PackageExcludes();
+
+        var metadata = XDocument.Load(project)
+            .Descendants("None")
+            .Where(item => (string?)item.Attribute("PackagePath") == "/")
+            .Select(item => item.Attribute("Include")!.Value
+                .Replace("$(TemplateRoot)", string.Empty, StringComparison.Ordinal)
+                .Replace("$(MSBuildThisFileDirectory)", ".template.config/", StringComparison.Ordinal))
+            .ToList();
+
+        metadata.ShouldContain(".template.config/icon.png", "The package no longer packs its icon at its root.");
+        metadata
+            .Where(file => !packageExcludes.Any(exclude => exclude == file || (exclude.EndsWith("/**", StringComparison.Ordinal) && file.StartsWith(exclude[..^2], StringComparison.Ordinal))))
+            .ShouldBeEmpty(
+                "These metadata files sit at the package's root and, with the content glob, under content/ as well: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
     public void ThePullRequestTemplate_ReachesEveryGeneratedProject()
     {
         string[] templatePaths = [".github/pull_request_template.md", ".github/**"];

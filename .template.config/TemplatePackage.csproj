@@ -40,7 +40,7 @@
     <TemplateExclude Include="$(TemplateRoot)**/bin/**;$(TemplateRoot)**/obj/**;$(TemplateRoot)**/node_modules/**;$(TemplateRoot)**/TestResults/**" />
     <TemplateExclude Include="$(TemplateRoot)artifacts/**;$(TemplateRoot).env" />
     <TemplateExclude Include="$(TemplateRoot)Launcher/**" />
-    <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj;$(TemplateRoot).template.config/package/**" />
+    <TemplateExclude Include="$(TemplateRoot).template.config/TemplatePackage.csproj;$(TemplateRoot).template.config/package/**;$(TemplateRoot).template.config/icon.png" />
     <TemplateExclude Include="$(TemplateRoot)README.md;$(TemplateRoot)CHANGELOG.md;$(TemplateRoot)LICENSE" />
     <TemplateExclude Include="$(TemplateRoot)docs/template/**;$(TemplateRoot)docs/plans/**;$(TemplateRoot)docs/guide_architecture_pour_agent.md;$(TemplateRoot)docs/index.md;$(TemplateRoot)docs/**/index.md" />
     <TemplateExclude Include="$(TemplateRoot).github/workflows/template-acceptance.yml;$(TemplateRoot).github/workflows/template-release.yml;$(TemplateRoot).github/workflows/template-published-package.yml;$(TemplateRoot).github/workflows/template-pull-request-title.yml;$(TemplateRoot).github/workflows/template-web-lockfiles.yml;$(TemplateRoot).github/workflows/template-web-lockfiles-commit.yml;$(TemplateRoot).github/release-please/**;$(TemplateRoot).github/ISSUE_TEMPLATE/**;$(TemplateRoot).github/FUNDING.yml;$(TemplateRoot)CODE_OF_CONDUCT.md;$(TemplateRoot)SUPPORT.md" />

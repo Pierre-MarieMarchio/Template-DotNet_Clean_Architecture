@@ -87,7 +87,7 @@ the sealed class that handles it, in one file, with the message's validator besi
 the message through `ISender`; each host's generated mediator dispatches it, and the build stops when
 a message has no handler or two. `MessageRoutingTests` holds that each message has one handler and is
 sent by a host or a job, `ValidatorTargetTests` that each validator is run by the pipeline or by the
-service that takes it, and `BannedPackageTests` refuses MediatR and AutoMapper in every project.
+service that takes it, and `BannedPackageTests` refuses MediatR in every project.
 
 Every message crosses the same pipeline, which `AddUseCasePipeline` registers once, in this order:
 

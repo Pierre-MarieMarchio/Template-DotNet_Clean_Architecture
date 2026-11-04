@@ -86,9 +86,9 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 | MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) |
 | A generic repository, `IQueryable` in a port | four words for four ways to reach storage | [Ports and adapters](ports-and-adapters.md#repository-queries-store-table) |
 | EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0005](../decisions/0005-the-domain-is-not-mapped-by-ef.md) |
-| Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |
+| Soft delete | `DELETE` removes rows | [ADR 0038](../decisions/0038-deleting-removes-rows.md) |
 | An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md) |
-| AutoMapper | mappings written by hand, checked by the compiler; `BannedPackageTests` refuses the package | [Layers and projects](layers-and-projects.md#the-api-host) |
+| AutoMapper, Mapperly | mappings written by hand, checked by the compiler; `BannedPackageTests` refuses both packages | [ADR 0036](../decisions/0036-mappings-are-written-by-hand.md) |
 <!--#if (api)-->
 | Minimal APIs | MVC controllers, which carry the filters, the result mapping and the `ETag` handling | [HTTP API](http-api.md) |
 <!--#endif-->

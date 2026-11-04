@@ -40,8 +40,9 @@ internal static class UpgradeReport
         Files bootstrap or a framework's CLI writes are not compared and are listed apart, with the
         command that writes them; an option the two versions do not share is a decision to take by
         hand, never mapped. Line endings and a leading BOM are not differences, nor is the order of
-        a C# file's using directives, nor the GUIDs dotnet new draws for a solution's entries. The
-        changelog entries between the two versions come from the target package's CHANGELOG.md.
+        a C# file's using directives, nor the GUIDs dotnet new draws for a solution's entries and
+        for the guids a template declares, such as a UserSecretsId. The changelog entries between
+        the two versions come from the target package's CHANGELOG.md.
 
           --root <path>     the project, the current directory when left out
           --to <version>    the target version; the latest stable version the sources hold when
@@ -99,6 +100,11 @@ internal static class UpgradeReport
     private static readonly Regex _solutionEntry = new(
         @"^Project\(""\{[^}]+\}""\)\s*=\s*""[^""]*"",\s*""(?<path>[^""]*)"",\s*""\{(?<id>[0-9A-Fa-f-]{36})\}""",
         RegexOptions.Multiline,
+        _timeout);
+
+    private static readonly Regex _guid = new(
+        @"(?<![0-9A-Fa-f-])[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}(?![0-9A-Fa-f-])",
+        RegexOptions.None,
         _timeout);
 
     private static readonly Regex _joinedPath = new(@"^- in `(?<path>[^`]+)`", RegexOptions.None, _timeout);
@@ -284,7 +290,13 @@ internal static class UpgradeReport
 
     private sealed record Parameter(string Name, string Datatype, string? Default, string[] Choices);
 
-    private sealed record PackageContent(string Version, IReadOnlyDictionary<string, Template> Templates, string? Changelog, string? Repository)
+    private sealed record PackageContent(
+        string Version,
+        IReadOnlyDictionary<string, Template> Templates,
+        string? Changelog,
+        string? Repository,
+        IReadOnlySet<string> HeldGuids,
+        bool DrawsGuids)
     {
         internal static PackageContent Read(string nupkg)
         {
@@ -302,10 +314,18 @@ internal static class UpgradeReport
             string? repository = metadata.Elements().FirstOrDefault(element => element.Name.LocalName == "repository")?.Attribute("url")?.Value ?? Meta("projectUrl");
 
             var templates = new Dictionary<string, Template>(StringComparer.Ordinal);
+            var heldGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool drawsGuids = false;
+
+            foreach (ZipArchiveEntry entry in archive.Entries.Where(entry => entry.FullName.StartsWith("content/", StringComparison.Ordinal) && entry.Length > 0))
+            {
+                heldGuids.UnionWith(_guid.Matches(Entry(entry)).Select(match => match.Value));
+            }
 
             foreach (ZipArchiveEntry entry in archive.Entries.Where(entry => _templateManifest.IsMatch(entry.FullName)))
             {
                 JsonObject manifest = JsonNode.Parse(Entry(entry))!.AsObject();
+                drawsGuids |= manifest["guids"] is JsonArray { Count: > 0 };
                 string hostPath = entry.FullName[..^"template.json".Length] + "dotnetcli.host.json";
                 JsonObject? host = archive.GetEntry(hostPath) is { } hostEntry ? JsonNode.Parse(Entry(hostEntry))!.AsObject() : null;
                 Dictionary<string, string> longNames = (host?["symbolInfo"] as JsonObject ?? [])
@@ -323,7 +343,7 @@ internal static class UpgradeReport
             }
 
             string? changelog = archive.GetEntry("CHANGELOG.md") is { } log ? Entry(log) : null;
-            return new PackageContent(Meta("version") ?? string.Empty, templates, changelog, repository);
+            return new PackageContent(Meta("version") ?? string.Empty, templates, changelog, repository, heldGuids, drawsGuids);
         }
 
         internal Template Require(string identity, string version) =>
@@ -407,7 +427,10 @@ internal static class UpgradeReport
             List<string> decisions = [.. OptionChanges(older, newer, project, to.Version), .. olderNotes, .. newerNotes];
             RequireTheProjectsPaths(olderTree, root, ProjectFiles(root), project.Name);
 
-            Comparison comparison = Compare(olderTree, newerTree, root, ProjectFiles(root), project.Name, JoinedPaths(olderTree, newerTree, project));
+            IReadOnlySet<string>? heldGuids = older.DrawsGuids || newer.DrawsGuids
+                ? new HashSet<string>(older.HeldGuids.Concat(newer.HeldGuids), StringComparer.OrdinalIgnoreCase)
+                : null;
+            Comparison comparison = Compare(olderTree, newerTree, root, ProjectFiles(root), project.Name, JoinedPaths(olderTree, newerTree, project), heldGuids);
             string[] diffs = [.. comparison.Findings
                 .Where(finding => finding.Kind == Kind.Merge)
                 .Select(finding => TemplateDiff(scratch, olderTree, newerTree, finding))];
@@ -913,7 +936,14 @@ internal static class UpgradeReport
             : [];
     }
 
-    private static Comparison Compare(string older, string newer, string project, IReadOnlyCollection<string> projectFiles, string name, Dictionary<string, string> joined)
+    private static Comparison Compare(
+        string older,
+        string newer,
+        string project,
+        IReadOnlyCollection<string> projectFiles,
+        string name,
+        Dictionary<string, string> joined,
+        IReadOnlySet<string>? heldGuids)
     {
         var olderFiles = new HashSet<string>(TreeFiles(older), StringComparer.Ordinal);
         var newerFiles = new HashSet<string>(TreeFiles(newer), StringComparer.Ordinal);
@@ -937,7 +967,7 @@ internal static class UpgradeReport
             .Any(descriptor => JsonNode.Parse(File.ReadAllText(descriptor))?["kind"]?.GetValue<string>() is "dotnet" or "written"));
         string? Scaffold(string path) => scaffolded.Keys.FirstOrDefault(folder => path.StartsWith(folder + "/", StringComparison.Ordinal));
         string Read(string root, string path) => Path.Combine(root, path);
-        bool Same(string left, string right) => SameContent(left, right, binary);
+        bool Same(string left, string right) => SameContent(left, right, binary, heldGuids);
         void Listed(string writer, string path)
         {
             if (!bootstrap.TryGetValue(writer, out List<string>? paths))
@@ -1077,7 +1107,7 @@ internal static class UpgradeReport
         return path => patterns.Any(pattern => pattern.IsMatch(Path.GetFileName(path)));
     }
 
-    private static bool SameContent(string left, string right, Func<string, bool> binary)
+    private static bool SameContent(string left, string right, Func<string, bool> binary, IReadOnlySet<string>? heldGuids)
     {
         byte[] leftBytes = File.ReadAllBytes(left);
         byte[] rightBytes = File.ReadAllBytes(right);
@@ -1095,9 +1125,32 @@ internal static class UpgradeReport
         string leftText = Normalised(leftBytes);
         string rightText = Normalised(rightBytes);
 
+        if (leftText == rightText)
+        {
+            return true;
+        }
+
+        if (left.EndsWith(".sln", StringComparison.Ordinal))
+        {
+            return CanonicalSolution(leftText) == CanonicalSolution(rightText);
+        }
+
+        if (heldGuids is not null)
+        {
+            (leftText, rightText) = (WithoutDrawnGuids(leftText, heldGuids), WithoutDrawnGuids(rightText, heldGuids));
+        }
+
         return leftText == rightText
-            || (left.EndsWith(".cs", StringComparison.Ordinal) && CanonicalCSharp(leftText) == CanonicalCSharp(rightText))
-            || (left.EndsWith(".sln", StringComparison.Ordinal) && CanonicalSolution(leftText) == CanonicalSolution(rightText));
+            || (left.EndsWith(".cs", StringComparison.Ordinal) && CanonicalCSharp(leftText) == CanonicalCSharp(rightText));
+    }
+
+    private static string WithoutDrawnGuids(string text, IReadOnlySet<string> heldGuids)
+    {
+        var drawn = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        return _guid.Replace(text, match => heldGuids.Contains(match.Value)
+            ? match.Value
+            : $"<GUID drawn #{(drawn.TryGetValue(match.Value, out int order) ? order : drawn[match.Value] = drawn.Count + 1)}>");
     }
 
     private static string CanonicalSolution(string text)
@@ -1352,6 +1405,7 @@ internal static class UpgradeReport
             VersionCases(Expect);
             PlanCases(Expect);
             RefusalCases(scratch, Expect);
+            PackageCases(scratch, Expect);
             ChangelogCases(Expect);
         }
         finally
@@ -1411,6 +1465,15 @@ internal static class UpgradeReport
             Solution("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", "Src\\A.csproj"),
             Solution("33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444", "Src\\B.csproj"),
             Solution("55555555-5555-5555-5555-555555555555", "66666666-6666-6666-6666-666666666666", "Src\\A.csproj"));
+        const string heldGuid = "77777777-7777-7777-7777-777777777777";
+        const string otherHeldGuid = "88888888-8888-8888-8888-888888888888";
+        string[] drawnGuids = ["aaaaaaaa-0000-4000-8000-000000000001", "bbbbbbbb-0000-4000-8000-000000000002", "cccccccc-0000-4000-8000-000000000003"];
+        string Secrets(string guid, string rest = "") => $"<UserSecretsId>{guid}</UserSecretsId>\n{rest}";
+        Three("Drawn.csproj", Secrets(drawnGuids[0]), Secrets(drawnGuids[1]), Secrets(drawnGuids[2]));
+        Three("DrawnTake.csproj", Secrets(drawnGuids[0], "<A>1</A>\n"), Secrets(drawnGuids[1], "<A>2</A>\n"), Secrets(drawnGuids[2].ToUpperInvariant(), "<A>1</A>\n"));
+        Three("HeldChanged.csproj", Secrets(heldGuid), Secrets(otherHeldGuid), Secrets(heldGuid));
+        Three("HeldEdited.csproj", Secrets(heldGuid, "<A>1</A>\n"), Secrets(heldGuid, "<A>2</A>\n"), Secrets(drawnGuids[2], "<A>1</A>\n"));
+        Three("DrawnTwo.csproj", Secrets(drawnGuids[0], drawnGuids[1] + "\n<A>1</A>\n"), Secrets(drawnGuids[1], drawnGuids[0] + "\n<A>2</A>\n"), Secrets(drawnGuids[2], drawnGuids[2] + "\n<A>1</A>\n"));
         Three(".config/dotnet-tools.json", "{}\n", "{ }\n", "{}\n");
         Three("docker-compose.yml", "a\n", "b\n", "a\n");
         Three(_projectFileName, "{}\n", "{ }\n", "{}\n");
@@ -1429,7 +1492,8 @@ internal static class UpgradeReport
 
         string[] projectFiles = [.. TreeFiles(project)];
         var joined = new Dictionary<string, string>(StringComparer.Ordinal) { ["docker-compose.yml"] = "Src/Web/apps/Other" };
-        Comparison comparison = Compare(older, newer, project, projectFiles, "Sample.Shop", joined);
+        Comparison comparison = Compare(
+            older, newer, project, projectFiles, "Sample.Shop", joined, new HashSet<string>([heldGuid, otherHeldGuid], StringComparer.OrdinalIgnoreCase));
         Kind? KindOf(string path) => comparison.Findings.FirstOrDefault(finding => finding.Path == path)?.Kind;
 
         expect(KindOf("same.md") is null, "A file no version changed was reported.");
@@ -1447,6 +1511,11 @@ internal static class UpgradeReport
         expect(KindOf("UsingRemoved.cs") == Kind.Merge, "A using directive the project removed was hidden by the ordering.");
         expect(KindOf("Other.sln") is null, "A solution whose GUIDs dotnet new drew anew read as changed.");
         expect(KindOf("Moved.sln") == Kind.Take, "A solution entry the template moved was hidden by the GUID reading.");
+        expect(KindOf("Drawn.csproj") is null, "A GUID dotnet new drew for a guid the template declares read as a change.");
+        expect(KindOf("DrawnTake.csproj") == Kind.Take, "A change beside a drawn GUID was hidden, or the drawn GUID read as the project's own change.");
+        expect(KindOf("HeldChanged.csproj") == Kind.Take, "A GUID the package holds as written, which the target changed, was read as drawn.");
+        expect(KindOf("HeldEdited.csproj") == Kind.Merge, "A GUID the package holds, which the project replaced, was read as drawn.");
+        expect(KindOf("DrawnTwo.csproj") == Kind.Merge, "Two drawn GUIDs read as one, which hides that the project made them the same.");
         expect(KindOf("Sample.Shop.sln") == Kind.Merge, "The solution, which the scaffolds edit, was offered to take as is.");
         expect(KindOf(".config/dotnet-tools.json") == Kind.Merge, "The tool manifest, which bootstrap edits, was offered to take as is.");
         expect(KindOf("Src/Web/apps/Plain/package.json") == Kind.Merge, "A web app's package.json, whose versions web-scaffold pins, was offered to take as is.");
@@ -1489,7 +1558,9 @@ internal static class UpgradeReport
                 [_mainTemplate] = new Template(_mainTemplate, "cleanarch-webapi", symbols, postActions ?? [], new Dictionary<string, string>(StringComparer.Ordinal) { ["webName"] = "web-name", ["siteName"] = "site-name" }),
             },
             null,
-            null);
+            null,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            false);
 
         PackageContent older = Content(new JsonObject
         {
@@ -1620,6 +1691,41 @@ internal static class UpgradeReport
         Directory.CreateDirectory(Path.Combine(root, ".template.config"));
         File.WriteAllText(Path.Combine(root, ".template.config", "template.json"), "{}");
         Refused("The package's own checkout", "is the checkout the package is packed from", "--root", root, "--source", feed);
+    }
+
+    private static void PackageCases(string scratch, Action<bool, string> expect)
+    {
+        PackageContent Packed(string name, string manifest, string project)
+        {
+            string nupkg = Path.Combine(scratch, name + ".nupkg");
+
+            using (ZipArchive archive = ZipFile.Open(nupkg, ZipArchiveMode.Create))
+            {
+                foreach ((string path, string text) in new[]
+                {
+                    ("P.nuspec", "<package><metadata><id>P</id><version>1.0.0</version></metadata></package>"),
+                    ("content/.template.config/template.json", manifest),
+                    ("content/Src/A/A.csproj", project),
+                })
+                {
+                    using var writer = new StreamWriter(archive.CreateEntry(path).Open());
+                    writer.Write(text);
+                }
+            }
+
+            return PackageContent.Read(nupkg);
+        }
+
+        PackageContent drawing = Packed(
+            "drawing",
+            "{ \"identity\": \"P\", \"guids\": [\"11111111-2222-3333-4444-555555555555\"] }",
+            "<UserSecretsId>11111111-2222-3333-4444-555555555555</UserSecretsId><Type>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Type>");
+        PackageContent plain = Packed("plain", "{ \"identity\": \"P\" }", "<Type>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Type>");
+
+        expect(
+            drawing.DrawsGuids && drawing.HeldGuids.Contains("fae04ec0-301f-11d3-bf4b-00c04f79efbc") && drawing.HeldGuids.Contains("11111111-2222-3333-4444-555555555555"),
+            $"The GUIDs a package holds, or the guids its template declares, were not read: [{string.Join(", ", drawing.HeldGuids)}].");
+        expect(!plain.DrawsGuids, "A template that declares no guids was read as drawing some.");
     }
 
     private static void ChangelogCases(Action<bool, string> expect)

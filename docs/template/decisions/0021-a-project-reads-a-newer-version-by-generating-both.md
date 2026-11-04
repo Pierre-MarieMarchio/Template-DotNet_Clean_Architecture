@@ -25,7 +25,8 @@ generation holds, and an item template's join edits files outside its part.
   build them under the generated tree's MSBuild files, which come from the package, so a file a join
   edits reads as one to merge.
 - **What no generation holds is listed, not compared.** The files bootstrap writes, the ones the
-  scaffolds create, and the solution's GUIDs, which `dotnet new` draws anew each generation.
+  scaffolds create, and the GUIDs `dotnet new` draws anew each generation: the solution's, and those
+  standing for the `guids` a template declares, which no file of the package holds.
 - **An option is never mapped.** One the two versions do not share, or a recorded value the target
   no longer offers, is a decision for the team.
 - **The package carries its changelog** at its root, beside the README, so the report reads the

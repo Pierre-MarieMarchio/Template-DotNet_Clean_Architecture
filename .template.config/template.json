@@ -1750,6 +1750,7 @@
             ".github/workflows/web.yml",
             "docs/features/web-frontend.md",
             "docs/decisions/0019-one-generated-api-client.md",
+            "docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md",
             "Tests/EndToEnd/AT.EndToEnd.Tests/WebAppTests.cs"
           ]
         },
@@ -1851,6 +1852,7 @@
             "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
             "docs/decisions/0015-passkeys-stand-on-their-own.md",
             "docs/decisions/0016-browser-refresh-token-in-a-cookie.md",
+            "docs/decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md",
             "docs/guides/rotating-the-signing-key.md",
             "Tests/EndToEnd/AT.EndToEnd.Tests/Accounts.cs",
             "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
@@ -1889,7 +1891,8 @@
           "exclude": [
             "docs/features/accounts.md",
             "docs/decisions/0009-ownership-is-in-the-query.md",
-            "docs/decisions/0031-the-feature-generator-composes-what-it-writes.md"
+            "docs/decisions/0031-the-feature-generator-composes-what-it-writes.md",
+            "docs/decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md"
           ]
         },
         {

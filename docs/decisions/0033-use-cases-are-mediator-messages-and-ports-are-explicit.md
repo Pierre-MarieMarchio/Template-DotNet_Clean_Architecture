@@ -66,7 +66,7 @@ second intent and a split.
   never reaches its handler; `ContainerCompositionTests` holds that every message with a validator
   passes through the validation behaviour in the composed API.
 - `UseCaseConventionTests` holds the shape of a use case's folder and `LayoutConventionTests` the pair
-  its own file holds. `BannedPackageTests` refuses MediatR and AutoMapper in every project, and
+  its own file holds. `BannedPackageTests` refuses MediatR in every project, and
   `LayerDependencyTests` Mediator in the domain and the infrastructure, which neither send nor handle
   a message. `ValidatorTargetTests` holds that each validator targets a message or is taken by the
   service that runs it.

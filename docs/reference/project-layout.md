@@ -376,6 +376,6 @@ So does the app host, which `LocalStackTests` starts from its integration test p
 | Every message is sent by a host or a job, and crosses the validation behaviour | `MessageRoutingTests.EveryMessage_IsSentByAHostOrAJob`, `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` |
 | Every validator targets a message or is taken by the service that runs it | `ValidatorTargetTests.EveryValidator_TargetsAMessageOrIsInjectedWhereItRuns` |
 | Every source project has its unit test project, but the exceptions the test names | `TestProjectMirrorTests.EverySourceProject_HasItsUnitTestProject_ExceptTheOnesNamedHere` |
-| MediatR and AutoMapper are in no project | `BannedPackageTests.NoProject_ReferencesABannedPackage` |
+| MediatR, AutoMapper and Mapperly are in no project | `BannedPackageTests.NoProject_ReferencesABannedPackage` |
 | A repository contract lives in the domain | `StorageVocabularyTests.EveryRepositoryContract_IsDeclaredInTheDomain` |
 | No `Common/` names a feature | `ModuleDependencyTests.EveryModuleCommon_KnowsNoFeature`, `HttpCommonBoundaryTests.TheCommonHttpCode_NamesNoFeature` |

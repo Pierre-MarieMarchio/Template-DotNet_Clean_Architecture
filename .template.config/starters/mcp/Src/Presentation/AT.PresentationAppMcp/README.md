@@ -46,7 +46,7 @@ It writes this folder, its tests, `docs/features/presentation.md` and its decisi
 It also writes the access keys' own files, their tests and their decision.
 <!--#endif-->
 The lines `--presentation` writes in files the item template cannot edit are listed below, each placed by the
-lines it goes beside. One task makes them all, leaving those in place already, or none when one of
+lines it goes beside, and a row of the decisions index at the rank of its number. One task makes them all, leaving those in place already, or none when one of
 those lines is not found exactly once:
 
 ```bash
@@ -585,13 +585,7 @@ task stops:
     its credential names ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
   ```
 
-- in `docs/decisions/README.md`, before the line:
-
-  ```markdown
-  | [0028](0028-the-author-answers-for-every-line.md) | The author answers for every line | Contribution |
-  ```
-
-  add:
+- in `docs/decisions/README.md`, at the rank of their numbers, add:
 
   ```markdown
 <!--#if (localAuth)-->

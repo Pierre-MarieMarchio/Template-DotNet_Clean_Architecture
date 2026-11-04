@@ -1953,6 +1953,7 @@
           "exclude": [
             "Src/**/Features/TodoLists/**",
             "Tests/**/Features/TodoLists/**",
+            "docs/features/todo-lists.md",
             "Tests/Integration/AT.Api.IntegrationTests/TodoLists/**",
             "Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs",
             "Tests/Infrastructure/AT.Infrastructure.Persistence.UnitTests/Common/Saving/Auditing/AuditingSaveChangesInterceptorTests.cs",
@@ -1972,6 +1973,7 @@
           "exclude": [
             "Src/**/Features/Reminders/**",
             "Tests/**/Features/Reminders/**",
+            "docs/features/reminders.md",
             "Tests/Integration/AT.Api.IntegrationTests/Reminders/**",
             "Tests/Application/AT.Application.UnitTests/TestDoubles/AReminder.cs",
             "Tests/Application/AT.Application.UnitTests/TestDoubles/InMemoryReminderStore.cs"
@@ -1982,6 +1984,7 @@
           "exclude": [
             "Src/**/Features/Notes/**",
             "Tests/**/Features/Notes/**",
+            "docs/features/notes.md",
             "Tests/Integration/AT.Api.IntegrationTests/Notes/**",
             "Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs"
           ]

@@ -110,13 +110,16 @@ Delete `Features/<Feature>/` in every layer that has one, and its mirror under `
   `Src/Infrastructure/AT.Infrastructure.InMemory/Features/Reminders/` with Reminders.
 - `Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
   and the integration folders `TodoLists/` and `Reminders/`.
+- [the TodoLists page](../features/todo-lists.md) and [the Reminders page](../features/reminders.md).
 <!--#endif-->
 <!--#if (notes && api)-->
 - Notes in the application, persistence and API, and
   `Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs`.
+- [the Notes page](../features/notes.md).
 <!--#endif-->
 <!--#if (notes && !api)-->
 - Notes in the application, persistence and each host.
+- [the Notes page](../features/notes.md).
 <!--#endif-->
 <!--#if (todoLists && !files)-->
 - `Common/Tagging/` in the domain and the application, with its tests: nothing is left tagged.
@@ -180,11 +183,13 @@ None of these breaks a build, and each goes stale:
 <!--#if ((todoLists || notes) && api)-->
 - the feature's requests in `AppTemplate.Api.http`;
 - the feature's rows in [the configuration](../reference/configuration.md) and [API](../reference/api.md)
-  references, and in [adding a feature](adding-a-feature.md#patterns-from-the-examples).
+  references, in [adding a feature](adding-a-feature.md#patterns-from-the-examples), and in the rows
+  of the feature pages under Features in [the documentation index](../README.md#features).
 <!--#endif-->
 <!--#if ((todoLists || notes) && !api)-->
-- the feature's rows in [the configuration reference](../reference/configuration.md), and in
-  [adding a feature](adding-a-feature.md#patterns-from-the-examples).
+- the feature's rows in [the configuration reference](../reference/configuration.md), in
+  [adding a feature](adding-a-feature.md#patterns-from-the-examples), and in the rows of the feature
+  pages under Features in [the documentation index](../README.md#features).
 <!--#endif-->
 <!--#if (todoLists || notes)-->
 

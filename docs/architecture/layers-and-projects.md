@@ -31,7 +31,7 @@ framework; `TheDomainLayer_DependsOnNothing` holds it.
 | `AppTemplate.Application.Core` | `Result` and `Error`, the use-case pipeline and its instruments, validation, paging, idempotency, concurrency, ownership, and the cross-cutting ports in `Common/Ports/` | `AppTemplate.Domain.Core` |
 | `AppTemplate.Application` | the business features: use cases as messages and handlers, feature ports, DTOs, validators, event consumers | `AppTemplate.Domain`, `AppTemplate.Application.Core` |
 <!--#if (localAuth)-->
-| `AppTemplate.Application.Auth` | six authentication features as use cases over their own ports; it names no aggregate | `AppTemplate.Application.Core` |
+| `AppTemplate.Application.Auth` | the authentication features as use cases over their own ports; it names no aggregate | `AppTemplate.Application.Core` |
 <!--#endif-->
 
 <!--#if (anyFeature)-->

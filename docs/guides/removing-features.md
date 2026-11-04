@@ -69,6 +69,9 @@ It then deletes and undoes everything or nothing, builds once, and from that bui
 `Remove<Features>` migration, as [below](#migrations) says, and rewrites the OpenAPI reference and
 what is written from it.
 <!--#endif-->
+<!--#if (anyWeb)-->
+With a web workspace, that rewrite includes `pnpm api` in `Src/Web`, which needs Node.js and pnpm.
+<!--#endif-->
 <!--#if (!api)-->
 It then deletes and undoes everything or nothing, builds once, and from that build adds the
 `Remove<Features>` migration, as [below](#migrations) says.
@@ -77,6 +80,12 @@ An edit is found by its lines, beside the line it was placed beside or, when ano
 came between, wherever its lines stand once; an edit whose lines changed since stops `--apply`, naming
 the file, until they are put back or removed by hand and committed. The first owner feature holds the
 account-deletion files later ones share, so it goes last, and a feature another one uses goes after it.
+<!--#if (todoLists && notes)-->
+
+A folder word of a layer that no feature is filed under any more fails
+`EveryFeatureFolder_IsNamedFromItsLayersVocabulary` in `LayoutConventionTests`: drop the word from that
+layer's vocabulary there, and from the folder map of [the project layout](../reference/project-layout.md).
+<!--#endif-->
 
 <!--#if (todoLists || notes)-->
 ## Remove the examples
@@ -222,6 +231,10 @@ Removing a business feature changes the business migration only; authentication 
 While no database has applied the initial migration, recreate it as
 [migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
 migration that drops the tables, and review it line by line.
+Where no database has applied `Add<Features>` or `Remove<Features>`, neither is needed: delete the
+context's `Migrations` folder and run `migration-initial` again, as
+[migrations](migrations.md#the-initial-migration) shows, and the first migration holds the model
+without the feature.
 
 `remove-feature --apply` leaves `Add<Features>`, the migration `new-feature` added, and each
 `Add<Field>To<Features>` that `new-field` added, as they are, since a database may have applied them,
@@ -257,10 +270,18 @@ with a directory over your provider, or remove Reminders too.
 <!--#endif-->
 ## Verify
 
+<!--#if (api)-->
 ```bash
 dotnet run Tools/Tasks.cs verify
 docker build -f Src/Presentation/AT.Api/Dockerfile .
 ```
+<!--#endif-->
+<!--#if (!api)-->
+```bash
+dotnet run Tools/Tasks.cs verify
+docker build -f Src/Presentation/<Initials>.Worker/Dockerfile .
+```
+<!--#endif-->
 
 The build catches the unused usings, the tests the counts, lists and migration, and the image build
 a stale `COPY` line.

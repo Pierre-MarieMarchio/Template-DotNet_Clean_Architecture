@@ -12,16 +12,23 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 <!--#if (anyWeb)-->
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, `migration-initial`, then `web-scaffold`; once, after generation |
 <!--#endif-->
-<!--#if (!anyWeb)-->
+<!--#if (!anyWeb && api)-->
 | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
+<!--#endif-->
+<!--#if (!api)-->
+| `bootstrap` | format, restore the local tools, then `migration-initial`; once, after generation |
 <!--#endif-->
 | `check` | what `verify` would catch on the files you touched, in under a minute once built: [below](#check) |
 | `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder; off Windows, `test` also names and leaves out [the tests that run on Windows alone](#tests-that-run-on-windows-alone); `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
 | `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
+<!--#if (api)-->
 | `run` | the API on the host |
+<!--#endif-->
 | `compose-up`, `compose-down` | the local stack, waiting until every service is healthy |
+<!--#if (api)-->
 | `end-to-end` | the end-to-end suite against a Compose stack of its own, then with a web app the browser smoke over each app, the stack removed afterwards unless `--keep-stack` |
+<!--#endif-->
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `new-field` | one or more fields added to a feature `new-feature --fields` generated, in every layer, with its migration |
 | `new-use-case` | one more use case in a feature of the rich shape |
@@ -29,8 +36,10 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `migration-add`, `database-update` | `dotnet ef` over the business context, or the authentication context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
 | `migration-check` | fail when the business context's model, or the authentication context's with `--context auth`, holds a change no migration holds; `new-feature` and `new-field` run it before they write |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
+<!--#if (api)-->
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
 | `api-client` | once the project holds the .NET client, rewrite its `Generated/` folder from the OpenAPI reference, as `bootstrap` does after `migration-initial`; `--check` fails on a difference |
+<!--#endif-->
 <!--#if (sonar)-->
 | `sonar` | the local Sonar analysis |
 <!--#endif-->
@@ -46,7 +55,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `hygiene` | the self-tests of the gates this tree carries |
 | `verify` | the whole gate, in CI's order |
 
-Everything under `Tools/` is a file-based C# app: the SDK `global.json` pins is all it needs. The
+Everything under `Tools/` is a file-based C# app: the SDK `global.json` requires is all it needs. The
 first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and
 `.editorconfig` as the solution.
 
@@ -144,7 +153,12 @@ tool's and keeps the directives the tool writes.
 
 | Diagnostic | Where | Why |
 |---|---|---|
+<!--#if (api)-->
 | `CS1591`, `CS1573` | `Directory.Build.props` | The documentation file is generated for the build to report IDE0005 and for the OpenAPI document to read its summaries, not to make every public member of an application carry a comment, which the comment rule would then have restate a name. |
+<!--#endif-->
+<!--#if (!api)-->
+| `CS1591`, `CS1573` | `Directory.Build.props` | The documentation file is generated for the build to report IDE0005, not to make every public member of an application carry a comment, which the comment rule would then have restate a name. |
+<!--#endif-->
 | `CA1848` | `.editorconfig` `*.cs` | A log call stays one sentence at the line it describes; the `[LoggerMessage]` generator would declare each one apart, as a partial method, to save an allocation no path here has measured as worth it. |
 <!--#if (api)-->
 | `AV0029`, `AV0030` | `Src/Presentation/AT.Api/AppTemplate.Api.csproj` | Both ask for `Asp.Versioning.OpenApi`, whose transformer renders a `<see cref>` in a schema description as an empty string and titles the document after the entry assembly; `OpenApiDocumentTests` asserts on both. Project-wide, since AV0029 also fires in the source the OpenAPI generator writes into the build. |
@@ -203,19 +217,27 @@ adds it.
 
 | Workflow | When | Does |
 |---|---|---|
-| `.github/workflows/ci.yml` | push and pull request to `main` | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack, then the browser smoke with a web app; the load smoke |
 <!--#endif-->
-<!--#if (ci && serverDatabase)-->
-| `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the image pushed to GHCR |
+<!--#if (ci && api)-->
+| `.github/workflows/ci.yml` | push and pull request to `main` or `develop`, and a manual run | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the API image, unprivileged and exposing 8080 only; the Compose manifest; the end-to-end suite against the stack, then the browser smoke with a web app; the load smoke |
+<!--#endif-->
+<!--#if (ci && !api)-->
+| `.github/workflows/ci.yml` | push and pull request to `main` or `develop`, and a manual run | restore, formatting, build, every test project in the solution, tests with coverage and the floor, and the Sonar analysis around them when it is set up; the `hygiene` gates; the vulnerability listing; the Compose manifest |
+<!--#endif-->
+<!--#if (ci && serverDatabase && api)-->
+| `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the API's image, with the worker's when the project holds one, pushed to GHCR |
+<!--#endif-->
+<!--#if (ci && serverDatabase && !api)-->
+| `.github/workflows/release.yml` | a `v*.*.*` tag | the gate again, the migration bundles, and the worker's image pushed to GHCR |
 <!--#endif-->
 <!--#if (ci && !anyWeb)-->
-| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
-| `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
+| `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
 <!--#endif-->
 <!--#if (ci && anyWeb)-->
-| `.github/workflows/web.yml` | push and pull request to `main` | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
+| `.github/workflows/web.yml` | push to `main`, pull request to `main` or `develop`, and a manual run | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
 <!--#endif-->
 <!--#if (ci)-->
 
@@ -223,12 +245,22 @@ CodeQL reads the C# without building it, so it neither repeats the build `ci.yml
 a build generates: the output of a source generator is not analysed, the committed Kiota client and
 the migrations are.
 
+<!--#endif-->
+<!--#if (ci && api)-->
 The load smoke never gates: its thresholds describe a broken system, and a `429` counts as a pass,
 because a hosted runner's timings say nothing about this code. Run it against your own stack with
 `k6 run -e BASE_URL=http://localhost:8080 Tests/Load/smoke.js`.
 
+<!--#endif-->
+<!--#if (ci)-->
 Every action is pinned to a commit SHA and every image to a digest, `permissions` is
-`contents: read` unless a job needs more, and a newer run on a branch other than `main` cancels the older one.
+`contents: read` unless a job needs more, and a newer run of `ci.yml` or `codeql.yml` on a branch other
+than `main` and `develop` cancels the older one.
+<!--#endif-->
+<!--#if (ci && anyWeb)-->
+A newer run of `web.yml` cancels the older one on every branch but `main`.
+<!--#endif-->
+<!--#if (ci)-->
 `WorkflowPinningTests` reads every file under `.github/workflows` and fails on an action named by
 anything but its 40-character commit SHA, a local `./` action excepted, and on an image a workflow
 runs, as a `container:`, a service, a `docker://` step or the BuildKit driver, without its digest.
@@ -267,7 +299,18 @@ only, so it reports less coverage than CI, and, the scanner running on Linux, na
 <!--#if (ci && serverDatabase)-->
 ## Release
 
-Push a tag such as `v1.2.3`. The release re-runs the gate, then publishes the API image to GHCR as
+<!--#endif-->
+<!--#if (ci && serverDatabase && api)-->
+Push a tag such as `v1.2.3`. The release re-runs the gate, then publishes the API's image to GHCR, and
+the worker's when the project holds one, each as
+`1.2.3`, `1.2`, `1` and `latest` (a prerelease tag never moves `latest`), multi-arch, with an SBOM and
+a signed provenance attestation, and uploads the migration bundles built from the same commit. It
+needs no secret beyond `GITHUB_TOKEN`. Applying the bundles is yours:
+[deployment](deployment.md#migrations-at-release).
+
+<!--#endif-->
+<!--#if (ci && serverDatabase && !api)-->
+Push a tag such as `v1.2.3`. The release re-runs the gate, then publishes the worker's image to GHCR as
 `1.2.3`, `1.2`, `1` and `latest` (a prerelease tag never moves `latest`), multi-arch, with an SBOM and
 a signed provenance attestation, and uploads the migration bundles built from the same commit. It
 needs no secret beyond `GITHUB_TOKEN`. Applying the bundles is yours:
@@ -276,13 +319,15 @@ needs no secret beyond `GITHUB_TOKEN`. Applying the bundles is yours:
 <!--#endif-->
 ## Supply chain
 
-Every dependency is at an exact version, and `.github/dependabot.yml` proposes updates weekly, in
-bands; nothing is ignored.
+Every dependency but the SDK is at an exact version, and `.github/dependabot.yml` proposes updates
+weekly, in bands; nothing is ignored. The SDK is a floor: `global.json` names the lowest version and
+lets a later feature band of the same major version run, and each Dockerfile pins the SDK image it
+builds with.
 
 | Dependency | Pinned in |
 |---|---|
 | NuGet packages | `Directory.Packages.props` |
-| The SDK | `global.json` |
+| The SDK, as a floor | `global.json` |
 | The .NET tools | `.config/dotnet-tools.json` |
 | Container images and actions | their digest or commit SHA, beside the tag |
 <!--#if (anyWeb)-->

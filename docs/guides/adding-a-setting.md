@@ -116,14 +116,18 @@ Where the project holds no `Add<Features>` in its `ApplicationModule`, follow th
 ## Check
 
 <!--#if (api)-->
-`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and the API started
-with the key out of range, `<Section>__<Key>=0 dotnet run Tools/Tasks.cs run`, stops before serving
-and names `<Section>:<Key>`.
+`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and so does the test of
+step 7, which calls `IStartupValidator.Validate()` without a database. A started API proves the same
+only with the Compose stack's database running: in Development it migrates before it validates the
+options, so without a database the migration stops it, whatever the key holds. With the database
+running, `<Section>__<Key>=0 dotnet run Tools/Tasks.cs run` stops before serving and names
+`<Section>:<Key>`.
 <!--#endif-->
 <!--#if (!api)-->
-`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and a host started
-with the key out of range, `<Section>__<Key>=0` set in its environment, stops before serving and
-names `<Section>:<Key>`.
+`dotnet test --project Tests/Architecture/AT.Architecture.Tests` passes, and so does the test of
+step 7, which calls `IStartupValidator.Validate()` without a database. A host started with the key
+out of range, `<Section>__<Key>=0` set in its environment and the Compose stack's services it needs
+running, stops before serving and names `<Section>:<Key>`.
 <!--#endif-->
 
 ## Undo

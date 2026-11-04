@@ -1,7 +1,7 @@
 ﻿# Project layout
 
 Where a file goes and what it is called. Every rule on this page is held by a test in
-`Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails the build. Why the
+`Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails a test there. Why the
 layers are drawn this way is [the architecture](../architecture/README.md).
 
 ## The folder map
@@ -232,10 +232,14 @@ feature leaves `examples` as it was. A part added later is recorded by the task 
 table does not name is kept by every task that writes the file. `ProjectFileTests` fails when the
 file and the tree disagree.
 
-<!--#if (localAuth)-->
-The API's `Features/Auth/` is one host feature over the six authentication features: one route
+<!--#if (localAuth && api)-->
+The API's `Features/Auth/` is one host feature over the authentication features: one route
 tree, one composition entry, `AddAuthFeature`, and one folder to delete for a host without local
 accounts.
+<!--#endif-->
+<!--#if (localAuth && !api)-->
+Each host's `Features/Auth/` is one host feature over the authentication features: one composition
+entry and one folder to delete for a host without local accounts.
 <!--#endif-->
 
 ## The worked example
@@ -336,7 +340,7 @@ as `ResultExtensions` lives in `Common/Results/`.
 
 ## Adding a project
 
-A project under `Src/` fails the build until `LayoutConventionTests` gives it an entry in both of its
+A project under `Src/` fails `LayoutConventionTests` until that test gives it an entry in both of its
 vocabularies, the `Common/` one and the `Features/` one, and this page's folder map lists its words.
 An entry is `null` when the project has no such folder, checked in both directions, and an empty
 list when its features hold their files side by side.

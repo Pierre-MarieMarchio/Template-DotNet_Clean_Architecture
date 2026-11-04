@@ -18,6 +18,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "projectNameNeedsALeadingLetter": {
+      "longName": "project-name-needs-a-leading-letter",
+      "shortName": "",
+      "isHidden": true
+    },
     "wasmWebNeedsAccounts": {
       "longName": "wasm-web-needs-accounts",
       "shortName": "",

@@ -919,13 +919,14 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
-    [InlineData(".template.config", "nameNeedsTwoCharacters", "name")]
-    [InlineData(".template.config/presentation/.template.config", "projectNameNeedsTwoCharacters", "projectName")]
-    [InlineData(".template.config/webapp/.template.config", "projectNameNeedsTwoCharacters", "projectName")]
-    public void TheNameRefusal_RefusesEveryNameWhoseFoldersTheSolutionWouldTakeForItsProjects(string folder, string refusal, string nameSymbol)
+    [InlineData(".template.config", "nameNeedsTwoCharacters", "nameNeedsALeadingLetter", "name")]
+    [InlineData(".template.config/presentation/.template.config", "projectNameNeedsTwoCharacters", "projectNameNeedsALeadingLetter", "projectName")]
+    [InlineData(".template.config/webapp/.template.config", "projectNameNeedsTwoCharacters", "projectNameNeedsALeadingLetter", "projectName")]
+    public void TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects(string folder, string refusal, string letterRefusal, string nameSymbol)
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
-        string condition = Text(manifest.RootElement.GetProperty("symbols").GetProperty(refusal), "isRequired")!;
+        JsonElement symbols = manifest.RootElement.GetProperty("symbols");
+        string condition = Text(symbols.GetProperty(refusal), "isRequired")!;
         string[] refused = [.. Regex.Matches(condition, $@"\b{nameSymbol} == ""([^""]*)""", RegexOptions.None, TimeSpan.FromSeconds(5)).Select(match => match.Groups[1].Value)];
         string[] oneCharacter = [.. _nameStarts.Select(start => start.ToString())];
         string[] collide = [.. Names(3).Where(FoldersDifferFromTheProjectsInCaseAlone)];
@@ -941,14 +942,61 @@ public sealed class TemplatePackagingTests
         collide.Where(name => !refused.Contains(name, StringComparer.OrdinalIgnoreCase)).ShouldBeEmpty(
             $"These names put each project in a folder differing from its name in case alone, which a solution takes for the same name: {folder}/template.json must refuse them through {refusal}.");
 
+        string letterCondition = Text(symbols.GetProperty(letterRefusal), "isRequired")!;
+        string guard = nameSymbol == "projectName" ? $@"{nameSymbol} != """" && " : string.Empty;
+        Match bounds = Regex.Match(
+            letterCondition,
+            $@"^\({Regex.Escape(guard)}\(?{nameSymbol} < ""(?<below>[^""]+)"" \|\| {nameSymbol} >= ""(?<from>[^""]+)""\)?\)$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
+        bounds.Success.ShouldBeTrue(
+            $"{folder}/template.json must read {letterRefusal} as ({guard}{nameSymbol} < \"A\" || {nameSymbol} >= \"[\"), the one form of the rule the engine can evaluate on a parameter, which this rule and the launcher evaluate.");
+        bool LetterRefuses(string name) =>
+            !(guard.Length > 0 && name.Length == 0)
+            && (string.Compare(name, bounds.Groups["below"].Value, StringComparison.OrdinalIgnoreCase) < 0
+                || string.Compare(name, bounds.Groups["from"].Value, StringComparison.OrdinalIgnoreCase) >= 0);
+        string[] anyNames = [.. AnyNames(3)];
+
+        anyNames.Where(name => ProjectFolders.InitialsOf(name).Length == 0 && !LetterRefuses(name)).ShouldBeEmpty(
+            $"These names have no letter from A to Z to take initials from, so their projects would sit in folders such as .Api: {folder}/template.json must refuse them through {letterRefusal}.");
+        anyNames.Where(name => LetterRefuses(name) == char.IsAsciiLetter(name[0])).ShouldBeEmpty(
+            $"{folder}/template.json must refuse, through {letterRefusal}, exactly the {nameSymbol} that does not start with a letter from A to Z, the rule its description names.");
+
         if (nameSymbol == "name")
         {
-            Text(manifest.RootElement.GetProperty("symbols").GetProperty("refusedOptions"), "value")!.ShouldContain(
+            Text(symbols.GetProperty("refusedOptions"), "value")!.ShouldContain(
                 condition,
                 Case.Sensitive,
                 $"refusedOptions must hold {refusal}'s condition, so a hand-passed {refusal} selects the refused variant.");
-            File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "variants", "refused", "Src", "Presentation", ProjectFolders.FolderOf("AppTemplate.Presentation.Core"), "RefusedGenerationOptions.cs"))
-                .ShouldContain($"//#if {condition}", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {refusal}'s condition.");
+            Text(symbols.GetProperty(_nameLacksALeadingLetter), "value").ShouldBe(
+                letterCondition,
+                $"{_nameLacksALeadingLetter} must hold {letterRefusal}'s condition: the engine evaluates the ordering only in a symbol, never in a file's #if.");
+            Text(symbols.GetProperty("refusedOptions"), "value")!.ShouldContain(
+                $" || {_nameLacksALeadingLetter})",
+                Case.Sensitive,
+                $"refusedOptions must hold {_nameLacksALeadingLetter}, so a hand-passed {letterRefusal} selects the refused variant.");
+            string refusedVariant = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "variants", "refused", "Src", "Presentation", ProjectFolders.FolderOf("AppTemplate.Presentation.Core"), "RefusedGenerationOptions.cs"));
+            refusedVariant.ShouldContain($"//#if {condition}", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {refusal}'s condition.");
+            refusedVariant.ShouldContain($"//#if ({_nameLacksALeadingLetter})", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {letterRefusal}'s condition.");
+        }
+        else
+        {
+            LetterRefuses(string.Empty).ShouldBeFalse($"{folder}/template.json leaves {nameSymbol} empty where the item needs no project, which {letterRefusal} must let through.");
+        }
+    }
+
+    private static IEnumerable<string> AnyNames(int longest)
+    {
+        IEnumerable<string> ofLength = [string.Empty];
+
+        for (int length = 1; length <= longest; length++)
+        {
+            ofLength = [.. ofLength.SelectMany(name => _anyNameCharacters.Select(next => name + next))];
+
+            foreach (string name in ofLength)
+            {
+                yield return name;
+            }
         }
     }
 
@@ -1406,6 +1454,10 @@ public sealed class TemplatePackagingTests
     private static readonly char[] _nameStarts = [.. "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 
     private static readonly char[] _nameCharacters = [.. _nameStarts, .. "0123456789."];
+
+    private static readonly char[] _anyNameCharacters = [.. _nameCharacters, .. "-@[`{\u00e9\u00c9\u0131\u017f\u212a"];
+
+    private const string _nameLacksALeadingLetter = "nameLacksALeadingLetter";
 
     private static readonly string[] _productNames =
         ["AppTemplate", "Acme.Shop", "Contoso.OrderManagement", "acme.shop", "MyCompany.MyProject", "My_App", "acme-shop", "Acme.shop2", "Acme.2024", "ACME.Shop"];

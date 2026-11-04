@@ -1,6 +1,6 @@
 ﻿# 0006. develop integrates, main holds the releases
 
-Status: Accepted
+Status: Superseded by [0027](0027-develop-integrates-main-holds-the-releases.md)
 
 ## Context
 

@@ -1,7 +1,6 @@
 ﻿# 0015. An MCP server is a presentation project, written whole
 
-Status: Accepted; amended by [0020](0020-a-project-is-the-presentation-projects-it-holds.md),
-which lets it stand beside other presentation projects under the fixed name `Mcp`
+Status: Superseded by [0025](0025-an-mcp-server-is-a-presentation-project-written-whole.md)
 
 ## Context
 

@@ -1,6 +1,6 @@
 ﻿# 0011. A starter may render on the server
 
-Status: Accepted
+Status: Superseded by [0023](0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)
 
 ## Context
 

@@ -401,7 +401,7 @@ public sealed class TemplatePackagingTests
     [Fact]
     public void TheTemplatesCommunityFiles_ReachNeitherAProjectNorTheTemplatePackage()
     {
-        string[] files = ["CODE_OF_CONDUCT.md", "SUPPORT.md"];
+        string[] files = ["CODE_OF_CONDUCT.md", "SUPPORT.md", ".github/FUNDING.yml"];
 
         foreach (string file in files)
         {

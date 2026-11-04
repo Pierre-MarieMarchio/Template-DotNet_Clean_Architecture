@@ -92,6 +92,12 @@ for the renewal, and lets the renewal's frame land back on the page with `frame-
 `compose.yml` sets `SIGN_IN_AUTHORITY` from `EXTERNAL_AUTH_AUTHORITY`, the provider the API trusts. A
 provider that serves its keys or tokens from another origin than its issuer's needs that origin added
 to the policy in `nginx.conf` too.
+
+Microsoft's `AuthenticationService.js` carries webpack's global shim, which tries
+`new Function("return this")` before it falls back to the window: an `eval` the policy refuses on
+every load. The `Dockerfile` replaces that call with `globalThis`, what the shim finds anyway, when it
+publishes the app, and fails the build once the file no longer carries it: that failure is the day
+to remove the step.
 <!--#endif-->
 
 ## Work on it

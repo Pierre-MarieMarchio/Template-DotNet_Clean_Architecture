@@ -1813,6 +1813,8 @@
         {
           "condition": "(!templateMaintenance)",
           "exclude": [
+            "docs/decisions/0003-use-cases-and-ports-are-explicit.md",
+            "docs/decisions/0004-features-meet-through-ports-and-events.md",
             "Tests/Architecture/AT.Architecture.Tests/Rules/TemplatePackagingTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/AcceptanceSelectionTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/ConditionedUsingTests.cs",

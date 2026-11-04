@@ -137,6 +137,6 @@ queries port projects rows straight onto DTOs, since a list view needs no invari
 
 ## Decisions
 
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
 - [0006. Events after commit without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md)
 - [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)

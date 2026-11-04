@@ -48,6 +48,15 @@ Which page answers your question, and where a new page goes.
 <!--#if (accounts)-->
 | [Accounts](features/accounts.md) | how an account lives, from registration to deletion |
 <!--#endif-->
+<!--#if (todoLists)-->
+| [To-do lists](features/todo-lists.md) | how lists and their items are kept, and the rules a list protects |
+<!--#endif-->
+<!--#if (reminders)-->
+| [Reminders](features/reminders.md) | how a reminder is scheduled, fired and retried |
+<!--#endif-->
+<!--#if (notes)-->
+| [Notes](features/notes.md) | how a caller's notes are kept, in the simple shape |
+<!--#endif-->
 <!--#if (files)-->
 | [Files](features/files.md) | how files are stored, inspected and served |
 <!--#endif-->

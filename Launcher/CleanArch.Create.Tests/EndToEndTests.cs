@@ -60,6 +60,7 @@ public sealed partial class EndToEndTests : IDisposable
             DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", added, .. options, "--debug:custom-hive", hive]);
             DotNet(added, ["new", "cleanarch-webapp", "-n", "Site", .. app, .. options, "--project-name", "Acme.Shop", "--scope", "acme-shop", "--workspace", "--debug:custom-hive", hive]);
             DotNet(added, ["run", "Tools/Tasks.cs", "web-join", "Site", "--web", framework, "--web-audience", audience, "--web-rendering", rendering]);
+            DotNet(generated, ["run", "Tools/Tasks.cs", "docs-index"]);
 
             Dictionary<string, string> written = Tree(added);
             Dictionary<string, string> expected = Tree(generated);
@@ -87,15 +88,17 @@ public sealed partial class EndToEndTests : IDisposable
         Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
         DotNet(added, ["new", "cleanarch-presentation", "-n", "Worker", "--framework", "worker", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
         DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Worker"]);
+        DotNet(generated, ["run", "Tools/Tasks.cs", "docs-index"]);
 
         Dictionary<string, string> written = Tree(added);
         Dictionary<string, string> expected = Tree(generated);
 
         written.Remove(_apisJobsDecision, out string? decision).ShouldBeTrue("The API's decision on its jobs stays in a project that ran them there.");
         decision.ShouldContain($"Status: Superseded by [0025]({_workersJobsDecision})");
+        decision.ShouldContain("\nstatus: Superseded\n", customMessage: "The frontmatter of the API's decision on its jobs keeps the status its Status line no longer says.");
         string[] index = written[_decisionIndex].Split('\n');
-        index.ShouldContain(_supersededRow);
-        written[_decisionIndex] = string.Join('\n', index.Where(line => line != _supersededRow));
+        index.Single(line => line.StartsWith(_apisJobsDecisionEntry, StringComparison.Ordinal)).ShouldContain(" - Superseded. ");
+        written[_decisionIndex] = string.Join('\n', index.Where(line => !line.StartsWith(_apisJobsDecisionEntry, StringComparison.Ordinal)));
 
         written.Keys.Order(StringComparer.Ordinal).ShouldBe(expected.Keys.Order(StringComparer.Ordinal));
         written.Where(file => file.Value != expected[file.Key]).Select(file => file.Key).ShouldBeEmpty(
@@ -103,7 +106,7 @@ public sealed partial class EndToEndTests : IDisposable
     }
 
     [Fact]
-    public void TheMcpServerAddedLater_AndJoined_PutsItsDecisionsAtTheirRankInTheIndex()
+    public void TheMcpServerAddedLater_AndJoined_IndexesItsPagesAsAProjectGeneratedWithIt()
     {
         string package = PackTheTemplates();
         string hive = Path.Combine(_root, "hive");
@@ -118,34 +121,15 @@ public sealed partial class EndToEndTests : IDisposable
         Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
         DotNet(added, ["new", "cleanarch-presentation", "-n", "Mcp", "--framework", "mcp", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
         DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Mcp"]);
+        DotNet(generated, ["run", "Tools/Tasks.cs", "docs-index"]);
 
-        File.ReadAllText(Path.Combine(added, _decisionIndex)).ShouldBe(
-            File.ReadAllText(Path.Combine(generated, _decisionIndex)),
-            "The decisions index of a project that added the MCP server differs from one generated with it: each row the starter's README adds must land at its number's rank.");
-    }
+        Dictionary<string, string> written = Indexes(added);
+        Dictionary<string, string> expected = Indexes(generated);
 
-    [Fact]
-    public void TheWorkerAddedLater_ToAProjectWithAServerRenderedApp_PutsItsDecisionAtItsRankInTheIndex()
-    {
-        string package = PackTheTemplates();
-        string hive = Path.Combine(_root, "hive");
-        string generated = Path.Combine(_root, "generated");
-        string added = Path.Combine(_root, "added");
-        string[] app = ["--web", "angular", "--web-rendering", "ssr"];
-        DotNet(_root, ["new", "install", package, "--debug:custom-hive", hive]);
-
-        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", generated, .. app, "--presentation", "api", "--presentation", "worker", "--debug:custom-hive", hive]);
-        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", added, .. app, "--debug:custom-hive", hive]);
-        Run(added, "git", ["init", "--quiet"]);
-        Run(added, "git", ["add", "--all"]);
-        Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
-        DotNet(added, ["new", "cleanarch-presentation", "-n", "Worker", "--framework", "worker", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
-        DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Worker"]);
-
-        string[] index = File.ReadAllText(Path.Combine(added, _decisionIndex)).Split('\n');
-        string.Join('\n', index.Where(line => line != _supersededRow)).ShouldBe(
-            File.ReadAllText(Path.Combine(generated, _decisionIndex)),
-            "The decisions index of a project that added the worker after its server-rendered app differs from one generated with both: the worker's row must land at its number's rank, after 0024.");
+        written.ShouldContainKey(_decisionIndex);
+        written.Keys.Order(StringComparer.Ordinal).ShouldBe(expected.Keys.Order(StringComparer.Ordinal));
+        written.Where(index => index.Value != expected[index.Key]).Select(index => index.Key).ShouldBeEmpty(
+            "The indexes under docs/ of a project that added the MCP server differ from those of one generated with it: presentation-join writes them again once the pages it brings are there.");
     }
 
     private const string _overview = "docs/getting-started/overview.md";
@@ -154,10 +138,9 @@ public sealed partial class EndToEndTests : IDisposable
 
     private const string _workersJobsDecision = "0025-jobs-run-in-a-worker-under-a-lease.md";
 
-    private const string _decisionIndex = "docs/decisions/README.md";
+    private const string _decisionIndex = "docs/decisions/index.md";
 
-    private const string _supersededRow =
-        "| [0011](0011-jobs-run-in-the-api-under-a-lease.md) | Jobs run in the API, under a lease, superseded by [0025](0025-jobs-run-in-a-worker-under-a-lease.md) | Background work |";
+    private const string _apisJobsDecisionEntry = "- [0011. Jobs run in the API, under a lease](0011-jobs-run-in-the-api-under-a-lease.md)";
 
     private static readonly (string Label, string Framework, string Audience, string Rendering, string[] Options)[] _firstWebApps =
     [
@@ -183,6 +166,11 @@ public sealed partial class EndToEndTests : IDisposable
 
         exitCode.ShouldBe(0, console.Output);
     }
+
+    private static Dictionary<string, string> Indexes(string root) =>
+        Tree(root)
+            .Where(file => file.Key.StartsWith("docs/", StringComparison.Ordinal) && file.Key.EndsWith("/index.md", StringComparison.Ordinal))
+            .ToDictionary(StringComparer.Ordinal);
 
     private static Dictionary<string, string> Tree(string root) =>
         Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
@@ -256,11 +244,12 @@ public sealed partial class EndToEndTests : IDisposable
             File.Exists(Path.Combine(added, "Src", "Web", "apps", app, _serverRenderingDecision)).ShouldBeFalse($"web-join leaves no copy of the decision in {app}'s folder.");
         }
 
+        DotNet(generated, ["run", "Tools/Tasks.cs", "docs-index"]);
         Dictionary<string, string> written = Tree(added);
         Dictionary<string, string> expected = Tree(generated);
         JsonNode?[] ports = [.. JsonNode.Parse(written["cleanarch.json"])!["web"]!["apps"]!.AsArray().Select(app => app!["port"])];
         ports.Select(port => port!.GetValue<int>()).ShouldBe([5173, 8082, 8083], "cleanarch.json records each app's port: the first one's framework default, and the two added with --port.");
-        foreach (string file in (string[])[$"docs/decisions/{_serverRenderingDecision}", "docs/decisions/README.md", "docs/features/authentication.md", "docs/decisions/0016-browser-refresh-token-in-a-cookie.md"])
+        foreach (string file in (string[])[$"docs/decisions/{_serverRenderingDecision}", _decisionIndex, "docs/features/authentication.md", "docs/decisions/0016-browser-refresh-token-in-a-cookie.md"])
         {
             written[file].ShouldBe(expected[file], $"{file} differs from what --web-rendering ssr writes.");
         }

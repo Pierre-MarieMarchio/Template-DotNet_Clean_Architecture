@@ -46,7 +46,7 @@ It writes this folder, its tests, `docs/features/presentation.md` and its decisi
 It also writes the access keys' own files, their tests and their decision.
 <!--#endif-->
 The lines `--presentation` writes in files the item template cannot edit are listed below, each placed by the
-lines it goes beside, and a row of the decisions index at the rank of its number. One task makes them all, leaving those in place already, or none when one of
+lines it goes beside. One task makes them all, leaving those in place already, or none when one of
 those lines is not found exactly once:
 
 ```bash
@@ -585,15 +585,6 @@ task stops:
     its credential names ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
   ```
 
-- in `docs/decisions/README.md`, at the rank of their numbers, add:
-
-  ```markdown
-<!--#if (localAuth)-->
-  | [0026](0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md) | An access key stands for its owner where a token cannot be refreshed | Authentication |
-<!--#endif-->
-  | [0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md) | An MCP server acts for the caller its credential names | Architecture |
-  ```
-
 - in `docs/features/authentication.md`, before the line:
 
   ```markdown
@@ -682,19 +673,6 @@ task stops:
   ```
 
 <!--#endif-->
-- in `docs/README.md`, before the lines:
-
-  ```markdown
-
-  ## Guides
-  ```
-
-  add:
-
-  ```markdown
-  | [The MCP server](features/presentation.md#mcp-server) | the MCP server, how it is created, its tools, and who may call them |
-  ```
-
 <!--#if (externalAuth)-->
 - in `docs/reference/configuration.md`, after the lines:
 

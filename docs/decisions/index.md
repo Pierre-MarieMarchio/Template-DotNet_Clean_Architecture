@@ -1,6 +1,7 @@
 # Decisions
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page: edit the pages, then run it again.
+Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+edit the pages, then run it again.
 
 - [Decisions](README.md) - When a choice deserves an ADR, how ADRs are numbered and superseded, and which decisions this project holds.
 - [0001. Adopt the generated baseline](0001-adopt-the-generated-baseline.md) - Accepted. Which stack, tools, foundations and deployment shape this project inherited, and what changing each one costs.

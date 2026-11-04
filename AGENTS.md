@@ -26,7 +26,7 @@ holding its own `AGENTS.md` adds what that folder needs: read it before changing
 `Src/Web/AGENTS.md` is the one for the web workspace.
 <!--#endif-->
 Read [the overview](docs/getting-started/overview.md) and [the architecture](docs/architecture/README.md)
-once before a change that adds a type; [the documentation index](docs/README.md) lists every page.
+once before a change that adds a type; [the documentation index](docs/README.md) leads to every page.
 
 ## Commands
 
@@ -156,9 +156,9 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 ## Writing docs
 
 - One question per page, in the voice of "this project": no history, no plan vocabulary.
-- A new page starts from `docs/_page-templates/` and gets its row in
-  [the documentation index](docs/README.md#adding-a-page), which lists the fields of the
-  frontmatter every page under `docs/` opens with.
+- A new page starts from `docs/_page-templates/`; `docs-index` then lists it in its folder's index
+  from the frontmatter every page under `docs/` opens with, whose fields
+  [the documentation index](docs/README.md#adding-a-page) lists.
 - A choice another team could reasonably have made otherwise is an ADR;
   [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
 - Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
@@ -184,9 +184,9 @@ dotnet run Tools/Tasks.cs remove-feature <Features> --apply   # removes it, edit
 <!--#endif-->
 <!--#if (canAddFeature && api)-->
 `new-feature` writes the skeleton, its manifest and its page, and makes the edits that compose it
-with its rows in `docs/README.md` and `docs/reference/api.md`: every edit or none, each recorded in
-the manifest. It refuses while a model change waits for a migration, then builds once and, from
-that build, adds the `Add<Features>` migration and rewrites the OpenAPI reference and what is written
+with its rows in `docs/reference/api.md`: every edit or none, each recorded in the manifest. It
+refuses while a model change waits for a migration, then writes the documentation index again,
+builds once and, from that build, adds the `Add<Features>` migration and rewrites the OpenAPI reference and what is written
 from it;
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column, its contracts and its tests, an
@@ -198,8 +198,8 @@ route's row, then rewrites the OpenAPI reference; it refuses a simple feature, t
 <!--#if (canAddFeature && !api)-->
 `new-feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
 with its manifest and its page, and makes the edits that compose it, each host's `Program.cs` among
-them, with its row in `docs/README.md`: every edit or none, each recorded in the manifest. It refuses
-while a model change waits for a migration, then builds and adds the `Add<Features>` migration;
+them: every edit or none, each recorded in the manifest. It refuses while a model change waits for a
+migration, then writes the documentation index again, builds and adds the `Add<Features>` migration;
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column and its tests; without it the fields are
 `Name` and `Description`, placeholders you rewrite. `new-use-case` adds one operation to a rich
@@ -219,8 +219,8 @@ says when a required field breaks the callers of the create and update operation
 <!--#endif-->
 <!--#if (!canAddFeature)-->
 This project authenticates nobody, so `new-feature` refuses it; write a feature by hand from
-[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`
-and its row in `docs/README.md`. `new-use-case` then adds one operation to it once it has the rich
+[adding a feature](docs/guides/adding-a-feature.md), with its page from `docs/_page-templates/feature.md`,
+then run `docs-index`. `new-use-case` then adds one operation to it once it has the rich
 shape. [Removing features](docs/guides/removing-features.md) gives the reverse.
 <!--#endif-->
 

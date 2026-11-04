@@ -1,3 +1,9 @@
+---
+type: concept
+title: Ports and adapters
+description: How the application reaches storage and the outside world only through ports, where each port is declared and what implements it.
+---
+
 # Ports and adapters
 
 The application reaches storage and the outside world only through ports: interfaces it declares

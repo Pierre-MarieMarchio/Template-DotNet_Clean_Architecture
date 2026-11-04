@@ -1,3 +1,9 @@
+---
+type: guide
+title: Adding a feature
+description: How to add a feature of your own, in the shape its rules call for, with its tests and its page.
+---
+
 # Adding a feature
 
 ## When
@@ -440,7 +446,8 @@ Some lists change only on purpose, and a test fails until they name what you add
 ## Document it
 
 1. Replace each prompt line of the feature page with what the feature does: what a caller gets, the
-   rules, the routes, the settings, the tests.
+   rules, the routes, the settings, the tests; and the `description` of its frontmatter with the
+   question the page answers, in one sentence.
 2. Rewrite the answer of the row the generator added under `## Features` in `docs/README.md`.
 3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
    linked from the page's `## Decisions`.

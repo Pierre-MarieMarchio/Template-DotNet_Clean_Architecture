@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0017. External subjects map to internal owners
+description: Why a provider's issuer and subject map to an owner id of this project's own, which the features store instead of the subject.
+status: Accepted
+---
+
 # 0017. External subjects map to internal owners
 
 Status: Accepted

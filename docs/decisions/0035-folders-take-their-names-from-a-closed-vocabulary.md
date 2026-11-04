@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0035. Folders take their names from a closed vocabulary
+description: Why every project names its folders from a closed list of words, each level answering one question.
+status: Accepted
+---
+
 # 0035. Folders take their names from a closed vocabulary
 
 Status: Accepted

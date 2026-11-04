@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0002. Nothing about the template reaches a project
+description: Why nothing about the template but its provenance reached a project, before a project also kept the tool it pins.
+status: Superseded
+---
+
 # 0002. Nothing about the template reaches a project
 
 Status: Superseded by [0018](0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md)

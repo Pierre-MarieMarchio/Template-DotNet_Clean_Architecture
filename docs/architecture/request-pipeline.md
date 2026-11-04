@@ -1,3 +1,9 @@
+---
+type: concept
+title: Request pipeline
+description: The pipeline every request crosses, in its order, and why each step sits where it does.
+---
+
 # Request pipeline
 
 Every request crosses the same pipeline, installed by one call, `UseHttpPipeline()`, in one order.

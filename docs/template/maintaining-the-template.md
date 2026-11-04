@@ -373,6 +373,10 @@ No object store runs.
   otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it.
 - A link from a shared file (`CONTRIBUTING.md`, `AGENTS.md`, `SECURITY.md`) to `docs/template/` sits
   in a `templateMaintenance` block, which is always false at generation.
+- A project ADR the template supersedes stays here, with its `Superseded by` status, and reaches no
+  project: `template.json` excludes it under `(!templateMaintenance)`, the package project leaves it
+  out, and its row of the decisions index sits in a `templateMaintenance` block. The ADR that
+  replaces it names it in prose, never by a link, since a project lacks it.
 - A shared file conditions a line on a part a project can gain later (a web app, a presentation host,
   the worker) only when the item template that adds the part rewrites the file or its join edits it;
   otherwise the project that gains the part reads otherwise than one generated with it, and

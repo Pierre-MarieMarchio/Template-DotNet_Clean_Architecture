@@ -40,8 +40,10 @@ Accepted, and its table shows which inherited choices still hold.
 |---|---|---|
 | [0001](0001-adopt-the-generated-baseline.md) | Adopt the generated baseline | Foundations |
 | [0002](0002-two-feature-shapes.md) | Two feature shapes | Architecture |
-| [0003](0003-use-cases-and-ports-are-explicit.md) | Use cases and ports are explicit | Architecture |
-| [0004](0004-features-meet-through-ports-and-events.md) | Features meet through ports and events | Architecture |
+<!--#if (templateMaintenance)-->
+| [0003](0003-use-cases-and-ports-are-explicit.md) | Use cases and ports are explicit; superseded by 0033 | Architecture |
+| [0004](0004-features-meet-through-ports-and-events.md) | Features meet through ports and events; superseded by 0034 | Architecture |
+<!--#endif-->
 | [0005](0005-the-domain-is-not-mapped-by-ef.md) | The domain is not mapped by EF | Persistence |
 | [0006](0006-events-after-commit-without-an-outbox.md) | Events after commit, without an outbox | Architecture |
 | [0007](0007-one-database-a-schema-per-feature.md) | One database, a schema per feature | Persistence |
@@ -100,5 +102,7 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#if (aspire)-->
 | [0032](0032-the-app-host-follows-compose.md) | The app host follows Compose | Local stack |
 <!--#endif-->
+| [0033](0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) | Use cases are Mediator messages, and ports are explicit | Architecture |
+| [0034](0034-features-meet-through-ports-their-owner-declares-and-events.md) | Features meet through ports their owner declares, and events | Architecture |
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

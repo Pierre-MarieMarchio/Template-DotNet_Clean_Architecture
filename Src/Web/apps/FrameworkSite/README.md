@@ -502,7 +502,7 @@ dotnet run Tools/Tasks.cs web-join FrameworkSite --web <framework>
 
 `Src/Web/README.md` gives the first app's command, with the workspace. The lines `--web` writes for
 this app in files the item template cannot edit are listed below, each placed by the lines it goes
-beside, and a row of the decisions index at the rank of its number. `web-join` makes them all, leaves those in place already, or makes none when one of those
+beside. `web-join` makes them all, leaves those in place already, or makes none when one of those
 lines is not found exactly once, then records the app in `cleanarch.json`.
 <!--#if (webServerRendering)-->
 A server-rendered app also brings the decision that describes it,
@@ -569,12 +569,6 @@ The edits:
 
 <!--#endif-->
 <!--#if (webServerRendering)-->
-- in `docs/decisions/README.md`, at the rank of its number, add:
-
-  ```markdown
-  | [0024](0024-a-server-rendered-web-app-runs-on-its-own-server.md) | A server-rendered web app runs on its own server | Web front end |
-  ```
-
 <!--#if (localAuth)-->
 - in `docs/decisions/0016-browser-refresh-token-in-a-cookie.md`, after the line:
 

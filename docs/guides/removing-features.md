@@ -71,16 +71,17 @@ It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, n
 only `git restore` gives back what it removes, while a model change waits for a migration
 (`migration-check`), or while code outside the feature uses it.
 <!--#if (api)-->
-It then deletes and undoes everything or nothing, builds once, and from that build adds the
-`Remove<Features>` migration, as [below](#migrations) says, and rewrites the OpenAPI reference and
-what is written from it.
+It then deletes and undoes everything or nothing, writes the documentation index again without the
+feature's page, builds once, and from that build adds the `Remove<Features>` migration, as
+[below](#migrations) says, and rewrites the OpenAPI reference and what is written from it.
 <!--#endif-->
 <!--#if (anyWeb)-->
 With a web workspace, that rewrite includes `pnpm api` in `Src/Web`, which needs Node.js and pnpm.
 <!--#endif-->
 <!--#if (!api)-->
-It then deletes and undoes everything or nothing, builds once, and from that build adds the
-`Remove<Features>` migration, as [below](#migrations) says.
+It then deletes and undoes everything or nothing, writes the documentation index again without the
+feature's page, builds once, and from that build adds the `Remove<Features>` migration, as
+[below](#migrations) says.
 <!--#endif-->
 An edit is found by its lines, beside the line it was placed beside or, when another feature's lines
 came between, wherever its lines stand once; an edit whose lines changed since stops `--apply`, naming
@@ -189,13 +190,13 @@ None of these breaks a build, and each goes stale:
 <!--#if ((todoLists || notes) && api)-->
 - the feature's requests in `AppTemplate.Api.http`;
 - the feature's rows in [the configuration](../reference/configuration.md) and [API](../reference/api.md)
-  references, in [adding a feature](adding-a-feature.md#patterns-from-the-examples), and in the rows
-  of the feature pages under Features in [the documentation index](../README.md#features).
+  references and in [adding a feature](adding-a-feature.md#patterns-from-the-examples); then run
+  `dotnet run Tools/Tasks.cs docs-index`, which drops the feature's page from the index.
 <!--#endif-->
 <!--#if ((todoLists || notes) && !api)-->
-- the feature's rows in [the configuration reference](../reference/configuration.md), in
-  [adding a feature](adding-a-feature.md#patterns-from-the-examples), and in the rows of the feature
-  pages under Features in [the documentation index](../README.md#features).
+- the feature's rows in [the configuration reference](../reference/configuration.md) and in
+  [adding a feature](adding-a-feature.md#patterns-from-the-examples); then run
+  `dotnet run Tools/Tasks.cs docs-index`, which drops the feature's page from the index.
 <!--#endif-->
 <!--#if (todoLists || notes)-->
 
@@ -227,7 +228,7 @@ edit:
 - `AddFileJobs` and the file instruments of the background jobs;
 - the `Files` and `Jobs:Files` settings, and the object store in Compose and `.env.example`;
 - [the Files page](../features/files.md) and [ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md),
-  with their index rows.
+  then `docs-index`, which drops both from the index.
 
 <!--#endif-->
 <!--#if (todoLists && files)-->

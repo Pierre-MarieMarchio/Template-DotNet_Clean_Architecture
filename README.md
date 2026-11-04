@@ -111,7 +111,7 @@ layer. It also says what the template leaves out on purpose, and how to propose 
 ## Support
 
 Report a bug or ask for a feature through
-[the repository's issue forms](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/new/choose),
+[the repository's issue forms](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/new/choose),
 which ask for the version and the options generated with; report a vulnerability privately, in a
 security advisory.
 

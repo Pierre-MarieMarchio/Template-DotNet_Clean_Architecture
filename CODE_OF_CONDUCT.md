@@ -51,7 +51,7 @@ an appointed representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community
-leaders responsible for enforcement through a [private security advisory](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/security/advisories/new)
+leaders responsible for enforcement through a [private security advisory](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/security/advisories/new)
 of this repository, or, for a matter that is not sensitive, through an issue. All complaints will be
 reviewed and investigated promptly and fairly.
 

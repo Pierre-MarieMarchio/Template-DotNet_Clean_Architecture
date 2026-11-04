@@ -1235,8 +1235,7 @@ jobs:
           refuse aspire-sqlite --database sqlite --aspire true
           # A database stays refused until its overlay under .template.config/variants/database-<name>/ is wired.
           refuse mysql --database mysql
-          # A one-letter name would put the project w.Api in the folder W.Api, which a solution takes for the same name,
-          # and a name that does not start with a letter from A to Z, as _1, has no initials to put in front of .Api.
+          # A one-letter name puts w.Api in the folder W.Api, which a solution takes for the same name, and _1 has no initials.
           refuse_name() {
             local out="${{ runner.temp }}/refused-name-$1"
             if dotnet new cleanarch-webapi -n "$1" -o "$out"; then

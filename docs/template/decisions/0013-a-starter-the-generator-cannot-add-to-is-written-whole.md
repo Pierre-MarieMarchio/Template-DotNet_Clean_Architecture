@@ -1,4 +1,4 @@
-﻿# 0013. A starter the generator cannot add to is written whole
+# 0013. A starter the generator cannot add to is written whole
 
 Status: Accepted
 

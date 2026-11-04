@@ -1,4 +1,4 @@
-﻿# PresentationAppPortal
+# PresentationAppPortal
 
 The presentation project beside the API: a Blazor Web App with server interactivity that calls the
 use cases in its own process. [Presentation project](../../../docs/features/presentation.md)

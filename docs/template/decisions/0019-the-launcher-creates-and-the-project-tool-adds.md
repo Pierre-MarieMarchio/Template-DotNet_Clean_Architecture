@@ -1,4 +1,4 @@
-﻿# 0019. The launcher creates, and the project's tool adds
+# 0019. The launcher creates, and the project's tool adds
 
 Status: Accepted
 

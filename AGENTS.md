@@ -1,4 +1,4 @@
-﻿# Agents
+# Agents
 
 How to work in this repository: the commands, where code goes, the rules, and what done means.
 <!--#if (api && localAuth)-->
@@ -157,7 +157,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
   [decisions](docs/decisions/README.md) holds the criteria, and the page links to it in one line.
 - Every path in backticks exists; write an illustration as a placeholder (`<Feature>`) or as prose.
   `DocumentationCitationTests` checks the root pages, the `AGENTS.md` files, every page under `docs/` and every task a page cites.
-- Markdown and C# files are UTF-8 with BOM and LF line endings; `format-fix` repairs them.
+- Markdown files are UTF-8 without BOM and C# files UTF-8 with BOM, both with LF line endings;
+  `format-fix` repairs them.
 
 ## Adding or removing a feature
 

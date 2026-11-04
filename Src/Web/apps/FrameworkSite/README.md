@@ -1,4 +1,4 @@
-﻿# FrameworkSite
+# FrameworkSite
 
 <!--#if ((webViteReact || webReactRouter) && adminAudience)-->
 A React back office over the API, for administrators.

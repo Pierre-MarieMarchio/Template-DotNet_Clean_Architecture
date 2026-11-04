@@ -1,4 +1,4 @@
-﻿# 0018. Stored files are keyed, granted and refused
+# 0018. Stored files are keyed, granted and refused
 
 Status: Accepted
 

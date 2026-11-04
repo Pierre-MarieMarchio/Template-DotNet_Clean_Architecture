@@ -630,6 +630,7 @@ internal static class Tasks
 
             case "format-fix":
                 Step("dotnet", "format", solution);
+                NormaliseMarkdown(repoRoot);
                 RequireNamingStyle(repoRoot, solution);
                 break;
 
@@ -1543,6 +1544,53 @@ internal static class Tasks
             Console.Write(output);
             throw new InvalidOperationException($"dotnet format exited with {exit} and named no naming violation: its output is above.");
         }
+    }
+
+    private static readonly string[] _markdownSkippedDirectories = ["bin", "obj", "node_modules", "plans"];
+
+    private static readonly string[] _markdownKeptDotDirectories = [".github", ".template.config"];
+
+    private static void NormaliseMarkdown(string repoRoot)
+    {
+        foreach (string file in MarkdownFiles(repoRoot))
+        {
+            byte[] content = File.ReadAllBytes(file);
+            byte[] normalised = NormalisedMarkdown(content);
+
+            if (!normalised.AsSpan().SequenceEqual(content))
+            {
+                File.WriteAllBytes(file, normalised);
+                Write($"{Path.GetRelativePath(repoRoot, file).Replace('\\', '/')}: saved as UTF-8 without a BOM, with LF endings.", ConsoleColor.DarkGray);
+            }
+        }
+    }
+
+    private static IEnumerable<string> MarkdownFiles(string directory) =>
+        Directory.EnumerateFiles(directory, "*.md")
+            .Concat(Directory.EnumerateDirectories(directory)
+                .Where(child => Path.GetFileName(child) is var name
+                    && !_markdownSkippedDirectories.Contains(name, StringComparer.Ordinal)
+                    && (!name.StartsWith('.') || _markdownKeptDotDirectories.Contains(name, StringComparer.Ordinal)))
+                .SelectMany(MarkdownFiles));
+
+    private static byte[] NormalisedMarkdown(byte[] content)
+    {
+        ReadOnlySpan<byte> text = content.AsSpan(content is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0);
+        var normalised = new List<byte>(text.Length);
+
+        for (int index = 0; index < text.Length; index++)
+        {
+            if (text[index] != (byte)'\r')
+            {
+                normalised.Add(text[index]);
+            }
+            else if (index + 1 == text.Length || text[index + 1] != (byte)'\n')
+            {
+                normalised.Add((byte)'\n');
+            }
+        }
+
+        return [.. normalised];
     }
 
     private static string[] NamingViolations(string repoRoot, string output) =>
@@ -3398,6 +3446,8 @@ internal static class Tasks
             .. JoinCases(),
             .. WebAppRecordCases(),
             ("verify refuses a web workspace without pnpm, saying how to get it", Refused(() => RequirePnpm("pnpm-not-on-this-path"), "run `corepack enable` once")),
+            ("format-fix drops a Markdown file's BOM and turns each CR ending into LF", NormalisedMarkdown([0xEF, 0xBB, 0xBF, (byte)'a', (byte)'\r', (byte)'\n', (byte)'b', (byte)'\r']).SequenceEqual("a\nb\n"u8.ToArray())),
+            ("format-fix leaves a Markdown file without a BOM or a CR as it is", NormalisedMarkdown("# \u00e9\n"u8.ToArray()).SequenceEqual("# \u00e9\n"u8.ToArray())),
         ];
 
         foreach ((string label, bool passed) in cases)

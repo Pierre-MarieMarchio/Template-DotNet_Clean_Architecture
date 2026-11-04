@@ -63,11 +63,21 @@ internal static class NewUseCase
 
     private static readonly Regex _tokenPattern = new("%([A-Za-z]+)%", RegexOptions.None, TimeSpan.FromSeconds(2));
 
+    private static readonly Regex _controllerRoute = new(@"^\[Route\(""(?<template>[^""]*)""\)\]", RegexOptions.Multiline, TimeSpan.FromSeconds(2));
+
+    private static readonly Regex _actionRoute = new(@"\[Http(?:Get|Post|Put|Patch|Delete|Head)\(""(?<template>[^""]*)""", RegexOptions.None, TimeSpan.FromSeconds(2));
+
+    private static readonly Regex _rootRoute = new(@"v\{version(?::\w+)?\}/?$", RegexOptions.None, TimeSpan.FromSeconds(2));
+
+    private static readonly Regex _versionSegment = new(@"v\{version(?::\w+)?\}", RegexOptions.None, TimeSpan.FromSeconds(2));
+
     private sealed record Emission(string Path, string Content);
 
     private sealed record Request(string? Features, string? Name, string? Kind, string? Input, string Root, bool DryRun);
 
     private sealed record KnownType(string? Valid, string? Empty);
+
+    private sealed record Routing(string Resource, string Documented, string? Failure);
 
     private sealed record Parameter(string Name, string Type, string Required)
     {
@@ -98,7 +108,8 @@ internal static class NewUseCase
         IReadOnlyList<Parameter> Inputs,
         string? Dto,
         bool DtoExists,
-        string? Manifest)
+        string? Manifest,
+        Routing? Routing = null)
     {
         internal bool IsCommand => Kind == "command";
 
@@ -153,6 +164,8 @@ internal static class NewUseCase
         {
             return Refuse(error, problems);
         }
+
+        spec = spec with { Routing = ReadRouting(root, spec) };
 
         var plan = Plan(spec, root, out string? skipped);
         var editor = new TextEdits.Editor(root);
@@ -1170,9 +1183,13 @@ internal static class NewUseCase
         }
 
         //#if (api)
+        string written = spec.Routing?.Documented.StartsWith("/api/", StringComparison.Ordinal) == true
+            ? "written in full, from /api"
+            : "relative to that table's 'Under' prefix";
+
         output.WriteLine(mode == Mode.Applied
-            ? $"and its row, added to the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:"
-            : $"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, relative to that table's 'Under' prefix:");
+            ? $"and its row, added to the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, {written}:"
+            : $"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, {written}:");
         output.WriteLine("  " + RouteRow(spec));
         //#endif
 
@@ -1235,7 +1252,11 @@ internal static class NewUseCase
 
         editor.Step = $"the action in {controller}";
 
-        if (editor.Open(controller) is { } sheet)
+        if (spec.Routing?.Failure is { } failure)
+        {
+            editor.Fail(failure);
+        }
+        else if (editor.Open(controller) is { } sheet)
         {
             Action(editor, sheet, spec);
         }
@@ -1376,12 +1397,52 @@ internal static class NewUseCase
         string remainder = Remainder(spec);
         string segment = Kebab(!spec.IsCommand && remainder.StartsWith("Get", StringComparison.Ordinal) && remainder.Length > 3 ? remainder[3..] : remainder);
 
-        return spec.HasId ? $"{{{IdName(spec)}:guid}}/{segment}" : segment;
+        return spec.HasId ? $"{spec.Routing?.Resource ?? IdSegment(spec)}/{segment}" : segment;
+    }
+
+    private static string IdSegment(Spec spec) => $"{{{IdName(spec)}:guid}}";
+
+    private static Routing? ReadRouting(string root, Spec spec)
+    {
+        string controller = Path.Combine(root, ApiFolder(spec), "Features", spec.Features, "Controllers", spec.Features + "Controller.cs");
+
+        if (!File.Exists(controller))
+        {
+            return null;
+        }
+
+        string text = File.ReadAllText(controller);
+        string route = _controllerRoute.Match(text) is { Success: true } declared ? declared.Groups["template"].Value : string.Empty;
+        bool atTheRoot = _rootRoute.IsMatch(route);
+        string documented = "/" + (atTheRoot ? _versionSegment.Replace(route, "v1").Trim('/') + "/" : string.Empty);
+
+        if (!spec.HasId)
+        {
+            return atTheRoot
+                ? new Routing(string.Empty, documented, "the controller is routed at the API root, where each action carries its resource path, and a use case without the aggregate's id gives no resource to take it from. Write the action by hand with its full route.")
+                : null;
+        }
+
+        string id = IdSegment(spec);
+        string? carrying = _actionRoute.Matches(text)
+            .Select(action => action.Groups["template"].Value)
+            .Where(template => template.Contains(id, StringComparison.Ordinal))
+            .OrderBy(template => template.Length)
+            .FirstOrDefault();
+
+        if (carrying is null)
+        {
+            return atTheRoot
+                ? new Routing(id, documented, $"the controller is routed at the API root, where each action carries its resource path, and none of its actions carries {id} to take the path from. Write the action by hand with its full route.")
+                : null;
+        }
+
+        return new Routing(carrying[..(carrying.IndexOf(id, StringComparison.Ordinal) + id.Length)], documented, null);
     }
 
     private static string RouteRow(Spec spec)
     {
-        string documented = "/" + RouteTemplate(spec).Replace(":guid", string.Empty, StringComparison.Ordinal);
+        string documented = (spec.Routing?.Documented ?? "/") + RouteTemplate(spec).Replace(":guid", string.Empty, StringComparison.Ordinal);
 
         return $"| {(spec.IsCommand ? "POST" : "GET")} | `{documented}` | {(spec.IsCommand ? "204" : "200")} | |";
     }
@@ -1521,6 +1582,7 @@ internal static class NewUseCase
             ManifestCases(scratch, Expect);
             RollbackCases(scratch, Expect);
             WithoutTheApiCases(scratch, Expect);
+            RoutingCases(scratch, Expect);
         }
         finally
         {
@@ -1761,6 +1823,62 @@ internal static class NewUseCase
         expect(
             failed.Code == 1 && failed.Error.Contains("  dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal) && Occurrences(failing, _controller, "ISender sender,") == 1,
             "A failed OpenAPI step did not fail the command and name what remains, or undid the edit.");
+    }
+
+    private static string RoutedController(string route, params string[] actions) =>
+        _controllerText.Replace(
+            "[ApiController]\n",
+            $"[ApiController]\n[Route(\"{route}\")]\n",
+            StringComparison.Ordinal)
+            .Replace(
+                "    [HttpGet]\n    public Task<ActionResult> List() => service.ListAsync();",
+                string.Join("\n\n", actions.Select(action => $"    {action}\n    public Task<ActionResult> Action{Array.IndexOf(actions, action)}() => service.ListAsync();")),
+                StringComparison.Ordinal);
+
+    private static void RoutingCases(string scratch, Action<bool, string> expect)
+    {
+        (string Label, string Route, string[] Actions, string Action, string? Row)[] served =
+        [
+            ("the resource in the controller's route", "api/v{version:apiVersion}/invoices", ["[HttpGet(\"{invoiceId:guid}\")]"], "[HttpPost(\"{invoiceId:guid}/approve\")]", "| POST | `/{invoiceId}/approve` | 204 | |"),
+            ("the resource in an action of a controller routed at the root", "api/v{version:apiVersion}", ["[HttpGet(\"invoices\")]", "[HttpGet(\"billing/{invoiceId:guid}/lines/{lineId:guid}\")]", "[HttpPut(\"invoices/{invoiceId:guid}\")]"], "[HttpPost(\"invoices/{invoiceId:guid}/approve\")]", "| POST | `/api/v1/invoices/{invoiceId}/approve` | 204 | |"),
+        ];
+
+        foreach (var (label, route, actions, action, row) in served)
+        {
+            string root = NewTree(scratch);
+
+            File.WriteAllText(Path.Combine(root, _controller), RoutedController(route, actions));
+
+            var result = Invoke(root, "Invoices", "ApproveInvoice", "--kind", "command");
+
+            expect(result.Code == 0, $"[{label}] the use case was refused: {result.Error}");
+            expect(Occurrences(root, _controller, action) == 1, $"[{label}] the action did not carry {action}.");
+            //#if (api)
+            expect(
+                result.Output.Contains(row!.StartsWith("| POST | `/api/", StringComparison.Ordinal) ? "written in full, from /api" : "relative to that table's 'Under' prefix", StringComparison.Ordinal),
+                $"[{label}] the output does not say how the row is written.");
+            expect(Occurrences(root, _apiPage, row!) == 1, $"[{label}] the route's row was not {row}.");
+            //#endif
+        }
+
+        (string Label, string[] Arguments, string Fragment)[] refused =
+        [
+            ("an action carries no id", ["Invoices", "ApproveInvoice", "--kind", "command"], "none of its actions carries {invoiceId:guid}"),
+            ("a message without the id", ["Invoices", "CloseBooks", "--kind", "command", "--input", "none"], "a use case without the aggregate's id"),
+        ];
+
+        foreach (var (label, arguments, fragment) in refused)
+        {
+            string root = NewTree(scratch);
+
+            File.WriteAllText(Path.Combine(root, _controller), RoutedController("api/v{version:apiVersion}", "[HttpGet(\"invoices\")]"));
+
+            var before = Snapshot(root);
+            var result = Invoke(root, arguments);
+
+            expect(result.Code == 1 && Same(before, Snapshot(root)), $"[{label}] a root-routed controller without a resource path to read did not stop the use case before it wrote.");
+            expect(result.Error.Contains(fragment, StringComparison.Ordinal), $"[{label}] the refusal does not say '{fragment}': {result.Error}");
+        }
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>

@@ -1,4 +1,5 @@
-﻿using System.Xml.Linq;
+﻿using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -26,18 +27,40 @@ public sealed class CodeStyleEnforcementTests
     }
 
     [Fact]
-    public void TheBuild_FailsOnAWarningAnMSBuildTaskLogs()
+    public void TheBuild_FailsOnAWarningAnMSBuildTaskLogs_OutsideTheSonarAnalysisBuild()
     {
-        string[] values = PropertyValues(
-            XDocument.Load(Path.Combine(_root, "Directory.Build.props")),
-            "MSBuildTreatWarningsAsErrors");
+        const string property = "MSBuildTreatWarningsAsErrors";
+        var targets = XDocument.Load(Path.Combine(_root, "Directory.Build.targets"));
 
-        values.ShouldBe(
+        PropertyValues(XDocument.Load(Path.Combine(_root, "Directory.Build.props")), property).ShouldBeEmpty(
+            "Directory.Build.props does not set MSBuildTreatWarningsAsErrors: the props are read before "
+            + "SonarScanner's targets define SonarQubeTempPath, so a value there would also fail the "
+            + "analysis build on the findings Sonar reports as warnings for its quality gate to judge. "
+            + "Set it in Directory.Build.targets.");
+        PropertyValues(targets, property).ShouldBe(
             ["true"],
-            "Directory.Build.props sets MSBuildTreatWarningsAsErrors once, to true: TreatWarningsAsErrors "
+            "Directory.Build.targets sets MSBuildTreatWarningsAsErrors once, to true: TreatWarningsAsErrors "
             + "reaches the compilers alone, so a warning a build task logs, such as Avalonia's XAML "
             + "compiler reporting an obsolete member, passes the build until someone builds with "
-            + "-warnaserror. Set the property once, to true, in Directory.Build.props.");
+            + "-warnaserror. Set the property once, to true, in Directory.Build.targets.");
+        ConditionsOn(targets, property).ShouldBe(
+            [_outsideTheSonarAnalysisBuild],
+            "Directory.Build.targets sets MSBuildTreatWarningsAsErrors under one condition, "
+            + $"{_outsideTheSonarAnalysisBuild}, which leaves out SonarScanner's analysis build alone: any "
+            + "other condition lets a build pass on a task's warning, and no condition fails the analysis build "
+            + "on Sonar's findings, which the scanner cannot turn back into warnings. Put the property "
+            + "in a PropertyGroup with that condition and no other.");
+    }
+
+    [Fact]
+    public void TheConditionReader_SeesEveryConditionOnAProperty()
+    {
+        var targets = XDocument.Parse(
+            "<Project><PropertyGroup Condition=\" '$(A)'=='' \"><P Condition=\"'$(B)' != 'x'\">true</P></PropertyGroup>"
+            + "<PropertyGroup><Q>true</Q></PropertyGroup></Project>");
+
+        ConditionsOn(targets, "P").ShouldBe(["'$(A)' == ''", "'$(B)' != 'x'"]);
+        ConditionsOn(targets, "Q").ShouldBeEmpty();
     }
 
     [Theory]
@@ -80,6 +103,15 @@ public sealed class CodeStyleEnforcementTests
         SeveritiesOf(SectionOf(editorconfig, "[*.cs]"), "IDE0055").ShouldBe(["error"]);
         SeveritiesOf(SectionOf(editorconfig, "[*.cs]"), "IDE1006").ShouldBeEmpty();
     }
+
+    private const string _outsideTheSonarAnalysisBuild = "'$(SonarQubeTempPath)' == ''";
+
+    private static string[] ConditionsOn(XDocument document, string property) =>
+        [.. document.Descendants(property)
+            .SelectMany(element => element.AncestorsAndSelf().Reverse())
+            .Select(element => (string?)element.Attribute("Condition"))
+            .OfType<string>()
+            .Select(condition => Regex.Replace(condition.Trim(), @"\s*(==|!=)\s*", " $1 ", RegexOptions.None, TimeSpan.FromSeconds(1)))];
 
     private static string[] PropertyValues(XDocument document, string property) =>
         [.. document.Descendants(property).Select(element => element.Value.Trim())];

@@ -568,7 +568,8 @@ says. `ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresTh
 fails when a symbol the starters read is missing or differs, or when the two templates leave out
 different files. What `--presentation` writes outside the project's folders, an item template
 cannot edit: the starter's `README.md` lists each of those lines under "Joining a project generated
-without one", as an edit placed after or before the lines around it, or in their place, and
+without one", as an edit placed after or before the lines around it, in their place, or, for a
+row of the decisions index, at its rank, and
 `TheStarterReadme_ListsEveryLineItsStarterWritesOutsideItsFolders` fails, for each
 starter, until a line a branch of its symbols writes is there: `presentationBlazorServer` or
 `anyPresentation` for Blazor, `presentationAvalonia`, `dotnetClient` or `anyPresentation` for
@@ -593,7 +594,12 @@ the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
-lines, then the added ones.
+lines, then the added ones. A row a part adds to `docs/decisions/README.md` has no anchor, since no
+row is in every shape and each new ADR can come between a row and its neighbour: its bullet reads
+``- in `docs/decisions/README.md`, at the rank of its number, add:`` (or "their numbers"), then the
+fenced rows alone. Each row goes before the first row of the table with a greater number, or at the
+end of the table, never past it, so the project's own rows from 1000 stay where they are; a row the
+table lists already is left alone, and one whose number it lists as another row is refused.
 
 `presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its

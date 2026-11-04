@@ -1786,6 +1786,7 @@
             "Tests/Architecture/AT.Architecture.Tests/Rules/HttpCommonBoundaryTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/HttpSurfaceTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/IdempotentActionTests.cs",
+            "Tests/Architecture/AT.Architecture.Tests/Rules/LocalStackCorsTests.cs",
             "Tests/Architecture/AT.Architecture.Tests/Rules/RequestPipelineTests.cs"
           ]
         },

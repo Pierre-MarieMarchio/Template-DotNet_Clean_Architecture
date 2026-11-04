@@ -79,7 +79,7 @@ x-host-environment: &host-environment
   #endif
 
   # Arrays bind by index with the __N suffix.
-  Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-http://localhost:4200}
+  Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-}
 
 #if (anyWeb)
 # One line per web app: its compose.yml declares the service, built from Src/Web.

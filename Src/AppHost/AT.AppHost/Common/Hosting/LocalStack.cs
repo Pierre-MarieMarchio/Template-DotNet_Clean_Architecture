@@ -329,7 +329,7 @@ internal sealed partial class LocalStack
             .WithEnvironment("Email__Password", _emailPassword)
             .WithEnvironment("Email__FromAddress", "no-reply@localhost")
             .WithEnvironment("Email__FromName", "AppTemplate (dev)")
-            .WithEnvironment("Cors__AllowedOrigins__0", "http://localhost:4200")
+            .WithEnvironment("Cors__AllowedOrigins__0", string.Empty)
             .WithEnvironment(ExportTelemetryToTheDashboard);
     }
 

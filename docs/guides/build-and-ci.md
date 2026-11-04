@@ -58,7 +58,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `presentation-scaffold` | create each presentation project still holding its scaffold.json |
 | `presentation-join` | the lines a presentation project added by `cleanarch-presentation` lists in its `README.md`, outside its folders, then records the project in `cleanarch.json`; for the worker it first moves the API's jobs and their tests into it, on a committed tree, and builds the result in a copy before it writes anything |
 | `web-join` | for an app added by `cleanarch-webapp`, the lines its `README.md` lists outside its folders, with those the web workspace's own README lists for a first app and its workspace, then records the app in `cleanarch.json` with `--web`, `--web-audience` and `--web-rendering`, and the port its `Src/Web/apps/<App>/compose.yml` holds, which `--web-port` may state; for a package added by `cleanarch-webpackage`, records it |
-| `hygiene` | the self-tests of the gates this tree carries |
+| `docs-index` | the index of each folder under `docs/`, listing its pages and its subfolders by the `title` and `description` of their frontmatter, a decision with its `status`; `--check` fails when one differs from what it writes |
+| `hygiene` | the self-tests of the gates this tree carries, then `docs-index --check` |
 | `verify` | the whole gate, in CI's order |
 
 Everything under `Tools/` is a file-based C# app: the SDK `global.json` requires is all it needs. The
@@ -139,7 +140,8 @@ On a machine short of memory, `-m:<N>` caps `restore`, `build`, `test`, `coverag
 N MSBuild nodes and N test projects running at once, as in `dotnet run Tools/Tasks.cs verify -m:4`.
 
 Each gate proves it can fail before it judges the tree: `hygiene` runs the `--self-test` of the
-generator, the removal command and the coverage gate, each against faulted and sound fixtures. A gate
+generator, the removal command and the coverage gate, each against faulted and sound fixtures, then
+fails when a folder's index under `docs/` no longer lists its pages as their frontmatter says. A gate
 also refuses to pass on nothing: a test run that executed no test and a coverage total over no
 assembly both fail. A rule added to a gate comes with the fixture that fails without it.
 

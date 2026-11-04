@@ -611,7 +611,7 @@ the other passes are idempotent. The edits, to make by hand where the task stops
 - in `docs/getting-started/first-run.md`, before the line:
 
   ```markdown
-  It formats the solution, writes the OpenAPI reference
+  It formats the solution, writes the index of each folder under `docs/` from its pages, writes the
   ```
 
   add:

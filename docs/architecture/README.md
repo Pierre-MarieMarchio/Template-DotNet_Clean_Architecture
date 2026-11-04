@@ -83,7 +83,7 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 
 | Not here | Instead | See |
 |---|---|---|
-| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0003](../decisions/0003-use-cases-and-ports-are-explicit.md) |
+| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) |
 | A generic repository, `IQueryable` in a port | four words for four ways to reach storage | [Ports and adapters](ports-and-adapters.md#repository-queries-store-table) |
 | EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0005](../decisions/0005-the-domain-is-not-mapped-by-ef.md) |
 | Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |
@@ -128,8 +128,8 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md)
 - [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
-- [0004. Features meet through ports and events](../decisions/0004-features-meet-through-ports-and-events.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
+- [0034. Features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
 - [0005. The domain is not mapped by EF](../decisions/0005-the-domain-is-not-mapped-by-ef.md)
 - [0006. Events after commit without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md)
 - [0007. One database, a schema per feature](../decisions/0007-one-database-a-schema-per-feature.md)

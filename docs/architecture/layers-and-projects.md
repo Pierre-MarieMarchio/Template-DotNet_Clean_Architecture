@@ -216,5 +216,5 @@ to owners and the `Administrator` policy.
 ## Decisions
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): four layers, and a host-agnostic Presentation.Core.
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
 - [0022. A presentation project reaches the core through the API or the application layer](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)

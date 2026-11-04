@@ -17,8 +17,10 @@ defaults and descriptions. It offers only what the template generates with the a
 a choice the template refuses whatever follows, as `--database mysql`, is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
 the answer that leaves it. A combination of flags the template refuses is explained before anything
-is written, and its options are asked again. An output folder that already holds files, or an app
-name already taken, is refused at its own question. It installs the `CleanArch.WebApi.Templates`
+is written, and its options are asked again. A project name the template refuses, one under two
+characters, an output folder that already holds files, or an app name already taken, is refused at
+its own question; an item command in a project whose name an item template refuses stops before
+asking anything. It installs the `CleanArch.WebApi.Templates`
 package at its own version when another one or none is installed, generates the project, then prints
 the commands that do the same, with `--template-source` and `--hive` when they were given, and the
 first steps of the project's `README.md`, as plain text. After questions, those commands are the

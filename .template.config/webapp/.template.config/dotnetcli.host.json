@@ -13,6 +13,11 @@
       "longName": "has-client",
       "shortName": ""
     },
+    "projectNameNeedsTwoCharacters": {
+      "longName": "project-name-needs-two-characters",
+      "shortName": "",
+      "isHidden": true
+    },
     "wasmWebNeedsAccounts": {
       "longName": "wasm-web-needs-accounts",
       "shortName": "",

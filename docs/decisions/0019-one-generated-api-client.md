@@ -19,7 +19,8 @@ a build order and stale output.
   CI regenerates it and fails on any difference.
 <!--#endif-->
 - **One wrapper, the same for every framework.** `createApiClient` is `openapi-fetch` over the
-  generated paths, relative to the page's origin, which each app's relay makes the API's. `unwrap`
+  generated paths, relative to the page's origin, which each app's relay makes the API's
+  ([ADR 0037](0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md)). `unwrap`
   returns the body or throws an `ApiError` carrying the problem's `code` and field errors; an answer
   that is no problem document becomes `response.unreadable`, so a caller branches on codes alone.
   Credentials enter through an `accessToken` provider and the `middleware` list.

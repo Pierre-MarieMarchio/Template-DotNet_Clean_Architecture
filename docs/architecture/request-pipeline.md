@@ -24,8 +24,10 @@ authorisation rule by existing.
 | Authorisation | in `Program.cs`, right after `UseHttpPipeline()` |
 <!--#endif-->
 
-A host cannot insert a step in the middle. `RequestPipelineTests` holds the order: forwarded
-headers first, logging ahead of the size limit, the pipeline before any middleware of the host's.
+A host cannot insert a step in the middle. Each step's place guards the steps after it, so a
+middleware placed among them could read a body before its size is limited, or answer outside the
+error format. `RequestPipelineTests` holds the order: forwarded headers first, logging ahead of the
+size limit, the pipeline before any middleware of the host's.
 
 TLS terminates upstream. The API listens on plain HTTP on port 8080, installs no HTTPS redirection
 and sends no HSTS header; [Deployment](../guides/deployment.md#behind-a-proxy) states what the
@@ -55,7 +57,8 @@ caller rather than `404`.
 
 `AuthorizationPolicies.Administrator` is the one named policy: it requires the role the deployment
 configures as the administrator's, and guards the maintenance and administration endpoints.
-A new policy is registered beside it.
+A new policy is registered beside it. The host checks a role, never the use case
+([ADR 0039](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)).
 <!--#endif-->
 <!--#if (publicApi)-->
 This API authenticates nobody. The fallback policy admits every caller, and an action marked
@@ -167,3 +170,6 @@ language is `Localization:DefaultCulture`. Problem documents are written in Engl
 ## Decisions
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): TLS upstream, FluentValidation, the language as a tag.
+<!--#if (accounts)-->
+- [0039. A role is checked by the host, not by the use case](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)
+<!--#endif-->

@@ -17,7 +17,8 @@ from the `packageManager` field of `Src/Web/package.json`, which Corepack reads;
 
 Each app is its own deployable. Its development server, and in Compose its nginx container or, for
 an app rendered on the server, its Node server, relays `/api/` and `/health` to the API, so the
-browser talks to one origin per app and the API keeps CORS closed.
+browser talks to one origin per app and the API keeps CORS closed
+([ADR 0037](../decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md)).
 
 <!--#if (webNodeFramework)-->
 ## Creating the app
@@ -448,6 +449,7 @@ a user other than root and exposes only 8080. Details are in
 <!--#if (webServerRendering)-->
 - [0024 A server-rendered web app runs on its own server](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md)
 <!--#endif-->
+- [0037 A web app is deployed apart, behind a relay to the API](../decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md)
 <!--#if (localAuth)-->
 - [0016 Browser refresh token in a cookie](../decisions/0016-browser-refresh-token-in-a-cookie.md)
 <!--#endif-->

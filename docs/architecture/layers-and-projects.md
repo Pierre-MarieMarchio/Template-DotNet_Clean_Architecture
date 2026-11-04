@@ -114,7 +114,9 @@ database instrumentation to add.
 the composition root in `Program.cs`, and under `Common/` the HTTP mechanisms every feature shares.
 
 A wire type is the API's own: each feature declares its requests and responses under `Contracts/`
-and maps them by hand in `Contracts/Mapping/`. No application type and no port type is serialised
+and maps them by hand in `Contracts/Mapping/`
+([ADR 0036](../decisions/0036-mappings-are-written-by-hand.md)). No application type and no port
+type is serialised
 as it is, so a field added inside the application is never published by that edit alone.
 
 <!--#endif-->

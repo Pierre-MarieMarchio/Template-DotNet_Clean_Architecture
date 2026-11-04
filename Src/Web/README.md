@@ -71,8 +71,7 @@ Pass the project's `--auth`, `--ci` and `--agent-files` too when they are not th
 the web apps' end-to-end tests, `docs/features/web-frontend.md`,
 `docs/decisions/0019-one-generated-api-client.md`, `docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md`, the server-rendered app's decision under
 `--rendering ssr` and, unless `--ci false`, `.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
-files the item template cannot edit are listed below, then those of the app's own `README.md`; a
-row of the decisions index goes at the rank of its number.
+files the item template cannot edit are listed below, then those of the app's own `README.md`.
 `web-join`, the first time it joins an app to a project whose `cleanarch.json` records no
 workspace, makes all of them, leaves those in place already, or makes none when one of the lines an
 edit is placed by is not found exactly once; then it records the workspace and the app. Run
@@ -385,18 +384,6 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   | Every dependency pinned and audited, NuGet by `NuGetAudit` and the web packages by `pnpm audit`; any known advisory fails the build | [Build and CI › Supply chain](docs/guides/build-and-ci.md#supply-chain) |
   ```
 
-- in `docs/README.md`, after the line:
-
-  ```markdown
-  | [Observability](features/observability.md) | logs, metrics, traces and health checks |
-  ```
-
-  add:
-
-  ```markdown
-  | [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
-  ```
-
 - in `docs/architecture/README.md`, replace the line:
 
   ```markdown
@@ -517,26 +504,6 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 <!--#endif-->
   ```
 
-- in `docs/decisions/README.md`, at the rank of its number, add:
-
-  ```markdown
-  | [0019](0019-one-generated-api-client.md) | One generated API client | Web front end |
-  ```
-
-- in `docs/decisions/README.md`, at the rank of its number, add:
-
-  ```markdown
-  | [0037](0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md) | A web app is deployed apart, behind a relay to the API | Web front end |
-  ```
-
-<!--#if (webServerRendering)-->
-- in `docs/decisions/README.md`, at the rank of its number, add:
-
-  ```markdown
-  | [0024](0024-a-server-rendered-web-app-runs-on-its-own-server.md) | A server-rendered web app runs on its own server | Web front end |
-  ```
-
-<!--#endif-->
 <!--#if (localAuth)-->
 - in `docs/features/accounts.md`, after the lines:
 
@@ -817,7 +784,7 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/guides/removing-features.md`, after the line:
 
   ```markdown
-  what is written from it.
+  [below](#migrations) says, and rewrites the OpenAPI reference and what is written from it.
   ```
 
   add:

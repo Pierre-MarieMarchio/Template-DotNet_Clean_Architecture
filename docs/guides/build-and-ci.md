@@ -193,7 +193,7 @@ tool's and keeps the directives the tool writes.
 | `S1075` | `.editorconfig` `Src/Presentation/AT.Api/Common/Errors/ProblemTypes.cs` | The default problem-type base, on the reserved `.example` domain; `ProblemTypeOptions.BaseUri` replaces it. |
 <!--#endif-->
 | `generated_code`, `IDE0005` | `.editorconfig` `**/Migrations/*.cs` | `dotnet ef` writes the migrations, and one a database has applied is never rewritten. |
-| `generated_code` | `.editorconfig` `**/Generated/**.cs` | Kiota writes the .NET client's `Generated/` folder, and `api-client` rewrites it whole ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). |
+| `generated_code` | `.editorconfig` `**/Generated/**.cs` | Kiota writes the .NET client's `Generated/` folder, and `api-client` rewrites it whole. |
 | `CA1707` | `.editorconfig` `Tests/**/*.cs` | A test's name reads as its claim, its parts separated by underscores. |
 <!--#if (templateMaintenance)-->
 | `CA1707` | `Launcher/.editorconfig` `CleanArch.Create.Tests/**.cs` | A test's name reads as its claim, its parts separated by underscores. |

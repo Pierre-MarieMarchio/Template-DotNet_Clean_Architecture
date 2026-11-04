@@ -5,17 +5,19 @@ Status: Accepted
 ## Context
 
 Every generated project receives `Tools/Tasks.cs` and what it runs: the generators
-`Tools/NewFeature.cs`, `Tools/NewUseCase.cs` and `Tools/RemoveFeature.cs`, with
-`Tools/CoverageGate.cs` and `Tools/TestSummary.cs`. That is about 11,600 lines, which the engine
-conditions per option through `//#if` blocks. A fix to a generator reaches only the projects
-generated after it: an older project keeps its copy, and its team keeps that copy in step by hand,
-if it does at all. The copy is also what lets a team change a task, add one, or reshape the code a
+`Tools/NewFeature.cs` (`new-feature` and `new-field`), `Tools/NewUseCase.cs`, `Tools/NewSetting.cs`,
+`Tools/NewEvent.cs` and `Tools/RemoveFeature.cs`, the upgrade report `Tools/UpgradeReport.cs`, and
+`Tools/CoverageGate.cs` and `Tools/TestSummary.cs`. That is about 31,800 lines in a project of the
+default options, which the engine conditions per option through `//#if` blocks. A fix to a
+generator reaches only the projects generated after it: an older project keeps its copy, and its
+team keeps that copy in step by hand, if it does at all. The copy is also what lets a team change a task, add one, or reshape the code a
 generator writes. A tool installed from NuGet, the way `dotnet-ef` is, would take that away unless
 it leaves room for it.
 
-A project is worked on through three surfaces that overlap. `Tools/Tasks.cs` holds 28 tasks. The
-launcher `CleanArch.Create`, a .NET tool packed from this repository under the template's version,
-creates projects but also adds web apps, web packages and presentation projects to an existing one.
+A project is worked on through three surfaces that overlap. `Tools/Tasks.cs` holds 33 tasks in a
+project of the default options. The launcher `CleanArch.Create`, a .NET tool packed from this
+repository under the template's version, creates projects but also adds web apps, web packages and
+presentation projects to an existing one.
 The item templates write the files of those additions, and the IDE reaches them too. The launcher's
 `presentation` command runs the same steps that `presentation-join` and `presentation-scaffold`
 expose one by one.
@@ -33,7 +35,7 @@ expose one by one.
   `dotnet-ef`, and `bootstrap` restores it.
 - **A project records what it was generated with.** A project file written at generation holds the
   project's name, its options, the template version and the parts added since. The tool finds the
-  project root by this file and reads it where `Tools/Tasks.cs` reads a `//#if` today.
+  project root by this file and reads it where `Tools/Tasks.cs` reads a `//#if`.
   `dotnet cleanarch adopt` writes it for a project generated before the tool, from the facts the
   launcher already infers from a project's files.
 - **The commands follow five rules:**
@@ -46,6 +48,12 @@ expose one by one.
      with `--apply`.
   5. `help` lists only what the project file makes true. A command that does not apply to the
      project is refused, with the reason.
+- **Each task becomes a command or a step.** `new-feature`, `new-use-case`, `new-field`,
+  `new-setting` and `new-event` become `add feature`, `add use-case`, `add field`, `add setting` and
+  `add event`, each with `--dry-run`. `remove-feature`, which reports and writes only with
+  `--apply`, becomes `remove feature`, with the same `--apply`. `upgrade-report` stays a command of
+  its name, which writes nothing in the project, and `migration-check` becomes the `--check` of
+  `migrations add`.
 - **The internal steps are not commands.** Joining and scaffolding an addition are steps of
   `add web-app`, `add web-package` and `add presentation`. Each of these completes whatever is
   missing, so it also finishes an addition that the IDE started through an item template. The
@@ -76,8 +84,8 @@ expose one by one.
 
 ## Alternatives considered
 
-- **Keep the copied tools.** Every team keeps a fork of 11,600 lines it did not write, and a fix
-  never reaches a project already generated.
+- **Keep the copied tools.** Every team keeps a fork of some 31,800 lines it did not write, and a
+  fix never reaches a project already generated.
 - **A tool with no room for change.** It is the lightest to maintain, but a team that needs another
   gate step or another endpoint shape has nowhere to put it except a fork of the tool.
 - **A configuration that composes `verify` freely.** The word `verify` would then promise nothing
@@ -86,8 +94,8 @@ expose one by one.
   cannot edit the registrations, the closed lists and the manifest that a feature joins.
 - **Code templates in Scriban or Liquid.** They are lighter, but their files do not compile, the IDE
   does not help with them, and the repository would carry a second templating language.
-- **Code kept as strings in the generators**, as it is today. A team could change it only by
-  ejecting the whole command.
+- **Code kept as strings in the generators**, as `Tools/NewFeature.cs` keeps it. A team could
+  change it only by ejecting the whole command.
 - **A global tool.** Two projects on two template versions would share one version of the
   generators. A local tool pins each project's own.
 - **Team plugins loaded as assemblies.** Loading a team's assemblies into the tool's process brings
@@ -97,9 +105,11 @@ expose one by one.
 
 ## Consequences
 
-- A generated tree loses about 11,600 lines, and `Tools/` holds only what the team writes or ejects.
-- About 18 commands replace the 28 tasks: the joins, the scaffolds, the initial migrations, the
-  restore and the repository checks stop being commands of their own.
+- A generated tree loses about 31,800 lines, and `Tools/` holds only what the team writes or ejects.
+- About 25 commands replace the 33 tasks: the joins, the scaffolds, the initial migrations, the
+  migration check, the restore and the repository checks stop being commands of their own, `format`
+  and `format-fix` become `format` and its `--check`, and `openapi` writes the clients after the
+  reference, in place of `api-client`.
 - The launcher and the tool share their process, terminal and manifest code in one solution.
 - The tool becomes a public interface. The project file's schema, the code templates and the
   contract of a local command are versioned with care, and breaking one of them takes a major
@@ -109,7 +119,7 @@ expose one by one.
   generator's version.
 - The acceptance matrix tests one tool over each leg's project file instead of a conditioned copy
   per leg, and the generators gain unit tests of their own.
-- A project now keeps in step with a package from the template, the condition under which
+- A project keeps in step with a package from the template, the condition under which
   [0002](0002-nothing-about-the-template-reaches-a-project.md) says to revisit it. This ADR is
   accepted together with [0018](0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md),
   which supersedes 0002 and adds the tool to what reaches a project, and with 0019.

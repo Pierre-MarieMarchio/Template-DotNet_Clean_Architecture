@@ -20,9 +20,16 @@ load, rather than on the first start.
   creates on its first connection, switched to write-ahead logging so that readers do not wait for
   the writer. A write that finds the file busy waits up to the command timeout, and a save that
   still finds it busy is retried.
+<!--#if (files)-->
 - **Leases are locks of the process.** `ILeaderLease` and the owner's quota lock are semaphores
   inside the API ([ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md)): they exclude every caller
   of one process and nothing beyond it, which is all one file allows anyway.
+<!--#endif-->
+<!--#if (!files)-->
+- **Leases are locks of the process.** `ILeaderLease` is a semaphore inside the API
+  ([ADR 0011](0011-jobs-run-in-the-api-under-a-lease.md)): it excludes every caller of one process
+  and nothing beyond it, which is all one file allows anyway.
+<!--#endif-->
 - **What the server types do, conventions do.** A table is prefixed with its feature's schema, since
   SQLite has none ([ADR 0007](0007-one-database-a-schema-per-feature.md)); the row version is a
   counter the save stamps ([ADR 0008](0008-optimistic-concurrency-end-to-end.md)); every
@@ -41,15 +48,21 @@ load, rather than on the first start.
 
 - Concurrent writers queue on the file: a burst of writes is served one after the other, and a
   write that waits longer than the command timeout fails.
+<!--#if (files)-->
 - A second instance of the API would hold its own leases and its own quota locks, so two instances
   would run the same job pass and could both accept a file past the quota. The refusal outside
   Development keeps a second instance out of reach.
+<!--#endif-->
+<!--#if (!files)-->
+- A second instance of the API would hold its own leases, so two instances would run the same job
+  pass. The refusal outside Development keeps a second instance out of reach.
+<!--#endif-->
 - Search folds case for ASCII letters only: `Élan` does not find `élan`.
 - A `DateTimeOffset` keeps a tenth of a millisecond: a value read back can differ from the one
   written below that.
 - No release workflow and no migration bundle are generated: there is nothing to deploy.
 
-To deploy, generate the project again with `--database postgresql`, `sqlserver` or `mysql`, move
+To deploy, generate the project again with `--database postgresql` or `sqlserver`, move
 the features' code across, and let `bootstrap` create the migrations for the new provider; the
 domain and the application do not change, since no provider reaches them.
 

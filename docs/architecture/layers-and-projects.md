@@ -151,11 +151,10 @@ supplies. [Presentation projects](../features/presentation.md) describes it.
 ## The desktop app
 
 `Src/Presentation/<Initials>.Desktop` is a desktop client for Windows: a WPF app that calls the API
-over HTTP through the .NET client of `Src/Clients/<Initials>.Client`. Its view models and its host
-are in `Src/Presentation/<Initials>.Desktop.Core`, which builds and runs its tests on every system.
-The app references that project alone, and it references the client alone
-(`EveryClient_ReachesTheCoreThroughTheApiAlone`), so neither is a host: they compose no use case
-and no module. [Presentation projects](../features/presentation.md) describes them.
+over HTTP through the .NET client of `Src/Clients/<Initials>.Client`. It references that client alone
+(`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use case and no
+module. It is developed, run and tested on Windows; other systems build it.
+[Presentation projects](../features/presentation.md) describes it.
 
 <!--#endif-->
 ## Composition

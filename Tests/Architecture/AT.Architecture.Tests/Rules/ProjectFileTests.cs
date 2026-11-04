@@ -153,7 +153,7 @@ public sealed class ProjectFileTests
         string[] recorded = [.. presentations.Select(presentation => Folder(Text(presentation, "name")))];
 
         Folders("Src/Presentation")
-            .Where(folder => folder != Folder("Presentation.Core") && !recorded.Any(project => folder == project + ".Core"))
+            .Where(folder => folder != Folder("Presentation.Core"))
             .ShouldBe(
                 [.. recorded.Order(StringComparer.Ordinal)],
                 Case.Sensitive,

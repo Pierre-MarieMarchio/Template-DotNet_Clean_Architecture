@@ -1,5 +1,5 @@
 ﻿using System.Windows;
-using AppTemplate.PresentationAppDesktop.Core.ViewModels;
+using AppTemplate.PresentationAppDesktop.ViewModels;
 
 namespace AppTemplate.PresentationAppDesktop;
 

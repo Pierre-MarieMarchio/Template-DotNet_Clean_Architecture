@@ -1,8 +1,8 @@
 ﻿# PresentationAppDesktop
 
 The presentation project beside the API: a WPF desktop app for Windows that calls the API through
-the .NET client of `Src/Clients`, its view models and host in `AppTemplate.PresentationAppDesktop.Core`.
-[Presentation project](../../../docs/features/presentation.md) describes it.
+the .NET client of `Src/Clients`. [Presentation project](../../../docs/features/presentation.md)
+describes it.
 
 ## Create the project
 
@@ -14,14 +14,16 @@ pinned. From the project root:
 dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.PresentationAppDesktop
 ```
 
-`bootstrap` runs the same step, which needs no network: it removes scaffold.json, then adds the app,
-`AppTemplate.PresentationAppDesktop.Core`, their tests and the .NET client to the solution. Run outside
-`bootstrap`, once the OpenAPI reference exists, it then restores the tools and writes the client with
+`bootstrap` runs the same step, which needs no network: it removes scaffold.json, then adds the
+project, its tests and the .NET client to the solution. Run outside `bootstrap`, once the OpenAPI
+reference exists, it then restores the tools and writes the client with
 `dotnet run Tools/Tasks.cs api-client`. Commit the project: from then on its files are this project's
 own, and the step leaves it alone.
 
-The app builds on every system, `EnableWindowsTargeting` fetching the Windows targeting pack, and
-runs on Windows. Its tests are those of `AppTemplate.PresentationAppDesktop.Core`, which run on every system.
+The app is one project on `net10.0-windows`, its XAML, view models, settings, host and session
+together, and its tests are on `net10.0-windows` too: it is developed, run and tested on Windows.
+Other systems build both, `EnableWindowsTargeting` fetching the Windows targeting pack; there,
+`test`, `check`, `coverage` and `verify` name the tests they leave out.
 <!--#if (externalAuth)-->
 
 ## Sign in
@@ -77,8 +79,7 @@ project holds the .NET client already, generated with `--web blazor-wasm` or add
 WebAssembly app. A project generated with `--auth none` publishes no route for it to call, and the
 item template refuses it.
 
-It writes this folder, `AppTemplate.PresentationAppDesktop.Core` and its tests, the .NET client in
-`Src/Clients` with its tests,
+It writes this folder, its tests, the .NET client in `Src/Clients` with its tests,
 `docs/features/presentation.md` and the client's decision; `--has-client true` leaves the client, its
 tests and its decision out, and its edits below with them. The lines `--presentation` writes in
 files the item template cannot edit are listed below, each placed by the lines it goes beside. One
@@ -198,7 +199,6 @@ task stops:
 
   ```csharp
           ["Src/Presentation/AT.PresentationAppDesktop"] = null,
-          ["Src/Presentation/AT.PresentationAppDesktop.Core"] = null,
 <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = null,
 <!--#endif-->
@@ -214,11 +214,10 @@ task stops:
   add:
 
   ```csharp
-          ["Src/Presentation/AT.PresentationAppDesktop"] = null,
 <!--#if (externalAuth)-->
-          ["Src/Presentation/AT.PresentationAppDesktop.Core"] = ["Hosting", "Sessions"],
+          ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting", "Sessions"],
 <!--#else-->
-          ["Src/Presentation/AT.PresentationAppDesktop.Core"] = ["Hosting"],
+          ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting"],
 <!--#endif-->
 <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
@@ -236,7 +235,7 @@ task stops:
   add:
 
   ```csharp
-          ["AppTemplate.PresentationAppDesktop.Core"] = ["ViewModels"],
+          ["AppTemplate.PresentationAppDesktop"] = ["ViewModels"],
 <!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
 <!--#endif-->
@@ -288,11 +287,10 @@ task stops:
   ## The desktop app
 
   `Src/Presentation/<Initials>.Desktop` is a desktop client for Windows: a WPF app that calls the API
-  over HTTP through the .NET client of `Src/Clients/<Initials>.Client`. Its view models and its host
-  are in `Src/Presentation/<Initials>.Desktop.Core`, which builds and runs its tests on every system.
-  The app references that project alone, and it references the client alone
-  (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so neither is a host: they compose no use case
-  and no module. [Presentation projects](../features/presentation.md) describes them.
+  over HTTP through the .NET client of `Src/Clients/<Initials>.Client`. It references that client alone
+  (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use case and no
+  module. It is developed, run and tested on Windows; other systems build it.
+  [Presentation projects](../features/presentation.md) describes it.
 
   ```
 
@@ -320,7 +318,7 @@ task stops:
   add:
 
   ```markdown
-  | A WPF desktop app for Windows beside the API, in the shape of `dotnet new wpf`, its view models in a `.Core` project that builds and is tested on every system, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases | [Presentation project](../features/presentation.md) | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) |
+  | A WPF desktop app for Windows beside the API, in the shape of `dotnet new wpf`, one project developed, run and tested on Windows, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases | [Presentation project](../features/presentation.md) | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) |
   ```
 
 - in `docs/decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md`,
@@ -347,7 +345,7 @@ task stops:
   add:
 
   ```markdown
-  It adds the desktop app, its `.Core` project and their tests to the solution
+  It adds the desktop app and its tests to the solution
   ([Presentation projects](../features/presentation.md#creating-the-project)), and last writes the
   .NET client from the OpenAPI reference.
   ```
@@ -375,7 +373,7 @@ task stops:
   add:
 
   ```markdown
-  | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, its view models and host in `<Project>.Desktop.Core`, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
+  | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `Src/Clients`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
   ```
 
 - in `docs/README.md`, before the lines:
@@ -445,9 +443,9 @@ task stops:
   add:
 
   ```markdown
-  The desktop app's root also holds `App.xaml.cs` and `MainWindow.xaml.cs` beside their
-  markup, in the shape `dotnet new wpf` gives them, and its `.Core` project's root holds `ViewModels/`;
-  a file named `<Type>.xaml.cs` declares `<Type>`.
+  The desktop app's root also holds `ViewModels/`, and `App.xaml.cs` and `MainWindow.xaml.cs` beside
+  their markup, in the shape `dotnet new wpf` gives them; a file named `<Type>.xaml.cs` declares
+  `<Type>`.
 <!--#if (!hasClient)-->
   The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
   writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
@@ -463,15 +461,13 @@ task stops:
   add:
 
   ```text
-    <Initials>.Desktop                    no Common/, no Features/
-                                          App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#if (externalAuth)-->
-    <Initials>.Desktop.Core               Common/{Hosting,Sessions}
+    <Initials>.Desktop                    Common/{Hosting,Sessions}
 <!--#else-->
-    <Initials>.Desktop.Core               Common/{Hosting}
+    <Initials>.Desktop                    Common/{Hosting}
 <!--#endif-->
                                           no Features/
-                                          ViewModels/
+                                          ViewModels/; App.xaml.cs, MainWindow.xaml.cs: dotnet new wpf's shape
 <!--#if (!hasClient)-->
   Src/Clients/
     AT.Client                             Common/{Composition,Errors,Sessions}

@@ -916,33 +916,24 @@ public sealed class TemplatePackagingTests
         projects
             .Where(project => !itemRefusal.Contains($"name == \"{project}\"", StringComparison.Ordinal))
             .ShouldBeEmpty("cleanarch-presentation must refuse each -n that names one of the template's projects or its test project, which the item would overwrite: add the name to presentationNameIsTaken of .template.config/presentation/.template.config/template.json.");
-
-        string[] namesOfACore = [.. projects
-            .Where(project => project.EndsWith(_coreSuffix, StringComparison.Ordinal))
-            .Select(project => project[..^_coreSuffix.Length])];
-
-        namesOfACore.Length.ShouldBeGreaterThanOrEqualTo(4, "Far fewer .Core projects were found than this template writes, so this rule is not reading its tree.");
-        namesOfACore
-            .Where(name => !itemRefusal.Contains($"name == \"{name}\"", StringComparison.Ordinal))
-            .ShouldBeEmpty("--framework wpf writes <Project>.<name>.Core beside the app, so a name whose .Core is one of the template's projects must be refused too: add it to presentationNameIsTaken under framework == \"wpf\".");
     }
 
     [Fact]
-    public void TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_InTheCoresNamespace()
+    public void TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_ByteForByte()
     {
         string[] avalonia = DesktopSessionCode("avalonia");
         string[] wpf = DesktopSessionCode("wpf");
 
         avalonia.Length.ShouldBeGreaterThanOrEqualTo(10, "Far fewer files were found than the Avalonia starter's session and its tests hold, so this rule is not reading them.");
         wpf.ShouldBe(
-            [.. avalonia.Select(path => path.Replace(_desktopFolder, _desktopFolder + _coreSuffix, StringComparison.Ordinal))],
-            "The WPF starter's .Core holds a copy of the Avalonia starter's desktop session and its tests, file for file. Change both copies together; a third desktop client is the time to move them into a project of their own.");
+            avalonia,
+            "The WPF starter holds a copy of the Avalonia starter's desktop session and its tests, at the same paths. Change both copies together; a third desktop client is the time to move them into a project of their own.");
 
-        foreach ((string from, string to) in avalonia.Zip(wpf))
+        foreach (string path in avalonia)
         {
-            File.ReadAllText(Path.Combine(StartersFolder, "wpf", to)).ShouldBe(
-                File.ReadAllText(Path.Combine(StartersFolder, "avalonia", from)).Replace(_desktopProject + ".", _desktopProject + _coreSuffix + ".", StringComparison.Ordinal),
-                $"wpf/{to} differs from avalonia/{from} in more than the namespace: change both copies together.");
+            File.ReadAllBytes(Path.Combine(StartersFolder, "wpf", path)).ShouldBe(
+                File.ReadAllBytes(Path.Combine(StartersFolder, "avalonia", path)),
+                $"wpf/{path} differs from avalonia/{path}: change both copies together.");
         }
     }
 
@@ -1405,12 +1396,6 @@ public sealed class TemplatePackagingTests
 
     private const string _workerStarter = "worker";
 
-    private const string _coreSuffix = ".Core";
-
-    private const string _desktopProject = "AppTemplate.PresentationAppDesktop";
-
-    private static readonly string _desktopFolder = ProjectFolders.FolderOf(_desktopProject);
-
     private static readonly string[] _desktopSessionCode =
     [
         "Src/Presentation/AT.PresentationAppDesktop/Common/Sessions",
@@ -1425,10 +1410,9 @@ public sealed class TemplatePackagingTests
     private static string[] DesktopSessionCode(string starter)
     {
         string root = Path.Combine(StartersFolder, starter);
-        string project = starter == "wpf" ? _desktopFolder + _coreSuffix : _desktopFolder;
 
         return [.. _desktopSessionCode
-            .Select(path => Path.Combine(root, path.Replace(_desktopFolder, project, StringComparison.Ordinal)))
+            .Select(path => Path.Combine(root, path))
             .SelectMany(path => Directory.Exists(path) ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories) : File.Exists(path) ? [path] : [])
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
             .Order(StringComparer.Ordinal)];

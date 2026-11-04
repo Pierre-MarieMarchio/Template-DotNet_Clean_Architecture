@@ -96,7 +96,6 @@ public sealed class LayoutConventionTests
         #endif*/
         /*#if (presentationWpf)
         ["Src/Presentation/AT.PresentationAppDesktop"] = null,
-        ["Src/Presentation/AT.PresentationAppDesktop.Core"] = null,
         #endif*/
         /*#if (webBlazorWasm)
         ["Src/Web/apps/FrameworkSite"] = null,
@@ -212,14 +211,11 @@ public sealed class LayoutConventionTests
         /*#if (presentationMcp)
         ["Src/Presentation/AT.PresentationAppMcp"] = ["Hosting", "Security", "Tools"],
         #endif*/
-        /*#if (presentationWpf)
-        ["Src/Presentation/AT.PresentationAppDesktop"] = null,
-        #endif*/
         /*#if (presentationWpf && localAuth)
-        ["Src/Presentation/AT.PresentationAppDesktop.Core"] = ["Hosting"],
+        ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting"],
         #endif*/
         /*#if (presentationWpf && externalAuth)
-        ["Src/Presentation/AT.PresentationAppDesktop.Core"] = ["Hosting", "Sessions"],
+        ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting", "Sessions"],
         #endif*/
         /*#if (webBlazorWasm && !externalAuth)
         ["Src/Web/apps/FrameworkSite"] = null,
@@ -394,7 +390,7 @@ public sealed class LayoutConventionTests
         ["AppTemplate.PresentationAppDesktop"] = ["Assets", "ViewModels", "Views"],
         #endif*/
         /*#if (presentationWpf)
-        ["AppTemplate.PresentationAppDesktop.Core"] = ["ViewModels"],
+        ["AppTemplate.PresentationAppDesktop"] = ["ViewModels"],
         #endif*/
         /*#if (webBlazorWasm)
         ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],

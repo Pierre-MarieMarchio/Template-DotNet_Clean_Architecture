@@ -2124,6 +2124,10 @@ internal static class Tasks
             }
         }
 
+        written[readme] = (
+            WithoutTheJoiningSection(written.TryGetValue(readme, out var renamedReadme) ? renamedReadme.Text : File.ReadAllText(Path.Combine(root, readme))),
+            HasBom(Path.Combine(root, readme)));
+
         foreach (ReadmeEdit edit in inPlace)
         {
             Console.WriteLine($"In place already: {edit}");
@@ -2169,6 +2173,15 @@ internal static class Tasks
             $"Joined {relative} to the project, the jobs with it. Run `dotnet run Tools/Tasks.cs presentation-scaffold {projectFile.ProjectName(_workerName)}` "
             + "next: it adds the worker and its tests to the solution.",
             ConsoleColor.Green);
+    }
+
+    private static string WithoutTheJoiningSection(string readme)
+    {
+        string[] lines = readme.Split('\n');
+        int start = Array.FindIndex(lines, line => line.TrimEnd('\r') == _joiningSection);
+        int next = Array.FindIndex(lines, start + 1, line => line.StartsWith("## ", StringComparison.Ordinal));
+
+        return string.Join('\n', next < 0 ? [.. lines[..start], string.Empty] : [.. lines[..start], .. lines[next..]]);
     }
 
     private static void WriteTheJoin(string root, Dictionary<string, (string Text, bool Bom)> written, string[] leaving)

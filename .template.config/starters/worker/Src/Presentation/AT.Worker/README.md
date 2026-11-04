@@ -42,8 +42,9 @@ listed below, each placed by the lines it goes beside. It refuses before it writ
 file it would move, edit or remove differs from what git last committed, since `git restore` is what
 undoes a move; an edit in place already is left alone, and the others are made all or none. It then
 builds the API and the worker: a job that uses a type only the API declares stops it there, naming
-the type, which then moves to the application layer or into the job's folder. Then create the project
-as above and commit it.
+the type, which then moves to the application layer or into the job's folder. Last, it removes this
+section from this README, as `--presentation worker` writes it: the files it cites have moved. Then
+create the project as above and commit it.
 
 ADR 0011 stays, superseded by ADR 0025, since it held while the API ran the jobs.
 The move is safe in a rolling deployment: a pass that must not run twice takes its `ILeaderLease`

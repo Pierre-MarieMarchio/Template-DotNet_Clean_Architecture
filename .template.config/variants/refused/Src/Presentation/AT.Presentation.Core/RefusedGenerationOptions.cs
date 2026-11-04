@@ -28,4 +28,7 @@
 //#if (database == "sqlserver" || database == "mysql" || database == "sqlite")
 #error This version of the template generates --database postgresql only: generate with --database postgresql.
 //#endif
+//#if (name == "_" || name == "a" || name == "b" || name == "c" || name == "d" || name == "e" || name == "f" || name == "g" || name == "h" || name == "i" || name == "j" || name == "k" || name == "l" || name == "m" || name == "n" || name == "o" || name == "p" || name == "q" || name == "r" || name == "s" || name == "t" || name == "u" || name == "v" || name == "w" || name == "x" || name == "y" || name == "z")
+#error The template refuses a -n of one character, whose project w.Api would sit in the folder W.Api, a name a solution compares without case and takes for the same: generate with a name of two characters or more.
+//#endif
 #error Generate the project again without the hidden option that let the combination through.

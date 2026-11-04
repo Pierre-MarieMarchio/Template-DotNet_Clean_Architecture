@@ -280,8 +280,14 @@ public sealed partial class Launcher
         return Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any() ? "that folder already has files in it." : null;
     }
 
-    private static string? ProjectNameProblem(string name) =>
-        ProjectName().IsMatch(name) ? null : "use letters, digits and dots, with each part starting with a letter, like Acme.Shop.";
+    private static string? ProjectNameProblem(TemplateManifest manifest, string name) =>
+        ProjectName().IsMatch(name) ? NameRefusal(manifest, _nothing, name) : "use letters, digits and dots, with each part starting with a letter, like Acme.Shop.";
+
+    private static string? NameRefusal(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers, string name)
+    {
+        var named = new Dictionary<string, string>(answers, StringComparer.Ordinal) { [_itemNameSymbol] = name };
+        return manifest.Refusals.FirstOrDefault(refusal => refusal.When.Symbols.Contains(_itemNameSymbol) && manifest.Holds(refusal.When, named))?.Explanation;
+    }
 
     private static string? AppNameProblem(string name) =>
         AppName().IsMatch(name) ? null : "use PascalCase, like BackOffice. It becomes the app's folder, service and port variable.";
@@ -405,6 +411,11 @@ public sealed partial class Launcher
             .Where(option => detected.ContainsKey(option.Symbol))
             .Select(option => $"--{option.CliName} {detected[option.Symbol]}"));
         conversation.Note($"Taken from {project.Name}: {facts}");
+
+        if (manifest.Refusals.FirstOrDefault(refusal => manifest.ParametersBehind(refusal.When).All(detected.ContainsKey) && manifest.Holds(refusal.When, detected)) is { } refused)
+        {
+            throw new LauncherException($"{manifest.ShortName} refuses {project.Name}, whatever the answers: {refused.Explanation} Nothing was written.");
+        }
     }
 
     private static Question SetupQuestion(Session session) =>
@@ -503,7 +514,7 @@ public sealed partial class Launcher
 
         Question[] before =
         [
-            new(_nameKey, (_, remembered) => questionnaire.Text("--name", "Project name", parsed.Name, remembered ?? manifest.DefaultName, ProjectNameProblem)),
+            new(_nameKey, (_, remembered) => questionnaire.Text("--name", "Project name", parsed.Name, remembered ?? manifest.DefaultName, name => ProjectNameProblem(manifest, name))),
             new(_outputKey, (answers, _) =>
             {
                 string? named = answers.GetValueOrDefault(_nameKey);
@@ -762,10 +773,9 @@ public sealed partial class Launcher
             return $"use PascalCase, like Portal. {project.Name}.<name> becomes the project's name and service, in Src/Presentation/{project.FolderOf("<name>")}.";
         }
 
-        var named = new Dictionary<string, string>(answers, StringComparer.Ordinal) { [_itemNameSymbol] = name };
-        if (manifest.Refusals.FirstOrDefault(refusal => refusal.When.Symbols.Contains(_itemNameSymbol) && manifest.Holds(refusal.When, named)) is { } refused)
+        if (NameRefusal(manifest, answers, name) is { } refused)
         {
-            return refused.Explanation;
+            return refused;
         }
 
         string folder = Path.Combine(project.PresentationFolder, project.FolderOf(name));

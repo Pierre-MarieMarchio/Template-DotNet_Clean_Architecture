@@ -1585,7 +1585,7 @@ internal static class RemoveFeature
         {
             if (Directory.Exists(scratch))
             {
-                Directory.Delete(scratch, recursive: true);
+                DeleteTreeWithReadOnlyFiles(scratch);
             }
         }
 
@@ -1696,6 +1696,16 @@ internal static class RemoveFeature
 
     private const string _program = "builder.Services.AddTodoLists();\n\nbuilder.Services.AddCacheStore();\n";
 
+    private static void DeleteTreeWithReadOnlyFiles(string path)
+    {
+        foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        {
+            File.SetAttributes(file, FileAttributes.Normal);
+        }
+
+        Directory.Delete(path, recursive: true);
+    }
+
     private static string Skeleton(string scratch, string edits = "")
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
@@ -1801,7 +1811,7 @@ internal static class RemoveFeature
 
         string loose = Skeleton(scratch);
 
-        Directory.Delete(Path.Combine(loose, ".git"), recursive: true);
+        DeleteTreeWithReadOnlyFiles(Path.Combine(loose, ".git"));
         Refused(expect, "a tree git does not hold", loose, "Widgets", "not a git work tree");
 
         void Composed(string name, string path, string line, params string[] expected)

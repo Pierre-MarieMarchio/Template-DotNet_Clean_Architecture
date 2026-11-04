@@ -67,21 +67,7 @@ document carrying the error's stable `code` on failure.
 
 ## The pages in this section
 
-| Page | Answers |
-|---|---|
-| [Layers and projects](layers-and-projects.md) | Which projects make each layer, and how is the host composed? |
-| [Feature shapes](feature-shapes.md) | Should a feature be an aggregate or a service over a store? |
-| [Modules and boundaries](modules-and-boundaries.md) | What may a feature or a module depend on? |
-| [Ports and adapters](ports-and-adapters.md) | How does the application reach storage and the outside world? |
-| [Domain and results](domain-and-results.md) | How are rules enforced, failures reported and facts published? |
-| [Persistence model](persistence-model.md) | How is data mapped, saved and protected from lost updates? |
-<!--#if (api)-->
-| [Request pipeline](request-pipeline.md) | What happens to every request on its way in and out? |
-<!--#endif-->
-<!--#if (api)-->
-| [HTTP API](http-api.md) | What contract does every endpoint offer a client? |
-<!--#endif-->
-| [Shared mechanisms](shared-mechanisms.md) | Which mechanisms can a feature use without writing them? |
+[The index](index.md) lists the pages of this section, each with the question it answers.
 
 Where each file goes, and what it is called, is [the project layout](../reference/project-layout.md).
 

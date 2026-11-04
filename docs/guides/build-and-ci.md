@@ -141,8 +141,8 @@ N MSBuild nodes and N test projects running at once, as in `dotnet run Tools/Tas
 
 Each gate proves it can fail before it judges the tree: `hygiene` runs the `--self-test` of the
 generator, the removal command and the coverage gate, each against faulted and sound fixtures, then
-fails when a folder's index under `docs/` no longer lists its pages as their frontmatter says. A gate
-also refuses to pass on nothing: a test run that executed no test and a coverage total over no
+fails when a folder's index under `docs/` no longer lists its pages as their frontmatter says. A
+gate also refuses to pass on nothing: a test run that executed no test and a coverage total over no
 assembly both fail. A rule added to a gate comes with the fixture that fails without it.
 
 `TreatWarningsAsErrors`, set in `Directory.Build.props`, fails the build on a compiler's warning, and

@@ -2472,6 +2472,7 @@ internal static partial class NewFeature
             ## Reference
 
             """),
+        //#if (api)
         (
             "docs/reference/api.md",
             """
@@ -2496,6 +2497,7 @@ internal static partial class NewFeature
             ### The request itself
 
             """),
+        //#endif
     ];
 
     private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, _ => 0, args);
@@ -3090,7 +3092,9 @@ internal static partial class NewFeature
         "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs",
         "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs",
         "docs/README.md",
+        //#if (api)
         "docs/reference/api.md",
+        //#endif
     ];
 
     private static void SubsetExpectations(
@@ -3610,7 +3614,9 @@ internal static partial class NewFeature
     {
         Directory.Delete(System.IO.Path.Combine(root, "Src/Presentation/A.Api"), recursive: true);
         Directory.Delete(System.IO.Path.Combine(root, "Tests/Presentation/A.Api.UnitTests"), recursive: true);
+        //#if (api)
         File.Delete(System.IO.Path.Combine(root, "docs/reference/api.md"));
+        //#endif
 
         foreach (string host in hosts)
         {

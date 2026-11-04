@@ -1,4 +1,4 @@
-﻿# 0001. Options remove parts and refuse combinations
+# 0001. Options remove parts and refuse combinations
 
 Status: Accepted
 

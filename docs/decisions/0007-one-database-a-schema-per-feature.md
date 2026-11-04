@@ -1,4 +1,4 @@
-﻿# 0007. One database, a schema per feature
+# 0007. One database, a schema per feature
 
 Status: Accepted
 

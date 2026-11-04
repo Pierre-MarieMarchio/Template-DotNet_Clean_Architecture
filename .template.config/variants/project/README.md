@@ -1,4 +1,4 @@
-﻿# AppTemplate
+# AppTemplate
 
 ## What it is
 

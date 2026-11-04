@@ -1,4 +1,4 @@
-﻿# <Feature>
+# <Feature>
 
 ## What you get
 

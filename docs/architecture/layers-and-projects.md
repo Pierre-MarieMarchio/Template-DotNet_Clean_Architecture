@@ -1,4 +1,4 @@
-﻿# Layers and projects
+# Layers and projects
 
 Each layer is one folder under `Src/`, and each folder holds a `.Core` project for the mechanisms
 that know no feature, beside the projects that hold the business. A project declares every reference

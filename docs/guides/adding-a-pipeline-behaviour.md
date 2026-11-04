@@ -1,4 +1,4 @@
-﻿# Adding a pipeline behaviour
+# Adding a pipeline behaviour
 
 ## When
 

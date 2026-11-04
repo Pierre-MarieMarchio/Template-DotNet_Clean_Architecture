@@ -1,4 +1,4 @@
-﻿# Email
+# Email
 
 How this project sends mail, and how it picks the language a mail is written in.
 

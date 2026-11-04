@@ -1,4 +1,4 @@
-﻿# Security
+# Security
 
 What this project protects, what a deployment must still do, and the gaps it knows of. A control
 listed under [Before you deploy](#before-you-deploy) is not a suggestion: it is a hole until you close

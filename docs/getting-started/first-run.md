@@ -1,4 +1,4 @@
-﻿# First run
+# First run
 
 <!--#if (canAddFeature && api)-->
 From a fresh clone to a running stack, an authenticated call and a first feature of your own.

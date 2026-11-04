@@ -1648,6 +1648,7 @@
             ".github/workflows/template-web-lockfiles-commit.yml",
             ".github/release-please/**",
             ".github/ISSUE_TEMPLATE/**",
+            ".github/FUNDING.yml",
             "CODE_OF_CONDUCT.md",
             "SUPPORT.md",
             "Tools/CheckDocPaths.cs",

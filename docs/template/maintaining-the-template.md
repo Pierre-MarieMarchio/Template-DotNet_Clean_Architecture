@@ -759,7 +759,7 @@ program shares no code.
 | The three templates compute the same initials as the tools, for names with and without capitals | `TemplatePackagingTests.TheFolderSymbol_GivesTheProductsInitials_AsTheToolsComputeThem` |
 | Every `SegmentInitials` reads as the architecture tests' own | `TemplatePackagingTests.EveryCopyOfTheInitials_ReadsAsTheArchitectureTestsOwn` |
 | The token stands only before a project's folder, at the start of a word, in every path and file a template writes | `TemplatePackagingTests.TheFolderToken_NamesNothingButAProjectFolder` |
-| Each template refuses exactly the names under two characters, which hold every name whose folders differ from its projects in case alone | `TemplatePackagingTests.TheNameRefusal_RefusesEveryNameWhoseFoldersTheSolutionWouldTakeForItsProjects` |
+| Each template refuses exactly the names under two characters, which hold every name whose folders differ from its projects in case alone, and exactly the names that do not start with a letter from A to Z, which hold every name without initials | `TemplatePackagingTests.TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects` |
 | No path under `Src` and `Tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
 
 ## The generators' shared code

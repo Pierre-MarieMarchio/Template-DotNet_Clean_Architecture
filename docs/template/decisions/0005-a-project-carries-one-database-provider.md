@@ -41,6 +41,7 @@ migration is in [migrations](../../guides/migrations.md).
 
 ## Revisit when
 
-A provider waiting for a stable EF Core release gets one (MySQL, as
-[Maintaining the template](../maintaining-the-template.md#database-providers) says), or an overlay
-diverges from the PostgreSQL files enough that a seam should move into the shared code.
+Entity Framework Core gains a stable provider for a database `--database` does not offer, MySQL
+among them ([Maintaining the template](../maintaining-the-template.md#database-providers) says why it
+is not a value), or an overlay diverges from the PostgreSQL files enough that a seam should move into
+the shared code.

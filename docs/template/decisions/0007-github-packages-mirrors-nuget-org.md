@@ -5,8 +5,8 @@ Status: Accepted
 ## Context
 
 Both packages are published to nuget.org, where `dotnet new install` and `dnx` find them. The
-repository page's Packages panel lists GitHub Packages only, so it read "No packages published"
-beside a project whose packages anyone can install. GitHub's NuGet feed also asks for a token to
+repository page's Packages panel lists GitHub Packages only, so without a copy there it reads "No
+packages published" beside a project whose packages anyone can install. GitHub's NuGet feed also asks for a token to
 install, even from a public repository, so it cannot be where people are sent.
 
 ## Decision

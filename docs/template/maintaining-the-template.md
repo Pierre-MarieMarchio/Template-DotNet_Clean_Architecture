@@ -11,7 +11,7 @@ still holds.
 | Gate | Checks |
 |---|---|
 | `Tools/CheckDocPaths.cs` | every repository path in a Markdown code span exists, and every `docs/` path a workflow, script or `.http` file names; `CHANGELOG.md` and the plans folder are exempt |
-| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job |
+| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job, a job that runs `dotnet` on the runner image's SDK |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
 | `api-client --check` | `Src/Clients/AT.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
@@ -25,6 +25,13 @@ CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a
 does not receive. Its end-to-end job skips its steps in this repository, whose stack includes web
 apps no CLI has created yet, among them those that install the workspace and Chromium for the browser
 smoke; the acceptance matrix runs the suite and the smoke instead.
+
+A job that runs `dotnet` sets up the SDK `global.json` pins first, with `actions/setup-dotnet` and
+`global-json-file: global.json`: the runner image's SDK changes under the workflow, and NuGet audit
+judges the packages it carries. A job with no checkout has no `global.json` and names its SDK with
+`dotnet-version`. `Tools/CheckWorkflows.cs` reads a `run:` line as running `dotnet` when its first
+word, past `VAR=value` assignments, is `dotnet`; a comment or `docker run <image> dotnet` starts
+with another word, and a job with a `container:` runs its image's SDK, which the digest rule pins.
 
 ### The published package each week
 

@@ -11,8 +11,9 @@ soon you acknowledge one, what a reporter may expect after that, and whether you
 Until it is replaced, a reporter has no private channel to use.
 <!--#if (templateMaintenance)-->
 
-For the template itself, open a GitHub issue: the template ships no running service and no binary, so a
-public report is the fastest and the most useful.
+For the template itself, report privately in a
+[security advisory](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/security/advisories/new),
+never in a public issue.
 <!--#endif-->
 
 ## What this project protects

@@ -797,13 +797,13 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/guides/build-and-ci.md`, replace the line:
 
   ```markdown
-  | `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
+  | `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build; alerts land in the repository's Security tab |
   ```
 
   with:
 
   ```markdown
-  | `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
+  | `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
   ```
 
 <!--#endif-->
@@ -811,16 +811,42 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/guides/build-and-ci.md`, after the line:
 
   ```markdown
-  | `.github/workflows/codeql.yml` | push and pull request to `main`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
+  | `.github/workflows/codeql.yml` | push and pull request to `main` or `develop`, and weekly | CodeQL code scanning of the C# sources, read without a build, and of the TypeScript in `Src/Web`; alerts land in the repository's Security tab |
   ```
 
   add:
 
   ```markdown
-  | `.github/workflows/web.yml` | push and pull request to `main` | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
+  | `.github/workflows/web.yml` | push to `main`, pull request to `main` or `develop`, and a manual run | in `Src/Web`: frozen install, lint, test, build, and a failure when the API client differs from the API's document; one image per app |
   ```
 
 <!--#endif-->
+<!--#if (ci)-->
+- in `docs/guides/build-and-ci.md`, after the line:
+
+  ```markdown
+  than `main` and `develop` cancels the older one.
+  ```
+
+  add:
+
+  ```markdown
+  A newer run of `web.yml` cancels the older one on every branch but `main`.
+  ```
+
+<!--#endif-->
+- in `docs/guides/removing-features.md`, after the line:
+
+  ```markdown
+  what is written from it.
+  ```
+
+  add:
+
+  ```markdown
+  With a web workspace, that rewrite includes `pnpm api` in `Src/Web`, which needs Node.js and pnpm.
+  ```
+
 - in `docs/guides/build-and-ci.md`, after the line:
 
   ```markdown

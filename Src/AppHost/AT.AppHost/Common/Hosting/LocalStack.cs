@@ -31,6 +31,7 @@ internal sealed partial class LocalStack
     private readonly IResourceBuilder<ParameterResource> _audience;
     private readonly IResourceBuilder<ParameterResource> _interactiveClientId;
     private readonly IResourceBuilder<ParameterResource> _interactiveClientSecret;
+    private readonly IResourceBuilder<ParameterResource> _browserClientId;
     #endif*/
 
     internal LocalStack(IDistributedApplicationBuilder builder, ProjectFile project)
@@ -95,6 +96,7 @@ internal sealed partial class LocalStack
         _audience = builder.AddParameter("external-auth-audience");
         _interactiveClientId = builder.AddParameter("external-auth-interactive-client-id", string.Empty);
         _interactiveClientSecret = builder.AddParameter("external-auth-interactive-client-secret", string.Empty, secret: true);
+        _browserClientId = builder.AddParameter("external-auth-browser-client-id", string.Empty);
         #endif*/
     }
 
@@ -241,6 +243,13 @@ internal sealed partial class LocalStack
                 .WithEnvironment("EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET", _interactiveClientSecret)
                 .WithEnvironment("EXTERNAL_AUTH_INTERACTIVE_SCOPE", string.Empty)
                 .WithEnvironment("PUBLIC_ORIGIN", web.GetEndpoint("http"));
+        }
+
+        if (app.Framework == "blazor-wasm")
+        {
+            web
+                .WithEnvironment("SIGN_IN_AUTHORITY", _authority)
+                .WithEnvironment("SIGN_IN_CLIENT_ID", _browserClientId);
         }
         #endif*/
     }

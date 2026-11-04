@@ -16,9 +16,10 @@ reference and a test holds the other to it.
   the files it includes is a resource of `Src/AppHost/AT.AppHost` under the same name, and the
   reverse; each container runs the image its service pins, tag and digest alike, read from the Compose
   files when the app host starts; each setting a Compose file gives a host, the app host gives it too;
-  each web app listens on the port its `Src/Web/apps/<App>/compose.yml` publishes, which
-  `cleanarch.json` records. `LocalStackParityTests` holds the four, and lists by name each service or
-  setting the app host leaves out, with its reason.
+  each container gets the variables its service declares; each web app listens on the port its
+  `Src/Web/apps/<App>/compose.yml` publishes, which `cleanarch.json` records.
+  `LocalStackParityTests` holds the five, and lists by name each service, setting or variable in which
+  the two stacks differ, with its reason.
 - The app host starts the hosts `cleanarch.json` records, not a list of its own, so a host or a web
   app the project gains later joins the stack without an edit to it.
 - A secret comes from an Aspire parameter, generated and kept in the app host's user secrets, or set

@@ -248,8 +248,8 @@ Nothing to configure.
 <!--#endif-->
 
 ## Tests
-
 <!--#if (localAuth && api)-->
+
 The flows run against the project's real database in `Tests/Integration/AT.Api.IntegrationTests/Auth/`
 (registration, two-factor, passkeys, password and email changes). The guarantees each have a test in
 `Tests/Integration/AT.Api.IntegrationTests/Security/`: `LoginUniformityTests` (one answer,
@@ -258,15 +258,18 @@ one timing), `RefreshTokenTests` and `RefreshTokenCookieTests` (rotation, replay
 `DefaultDenyAuthorizationTests` and `AdministratorPolicyTests`.
 <!--#endif-->
 <!--#if (localAuth && !api)-->
+
 The sessions, the security log and the passkey ceremonies run against the project's real database in
 `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests/`.
 <!--#endif-->
 <!--#if (externalAuth && api)-->
+
 `Tests/Presentation/AT.Api.UnitTests/Features/ExternalIdentity/` covers validation, the
 first-request mapping, role mapping and the settings; the integration suite signs its requests
 with a test provider's keys.
 <!--#endif-->
 <!--#if (publicApi)-->
+
 `ControllerContractTests` and the integration suite run without any authentication scheme.
 `Program.cs` refuses `[Authorize]` at start-up; no test exercises that refusal.
 <!--#endif-->

@@ -452,13 +452,12 @@ Some lists change only on purpose, and a test fails until they name what you add
    wrote.
 3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
    linked from the page's `## Decisions`.
-
 <!--#if (anyFeature)-->
+
 ## Patterns from the examples
 
 | When the feature | Read |
 |---|---|
-<!--#endif-->
 <!--#if (todoLists)-->
 | owns child entities and protects a state | TodoLists, in every layer |
 | is a flat aggregate reached from a timer | Reminders, and its job under the API's `Features/Reminders/Jobs` |
@@ -468,6 +467,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 <!--#endif-->
 <!--#if (notes)-->
 | has no state to protect | Notes, a service over a store: the shape `--model record` writes |
+<!--#endif-->
 <!--#endif-->
 
 ## Promote a simple feature
@@ -494,8 +494,8 @@ change:
 <!--#endif-->
 
 The migration is empty unless the rule needs a column or an index.
-
 <!--#if (anyWeb)-->
+
 ## Web pages for it
 
 `new-feature` and `new-use-case` run `pnpm api` in `Src/Web` once the API serves the routes; run it

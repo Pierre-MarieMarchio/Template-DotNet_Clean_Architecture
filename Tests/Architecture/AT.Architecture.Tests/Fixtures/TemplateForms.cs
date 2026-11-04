@@ -6,7 +6,7 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 
 internal static class TemplateMarkers
 {
-    private static readonly Regex _directive = new(@"^\s*(?://|/\*)?#(?<kind>if|elseif|elif|else|endif)\b(?<condition>.*)$", RegexOptions.None, TimeSpan.FromSeconds(5));
+    private static readonly Regex _directive = new(@"^\s*(?://|/\*|<!--)?#(?<kind>if|elseif|elif|else|endif)\b(?<condition>.*)$", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     internal static string[] Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
 
@@ -19,7 +19,7 @@ internal static class TemplateMarkers
             if (_directive.Match(lines[index]) is { Success: true } directive && directive.Groups["kind"].Value is "if" or "elseif" or "elif")
             {
                 string condition = directive.Groups["condition"].Value.Trim();
-                conditions[index] = Condition.Parse(condition.EndsWith("*/", StringComparison.Ordinal) ? condition[..^2] : condition);
+                conditions[index] = Condition.Parse(condition.EndsWith("*/", StringComparison.Ordinal) ? condition[..^2] : condition.EndsWith("-->", StringComparison.Ordinal) ? condition[..^3].TrimEnd() : condition);
             }
         }
 

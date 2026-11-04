@@ -411,7 +411,6 @@ import { createApiClient } from '@app-template/api-client';
 export const api = createApiClient();
 ```
 <!--#endif-->
-
 <!--#if (localAuth)-->
 
 ### The pages the mailed links open
@@ -536,8 +535,8 @@ The edits:
   ```bash
   WEB_FRAMEWORK_SITE_HOST_PORT=5173
   ```
-
 <!--#if (webServerRendering && externalAuth)-->
+
 - in `.env.example`, after the line:
 
   ```bash
@@ -550,9 +549,9 @@ The edits:
   # The origin browsers reach the server-rendered app at, its redirect URI's origin at the provider: change it with the port.
   WEB_FRAMEWORK_SITE_ORIGIN=http://localhost:5173
   ```
-
 <!--#endif-->
 <!--#if (webServerRendering && externalAuth)-->
+
 - in `.env.example`, after the line:
 
   ```bash
@@ -566,10 +565,10 @@ The edits:
   EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=
   EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET=
   ```
-
 <!--#endif-->
 <!--#if (webServerRendering)-->
 <!--#if (localAuth)-->
+
 - in `docs/decisions/0016-browser-refresh-token-in-a-cookie.md`, after the line:
 
   ```markdown
@@ -581,9 +580,9 @@ The edits:
   ```markdown
   [ADR 0024](0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
   ```
-
 <!--#endif-->
 <!--#if (accounts)-->
+
 - in `docs/features/authentication.md`, after the line:
 
   ```markdown
@@ -595,9 +594,9 @@ The edits:
   ```markdown
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
   ```
-
 <!--#endif-->
 <!--#if (localAuth)-->
+
 - in `docs/features/web-frontend.md`, after the line:
 
   ```markdown
@@ -609,9 +608,9 @@ The edits:
   ```markdown
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
   ```
-
 <!--#endif-->
 <!--#if (externalAuth)-->
+
 - in `docs/features/web-frontend.md`, after the lines:
 
   ```markdown
@@ -624,9 +623,9 @@ The edits:
   ```markdown
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
   ```
-
 <!--#endif-->
 <!--#if (accounts)-->
+
 - in `docs/features/web-frontend.md`, after the lines:
 
   ```markdown
@@ -639,9 +638,9 @@ The edits:
   ```markdown
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
   ```
-
 <!--#endif-->
 <!--#if (publicApi)-->
+
 - in `docs/features/web-frontend.md`, after the line:
 
   ```markdown
@@ -653,8 +652,8 @@ The edits:
   ```markdown
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
   ```
-
 <!--#endif-->
+
 - in `docs/features/web-frontend.md`, after the line:
 
   ```markdown
@@ -679,5 +678,4 @@ The edits:
   - [ADR 0024](../../docs/decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why a
     server-rendered app runs on its own server and keeps the session there.
   ```
-
 <!--#endif-->

@@ -301,9 +301,14 @@ holds it.
 
 The floor is a tripwire: it catches an area shipped with no test, which no review of single tests
 sees. It is measured, never invented: a Debug run with Docker present, both integration suites
-contributing, a few points under the figure. Re-measure it when your own code lands, under the same
-conditions. It is never raised to reward tests, and a drop is answered by naming the risk now
-untested, not by a test written for the figure.
+contributing, a few points under the figure. CI applies the floor to a Release run, so the figure is
+the one measured locally and the gate is the one CI enforces. Re-measure it when your own code
+lands, under the same conditions. It is never raised to reward tests, and a drop is answered by
+naming the risk now untested, not by a test written for the figure.
+
+The coverage profiler fails to start from a checkout whose path is long, which a nested worktree or
+a deep scratch folder makes easy: run `coverage` from a short path, and under WSL keep `TMPDIR`
+short as well.
 
 ## House rules
 

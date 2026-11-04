@@ -184,8 +184,9 @@ from it;
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column, its contracts and its tests, an
 integration test among them; without it the fields are `Name` and `Description`, placeholders you
-rewrite. `new-use-case` adds one operation to a rich feature (a simple one is promoted first),
-with its action, its contracts and its route's row, then rewrites the OpenAPI reference.
+rewrite. `new-use-case` adds one operation to a rich feature, with its action, its contracts and its
+route's row, then rewrites the OpenAPI reference; it refuses a simple feature, to promote first as
+[feature shapes](docs/architecture/feature-shapes.md) says.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
 `new-feature` writes the skeleton in every layer but an HTTP one, which this project does not hold,
@@ -195,7 +196,8 @@ while a model change waits for a migration, then builds and adds the `Add<Featur
 `--dry-run` prints all of it and writes nothing. `--fields` names the fields, each validated in the
 validator and the aggregate and carried down to its column and its tests; without it the fields are
 `Name` and `Description`, placeholders you rewrite. `new-use-case` adds one operation to a rich
-feature (a simple one is promoted first) and prints the hosts that may offer it.
+feature, refuses a simple one (promote it first, as [feature shapes](docs/architecture/feature-shapes.md)
+says) and prints the hosts that may offer it.
 <!--#endif-->
 <!--#if (canAddFeature)-->
 `new-setting` writes a feature's options class and validator, registers them, ships the section in

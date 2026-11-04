@@ -241,8 +241,15 @@ come from.
 
 ## Call the API
 
+The readiness probe answers without a token, whichever way callers sign in, and says the API and its
+database are up:
+
+```bash
+curl -s http://localhost:8080/health/ready    # http://localhost:5187 on the host
+```
+
 <!--#if (localAuth)-->
-Register, confirm the address, sign in, and read your own profile. The sign-in reads the token with
+Then register, confirm the address, sign in, and read your own profile. The sign-in reads the token with
 `jq`; without it, copy `tokens.accessToken` from the response into `TOKEN` by hand.
 
 ```bash
@@ -276,8 +283,8 @@ requests that follow it, for the VS Code REST Client or Visual Studio.
 <!--#endif-->
 <!--#if (externalAuth)-->
 This API has no sign-in route: every request carries a bearer token your identity provider issued for
-the audience `Authentication:External:Audience`. Without a token every route answers `401`; with one,
-the provider's subject becomes an internal owner on its first request.
+the audience `Authentication:External:Audience`. Without a token every route answers `401`, the
+health probes apart; with one, the provider's subject becomes an internal owner on its first request.
 <!--#endif-->
 <!--#if (externalAuth && notes)-->
 
@@ -286,11 +293,8 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8080/api/v1/notes?pa
 ```
 <!--#endif-->
 <!--#if (publicApi)-->
-This API authenticates nobody, and every route is public. The readiness probe is a first call:
-
-```bash
-curl -s http://localhost:8080/health/ready
-```
+This API authenticates nobody, and every route is public: Scalar below lists them all and sends any
+of them without a token.
 <!--#endif-->
 
 ## Explore with Scalar

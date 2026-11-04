@@ -1,6 +1,7 @@
 ﻿# Clean Architecture .NET Template
 
-A `dotnet new` template for a .NET 10 HTTP API on Clean Architecture. The project it generates is
+A `dotnet new` template for a .NET 10 project on Clean Architecture: an HTTP API, or hosts with no
+API, such as a Blazor portal, an MCP server, a desktop app or a worker. The project it generates is
 meant to be kept: its modules, mechanisms, tests, tools and documentation are the ground a product
 grows on, and the options remove what a product does not need.
 
@@ -17,9 +18,9 @@ grows on, and the options remove what a product does not need.
 - **An HTTP contract every endpoint keeps**: problem documents with stable codes, default-deny
   authorisation, `Idempotency-Key`, offset and keyset paging, rate limits, timeouts.
 - **Files, background jobs and mail**: an S3-compatible file store with inspection and quotas, timers
-  in the API process under leases, multilingual mail over SMTP or Postmark.
-- **Web apps if you want them**: a pnpm workspace with Vue, React, Svelte, Angular or a static page, and a client
-  generated from the API's own document.
+  under leases, in the API process or in a worker, multilingual mail over SMTP or Postmark.
+- **Web apps if you want them**: a pnpm workspace with Vue, React, React Router, Svelte, Angular,
+  Blazor WebAssembly or a static page, and a client generated from the API's own document.
 - **A gate that runs from a clone**: formatting, warnings as errors, the tests with a coverage floor,
   migration drift, vulnerable packages; CI, CodeQL, release and Sonar workflows.
 - **Documentation for the project, not the template**: overview, first run, architecture, one page
@@ -27,7 +28,11 @@ grows on, and the options remove what a product does not need.
 
 ## Quick start
 
-You need a .NET 10 SDK (10.0.100 or later), and Docker with Compose v2.
+You need a .NET 10 SDK (10.0.100 or later), and Docker with Compose v2. Allow about 5 GB of disk,
+mostly the NuGet cache and the Docker images the stack pulls, and a few minutes: generating takes
+seconds, bootstrap and a first build about a minute on a machine whose NuGet cache is warm, and the
+first `docker compose up --build` more, as long as the network takes to pull its images. Those are
+orders of magnitude measured on one machine, not a promise.
 
 ```bash
 dnx CleanArch.Create                    # asks for the name and each option, then generates
@@ -37,8 +42,9 @@ cp .env.example .env
 docker compose up -d --build --wait
 ```
 
-The API answers on <http://localhost:8080>, Scalar on <http://localhost:8080/scalar/v1> and Mailpit
-on <http://localhost:8025>. The generated project's
+With the default options, the API answers on <http://localhost:8080>, Scalar on
+<http://localhost:8080/scalar/v1> and Mailpit on <http://localhost:8025>; a project generated
+without the API lists its hosts' addresses in its first run page. The generated project's
 [first run](docs/getting-started/first-run.md) continues to an authenticated call and a first
 feature.
 
@@ -58,6 +64,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 | Option | Values | Default |
 |---|---|---|
 | `--auth` | `local`, `external`, `none` | `local` |
+| `--database` | `postgresql`, `sqlserver`, `sqlite` | `postgresql` |
 | `--examples` | `all`, `notes`, `none` | `all` |
 | `--files` | `true`, `false` | `true` |
 | `--ci` | `true`, `false` | `true` |
@@ -76,7 +83,7 @@ desktop app or the MCP server under local accounts brings the API with it.
 `--auth none` refuses the examples and Files, which belong to a caller, and `--web-audience admin`
 refuses `--auth none`; `--web-rendering ssr` takes `--web angular` or `react-router`; `--presentation avalonia`, `wpf` and `mcp` refuse `--auth none`;
 `avalonia` and `wpf` refuse each other, `worker` refuses `--database sqlite`, and a project holds the
-API or the worker.
+API, the worker or both: without the API it gets the worker, which runs the background jobs.
 [Using the template](docs/template/using-the-template.md) says what each value
 generates, the combinations refused, what the name substitutes into, and the item templates
 `cleanarch-webapp`, `cleanarch-webpackage` and `cleanarch-presentation`.

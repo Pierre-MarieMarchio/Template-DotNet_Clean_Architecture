@@ -80,6 +80,18 @@ task stops:
   | The portal | <http://localhost:8090> |
   ```
 
+- in `README.md`, before the line:
+
+  ```markdown
+  | Mailpit | <http://localhost:8025> |
+  ```
+
+  add:
+
+  ```markdown
+  | The portal | <http://localhost:8090> |
+  ```
+
 <!--#if (externalAuth)-->
 - in `.env.example`, after the line:
 

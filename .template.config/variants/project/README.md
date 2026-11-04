@@ -6,29 +6,51 @@ Replace this paragraph with what your product does, for whom, and what it is not
 
 Replace this line with the links your team owns: the build status, the environments, the issue tracker.
 
-<!--#if (postgreSql)-->
+<!--#if (api && postgreSql)-->
 This project is a .NET 10 HTTP API on Clean Architecture, with PostgreSQL through EF Core, a problem
 document on every failure, and settings validated at start.
 <!--#endif-->
-<!--#if (sqlServer)-->
+<!--#if (api && sqlServer)-->
 This project is a .NET 10 HTTP API on Clean Architecture, with SQL Server through EF Core, a problem
 document on every failure, and settings validated at start.
 <!--#endif-->
-<!--#if (sqlite)-->
+<!--#if (api && sqlite)-->
 This project is a .NET 10 HTTP API on Clean Architecture, with SQLite through EF Core, a problem
 document on every failure, and settings validated at start. SQLite is a development database: the API
 refuses to start outside Development.
 <!--#endif-->
-<!--#if (localAuth)-->
+<!--#if (!api && postgreSql)-->
+This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, with PostgreSQL
+through EF Core and settings validated at start.
+<!--#endif-->
+<!--#if (!api && sqlServer)-->
+This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, with SQL Server
+through EF Core and settings validated at start.
+<!--#endif-->
+<!--#if (!api && sqlite)-->
+This project is a set of .NET 10 hosts on Clean Architecture, with no HTTP API, with SQLite through
+EF Core and settings validated at start. SQLite is a development database: this project is not
+meant to be deployed.
+<!--#endif-->
+<!--#if (localAuth && api)-->
 Callers sign in with local accounts: rotating refresh tokens, two-factor and passkeys.
 <!--#endif-->
-<!--#if (externalAuth)-->
+<!--#if (localAuth && !api)-->
+Users sign in with local accounts: rotating refresh tokens, two-factor and passkeys.
+<!--#endif-->
+<!--#if (externalAuth && api)-->
 Callers bring a token their OpenID Connect provider issued.
 <!--#endif-->
-<!--#if (publicApi)-->
+<!--#if (externalAuth && !api)-->
+Users sign in with an OpenID Connect provider.
+<!--#endif-->
+<!--#if (publicApi && api)-->
 Every route is public: the API authenticates nobody.
 <!--#endif-->
-The API's code lives in four layers under `Src/`, mirrored under `Tests/`;
+<!--#if (publicApi && !api)-->
+The hosts authenticate nobody.
+<!--#endif-->
+This project's code lives in four layers under `Src/`, mirrored under `Tests/`;
 [project layout](docs/reference/project-layout.md) says where a file goes.
 <!--#if (anyWeb)-->
 The web apps live in the pnpm workspace `Src/Web`.
@@ -49,15 +71,28 @@ cp .env.example .env
 docker compose up -d --build --wait
 ```
 
-<!--#if (externalAuth)-->
+<!--#if (externalAuth && api)-->
 Set `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_AUDIENCE` in `.env` before starting: the API refuses
 to start without its identity provider.
 
 <!--#endif-->
+<!--#if (externalAuth && !api)-->
+Set `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_AUDIENCE` in `.env` before starting: the hosts refuse
+to start without their identity provider.
+
+<!--#endif-->
 | Service | Address |
 |---|---|
+<!--#if (api)-->
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI | <http://localhost:8080/scalar/v1> |
+<!--#endif-->
+<!--#if (presentationBlazorServer)-->
+| The portal | <http://localhost:8090> |
+<!--#endif-->
+<!--#if (presentationMcp)-->
+| The MCP server | <http://localhost:8091/mcp> |
+<!--#endif-->
 | Mailpit | <http://localhost:8025> |
 <!--#if (webFramework)-->
 | Web app | <http://localhost:5173> |
@@ -66,8 +101,22 @@ to start without its identity provider.
 | Web app | <http://localhost:8081> |
 <!--#endif-->
 
+<!--#if (api && canAddFeature)-->
 [First run](docs/getting-started/first-run.md) continues from there: running on the host, a first call
 to the API, the tests and a first feature.
+<!--#endif-->
+<!--#if (api && !canAddFeature)-->
+[First run](docs/getting-started/first-run.md) continues from there: running on the host, a first call
+to the API and the tests.
+<!--#endif-->
+<!--#if (!api && canAddFeature)-->
+[First run](docs/getting-started/first-run.md) continues from there: applying the migrations, the
+tests and a first feature.
+<!--#endif-->
+<!--#if (!api && !canAddFeature)-->
+[First run](docs/getting-started/first-run.md) continues from there: applying the migrations and the
+tests.
+<!--#endif-->
 
 ## Everyday commands
 

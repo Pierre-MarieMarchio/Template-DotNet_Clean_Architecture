@@ -355,6 +355,18 @@ task stops:
   | The MCP server | <http://localhost:8091/mcp> |
   ```
 
+- in `README.md`, before the line:
+
+  ```markdown
+  | Mailpit | <http://localhost:8025> |
+  ```
+
+  add:
+
+  ```markdown
+  | The MCP server | <http://localhost:8091/mcp> |
+  ```
+
 <!--#if (externalAuth)-->
 - in `.env.example`, after the line:
 

@@ -153,6 +153,34 @@ public sealed class TemplatePackagingTests
             ".template.config/variants/no-aspire/global.json has drifted from global.json.");
     }
 
+    [Fact]
+    public void ThePackageTemplatesTools_AreAtTheWorkspacesVersions()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var pinned = Directory.EnumerateFiles(Path.Combine(root, "Src", "Web", "packages"), "package.json", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(path => DevDependencies(path))
+            .Where(dependency => dependency.Version.Length > 0 && char.IsDigit(dependency.Version[0]))
+            .ToLookup(dependency => dependency.Name, dependency => dependency.Version, StringComparer.Ordinal);
+        var template = DevDependencies(Path.Combine(root, ".template.config", "webpackage", "content", "placeholder-package", "package.json"))
+            .Where(dependency => pinned.Contains(dependency.Name))
+            .ToList();
+
+        template.ShouldNotBeEmpty("The package template shares no pinned tool with the workspace's packages, so this rule reads the wrong files.");
+
+        template
+            .Where(dependency => !pinned[dependency.Name].All(version => version == dependency.Version))
+            .Select(dependency => $"{dependency.Name} {dependency.Version}, the workspace: {string.Join(", ", pinned[dependency.Name].Distinct(StringComparer.Ordinal))}")
+            .ShouldBeEmpty(
+                "cleanarch-webpackage pins a tool at another version than the workspace's packages, which Dependabot moves without it: "
+                + "two Vitest versions in one workspace clear each other's shared module cache while pnpm runs them side by side.");
+    }
+
+    private static IEnumerable<(string Name, string Version)> DevDependencies(string packageJson) =>
+        JsonNode.Parse(File.ReadAllText(packageJson))!["devDependencies"]?.AsObject()
+            .Select(pair => (pair.Key, pair.Value!.GetValue<string>()))
+        ?? [];
+
     [Theory]
     [InlineData("no-sonar", new[] { "dotnet-sonarscanner" })]
     [InlineData("no-client", new[] { "microsoft.openapi.kiota" })]

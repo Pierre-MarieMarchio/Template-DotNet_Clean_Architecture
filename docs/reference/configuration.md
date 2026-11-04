@@ -62,7 +62,7 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Key` | string | `""` | **Required, secret.** HS256 key, 32 bytes at least. Outside Development, a key starting with `dev-only` is refused. |
-| `PreviousKeys:<n>` | string[] | `[]` | **Secret.** Keys that signed tokens before `Key` replaced them: a token they signed is still accepted, and no token is signed with them. Each is held to the rules of `Key` and differs from it and from the others. Empty outside a rotation. |
+| `PreviousKeys:<n>` | string[] | `[]` | **Secret.** Keys that signed tokens before `Key` replaced them: a token they signed is still accepted, and no token is signed with them. Each is held to the rules of `Key` and differs from it and from the others. Empty outside a rotation: [rotating the signing key](../guides/rotating-the-signing-key.md). |
 | `Issuer` | string | `""` | **Required.** |
 | `Audience` | string | `""` | **Required.** |
 | `RequireHttpsMetadata` | bool | `true` | `false` for a local host only. |

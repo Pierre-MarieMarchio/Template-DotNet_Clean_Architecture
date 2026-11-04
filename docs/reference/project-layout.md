@@ -345,6 +345,7 @@ vocabularies, the `Common/` one and the `Features/` one, and this page's folder 
 An entry is `null` when the project has no such folder, checked in both directions, and an empty
 list when its features hold their files side by side.
 
+[Adding a project](../guides/adding-a-project.md) walks through every step.
 A `.Core` project is marked `IsSdkProject`; an infrastructure project is a module only a host
 references. Its folder takes the initials, as [the folder map](#the-folder-map) says, and
 `ProjectFolderTests` names the folder a misplaced project belongs in.

@@ -154,7 +154,8 @@ says how a rule fails.
 
 The validator's rules, the errors the feature can answer, and any use case beyond the five
 operations, which [`new-use-case`](#add-a-use-case) starts. A use case reaches another feature only
-through that feature's ports and events.
+through that feature's ports and events, as [reaching another feature](reaching-another-feature.md)
+shows.
 
 ### Persistence
 
@@ -401,6 +402,8 @@ nobody wrote cannot pass the gate; and, when a consumer later joins an
 event listed as unconsumed, the deletion of its entry, which `DomainEventTests` demands. Where the
 project holds no `Add<Features>` in its `ApplicationModule`, register the consumer by hand with
 `AddDomainEventConsumer`.
+[Reaching another feature](reaching-another-feature.md#a-domain-event) covers raising the event,
+writing the consumer, testing both, and what happens when a consumer fails.
 
 ## The closed lists a feature joins
 
@@ -428,7 +431,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | An anonymous endpoint | `_anonymousActions` in `HttpSurfaceTests` |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
-| A new project | `AppTemplate.sln`, a `COPY` line in the API's `Dockerfile`, a mirror under `Tests/`, the floors in `ModuleDependencyTests` |
+| A new project | `AppTemplate.sln`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
 | Anything, eventually | `coverage.minimum`, re-measured as [testing](testing.md#coverage) says |
 
 ## Document it

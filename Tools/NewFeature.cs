@@ -2509,7 +2509,7 @@ internal static partial class NewFeature
 
         int code = Run([.. args, "--root", root], output, error, run);
 
-        return (code, output.ToString(), error.ToString());
+        return (code, output.ToString().ReplaceLineEndings("\n"), error.ToString().ReplaceLineEndings("\n"));
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>
@@ -4225,7 +4225,7 @@ internal static partial class NewFeature
 
             using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
-            void Feed(string text) => digest.AppendData(Encoding.UTF8.GetBytes(text + "\u0000"));
+            void Feed(string text) => digest.AppendData(Encoding.UTF8.GetBytes(text.ReplaceLineEndings("\n") + "\u0000"));
 
             foreach (string[] subset in subsets)
             {
@@ -5230,7 +5230,7 @@ internal static partial class NewFeature
 
         int code = RunField([.. args, "--root", root], output, error, run);
 
-        return (code, output.ToString(), error.ToString());
+        return (code, output.ToString().ReplaceLineEndings("\n"), error.ToString().ReplaceLineEndings("\n"));
     }
 
     private static Func<TextEdits.Command, int> Migrating(string root, List<TextEdits.Command> ran, string table) =>

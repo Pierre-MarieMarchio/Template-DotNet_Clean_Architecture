@@ -1878,9 +1878,11 @@ internal static class RemoveFeature
             ("docker-compose.yml", "  WidgetLimits__MaxItems: 3", true),
             ("docs/reference/configuration.md", "### `WidgetLimits`", true),
             ("docs/reference/configuration.md", "The Widgets feature bounds what a widget holds.", false),
+            //#if (api)
             ("docs/reference/api.md", "Under `/api/v1/widgets`.", true),
             ("docs/reference/api.md", "| `widget.notFound` | 404 | Missing, or another caller's |", true),
             ("docs/reference/api.md", "Under `/api/v1/widgets-archive`, which Widgets feeds.", false),
+            //#endif
             ("docs/guides/adding-a-feature.md", "Read [the Widgets page](../features/widgets.md#fields) first.", true),
             ("docs/guides/adding-a-feature.md", "Widgets, WidgetService and IWidgetStore are words in a sentence.", false),
             ("A.Api.http", "GET {{host}}/api/v1/widgets/{{widgetId}}", true),
@@ -2052,7 +2054,9 @@ internal static class RemoveFeature
         Put(root, "Src/Application/A.Application/ApplicationModule.cs", "    private static void AddFeature(this IServiceCollection services, string vertical)\n");
         Put(root, "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", _hostComposition);
         Put(root, "docs/README.md", "## Features\n\n| Page | Answers |\n|---|---|\n");
+        //#if (api)
         Put(root, "docs/reference/api.md", "## Routes\n\n## Error codes\n\n### Resources\n\n| `code` | Status | When |\n|---|---|---|\n");
+        //#endif
     }
 
     private const string _appDbContext =

@@ -1569,13 +1569,23 @@ internal static class NewUseCase
         }
 
         File.WriteAllText(Path.Combine(root, _controller), _controllerText);
+        //#if (api)
         Directory.CreateDirectory(Path.Combine(root, "docs/reference"));
         File.WriteAllText(Path.Combine(root, _apiPage), _apiPageText);
+        //#endif
 
         return root;
     }
 
     private const string _controller = "Src/Presentation/A.Api/Features/Invoices/Controllers/InvoicesController.cs";
+
+    private static readonly string[] _servingFiles =
+    [
+        _controller,
+        //#if (api)
+        _apiPage,
+        //#endif
+    ];
 
     private const string _controllerText =
         """
@@ -1593,6 +1603,7 @@ internal static class NewUseCase
 
         """;
 
+    //#if (api)
     private const string _apiPage = "docs/reference/api.md";
 
     private const string _apiPageText =
@@ -1612,6 +1623,7 @@ internal static class NewUseCase
         ## Error codes
 
         """;
+    //#endif
 
     private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, _ => 0, args);
 
@@ -1720,8 +1732,10 @@ internal static class NewUseCase
             StringComparison.Ordinal);
 
         File.WriteAllText(Path.Combine(root, _controller), withAction);
+        //#if (api)
         File.WriteAllText(Path.Combine(root, _apiPage), _apiPageText.Replace("| GET | `/` | 200 | |", "| GET | `/` | 200 | |\n| POST | `/{invoiceId}/approve` | 204 | |", StringComparison.Ordinal));
 
+        //#endif
         var result = Invoke(root, "Invoices", "ApproveInvoice", "--kind", "command");
 
         expect(result.Code == 0, $"A use case whose action a person had written was refused: {result.Error}");
@@ -2027,7 +2041,7 @@ internal static class NewUseCase
                 created.Where(path => !path.Contains("/Contracts/", StringComparison.Ordinal)).SequenceEqual(files.Order(StringComparer.Ordinal)),
                 $"[{label}] wrote {string.Join(", ", created)}.");
             expect(
-                before.Where(pair => pair.Key is not (_controller or _apiPage)).All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
+                before.Where(pair => !_servingFiles.Contains(pair.Key)).All(pair => after.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
                 $"[{label}] changed a file it neither owns nor serves the use case through.");
             expect(!Directory.Exists(Path.Combine(root, FeatureManifest.Folder)), $"[{label}] wrote a manifest where the feature had none.");
             expect(result.Output.Contains("dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal), $"[{label}] did not print the OpenAPI step.");

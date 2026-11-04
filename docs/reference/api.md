@@ -270,7 +270,7 @@ carries once one does.
 | `idempotency.callerNotIdentifiable` | 400 | A key on a request with no identifiable caller |
 | `idempotency.keyReused` | 409 | The same key with a different body |
 | `idempotency.inProgress` | 409 | The first request under this key has not finished |
-| `idempotency.notReplayable` | 409 | The stored response was too large to replay |
+| `idempotency.notReplayable` | 409 | The request completed, and its response body was not kept: too large, or not an object |
 | `route.notFound` | 404 | No route matched |
 | `request.methodNotAllowed` | 405 | |
 | `request.notAcceptable` | 406 | |

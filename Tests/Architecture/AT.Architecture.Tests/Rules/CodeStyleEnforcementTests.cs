@@ -25,6 +25,21 @@ public sealed class CodeStyleEnforcementTests
             + "once, to true, in Directory.Build.props.");
     }
 
+    [Fact]
+    public void TheBuild_FailsOnAWarningAnMSBuildTaskLogs()
+    {
+        string[] values = PropertyValues(
+            XDocument.Load(Path.Combine(_root, "Directory.Build.props")),
+            "MSBuildTreatWarningsAsErrors");
+
+        values.ShouldBe(
+            ["true"],
+            "Directory.Build.props sets MSBuildTreatWarningsAsErrors once, to true: TreatWarningsAsErrors "
+            + "reaches the compilers alone, so a warning a build task logs, such as Avalonia's XAML "
+            + "compiler reporting an obsolete member, passes the build until someone builds with "
+            + "-warnaserror. Set the property once, to true, in Directory.Build.props.");
+    }
+
     [Theory]
     [InlineData("IDE0005")]
     [InlineData("IDE0055")]

@@ -585,11 +585,10 @@ task stops:
     its credential names ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
   ```
 
-- in `docs/decisions/README.md`, before the lines:
+- in `docs/decisions/README.md`, before the line:
 
   ```markdown
-
-  Add this project's own ADRs as rows at the end of the table, numbered from 1000.
+  | [0028](0028-the-author-answers-for-every-line.md) | The author answers for every line | Contribution |
   ```
 
   add:

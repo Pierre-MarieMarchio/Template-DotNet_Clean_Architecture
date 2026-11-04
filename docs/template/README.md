@@ -1,4 +1,4 @@
-﻿# The template
+# The template
 
 These pages are about the `dotnet new` template this repository is, not about the project it
 generates. They never reach a generated project; every other page under `docs/` does, conditioned on

@@ -1,4 +1,4 @@
-﻿# 0035. Folders take their names from a closed vocabulary
+# 0035. Folders take their names from a closed vocabulary
 
 Status: Accepted
 

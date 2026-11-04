@@ -1,4 +1,4 @@
-﻿# 0011. Jobs run in the API, under a lease
+# 0011. Jobs run in the API, under a lease
 
 Status: Accepted
 

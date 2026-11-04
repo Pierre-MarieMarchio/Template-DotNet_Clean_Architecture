@@ -1,4 +1,4 @@
-﻿# Documentation
+# Documentation
 
 Which page answers your question, and where a new page goes.
 

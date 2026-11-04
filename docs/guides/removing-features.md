@@ -1,4 +1,4 @@
-﻿# Removing features
+# Removing features
 
 ## When
 

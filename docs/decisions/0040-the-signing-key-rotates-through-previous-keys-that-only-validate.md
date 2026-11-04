@@ -1,4 +1,4 @@
-﻿# 0040. The signing key rotates through previous keys that only validate
+# 0040. The signing key rotates through previous keys that only validate
 
 Status: Accepted
 

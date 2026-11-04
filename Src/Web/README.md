@@ -1,4 +1,4 @@
-﻿# Web workspace
+# Web workspace
 
 The pnpm workspace holding every web app under `apps/` and every internal package under `packages/`,
 with one lockfile. pnpm is the version `package.json` pins in `packageManager`, which Corepack runs;

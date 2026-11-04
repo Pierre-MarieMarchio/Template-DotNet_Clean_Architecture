@@ -1,4 +1,4 @@
-﻿# 0007. GitHub Packages mirrors nuget.org
+# 0007. GitHub Packages mirrors nuget.org
 
 Status: Accepted
 

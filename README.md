@@ -1,4 +1,4 @@
-﻿<h1 align="center">Clean Architecture .NET Template</h1>
+<h1 align="center">Clean Architecture .NET Template</h1>
 
 <p align="center">
   The .NET 10 Clean Architecture template whose project is meant to be kept.

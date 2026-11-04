@@ -1,4 +1,4 @@
-﻿# Configuration
+# Configuration
 
 <!--#if (api)-->
 Every setting the API reads, one table per section; a section a team adds gets its own, which a

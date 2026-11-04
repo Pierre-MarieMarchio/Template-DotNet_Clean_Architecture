@@ -7,12 +7,14 @@ the options chosen.
 ## Using the template
 
 [Using the template](using-the-template.md): generate a project with the launcher or `dotnet new`,
-choose the options, and the combinations it refuses.
+choose the options, the combinations it refuses, and how a project reads what a newer version
+changes.
 
 ## Maintaining it
 
 [Maintaining the template](maintaining-the-template.md): the template's own gates, the acceptance
-matrix, adding an option, and writing pages that condition on the options.
+matrix, adding an option, writing pages that condition on the options, and what the upgrade report
+needs kept true at each release.
 
 ## What is coming
 

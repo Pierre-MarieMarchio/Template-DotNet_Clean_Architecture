@@ -1,4 +1,4 @@
-﻿# 0015. Passkeys stand on their own
+# 0015. Passkeys stand on their own
 
 Status: Accepted
 

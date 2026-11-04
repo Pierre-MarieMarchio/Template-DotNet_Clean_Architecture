@@ -1,4 +1,4 @@
-﻿# 0026. An access key stands for its owner where a token cannot be refreshed
+# 0026. An access key stands for its owner where a token cannot be refreshed
 
 Status: Accepted
 

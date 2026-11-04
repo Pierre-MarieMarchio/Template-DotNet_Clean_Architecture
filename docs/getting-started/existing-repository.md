@@ -1,4 +1,4 @@
-﻿# Moving into an existing repository
+# Moving into an existing repository
 
 This project can become a repository of its own, or move into one that already has a history. Do this
 once, right after generation and bootstrap.

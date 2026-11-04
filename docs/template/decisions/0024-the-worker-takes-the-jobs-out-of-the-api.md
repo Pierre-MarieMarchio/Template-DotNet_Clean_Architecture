@@ -1,4 +1,4 @@
-﻿# 0024. The worker takes the jobs out of the API
+# 0024. The worker takes the jobs out of the API
 
 Status: Accepted; supersedes [0012](0012-where-the-jobs-run-is-an-option.md)
 

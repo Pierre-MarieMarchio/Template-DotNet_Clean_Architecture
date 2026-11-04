@@ -1,4 +1,4 @@
-﻿# 0013. A session is a refresh-token family
+# 0013. A session is a refresh-token family
 
 Status: Accepted
 

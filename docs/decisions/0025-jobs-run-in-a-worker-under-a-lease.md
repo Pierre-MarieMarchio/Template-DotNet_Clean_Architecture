@@ -1,4 +1,4 @@
-﻿# 0025. Jobs run in a worker, under a lease
+# 0025. Jobs run in a worker, under a lease
 
 Status: Accepted
 

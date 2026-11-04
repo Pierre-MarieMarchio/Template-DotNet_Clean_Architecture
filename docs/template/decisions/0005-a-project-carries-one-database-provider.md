@@ -1,4 +1,4 @@
-﻿# 0005. A project carries one database provider
+# 0005. A project carries one database provider
 
 Status: Accepted
 

@@ -1,4 +1,4 @@
-﻿# Rotating the signing key
+# Rotating the signing key
 
 ## When
 

@@ -1,4 +1,4 @@
-﻿# Domain and results
+# Domain and results
 
 An aggregate enforces its own rules, a use case reports an expected failure as a value, and a fact
 reaches the rest of the system as a domain event once it is true. This page is the mechanics every

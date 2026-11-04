@@ -1,4 +1,4 @@
-﻿# CleanArch.Cli
+# CleanArch.Cli
 
 The tool of a project generated from the `CleanArch.WebApi.Templates` package, run as
 `dotnet cleanarch`. It finds the project by the project file at its root, in the working

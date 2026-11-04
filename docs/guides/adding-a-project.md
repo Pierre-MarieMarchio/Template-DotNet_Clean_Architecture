@@ -1,4 +1,4 @@
-﻿# Adding a project
+# Adding a project
 
 ## When
 

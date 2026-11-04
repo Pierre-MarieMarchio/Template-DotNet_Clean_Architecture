@@ -3132,7 +3132,7 @@ internal static class TextEdits
     {
         byte[] text = Encoding.UTF8.GetBytes(content.ReplaceLineEndings("\n"));
 
-        return path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".md", StringComparison.Ordinal)
+        return path.EndsWith(".cs", StringComparison.Ordinal)
             ? [.. Encoding.UTF8.GetPreamble(), .. text]
             : text;
     }

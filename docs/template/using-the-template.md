@@ -1,4 +1,4 @@
-﻿# Using the template
+# Using the template
 
 ## With the launcher
 

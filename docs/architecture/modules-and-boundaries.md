@@ -1,4 +1,4 @@
-﻿# Modules and boundaries
+# Modules and boundaries
 
 A feature may reach another only through that feature's ports or its domain events, and an
 infrastructure module may reach no other module. These rules keep every feature and every module

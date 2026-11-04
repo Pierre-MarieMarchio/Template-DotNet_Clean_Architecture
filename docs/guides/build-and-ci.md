@@ -1,4 +1,4 @@
-﻿# Build and CI
+# Build and CI
 
 ## The task launcher
 
@@ -209,8 +209,9 @@ project generates; `CodeStyleEnforcementTests` fails when either is missing. Wha
 see is left to `format`: the order of using directives, the encoding and line endings, and IDE0003
 and IDE0049, whose analyzers the SDK's build does not carry. `verify` runs it before the build.
 
-`.cs` and `.md` files are UTF-8 with BOM. A file created without one fails `format`; `format-fix`
-adds it.
+`.cs` files are UTF-8 with BOM: one created without it fails `format`, and `format-fix` adds it.
+`.md` files are UTF-8 without BOM, with LF line endings: `MarkdownEncodingTests` fails on a BOM or a
+CR, and `format-fix` removes both.
 
 <!--#if (ci)-->
 ## Workflows

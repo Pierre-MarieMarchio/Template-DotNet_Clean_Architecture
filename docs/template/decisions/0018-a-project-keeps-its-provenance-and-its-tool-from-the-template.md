@@ -1,4 +1,4 @@
-﻿# 0018. A project keeps its provenance and its tool from the template
+# 0018. A project keeps its provenance and its tool from the template
 
 Status: Accepted; supersedes [0002](0002-nothing-about-the-template-reaches-a-project.md)
 

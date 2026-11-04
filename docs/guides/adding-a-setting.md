@@ -1,4 +1,4 @@
-﻿# Adding a setting
+# Adding a setting
 
 ## When
 

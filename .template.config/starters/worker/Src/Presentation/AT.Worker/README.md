@@ -1,4 +1,4 @@
-﻿# AppTemplate.Worker
+# AppTemplate.Worker
 
 The host that runs the background jobs, beside the API, which runs none: a generic host on
 `Microsoft.NET.Sdk.Worker` that serves no HTTP. [Background jobs](../../../docs/features/background-jobs.md)

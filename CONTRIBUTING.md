@@ -1,4 +1,4 @@
-﻿# Contributing
+# Contributing
 
 What has to be true before a change is done, and where each rule is written.
 

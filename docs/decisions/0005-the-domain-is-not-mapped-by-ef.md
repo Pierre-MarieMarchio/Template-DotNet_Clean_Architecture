@@ -1,4 +1,4 @@
-﻿# 0005. The domain is not mapped by EF
+# 0005. The domain is not mapped by EF
 
 Status: Accepted
 

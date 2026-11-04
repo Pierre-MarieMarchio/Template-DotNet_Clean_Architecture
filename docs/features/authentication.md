@@ -1,4 +1,4 @@
-﻿# Authentication
+# Authentication
 
 Who may call the API, and how a caller proves who it is.
 <!--#if (accounts)-->

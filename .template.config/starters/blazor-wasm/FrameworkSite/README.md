@@ -1,4 +1,4 @@
-﻿# FrameworkSite
+# FrameworkSite
 
 <!--#if (adminAudience)-->
 A Blazor WebAssembly back office over the API, for administrators.

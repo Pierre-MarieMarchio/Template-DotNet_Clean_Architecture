@@ -1,4 +1,4 @@
-﻿# 0010. A pull request runs the legs its change can affect
+# 0010. A pull request runs the legs its change can affect
 
 Status: Accepted
 

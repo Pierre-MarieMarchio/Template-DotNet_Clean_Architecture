@@ -3063,7 +3063,7 @@ internal static class TextEdits
             {
                 string full = System.IO.Path.Combine(root, path);
 
-                staged = $"{full}.{Guid.NewGuid():N}.tmp";
+                staged = Spare(full);
 
                 using (var stream = new FileStream(staged, FileMode.CreateNew, FileAccess.Write))
                 {
@@ -3083,7 +3083,7 @@ internal static class TextEdits
             foreach (string path in deleted ?? [])
             {
                 string full = System.IO.Path.Combine(root, path);
-                string aside = $"{full}.{Guid.NewGuid():N}.tmp";
+                string aside = Spare(full);
 
                 File.Move(full, aside);
                 setAside.Add((full, aside));
@@ -3125,6 +3125,19 @@ internal static class TextEdits
         foreach (var (_, aside) in setAside)
         {
             File.Delete(aside);
+        }
+    }
+
+    internal static string Spare(string full)
+    {
+        for (int number = 1; ; number++)
+        {
+            string name = $"{full}.~{number}";
+
+            if (!File.Exists(name) && !Directory.Exists(name))
+            {
+                return name;
+            }
         }
     }
 

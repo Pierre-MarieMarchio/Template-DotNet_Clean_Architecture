@@ -58,7 +58,7 @@ is two namespaces: `Ports` in the application project and `Model/Events` in the 
 The reason is extraction: each reference that reaches past a port is an edit the remaining feature
 would need before the other could leave. `FeatureIsolationTests` reads both the application and the
 persistence project, because a query can read another feature's rows without any signature showing
-it.
+it. [Reaching another feature](../guides/reaching-another-feature.md) gives the steps of each way in.
 
 <!--#if (reminders)-->
 `Reminders` needs to know that a to-do item exists, who owns it and whether it is done. It asks

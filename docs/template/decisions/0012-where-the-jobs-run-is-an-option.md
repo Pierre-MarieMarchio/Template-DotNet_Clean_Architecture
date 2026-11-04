@@ -1,8 +1,6 @@
 ﻿# 0012. Where the jobs run is an option
 
-Status: Accepted; its option is the `worker` value of `--presentation` since
-[0020](0020-a-project-is-the-presentation-projects-it-holds.md); amended: a project adds the worker
-later too
+Status: Superseded by [0024](0024-the-worker-takes-the-jobs-out-of-the-api.md)
 
 ## Context
 

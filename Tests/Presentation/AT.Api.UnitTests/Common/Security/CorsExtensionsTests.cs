@@ -59,6 +59,14 @@ public sealed class CorsExtensionsTests
     }
 
     [Fact]
+    public void AnOriginLeftBlank_AllowsNone()
+    {
+        ResolvePolicy([""]).Origins.ShouldBeEmpty(
+            "Compose passes CORS_ALLOWED_ORIGIN_0 left blank in .env as an empty entry; it means no origin, "
+            + "and must neither open the policy nor stop the host.");
+    }
+
+    [Fact]
     public void AnOriginThatIsNotAnOrigin_IsRefusedWhereTheOptionsAreRead()
     {
         var exception = Should.Throw<OptionsValidationException>(() => ResolvePolicy(["https://app.test/"]));

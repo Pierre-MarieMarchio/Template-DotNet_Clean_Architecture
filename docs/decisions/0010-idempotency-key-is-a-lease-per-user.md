@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0010. An idempotency key is a lease per user
+description: Why an idempotency key is stored per user and claimed as a lease, so a retried create is answered once and a reused key is refused.
+status: Accepted
+---
+
 # 0010. An idempotency key is a lease per user
 
 Status: Accepted

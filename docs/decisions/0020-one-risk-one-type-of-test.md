@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0020. One risk, one type of test
+description: Why each risk is held by one type of test, the cheapest that can fail for its real cause.
+status: Accepted
+---
+
 # 0020. One risk, one type of test
 
 Status: Accepted

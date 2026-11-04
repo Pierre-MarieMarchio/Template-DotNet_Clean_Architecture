@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0018. Stored files are keyed, granted and refused
+description: Why a stored file lives under a random key bound to its digest, is reached through a narrow grant, and stays unread until its inspection passes.
+status: Accepted
+---
+
 # 0018. Stored files are keyed, granted and refused
 
 Status: Accepted

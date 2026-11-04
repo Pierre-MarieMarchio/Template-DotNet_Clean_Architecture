@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0033. Use cases are Mediator messages, and ports are explicit
+description: Why a use case is a Mediator message and its handler, and a feature's ports stay explicit interfaces.
+status: Accepted
+---
+
 # 0033. Use cases are Mediator messages, and ports are explicit
 
 Status: Accepted; supersedes ADR 0003

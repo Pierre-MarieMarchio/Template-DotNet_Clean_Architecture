@@ -1,3 +1,9 @@
+---
+type: guide
+title: Running the app host
+description: How to run the local stack from the Aspire app host, with every host's logs, traces and metrics in one dashboard.
+---
+
 # Running the app host
 
 ## When

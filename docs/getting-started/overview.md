@@ -1,3 +1,9 @@
+---
+type: guide
+title: Overview
+description: What this project is, what it contains, how it was generated, and where to read next.
+---
+
 # Overview
 
 ## What it is

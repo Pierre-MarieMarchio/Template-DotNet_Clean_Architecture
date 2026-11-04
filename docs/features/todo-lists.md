@@ -1,3 +1,9 @@
+---
+type: feature
+title: To-do lists
+description: How this project keeps a caller's to-do lists and their items, the rich example of an aggregate that protects its rules.
+---
+
 # To-do lists
 
 How this project keeps a caller's to-do lists and the items on them. TodoLists is the rich example:

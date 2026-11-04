@@ -1,3 +1,9 @@
+---
+type: guide
+title: Adding a setting
+description: How to add a setting a deployment chooses, bound from its own section and checked before the host serves anything.
+---
+
 # Adding a setting
 
 ## When

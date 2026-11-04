@@ -351,7 +351,10 @@ and from the body for a command; and for a query it writes the response contract
 route's row to the feature's table in `docs/reference/api.md`, every edit or none as `new-feature`
 does, then runs `openapi`, which builds the API, `api-client`, and `pnpm api --no-build` from that
 build. `--dry-run` prints them
-and writes nothing. The contracts join the manifest, and the controller's recorded hash follows the
+and writes nothing. The route follows the controller: under a `[Route]` that holds the resource the
+action is routed from the id, and under one routed at the API root the action reuses the resource path
+of the controller's own actions that carry the id, its row then written in full; a root-routed
+controller with no such action is refused. The contracts join the manifest, and the controller's recorded hash follows the
 action when the controller was untouched.
 <!--#endif-->
 <!--#if (!api)-->

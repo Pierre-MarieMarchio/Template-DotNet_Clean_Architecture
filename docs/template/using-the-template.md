@@ -82,7 +82,7 @@ dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the
 published package, and `--hive <folder>` keeps the template engine's settings apart, as
 `--debug:custom-hive` does. Everything below is `dotnet new` itself, which the launcher runs.
-[Template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) records why
+[Template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) records why
 the launcher reads the manifests rather than copying them.
 
 ## Install and uninstall

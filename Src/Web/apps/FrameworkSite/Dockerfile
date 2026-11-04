@@ -10,6 +10,16 @@ COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY Src/Clients/AT.Client/ Src/Clients/AT.Client/
 COPY Src/Web/apps/FrameworkSite/ Src/Web/apps/FrameworkSite/
 RUN dotnet publish Src/Web/apps/FrameworkSite/AppTemplate.FrameworkSite.csproj --configuration Release --output /publish
+#if (externalAuth)
+
+# Microsoft's AuthenticationService.js carries webpack's global shim, which in strict mode tries new Function("return this") before it falls back to the window: an eval the policy refuses on every load. globalThis is what the shim finds anyway. The build fails once Microsoft ships the file without the shim, and this step goes then.
+RUN script=/publish/wwwroot/_content/Microsoft.AspNetCore.Components.WebAssembly.Authentication/AuthenticationService.js \
+    && { grep -qF 'r=r||new Function("return this")()' "$script" \
+        || { echo "$script no longer carries webpack's global shim: remove this step from the Dockerfile." >&2; exit 1; }; } \
+    && sed -i 's/r=r||new Function("return this")()/r=r||globalThis/' "$script" \
+    && rm -f "$script.br" \
+    && gzip -9 --keep --force "$script"
+#endif
 
 FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS build
 

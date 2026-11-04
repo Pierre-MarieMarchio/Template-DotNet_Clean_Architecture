@@ -1535,6 +1535,8 @@ internal static partial class NewFeature
             .Order(StringComparer.Ordinal)];
 
         return template
+            .Replace("type: template\n", "type: feature\n", StringComparison.Ordinal)
+            .Replace("<description>", $"What a caller can do with {plural}, who may, and how the feature works.", StringComparison.Ordinal)
             .Replace("<Feature>", char.ToUpperInvariant(plural[0]) + plural[1..], StringComparison.Ordinal)
             .Replace("<access>", access, StringComparison.Ordinal)
             .Replace("<shape>", shape, StringComparison.Ordinal)
@@ -3737,7 +3739,9 @@ internal static partial class NewFeature
         expect(bytes is not [0xEF, 0xBB, 0xBF, ..], "The page starts with a UTF-8 BOM, which no Markdown file of the tree has.");
         expect(!text.Contains('\r', StringComparison.Ordinal) && text.EndsWith('\n') && !text.EndsWith("\n\n", StringComparison.Ordinal), "The page is not LF only, ending in one newline.");
         expect(!Regex.IsMatch(text, "<[A-Za-z]+>", RegexOptions.None, TimeSpan.FromSeconds(2)), "A placeholder of the page template survived.");
-        expect(text.StartsWith("# Todo lists\n", StringComparison.Ordinal), "The page's title is not the feature's name in words.");
+        expect(
+            text.StartsWith("---\ntype: feature\ntitle: Todo lists\ndescription: What a caller can do with todo lists, who may, and how the feature works.\n---\n\n# Todo lists\n", StringComparison.Ordinal),
+            "The page does not open with its frontmatter, a feature titled with the feature's name in words, and that title as its heading.");
 
         string[] headings = [.. template.Split('\n').Where(line => line.StartsWith("## ", StringComparison.Ordinal))];
 

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0021. SQLite is a development database
+description: Why a project on SQLite starts in Development only, on one file that one process holds.
+status: Accepted
+---
+
 # 0021. SQLite is a development database
 
 Status: Accepted

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0037. A web app is deployed apart, behind a relay to the API
+description: Why each web app is a deployable of its own that relays its API calls, rather than files the API serves.
+status: Accepted
+---
+
 # 0037. A web app is deployed apart, behind a relay to the API
 
 Status: Accepted

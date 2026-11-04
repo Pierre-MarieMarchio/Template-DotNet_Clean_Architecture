@@ -1,3 +1,9 @@
+---
+type: feature
+title: Reminders
+description: How this project reminds a caller of a to-do item by mail at a chosen moment, and what it does when the mail cannot be sent.
+---
+
 # Reminders
 
 How this project reminds a caller of a to-do item at a chosen moment, by mail, and what it does when

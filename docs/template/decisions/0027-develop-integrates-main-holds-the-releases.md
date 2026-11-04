@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0006. develop integrates, main holds the releases
+description: Why develop integrates every change through branches deleted once merged, and main holds the releases.
+status: Accepted
+---
+
 # 0006. develop integrates, main holds the releases
 
 Status: Accepted; supersedes [0006](0006-develop-integrates-main-holds-the-releases.md)

@@ -1,3 +1,9 @@
+---
+type: guide
+title: Using the template
+description: How to generate a project from the template, with the launcher, dotnet new or an IDE, and what each option does.
+---
+
 # Using the template
 
 ## With the launcher

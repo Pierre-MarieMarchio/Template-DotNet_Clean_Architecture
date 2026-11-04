@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0024. The worker takes the jobs out of the API
+description: Why the worker is a presentation project that takes the periodic jobs out of the API.
+status: Accepted
+---
+
 # 0024. The worker takes the jobs out of the API
 
 Status: Accepted; supersedes [0012](0012-where-the-jobs-run-is-an-option.md)

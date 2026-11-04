@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0038. Deleting removes rows
+description: Why a deletion removes the row and its children, and no record carries a deleted flag.
+status: Accepted
+---
+
 # 0038. Deleting removes rows
 
 Status: Accepted

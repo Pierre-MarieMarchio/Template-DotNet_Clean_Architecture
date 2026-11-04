@@ -17,6 +17,7 @@ dotnet run Tools/Tasks.cs presentation-scaffold AppTemplate.Worker
 its tests to the solution and formats them. Commit the project: from then on the step leaves it
 alone.
 
+<!--#if (!jobsWorker)-->
 ## Joining a project generated without one
 
 A project generated without the worker, whose API runs the jobs, takes it later, at the project root,
@@ -786,3 +787,4 @@ the other passes are idempotent. The edits, to make by hand where the task stops
     <Initials>.Worker                     Common/{Jobs,Security}
                                           Features/<F>/{Composition,Jobs}
   ```
+<!--#endif-->

@@ -1,4 +1,4 @@
-﻿# 0030. Any known advisory fails the build
+# 0030. Any known advisory fails the build
 
 Status: Accepted
 

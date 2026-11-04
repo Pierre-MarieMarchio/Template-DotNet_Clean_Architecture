@@ -1,4 +1,4 @@
-﻿# Request pipeline
+# Request pipeline
 
 Every request crosses the same pipeline, installed by one call, `UseHttpPipeline()`, in one order.
 A feature adds nothing to it: an endpoint inherits the limits, the headers, the error format and the

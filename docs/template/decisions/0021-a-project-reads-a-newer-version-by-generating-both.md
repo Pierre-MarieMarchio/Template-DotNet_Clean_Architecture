@@ -1,4 +1,4 @@
-﻿# 0021. A project reads a newer version by generating both
+# 0021. A project reads a newer version by generating both
 
 Status: Accepted
 

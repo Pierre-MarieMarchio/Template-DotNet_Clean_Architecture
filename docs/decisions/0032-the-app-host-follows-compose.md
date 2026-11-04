@@ -1,4 +1,4 @@
-﻿# 0032. The app host follows Compose
+# 0032. The app host follows Compose
 
 Status: Accepted
 

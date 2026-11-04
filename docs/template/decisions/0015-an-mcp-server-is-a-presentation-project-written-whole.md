@@ -1,4 +1,4 @@
-﻿# 0015. An MCP server is a presentation project, written whole
+# 0015. An MCP server is a presentation project, written whole
 
 Status: Superseded by [0025](0025-an-mcp-server-is-a-presentation-project-written-whole.md)
 

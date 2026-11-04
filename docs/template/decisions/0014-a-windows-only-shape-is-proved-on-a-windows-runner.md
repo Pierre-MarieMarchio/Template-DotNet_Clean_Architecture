@@ -1,4 +1,4 @@
-﻿# 0014. A Windows-only shape is proved on a Windows runner
+# 0014. A Windows-only shape is proved on a Windows runner
 
 Status: Accepted
 

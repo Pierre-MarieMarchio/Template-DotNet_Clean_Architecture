@@ -1,4 +1,4 @@
-﻿## The problem, and why this change solves it
+## The problem, and why this change solves it
 
 <what is wrong or missing today, and the reason this change is the fix; say it before what the change does>
 

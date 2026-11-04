@@ -1,4 +1,4 @@
-﻿# 0012. Where the jobs run is an option
+# 0012. Where the jobs run is an option
 
 Status: Superseded by [0024](0024-the-worker-takes-the-jobs-out-of-the-api.md)
 

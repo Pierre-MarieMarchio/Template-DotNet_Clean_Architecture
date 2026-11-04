@@ -4083,6 +4083,7 @@ internal static partial class NewFeature
 
     private static readonly (string Group, string Digest)[] _withoutFieldsDigests =
     [
+        /*#if (api)*/
         ("record, owner, delete", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
         ("record, owner, anonymise", "0cf7120009b637161c96f36121de5d578ffca153e9494c9cf3f8118d630f2b5f"),
         ("record, shared", "a81685781a3374c06df0b09e2dfa1f47756744c5373a07f800558afccabdf224"),
@@ -4090,9 +4091,20 @@ internal static partial class NewFeature
         ("aggregate, owner, anonymise", "af9ccf5589b50e3c8fc58e9d608dbaf6d32d0347474a77c288a4bf8fd976951e"),
         ("aggregate, shared", "243428d42bdb09feda6574751fecc0fa90ab22eae14397a61ff3648e40088a74"),
         ("record, owner, delete, the project's first owner feature", "8bcec6ec7addb54c4330ee9c92122e21923b76196883a5dc452728832f3796a8"),
-        ("record, owner, delete, without the API", "202898ec8aab47611c279ef7d718969417b419a9e90eb22fcd1fe243dba64f3e"),
         ("record, owner, delete, on SQL Server", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
         ("record, owner, delete, on SQLite", "cbd08b65e7342c61910a236649ae780d3ce8fae0e5f64528a20020c966e0c977"),
+        /*#else
+        ("record, owner, delete", "e09dac29eb910bcc4edb08a483dcc60585d739221d4931d5c3b07efc14e37fce"),
+        ("record, owner, anonymise", "b42c28a119106ca16ca5d06ca1a604b91006dcae0a6f9724e6c501c09ca69f72"),
+        ("record, shared", "a671308862c036b393622ef63d334e4fd77fc2ba25d9092875a0aad0ee009f48"),
+        ("aggregate, owner, delete", "5f995f7c75b375ca08bfe4c6c6c5e45b4bd613cb8c7a04866022997646532396"),
+        ("aggregate, owner, anonymise", "8a3ed687af8a823c8211d4a926be804910b22b74107a3c8d36c200d5f1c02683"),
+        ("aggregate, shared", "04aa9a672cb51784daef91cd5b441bd3c1378b19b3fe211935783df90f4a0649"),
+        ("record, owner, delete, the project's first owner feature", "310c06113deb7e77b10595a1a8b6f7892fc625cf2d89917185022f10f2c67711"),
+        ("record, owner, delete, on SQL Server", "e09dac29eb910bcc4edb08a483dcc60585d739221d4931d5c3b07efc14e37fce"),
+        ("record, owner, delete, on SQLite", "95ddcc7feae848c82b7fa74baaa9d0aba0840f9868cc74c52baee912adbd8687"),
+        #endif*/
+        ("record, owner, delete, without the API", "202898ec8aab47611c279ef7d718969417b419a9e90eb22fcd1fe243dba64f3e"),
     ];
 
     private static void InstantCases(string scratch, Action<bool, string> expect)
@@ -4169,7 +4181,8 @@ internal static partial class NewFeature
                 digest == recorded,
                 $"[{group}] without --fields, the files, the edits, the manifest and the report are no longer those this "
                 + $"generator wrote before --fields existed: digest {digest}, recorded {recorded}. A change to that output "
-                + "is a change for every project that runs new-feature: make it on purpose, then record the new digest.");
+                + "is a change for every project that runs new-feature: make it on purpose, then record the new digest, "
+                + "and the one this self-test reports in a project generated without the API, which carries no code for the API.");
         }
     }
 

@@ -148,7 +148,7 @@ uses `[DisableRequestTimeout]`.
 
 ## CORS and security headers
 
-CORS denies by default: an empty `Cors:AllowedOrigins` allows no origin. A listed origin may send
+CORS denies by default: an empty `Cors:AllowedOrigins` allows no origin, and an empty entry is dropped before validation. A listed origin may send
 any header and method, can read `Retry-After`, `ETag`, `Location` and `Idempotency-Replayed`, and
 caches its preflight for ten minutes. Credentials are never allowed: the combination of credentials
 and a permissive origin is what turns CORS into a hole.

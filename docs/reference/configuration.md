@@ -390,7 +390,7 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `AllowedOrigins` | string[] | `[]` | Exact origins, or `*`. Empty allows no cross-origin call. Credentials are never allowed. |
+| `AllowedOrigins` | string[] | `[]` | Exact origins, or `*`. Empty allows no cross-origin call. An empty entry is dropped before validation, so the local stack, which leaves `CORS_ALLOWED_ORIGIN_0` unset, allows none. Credentials are never allowed. |
 
 ### `ReverseProxy`
 

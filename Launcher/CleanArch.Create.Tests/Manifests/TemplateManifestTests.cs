@@ -126,7 +126,25 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
         manifest.Refusals.Select(refusal => refusal.CliName).Order(StringComparer.Ordinal).ShouldBe(
-            ["admin-web-needs-accounts", "aspire-needs-server-database", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "mcp-needs-accounts", "my-sql-not-yet-generated", "name-needs-two-characters", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
+            ["admin-web-needs-accounts", "aspire-needs-server-database", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "mcp-needs-accounts", "my-sql-not-yet-generated", "name-needs-a-leading-letter", "name-needs-two-characters", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
+    }
+
+    [Theory]
+    [InlineData("cleanarch-webapi", "name-needs-a-leading-letter", "name")]
+    [InlineData("cleanarch-presentation", "project-name-needs-a-leading-letter", "projectName")]
+    [InlineData("cleanarch-webapp", "project-name-needs-a-leading-letter", "projectName")]
+    public void TheLeadingLetterRefusal_HoldsExactlyForANameThatDoesNotStartWithALetterFromAToZ(string shortName, string refusalName, string nameSymbol)
+    {
+        TemplateManifest manifest = Repository.Source.Manifest(Kind(shortName));
+        Refusal refusal = manifest.Refusals.Single(refusal => refusal.CliName == refusalName);
+        string[] names = [.. Enumerable.Range(char.MinValue, char.MaxValue + 1)
+            .Select(code => (char)code)
+            .Where(start => !char.IsSurrogate(start) && start != Condition.ValueSeparator)
+            .SelectMany(start => new[] { start.ToString(), start + "x", start + "1", "x" + start })];
+
+        names.Where(name => manifest.Holds(refusal.When, new Dictionary<string, string> { [nameSymbol] = name }) == char.IsAsciiLetter(name[0]))
+            .Take(10)
+            .ShouldBeEmpty($"{refusal.Symbol} must hold exactly for a {nameSymbol} that does not start with a letter from A to Z, as the template engine reads it.");
     }
 
     [Fact]

@@ -67,7 +67,9 @@ dnx CleanArch.Create -- presentation
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
 given, or the only value the template leaves it: `--auth none --yes` generates with
-`--examples none --files false`. Without a terminal, every answer is a flag or `--yes` is passed.
+`--examples none --files false`. Such a project has no feature, so its use-case test project,
+`Tests/Application/<Initials>.Application.UnitTests`, holds no test and reports "Zero tests ran"
+when run alone, which is expected. Without a terminal, every answer is a flag or `--yes` is passed.
 `dnx` takes `--yes`, `--help` and `--version` for itself, so every argument of the launcher follows
 `--`, `--help` of a command included (`-- web-app --help` lists the options of a web app, not of a project):
 
@@ -103,14 +105,6 @@ release `v<version>` on the repository's Releases page, then, in the folder hold
 ```bash
 dotnet new install ./CleanArch.WebApi.Templates.<version>.nupkg
 dotnet new uninstall CleanArch.WebApi.Templates
-```
-
-From nuget.org, once a version is published there, which also lets `dotnet new update` find the
-next one:
-
-```bash
-dotnet new install CleanArch.WebApi.Templates
-dotnet new update
 ```
 
 A package packed locally, as [the package](maintaining-the-template.md#the-package) shows, installs

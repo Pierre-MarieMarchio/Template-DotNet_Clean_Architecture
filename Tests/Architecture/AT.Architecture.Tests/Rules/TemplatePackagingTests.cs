@@ -1255,7 +1255,7 @@ public sealed class TemplatePackagingTests
     [InlineData(
         "blazor-server/Src/Presentation/AT.PresentationAppPortal/README.md",
         "anyPresentation|presentationBlazorServer",
-        10,
+        11,
         new[] { "docs/features/presentation.md" })]
     [InlineData(
         "avalonia/Src/Presentation/AT.PresentationAppDesktop/README.md",
@@ -1265,7 +1265,7 @@ public sealed class TemplatePackagingTests
     [InlineData(
         "mcp/Src/Presentation/AT.PresentationAppMcp/README.md",
         "anyPresentation|presentationMcp|accessKeys",
-        10,
+        11,
         new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
     [InlineData(
         "wpf/Src/Presentation/AT.PresentationAppDesktop/README.md",

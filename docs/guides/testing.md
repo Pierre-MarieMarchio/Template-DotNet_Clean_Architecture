@@ -31,6 +31,12 @@ a SQLite file for the database.
 <!--#if (anyWeb)-->
 | Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `Src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
 <!--#endif-->
+<!--#if (!anyFeature)-->
+
+The use-case unit tests are the ones a feature brings, so this project has none yet: its
+`Tests/Application/AT.Application.UnitTests` project holds only test doubles, and `dotnet test` run on
+it alone ends with "Zero tests ran", which is expected. The first feature fills it.
+<!--#endif-->
 
 Unit and architecture tests need nothing and run in seconds.
 <!--#if (serverDatabase)-->

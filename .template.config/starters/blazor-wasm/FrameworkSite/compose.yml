@@ -7,6 +7,7 @@ services:
     #if (externalAuth)
     environment:
       SIGN_IN_AUTHORITY: ${EXTERNAL_AUTH_AUTHORITY:-}
+      SIGN_IN_CLIENT_ID: ${EXTERNAL_AUTH_BROWSER_CLIENT_ID:-}
     #endif
     ports:
       - "127.0.0.1:${WEB_FRAMEWORK_SITE_HOST_PORT:-5173}:8080"

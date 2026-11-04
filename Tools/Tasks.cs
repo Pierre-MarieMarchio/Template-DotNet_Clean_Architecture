@@ -1196,6 +1196,11 @@ internal static class Tasks
             {
                 defaults["EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID"] = "end-to-end";
             }
+
+            if (projectFile.HasAWebAppOnWebAssembly)
+            {
+                defaults["EXTERNAL_AUTH_BROWSER_CLIENT_ID"] = "end-to-end";
+            }
         }
 
         if (projectFile.Files)
@@ -3737,6 +3742,10 @@ internal sealed class ProjectFile
     internal bool RendersAWebAppOnTheServer =>
         _json["web"]?["apps"] is JsonArray apps
         && apps.OfType<JsonObject>().Any(app => app["rendering"]?.GetValue<string>() == "ssr");
+
+    internal bool HasAWebAppOnWebAssembly =>
+        _json["web"]?["apps"] is JsonArray apps
+        && apps.OfType<JsonObject>().Any(app => app["framework"]?.GetValue<string>() == "blazor-wasm");
 
     private string FilePath => System.IO.Path.Combine(Root, FileName);
 

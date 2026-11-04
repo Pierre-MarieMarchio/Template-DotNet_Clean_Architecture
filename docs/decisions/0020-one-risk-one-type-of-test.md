@@ -50,6 +50,11 @@ ever passed and let the review catch the rest.
   test per app, in Chromium alone, run by `end-to-end` against the stack. No lower type sees a
   Content-Security-Policy violation, a console error or a call through the relay from inside a page,
   and a request that reads headers and bytes does not run what the page loads.
+<!--#if (externalAuth)-->
+  Against a provider under `.invalid`, which never resolves, the smoke stands in for its discovery
+  document and expects an app that signs in from the page to read it there; it exempts no violation
+  and no error.
+<!--#endif-->
 <!--#endif-->
 - **Coverage is a tripwire.** The floor in `coverage.minimum` catches an area shipped with no test.
   It is never raised to reward tests, and a drop is answered by naming the risk left untested.

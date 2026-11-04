@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { discoverApps, findProjectRoot } from '../src/apps.ts';
+import { discoverApps, findProjectRoot, standInProvider } from '../src/apps.ts';
 
 describe('the apps the smoke drives', () => {
   let root = '';
@@ -27,8 +27,8 @@ describe('the apps the smoke drives', () => {
     project(['Storefront', 'BackOffice'], 'WEB_STOREFRONT_HOST_PORT=4301\nWEB_BACK_OFFICE_HOST_PORT=8082\nAPI_HOST_PORT=8080\n');
 
     expect(discoverApps(root, {})).toEqual([
-      { name: 'Storefront', origin: 'http://127.0.0.1:4301' },
-      { name: 'BackOffice', origin: 'http://127.0.0.1:8082' },
+      { name: 'Storefront', origin: 'http://127.0.0.1:4301', signsInFromThePage: false },
+      { name: 'BackOffice', origin: 'http://127.0.0.1:8082', signsInFromThePage: false },
     ]);
   });
 
@@ -61,5 +61,54 @@ describe('the apps the smoke drives', () => {
     project([]);
 
     expect(findProjectRoot(join(root, 'Src', 'Web'))).toBe(root);
+  });
+
+  it('sign in from the page only on WebAssembly', () => {
+    const recorded = { web: { apps: [{ name: 'Wasm', framework: 'blazor-wasm' }, { name: 'Spa', framework: 'vite-react' }] } };
+    writeFileSync(join(root, 'cleanarch.json'), JSON.stringify(recorded));
+    writeFileSync(join(root, '.env.example'), 'WEB_WASM_HOST_PORT=4302\nWEB_SPA_HOST_PORT=4303\n');
+
+    expect(discoverApps(root, {}).map((app) => app.signsInFromThePage)).toEqual([true, false]);
+  });
+});
+
+describe('the provider the smoke stands in for', () => {
+  let root = '';
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'browser-smoke-'));
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('is the authority of the stack when its host can never resolve', () => {
+    writeFileSync(join(root, '.env'), 'EXTERNAL_AUTH_AUTHORITY=\nEXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\n');
+
+    expect(standInProvider(root, {})).toEqual({
+      authority: 'https://identity-provider.invalid/',
+      origin: 'https://identity-provider.invalid',
+      discovery: 'https://identity-provider.invalid/.well-known/openid-configuration',
+    });
+  });
+
+  it('keeps the path of an authority that has one', () => {
+    writeFileSync(join(root, '.env'), 'EXTERNAL_AUTH_AUTHORITY=https://provider.invalid/realms/app\n');
+
+    expect(standInProvider(root, {})?.discovery).toBe('https://provider.invalid/realms/app/.well-known/openid-configuration');
+  });
+
+  it('takes the authority the environment overrides', () => {
+    writeFileSync(join(root, '.env.example'), 'EXTERNAL_AUTH_AUTHORITY=\n');
+
+    expect(standInProvider(root, { EXTERNAL_AUTH_AUTHORITY: 'https://identity-provider.invalid/' })?.origin).toBe('https://identity-provider.invalid');
+  });
+
+  it('is none for a provider that resolves, or for no provider', () => {
+    writeFileSync(join(root, '.env'), 'EXTERNAL_AUTH_AUTHORITY=https://login.example.com/\n');
+
+    expect(standInProvider(root, {})).toBeUndefined();
+    expect(standInProvider(root, { EXTERNAL_AUTH_AUTHORITY: '' })).toBeUndefined();
   });
 });

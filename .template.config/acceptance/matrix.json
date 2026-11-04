@@ -35,7 +35,7 @@
     "web": "true",
     "worker": "true",
     "mcp": "true",
-    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance"
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_BROWSER_CLIENT_ID=acceptance"
   },
   {
     "name": "sql server, avalonia, external auth, all examples",
@@ -94,7 +94,7 @@
     "options": "--web angular --web-rendering ssr --auth external --examples notes --presentation blazor-server",
     "auth_context": "false",
     "web": "true",
-    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance",
+    "stack_env": "EXTERNAL_AUTH_AUTHORITY=https://identity-provider.invalid/\nEXTERNAL_AUTH_AUDIENCE=acceptance\nEXTERNAL_AUTH_INTERACTIVE_CLIENT_ID=acceptance\nEXTERNAL_AUTH_BROWSER_CLIENT_ID=acceptance",
     "wasm_app": "--scope sample-generated-project --auth external --examples notes"
   },
   {

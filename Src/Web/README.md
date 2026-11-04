@@ -509,6 +509,11 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
     test per app, in Chromium alone, run by `end-to-end` against the stack. No lower type sees a
     Content-Security-Policy violation, a console error or a call through the relay from inside a page,
     and a request that reads headers and bytes does not run what the page loads.
+<!--#if (externalAuth)-->
+    Against a provider under `.invalid`, which never resolves, the smoke stands in for its discovery
+    document and expects an app that signs in from the page to read it there; it exempts no violation
+    and no error.
+<!--#endif-->
   ```
 
 - in `docs/decisions/README.md`, before the line:
@@ -948,6 +953,13 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
     the relay and the page's `connect-src` are both held.
 <!--#endif-->
 
+<!--#if (externalAuth)-->
+  When `EXTERNAL_AUTH_AUTHORITY` names a host under `.invalid`, which never resolves, as `end-to-end`
+  and CI give the stack, the smoke stands in for that provider: it answers its discovery document with
+  a minimal one and refuses every other request to it, and expects a WebAssembly app, which reads that
+  document as it starts, to have asked for it at that authority.
+
+<!--#endif-->
   A page rendered on the server is driven the same way, at the port of its Node server. The smoke
   needs the stack, so `pnpm test` leaves it out; `pnpm test` runs the unit tests of how the apps and
   their ports are found.

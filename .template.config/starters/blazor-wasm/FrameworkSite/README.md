@@ -79,10 +79,14 @@ Register the app at the provider before its first run:
   on the provider: an API scope the client requests, added to `SignIn:Scope`, or an audience mapper on
   the client.
 
-Then set `SignIn:Authority`, the issuer the API trusts, and `SignIn:ClientId` in
-`wwwroot/appsettings.json`. Every visitor's browser downloads that file, so it holds public values
-only, never a secret. The app refuses to start until both are set: the page shows its error bar
-instead, and the browser's console names each missing key. `wwwroot/appsettings.Development.json` sets
+Then give the app `SignIn:Authority`, the issuer the API trusts, and `SignIn:ClientId`. Under
+`dotnet watch` they come from `wwwroot/appsettings.json`. The image fills the two keys that file
+leaves empty when it serves it, from its environment: `SIGN_IN_AUTHORITY`, which `compose.yml` sets
+from `EXTERNAL_AUTH_AUTHORITY`, and `SIGN_IN_CLIENT_ID`, which it sets from
+`EXTERNAL_AUTH_BROWSER_CLIENT_ID` in `.env`; so one image signs in at the provider each deployment
+names, and a key the file sets wins over the environment. Every visitor's browser downloads that
+file, so it holds public values only, never a secret. The app refuses to start until both are set:
+the page shows its error bar instead, and the browser's console names each missing key. `wwwroot/appsettings.Development.json` sets
 `SignIn:RequireHttpsMetadata` to `false`, so a provider on the developer's machine may answer over
 `http` under `dotnet watch`; the published app keeps `true`.
 
@@ -113,13 +117,13 @@ app's image and serves it on the port below.
 <!--#if (externalAuth)-->
 | `Common/` | the app's own code: `Hosting/` binds and checks the `SignIn` section and registers the sign-in, `Sessions/` hands the provider's access token to the client |
 | `wwwroot/appsettings.json` | the `SignIn` section, downloaded by the browser; `appsettings.Development.json` beside it relaxes `https` for `dotnet watch` |
-| `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline, and lets the page reach the provider's origin |
+| `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline, and lets the page reach the provider's origin; it serves `appsettings.json` with the provider and the client of its environment in the `SignIn` keys the file leaves empty |
 <!--#else-->
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline |
 <!--#endif-->
 | `Dockerfile` | the image: the .NET SDK publishes the app from the repository root, and nginx serves `wwwroot`; `_framework/`, whose every file name carries its fingerprint, is cached for a year |
 <!--#if (externalAuth)-->
-| `compose.yml` | the `web-framework-site` service, built from the repository root, given the provider's issuer as `SIGN_IN_AUTHORITY` |
+| `compose.yml` | the `web-framework-site` service, built from the repository root, given the provider's issuer as `SIGN_IN_AUTHORITY` and the app's client as `SIGN_IN_CLIENT_ID` |
 <!--#else-->
 | `compose.yml` | the `web-framework-site` service, built from the repository root |
 <!--#endif-->
@@ -188,6 +192,21 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   ```bash
   WEB_FRAMEWORK_SITE_HOST_PORT=8081
   ```
+<!--#if (externalAuth)-->
+
+- in `.env.example`, after the line:
+
+  ```bash
+  EXTERNAL_AUTH_ADMINISTRATOR_ROLE=Admin
+  ```
+
+  add:
+
+  ```bash
+  # The public client at the provider the WebAssembly app signs people in with, no secret; its image serves it as SignIn:ClientId.
+  EXTERNAL_AUTH_BROWSER_CLIENT_ID=
+  ```
+<!--#endif-->
 <!--#if (!hasClient)-->
 - in `.config/dotnet-tools.json`, replace the lines:
 
@@ -467,12 +486,14 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 
   Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
   signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
-  downloads: public values only, never a secret. The API never reads it.
+  downloads: public values only, never a secret. Its image fills `Authority` and `ClientId` there,
+  when the file leaves them empty, from `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_BROWSER_CLIENT_ID`
+  in `.env`. The API never reads it.
 
   | Key | Type | Default | Notes |
   |---|---|---|---|
-  | `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
-  | `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. |
+  | `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. The image serves `EXTERNAL_AUTH_AUTHORITY` here when the file leaves it empty. |
+  | `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. The image serves `EXTERNAL_AUTH_BROWSER_CLIENT_ID` here when the file leaves it empty. |
   | `Scope` | string | `openid profile email` | Must include `openid`. No `offline_access`: the provider renews the access token in a hidden frame while its own session lasts. The API's own scope goes here when the provider issues its audience that way. |
   | `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only, as `wwwroot/appsettings.Development.json` sets it for `dotnet watch`. |
 

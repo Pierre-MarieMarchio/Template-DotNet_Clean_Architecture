@@ -35,6 +35,34 @@ public sealed class TemplatePackagingTests
         "Launcher/CleanArch.Cli/CleanArch.Cli.csproj",
     ];
 
+    private const string _nugetOrgReadmeRules = "https://learn.microsoft.com/en-us/nuget/nuget-org/package-readme-on-nuget-org";
+
+    private static readonly string[] _nugetOrgImageHosts =
+    [
+        "api.codacy.com", "api.codeclimate.com", "api.dependabot.com", "api.reuse.software", "api.travis-ci.com",
+        "app.codacy.com", "app.deepsource.com", "avatars.githubusercontent.com", "badgen.net", "badges.gitter.im",
+        "camo.githubusercontent.com", "caniuse.bitsofco.de", "cdn.jsdelivr.net", "cdn.syncfusion.com", "ci.appveyor.com",
+        "circleci.com", "cloudback.it", "codecov.io", "codefactor.io", "coveralls.io", "dev.azure.com", "devpod.sh",
+        "flat.badgen.net", "gitlab.com", "i.imgur.com", "img.shields.io", "infragistics.com", "isitmaintained.com",
+        "media.githubusercontent.com", "opencollective.com", "raw.github.com", "raw.githubusercontent.com", "snyk.io",
+        "sonarcloud.io", "travis-ci.com", "travis-ci.org", "user-images.githubusercontent.com",
+    ];
+
+    private static readonly Regex _workflowBadge = new(@"^/[^/]+/[^/]+/(?:actions/)?workflows/[^/]+/badge\.svg$", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _fencedBlock = new(@"^(```|~~~).*?^\1", RegexOptions.Multiline | RegexOptions.Singleline, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _codeSpan = new("(`+).+?\\1", RegexOptions.Singleline, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _htmlTag = new(@"<(?!https?://|mailto:)[A-Za-z!/][^>]*>", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _linkTarget = new(
+        @"\]\(\s*<?(?<url>[^)\s>]+)|^\s{0,3}\[[^\]]+\]:\s*<?(?<url>[^\s>]+)",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _imageTarget = new(@"!\[[^\]]*\]\(\s*<?(?<url>[^)\s>]+)", RegexOptions.None, TimeSpan.FromSeconds(5));
+
     private static readonly Regex _ownersRepository = new(
         $@"github\.com[/:]{_repositoryOwner}/(?<repository>[A-Za-z0-9_.-]+?)(?:\.git)?(?=[/)\]\s""'<>#?`]|$)",
         RegexOptions.IgnoreCase | RegexOptions.Multiline,
@@ -495,6 +523,78 @@ public sealed class TemplatePackagingTests
             project.Descendants("PackageProjectUrl").Single().Value.ShouldBe(_repositoryUrl, $"{package} names another repository as its project page.");
         }
     }
+
+    [Fact]
+    public void EveryPackageReadme_IsOneNugetOrgRenders()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        foreach (string package in _packageProjects)
+        {
+            string readme = PackedReadme(root, package);
+            NugetOrgRefusals(File.ReadAllText(readme)).ShouldBeEmpty(
+                $"{Path.GetRelativePath(root, readme)}, the readme {package} packs, holds what nuget.org does not render: " +
+                "it shows Markdown without HTML, and neither a relative link or image nor an image from a host it does not allow " +
+                $"({_nugetOrgReadmeRules}).");
+        }
+    }
+
+    [Fact]
+    public void TheRepositoryReadme_IsRefusedAsAPackageReadme_AndThePackagesOwnIsNot()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        NugetOrgRefusals(File.ReadAllText(Path.Combine(root, "README.md"))).ShouldNotBeEmpty(
+            "The repository README, whose header is HTML and whose links are relative, passed the nuget.org rule, so the rule examines nothing.");
+        NugetOrgRefusals(File.ReadAllText(Path.Combine(root, ".template.config", "package", "README.md"))).ShouldBeEmpty();
+    }
+
+    private static string PackedReadme(string root, string package)
+    {
+        string projectPath = Path.Combine(root, package);
+        string projectFolder = Path.GetDirectoryName(projectPath)!;
+        var project = XDocument.Load(projectPath);
+        string readmeName = project.Descendants("PackageReadmeFile").Single().Value;
+
+        var packed = project.Descendants("None")
+            .Where(item => (string?)item.Attribute("Pack") == "true")
+            .Select(item => item.Attribute("Include")!.Value
+                .Replace("$(MSBuildThisFileDirectory)", string.Empty, StringComparison.Ordinal)
+                .Replace("$(TemplateRoot)", Path.GetRelativePath(projectFolder, root) + "/", StringComparison.Ordinal))
+            .Where(include => Path.GetFileName(include) == readmeName)
+            .ToList();
+
+        packed.Count.ShouldBe(1, $"{package} names {readmeName} as its readme but packs {packed.Count} file(s) by that name.");
+
+        return Path.GetFullPath(Path.Combine(projectFolder, packed[0]));
+    }
+
+    private static List<string> NugetOrgRefusals(string markdown)
+    {
+        string prose = _codeSpan.Replace(_fencedBlock.Replace(markdown, string.Empty), string.Empty);
+        var refusals = new List<string>();
+
+        refusals.AddRange(_htmlTag.Matches(prose).Select(tag => $"HTML: {tag.Value}"));
+
+        refusals.AddRange(_linkTarget.Matches(prose)
+            .Select(target => target.Groups["url"].Value)
+            .Where(url => !IsAbsolute(url))
+            .Select(url => $"relative link or image: {url}"));
+        refusals.AddRange(_imageTarget.Matches(prose)
+            .Select(target => target.Groups["url"].Value)
+            .Where(url => IsAbsolute(url) && !IsAllowedImage(new Uri(url)))
+            .Select(url => $"image from a host nuget.org does not allow: {url}"));
+
+        return refusals;
+    }
+
+    private static bool IsAbsolute(string url) =>
+        url.StartsWith("https://", StringComparison.Ordinal) || url.StartsWith("http://", StringComparison.Ordinal);
+
+    private static bool IsAllowedImage(Uri image) =>
+        image.Host == "github.com"
+            ? _workflowBadge.IsMatch(image.AbsolutePath)
+            : _nugetOrgImageHosts.Contains(image.Host, StringComparer.OrdinalIgnoreCase);
 
     private static IEnumerable<string> RepositoryTextFiles(string root)
     {

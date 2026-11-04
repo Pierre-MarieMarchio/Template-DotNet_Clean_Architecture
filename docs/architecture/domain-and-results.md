@@ -1,3 +1,9 @@
+---
+type: concept
+title: Domain and results
+description: How an aggregate enforces its rules, how a use case reports an expected failure as a value, and how a fact becomes a domain event.
+---
+
 # Domain and results
 
 An aggregate enforces its own rules, a use case reports an expected failure as a value, and a fact

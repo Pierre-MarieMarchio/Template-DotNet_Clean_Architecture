@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0007. GitHub Packages mirrors nuget.org
+description: Why nuget.org is the template's feed and GitHub Packages only mirrors it.
+status: Accepted
+---
+
 # 0007. GitHub Packages mirrors nuget.org
 
 Status: Accepted

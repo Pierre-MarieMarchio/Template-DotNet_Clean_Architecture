@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0011. A starter may render on the server
+description: Why rendering on the server was an option of its own beside the web framework, until one decision held both.
+status: Superseded
+---
+
 # 0011. A starter may render on the server
 
 Status: Superseded by [0023](0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0012. Where the jobs run is an option
+description: Why where the jobs run was an option of its own, until the worker became a presentation project.
+status: Superseded
+---
+
 # 0012. Where the jobs run is an option
 
 Status: Superseded by [0024](0024-the-worker-takes-the-jobs-out-of-the-api.md)

@@ -1,3 +1,9 @@
+---
+type: feature
+title: Files
+description: How this project stores the files its users upload, checks them before anyone reads them, and serves them back.
+---
+
 # Files
 
 How this project stores the files its users upload, checks them before anyone reads them, and

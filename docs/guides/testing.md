@@ -1,3 +1,9 @@
+---
+type: guide
+title: Testing
+description: Which type of test holds which risk, where a new test goes, and how the suites run.
+---
+
 # Testing
 
 Each risk this project carries is held by one type of test, the cheapest that can fail for its real

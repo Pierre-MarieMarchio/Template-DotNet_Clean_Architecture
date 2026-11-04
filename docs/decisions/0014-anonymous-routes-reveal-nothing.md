@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0014. Anonymous routes reveal nothing
+description: Why the anonymous routes answer the same way whether or not an account exists, and tell the address by mail instead.
+status: Accepted
+---
+
 # 0014. Anonymous routes reveal nothing
 
 Status: Accepted

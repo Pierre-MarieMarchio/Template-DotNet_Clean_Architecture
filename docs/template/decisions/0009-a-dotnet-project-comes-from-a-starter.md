@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0009. A .NET project comes from a starter
+description: Why a .NET project a starter adds comes from a template package its descriptor names, as a web app comes from pnpm.
+status: Accepted
+---
+
 # 0009. A .NET project comes from a starter
 
 Status: Accepted

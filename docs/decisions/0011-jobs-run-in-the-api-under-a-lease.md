@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0011. Jobs run in the API, under a lease
+description: Why the periodic jobs run as timers in the API process, and how a lease keeps two instances from running the same pass.
+status: Accepted
+---
+
 # 0011. Jobs run in the API, under a lease
 
 Status: Accepted

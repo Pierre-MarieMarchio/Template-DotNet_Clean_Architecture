@@ -1,3 +1,9 @@
+---
+type: concept
+title: Modules and boundaries
+description: What a feature or an infrastructure module may depend on, so that each one stays removable.
+---
+
 # Modules and boundaries
 
 A feature may reach another only through that feature's ports or its domain events, and an

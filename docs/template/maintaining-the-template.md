@@ -822,6 +822,13 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 | Metadata | id, authors, description, tags, licence, `CHANGELOG.md`, `.template.config/icon.png` and `.template.config/package/README.md`, all in the package project, at the package's root and outside `content/`, so no project receives them |
 | Readme | `.template.config/package/README.md`, not the repository's: nuget.org renders Markdown without HTML, and neither a relative link or image nor an image from a host it does not allow; `TemplatePackagingTests` holds each package's readme, the launcher's and the project tool's among them, to that |
 
+`dotnet pack` warns NU5123 on every entry under `content/` longer than 167 characters. This package
+accepts those entries: the database overlays under `.template.config/variants`, the Auth unit tests
+and the `ExternalIdentity` folders of the Blazor starter, the longest at 207 characters. The template
+engine reads the package, not a Windows checkout, and the generated paths keep their own budget.
+`TemplatePackagingTests.TheLongestEntryUnderContent_StaysWithinItsBudget` fails when an entry
+passes 207 characters.
+
 ## Branches and releases
 
 | Branch | Holds | Moves by |

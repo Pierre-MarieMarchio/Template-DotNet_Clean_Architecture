@@ -1395,6 +1395,23 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void TheLongestEntryUnderContent_StaysWithinItsBudget()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var excludes = PackageExcludes().Select(GlobPattern).ToList();
+        var entries = PackedFiles(root, string.Empty)
+            .Where(relative => !excludes.Any(exclude => exclude.IsMatch(relative)))
+            .Select(relative => $"content/{relative}")
+            .ToList();
+
+        entries.Count.ShouldBeGreaterThanOrEqualTo(1000, "Far fewer files were found than the package carries, so this rule is not reading its tree.");
+
+        entries.Where(entry => entry.Length > _longestEntryBudget).Select(entry => $"{entry.Length}: {entry}").ShouldBeEmpty(
+            $"No entry the package places under content/ may exceed {_longestEntryBudget} characters, the longest one it carries today. "
+            + $"NuGet reports NU5123 beyond {_nugetPathWarning}, and the entries between the two are accepted; shorten each entry named here.");
+    }
+
+    [Fact]
     public void ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem()
     {
         using var project = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
@@ -1639,6 +1656,12 @@ public sealed class TemplatePackagingTests
 
     private const int _longestPathBudget = 170;
 
+    private const int _longestEntryBudget = 207;
+
+    private const int _nugetPathWarning = 167;
+
+    private static readonly string[] _scratchFolders = [".git", "bin", "obj", "node_modules", "TestResults", "artifacts", ".claude", ".vs", ".idea", ".vscode"];
+
     private const string _folderPrefixSymbol = "projectFolderPrefix";
 
     private const string _folderPrefixAnyCaseSymbol = "projectFolderPrefixAnyCase";
@@ -1805,6 +1828,33 @@ public sealed class TemplatePackagingTests
             .Where(modifier => !modifier.TryGetProperty("condition", out _))
             .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!))];
     }
+
+    private static IEnumerable<string> PackedFiles(string root, string relative)
+    {
+        string directory = Path.Combine(root, relative);
+
+        foreach (string file in Directory.EnumerateFiles(directory))
+        {
+            yield return Path.Combine(relative, Path.GetFileName(file)).Replace('\\', '/');
+        }
+
+        foreach (string folder in Directory.EnumerateDirectories(directory).Where(folder => !_scratchFolders.Contains(Path.GetFileName(folder), StringComparer.Ordinal)))
+        {
+            foreach (string file in PackedFiles(root, Path.Combine(relative, Path.GetFileName(folder))))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private static Regex GlobPattern(string pattern) =>
+        new(
+            "^" + Regex.Escape(pattern.Replace('\\', '/'))
+                .Replace(@"\*\*/", "(?:.*/)?", StringComparison.Ordinal)
+                .Replace(@"\*\*", ".*", StringComparison.Ordinal)
+                .Replace(@"\*", "[^/]*", StringComparison.Ordinal) + "$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
 
     private static List<string> PackageExcludes()
     {

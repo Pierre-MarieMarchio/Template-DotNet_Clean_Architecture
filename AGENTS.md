@@ -32,13 +32,15 @@ once before a change that adds a type; [the documentation index](docs/README.md)
 
 <!--#if (api)-->
 From the repository root. Right after generating, before anything else, run `bootstrap` and commit
-what it writes: it formats the usings the rename reordered, writes the OpenAPI reference, restores
-the local tools and creates each context's initial migration, and the other tasks assume all four.
+what it writes: it formats the usings the rename reordered, writes the documentation index and the
+OpenAPI reference, restores the local tools and creates each context's initial migration, and the
+other tasks assume all five.
 <!--#endif-->
 <!--#if (!api)-->
 From the repository root. Right after generating, before anything else, run `bootstrap` and commit
-what it writes: it formats the usings the rename reordered, restores the local tools and creates
-each context's initial migration, and the other tasks assume all three.
+what it writes: it formats the usings the rename reordered, writes the documentation index,
+restores the local tools and creates each context's initial migration, and the other tasks assume
+all four.
 <!--#endif-->
 <!--#if (presentationBlazorServer || presentationAvalonia)-->
 It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
@@ -57,6 +59,7 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 | Over the whole tree, without Docker | `dotnet run Tools/Tasks.cs test --no-integration` | nothing |
 | The structural rules alone | `dotnet test --project Tests/Architecture/AT.Architecture.Tests` | nothing |
 | After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` (commit apart what it rewrites in files you did not touch; it names each name it cannot fix) | nothing |
+| After adding, removing or renaming a page under `docs/`, or changing its frontmatter | `dotnet run Tools/Tasks.cs docs-index` | nothing |
 | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
 <!--#if (dotnetClient)-->
 | After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
@@ -145,6 +148,8 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 <!--#endif-->
 - `coverage.minimum`: never lowered to pass; re-measured as [testing](docs/guides/testing.md#coverage)
   says.
+- A folder's `docs/<folder>/index.md`: `docs-index` writes it from each page's frontmatter, bootstrap
+  the first, and `hygiene` fails when one no longer lists its folder's pages.
 - `cleanarch.json`: generation writes it and `web-join` or `presentation-join` records a part added
   since, as [the project file](docs/reference/project-layout.md#the-project-file) says.
 

@@ -450,19 +450,6 @@ task stops:
   | The portal sends the API's security headers and a policy that allows no script but its own and forbids framing; where the project authenticates, every page asks for a signed-in user unless it opts out | [Presentation projects › Portal security headers](docs/features/presentation.md#portal-security-headers) |
   ```
 
-- in `docs/README.md`, before the lines:
-
-  ```markdown
-
-  ## Guides
-  ```
-
-  add:
-
-  ```markdown
-  | [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
-  ```
-
 - in `docs/reference/configuration.md`, replace the line:
 
   ```markdown

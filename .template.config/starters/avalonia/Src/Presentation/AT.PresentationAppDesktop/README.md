@@ -163,7 +163,7 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  the local tools and creates each context's initial migration, and the other tasks assume all four.
+  other tasks assume all five.
   ```
 
   add:

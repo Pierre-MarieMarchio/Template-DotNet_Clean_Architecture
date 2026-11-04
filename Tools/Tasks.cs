@@ -61,6 +61,18 @@ internal static class Tasks
                                            and line whose name breaks a naming rule (IDE1006), which
                                            dotnet format cannot rename; the task fails while one is left
 
+        Documentation:
+          docs-index                       write an index.md into each folder under docs/ that holds a
+                                           page, but plans and the folders whose name starts with _:
+                                           the folder's pages, its README first and the others by
+                                           title, then its subfolders, each with the title and the
+                                           description of its frontmatter, and a decision with its
+                                           status; remove an index whose folder holds no page.
+                                           bootstrap, new-feature, remove-feature --apply,
+                                           presentation-join and web-join run it
+          docs-index --check               fail when an index differs from what the command writes,
+                                           or is missing; hygiene and verify run it
+
         Migrations:
           migration-add <Name>           add a migration to the business context, or to the identity
                                            context with --context auth; refused, with nothing written,
@@ -196,6 +208,7 @@ internal static class Tasks
         "presentation-join",
         "web-scaffold",
         "web-join",
+        "docs-index",
         "hygiene",
         "verify",
         "upgrade-report",
@@ -297,6 +310,7 @@ internal static class Tasks
 
     private static readonly string[] _checkedTasks =
     [
+        "docs-index",
         //#if (api)
         "api-client",
         //#endif
@@ -799,11 +813,12 @@ internal static class Tasks
             case "bootstrap":
                 PresentationScaffold(projectFile, solution, only: null);
                 Step("dotnet", "format", solution, "--diagnostics", "IDE0055", "IDE0005");
+                DocsIndex(repoRoot, check: false);
                 //#if (api)
                 OpenApiReference(projectFile, api, noBuild: false);
                 //#endif
 
-                string finished = "the formatting";
+                string finished = "the formatting, the documentation index";
                 //#if (api)
                 finished += " and the OpenAPI reference";
                 //#endif
@@ -851,12 +866,16 @@ internal static class Tasks
 
                 Write(
                     /*#if (api)*/
-                    "Formatting done, OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
+                    "Formatting done, documentation index and OpenAPI reference written, tools restored and each context's initial migration in its Migrations folder. "
                     /*#else
-                    "Formatting done, tools restored and each context's initial migration in its Migrations folder. "
+                    "Formatting done, documentation index written, tools restored and each context's initial migration in its Migrations folder. "
                     #endif*/
                     + "Commit this before anything else: the migrations are the project's own from now on.",
                     ConsoleColor.Green);
+                break;
+
+            case "docs-index":
+                DocsIndex(repoRoot, check);
                 break;
 
             case "hygiene":
@@ -1308,6 +1327,165 @@ internal static class Tasks
         Step("dotnet", "run", Gate(repoRoot, "CoverageGate.cs"), "--self-test");
         OptionalGate(repoRoot, "CheckComments.cs", "--self-test");
         OptionalGate(repoRoot, "CheckComments.cs", repoRoot);
+        DocsIndex(repoRoot, check: true);
+    }
+
+    private const string _docsFolder = "docs";
+
+    private const string _indexName = "index.md";
+
+    private static readonly string[] _pagesOutsideTheIndex = [_indexName, "log.md"];
+
+    private static readonly string[] _foldersOutsideTheIndex = ["plans"];
+
+    private const string _indexNotice =
+        "Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page: edit the pages, then run it again.";
+
+    private sealed record IndexEntry(string Link, string Title, string Description, string? Status);
+
+    private static void DocsIndex(string repoRoot, bool check)
+    {
+        string docs = Path.Combine(repoRoot, _docsFolder);
+        Dictionary<string, string> indexes = DocsIndexes(docs);
+        string[] present = Directory.Exists(docs) ? [.. IndexFiles(docs).Select(file => Path.GetRelativePath(repoRoot, file).Replace('\\', '/'))] : [];
+        string[] stale = [.. present.Where(path => !indexes.ContainsKey(path))];
+
+        if (check)
+        {
+            string[] problems =
+            [
+                .. indexes
+                    .Where(index => !File.Exists(Path.Combine(repoRoot, index.Key)) || File.ReadAllText(Path.Combine(repoRoot, index.Key)) != index.Value)
+                    .Select(index => File.Exists(Path.Combine(repoRoot, index.Key)) ? $"{index.Key} differs from what it writes" : $"{index.Key} is missing"),
+                .. stale.Select(path => $"{path} indexes a folder that holds no page"),
+            ];
+
+            if (problems.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    $"The documentation index is out of date: {string.Join("; ", problems)}. "
+                    + "Run `dotnet run Tools/Tasks.cs docs-index` and commit what it writes.");
+            }
+
+            Write($"The {indexes.Count} index files under {_docsFolder}/ list their folders' pages as their frontmatter says.", ConsoleColor.Green);
+            return;
+        }
+
+        foreach ((string path, string text) in indexes)
+        {
+            File.WriteAllText(Path.Combine(repoRoot, path), text, new UTF8Encoding(false));
+        }
+
+        foreach (string path in stale)
+        {
+            File.Delete(Path.Combine(repoRoot, path));
+        }
+
+        Write($"Wrote {indexes.Count} index files under {_docsFolder}/.", ConsoleColor.Green);
+    }
+
+    private static Dictionary<string, string> DocsIndexes(string docs)
+    {
+        var indexes = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        if (Directory.Exists(docs))
+        {
+            IndexFolder(Path.GetDirectoryName(docs)!, docs, indexes);
+        }
+
+        return indexes;
+    }
+
+    private static IEnumerable<string> IndexFiles(string folder) =>
+        Directory.EnumerateFiles(folder, _indexName)
+            .Concat(IndexedFolders(folder).SelectMany(IndexFiles));
+
+    private static IEnumerable<string> IndexedFolders(string folder) =>
+        Directory.EnumerateDirectories(folder)
+            .Where(child => Path.GetFileName(child) is var name
+                && !name.StartsWith('_')
+                && !name.StartsWith('.')
+                && !_foldersOutsideTheIndex.Contains(name, StringComparer.Ordinal));
+
+    private static IndexEntry? IndexFolder(string root, string folder, Dictionary<string, string> indexes)
+    {
+        IndexEntry[] pages =
+        [
+            .. Directory.EnumerateFiles(folder, "*.md")
+                .Where(file => !_pagesOutsideTheIndex.Contains(Path.GetFileName(file), StringComparer.Ordinal))
+                .Select(file => PageEntry(root, file))
+                .OrderBy(page => page.Link != "README.md")
+                .ThenBy(page => page.Title, StringComparer.Ordinal),
+        ];
+        IndexEntry[] folders =
+        [
+            .. IndexedFolders(folder)
+                .Select(child => IndexFolder(root, child, indexes))
+                .OfType<IndexEntry>()
+                .OrderBy(entry => entry.Title, StringComparer.Ordinal),
+        ];
+
+        if (pages.Length == 0 && folders.Length == 0)
+        {
+            return null;
+        }
+
+        string name = Path.GetFileName(folder);
+        IndexEntry? readme = pages.FirstOrDefault(page => page.Link == "README.md");
+        string title = readme?.Title ?? char.ToUpperInvariant(name[0]) + name[1..].Replace('-', ' ');
+        var text = new StringBuilder().Append("# ").Append(title).Append("\n\n").Append(_indexNotice).Append('\n');
+
+        if (pages.Length > 0)
+        {
+            text.Append('\n');
+            text.Append(string.Concat(pages.Select(IndexLine)));
+        }
+
+        if (folders.Length > 0)
+        {
+            text.Append("\n## Folders\n\n");
+            text.Append(string.Concat(folders.Select(IndexLine)));
+        }
+
+        indexes[Path.GetRelativePath(root, Path.Combine(folder, _indexName)).Replace('\\', '/')] = text.ToString();
+
+        return new IndexEntry($"{name}/{_indexName}", title, readme?.Description ?? string.Empty, null);
+    }
+
+    private static string IndexLine(IndexEntry entry) =>
+        $"- [{entry.Title}]({entry.Link})"
+        + (entry.Description.Length == 0 ? string.Empty : " - " + (entry.Status is null ? string.Empty : entry.Status + ". ") + entry.Description)
+        + "\n";
+
+    private static IndexEntry PageEntry(string root, string file)
+    {
+        string page = Path.GetRelativePath(root, file).Replace('\\', '/');
+        string[] lines = File.ReadAllText(file).ReplaceLineEndings("\n").Split('\n');
+        int closing = lines[0] == "---" ? Array.IndexOf(lines, "---", 1) : -1;
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (string line in closing < 0 ? [] : lines[1..closing])
+        {
+            int colon = line.IndexOf(": ", StringComparison.Ordinal);
+
+            if (colon > 0)
+            {
+                string value = line[(colon + 2)..].Trim();
+                fields[line[..colon]] = value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
+            }
+        }
+
+        string Field(string key) => fields.TryGetValue(key, out string? value) && value.Length > 0
+            ? value
+            : throw new InvalidOperationException(
+                $"{page} has no {key} in a frontmatter at its first line, so the index cannot list it: "
+                + "docs/README.md#adding-a-page says what each page's frontmatter holds.");
+
+        return new IndexEntry(
+            Path.GetFileName(file),
+            Field("title"),
+            Field("description"),
+            fields.GetValueOrDefault("type") == "decision" ? Field("status") : null);
     }
 
     private static readonly string[] _styleRulesTheBuildLacks = ["IDE0003", "IDE0049"];
@@ -3444,6 +3622,7 @@ internal static class Tasks
             .. SkipCases(),
             .. GeneratorOptionCases(),
             .. JoinCases(),
+            .. DocsIndexCases(),
             .. WebAppRecordCases(),
             ("verify refuses a web workspace without pnpm, saying how to get it", Refused(() => RequirePnpm("pnpm-not-on-this-path"), "run `corepack enable` once")),
             ("format-fix drops a Markdown file's BOM and turns each CR ending into LF", NormalisedMarkdown([0xEF, 0xBB, 0xBF, (byte)'a', (byte)'\r', (byte)'\n', (byte)'b', (byte)'\r']).SequenceEqual("a\nb\n"u8.ToArray())),
@@ -3617,6 +3796,82 @@ internal static class Tasks
                 () => MakeEdits([Edit(1, "after", ["services:"], ["x"]), Edit(2, "after", ["missing"], ["y"])], File("services:")),
                 "edit 2 of README.md, after 1 line(s) of file: the lines it is placed by occur 0 times")),
         ];
+    }
+
+    private static (string Case, bool Passed)[] DocsIndexCases()
+    {
+        string root = Directory.CreateTempSubdirectory("docs-index-").FullName;
+        TextWriter output = Console.Out;
+
+        void Page(string path, string frontmatter)
+        {
+            string full = Path.Combine(root, _docsFolder, path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, $"---\n{frontmatter}\n---\n\n# Heading\n");
+        }
+
+        string Read(string path) => File.ReadAllText(Path.Combine(root, _docsFolder, path));
+
+        bool Checked()
+        {
+            try
+            {
+                DocsIndex(root, check: true);
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        try
+        {
+            Console.SetOut(TextWriter.Null);
+            Page("README.md", "type: reference\ntitle: Documentation\ndescription: Which page answers what.");
+            Page("guides/second.md", "type: guide\ntitle: B task\ndescription: \"How to do B: in one sentence.\"");
+            Page("guides/first.md", "type: guide\ntitle: A task\ndescription: How to do A.");
+            Page("decisions/README.md", "type: reference\ntitle: Decisions\ndescription: Why each choice was made.");
+            Page("decisions/0002-b.md", "type: decision\ntitle: 0002. B\ndescription: Why B.\nstatus: Accepted");
+            Page("decisions/0001-a.md", "type: decision\ntitle: 0001. A\ndescription: Why A.\nstatus: Superseded");
+            Page("_page-templates/feature.md", "type: template\ntitle: <Feature>\ndescription: <description>");
+            Page("plans/plan.md", "title: A plan");
+            Directory.CreateDirectory(Path.Combine(root, "docs", "empty"));
+            File.WriteAllText(Path.Combine(root, "docs", "empty", _indexName), "# Empty\n");
+            bool refusedBeforeWriting = !Checked();
+
+            DocsIndex(root, check: false);
+            string guides = Read("guides/index.md");
+            string decisions = Read("decisions/index.md");
+            string top = Read("index.md");
+            bool fresh = Checked();
+            Page("guides/first.md", "type: guide\ntitle: A task\ndescription: How to do A, said otherwise.");
+            bool staleRefused = !Checked();
+            Page("guides/third.md", "type: guide\ntitle: C task");
+            bool untitled = Refused(() => DocsIndex(root, check: false), $"{_docsFolder}/guides/third.md has no description");
+
+            return
+            [
+                ("the index lists a folder's pages by title, with their descriptions", guides == "# Guides\n\n" + _indexNotice + "\n\n"
+                    + "- [A task](first.md) - How to do A.\n- [B task](second.md) - How to do B: in one sentence.\n"),
+                ("the index lists the folder's README first, then each decision by number with its status", decisions == "# Decisions\n\n" + _indexNotice + "\n\n"
+                    + "- [Decisions](README.md) - Why each choice was made.\n- [0001. A](0001-a.md) - Superseded. Why A.\n- [0002. B](0002-b.md) - Accepted. Why B.\n"),
+                ("the index of a folder links its subfolders' indexes, a folder without a README by its name", top == "# Documentation\n\n" + _indexNotice + "\n\n"
+                    + "- [Documentation](README.md) - Which page answers what.\n\n## Folders\n\n"
+                    + "- [Decisions](decisions/index.md) - Why each choice was made.\n- [Guides](guides/index.md)\n"),
+                ("the index leaves out the plans, the folders named from _ and the folders without a page", !File.Exists(Path.Combine(root, "docs", "plans", _indexName))
+                    && !File.Exists(Path.Combine(root, "docs", "_page-templates", _indexName)) && !File.Exists(Path.Combine(root, "docs", "empty", _indexName))),
+                ("--check refuses an index missing, or kept for a folder without a page", refusedBeforeWriting),
+                ("--check passes on the index the task wrote", fresh),
+                ("--check refuses an index a page's frontmatter no longer matches", staleRefused),
+                ("a page without a description is refused, naming it", untitled),
+            ];
+        }
+        finally
+        {
+            Console.SetOut(output);
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static (string Case, bool Passed)[] WebAppRecordCases()

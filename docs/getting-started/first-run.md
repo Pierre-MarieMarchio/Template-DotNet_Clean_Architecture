@@ -76,16 +76,18 @@ It also adds the worker's project in `Src/Presentation`, written in the shape of
 to the solution with its tests.
 <!--#endif-->
 <!--#if (api)-->
-It formats the solution, writes the OpenAPI reference
-the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
-pins this project's own tool, `dotnet cleanarch`, at the version of the template it came from, restores
-the local tools (`dotnet-ef` among them), then creates each database context's initial migration under
-its project's `Migrations` folder.
+It formats the solution, writes the index of each folder under `docs/` from its pages, writes the
+OpenAPI reference the contract test reads
+([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)), pins this project's
+own tool, `dotnet cleanarch`, at the version of the template it came from, restores the local tools
+(`dotnet-ef` among them), then creates each database context's initial migration under its
+project's `Migrations` folder.
 <!--#endif-->
 <!--#if (!api)-->
-It formats the solution, pins this project's own tool, `dotnet cleanarch`, at the version of the
-template it came from, restores the local tools (`dotnet-ef` among them), then creates each database
-context's initial migration under its project's `Migrations` folder.
+It formats the solution, writes the index of each folder under `docs/` from its pages, pins this
+project's own tool, `dotnet cleanarch`, at the version of the template it came from, restores the
+local tools (`dotnet-ef` among them), then creates each database context's initial migration under
+its project's `Migrations` folder.
 <!--#endif-->
 The project ships no migration: the first one is written for this project's own model, and it is
 the project's from the commit on ([migrations](../guides/migrations.md#the-initial-migration)).

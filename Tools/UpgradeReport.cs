@@ -122,6 +122,7 @@ internal static class UpgradeReport
     [
         (Rx(@"^Src/Infrastructure/[^/]+\.Infrastructure\.(?:Persistence|Auth)/Migrations/"),
             "the migrations: bootstrap's migration-initial creates them, migration-add <Name> adds to them"),
+        (Rx(@"^docs/(?:.+/)?index\.md$"), "dotnet run Tools/Tasks.cs docs-index"),
         (Rx(@"^Tests/Integration/[^/]+\.Api\.IntegrationTests/OpenApi/v1\.json$"), "dotnet run Tools/Tasks.cs openapi"),
         (Rx(@"^Src/Clients/[^/]+\.Client/Generated/"), "dotnet run Tools/Tasks.cs api-client"),
         (Rx(@"^Src/Web/pnpm-lock\.yaml$"), "pnpm install, in Src/Web"),

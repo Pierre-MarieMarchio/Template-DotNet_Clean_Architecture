@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0025. An MCP server is a presentation project, written whole
+description: Why the MCP server is a value of the presentation option, written whole by the template under the symbols every presentation project shares.
+status: Accepted
+---
+
 # 0025. An MCP server is a presentation project, written whole
 
 Status: Accepted; supersedes [0015](0015-an-mcp-server-is-a-presentation-project-written-whole.md)

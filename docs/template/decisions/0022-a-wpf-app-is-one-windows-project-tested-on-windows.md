@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0022. A WPF app is one Windows project, tested on Windows
+description: Why the WPF app is one Windows project, laid out as the Avalonia app, with its tests run on Windows.
+status: Accepted
+---
+
 # 0022. A WPF app is one Windows project, tested on Windows
 
 Status: Accepted

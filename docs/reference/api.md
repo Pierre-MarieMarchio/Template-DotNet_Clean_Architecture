@@ -1,3 +1,9 @@
+---
+type: reference
+title: API reference
+description: Every route of the API and every refusal code it answers.
+---
+
 # API reference
 
 Every route and every refusal `code`. The rules all endpoints follow are in

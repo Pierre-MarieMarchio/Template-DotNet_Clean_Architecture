@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0032. The app host follows Compose
+description: Why Compose stays the reference of the local stack and the Aspire app host follows it, service for service.
+status: Accepted
+---
+
 # 0032. The app host follows Compose
 
 Status: Accepted

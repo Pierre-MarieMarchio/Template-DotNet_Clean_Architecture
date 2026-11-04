@@ -1,3 +1,9 @@
+---
+type: concept
+title: HTTP API
+description: The contract every endpoint offers a client, from versioning and the error format to conditional writes, safe retries and collections.
+---
+
 # HTTP API
 
 Every endpoint of this API offers a client the same contract: one version in the path, one error

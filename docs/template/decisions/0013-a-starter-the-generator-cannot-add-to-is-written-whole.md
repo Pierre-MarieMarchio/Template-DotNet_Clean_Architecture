@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0013. A starter the generator cannot add to is written whole
+description: Why a starter whose framework generator cannot be added to holds the whole project, written by the template.
+status: Accepted
+---
+
 # 0013. A starter the generator cannot add to is written whole
 
 Status: Accepted

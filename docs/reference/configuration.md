@@ -1,3 +1,9 @@
+---
+type: reference
+title: Configuration
+description: Every setting this project reads, section by section, with its default and the rule it is checked against.
+---
+
 # Configuration
 
 <!--#if (api)-->

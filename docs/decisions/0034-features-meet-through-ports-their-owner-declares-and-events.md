@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0034. Features meet through ports their owner declares, and events
+description: Why a feature reaches another only through a port that other declares or through its domain events.
+status: Accepted
+---
+
 # 0034. Features meet through ports their owner declares, and events
 
 Status: Accepted; supersedes ADR 0004

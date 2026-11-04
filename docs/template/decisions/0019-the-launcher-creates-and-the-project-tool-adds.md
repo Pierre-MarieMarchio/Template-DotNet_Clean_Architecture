@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0019. The launcher creates, and the project's tool adds
+description: Why the launcher only creates a project, and the project's own tool adds every part afterwards.
+status: Accepted
+---
+
 # 0019. The launcher creates, and the project's tool adds
 
 Status: Accepted

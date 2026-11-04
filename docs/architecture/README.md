@@ -1,3 +1,9 @@
+---
+type: concept
+title: Architecture
+description: How this project is layered, which way its source dependencies point, and which tests hold the rule.
+---
+
 # Architecture
 
 This project is a .NET HTTP API built in four layers. Source dependencies point inward, and the

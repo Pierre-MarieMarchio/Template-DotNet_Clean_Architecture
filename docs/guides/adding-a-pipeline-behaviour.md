@@ -1,3 +1,9 @@
+---
+type: guide
+title: Adding a pipeline behaviour
+description: How to add a behaviour that runs around every use case, at a place in the pipeline a test holds.
+---
+
 # Adding a pipeline behaviour
 
 ## When

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0016. The launcher draws only glyphs every console font carries
+description: Why the launcher draws, above Latin-1, only the glyphs every console font carries.
+status: Accepted
+---
+
 # 0016. The launcher draws only glyphs every console font carries
 
 Status: Accepted

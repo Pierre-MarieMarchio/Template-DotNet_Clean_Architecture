@@ -1,3 +1,9 @@
+---
+type: feature
+title: Notes
+description: How this project keeps a caller's notes, the simple example of a service over a store.
+---
+
 # Notes
 
 How this project keeps a caller's notes: a title and a body, owned by whoever wrote them. Notes is

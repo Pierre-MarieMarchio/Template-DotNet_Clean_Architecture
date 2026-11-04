@@ -1,3 +1,9 @@
+---
+type: concept
+title: Layers and projects
+description: Which projects make up each layer, what each holds, and how a project declares what it references.
+---
+
 # Layers and projects
 
 Each layer is one folder under `Src/`, and each folder holds a `.Core` project for the mechanisms

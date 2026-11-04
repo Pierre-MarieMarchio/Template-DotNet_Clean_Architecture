@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0018. A project keeps its provenance and its tool from the template
+description: Why a project keeps a record of the template that generated it and the tool it pins, while every other page stays the project's own.
+status: Accepted
+---
+
 # 0018. A project keeps its provenance and its tool from the template
 
 Status: Accepted; supersedes [0002](0002-nothing-about-the-template-reaches-a-project.md)

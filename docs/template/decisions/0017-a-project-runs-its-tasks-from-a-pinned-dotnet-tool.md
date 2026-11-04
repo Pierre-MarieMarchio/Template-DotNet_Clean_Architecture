@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0017. A project runs its tasks from a pinned .NET tool
+description: Why a project runs its tasks from a .NET tool pinned at the template's version, while another tool only creates projects.
+status: Accepted
+---
+
 # 0017. A project runs its tasks from a pinned .NET tool
 
 Status: Accepted

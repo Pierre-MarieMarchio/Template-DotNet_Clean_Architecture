@@ -1,6 +1,6 @@
 ﻿# 0004. Features meet through ports and events
 
-Status: Accepted
+Status: Superseded by [0034](0034-features-meet-through-ports-their-owner-declares-and-events.md)
 
 ## Context
 

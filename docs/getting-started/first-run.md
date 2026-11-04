@@ -363,8 +363,8 @@ docker compose logs -f    # follow the hosts
 docker compose down       # stop, keep the data
 docker compose down -v    # stop and delete the data
 ```
-
 <!--#endif-->
+
 ## Run the tests
 
 <!--#if (api)-->
@@ -402,8 +402,8 @@ It then drives each web app in Chromium, which [testing](../guides/testing.md#th
 shows how to install.
 <!--#endif-->
 [Testing](../guides/testing.md) says what each suite proves.
-
 <!--#if (canAddFeature && api)-->
+
 ## Add a feature
 
 Generate the skeleton of a feature owned by its caller:
@@ -427,6 +427,7 @@ dotnet run Tools/Tasks.cs test --no-integration
 write next.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
+
 ## Add a feature
 
 Generate the skeleton of a feature owned by its caller:

@@ -27,6 +27,7 @@ Time is a parameter, not an ambient dependency: a factory or a behaviour takes `
 so the aggregate is reproducible in a test without freezing a clock. `DomainModelTests` holds the
 rest of the shape: roots are sealed, entities expose no settable state, value objects and events are
 immutable.
+<!--#if (todoLists || tagging)-->
 
 <!--#if (todoLists)-->
 `TodoList` is the worked case. Item titles are unique within a list and a list holds at most
@@ -35,7 +36,8 @@ reaches an item without naming its list.
 <!--#endif-->
 <!--#if (tagging)-->
 A tag set belongs to its aggregate: the aggregate chooses the cap and owns the set, while the rules
-every tagged aggregate shares, held once, sit in `TagSet` under the domain's `Common/Tagging/`.
+every tagged aggregate shares, held once, sit in `TagSet` xs `Common/Tagging/`.
+<!--#endif-->
 <!--#endif-->
 
 ## Domain events after the commit

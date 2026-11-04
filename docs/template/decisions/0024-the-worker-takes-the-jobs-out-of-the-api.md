@@ -52,7 +52,7 @@ jobs outgrow the API.
   under a moved folder has no switch symbol, or when the folders the worker's sources copy differ
   from those the API's source excludes. A launcher test generates the project with the worker and
   without it, adds the worker to the second, and requires the same tree but for ADR 0011, kept and
-  superseded, and its row in the decisions index.
+  superseded, and its line in the decisions index, which `docs-index` lists once the join runs it.
 
 ## Alternatives considered
 

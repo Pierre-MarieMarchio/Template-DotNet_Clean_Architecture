@@ -1,6 +1,7 @@
 # Decisions
 
-Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page: edit the pages, then run it again.
+Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:
+edit the pages, then run it again.
 
 - [0001. Options remove parts and refuse combinations](0001-options-remove-parts-and-refuse-combinations.md) - Accepted. Why an option removes what it leaves out of a generated project rather than disabling it, and refuses the combinations that cannot hold.
 - [0002. Nothing about the template reaches a project](0002-nothing-about-the-template-reaches-a-project.md) - Superseded. Why nothing about the template but its provenance reached a project, before a project also kept the tool it pins.

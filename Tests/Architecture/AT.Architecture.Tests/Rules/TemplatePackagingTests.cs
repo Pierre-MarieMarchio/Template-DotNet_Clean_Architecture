@@ -73,6 +73,162 @@ public sealed class TemplatePackagingTests
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
 
+    private static readonly Regex _markerLine = new(
+        "^\\s*<!--" + "#" + "(?:if|else|elseif|endif)\\b.*-->\\s*$",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _tableRow = new("^\\s*\\|", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _fence = new("^\\s*(?:```|~~~)", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly string[] _markdownSkippedFolders = [".git", ".claude", "bin", "obj", "node_modules", "TestResults", "artifacts", "plans"];
+
+    private static readonly string[] _filesAwaitingTheTableRowMarker =
+    [
+        ".template.config/starters/blazor-wasm/FrameworkSite/README.md",
+        ".template.config/variants/project/README.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "Src/Web/AGENTS.md",
+        "Src/Web/apps/FrameworkSite/README.md",
+        "docs/README.md",
+        "docs/architecture/README.md",
+        "docs/architecture/feature-shapes.md",
+        "docs/architecture/http-api.md",
+        "docs/architecture/layers-and-projects.md",
+        "docs/architecture/modules-and-boundaries.md",
+        "docs/architecture/persistence-model.md",
+        "docs/architecture/ports-and-adapters.md",
+        "docs/architecture/request-pipeline.md",
+        "docs/decisions/0001-adopt-the-generated-baseline.md",
+        "docs/decisions/README.md",
+        "docs/features/background-jobs.md",
+        "docs/features/presentation.md",
+        "docs/getting-started/first-run.md",
+        "docs/getting-started/overview.md",
+        "docs/guides/adding-a-feature.md",
+        "docs/guides/build-and-ci.md",
+        "docs/guides/deployment.md",
+        "docs/guides/migrations.md",
+        "docs/guides/removing-features.md",
+        "docs/guides/running-the-app-host.md",
+        "docs/guides/testing.md",
+        "docs/reference/api.md",
+        "docs/reference/configuration.md",
+        "docs/reference/project-layout.md",
+    ];
+
+    [Fact]
+    public void NoMarkerOnALineOfItsOwn_EndsAMarkdownTable()
+    {
+        var offenders = MarkerLinesEndingATable()
+            .Where(offender => !_filesAwaitingTheTableRowMarker.Contains(offender.File, StringComparer.Ordinal))
+            .Select(offender => $"{offender.File}:{offender.Line}");
+
+        offenders.ShouldBeEmpty(
+            "A template marker on a line of its own between two table rows is an HTML block, which ends the table GitHub " +
+            "renders: every row after it shows as plain text with its pipes. Write the marker as a row of one cell, " +
+            "'| <marker> |', which generation removes whole as it removes the line.");
+    }
+
+    [Fact]
+    public void EveryFileAwaitingTheTableRowMarker_StillHoldsAMarkerLineInATable()
+    {
+        var holding = MarkerLinesEndingATable().Select(offender => offender.File).ToHashSet(StringComparer.Ordinal);
+
+        _filesAwaitingTheTableRowMarker
+            .Where(file => !holding.Contains(file))
+            .ShouldBeEmpty("These files hold no marker line inside a table any more: remove each from _filesAwaitingTheTableRowMarker.");
+    }
+
+    [Fact]
+    public void AMarkerLineBetweenTwoRows_IsFound_AndARowMarkerOrAFencedMarkerIsNot()
+    {
+        string opening = "<!--" + "#" + "if (files)-->";
+        string closing = "<!--" + "#" + "endif-->";
+        string[] lines =
+        [
+            "| Name | Value |",
+            "|---|---|",
+            opening,
+            "| a | 1 |",
+            closing,
+            "| b | 2 |",
+            $"| {opening} |",
+            "| c | 3 |",
+            $"| {closing} |",
+            "| d | 4 |",
+            "",
+            "```markdown",
+            "| e | 5 |",
+            opening,
+            "| f | 6 |",
+            "```",
+            "",
+            opening,
+            "A sentence.",
+            closing,
+        ];
+
+        MarkerLinesBetweenRows(lines).ShouldBe([3, 5]);
+    }
+
+    private static IEnumerable<(string File, int Line)> MarkerLinesEndingATable()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        return new DirectoryInfo(root)
+            .EnumerateFiles("*.md", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Select(file => Path.GetRelativePath(root, file.FullName))
+            .Where(file => !file.Split(Path.DirectorySeparatorChar).SkipLast(1).Any(_markdownSkippedFolders.Contains))
+            .SelectMany(file => MarkerLinesBetweenRows(File.ReadAllLines(Path.Combine(root, file)))
+                .Select(line => (File: file.Replace('\\', '/'), Line: line)))
+            .Order();
+    }
+
+    private static List<int> MarkerLinesBetweenRows(string[] lines)
+    {
+        bool[] fenced = new bool[lines.Length];
+        bool inFence = false;
+        for (int index = 0; index < lines.Length; index++)
+        {
+            bool fence = _fence.IsMatch(lines[index]);
+            fenced[index] = inFence || fence;
+            inFence ^= fence;
+        }
+
+        bool IsMarker(int index) => !fenced[index] && _markerLine.IsMatch(lines[index]);
+        bool IsRow(int index) => index >= 0 && index < lines.Length && !fenced[index] && _tableRow.IsMatch(lines[index]);
+
+        var found = new List<int>();
+        int start = 0;
+        while (start < lines.Length)
+        {
+            if (!IsMarker(start))
+            {
+                start++;
+                continue;
+            }
+
+            int end = start;
+            while (end < lines.Length && IsMarker(end))
+            {
+                end++;
+            }
+
+            if (IsRow(start - 1) && IsRow(end))
+            {
+                found.AddRange(Enumerable.Range(start + 1, end - start));
+            }
+
+            start = end;
+        }
+
+        return found;
+    }
+
     [Fact]
     public void EveryGuidInTheSolution_IsRegeneratedOnGeneration()
     {

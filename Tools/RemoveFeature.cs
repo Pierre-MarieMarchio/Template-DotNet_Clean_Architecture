@@ -2350,9 +2350,14 @@ internal static class RemoveFeature
         expect(Generate(two, widgets) == 0 && Generate(two, "Sprockets", "Sprocket", "--access", "owner", "--deletion", "anonymise") == 0, "(b) the generator refused a feature.");
         Commit(two);
         Refused(expect, "(b) a second owner feature", two, "Widgets", "Sprockets (generated, --access owner)", "error: Widgets holds the shared account-deletion files that Sprockets still depend on.");
-        expect(Invoke(two, "Sprockets", "--apply").Code == 0, "(b) the second owner feature was refused.");
+        var second = Invoke(two, "Sprockets", "--apply");
+
+        expect(second.Code == 0, $"(b) the second owner feature was refused: {second.Output}{second.Error}");
         Commit(two);
-        expect(Invoke(two, "Widgets", "--apply").Code == 0, "(b) the first owner feature was refused once it was the only one.");
+
+        var first = Invoke(two, "Widgets", "--apply");
+
+        expect(first.Code == 0, $"(b) the first owner feature was refused once it was the only one: {first.Output}{first.Error}");
         expect(Same(bare, Snapshot(two)), $"(b) after removing both owner features the tree is not the bare one: {Differences(bare, Snapshot(two))}");
 
         string notes = BareTree(scratch);

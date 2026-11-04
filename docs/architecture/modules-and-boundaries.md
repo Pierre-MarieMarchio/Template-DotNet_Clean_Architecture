@@ -54,6 +54,9 @@ The in-memory module is the one no host composes; see
 A feature uses another only through that feature's public application port or its domain events,
 never through its records, its EF configurations, its sets or its tables. The surface of a feature
 is two namespaces: `Ports` in the application project and `Model/Events` in the domain project.
+The feature that owns the data declares the port, to read or to change it; a request several
+features answer is a port declared once in `AppTemplate.Application.Core`, which each owner
+implements.
 
 The reason is extraction: each reference that reaches past a port is an edit the remaining feature
 would need before the other could leave. `FeatureIsolationTests` reads both the application and the
@@ -120,5 +123,5 @@ feature or several, so the tree says which files leave with a feature.
 
 ## Decisions
 
-- [0004. Features meet through ports and events](../decisions/0004-features-meet-through-ports-and-events.md)
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0034. Features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)

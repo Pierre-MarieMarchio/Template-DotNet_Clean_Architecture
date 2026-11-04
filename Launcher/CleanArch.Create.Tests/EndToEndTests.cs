@@ -124,6 +124,30 @@ public sealed partial class EndToEndTests : IDisposable
             "The decisions index of a project that added the MCP server differs from one generated with it: each row the starter's README adds must land at its number's rank.");
     }
 
+    [Fact]
+    public void TheWorkerAddedLater_ToAProjectWithAServerRenderedApp_PutsItsDecisionAtItsRankInTheIndex()
+    {
+        string package = PackTheTemplates();
+        string hive = Path.Combine(_root, "hive");
+        string generated = Path.Combine(_root, "generated");
+        string added = Path.Combine(_root, "added");
+        string[] app = ["--web", "angular", "--web-rendering", "ssr"];
+        DotNet(_root, ["new", "install", package, "--debug:custom-hive", hive]);
+
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", generated, .. app, "--presentation", "api", "--presentation", "worker", "--debug:custom-hive", hive]);
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", added, .. app, "--debug:custom-hive", hive]);
+        Run(added, "git", ["init", "--quiet"]);
+        Run(added, "git", ["add", "--all"]);
+        Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
+        DotNet(added, ["new", "cleanarch-presentation", "-n", "Worker", "--framework", "worker", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
+        DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Worker"]);
+
+        string[] index = File.ReadAllText(Path.Combine(added, _decisionIndex)).Split('\n');
+        string.Join('\n', index.Where(line => line != _supersededRow)).ShouldBe(
+            File.ReadAllText(Path.Combine(generated, _decisionIndex)),
+            "The decisions index of a project that added the worker after its server-rendered app differs from one generated with both: the worker's row must land at its number's rank, after 0024.");
+    }
+
     private const string _overview = "docs/getting-started/overview.md";
 
     private const string _apisJobsDecision = "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md";

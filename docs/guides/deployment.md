@@ -21,6 +21,42 @@ outside Development; [ADR 0021](../decisions/0021-sqlite-is-a-development-databa
 how to move to a server database. The rest of this page applies once the move is made.
 <!--#endif-->
 
+## The local stack is no model
+
+`docker-compose.yml` and `.env.example` run the whole project on one machine, for one developer, and
+each of their values trades safety for a start that needs nothing. A deployment copies none of them:
+
+| The local stack | A deployment |
+|---|---|
+<!--#if (api)-->
+| `ASPNETCORE_ENVIRONMENT=Development`, under which the API applies its migrations at start and serves its OpenAPI document and reference to anyone | `Production`, the default when the variable is unset |
+<!--#endif-->
+<!--#if (!api)-->
+| `ASPNETCORE_ENVIRONMENT=Development`, under which the hosts relax what they refuse elsewhere | `Production`, the default when the variable is unset |
+<!--#endif-->
+<!--#if (serverDatabase)-->
+| a database in a container, its password in `.env.example` for anyone to read, one principal for everything | a database you operate or rent, its password from a secret store, and a migration principal apart from the runtime one, as [migrations at release](#migrations-at-release) says |
+<!--#endif-->
+<!--#if (sqlite)-->
+| SQLite, in a file the containers share | a server database, as [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) says |
+<!--#endif-->
+| Mailpit, which catches every mail, reached without TLS (`EMAIL_SECURITY=None`, `EMAIL_ALLOW_INSECURE_TRANSPORT=true`) | a relay over `StartTls` or `SslOnConnect`, with `Email:AllowInsecureTransport` false |
+| plain HTTP on ports bound to `127.0.0.1` | TLS at the proxy in front, as [behind a proxy](#behind-a-proxy) says |
+<!--#if (api)-->
+| `Cors:AllowedOrigins` on `http://localhost:4200`, `AllowedHosts` at `*` | your own origins and host names |
+<!--#endif-->
+<!--#if (!api)-->
+| `AllowedHosts` at `*` | your own host names |
+<!--#endif-->
+<!--#if (localAuth)-->
+| the public development signing key, which the hosts refuse outside Development | a key of your own from the secret store; [rotating the signing key](rotating-the-signing-key.md) replaces it later |
+| passwords of 8 characters with no class required, a lockout of 1 minute after 10 failures, access tokens of 60 minutes, `JWT_REQUIRE_HTTPS_METADATA=false` | the defaults of [the configuration reference](../reference/configuration.md#identity-and-tokens), which `.env.example` overrides |
+| mailed links that open `http://localhost:8080` | the pages of your own front end |
+<!--#endif-->
+<!--#if (files)-->
+| an object store with a fixed access key, reached without TLS (`STORAGE_ALLOW_INSECURE_TRANSPORT=true`) | a bucket reached over TLS, with an instance role and no key in the configuration |
+<!--#endif-->
+
 <!--#if (api)-->
 ## The image
 
@@ -154,6 +190,35 @@ naming each key that failed. Take secrets from a secret manager, never from a tr
 `AllowedHosts` from `*` to the hosts you serve, in each `appsettings.json` that holds it.
 [The configuration reference](../reference/configuration.md) lists every key.
 <!--#endif-->
+<!--#if (localAuth)-->
+[Rotating the signing key](rotating-the-signing-key.md) replaces `Jwt:Key` without signing anyone
+out.
+<!--#endif-->
+
+### A secrets vault
+
+A vault that the platform does not turn into environment variables joins as one more configuration
+source, an `IConfigurationSource` from its vendor's package: Azure Key Vault's, AWS Systems Manager's
+or a HashiCorp Vault provider, for instance. This project ships none.
+
+1. Pin the package in `Directory.Packages.props` and reference it from each host that reads a secret
+   the vault holds; the advisory gate covers it as any other package.
+2. In each of those hosts' `Program.cs`, add the source right after the builder is created, before
+   the first `builder.Services` call: a module reads some values as it registers, the connection
+   string among them, and a source added after it is too late for that value.
+3. Mind the order: a source added there comes after the environment variables and the command line,
+   so the vault's value wins. Call `builder.Configuration.AddEnvironmentVariables()` again after it
+   when an environment variable must still override the vault.
+4. Store each secret under the key the configuration reference names: the provider maps its own
+   separator to `:`, which its documentation gives.
+5. Give the process the vault's address and its identity from the platform, a managed identity or an
+   instance role, never a credential in a file; the address is the one value the vault cannot hold.
+
+The validators then judge the merged configuration at start, so a required secret the vault alone
+holds passes, and one it lacks stops the host and names its key. A provider that cannot reach its
+vault throws as the configuration loads, before any validator runs, unless it is marked optional.
+Each options class is read once, at start: a secret changed in the vault reaches a host when it
+restarts. No value is logged: never log an options object or a dump of the configuration.
 
 ## Behind a proxy
 
@@ -213,6 +278,24 @@ probe, stays healthy while the process drains. Give the orchestrator a grace per
 timeout.
 <!--#endif-->
 
+<!--#if (ci && serverDatabase)-->
+## Verifying an image
+
+The release workflow attests the provenance of each image it pushes to GHCR, signed with the
+identity of the workflow run that built it, and attaches BuildKit's SBOM and provenance to the image
+itself. Before deploying an image, check that this repository's release built it:
+
+```bash
+gh attestation verify oci://ghcr.io/<owner>/<repository>/<component>@<digest> --repo <owner>/<repository>
+```
+
+`<component>` is the image's name in the release matrix of `.github/workflows/release.yml`, and
+`<digest>` the digest the release's summary prints, with the exact command. The check answers with
+the workflow and the commit that built the image, and fails for an image this repository's workflow
+did not attest. A private package needs `docker login ghcr.io` first. Deploy by digest, which a tag
+moved later cannot change.
+
+<!--#endif-->
 ## Before you go live
 
 [`SECURITY.md`](../../SECURITY.md) lists what a deployment must still do, and what this project does not

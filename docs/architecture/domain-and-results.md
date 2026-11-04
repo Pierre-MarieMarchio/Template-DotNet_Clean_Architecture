@@ -51,7 +51,8 @@ the same context commits a transaction of its own. A consumer implements
 logged and skipped, so delivery is at most once. Every consumer therefore re-derives its
 precondition when it runs and is idempotent by shape, and a sweep, not a retry, is the guarantee
 behind a fact that must not be lost. `DomainEventTests` fails when an event is neither consumed nor
-listed with the reason it is not.
+listed with the reason it is not. [Reaching another feature](../guides/reaching-another-feature.md#a-domain-event)
+shows how to raise one, consume it and test both.
 
 ## Result for expected failures, exceptions for bugs
 
@@ -99,6 +100,7 @@ Every message crosses the same pipeline, which `AddUseCasePipeline` registers on
 The validation behaviour answers a failure of the handler's own `Result` type through
 `IFailable<TSelf>`, so a handler starts from a message its validators accepted. Logging inside the
 handler is `ILogger`, and the transaction boundary is `IUnitOfWork`.
+[Adding a pipeline behaviour](../guides/adding-a-pipeline-behaviour.md) says how to add one.
 
 A command handler reads the caller, loads or creates, changes the aggregate, commits and maps:
 

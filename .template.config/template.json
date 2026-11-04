@@ -1849,6 +1849,7 @@
             "docs/decisions/0014-anonymous-routes-reveal-nothing.md",
             "docs/decisions/0015-passkeys-stand-on-their-own.md",
             "docs/decisions/0016-browser-refresh-token-in-a-cookie.md",
+            "docs/guides/rotating-the-signing-key.md",
             "Tests/EndToEnd/AT.EndToEnd.Tests/Accounts.cs",
             "Tests/EndToEnd/AT.EndToEnd.Tests/FileTransferTests.cs",
             "Tests/EndToEnd/AT.EndToEnd.Tests/Mailbox.cs",

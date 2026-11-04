@@ -1,4 +1,4 @@
-﻿# 0006. Events after commit, without an outbox
+# 0006. Events after commit, without an outbox
 
 Status: Accepted
 

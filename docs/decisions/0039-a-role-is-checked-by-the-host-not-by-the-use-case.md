@@ -1,4 +1,4 @@
-﻿# 0039. A role is checked by the host, not by the use case
+# 0039. A role is checked by the host, not by the use case
 
 Status: Accepted
 

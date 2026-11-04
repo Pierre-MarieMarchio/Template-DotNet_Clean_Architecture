@@ -1,4 +1,4 @@
-﻿# 0022. A presentation project reaches the core through the API or the application layer
+# 0022. A presentation project reaches the core through the API or the application layer
 
 Status: Accepted
 

@@ -1,4 +1,4 @@
-﻿# 0009. Ownership is in the query
+# 0009. Ownership is in the query
 
 Status: Accepted
 

@@ -1,4 +1,4 @@
-﻿# NNNN. <Title>
+# NNNN. <Title>
 
 Status: Proposed
 

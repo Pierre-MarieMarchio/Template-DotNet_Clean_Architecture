@@ -1,4 +1,4 @@
-﻿# Reaching another feature
+# Reaching another feature
 
 ## When
 

@@ -1,4 +1,4 @@
-﻿# Observability
+# Observability
 
 How to see what the API is doing: its logs, its metrics and traces, and its health probes.
 

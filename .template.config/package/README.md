@@ -1,4 +1,4 @@
-﻿# CleanArch.WebApi.Templates
+# CleanArch.WebApi.Templates
 
 [![NuGet](https://img.shields.io/nuget/v/CleanArch.WebApi.Templates?logo=nuget&label=NuGet)](https://www.nuget.org/packages/CleanArch.WebApi.Templates)
 [![CI](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/actions/workflows/ci.yml?query=branch%3Adevelop)

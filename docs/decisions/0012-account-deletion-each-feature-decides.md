@@ -1,4 +1,4 @@
-﻿# 0012. On account deletion, each feature decides
+# 0012. On account deletion, each feature decides
 
 Status: Accepted
 

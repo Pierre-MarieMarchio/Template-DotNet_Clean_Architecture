@@ -1,4 +1,4 @@
-﻿# 0037. A web app is deployed apart, behind a relay to the API
+# 0037. A web app is deployed apart, behind a relay to the API
 
 Status: Accepted
 

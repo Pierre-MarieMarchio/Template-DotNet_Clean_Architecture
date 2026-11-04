@@ -1,4 +1,4 @@
-﻿# 0017. External subjects map to internal owners
+# 0017. External subjects map to internal owners
 
 Status: Accepted
 

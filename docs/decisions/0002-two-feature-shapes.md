@@ -1,4 +1,4 @@
-﻿# 0002. Two feature shapes
+# 0002. Two feature shapes
 
 Status: Accepted
 

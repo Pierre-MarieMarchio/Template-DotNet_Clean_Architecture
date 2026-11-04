@@ -1,4 +1,4 @@
-﻿# 0016. The launcher draws only glyphs every console font carries
+# 0016. The launcher draws only glyphs every console font carries
 
 Status: Accepted
 

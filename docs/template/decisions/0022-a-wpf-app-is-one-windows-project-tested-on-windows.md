@@ -1,4 +1,4 @@
-﻿# 0022. A WPF app is one Windows project, tested on Windows
+# 0022. A WPF app is one Windows project, tested on Windows
 
 Status: Accepted
 

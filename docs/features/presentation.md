@@ -1,4 +1,4 @@
-﻿# Presentation projects
+# Presentation projects
 
 How each presentation project this project holds is created and composed, and how it signs people in or is called. Each has a section of its own after the shared ones.
 

@@ -1,4 +1,4 @@
-﻿# 0034. Features meet through ports their owner declares, and events
+# 0034. Features meet through ports their owner declares, and events
 
 Status: Accepted; supersedes ADR 0004
 

@@ -1080,6 +1080,7 @@ internal static partial class NewFeature
         var tokens = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["P"] = spec.Prefix,
+            ["LowerP"] = spec.Prefix.ToLowerInvariant(),
             ["F"] = f,
             ["A"] = a,
             ["L"] = l,
@@ -2641,6 +2642,18 @@ internal static partial class NewFeature
 
         expect(leaks.Length == 0, $"The template's own name leaked into: {string.Join(", ", leaks)}");
 
+        string firstOwner = NewTree(scratch, reaction: false);
+        var owned = Invoke(firstOwner, "Orders", "Order", "--access", "owner", "--deletion", "delete");
+        string[] ownedLeaks = [.. Directory.EnumerateFiles(firstOwner, "*", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("AppTemplate", StringComparison.OrdinalIgnoreCase))
+            .Select(path => System.IO.Path.GetRelativePath(firstOwner, path))];
+        string sweep = System.IO.Path.Combine(
+            firstOwner, "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData.cs");
+
+        expect(
+            owned.Code == 0 && ownedLeaks.Length == 0 && File.Exists(sweep) && File.ReadAllText(sweep).Contains("\"acme.accounts.sweep-deleted-data\"", StringComparison.Ordinal),
+            $"The deleted-account sweep of a project's first owner feature does not name its lease after the project, in any case: {owned.Error}{string.Join(", ", ownedLeaks)}");
+
         expect(result.Output.Contains("AddTodoLists", StringComparison.Ordinal), "The composition steps do not name AddTodoLists.");
         expect(result.Output.Contains("TodoListsSchema", StringComparison.Ordinal), "The composition steps do not name the schema constant.");
         expect(result.Output.Contains("migration-add", StringComparison.Ordinal), "The migration step is not printed.");
@@ -4076,7 +4089,7 @@ internal static partial class NewFeature
         ("aggregate, owner, delete", "84ca6f603f9825a0ee59f19e8c361f91b2602e32b17a017a009bb0d7da19da38"),
         ("aggregate, owner, anonymise", "af9ccf5589b50e3c8fc58e9d608dbaf6d32d0347474a77c288a4bf8fd976951e"),
         ("aggregate, shared", "243428d42bdb09feda6574751fecc0fa90ab22eae14397a61ff3648e40088a74"),
-        ("record, owner, delete, the project's first owner feature", "f7ac7e7ae67929722429d6dabaa88c87fa8ea08114a5d5861e8c7b3c7804a67f"),
+        ("record, owner, delete, the project's first owner feature", "8bcec6ec7addb54c4330ee9c92122e21923b76196883a5dc452728832f3796a8"),
         ("record, owner, delete, without the API", "202898ec8aab47611c279ef7d718969417b419a9e90eb22fcd1fe243dba64f3e"),
         ("record, owner, delete, on SQL Server", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
         ("record, owner, delete, on SQLite", "cbd08b65e7342c61910a236649ae780d3ce8fae0e5f64528a20020c966e0c977"),
@@ -8200,7 +8213,7 @@ internal static class Templates
             ILeaderLease lease,
             ILogger<SweepDeletedAccountDataCommandHandler> logger) : ICommandHandler<SweepDeletedAccountDataCommand, Result<int>>
         {
-            private const string _leaseName = "apptemplate.accounts.sweep-deleted-data";
+            private const string _leaseName = "%LowerP%.accounts.sweep-deleted-data";
 
             public async ValueTask<Result<int>> Handle(SweepDeletedAccountDataCommand command, CancellationToken cancellationToken)
             {

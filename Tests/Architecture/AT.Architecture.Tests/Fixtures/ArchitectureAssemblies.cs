@@ -14,9 +14,6 @@ using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
-//#if (files)
-using AppTemplate.Infrastructure.Storage;
-//#endif
 using AppTemplate.Presentation.Core;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
@@ -40,9 +37,6 @@ internal static class ArchitectureAssemblies
     //#endif
     internal const string EmailInfrastructureNamespace = "AppTemplate.Infrastructure.Email";
     internal const string InMemoryInfrastructureNamespace = "AppTemplate.Infrastructure.InMemory";
-    //#if (files)
-    internal const string StorageInfrastructureNamespace = "AppTemplate.Infrastructure.Storage";
-    //#endif
 
     internal const string PersistenceCommonNamespace = "AppTemplate.Infrastructure.Persistence.Common";
 
@@ -89,13 +83,13 @@ internal static class ArchitectureAssemblies
     private static readonly Lazy<Assembly> _inMemoryInfrastructure =
         new(() => Anchor(typeof(InMemoryModule), InMemoryInfrastructureNamespace));
 
-    //#if (files)
-    private static readonly Lazy<Assembly> _storageInfrastructure =
-        new(() => Anchor(typeof(StorageModule), StorageInfrastructureNamespace));
-
-    //#endif
     private static readonly Lazy<IReadOnlyList<Assembly>> _allInfrastructure =
         new(() => LayerAssemblies("Infrastructure"));
+
+    private static readonly Lazy<IReadOnlyList<Assembly>> _modulesBesidesPersistence =
+        new(() => LayerAssemblies("Infrastructure", project =>
+            ProjectReferenceGraph.IsInfrastructureModule(project.Name)
+            && !string.Equals(project.Name, PersistenceNamespace, StringComparison.Ordinal)));
 
     private static readonly Lazy<IReadOnlyList<Assembly>> _productionInfrastructure =
         new(() => LayerAssemblies("Infrastructure", module => ProjectReferenceGraph.Hosts
@@ -131,10 +125,8 @@ internal static class ArchitectureAssemblies
 
     internal static Assembly InMemoryInfrastructure => _inMemoryInfrastructure.Value;
 
-    //#if (files)
-    internal static Assembly StorageInfrastructure => _storageInfrastructure.Value;
+    internal static IReadOnlyList<Assembly> ModulesBesidesPersistence => _modulesBesidesPersistence.Value;
 
-    //#endif
     internal static IReadOnlyList<Assembly> ProductionInfrastructure => _productionInfrastructure.Value;
 
     internal static IReadOnlyList<Assembly> AllInfrastructure => _allInfrastructure.Value;

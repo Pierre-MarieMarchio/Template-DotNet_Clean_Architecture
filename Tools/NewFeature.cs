@@ -337,6 +337,7 @@ internal static partial class NewFeature
 
     private static List<TextEdits.Command> Steps(string root, Spec spec, bool migrated = false) =>
     [
+        TextEdits.Task(root, "docs-index"),
         TextEdits.Task(root, "build"),
         .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.FromLastBuild(root, "migration-add", $"Add{spec.Features}")],
         .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client"), built: true) : [],
@@ -1903,8 +1904,9 @@ internal static partial class NewFeature
             output.WriteLine("Each heading says what its section holds; replace those lines with what this feature does.");
         }
 
-        output.WriteLine(applied ? "Its row, added under ## Features in docs/README.md:" : "Then its row under ## Features in docs/README.md:");
-        output.WriteLine($"  {ReadmeRow(spec)}");
+        output.WriteLine(applied
+            ? "docs-index lists it in the index of docs/features, by the title and the description of its frontmatter."
+            : "Then docs-index lists it in the index of docs/features, by the title and the description of its frontmatter.");
 
         //#if (api)
         if (spec.HasApi)
@@ -1927,13 +1929,6 @@ internal static partial class NewFeature
             output.WriteLine($"  {ErrorRow(spec)}");
         }
         //#endif
-    }
-
-    private static string ReadmeRow(Spec spec)
-    {
-        string title = Separated(spec.Features, ' ');
-
-        return $"| [{char.ToUpperInvariant(title[0]) + title[1..]}](features/{Kebab(spec.Features)}.md) | what a caller can do with it |";
     }
 
     private static string ErrorRow(Spec spec) => $"| `{CSharpNames.Lower(spec.Type)}.notFound` | 404 | Missing, or another caller's |";
@@ -2078,9 +2073,6 @@ internal static partial class NewFeature
             editor.Step = $"the schema of {database}";
             editor.Place(database, ["AppDbContext.PlatformSchema,"], before: true, [$"            AppDbContext.{f}Schema,"], $"AppDbContext.{f}Schema,");
         }
-
-        editor.Step = "the row of docs/README.md";
-        editor.Row("docs/README.md", "## Features", ReadmeRow(spec), $"](features/{Kebab(f)}.md)");
 
         //#if (api)
         if (spec.HasApi)
@@ -2465,13 +2457,7 @@ internal static partial class NewFeature
             """
             # Documentation
 
-            ## Features
-
-            | Page | Answers |
-            |---|---|
-            | [Email](features/email.md) | how mail is sent |
-
-            ## Reference
+            ## Adding a page
 
             """),
         //#if (api)
@@ -2685,6 +2671,7 @@ internal static partial class NewFeature
             Launched(ran).SequenceEqual(
             [
                 "dotnet run Tools/Tasks.cs migration-check",
+                "dotnet run Tools/Tasks.cs docs-index",
                 "dotnet run Tools/Tasks.cs build",
                 "dotnet run Tools/Tasks.cs -- migration-add AddNotes --no-build",
                 "dotnet run Tools/Tasks.cs -- openapi --no-build",
@@ -2746,7 +2733,6 @@ internal static partial class NewFeature
             ("Src/Presentation/A.Api/Program.cs", "builder.Services.AddWidgets();"),
             ("Src/Presentation/A.Api/Program.cs", "using Acme.Application;"),
             ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "using Acme.Application;"),
-            ("docs/README.md", "| [Widgets](features/widgets.md) | what a caller can do with it |"),
             //#if (api)
             ("docs/reference/api.md", "Under `/api/v1/widgets`."),
             ("docs/reference/api.md", "| `widget.notFound` | 404 | Missing, or another caller's |"),
@@ -2828,14 +2814,15 @@ internal static partial class NewFeature
             }
 
             expect(
-                edits.Any(edit => edit.GetProperty("path").GetString() == "docs/README.md"),
-                "The manifest does not record the row of docs/README.md.");
+                edits.All(edit => edit.GetProperty("path").GetString() != "docs/README.md"),
+                "The manifest records an edit of docs/README.md, whose pages docs-index lists instead.");
         }
 
         expect(
             Launched(ran).SequenceEqual(
             [
                 "dotnet run Tools/Tasks.cs migration-check",
+                "dotnet run Tools/Tasks.cs docs-index",
                 "dotnet run Tools/Tasks.cs build",
                 "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build",
                 "dotnet run Tools/Tasks.cs -- openapi --no-build",
@@ -2857,7 +2844,6 @@ internal static partial class NewFeature
             ("Src/Presentation/A.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs", "        services.AddMaintenanceJobs(configuration);", "edit 9"),
             ("Src/Presentation/A.Api/Features/Auth/Composition/AuthComposition.cs", "        services.AddAuthModule(configuration);", "edit 10"),
             ("Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs", "internal sealed class ArchitectureTestBackgroundAuditActor : IAuditActor", "edit 11"),
-            ("docs/README.md", "## Features", "docs/README.md"),
             //#if (api)
             ("docs/reference/api.md", "## Error codes", "the route section"),
             //#endif
@@ -2932,8 +2918,8 @@ internal static partial class NewFeature
             afterFirst.All(pair => afterAgain.TryGetValue(pair.Key, out string? hash) && hash == pair.Value),
             "Running the same command again changed a file.");
         expect(
-            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
-            $"Running the same command again did not resume with the build and the OpenAPI reference from it alone: {string.Join(" | ", Launched(ran))}");
+            Launched(ran).SequenceEqual(["dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- openapi --no-build"]),
+            $"Running the same command again did not resume with the index, the build and the OpenAPI reference from it alone: {string.Join(" | ", Launched(ran))}");
 
         foreach (string line in new[] { "builder.Services.AddWidgets();", "using Acme.Application;" })
         {
@@ -3006,7 +2992,7 @@ internal static partial class NewFeature
         expect(result.Code == 1, "A failed step did not fail the command.");
         expect(
             ran.Select(command => command.Display).SequenceEqual(
-                ["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build"]),
+                ["dotnet run Tools/Tasks.cs migration-check", "dotnet run Tools/Tasks.cs docs-index", "dotnet run Tools/Tasks.cs build", "dotnet run Tools/Tasks.cs -- migration-add AddWidgets --no-build"]),
             $"The steps did not stop at the one that failed: {string.Join(" | ", ran.Select(command => command.Display))}");
         expect(
             result.Error.Contains("then `dotnet run Tools/Tasks.cs build`", StringComparison.Ordinal)
@@ -3098,7 +3084,6 @@ internal static partial class NewFeature
         "Src/Presentation/A.Api/Program.cs",
         "Tests/Architecture/A.Architecture.Tests/Composition/HostComposition.cs",
         "Tests/Application/A.Application.UnitTests/ApplicationModuleTests.cs",
-        "docs/README.md",
         //#if (api)
         "docs/reference/api.md",
         //#endif
@@ -3778,7 +3763,7 @@ internal static partial class NewFeature
         }
 
         expect(result.Output.Contains($"Feature page: {pagePath}", StringComparison.Ordinal), "The page written was not reported.");
-        expect(result.Output.Contains("| [Todo lists](features/todo-lists.md) |", StringComparison.Ordinal), "The row of docs/README.md was not printed.");
+        expect(result.Output.Contains("docs-index lists it in the index of docs/features", StringComparison.Ordinal), "The index that lists the page was not named.");
         //#if (api)
         expect(result.Output.Contains("Under `/api/v1/todo-lists`.", StringComparison.Ordinal), "The route section of docs/reference/api.md was not printed.");
         expect(result.Output.Contains("| GET, HEAD | `/{todoListId}` | 200 | |", StringComparison.Ordinal), "The row of the get route was not printed.");
@@ -4099,27 +4084,27 @@ internal static partial class NewFeature
     private static readonly (string Group, string Digest)[] _withoutFieldsDigests =
     [
         /*#if (api)*/
-        ("record, owner, delete", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
-        ("record, owner, anonymise", "0cf7120009b637161c96f36121de5d578ffca153e9494c9cf3f8118d630f2b5f"),
-        ("record, shared", "a81685781a3374c06df0b09e2dfa1f47756744c5373a07f800558afccabdf224"),
-        ("aggregate, owner, delete", "84ca6f603f9825a0ee59f19e8c361f91b2602e32b17a017a009bb0d7da19da38"),
-        ("aggregate, owner, anonymise", "af9ccf5589b50e3c8fc58e9d608dbaf6d32d0347474a77c288a4bf8fd976951e"),
-        ("aggregate, shared", "243428d42bdb09feda6574751fecc0fa90ab22eae14397a61ff3648e40088a74"),
-        ("record, owner, delete, the project's first owner feature", "8bcec6ec7addb54c4330ee9c92122e21923b76196883a5dc452728832f3796a8"),
-        ("record, owner, delete, on SQL Server", "664d6b27072c850940802845315559240056e1f95d13c7357dfd79d9941df88c"),
-        ("record, owner, delete, on SQLite", "cbd08b65e7342c61910a236649ae780d3ce8fae0e5f64528a20020c966e0c977"),
+        ("record, owner, delete", "dedec882b72f7798c6172fa98371346c0173dc2b074157d1b2df38b6734d8d69"),
+        ("record, owner, anonymise", "55cbec749bea3412a5dd0798ec32a47530e212d60997e4b9758438db2780c04a"),
+        ("record, shared", "2d423d1da491cc43cb9ab02a761b402df91f3c6c02f61665e355e1d8ab96d205"),
+        ("aggregate, owner, delete", "9f81e8da50252bc7902f5d5ab3aa903744b4b914ffac55dd0badc943c13739b7"),
+        ("aggregate, owner, anonymise", "20fc1f4c1d01a24d53254e79c3215743b90c86e356589c25cce135faf3092586"),
+        ("aggregate, shared", "56052633be33f4280597983808e823a3c2c429e98c812791c4f4314ce874721a"),
+        ("record, owner, delete, the project's first owner feature", "0049f3f35eff474acc5a6bd1ef107462605b5543ee9dde5ed25ca0797e90aef7"),
+        ("record, owner, delete, on SQL Server", "dedec882b72f7798c6172fa98371346c0173dc2b074157d1b2df38b6734d8d69"),
+        ("record, owner, delete, on SQLite", "411f16a04c8b4df412eeb253906391c8f1ccba3d0a3b81fd8d5d7fa9ee6325c3"),
         /*#else
-        ("record, owner, delete", "e09dac29eb910bcc4edb08a483dcc60585d739221d4931d5c3b07efc14e37fce"),
-        ("record, owner, anonymise", "b42c28a119106ca16ca5d06ca1a604b91006dcae0a6f9724e6c501c09ca69f72"),
-        ("record, shared", "a671308862c036b393622ef63d334e4fd77fc2ba25d9092875a0aad0ee009f48"),
-        ("aggregate, owner, delete", "5f995f7c75b375ca08bfe4c6c6c5e45b4bd613cb8c7a04866022997646532396"),
-        ("aggregate, owner, anonymise", "8a3ed687af8a823c8211d4a926be804910b22b74107a3c8d36c200d5f1c02683"),
-        ("aggregate, shared", "04aa9a672cb51784daef91cd5b441bd3c1378b19b3fe211935783df90f4a0649"),
-        ("record, owner, delete, the project's first owner feature", "310c06113deb7e77b10595a1a8b6f7892fc625cf2d89917185022f10f2c67711"),
-        ("record, owner, delete, on SQL Server", "e09dac29eb910bcc4edb08a483dcc60585d739221d4931d5c3b07efc14e37fce"),
-        ("record, owner, delete, on SQLite", "95ddcc7feae848c82b7fa74baaa9d0aba0840f9868cc74c52baee912adbd8687"),
+        ("record, owner, delete", "4a2c5b4ac5f7bf8d4d41617cc11fc539528401541d7d2eb2e2a93dac2b365818"),
+        ("record, owner, anonymise", "5281ee2a32d12a506f48a332cce251c88028b1f42703751534e597a8f05d824f"),
+        ("record, shared", "f4fd86aca3e82d6262a30c3d4dab6150fbea169ddb2061daa70519ca586707ee"),
+        ("aggregate, owner, delete", "64045e313524995e0e3e09ad8b4a997e80ff12af151e5fe9f2fa345be8fe5695"),
+        ("aggregate, owner, anonymise", "5b0ff99a545b5806cbad6b38a9569f45eee493139156dc2f2ba946172f9936c6"),
+        ("aggregate, shared", "09e22ca8b9ba52b303f097e8e165179b63f33c046aab5eda9c98562bd600b8b0"),
+        ("record, owner, delete, the project's first owner feature", "f2f7789a9ade0e9be295c1fe383a426f83a63e96ac57e843201a53f3150287b2"),
+        ("record, owner, delete, on SQL Server", "4a2c5b4ac5f7bf8d4d41617cc11fc539528401541d7d2eb2e2a93dac2b365818"),
+        ("record, owner, delete, on SQLite", "68818710c077dbbfb78b54da0342b4b53d8b50f6fd41d2847b75cac2b28060e7"),
         #endif*/
-        ("record, owner, delete, without the API", "202898ec8aab47611c279ef7d718969417b419a9e90eb22fcd1fe243dba64f3e"),
+        ("record, owner, delete, without the API", "d33c0d150d1059e252ff9d5fc888c6e6c2490f037011f04f91b8f1b89cc5f0a6"),
     ];
 
     private static void InstantCases(string scratch, Action<bool, string> expect)

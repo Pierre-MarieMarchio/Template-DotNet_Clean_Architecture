@@ -1637,6 +1637,8 @@
             "LICENSE",
             "docs/template/**",
             "docs/plans/**",
+            "docs/index.md",
+            "docs/**/index.md",
             "Tests/Integration/AT.Api.IntegrationTests/OpenApi/v1.json",
             "docs/guide_architecture_pour_agent.md",
             "CHANGELOG.md",

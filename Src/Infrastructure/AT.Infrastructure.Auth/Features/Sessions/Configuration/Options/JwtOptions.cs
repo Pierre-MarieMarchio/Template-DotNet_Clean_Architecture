@@ -15,6 +15,8 @@ public sealed class JwtOptions
 
     public string Key { get; set; } = string.Empty;
 
+    public IList<string> PreviousKeys { get; } = [];
+
     public string Issuer { get; set; } = string.Empty;
 
     public string Audience { get; set; } = string.Empty;
@@ -23,33 +25,36 @@ public sealed class JwtOptions
 
     public int AccessTokenLifetimeInMinutes { get; set; } = 15;
 
-    internal SymmetricSecurityKey CreateSigningKey() => new(Encoding.UTF8.GetBytes(Key));
+    internal SymmetricSecurityKey CreateSigningKey() => CreateKey(Key);
+
+    internal IEnumerable<SymmetricSecurityKey> CreateValidationKeys() =>
+        [CreateSigningKey(), .. PreviousKeys.Select(CreateKey)];
+
+    private static SymmetricSecurityKey CreateKey(string key) => new(Encoding.UTF8.GetBytes(key));
 }
 
 internal sealed class JwtOptionsValidator(IHostEnvironment environment) : IValidateOptions<JwtOptions>
 {
+    private const string _developmentKeyRemedy =
+        $"Outside Development, supply a secret of your own as '{JwtOptions.SectionName}:Key' " +
+        "(environment variable Jwt__Key, or JWT_KEY in .env for Docker Compose).";
+
     public ValidateOptionsResult Validate(string? name, JwtOptions options)
     {
         var failures = new List<string>();
 
+        var key = $"{JwtOptions.SectionName}:Key";
+
         if (string.IsNullOrWhiteSpace(options.Key))
         {
-            failures.Add($"'{JwtOptions.SectionName}:Key' is required.");
+            failures.Add($"'{key}' is required.");
         }
-        else if (Encoding.UTF8.GetByteCount(options.Key) < JwtOptions.MinimumKeyLengthInBytes)
+        else if (KeyFailure(key, options.Key, _developmentKeyRemedy) is { } failure)
         {
-            failures.Add(
-                $"'{JwtOptions.SectionName}:Key' must be at least {JwtOptions.MinimumKeyLengthInBytes} bytes " +
-                "long to sign HS256 tokens.");
+            failures.Add(failure);
         }
-        else if (!environment.IsDevelopment()
-            && options.Key.StartsWith(JwtOptions.DevelopmentKeyPrefix, StringComparison.Ordinal))
-        {
-            failures.Add(
-                $"'{JwtOptions.SectionName}:Key' is the development key the template ships, which is public. " +
-                $"Outside Development, supply a secret of your own as '{JwtOptions.SectionName}:Key' " +
-                "(environment variable Jwt__Key, or JWT_KEY in .env for Docker Compose).");
-        }
+
+        failures.AddRange(PreviousKeyFailures(options));
 
         if (string.IsNullOrWhiteSpace(options.Issuer))
         {
@@ -67,5 +72,51 @@ internal sealed class JwtOptionsValidator(IHostEnvironment environment) : IValid
         }
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    private IEnumerable<string> PreviousKeyFailures(JwtOptions options)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        for (int index = 0; index < options.PreviousKeys.Count; index++)
+        {
+            string previous = options.PreviousKeys[index];
+            var name = $"{JwtOptions.SectionName}:{nameof(JwtOptions.PreviousKeys)}:{index}";
+
+            if (string.IsNullOrWhiteSpace(previous))
+            {
+                yield return $"'{name}' is empty; remove it from '{JwtOptions.SectionName}:{nameof(JwtOptions.PreviousKeys)}'.";
+            }
+            else if (string.Equals(previous, options.Key, StringComparison.Ordinal))
+            {
+                yield return
+                    $"'{name}' is the current '{JwtOptions.SectionName}:Key'; a previous key is one tokens are " +
+                    "no longer signed with.";
+            }
+            else if (!seen.Add(previous))
+            {
+                yield return $"'{name}' repeats an earlier previous key.";
+            }
+            else if (KeyFailure(name, previous, "Remove it: a token it signed proves nothing.") is { } failure)
+            {
+                yield return failure;
+            }
+        }
+    }
+
+    private string? KeyFailure(string name, string key, string developmentKeyRemedy)
+    {
+        if (Encoding.UTF8.GetByteCount(key) < JwtOptions.MinimumKeyLengthInBytes)
+        {
+            return $"'{name}' must be at least {JwtOptions.MinimumKeyLengthInBytes} bytes long to sign HS256 tokens.";
+        }
+
+        if (!environment.IsDevelopment()
+            && key.StartsWith(JwtOptions.DevelopmentKeyPrefix, StringComparison.Ordinal))
+        {
+            return $"'{name}' is the development key the template ships, which is public. {developmentKeyRemedy}";
+        }
+
+        return null;
     }
 }

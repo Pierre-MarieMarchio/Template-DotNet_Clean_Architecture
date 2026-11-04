@@ -2638,23 +2638,28 @@ internal static partial class NewFeature
         expect(controller.Contains("[Route(\"api/v{version:apiVersion}/todo-lists\")]", StringComparison.Ordinal), "The route is not the kebab-case of the folder.");
         expect(controller.Contains("namespace Acme.Api.Features.TodoLists.Controllers;", StringComparison.Ordinal), "The controller's namespace is not its project and folders.");
 
+        string firstOwner = NewTree(scratch, reaction: false);
+        var owned = Invoke(firstOwner, "Orders", "Order", "--access", "owner", "--deletion", "delete");
+        string sweep = System.IO.Path.Combine(
+            firstOwner, "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData.cs");
+
+        expect(
+            owned.Code == 0 && File.Exists(sweep) && File.ReadAllText(sweep).Contains("\"acme.accounts.sweep-deleted-data\"", StringComparison.Ordinal),
+            $"The deleted-account sweep of a project's first owner feature does not name its lease after the project: {owned.Error}");
+        //#if (templateMaintenance)
+
         string[] leaks = [.. Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .Where(path => File.ReadAllText(path).Contains("AppTemplate", StringComparison.Ordinal))
             .Select(path => System.IO.Path.GetRelativePath(root, path))];
 
         expect(leaks.Length == 0, $"The template's own name leaked into: {string.Join(", ", leaks)}");
 
-        string firstOwner = NewTree(scratch, reaction: false);
-        var owned = Invoke(firstOwner, "Orders", "Order", "--access", "owner", "--deletion", "delete");
         string[] ownedLeaks = [.. Directory.EnumerateFiles(firstOwner, "*", SearchOption.AllDirectories)
             .Where(path => File.ReadAllText(path).Contains("AppTemplate", StringComparison.OrdinalIgnoreCase))
             .Select(path => System.IO.Path.GetRelativePath(firstOwner, path))];
-        string sweep = System.IO.Path.Combine(
-            firstOwner, "Src/Application/A.Application.Core/Features/DeletedAccounts/UseCases/Commands/SweepDeletedAccountData/SweepDeletedAccountData.cs");
 
-        expect(
-            owned.Code == 0 && ownedLeaks.Length == 0 && File.Exists(sweep) && File.ReadAllText(sweep).Contains("\"acme.accounts.sweep-deleted-data\"", StringComparison.Ordinal),
-            $"The deleted-account sweep of a project's first owner feature does not name its lease after the project, in any case: {owned.Error}{string.Join(", ", ownedLeaks)}");
+        expect(ownedLeaks.Length == 0, $"The template's own name leaked, in some case, into a project's first owner feature: {string.Join(", ", ownedLeaks)}");
+        //#endif
 
         expect(result.Output.Contains("AddTodoLists", StringComparison.Ordinal), "The composition steps do not name AddTodoLists.");
         expect(result.Output.Contains("TodoListsSchema", StringComparison.Ordinal), "The composition steps do not name the schema constant.");

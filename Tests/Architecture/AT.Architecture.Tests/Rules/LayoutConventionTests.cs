@@ -7,8 +7,6 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed class LayoutConventionTests
 {
-    private const string _productPrefix = "AppTemplate";
-
     private static readonly Dictionary<string, string[]?> _vocabulary = new(StringComparer.Ordinal)
     {
         ["Src/Application/AT.Application"] =
@@ -439,7 +437,7 @@ public sealed class LayoutConventionTests
                 offenders.Add(
                     $"{project.Name}: '{loose[0]}' sits at its root, which is none of 'Program.cs', " +
                     $"'{ModuleFileName(project.Name)}' or " +
-                    $"'{QualifiedModuleFileName(project.Name)}'.");
+                    $"'{QualifiedModuleFileName(ProjectFolders.ProductName, project.Name)}'.");
             }
 
             offenders.AddRange(Directory
@@ -461,6 +459,13 @@ public sealed class LayoutConventionTests
             "A folder even for a single file. The root is where a file goes when nobody decided " +
             "where it goes, so it holds the one file that composes the project and nothing else.");
     }
+
+    [Theory]
+    [InlineData("n", "n.Application.Core", "ApplicationCoreModule.cs")]
+    [InlineData("ion", "ion.Application.Auth", "ApplicationAuthModule.cs")]
+    [InlineData("Acme.Shop", "Acme.Shop.Infrastructure.Persistence", "InfrastructurePersistenceModule.cs")]
+    public void TheQualifiedModuleFile_DropsTheProductsNameWhereTheProjectsNameStarts_NotInsideAWord(string product, string project, string file) =>
+        QualifiedModuleFileName(product, project).ShouldBe(file);
 
     private static readonly Regex _fileScopedNamespace = new(
         @"^namespace\s+([A-Za-z_][A-Za-z0-9_.]*)\s*;",
@@ -715,9 +720,8 @@ public sealed class LayoutConventionTests
     private static string ModuleFileName(string projectName) =>
         $"{projectName[(projectName.LastIndexOf('.') + 1)..]}Module.cs";
 
-    private static string QualifiedModuleFileName(string projectName) =>
-        $"{projectName.Replace($"{_productPrefix}.", string.Empty, StringComparison.Ordinal)
-            .Replace(".", string.Empty, StringComparison.Ordinal)}Module.cs";
+    private static string QualifiedModuleFileName(string product, string projectName) =>
+        $"{ProjectFolders.PartOf(product, projectName).Replace(".", string.Empty, StringComparison.Ordinal)}Module.cs";
 
     private static string ConceptOf(string word) =>
         word.Split('/')[0];
@@ -728,7 +732,7 @@ public sealed class LayoutConventionTests
     private static bool IsCompositionFile(string projectName, string fileName) =>
         fileName is "Program.cs"
         || string.Equals(fileName, ModuleFileName(projectName), StringComparison.Ordinal)
-        || string.Equals(fileName, QualifiedModuleFileName(projectName), StringComparison.Ordinal);
+        || string.Equals(fileName, QualifiedModuleFileName(ProjectFolders.ProductName, projectName), StringComparison.Ordinal);
 
     private static HashSet<string> PublicTypesIn(string file) =>
         [.. _publicTypeDeclaration

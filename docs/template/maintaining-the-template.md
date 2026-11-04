@@ -218,7 +218,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 
 | A change to | Runs |
 |---|---|
-| `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
+| `docs/template`, the plans, `Launcher`, `README.md`, the package's readme, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
@@ -797,7 +797,8 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
 | Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview and its `cleanarch.json`, as [template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) allows |
-| Metadata | id, authors, description, tags, licence, the repository `README.md`, `CHANGELOG.md` and `.template.config/icon.png`, all in the package project, at the package's root and outside `content/`, so no project receives them |
+| Metadata | id, authors, description, tags, licence, `CHANGELOG.md`, `.template.config/icon.png` and `.template.config/package/README.md`, all in the package project, at the package's root and outside `content/`, so no project receives them |
+| Readme | `.template.config/package/README.md`, not the repository's: nuget.org renders Markdown without HTML, and neither a relative link or image nor an image from a host it does not allow; `TemplatePackagingTests` holds each package's readme, the launcher's and the project tool's among them, to that |
 
 ## Branches and releases
 

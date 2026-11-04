@@ -1242,7 +1242,7 @@ public sealed class TemplatePackagingTests
     private static readonly Regex _identifier = new(@"\b[A-Za-z_]\w*\b", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     private static readonly string[] _outsideTheProject =
-        [".git", ".nuget", ".template.config", "Launcher", "artifacts", "bin", "obj", "node_modules", "TestResults", ".vs", ".claude", ".idea", "template"];
+        [".git", ".nuget", ".template.config", "Launcher", "artifacts", "bin", "obj", "node_modules", "TestResults", ".sonarqube", ".vs", ".claude", ".idea", "template"];
 
     private static string StartersFolder => Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "starters");
 

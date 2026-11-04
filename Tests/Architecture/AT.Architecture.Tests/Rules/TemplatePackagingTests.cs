@@ -22,6 +22,24 @@ public sealed class TemplatePackagingTests
 
     private static readonly byte[] _utf8Bom = [0xEF, 0xBB, 0xBF];
 
+    private const string _repositoryOwner = "Pierre-MarieMarchio";
+
+    private const string _repositoryName = "cleanarch-dotnet";
+
+    private const string _repositoryUrl = $"https://github.com/{_repositoryOwner}/{_repositoryName}";
+
+    private static readonly string[] _packageProjects =
+    [
+        ".template.config/TemplatePackage.csproj",
+        "Launcher/CleanArch.Create/CleanArch.Create.csproj",
+        "Launcher/CleanArch.Cli/CleanArch.Cli.csproj",
+    ];
+
+    private static readonly Regex _ownersRepository = new(
+        $@"github\.com[/:]{_repositoryOwner}/(?<repository>[A-Za-z0-9_.-]+?)(?:\.git)?(?=[/)\]\s""'<>#?`]|$)",
+        RegexOptions.IgnoreCase | RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex _guid = new(
         "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
         RegexOptions.None,
@@ -444,6 +462,50 @@ public sealed class TemplatePackagingTests
 
         overview.ShouldContain($"version {token} of", Case.Sensitive, "docs/getting-started/overview.md no longer holds the token templateVersion replaces.");
         overview.ShouldContain($"`{packageId}`", Case.Sensitive, "docs/getting-started/overview.md no longer names the PackageId of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
+    public void EveryLinkToTheRepository_NamesItsCurrentName()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        var links = RepositoryTextFiles(root)
+            .SelectMany(file => _ownersRepository.Matches(File.ReadAllText(file))
+                .Select(match => (File: Path.GetRelativePath(root, file), Link: match.Value, Repository: match.Groups["repository"].Value)))
+            .ToList();
+
+        links.Count.ShouldBeGreaterThanOrEqualTo(10, "Far fewer links to the repository were found than the tree holds, so this rule is reading the wrong files.");
+        links
+            .Where(link => !link.Repository.Equals(_repositoryName, StringComparison.OrdinalIgnoreCase))
+            .Select(link => $"{link.File}: {link.Link}")
+            .ShouldBeEmpty(
+                $"A link names a repository of {_repositoryOwner} other than {_repositoryUrl}, where the template lives: " +
+                "point it there. Only CHANGELOG.md keeps the links release-please wrote.");
+    }
+
+    [Fact]
+    public void EveryPackage_NamesTheRepositoryAsItsSourceAndItsProject()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        foreach (string package in _packageProjects)
+        {
+            var project = XDocument.Load(Path.Combine(root, package));
+            project.Descendants("RepositoryUrl").Single().Value.ShouldBe(_repositoryUrl, $"{package} names another repository as its source.");
+            project.Descendants("PackageProjectUrl").Single().Value.ShouldBe(_repositoryUrl, $"{package} names another repository as its project page.");
+        }
+    }
+
+    private static IEnumerable<string> RepositoryTextFiles(string root)
+    {
+        string[] skipped = [".git", ".claude", ".vs", ".idea", ".sonarqube", "bin", "obj", "node_modules", "TestResults", "artifacts", "plans"];
+        string[] textExtensions = [".md", ".cs", ".csproj", ".props", ".targets", ".json", ".yml", ".yaml", ".xml", ".txt", ".http", ".sh", ".ps1", ".ts", ".js", ".html"];
+
+        return new DirectoryInfo(root).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Where(file => !Path.GetRelativePath(root, file.FullName).Split(Path.DirectorySeparatorChar).SkipLast(1).Any(skipped.Contains))
+            .Where(file => textExtensions.Contains(file.Extension, StringComparer.OrdinalIgnoreCase) || file.Name is ".env.example" or "Dockerfile")
+            .Where(file => Path.GetRelativePath(root, file.FullName) != "CHANGELOG.md")
+            .Select(file => file.FullName);
     }
 
     [Fact]

@@ -27,27 +27,27 @@ template, and `blazor-server` is `dotnet new blazor` with server interactivity.
 Each group comes in no fixed order:
 
 - **The other templates of `create-vite`**
-  ([#118](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/118)):
+  ([#118](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/118)):
   Solid, Preact, Lit, Qwik and plain TypeScript.
 - **Web frameworks with their own generator**
-  ([#119](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/119)):
+  ([#119](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/119)):
   Ember; then SvelteKit, Nuxt, Analog and Astro in their static form, each needing only its
   starter and a marker giving it the hash step React Router's image build already has, their server
   form then an `ssr/` folder of that starter, as Angular's and React Router's are; Next last, whose static export goes against the
   framework's grain.
 - **Desktop and mobile clients of the API**
-  ([#120](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/120)):
+  ([#120](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/120)):
   WPF and Windows Forms, built on a Windows runner; .NET MAUI; Uno Platform; WinUI, which has no
   `dotnet new` template and so is written by the template.
 - **Server hosts on the application layer**
-  ([#121](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/121)):
+  ([#121](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/121)):
   MVC, Razor Pages, gRPC and a console.
 - **Around the apps**
-  ([#122](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/122)): 
+  ([#122](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/122)): 
   Playwright flows beyond the browser smoke of each web app, Storybook, and mobile apps from Expo or
   Capacitor on the same API client.
 - **A project's tasks from a pinned .NET tool**
-  ([#163](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/163)):
+  ([#163](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/163)):
   `Tools/Tasks.cs` and its generators leave the generated tree for `dotnet cleanarch`, pinned
   beside `dotnet-ef`, which also takes over the launcher's additions, so that `dnx CleanArch.Create`
   only creates; a team changes the tool through its configuration, its code templates, its local
@@ -67,6 +67,6 @@ Each group comes in no fixed order:
 ## Proposing an item
 
 Ask for a framework, a host or a change of order through
-[the repository's issue forms](https://github.com/Pierre-MarieMarchio/Template-DotNet_Clean_Architecture/issues/new/choose);
+[the repository's issue forms](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/new/choose);
 each item above has its issue, labelled `roadmap`, where its discussion happens.
 [Contributing](../../CONTRIBUTING.md#working-on-the-template) says how a change reaches the template.

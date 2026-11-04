@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0009. Ownership is in the query
+description: Why the owner is in every query's predicate, so another caller's record answers 404 exactly as a missing one.
+status: Accepted
+---
+
 # 0009. Ownership is in the query
 
 Status: Accepted

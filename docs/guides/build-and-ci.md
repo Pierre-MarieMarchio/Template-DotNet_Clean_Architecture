@@ -1,3 +1,9 @@
+---
+type: guide
+title: Build and CI
+description: Which task builds, checks and tests this project, what the gate holds, and what each workflow runs.
+---
+
 # Build and CI
 
 ## The task launcher

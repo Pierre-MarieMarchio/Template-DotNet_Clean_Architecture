@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0004. Features meet through ports and events
+description: Why a feature used another only through its public port or its domain events, before ports their owner declares replaced the rule.
+status: Superseded
+---
+
 # 0004. Features meet through ports and events
 
 Status: Superseded by [0034](0034-features-meet-through-ports-their-owner-declares-and-events.md)

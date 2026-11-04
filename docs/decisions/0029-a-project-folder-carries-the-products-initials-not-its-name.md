@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0029. A project folder carries the product's initials, not its name
+description: Why a project's folder carries the product's initials in place of its name, and how the initials are drawn.
+status: Accepted
+---
+
 # 0029. A project folder carries the product's initials, not its name
 
 Status: Accepted

@@ -1,3 +1,9 @@
+---
+type: guide
+title: Roadmap
+description: What is coming to the template, in the order it is built, and what it leaves out on purpose.
+---
+
 # Roadmap
 
 What is coming to the template, in the order it is built, and what it leaves out on purpose. Each

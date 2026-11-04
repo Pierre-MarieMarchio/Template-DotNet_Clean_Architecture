@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0013. A session is a refresh-token family
+description: Why a session is the family of refresh tokens one sign-in starts, and how its owner lists and ends it.
+status: Accepted
+---
+
 # 0013. A session is a refresh-token family
 
 Status: Accepted

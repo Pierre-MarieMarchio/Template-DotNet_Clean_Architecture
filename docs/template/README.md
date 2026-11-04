@@ -1,3 +1,9 @@
+---
+type: reference
+title: The template
+description: Which page covers using or maintaining the dotnet new template this repository is.
+---
+
 # The template
 
 These pages are about the `dotnet new` template this repository is, not about the project it

@@ -1,3 +1,9 @@
+---
+type: guide
+title: First run
+description: How to go from a fresh clone to a running stack, bootstrapped once, and see its hosts answer.
+---
+
 # First run
 
 <!--#if (canAddFeature && api)-->

@@ -1,3 +1,9 @@
+---
+type: feature
+title: Web front end
+description: How the web apps run beside the API, call it, and sign their users in.
+---
+
 # Web front end
 
 How web apps run beside the API in this project, call it, and sign their users in.

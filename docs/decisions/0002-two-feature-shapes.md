@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0002. Two feature shapes
+description: Why a feature takes one of two shapes, an aggregate or a service over a store, and the question that chooses.
+status: Accepted
+---
+
 # 0002. Two feature shapes
 
 Status: Accepted

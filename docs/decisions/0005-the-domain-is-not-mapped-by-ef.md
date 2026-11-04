@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0005. The domain is not mapped by EF
+description: Why EF maps row records and never the domain types, and how an aggregate is persisted through rows, a mapper and a store.
+status: Accepted
+---
+
 # 0005. The domain is not mapped by EF
 
 Status: Accepted

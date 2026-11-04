@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0014. A Windows-only shape is proved on a Windows runner
+description: Why a generated shape that builds only on Windows is proved by an acceptance leg on a Windows runner.
+status: Accepted
+---
+
 # 0014. A Windows-only shape is proved on a Windows runner
 
 Status: Accepted

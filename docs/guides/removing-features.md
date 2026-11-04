@@ -1,3 +1,9 @@
+---
+type: guide
+title: Removing features
+description: How to remove a feature, an example or another part this project no longer needs.
+---
+
 # Removing features
 
 ## When

@@ -1,3 +1,10 @@
+---
+type: decision
+title: 0026. The launcher and the project's tool read the templates' manifests
+description: Why the launcher and the project's tool both ask their questions from the templates' own manifests.
+status: Accepted
+---
+
 # 0026. The launcher and the project's tool read the templates' manifests
 
 Status: Accepted; supersedes [0004](0004-the-launcher-reads-the-templates-manifests.md)

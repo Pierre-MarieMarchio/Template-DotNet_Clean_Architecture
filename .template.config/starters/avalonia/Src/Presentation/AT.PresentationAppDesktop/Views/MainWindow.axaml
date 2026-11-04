@@ -11,8 +11,8 @@
     <TextBlock Text="{Binding ApiAddress, StringFormat='API: {0}'}" />
 <!--#if (localAuth)-->
     <StackPanel Spacing="8" IsVisible="{Binding SignedInAs, Converter={x:Static ObjectConverters.IsNull}}">
-      <TextBox Watermark="Email" Text="{Binding Email}" />
-      <TextBox Watermark="Password" PasswordChar="•" Text="{Binding Password}" />
+      <TextBox PlaceholderText="Email" Text="{Binding Email}" />
+      <TextBox PlaceholderText="Password" PasswordChar="•" Text="{Binding Password}" />
       <Button Content="Sign in" Command="{Binding SignInCommand}" />
     </StackPanel>
     <StackPanel Spacing="8" IsVisible="{Binding SignedInAs, Converter={x:Static ObjectConverters.IsNotNull}}">

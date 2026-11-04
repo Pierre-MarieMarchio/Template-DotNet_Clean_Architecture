@@ -221,6 +221,35 @@ public sealed class LocalStackParityTests
     }
 
     [Fact]
+    public async Task AWebAssemblyAppTheProjectRecords_IsBuiltFromTheRoot_AndSignsInAtTheProviderTheApiTrusts()
+    {
+        var root = Directory.CreateTempSubdirectory("local-stack-");
+
+        try
+        {
+            var site = AppHostResources(ProjectRecordingAWebAssemblyApp(root.FullName))
+                .OfType<ContainerResource>()
+                .Single(container => container.Name == "web-site");
+            var build = site.Annotations.OfType<DockerfileBuildAnnotation>().Single();
+            var variables = await EnvironmentOf(site);
+
+            build.ContextPath.ShouldBe(root.FullName, "The app's Dockerfile copies the .NET client from Src/Clients, so its compose.yml builds it from the root.");
+            build.DockerfilePath.ShouldBe(Path.Combine(root.FullName, "Src", "Web", "apps", "Site", "Dockerfile"));
+            /*#if (externalAuth)
+            variables.ShouldContain("SIGN_IN_AUTHORITY", "The app signs in at the provider the API trusts, as its compose.yml says.");
+            variables.ShouldContain("SIGN_IN_CLIENT_ID", "The app signs in as the public client its compose.yml names.");
+            #else*/
+            variables.ShouldNotContain("SIGN_IN_AUTHORITY", "Without an OpenID Connect provider, the app's compose.yml names none.");
+            variables.ShouldNotContain("SIGN_IN_CLIENT_ID", "Without an OpenID Connect provider, the app's compose.yml names no client.");
+            //#endif
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void TheAppHostSdk_IsPinnedInGlobalJson_AtTheVersionOfEveryAspirePackage()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
@@ -244,12 +273,14 @@ public sealed class LocalStackParityTests
         ProjectReferenceGraph.RootOf(ProjectReferenceGraph.SourceProjects.Values
             .Single(project => project.Name.EndsWith(".AppHost", StringComparison.Ordinal)));
 
-    private static List<IResource> AppHostResources()
+    private static List<IResource> AppHostResources() => AppHostResources(AppHostDirectory);
+
+    private static List<IResource> AppHostResources(string projectDirectory)
     {
         var builder = DistributedApplication.CreateBuilder(new DistributedApplicationOptions
         {
             Args = [],
-            ProjectDirectory = AppHostDirectory,
+            ProjectDirectory = projectDirectory,
             DisableDashboard = true,
         });
 
@@ -283,6 +314,33 @@ public sealed class LocalStackParityTests
 
     private static string FromTheRoot(string path) =>
         Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, Path.GetFullPath(path)).Replace('\\', '/');
+
+    private static string ProjectRecordingAWebAssemblyApp(string root)
+    {
+        string api = Path.Combine(root, "Src", "Presentation", "Api");
+        string site = Path.Combine(root, "Src", "Web", "apps", "Site");
+
+        Directory.CreateDirectory(api);
+        Directory.CreateDirectory(site);
+        File.WriteAllText(Path.Combine(api, "AppTemplate.Api.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk.Web\" />");
+        File.WriteAllText(Path.Combine(site, "Dockerfile"), string.Empty);
+        File.WriteAllText(
+            Path.Combine(root, "cleanarch.json"),
+            """
+            {
+              "name": "AppTemplate",
+              "presentation": [{ "name": "Api", "framework": "api" }],
+              "web": { "apps": [{ "name": "Site", "framework": "blazor-wasm", "rendering": "spa", "port": 8081 }] }
+            }
+            """);
+
+        foreach (string file in ComposeFiles().Where(file => Path.GetDirectoryName(file) == ProjectReferenceGraph.RepositoryRoot))
+        {
+            File.Copy(file, Path.Combine(root, Path.GetFileName(file)));
+        }
+
+        return root;
+    }
 
     private static string ImageOf(ContainerResource container)
     {

@@ -176,7 +176,8 @@ failure.
 
 `DELETE` removes rows; there is no deleted flag. A flag makes every query carry a predicate that one
 forgotten filter turns into a data leak, and retention is a question for an audit trail.
-`NoPersistenceRecord_CarriesADeletedFlag` holds it.
+`NoPersistenceRecord_CarriesADeletedFlag` holds it, and
+[ADR 0038](../decisions/0038-deleting-removes-rows.md) says why.
 
 ## Concurrency
 
@@ -240,3 +241,4 @@ connection's `Default Timeout`, and a save that still finds the file busy is ret
 <!--#if (accounts)-->
 - [0009. Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
 <!--#endif-->
+- [0038. Deleting removes rows](../decisions/0038-deleting-removes-rows.md)

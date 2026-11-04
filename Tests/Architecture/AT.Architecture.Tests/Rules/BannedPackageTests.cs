@@ -17,7 +17,11 @@ public sealed class BannedPackageTests
         (
             "AutoMapper",
             "a mapping is written by hand, where the compiler checks it and a reader finds it. " +
-            "Write the mapping as a method on the type it produces."),
+            "Write the mapping as a method on the type it produces (ADR 0036)."),
+        (
+            "Riok.Mapperly",
+            "it pairs members by name, so a property added on both sides crosses a boundary with no line naming it. " +
+            "Write the mapping as a method on the type it produces (ADR 0036)."),
     ];
 
     [Fact]
@@ -56,6 +60,7 @@ public sealed class BannedPackageTests
         References("<PackageVersion Include=\"AutoMapper.Extensions.Microsoft.DependencyInjection\" Version=\"12.0.1\" />", "AutoMapper").ShouldBeTrue();
         References("<PackageReference Include=\"Mediator.Abstractions\" />", "MediatR").ShouldBeFalse();
         References("<PackageReference Include=\"Riok.Mapperly\" />", "AutoMapper").ShouldBeFalse();
+        References("<PackageVersion Include=\"Riok.Mapperly\" Version=\"4.2.1\" />", "Riok.Mapperly").ShouldBeTrue();
     }
 
     private static bool References(string projectFile, string package) =>

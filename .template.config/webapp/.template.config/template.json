@@ -582,7 +582,8 @@
       "condition": "(workspace)",
       "include": [
         "features/web-frontend.md",
-        "decisions/0019-one-generated-api-client.md"
+        "decisions/0019-one-generated-api-client.md",
+        "decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md"
       ]
     },
     {

@@ -413,9 +413,10 @@ dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion d
 ```
 
 It writes the files, a manifest under `.feature-manifest`, and the feature's page in
-`docs/features/`; it makes the edits that compose the feature and adds its rows to `docs/README.md`
-and `docs/reference/api.md`; then it builds, adds the `AddWidgets` migration for the new tables and
-rewrites the OpenAPI reference. Rebuild the stack and run the tests:
+`docs/features/`; it makes the edits that compose the feature and adds its rows to
+`docs/reference/api.md`; then it lists the page in the documentation index, builds, adds the
+`AddWidgets` migration for the new tables and rewrites the OpenAPI reference. Rebuild the stack and
+run the tests:
 
 ```bash
 docker compose up -d --build --wait
@@ -436,8 +437,9 @@ dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion d
 
 It writes every layer but an HTTP one, which this project does not hold, a manifest under
 `.feature-manifest`, and the feature's page in `docs/features/`; it makes the edits that compose the
-feature, each host's `Program.cs` among them, and adds its row to `docs/README.md`; then it builds and
-adds the `AddWidgets` migration for the new tables. Apply it as the first run did, then run the tests:
+feature, each host's `Program.cs` among them; then it lists the page in the documentation index,
+builds and adds the `AddWidgets` migration for the new tables. Apply it as the first run did, then
+run the tests:
 
 ```bash
 dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence

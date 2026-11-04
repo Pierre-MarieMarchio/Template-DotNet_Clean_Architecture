@@ -12,122 +12,37 @@ Which page answers your question, and where a new page goes.
 
 | Folder | A page belongs here when the reader is |
 |---|---|
-| [getting-started](getting-started/overview.md) | new to this project, reading once and in order |
-| [architecture](architecture/README.md) | learning the rules every layer, feature and endpoint follows |
-| features | using, configuring or removing one capability |
-| guides | doing a task again: add, remove, migrate, test, ship |
-| reference | looking up a setting, a route, a code or a folder |
-| [decisions](decisions/README.md) | asking why a choice was made |
+| [getting-started](getting-started/index.md) | new to this project, reading once and in order, from [the overview](getting-started/overview.md) |
+| [architecture](architecture/index.md) | learning the rules every layer, feature and endpoint follows |
+| [features](features/index.md) | using, configuring or removing one capability |
+| [guides](guides/index.md) | doing a task again: add, remove, migrate, test, ship |
+| [reference](reference/index.md) | looking up a setting, a route, a code or a folder |
+| [decisions](decisions/index.md) | asking why a choice was made |
 
-## Getting started
-
-| Page | Answers |
-|---|---|
-| [Overview](getting-started/overview.md) | what this project is, and how it was generated |
-| [First run](getting-started/first-run.md) | from a clone to an authenticated call and a first feature |
-| [Existing repository](getting-started/existing-repository.md) | moving this project into a repository that already exists |
-
-## Architecture
-
-| Page | Answers |
-|---|---|
-| [Overview](architecture/README.md) | the layers, the dependency rule, what is deliberately absent |
-| [Layers and projects](architecture/layers-and-projects.md) | which projects make each layer, and how the host is composed |
-| [Feature shapes](architecture/feature-shapes.md) | an aggregate, or a service over a store |
-| [Modules and boundaries](architecture/modules-and-boundaries.md) | what a feature or a module may depend on |
-| [Ports and adapters](architecture/ports-and-adapters.md) | how the application reaches storage and the outside world |
-| [Domain and results](architecture/domain-and-results.md) | how rules are enforced, failures reported and facts published |
-| [Persistence model](architecture/persistence-model.md) | how data is mapped, saved and protected from lost updates |
-<!--#if (api)-->
-| [Request pipeline](architecture/request-pipeline.md) | what happens to every request on its way in and out |
-<!--#endif-->
-<!--#if (api)-->
-| [HTTP API](architecture/http-api.md) | the contract every endpoint offers a client |
-<!--#endif-->
-| [Shared mechanisms](architecture/shared-mechanisms.md) | the cache, outbound HTTP, the clock, the current user |
-
-## Features
-
-| Page | Answers |
-|---|---|
-| [Authentication](features/authentication.md) | who can call the API, and how a caller proves it |
-<!--#if (accounts)-->
-| [Accounts](features/accounts.md) | how an account lives, from registration to deletion |
-<!--#endif-->
-<!--#if (todoLists)-->
-| [To-do lists](features/todo-lists.md) | how lists and their items are kept, and the rules a list protects |
-<!--#endif-->
-<!--#if (reminders)-->
-| [Reminders](features/reminders.md) | how a reminder is scheduled, fired and retried |
-<!--#endif-->
-<!--#if (notes)-->
-| [Notes](features/notes.md) | how a caller's notes are kept, in the simple shape |
-<!--#endif-->
-<!--#if (files)-->
-| [Files](features/files.md) | how files are stored, inspected and served |
-<!--#endif-->
-| [Background jobs](features/background-jobs.md) | what runs on a timer, and on which instance |
-| [Email](features/email.md) | how mail is sent, and in which language |
-| [Observability](features/observability.md) | logs, metrics, traces and health checks |
-<!--#if (anyWeb)-->
-| [Web front end](features/web-frontend.md) | the web apps beside the API, and signing users in from them |
-<!--#endif-->
-<!--#if (presentationBlazorServer)-->
-| [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
-<!--#endif-->
-<!--#if (presentationAvalonia || presentationWpf)-->
-| [The desktop app](features/presentation.md#desktop-app) | the desktop app, how it is created, and signing in to the API from it |
-<!--#endif-->
-<!--#if (presentationMcp)-->
-| [The MCP server](features/presentation.md#mcp-server) | the MCP server, how it is created, its tools, and who may call them |
-<!--#endif-->
-
-## Guides
-
-| Page | Answers |
-|---|---|
-| [Adding a feature](guides/adding-a-feature.md) | generating a feature and finishing it by hand |
-| [Removing features](guides/removing-features.md) | taking out a feature, the examples, Files or authentication |
-| [Adding a setting](guides/adding-a-setting.md) | a value a deployment chooses, validated at start-up and documented |
-| [Reaching another feature](guides/reaching-another-feature.md) | reading, changing or reacting to another feature through its ports and its domain events |
-| [Adding a pipeline behaviour](guides/adding-a-pipeline-behaviour.md) | a step every use case runs through, whichever host sends it |
-| [Adding a project](guides/adding-a-project.md) | a new module or project, and every list it joins |
-<!--#if (localAuth)-->
-| [Rotating the signing key](guides/rotating-the-signing-key.md) | replacing the key that signs access tokens without signing anyone out |
-<!--#endif-->
-| [Migrations](guides/migrations.md) | adding, checking and applying a migration |
-| [Testing](guides/testing.md) | running the suites and writing new tests |
-<!--#if (aspire)-->
-| [Running the app host](guides/running-the-app-host.md) | the local stack from one command, with the Aspire dashboard |
-<!--#endif-->
-| [Build and CI](guides/build-and-ci.md) | the gate, locally and in CI |
-| [Deployment](guides/deployment.md) | shipping the image to an environment, its secrets, and what the local stack does not show |
-| [Upgrading](guides/upgrading.md) | what a newer version of the package that generated this project changes, and taking it |
-
-## Reference
-
-| Page | Answers |
-|---|---|
-| [Configuration](reference/configuration.md) | what each setting does |
-<!--#if (api)-->
-| [API](reference/api.md) | every route and every error code |
-<!--#endif-->
-| [Project layout](reference/project-layout.md) | where a file goes, and what it is called |
+[The index](index.md) links each folder's own index, which lists its pages by their title and
+their description. `dotnet run Tools/Tasks.cs docs-index` writes every index from the frontmatter of
+the pages this project holds, so a page appears there once it exists, and leaves once it is gone.
 
 ## Decisions
 
-[The decision index](decisions/README.md) lists every ADR. [ADR 0001](decisions/0001-adopt-the-generated-baseline.md)
-records the choices this project started with.
+[The decisions](decisions/README.md) say when a choice deserves an ADR, and
+[their index](decisions/index.md) lists every one with its status.
+[ADR 0001](decisions/0001-adopt-the-generated-baseline.md) records the choices this project started
+with.
 
 ## Adding a page
 
 | You add | Where | Start from |
 |---|---|---|
-| A feature | `features/<feature>.md`, and a row under Features above | [the feature template](_page-templates/feature.md); `new-feature` writes it for you |
-| A how-to | `guides/<task>.md`, and a row under Guides | [the how-to template](_page-templates/how-to.md) |
-| A decision | `decisions/NNNN-<title>.md`, numbered from 1000, and a row in the decision index | [the ADR template](_page-templates/adr.md) |
+| A feature | `features/<feature>.md` | [the feature template](_page-templates/feature.md); `new-feature` writes it for you |
+| A how-to | `guides/<task>.md` | [the how-to template](_page-templates/how-to.md) |
+| A decision | `decisions/NNNN-<title>.md`, numbered from 1000 | [the ADR template](_page-templates/adr.md) |
 | A setting | a section in the configuration reference | the table shape there |
 | A route or a code | a row in the API reference | the table shape there |
+
+Then run `dotnet run Tools/Tasks.cs docs-index`, which lists the new page in its folder's index;
+`new-feature` and `remove-feature --apply` run it for the page they write or delete. `hygiene` fails
+while an index no longer lists its folder's pages as their frontmatter says.
 
 Every page opens with its frontmatter, at the first byte of the file, before its `# ` heading:
 
@@ -142,8 +57,8 @@ description: How to add a feature of your own, in the shape its rules call for, 
 | Field | Holds |
 |---|---|
 | `type` | the folder's: `guide` under getting-started and guides, `concept` under architecture, `reference` under reference, `feature` under features, `decision` under decisions; a folder's `README.md` takes the one that fits it |
-| `title` | the page's `# ` heading, word for word |
-| `description` | one sentence: the question the page answers |
+| `title` | the page's `# ` heading, word for word; the index lists the page under it |
+| `description` | one sentence: the question the page answers, which the index shows beside its title |
 | `status` | on a decision only: the state its `Status:` line opens with, such as `Proposed`, `Accepted` or `Superseded` |
 | `tags` | optional, a list such as `[persistence, http]`; left out rather than empty |
 

@@ -264,9 +264,10 @@ internal static class Tasks
                                            cannot edit: each block placed by lines found exactly
                                            once; an edit in place already is left alone, and the
                                            others are made all or none, every line they are placed
-                                           by found before a file is written; then record the
-                                           project in cleanarch.json, with the framework its
-                                           scaffold.json names. For <Project>.Worker it also moves
+                                           by found before a file is written; then rewrite the
+                                           documentation index and record the project in
+                                           cleanarch.json, with the framework its scaffold.json
+                                           names. For <Project>.Worker it also moves
                                            the API's Common/Jobs and Features/*/Jobs, and their unit
                                            tests, into the worker, renames their namespaces from
                                            <Project>.Api. to <Project>.Worker. wherever the project
@@ -290,7 +291,8 @@ internal static class Tasks
                                            Blazor WebAssembly app the lines of the .NET client it
                                            brings; for the first app, while cleanarch.json records no
                                            workspace, those Src/Web/README.md lists before them; then
-                                           record the app in cleanarch.json, with the client when
+                                           rewrite the documentation index and record the app in
+                                           cleanarch.json, with the client when
                                            Src/Clients holds it
           web-join <package>               record Src/Web/packages/<package> in cleanarch.json, which
                                            cleanarch-webpackage cannot edit
@@ -1339,7 +1341,7 @@ internal static class Tasks
     private static readonly string[] _foldersOutsideTheIndex = ["plans"];
 
     private const string _indexNotice =
-        "Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page: edit the pages, then run it again.";
+        "Written by `dotnet run Tools/Tasks.cs docs-index` from the frontmatter of each page:\nedit the pages, then run it again.";
 
     private sealed record IndexEntry(string Link, string Title, string Description, string? Status);
 
@@ -2294,11 +2296,7 @@ internal static class Tasks
     private const string _joiningSection = "## Joining a project generated without one";
 
     private static readonly Regex _joiningEdit = new(
-        @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove|at the rank) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
-
-    private const string _atTheRank = "at the rank";
-
-    private static readonly Regex _decisionRow = new(@"^\| \[(?<number>\d{4})\]\(", RegexOptions.None, TimeSpan.FromSeconds(2));
+        @"^- in `(?<path>[^`]+)`, (?<mode>after|before|replace|remove) [^:]*:$", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     private static void PresentationJoin(ProjectFile projectFile, string project, string solution)
     {
@@ -2329,6 +2327,7 @@ internal static class Tasks
             Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", required: true);
         }
 
+        DocsIndex(projectFile.Root, check: false);
         //#if (api)
         PrintApiSteps(projectFile);
         //#endif
@@ -2649,6 +2648,7 @@ internal static class Tasks
 
         Join(projectFile.Root, "Src/Web/apps/" + name, "cleanarch-webapp", "web-scaffold", required: false, FirstAppsWorkspaceReadme(projectFile));
         PlaceTheServerRenderingDecision(projectFile.Root, "Src/Web/apps/" + name);
+        DocsIndex(projectFile.Root, check: false);
         //#if (api)
         PrintApiSteps(projectFile);
         //#endif
@@ -2867,11 +2867,11 @@ internal static class Tasks
             Match bullet = _joiningEdit.Match(header);
             if (!bullet.Success)
             {
-                throw new InvalidOperationException($"{relative}: '{header}' names no file and no 'after', 'before', 'replace', 'remove' or 'at the rank'.");
+                throw new InvalidOperationException($"{relative}: '{header}' names no file and no 'after', 'before', 'replace' or 'remove'.");
             }
 
             string mode = bullet.Groups["mode"].Value;
-            List<string> anchor = mode == _atTheRank ? [] : Fence(readme, ref index, relative);
+            List<string> anchor = Fence(readme, ref index, relative);
             List<string> lines = mode == "remove" ? [] : Fence(readme, ref index, relative);
             edits.Add(new ReadmeEdit(relative, edits.Count + 1, bullet.Groups["path"].Value, mode, anchor, lines));
         }
@@ -2919,11 +2919,6 @@ internal static class Tasks
 
     private static bool InPlace(ReadmeEdit edit, List<string> lines)
     {
-        if (edit.Mode == _atTheRank)
-        {
-            return edit.Lines.All(row => lines.Any(line => line.TrimEnd() == row.TrimEnd()));
-        }
-
         int[] anchors = Occurrences(lines, edit.Anchor);
 
         return edit.Mode switch
@@ -2938,12 +2933,6 @@ internal static class Tasks
 
     private static void Apply(ReadmeEdit edit, List<string> lines)
     {
-        if (edit.Mode == _atTheRank)
-        {
-            PlaceAtTheirRank(edit, lines);
-            return;
-        }
-
         int[] found = Occurrences(lines, edit.Anchor);
 
         if (found.Length != 1)
@@ -2969,59 +2958,9 @@ internal static class Tasks
         }
     }
 
-    private static void PlaceAtTheirRank(ReadmeEdit edit, List<string> lines)
-    {
-        int first = lines.FindIndex(line => _decisionRow.IsMatch(line));
-
-        if (first < 0)
-        {
-            throw new InvalidOperationException(
-                $"{edit}: {edit.Path} holds no table of decisions, rows that start '| [<number>](', so no file was changed.");
-        }
-
-        while (first > 0 && lines[first - 1].StartsWith('|'))
-        {
-            first--;
-        }
-
-        foreach (string row in edit.Lines)
-        {
-            Match numbered = _decisionRow.Match(row);
-
-            if (!numbered.Success)
-            {
-                throw new InvalidOperationException(
-                    $"{edit}: '{row}' does not start '| [<number>](', so it has no rank and no file was changed.");
-            }
-
-            int end = lines.FindIndex(first, line => !line.StartsWith('|'));
-            end = end < 0 ? lines.Count : end;
-            int number = int.Parse(numbered.Groups["number"].Value, CultureInfo.InvariantCulture);
-            int[] ranked = [.. Enumerable.Range(first, end - first).Where(at => _decisionRow.IsMatch(lines[at]))];
-            int listed = ranked.FirstOrDefault(at => Rank(lines[at]) == number, -1);
-
-            if (listed >= 0)
-            {
-                if (lines[listed].TrimEnd() != row.TrimEnd())
-                {
-                    throw new InvalidOperationException(
-                        $"{edit}: {edit.Path} lists decision {number:D4} already, as another row, so no file was changed:\n{lines[listed]}");
-                }
-
-                continue;
-            }
-
-            lines.Insert(ranked.FirstOrDefault(at => Rank(lines[at]) > number, end), row);
-        }
-    }
-
-    private static int Rank(string row) => int.Parse(_decisionRow.Match(row).Groups["number"].Value, CultureInfo.InvariantCulture);
-
     private sealed record ReadmeEdit(string Readme, int Number, string Path, string Mode, List<string> Anchor, List<string> Lines)
     {
-        public override string ToString() => Mode == _atTheRank
-            ? $"edit {Number} of {Readme}, {Lines.Count} row(s) at their rank in {Path}"
-            : $"edit {Number} of {Readme}, {Mode} {Anchor.Count} line(s) of {Path}";
+        public override string ToString() => $"edit {Number} of {Readme}, {Mode} {Anchor.Count} line(s) of {Path}";
     }
 
     private static string[] DeclinedScriptsWhereOffered(string directory, string template, string[] hive)
@@ -3749,21 +3688,6 @@ internal static class Tasks
         Dictionary<string, List<string>> chained = File("services:");
         MakeEdits([Edit(1, "before", ["services:"], ["include:"]), Edit(2, "after", ["include:"], ["  - path: a"])], chained);
 
-        const string first = "| [0001](a.md) | A | X |", third = "| [0003](c.md) | C | X |", own = "| [1000](own.md) | Own | X |";
-        string[] index = ["## The decisions", "", "| # | Decision | Area |", "|---|---|---|", "| [0002](b.md) | B | X |", "| [0004](d.md) | D | X |", own, "", "Add this project's own ADRs."];
-
-        List<string> Ranked(params string[] rows)
-        {
-            Dictionary<string, List<string>> placed = File(index);
-            MakeEdits([Edit(1, _atTheRank, [], rows)], placed);
-            return placed["file"];
-        }
-
-        List<ReadmeEdit> parsed = ReadmeEdits(
-            [_joiningSection, "", "- in `file`, at the rank of its number, add:", "", "  ```markdown", "  " + third, "  ```"], "README.md");
-        Dictionary<string, List<string>> listedAlready = File(index[..5]);
-        (_, ReadmeEdit[] rankedInPlace) = MakeEdits([Edit(1, _atTheRank, [], [index[4]])], listedAlready);
-
         (string From, string To)[] toTheWorker = [("n.Api.Features.Invoices.Jobs", "n.Worker.Features.Invoices.Jobs")];
 
         return
@@ -3774,24 +3698,12 @@ internal static class Tasks
             ("a namespace the worker takes is renamed where it stands whole, never inside a longer name",
                 RenamedNamespaces("using n.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.Jobs.Purge;\nusing Common.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.JobsArchive;", toTheWorker)
                 == "using n.Worker.Features.Invoices.Jobs;\nusing n.Worker.Features.Invoices.Jobs.Purge;\nusing Common.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.JobsArchive;"),
-            ("a row at its rank is read without lines to place it by", parsed is [{ Mode: _atTheRank, Anchor.Count: 0, Lines: [third] }]),
-            ("a row at its rank goes before every row of a greater number", Ranked(first).SequenceEqual([.. index[..4], first, .. index[4..]])),
-            ("a row at its rank goes between the rows that surround its number", Ranked(third).SequenceEqual([.. index[..5], third, .. index[5..]])),
-            ("a row at its rank goes before the project's own rows, which stay where they are", Ranked("| [0005](e.md) | E | X |")
-                .SequenceEqual([.. index[..6], "| [0005](e.md) | E | X |", .. index[6..]])),
-            ("a row at its rank goes at the end of a table of lower numbers, never past it", Ranked("| [1001](f.md) | F | X |")
-                .SequenceEqual([.. index[..7], "| [1001](f.md) | F | X |", .. index[7..]])),
-            ("rows at their rank are each placed by their own number", Ranked(third, first).SequenceEqual([.. index[..4], first, index[4], third, .. index[5..]])),
-            ("a row listed already is in place and not added twice", rankedInPlace is [{ Number: 1 }] && listedAlready["file"].SequenceEqual(index[..5])),
-            ("a row whose number is listed as another row is refused, naming it", Refused(
-                () => MakeEdits([Edit(1, _atTheRank, [], ["| [0002](b.md) | Another B | X |"])], File(index)), "lists decision 0002 already, as another row")),
-            ("a file without a table of decisions is refused", Refused(
-                () => MakeEdits([Edit(1, _atTheRank, [], [third])], File("# Nothing", "", "| a | b |")), "holds no table of decisions")),
-            ("a row without a number is refused", Refused(
-                () => MakeEdits([Edit(1, _atTheRank, [], ["| Untitled | X |"])], File(index)), "'| Untitled | X |' does not start '| [<number>]('")),
             ("an edit in place already is left alone and the others are made", made is [{ Number: 2 }] && inPlace is [{ Number: 1 }]
                 && partly["file"].SequenceEqual(["include:", "  - path: a", "  - path: b", "services:"])),
             ("an edit is placed by the lines an earlier edit made", chained["file"].SequenceEqual(["include:", "  - path: a", "services:"])),
+            ("an edit that names no way to place it is refused, naming the ways", Refused(
+                () => ReadmeEdits([_joiningSection, "", "- in `file`, at the rank of its number, add:", "", "  ```markdown", "  | x |", "  ```"], "README.md"),
+                "names no file and no 'after', 'before', 'replace' or 'remove'")),
             ("an edit whose lines to place it by are missing is refused, naming it", Refused(
                 () => MakeEdits([Edit(1, "after", ["services:"], ["x"]), Edit(2, "after", ["missing"], ["y"])], File("services:")),
                 "edit 2 of README.md, after 1 line(s) of file: the lines it is placed by occur 0 times")),

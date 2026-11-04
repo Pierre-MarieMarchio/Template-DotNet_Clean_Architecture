@@ -204,7 +204,9 @@ default), read from a claim of the token (`Roles:Source` = `Claim`) or from the
 
 A new policy is a constant beside `Administrator` in
 `Src/Presentation/AT.Presentation.Core/Common/Security/AuthorizationPolicies.cs` and one
-`AddPolicy` call where the module composes its authentication.
+`AddPolicy` call where the module composes its authentication. A policy guards a route or a page of
+the host, never a use case, so a host that exposes an administration use case puts the policy on it
+again ([ADR 0039](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)).
 
 <!--#endif-->
 ## Configure
@@ -277,7 +279,11 @@ with a test provider's keys.
 <!--#if (accessKeys)-->
 - [0026 An access key stands for its owner where a token cannot be refreshed](../decisions/0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md)
 <!--#endif-->
+- [0040 The signing key rotates through previous keys that only validate](../decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md)
 <!--#endif-->
 <!--#if (externalAuth)-->
 - [0017 External subjects map to internal owners](../decisions/0017-external-subjects-map-to-internal-owners.md)
+<!--#endif-->
+<!--#if (accounts)-->
+- [0039 A role is checked by the host, not by the use case](../decisions/0039-a-role-is-checked-by-the-host-not-by-the-use-case.md)
 <!--#endif-->

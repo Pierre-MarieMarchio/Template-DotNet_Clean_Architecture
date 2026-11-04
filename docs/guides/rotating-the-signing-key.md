@@ -9,7 +9,7 @@ signed-in caller was refused on the way.
 An access token is an HS256 JWT signed with `Jwt:Key`. Every host that composes authentication
 accepts a token signed with `Jwt:Key` or with one of `Jwt:PreviousKeys`, and signs only with
 `Jwt:Key`; [the configuration reference](../reference/configuration.md#jwt) holds the rules each key
-is held to.
+is held to, and [ADR 0040](../decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md) says why the previous keys only validate.
 
 | What a caller holds | What the rotation does to it |
 |---|---|

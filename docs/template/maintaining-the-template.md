@@ -218,7 +218,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 
 | A change to | Runs |
 |---|---|
-| `docs/template`, the plans, `Launcher`, `README.md`, the package's readme, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
+| `docs/template`, the plans, `Launcher`, `README.md`, the package's readme, `.github/FUNDING.yml`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |

@@ -467,6 +467,19 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void TheCheckoutsDocumentationIndex_ReachesNeitherAProjectNorTheTemplatePackage()
+    {
+        string[] indexes = ["docs/index.md", "docs/**/index.md"];
+
+        File.Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "index.md")).ShouldBeTrue(
+            "This checkout commits the documentation index docs-index writes, so the rule has a file to keep out.");
+        indexes.Except(UnconditionalExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "template.json generates the index of this checkout's pages, every branch's and the template's: add each to its unconditional excludes, since bootstrap writes a project's own.");
+        indexes.Except(PackageExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "The template package carries the index of this checkout's pages: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
     public void OnlyTheTemplateRepository_IgnoresTheMigrations()
     {
         const string migrations = "Src/Infrastructure/*/Migrations/";

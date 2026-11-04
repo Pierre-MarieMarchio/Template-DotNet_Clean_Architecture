@@ -33,6 +33,14 @@ public sealed class LocalStackParityTests
         ["DataProtection__KeysDirectory"] = "a path in the container's volume; a host the app host runs in Development keeps its key ring in the user profile",
     };
 
+    private static readonly Dictionary<string, string> _appHostOnlyVariables = new(StringComparer.Ordinal)
+    {
+        ["API_UPSTREAM"] = "the API's endpoint on this machine, where the app host runs it; under Compose the image's default, http://api:8080, reaches the api service by name",
+        //#if (postgreSql)
+        ["POSTGRES_HOST_AUTH_METHOD"] = "scram-sha-256, which Aspire's PostgreSQL integration sets and the image already falls back to under Compose",
+        //#endif
+    };
+
     private static readonly Regex _topLevelKey = new(
         @"^(?<key>[a-z][a-z0-9_-]*):",
         RegexOptions.CultureInvariant,
@@ -55,6 +63,21 @@ public sealed class LocalStackParityTests
 
     private static readonly Regex _setting = new(
         @"^\s+(?<key>[A-Za-z][A-Za-z0-9]*(?:__[A-Za-z0-9]+)+):",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _environment = new(
+        @"^    environment:\s*$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _serviceKey = new(
+        @"^    [^\s#]",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _variable = new(
+        @"^      (?<name>[A-Za-z_][A-Za-z0-9_]*):",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -104,7 +127,7 @@ public sealed class LocalStackParityTests
     {
         var published = new Dictionary<string, int?>(StringComparer.Ordinal);
 
-        foreach ((string service, string line) in ServiceLines())
+        foreach ((string service, string line) in ServiceLines(ServiceFiles()))
         {
             if (_publishedPort.Match(line) is { Success: true } port)
             {
@@ -153,6 +176,30 @@ public sealed class LocalStackParityTests
     }
 
     [Fact]
+    public async Task EveryContainerTheAppHostStarts_GetsTheVariablesItsComposeServiceDeclares()
+    {
+        var declared = ComposeEnvironments();
+        var differences = new List<string>();
+
+        declared.Values.SelectMany(names => names).ShouldNotBeEmpty(
+            "docker-compose.yml gives the mail catcher its environment; a parse that finds no variable is broken.");
+
+        foreach (var container in AppHostResources().OfType<ContainerResource>().Where(container => declared.ContainsKey(container.Name)))
+        {
+            var compose = declared[container.Name];
+            var appHost = (await EnvironmentOf(container)).Where(name => !_appHostOnlyVariables.ContainsKey(name)).ToHashSet(StringComparer.Ordinal);
+
+            differences.AddRange(compose.Except(appHost).Select(name => $"{container.Name}: Compose sets {name}, the app host does not"));
+            differences.AddRange(appHost.Except(compose).Select(name => $"{container.Name}: the app host sets {name}, Compose does not"));
+        }
+
+        differences.Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "The app host starts each container with the variables its Compose service declares, so the image runs the "
+            + "same under either stack: give each the same source in Src/AppHost, or list it in _appHostOnlyVariables "
+            + "with the reason the stacks differ.");
+    }
+
+    [Fact]
     public void TheAppHostSdk_IsPinnedInGlobalJson_AtTheVersionOfEveryAspirePackage()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
@@ -190,6 +237,21 @@ public sealed class LocalStackParityTests
         return [.. builder.Resources.Where(resource => resource is ProjectResource or ContainerResource)];
     }
 
+    private static async Task<HashSet<string>> EnvironmentOf(ContainerResource container)
+    {
+        var context = new EnvironmentCallbackContext(
+            new DistributedApplicationExecutionContext(DistributedApplicationOperation.Run),
+            container,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        foreach (var annotation in container.Annotations.OfType<EnvironmentCallbackAnnotation>())
+        {
+            await annotation.Callback(context);
+        }
+
+        return [.. context.EnvironmentVariables.Keys];
+    }
+
     private static string ImageOf(ContainerResource container)
     {
         var image = container.Annotations.OfType<ContainerImageAnnotation>().Last();
@@ -202,7 +264,7 @@ public sealed class LocalStackParityTests
     {
         var services = new Dictionary<string, string?>(StringComparer.Ordinal);
 
-        foreach ((string service, string line) in ServiceLines())
+        foreach ((string service, string line) in ServiceLines(ServiceFiles()))
         {
             services.TryAdd(service, null);
 
@@ -226,9 +288,35 @@ public sealed class LocalStackParityTests
         return services;
     }
 
-    private static IEnumerable<(string Service, string Line)> ServiceLines()
+    private static Dictionary<string, HashSet<string>> ComposeEnvironments()
     {
-        foreach (string file in ServiceFiles())
+        var environments = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        string? inEnvironment = null;
+
+        foreach ((string service, string line) in ServiceLines(ComposeFiles()))
+        {
+            environments.TryAdd(service, new HashSet<string>(StringComparer.Ordinal));
+
+            if (_environment.IsMatch(line))
+            {
+                inEnvironment = service;
+            }
+            else if (inEnvironment != service || _serviceKey.IsMatch(line) || _service.IsMatch(line))
+            {
+                inEnvironment = null;
+            }
+            else if (_variable.Match(line) is { Success: true } variable)
+            {
+                environments[service].Add(variable.Groups["name"].Value);
+            }
+        }
+
+        return environments;
+    }
+
+    private static IEnumerable<(string Service, string Line)> ServiceLines(IEnumerable<string> files)
+    {
+        foreach (string file in files)
         {
             bool inServices = false;
             string? current = null;

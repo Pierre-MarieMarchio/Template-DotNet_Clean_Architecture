@@ -102,6 +102,28 @@ public sealed partial class EndToEndTests : IDisposable
             "These files differ from what --presentation worker writes, though presentation-join moved the jobs and made the lines the worker's README lists.");
     }
 
+    [Fact]
+    public void TheMcpServerAddedLater_AndJoined_PutsItsDecisionsAtTheirRankInTheIndex()
+    {
+        string package = PackTheTemplates();
+        string hive = Path.Combine(_root, "hive");
+        string generated = Path.Combine(_root, "generated");
+        string added = Path.Combine(_root, "added");
+        DotNet(_root, ["new", "install", package, "--debug:custom-hive", hive]);
+
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", generated, "--presentation", "api", "--presentation", "mcp", "--debug:custom-hive", hive]);
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", added, "--debug:custom-hive", hive]);
+        Run(added, "git", ["init", "--quiet"]);
+        Run(added, "git", ["add", "--all"]);
+        Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
+        DotNet(added, ["new", "cleanarch-presentation", "-n", "Mcp", "--framework", "mcp", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
+        DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Mcp"]);
+
+        File.ReadAllText(Path.Combine(added, _decisionIndex)).ShouldBe(
+            File.ReadAllText(Path.Combine(generated, _decisionIndex)),
+            "The decisions index of a project that added the MCP server differs from one generated with it: each row the starter's README adds must land at its number's rank.");
+    }
+
     private const string _overview = "docs/getting-started/overview.md";
 
     private const string _apisJobsDecision = "docs/decisions/0011-jobs-run-in-the-api-under-a-lease.md";

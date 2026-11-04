@@ -936,6 +936,7 @@ repository:
 | `_writtenByBootstrap` and `_editedByBootstrap` | the files `bootstrap` in `Tools/Tasks.cs` writes or edits |
 | `PlanOf`, which turns `cleanarch.json` into a generation and item templates | the options the project file records, the names generation gives each host, and the item templates' options |
 | the changelog range | the version headings release-please writes in `CHANGELOG.md`, which the package carries |
+| the packages of the released versions | each stays on a NuGet source a project reaches: the report installs the version `cleanarch.json` records from the sources, and a version no source holds cannot be generated again |
 
 Its `--self-test`, which `hygiene` runs, judges the comparison on fixtures. The `defaults` leg of
 the acceptance runs the real path on a bootstrapped project, with a version as the only change. A

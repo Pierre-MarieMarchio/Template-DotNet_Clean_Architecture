@@ -23,12 +23,15 @@ your decision, file by file.
    a source: no file of the project leaves the machine. `--source <path>` reads a package file, or a
    folder of them, instead of the sources. `--keep <folder>` keeps the two generations, outside the
    project, as `<folder>/<version>`; `--json <file>` writes the report there as JSON as well.
-2. Take the decisions it lists first: an option one version has and the other has not, a value or a
+2. Read the changelog entries the report quotes, those between the version here and the newer one: a
+   minor or patch version is taken file by file, and a major version changes something whose adoption
+   takes work by hand, which its entry says.
+3. Take the decisions it lists first: an option one version has and the other has not, a value or a
    default that changed. A renamed option reads as one removed and one added: the report never
    assumes that two options are the same.
-3. Copy each file listed under **Take** from `<folder>/<newer version>/<path>`: the newer version
+4. Copy each file listed under **Take** from `<folder>/<newer version>/<path>`: the newer version
    changed it, and this project did not.
-4. Merge each file listed under **Merge** by hand, from the diff the report closes with:
+5. Merge each file listed under **Merge** by hand, from the diff the report closes with:
 
    ```bash
    git merge-file <path> <folder>/<project version>/<path> <folder>/<newer version>/<path>
@@ -36,13 +39,13 @@ your decision, file by file.
 
    merges it three ways and marks each conflict. A note says why a file is there when this project
    did not change it itself: bootstrap or a scaffold edits it, or the join of a part added since.
-5. Add each file listed under **Added**, and delete each one under **Removed**, unless the note says
+6. Add each file listed under **Added**, and delete each one under **Removed**, unless the note says
    this project made it its own.
-6. Read **Changed scaffold descriptors**: the framework's CLI now creates that part differently,
+7. Read **Changed scaffold descriptors**: the framework's CLI now creates that part differently,
    and the part here was created already, so take what the new descriptor brings by hand.
-7. Set `template.version` in `cleanarch.json` to the newer version, then pin the project's tool at
+8. Set `template.version` in `cleanarch.json` to the newer version, then pin the project's tool at
    that version with `dotnet tool update CleanArch.Cli --local --version <newer version>`.
-8. Run `dotnet run Tools/Tasks.cs format-fix`, which orders the using directives as bootstrap did,
+9. Run `dotnet run Tools/Tasks.cs format-fix`, which orders the using directives as bootstrap did,
    then `dotnet run Tools/Tasks.cs verify`.
 
 ## What the report compares

@@ -38,11 +38,6 @@
       "longName": "database",
       "shortName": ""
     },
-    "mySqlNotYetGenerated": {
-      "longName": "my-sql-not-yet-generated",
-      "shortName": "",
-      "isHidden": true
-    },
     "webName": {
       "longName": "web-name",
       "shortName": ""

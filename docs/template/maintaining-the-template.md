@@ -308,22 +308,23 @@ plain concurrency token. A provider without schemas adds `SchemaAsTablePrefixCon
 `ApplyDatabaseConventions` and names each history table with its `TableName`. Both are in-tree and
 tested on SQLite here, and shipped only under `versionCounter` and `tablePrefixes`.
 
-The shared files carry every provider's lines already: the package references of
+The shared files carry the lines of each provider this version generates: the package references of
 `Src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
 two integration projects, the versions in `Directory.Packages.props`, the variables of `.env.example`,
 and the `developmentConnectionString` switch that rewrites `appsettings.Development.json`. An overlay's
 compose file uses the variable names `.env.example` gives it.
 
-A provider is refused until its overlay is wired. Wiring one is three edits to `template.json`: a
-source copying the folder under its computed symbol, the removal of its `NotYetGenerated` refusal with
-its `dotnetcli.host.json` entry, and its removal from `refusedOptions`. `TemplatePackagingTests`
-fails until the three agree with the folder. Its refusal line in the acceptance refusal job becomes a
-leg, tagged `database-<name>` with the overlay's rule in `.template.config/acceptance/rules.json`, and
-each leg's provider-leak check reads the leg's `database`.
+This version generates PostgreSQL, SQL Server and SQLite. MySQL is not a value of `--database`,
+because the stable EF Core 10 providers cannot map the owned JSON entity Identity's passkeys use; no
+page names a MySQL branch, and the `tablePrefixes` symbol covers SQLite alone.
 
-This version generates PostgreSQL, SQL Server and SQLite. MySQL stays refused, because the stable EF
-Core 10 providers cannot map the owned JSON entity Identity's passkeys use; no page names a MySQL
-branch, and the `tablePrefixes` symbol covers SQLite alone until it is generated.
+A version that generates a provider adds its value to `template.json`: the choice, a computed symbol,
+a source copying the folder under that symbol, its lines in the shared files above, and its place in
+`refusedOptions` wherever a combination excludes it. While its overlay is unfinished the value
+stays out of the choices, so no project is generated without it. `TemplatePackagingTests` fails until
+the choice, the symbol and the source agree with the folder. Its legs in the acceptance workflow are
+tagged `database-<name>` with the overlay's rule in `.template.config/acceptance/rules.json`, and each
+leg's provider-leak check reads the leg's `database`.
 
 An overlay file starts as a copy of its PostgreSQL counterpart, so `git log` on both paths finds a
 change one of them missed.

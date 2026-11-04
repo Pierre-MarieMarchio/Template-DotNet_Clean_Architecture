@@ -16,8 +16,6 @@
     <!--#endif-->
     <!--#if (sqlServer)
     <PackageReference Include="Testcontainers.MsSql" />
-    #elseif (mySql)
-    <PackageReference Include="Testcontainers.MySql" />
     #elseif (postgreSql)-->
     <PackageReference Include="Testcontainers.PostgreSql" />
     <!--#endif-->

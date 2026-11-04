@@ -126,7 +126,7 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
         manifest.Refusals.Select(refusal => refusal.CliName).Order(StringComparer.Ordinal).ShouldBe(
-            ["admin-web-needs-accounts", "aspire-needs-server-database", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "mcp-needs-accounts", "my-sql-not-yet-generated", "name-needs-a-leading-letter", "name-needs-two-characters", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
+            ["admin-web-needs-accounts", "aspire-needs-server-database", "auth-none-needs-examples-none", "auth-none-needs-files-false", "client-presentation-needs-accounts", "desktop-is-one-framework", "mcp-needs-accounts", "name-needs-a-leading-letter", "name-needs-two-characters", "server-rendering-needs-a-server-starter", "wasm-web-needs-accounts", "worker-needs-server-database"]);
     }
 
     [Theory]

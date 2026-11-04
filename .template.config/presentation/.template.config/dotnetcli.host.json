@@ -52,11 +52,6 @@
       "shortName": "",
       "isHidden": true
     },
-    "mySqlNotYetGenerated": {
-      "longName": "my-sql-not-yet-generated",
-      "shortName": "",
-      "isHidden": true
-    },
     "hasApi": {
       "longName": "has-api",
       "shortName": ""

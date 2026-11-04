@@ -62,7 +62,7 @@ Each group comes in no fixed order:
   content security policy.
 - **A desktop app wired straight to the application layer.** It would carry the database's
   credentials onto every user's machine.
-- **MySQL**, until Entity Framework Core 10 has an official MySQL provider.
+- **MySQL**, until Entity Framework Core 10 has an official MySQL provider; `--database` then gains the value with its overlay.
 
 ## Proposing an item
 

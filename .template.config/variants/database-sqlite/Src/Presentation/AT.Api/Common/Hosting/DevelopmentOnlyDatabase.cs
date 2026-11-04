@@ -4,7 +4,7 @@ internal static class DevelopmentOnlyDatabase
 {
     internal const string Refusal =
         "This project runs on SQLite, a development database: generate it again with --database postgresql, "
-        + "sqlserver or mysql to deploy it.";
+        + "sqlserver to deploy it.";
 
     internal static void RefuseOutsideDevelopment(IHostEnvironment environment)
     {

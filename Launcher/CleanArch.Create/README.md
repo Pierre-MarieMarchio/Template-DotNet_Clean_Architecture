@@ -14,7 +14,7 @@ dnx CleanArch.Create
 
 The launcher asks for the name, the folder and each option, with the template's own choices,
 defaults and descriptions. It offers only what the template generates with the answers given so far:
-a choice the template refuses whatever follows, as `--database mysql`, is never offered, and a
+a choice the template refuses whatever follows is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
 the answer that leaves it. A combination of flags the template refuses is explained before anything
 is written, and its options are asked again. A project name the template refuses, one under two

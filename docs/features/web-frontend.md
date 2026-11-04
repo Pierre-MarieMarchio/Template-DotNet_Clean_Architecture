@@ -391,7 +391,10 @@ under `_framework/` carries its fingerprint in its name and is cached for a year
 <!--#if (externalAuth)-->
 The origin of `EXTERNAL_AUTH_AUTHORITY`, which its compose file passes as `SIGN_IN_AUTHORITY`, joins
 its `connect-src` and `frame-src` when the container starts, so the page reaches the provider, and
-`frame-ancestors 'self'` lets the hidden frame that renews the token land back on the page.
+`frame-ancestors 'self'` lets the hidden frame that renews the token land back on the page. The
+same image serves `appsettings.json` with that issuer and `EXTERNAL_AUTH_BROWSER_CLIENT_ID`, passed
+as `SIGN_IN_CLIENT_ID`, in the `SignIn` keys the file leaves empty, so one image signs in wherever
+it is deployed.
 <!--#endif-->
 <!--#endif-->
 <!--#if (webReactRouter && !webServerRendering)-->

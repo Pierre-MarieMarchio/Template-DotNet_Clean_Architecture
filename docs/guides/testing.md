@@ -246,6 +246,13 @@ added later is driven without an edit. For each app, one test:
   the relay and the page's `connect-src` are both held.
 <!--#endif-->
 
+<!--#if (externalAuth)-->
+When `EXTERNAL_AUTH_AUTHORITY` names a host under `.invalid`, which never resolves, as `end-to-end`
+and CI give the stack, the smoke stands in for that provider: it answers its discovery document with
+a minimal one and refuses every other request to it, and expects a WebAssembly app, which reads that
+document as it starts, to have asked for it at that authority.
+
+<!--#endif-->
 A page rendered on the server is driven the same way, at the port of its Node server. The smoke
 needs the stack, so `pnpm test` leaves it out; `pnpm test` runs the unit tests of how the apps and
 their ports are found.

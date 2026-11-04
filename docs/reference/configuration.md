@@ -304,12 +304,14 @@ build, which loads the server, needs none of them.
 
 Read by the Blazor WebAssembly app of `Src/Web/apps/FrameworkSite` alone, as the public client it
 signs its user in with at the provider, from the `wwwroot/appsettings.json` every visitor's browser
-downloads: public values only, never a secret. The API never reads it.
+downloads: public values only, never a secret. Its image fills `Authority` and `ClientId` there,
+when the file leaves them empty, from `EXTERNAL_AUTH_AUTHORITY` and `EXTERNAL_AUTH_BROWSER_CLIENT_ID`
+in `.env`. The API never reads it.
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. |
-| `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. |
+| `Authority` | absolute URI | `""` | **Required.** The provider's issuer URL, the one `Authentication:External:Authority` names; `https` unless `RequireHttpsMetadata` is `false`. The app refuses to start without it. The image serves `EXTERNAL_AUTH_AUTHORITY` here when the file leaves it empty. |
+| `ClientId` | string | `""` | **Required.** The public client the provider registered for the app: no secret, the redirect URI `authentication/login-callback` under each origin that serves the app. The image serves `EXTERNAL_AUTH_BROWSER_CLIENT_ID` here when the file leaves it empty. |
 | `Scope` | string | `openid profile email` | Must include `openid`. No `offline_access`: the provider renews the access token in a hidden frame while its own session lasts. The API's own scope goes here when the provider issues its audience that way. |
 | `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only, as `wwwroot/appsettings.Development.json` sets it for `dotnet watch`. |
 

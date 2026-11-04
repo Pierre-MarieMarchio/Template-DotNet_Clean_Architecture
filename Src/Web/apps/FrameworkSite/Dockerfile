@@ -95,6 +95,7 @@ FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24@sha256:b5047b9b76845eac124358
 ENV API_UPSTREAM=http://api:8080 \
 #if (webBlazorWasm && externalAuth)
     SIGN_IN_AUTHORITY="" \
+    SIGN_IN_CLIENT_ID="" \
 #endif
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 

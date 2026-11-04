@@ -27,6 +27,10 @@ until the team accepts them.
 A decision is never edited into another. To replace one, write a new ADR and set the old one's
 status to `Superseded by` with a link to the new one.
 
+An ADR holds every section of the template. "When this decision does not apply" is the one it leaves
+out when the decision has no exception: a case it names there is governed by what that section says,
+not by the decision.
+
 ## Changing an inherited choice
 
 [ADR 0001](0001-adopt-the-generated-baseline.md) lists the choices this project inherited: its
@@ -104,5 +108,17 @@ Accepted, and its table shows which inherited choices still hold.
 <!--#endif-->
 | [0033](0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) | Use cases are Mediator messages, and ports are explicit | Architecture |
 | [0034](0034-features-meet-through-ports-their-owner-declares-and-events.md) | Features meet through ports their owner declares, and events | Architecture |
+| [0035](0035-folders-take-their-names-from-a-closed-vocabulary.md) | Folders take their names from a closed vocabulary | Architecture |
+| [0036](0036-mappings-are-written-by-hand.md) | Mappings are written by hand | Architecture |
+<!--#if (anyWeb)-->
+| [0037](0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md) | A web app is deployed apart, behind a relay to the API | Web front end |
+<!--#endif-->
+| [0038](0038-deleting-removes-rows.md) | Deleting removes rows | Persistence |
+<!--#if (accounts)-->
+| [0039](0039-a-role-is-checked-by-the-host-not-by-the-use-case.md) | A role is checked by the host, not by the use case | Authorisation |
+<!--#endif-->
+<!--#if (localAuth)-->
+| [0040](0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md) | The signing key rotates through previous keys that only validate | Authentication |
+<!--#endif-->
 
 Add this project's own ADRs as rows at the end of the table, numbered from 1000.

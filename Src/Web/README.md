@@ -69,7 +69,7 @@ Pass the project's `--auth`, `--ci` and `--agent-files` too when they are not th
 
 `--workspace` writes this folder, the shared packages, the browser smoke among them, the API client,
 the web apps' end-to-end tests, `docs/features/web-frontend.md`,
-`docs/decisions/0019-one-generated-api-client.md`, the server-rendered app's decision under
+`docs/decisions/0019-one-generated-api-client.md`, `docs/decisions/0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md`, the server-rendered app's decision under
 `--rendering ssr` and, unless `--ci false`, `.github/workflows/web.yml`. The API side is in every project already. The lines `--web` writes in
 files the item template cannot edit are listed below, then those of the app's own `README.md`.
 `web-join`, the first time it joins an app to a project whose `cleanarch.json` records no
@@ -526,6 +526,18 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 
   ```markdown
   | [0019](0019-one-generated-api-client.md) | One generated API client | Web front end |
+  ```
+
+- in `docs/decisions/README.md`, after the line:
+
+  ```markdown
+  | [0036](0036-mappings-are-written-by-hand.md) | Mappings are written by hand | Architecture |
+  ```
+
+  add:
+
+  ```markdown
+  | [0037](0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md) | A web app is deployed apart, behind a relay to the API | Web front end |
   ```
 
 <!--#if (webServerRendering)-->

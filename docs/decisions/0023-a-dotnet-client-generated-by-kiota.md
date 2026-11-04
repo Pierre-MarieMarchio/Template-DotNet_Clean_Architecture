@@ -56,6 +56,10 @@ wrapper, the same for every app.
   converter, and problems parsed by hand.
 - **Types written by hand.** Each contract change would have to be copied by hand, and nothing
   would say when one was missed.
+- **The client under `Src/Presentation`, or inside `Presentation.Core`.** It would be a
+  presentation project, which may reference the application layer, so nothing would keep a client
+  from reaching the use cases in process. A folder of its own, `Src/Clients`, lets
+  `EveryClient_ReachesTheCoreThroughTheApiAlone` hold that it reaches the core through the API alone.
 
 ## Consequences
 

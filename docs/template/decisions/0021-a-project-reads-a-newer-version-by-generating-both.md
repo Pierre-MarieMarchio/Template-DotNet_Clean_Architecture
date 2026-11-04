@@ -58,4 +58,6 @@ generation holds, and an item template's join edits files outside its part.
 
 ## Revisit when
 
-`dotnet new` gains an update of its own, or `dotnet cleanarch` takes the report over.
+`dotnet new` gains an update of its own, or the report, a command of the project's tool as every
+task is ([0017](0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)), comes to need to write
+in the project rather than report.

@@ -92,7 +92,7 @@ what changing it costs.
 | A Blazor Web App with server interactivity beside the API, its pages from `dotnet new blazor` at bootstrap, composing the use cases in process | A server-rendered site needs no client of the API and no token per user | [Presentation project](../features/presentation.md) | — |
 <!--#endif-->
 <!--#if (presentationAvalonia)-->
-| An Avalonia desktop app beside the API, its views from `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases | [Presentation project](../features/presentation.md) | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) |
+| An Avalonia desktop app beside the API, its views from `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client | A desktop app runs on the user's machine, where only the HTTP contract reaches the use cases ([ADR 0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)) | [Presentation project](../features/presentation.md) | — |
 <!--#endif-->
 <!--#if (presentationMcp)-->
 | An MCP server beside the API, in the shape of `dotnet new mcpserver --transport remote`, stateless on Streamable HTTP, each tool one use case called in process | An agent's client reaches the use cases as tools, acting for the caller its credential names | [Presentation project](../features/presentation.md) | — |

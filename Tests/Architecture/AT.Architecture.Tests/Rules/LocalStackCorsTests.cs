@@ -1,6 +1,10 @@
-﻿using System.Text.RegularExpressions;
+﻿//#if (api)
+using System.Text.RegularExpressions;
+//#endif
 using AppTemplate.Architecture.Tests.Fixtures;
+//#if (api)
 using Microsoft.Extensions.Configuration;
+//#endif
 using Shouldly;
 using Xunit;
 
@@ -8,6 +12,7 @@ namespace AppTemplate.Architecture.Tests.Rules;
 
 public sealed partial class LocalStackCorsTests
 {
+    //#if (api)
     private const string _why =
         "every web app relays /api/ to the API from its own origin, through its development server, its nginx "
         + "or its Node server, so nothing the stack runs calls the API cross-origin; a default origin opens "
@@ -100,4 +105,27 @@ public sealed partial class LocalStackCorsTests
             .Select(line => ComposeOrigin().Match(line))
             .Where(match => match.Success)
             .Select(match => match.Groups["value"].Value)];
+    /*#else
+    [Fact]
+    public void WithoutTheApi_NoStackFileCarriesTheCorsSetting()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        var appHostSources = ProjectReferenceGraph.SourceProjects.Values
+            .Where(project => project.Name.EndsWith(".AppHost", StringComparison.Ordinal))
+            .SelectMany(project => Directory.EnumerateFiles(ProjectReferenceGraph.RootOf(project), "*.cs", SearchOption.AllDirectories))
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
+
+        Directory.EnumerateFiles(root, "docker-compose*.yml")
+            .Append(Path.Combine(root, ".env.example"))
+            .Concat(appHostSources)
+            .SelectMany(file => File.ReadAllLines(file).Select((line, index) => (File: file, Line: line, Number: index + 1)))
+            .Where(entry => entry.Line.Contains("Cors__AllowedOrigins", StringComparison.Ordinal)
+                || entry.Line.Contains("CORS_ALLOWED_ORIGIN", StringComparison.Ordinal))
+            .Select(entry => $"{Path.GetRelativePath(root, entry.File)}:{entry.Number}: {entry.Line.Trim()}")
+            .ShouldBeEmpty(
+                "Only the API reads the Cors section, and this project holds none: these lines give the hosts a "
+                + "setting nothing binds. Generate them only with the API.");
+    }
+    #endif*/
 }

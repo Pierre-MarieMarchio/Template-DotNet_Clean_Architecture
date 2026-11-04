@@ -77,9 +77,11 @@ x-host-environment: &host-environment
   IdentitySeed__AdminEmail: ${SEED_ADMIN_EMAIL:-}
   IdentitySeed__AdminPassword: ${SEED_ADMIN_PASSWORD:-}
   #endif
+  #if (api)
 
   # Arrays bind by index with the __N suffix.
   Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN_0:-}
+  #endif
 
 #if (anyWeb)
 # One line per web app: its compose.yml declares the service, built from Src/Web.

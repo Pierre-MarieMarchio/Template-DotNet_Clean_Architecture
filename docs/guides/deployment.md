@@ -49,7 +49,7 @@ each of their values trades safety for a start that needs nothing. A deployment 
 | Mailpit, which catches every mail, reached without TLS (`EMAIL_SECURITY=None`, `EMAIL_ALLOW_INSECURE_TRANSPORT=true`) | a relay over `StartTls` or `SslOnConnect`, with `Email:AllowInsecureTransport` false |
 | plain HTTP on ports bound to `127.0.0.1` | TLS at the proxy in front, as [behind a proxy](#behind-a-proxy) says |
 | <!--#if (api)--> |
-| `Cors:AllowedOrigins` on `http://localhost:4200`, `AllowedHosts` at `*` | your own origins and host names |
+| `Cors:AllowedOrigins` empty, `AllowedHosts` at `*` | an origin only for a browser that calls the API from another origin, and your own host names |
 | <!--#endif--> |
 | <!--#if (!api)--> |
 | `AllowedHosts` at `*` | your own host names |
@@ -187,7 +187,7 @@ A deployment supplies every blank of `appsettings.json` as an environment variab
 <!--#if (api)-->
 Every section is validated at start: a missing or out-of-range value stops the host before it binds a
 port, naming each key that failed. Take secrets from a secret manager, never from a tracked file.
-Narrow `AllowedHosts` from `*` to the hosts you serve, and set `Cors:AllowedOrigins` to your origins.
+Narrow `AllowedHosts` from `*` to the hosts you serve, and set `Cors:AllowedOrigins` only when a browser calls the API from another origin.
 [The configuration reference](../reference/configuration.md) lists every key.
 <!--#endif-->
 <!--#if (!api)-->

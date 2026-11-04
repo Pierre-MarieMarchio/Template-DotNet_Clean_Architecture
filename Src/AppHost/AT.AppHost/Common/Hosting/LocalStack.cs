@@ -320,7 +320,7 @@ internal sealed partial class LocalStack
 
         var smtp = _mailCatcher.GetEndpoint("smtp");
 
-        return project
+        project
             .WithEnvironment("Email__Host", $"{smtp.Property(EndpointProperty.Host)}")
             .WithEnvironment("Email__Port", $"{smtp.Property(EndpointProperty.Port)}")
             .WithEnvironment("Email__Security", "None")
@@ -328,9 +328,13 @@ internal sealed partial class LocalStack
             .WithEnvironment("Email__UserName", string.Empty)
             .WithEnvironment("Email__Password", _emailPassword)
             .WithEnvironment("Email__FromAddress", "no-reply@localhost")
-            .WithEnvironment("Email__FromName", "AppTemplate (dev)")
-            .WithEnvironment("Cors__AllowedOrigins__0", string.Empty)
-            .WithEnvironment(ExportTelemetryToTheDashboard);
+            .WithEnvironment("Email__FromName", "AppTemplate (dev)");
+        //#if (api)
+
+        project.WithEnvironment("Cors__AllowedOrigins__0", string.Empty);
+        //#endif
+
+        return project.WithEnvironment(ExportTelemetryToTheDashboard);
     }
 
     private static void ExportTelemetryToTheDashboard(EnvironmentCallbackContext context)

@@ -4,11 +4,10 @@ Status: Accepted
 
 ## Context
 
-The template generated an HTTP API, plus at most one presentation project beside it
-(`--presentation none|blazor-server|avalonia|mcp|wpf`, named by `--presentation-name`), and moved the
-background jobs into a worker with an option of its own (`--jobs api|worker`). A team that wants an
-MCP server and a Blazor portal, or a portal and a worker without an HTTP contract at all, could not
-say so: one presentation, and the API always. The `dotnet new` engine takes a choice with
+A project holds one or several hosts: the HTTP API, a Blazor portal, an MCP server, a desktop
+client, a worker for the background jobs. A team may want an MCP server and a Blazor portal, or a
+portal and a worker without an HTTP contract at all; an option that adds one presentation beside an
+API always generated cannot say so. The `dotnet new` engine takes a choice with
 `allowMultipleValues`: the CLI repeats the option (`--presentation api --presentation mcp`; `api|mcp`
 and `api,mcp` are refused), and a condition reads `presentation == "mcp"` as "mcp is among the
 values" and `presentation != "mcp"` as "it is not", in source modifiers, markers, generated
@@ -17,17 +16,17 @@ switches and `isRequired` alike.
 ## Decision
 
 - **`--presentation` names every host the project holds, the API among them.** One multi-valued
-  choice: `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`; `api` by default, so the
-  default project is the one it was. `none` is gone; `presentationApi`, `presentationBlazorServer`,
-  `presentationMcp`, `presentationAvalonia`, `presentationWpf` and `jobsWorker` name each value.
+  choice: `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker`; `api` by default.
+  `presentationApi`, `presentationBlazorServer`, `presentationMcp`, `presentationAvalonia`,
+  `presentationWpf` and `jobsWorker` name each value.
   `EveryPresentationChoice_IsAStarterTheTemplateCopiesByIt` holds one starter per value but `api`,
   copied under that value's symbol.
-- **The worker is a presentation value.** `--jobs` is gone: the jobs run in the worker when
-  `worker` is chosen, in the API otherwise, by the same sources and switch symbols as before
-  ([0012](0012-where-the-jobs-run-is-an-option.md)). `workerNeedsServerDatabase` refuses the
+- **The worker is a presentation value.** The jobs run in the worker when `worker` is chosen, in the
+  API otherwise, by the sources and switch symbols
+  [0024](0024-the-worker-takes-the-jobs-out-of-the-api.md) describes. `workerNeedsServerDatabase` refuses the
   worker, chosen or added, with `--database sqlite`.
 - **Each host has its name.** `Api`, `Portal` for `blazor-server`, `Mcp`, `Desktop` for `avalonia`
-  or `wpf`, `Worker`. `--presentation-name` is gone; each starter carries a token of its own
+  or `wpf`, `Worker`, with no option to name them; each starter carries a token of its own
   (`PresentationAppPortal`, `PresentationAppMcp`, `PresentationAppDesktop`, with their kebab and
   upper-case forms), which a constant replaces in the project template and `-n` in
   `cleanarch-presentation`, so two starters never collide on a path, a service or a port. Avalonia
@@ -36,7 +35,7 @@ switches and `isRequired` alike.
 - **What calls the API brings it.** `needsApi` is true with a web app, a desktop client, or the MCP
   server under local accounts, whose access keys the API issues; `api` is `presentationApi ||
   needsApi`, and conditions everything the API owns. The launcher shows the API as answered for
-  you, naming what calls it ([0004](0004-the-launcher-reads-the-templates-manifests.md)).
+  you, naming what calls it ([0026](0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md)).
 - **A project without the API holds none of its parts.** Under `!api` it has no `<Project>.Api`, no
   API unit or integration tests, no end-to-end suite, no load smoke, no `.http` file, no `api`
   Compose service, no `openapi`, `run`, `api-client` or `end-to-end` task, no OpenAPI document, no
@@ -56,7 +55,7 @@ switches and `isRequired` alike.
   `presentationNeedsTheApi` refuses a desktop client, or the MCP server under local accounts, in a
   project without it.
 - **Every refusal keeps its shape**, a hidden parameter with a conditional `isRequired`, mirrored in
-  `refusedOptions` and in the `#error` variant, now under `Src/Presentation/<Initials>.Presentation.Core`,
+  `refusedOptions` and in the `#error` variant, under `Src/Presentation/<Initials>.Presentation.Core`,
   which every project holds.
 
 ## Alternatives considered
@@ -71,7 +70,7 @@ switches and `isRequired` alike.
   and nothing else.
 - **A refusal of a project holding neither the API nor the worker.** It kept the choice visible, at
   the cost of a question asked again for an answer only one host gives; adding the worker answers it
-  the way the API is added for its callers, and the launcher still shows it.
+  the way the API is added for its callers, and the launcher shows it.
 - **The jobs in whichever server host is chosen.** Every server host would carry the jobs' sources,
   settings and leases under a condition of its own, for a shape the worker already gives.
 - **A name option per host.** Five names to ask for hosts whose project names `cleanarch-presentation`
@@ -79,18 +78,13 @@ switches and `isRequired` alike.
 
 ## Consequences
 
-- The default generation is unchanged; every other shape that passed `--jobs worker` or
-  `--presentation <value>` alone is written with the new syntax, and one that passed `--presentation
-  blazor-server` or `--presentation mcp --auth external` alone adds `--presentation api`, or gets the
-  worker without it.
+- A shape that wants the API beside another host names it: `--presentation blazor-server` alone is
+  a portal without the API, which gets the worker for the jobs.
 - A project without the API has no HTTP contract to test end to end and no host that migrates in
   Development: its first-run page applies the migrations with `dotnet ef database update`.
 - Two server hosts share one compose environment block and each keeps its own service and port.
   The `several hosts, local auth, notes` leg starts the API, the portal, the MCP server and the
   worker together.
-- [0012](0012-where-the-jobs-run-is-an-option.md) keeps how the jobs move and loses its option;
-  [0015](0015-an-mcp-server-is-a-presentation-project-written-whole.md) loses its one presentation
-  project per project and its generated default name.
 
 ## Revisit when
 

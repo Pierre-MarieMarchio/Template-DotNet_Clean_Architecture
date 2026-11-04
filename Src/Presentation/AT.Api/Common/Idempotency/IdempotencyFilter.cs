@@ -7,6 +7,7 @@ using AppTemplate.Application.Core.Common.Ports;
 using AppTemplate.Application.Core.Common.Results;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Options;
 
 namespace AppTemplate.Api.Common.Idempotency;
@@ -101,32 +102,49 @@ internal sealed class IdempotencyFilter(
         }
         catch
         {
-            if (!httpContext.Response.HasStarted)
-            {
-                await store.ReleaseAsync(key, CancellationToken.None);
-            }
-
+            await ReleaseUnlessStartedAsync(key, httpContext);
             throw;
         }
 
-        IdempotentResponse response;
-
-        switch (executed.Result)
+        if (executed is { Exception: not null, ExceptionHandled: false })
         {
-            case ObjectResult { StatusCode: >= 200 and < 300 } objectResult:
-                response = BuildResponse(httpContext, objectResult, settings.MaxStoredResponseBytes);
-                break;
-
-            case StatusCodeResult { StatusCode: >= 200 and < 300 } statusCodeResult:
-                response = BuildResponse(httpContext, statusCodeResult);
-                break;
-
-            default:
-                await store.ReleaseAsync(key, CancellationToken.None);
-                return;
+            await ReleaseUnlessStartedAsync(key, httpContext);
+            return;
         }
 
+        if (SuccessStatusCode(executed) is not { } statusCode)
+        {
+            await store.ReleaseAsync(key, CancellationToken.None);
+            return;
+        }
+
+        var response = executed.Result is ObjectResult objectResult
+            ? BuildResponse(httpContext, objectResult, statusCode, settings.MaxStoredResponseBytes)
+            : new IdempotentResponse(statusCode, null, ReadLocation(httpContext), ReadETag(httpContext));
+
         await store.CompleteAsync(key, response, CancellationToken.None);
+    }
+
+    private async Task ReleaseUnlessStartedAsync(IdempotencyKey key, HttpContext httpContext)
+    {
+        if (!httpContext.Response.HasStarted)
+        {
+            await store.ReleaseAsync(key, CancellationToken.None);
+        }
+    }
+
+    private static int? SuccessStatusCode(ResourceExecutedContext executed)
+    {
+        if (executed.Result is null)
+        {
+            return null;
+        }
+
+        int statusCode = executed.Result is IStatusCodeActionResult { StatusCode: { } declared }
+            ? declared
+            : executed.HttpContext.Response.StatusCode;
+
+        return statusCode is >= 200 and < 300 ? statusCode : null;
     }
 
     private static bool HasIdempotentAttribute(ResourceExecutingContext context) =>
@@ -154,6 +172,7 @@ internal sealed class IdempotencyFilter(
     private static IdempotentResponse BuildResponse(
         HttpContext httpContext,
         ObjectResult result,
+        int statusCode,
         int maxStoredResponseBytes)
     {
         var jsonOptions = httpContext.RequestServices.GetService<IOptions<JsonOptions>>()
@@ -169,15 +188,8 @@ internal sealed class IdempotencyFilter(
             body = null;
         }
 
-        return new IdempotentResponse(
-            result.StatusCode ?? StatusCodes.Status200OK,
-            body,
-            ReadLocation(httpContext),
-            ReadETag(httpContext));
+        return new IdempotentResponse(statusCode, body, ReadLocation(httpContext), ReadETag(httpContext));
     }
-
-    private static IdempotentResponse BuildResponse(HttpContext httpContext, StatusCodeResult result) =>
-        new(result.StatusCode, null, ReadLocation(httpContext), ReadETag(httpContext));
 
     private static string? ReadLocation(HttpContext httpContext) =>
         httpContext.Response.Headers.Location.Count > 0

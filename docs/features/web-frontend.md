@@ -290,8 +290,8 @@ The app's `README.md` gives the client to register at the provider; its settings
 
 The API authenticates nobody, so `createApiClient()` with no option calls every route.
 <!--#endif-->
-
 <!--#if (localAuth)-->
+
 ## The pages the mailed links open
 
 The confirmation, password-reset and email-change mails link to `/confirm-email`,
@@ -307,16 +307,16 @@ links keep naming the API's origin. To move them to an app:
 
 The app's relay forwards each page's `POST /api/...` to the API.
 <!--#endif-->
-
 <!--#if (accounts)-->
+
 ## A back office
 
 An app generated for the `admin` audience is meant for administrators. The account administration
 routes answer `403` to an account without the administrator role, so read the caller's roles
 from `GET /api/v1/auth/me` before showing those screens. An admin app needs accounts: a public API
 has no administrator to sign in.
-
 <!--#endif-->
+
 ## More apps and packages
 
 Add an app at the project root; it gets its own folder, image and Compose service:

@@ -680,16 +680,16 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   shows how to install.
   ```
 
-- in `docs/guides/adding-a-feature.md`, after the lines:
+- in `docs/guides/adding-a-feature.md`, after the line:
 
   ```markdown
   The migration is empty unless the rule needs a column or an index.
-
   ```
 
   add:
 
   ```markdown
+
   ## Web pages for it
 
   `new-feature` and `new-use-case` run `pnpm api` in `Src/Web` once the API serves the routes; run it

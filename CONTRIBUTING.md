@@ -102,9 +102,7 @@ Assisted-by: <tool>:<model>
 In this repository, release-please reads the types: a `feat` or a `fix` lands in the changelog, and a
 `!` makes the next version a major one
 ([branches and releases](docs/template/maintaining-the-template.md#branches-and-releases)).
-<!--#endif-->
 
-<!--#if (templateMaintenance)-->
 ## Working on the template
 
 This repository is also the template. A change starts from `develop` on a `<type>/<subject>` branch,

@@ -143,7 +143,7 @@ string of at most 128 characters, on an action that accepts one.
 | Same key while the first is still running | `409` `idempotency.inProgress` |
 | Same key after the first attempt failed | the request runs: a failure releases its claim |
 | Same key after the process stopped between the write's commit and the stored response | `409` `idempotency.inProgress` until `Idempotency:ClaimLease` (15 minutes by default) has passed, then the request runs again: at most once does not hold in that window |
-| A stored response too large to keep | `409` `idempotency.notReplayable` |
+| Same key after it completed with a body this server does not keep (too large, a file, a text, an empty `200`) | `409` `idempotency.notReplayable`; nothing runs again |
 | A key on a request with no identifiable caller | `400` `idempotency.callerNotIdentifiable` |
 
 Keys are scoped per user, so two callers may use the same string. A completed key stays replayable

@@ -371,6 +371,11 @@ No object store runs.
   none between it and the page's `# ` heading. A marker goes after the heading. The pages under
   `docs/template/` take `type: guide`, its decisions `type: decision`, and
   `DocumentationFrontmatterTests` holds both.
+- The index of each folder, `docs/<folder>/index.md`, is what `docs-index` writes from the pages a
+  tree holds, so it needs no marker and a page's `title` and `description` hold none. In this
+  checkout it lists every branch's pages and the template's; `template.json` and the package leave
+  it out, which `TheCheckoutsDocumentationIndex_ReachesNeitherAProjectNorTheTemplatePackage` holds,
+  and bootstrap writes a project's own from the pages its form keeps.
 - Use only real symbols of `template.json`, negated with `!` for the other branch; never a bare
   else, elseif or a marker inline in a sentence.
 - A branch holds whole sentences, whole list items or whole table rows; a table's header stays outside

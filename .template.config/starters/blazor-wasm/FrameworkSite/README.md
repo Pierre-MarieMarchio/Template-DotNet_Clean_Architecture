@@ -290,7 +290,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  the local tools and creates each context's initial migration, and the other tasks assume all four.
+  other tasks assume all five.
   ```
 
   add:

@@ -56,8 +56,8 @@ languages of one mail sharing a subject.
 <!--#endif-->
 
 ## The mails
-
 <!--#if (localAuth)-->
+
 | Mail | Sent when | Template folder |
 |---|---|---|
 | `Register` | a new or unconfirmed address registers | `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/` |
@@ -76,6 +76,7 @@ languages of one mail sharing a subject.
 The identity provider writes its own account mails.
 <!--#endif-->
 <!--#if (!localAuth && !reminders)-->
+
 No mail ships with this project yet: a feature that sends one embeds its templates and calls
 `IEmailSender`.
 <!--#endif-->

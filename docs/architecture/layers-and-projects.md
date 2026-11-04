@@ -48,8 +48,8 @@ expired idempotency keys, and the leased sweep of the data deleted accounts leav
 `AppTemplate.Application.Core` also holds the one use case no business feature owns: the purge of
 expired idempotency keys.
 <!--#endif-->
-
 <!--#if (localAuth)-->
+
 Nothing in the other two application projects names `AppTemplate.Application.Auth`, so a project that
 needs it declares it: the identity module, the in-memory doubles and the host.
 `TheApplicationLayer_KnowsNothingOfAuthentication` reads the assembly manifests to hold it, and
@@ -94,20 +94,22 @@ The one exemption is `AppTemplate.Infrastructure.Auth`, whose JWT bearer handler
 framework; the test names it with that reason and fails if the reason stops being true.
 <!--#endif-->
 
-<!--#if (postgreSql && api)-->
+<!--#if (api)-->
+<!--#if (postgreSql)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and Npgsql instrumentation and its own meters, because only it may reference those packages.
 <!--#endif-->
-<!--#if (sqlServer && api)-->
+<!--#if (sqlServer)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and SqlClient instrumentation and its own meters, because only it may reference those packages.
 <!--#endif-->
-<!--#if (sqlite && api)-->
+<!--#if (sqlite)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 instrumentation and its own meters, because only it may reference those packages. SQLite has no
 database instrumentation to add.
 <!--#endif-->
 
+<!--#endif-->
 <!--#if (api)-->
 ## The API host
 
@@ -207,6 +209,7 @@ builder.Services.AddAuthFeature(builder.Configuration);
 builder.Services.AddExternalAuthentication(builder.Configuration);
 <!--#endif-->
 ```
+<!--#if (localAuth || externalAuth)-->
 
 <!--#if (localAuth)-->
 `AddAuthFeature` composes the authentication use cases, the identity module, its purge jobs, its
@@ -216,6 +219,7 @@ local accounts deletes that line and its folder.
 <!--#if (externalAuth)-->
 `AddExternalAuthentication` composes the provider's bearer validation, the mapping of its subjects
 to owners and the `Administrator` policy.
+<!--#endif-->
 <!--#endif-->
 
 `TheApiContainer_BuildsUnderStrictValidation` builds the API's container with `ValidateOnBuild` and

@@ -46,8 +46,8 @@ or `HttpPipelineModule`. It is a composition concept, never a business partition
 | `AppTemplate.Infrastructure.Storage` | the file content store, direct transfer, inventory and scanner | an S3-compatible bucket or a local directory |
 <!--#endif-->
 | `AppTemplate.Infrastructure.InMemory` | doubles a test composes over a real module | none |
-
 <!--#if (externalAuth)-->
+
 The mapping of an external provider's subjects to owners is a business feature of the persistence
 module, in the `external_identity` schema, composed by `AddExternalIdentityPersistence`.
 <!--#endif-->
@@ -68,8 +68,8 @@ The reason is extraction: each reference that reaches past a port is an edit the
 would need before the other could leave. `FeatureIsolationTests` reads both the application and the
 persistence project, because a query can read another feature's rows without any signature showing
 it. [Reaching another feature](../guides/reaching-another-feature.md) gives the steps of each way in.
-
 <!--#if (reminders)-->
+
 `Reminders` needs to know that a to-do item exists, who owns it and whether it is done. It asks
 `ITodoItemQueries`, a narrow port `TodoLists` declares and implements, and never reads the to-do
 rows itself. `AddReminders()` therefore needs `AddTodoLists()` in the same host.

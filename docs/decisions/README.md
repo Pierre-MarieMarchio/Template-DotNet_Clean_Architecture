@@ -1,4 +1,4 @@
-﻿# Decisions
+# Decisions
 
 An architecture decision record (ADR) says why this project made one choice over another, in a page
 of its own: the context, the decision, the alternatives it turned down, its consequences, and when

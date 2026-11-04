@@ -1,4 +1,4 @@
-﻿# 0026. The launcher and the project's tool read the templates' manifests
+# 0026. The launcher and the project's tool read the templates' manifests
 
 Status: Accepted; supersedes [0004](0004-the-launcher-reads-the-templates-manifests.md)
 

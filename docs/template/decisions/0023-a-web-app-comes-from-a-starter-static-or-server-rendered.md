@@ -1,4 +1,4 @@
-﻿# 0023. A web app comes from a starter, static or server-rendered
+# 0023. A web app comes from a starter, static or server-rendered
 
 Status: Accepted; supersedes [0008](0008-a-web-app-comes-from-a-starter.md) and [0011](0011-a-starter-may-render-on-the-server.md)
 

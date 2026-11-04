@@ -114,7 +114,7 @@ An MCP server's own tests for these tools are in its test project, under `Featur
 ## Decisions
 
 - [ADR 0002: two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [ADR 0004: features meet through ports and events](../decisions/0004-features-meet-through-ports-and-events.md)
+- [ADR 0034: features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
 - [ADR 0008: optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
 - [ADR 0009: ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
 - [ADR 0012: on account deletion, each feature decides](../decisions/0012-account-deletion-each-feature-decides.md)

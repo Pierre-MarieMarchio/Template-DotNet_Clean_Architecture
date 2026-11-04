@@ -13,7 +13,7 @@ public sealed class BannedPackageTests
     [
         (
             "MediatR",
-            "its licence is commercial. Use cases are sent through the source-generated Mediator, whose licence is MIT (ADR 0003)."),
+            "its licence is commercial. Use cases are sent through the source-generated Mediator, whose licence is MIT (ADR 0033)."),
         (
             "AutoMapper",
             "a mapping is written by hand, where the compiler checks it and a reader finds it. " +

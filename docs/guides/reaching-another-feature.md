@@ -4,7 +4,7 @@
 
 A feature needs another one: to read its state, to change it, or to let it react to a fact. At the
 end, the two meet through a port or a domain event, the only ways
-[ADR 0004](../decisions/0004-features-meet-through-ports-and-events.md) allows, and each feature
+[ADR 0034](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md) allows, and each feature
 can still be removed without editing the other's internals.
 
 | The feature needs to | Through | Runs |
@@ -36,7 +36,7 @@ both commit, or neither does.
 
 1. Declare the port in `<B>`'s application folder,
    `Src/Application/AT.Application/Features/<B>/Ports/<Capability>/I<Capability>.cs`, as
-   [ADR 0004](../decisions/0004-features-meet-through-ports-and-events.md) says: the port belongs to
+   [ADR 0034](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md) says: the port belongs to
    the feature that owns the state. It answers a `<Capability>Status` enum beside it that closes the
    ways the call can go, never a `Result`: the use case that calls it chooses the error code.
 <!--#if (accounts)-->

@@ -380,6 +380,9 @@ No object store runs.
   else, elseif or a marker inline in a sentence.
 - A branch holds whole sentences, whole list items or whole table rows; a table's header stays outside
   any branch that can leave rows without it.
+- Every form keeps exactly one blank line between two blocks of text: put the blank line inside the
+  branch that needs it, at its start, rather than around its markers. `ConditionedMarkdownTests`
+  fails on a page that keeps two in a row in any form.
 - No marker inside a mermaid fence. A diagram shows the full shape, unconditioned, and says so.
 - A page about an absent part is excluded by a path condition, not emptied by markers; its links from
   shared pages are conditioned the same way.

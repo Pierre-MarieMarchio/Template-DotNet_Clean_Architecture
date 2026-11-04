@@ -400,9 +400,9 @@ jobs:
           dotnet restore Sample.Generated.Project.sln
           dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
 
-      # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it.
-      - name: Write the OpenAPI reference (integration legs)
-        if: matrix.integration == 'true'
+      # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it; the generator round trip starts from that tree, since new-feature rewrites the reference.
+      - name: Write the OpenAPI reference (integration and generator legs)
+        if: matrix.integration == 'true' || matrix.generator == 'true'
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs openapi
 

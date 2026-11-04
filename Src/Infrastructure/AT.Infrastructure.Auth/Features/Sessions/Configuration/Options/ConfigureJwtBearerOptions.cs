@@ -43,7 +43,7 @@ internal sealed class ConfigureJwtBearerOptions(IOptions<JwtOptions> jwtOptions)
             ClockSkew = TimeSpan.FromSeconds(30),
             ValidIssuer = settings.Issuer,
             ValidAudience = settings.Audience,
-            IssuerSigningKey = settings.CreateSigningKey(),
+            IssuerSigningKeys = settings.CreateValidationKeys(),
 
             ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
         };

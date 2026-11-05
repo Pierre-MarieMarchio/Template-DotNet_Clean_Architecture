@@ -83,21 +83,21 @@ to start without their identity provider.
 <!--#endif-->
 | Service | Address |
 |---|---|
-<!--#if (api)-->
+| <!--#if (api)--> |
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI | <http://localhost:8080/scalar/v1> |
-<!--#endif-->
-<!--#if (presentationBlazorServer)-->
+| <!--#endif--> |
+| <!--#if (presentationBlazorServer)--> |
 | The portal | <http://localhost:8090> |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | The MCP server | <http://localhost:8091/mcp> |
-<!--#endif-->
+| <!--#endif--> |
 | Mailpit | <http://localhost:8025> |
-<!--#if (webFramework)-->
+| <!--#if (webFramework)--> |
 | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webPlaceholder)-->
+| <!--#endif--> |
+| <!--#if (webPlaceholder)--> |
 | Web app | <http://localhost:8081> |
 <!--#endif-->
 

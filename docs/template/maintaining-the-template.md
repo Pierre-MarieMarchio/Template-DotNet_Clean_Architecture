@@ -380,6 +380,12 @@ No object store runs.
   else, elseif or a marker inline in a sentence.
 - A branch holds whole sentences, whole list items or whole table rows; a table's header stays outside
   any branch that can leave rows without it.
+- A marker between two rows of a table, the `|---|` line counted as a row, is written as a row of
+  one cell, `| <!--#if (x)--> |`: a marker on a line of its own there ends the table GitHub renders,
+  and every row after it shows as text. Generation removes the row whole, as it removes the line;
+  GitHub shows an empty row in its place. One marker per row, never an `endif` and an `if` on the
+  same one. A marker before the header or after the table keeps its own line.
+  `NoMarkerOnALineOfItsOwn_EndsAMarkdownTable` holds it.
 - Every form keeps exactly one blank line between two blocks of text: put the blank line inside the
   branch that needs it, at its start, rather than around its markers. `ConditionedMarkdownTests`
   fails on a page that keeps two in a row in any form.

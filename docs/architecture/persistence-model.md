@@ -28,29 +28,29 @@ editing a shared model, and the tables no feature owns live in `platform`.
 
 | Schema | Tables | Context |
 |---|---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` | `AppDbContext` |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `reminders` | `Reminders` | `AppDbContext` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `files` | `StoredFiles`, `StoredFileTags`, `ContentSweepCheckpoints` | `AppDbContext` |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `notes` | `Notes` | `AppDbContext` |
-<!--#endif-->
-<!--#if (externalAuth)-->
+| <!--#endif--> |
+| <!--#if (externalAuth)--> |
 | `external_identity` | `ExternalIdentities`, `RoleAssignments` | `AppDbContext` |
-<!--#endif-->
+| <!--#endif--> |
 | `platform` | `IdempotencyKeys` | `AppDbContext` |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `public` | `__EFMigrationsHistory` of the business context | `AppDbContext` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `dbo` | `__EFMigrationsHistory` of the business context | `AppDbContext` |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `UserPasskeys`, `SpentPasskeyCeremonies`, `SecurityEvents`, `DataProtectionKeys`, and its own `__EFMigrationsHistory` | `AuthDbContext` |
 <!--#endif-->
 

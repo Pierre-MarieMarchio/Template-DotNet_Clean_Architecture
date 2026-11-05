@@ -6,7 +6,7 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 
 internal static class TemplateMarkers
 {
-    private static readonly Regex _directive = new(@"^\s*(?://|/\*|<!--)?#(?<kind>if|elseif|elif|else|endif)\b(?<condition>.*)$", RegexOptions.None, TimeSpan.FromSeconds(5));
+    private static readonly Regex _directive = new(@"^\s*(?:\|\s*)?(?://|/\*|<!--)?#(?<kind>if|elseif|elif|else|endif)\b(?<condition>.*?)(?:\s*\|)?$", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     internal static string[] Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
 

@@ -90,7 +90,7 @@ of each layer and the tests that fail when one points the other way.
 | `--agent-files` | `true`, `false` | `true` |
 | `--aspire` | `true`, `false` | `false` |
 | `--web` | `none`, `placeholder`, `vite-react`, `vite-vue`, `vite-svelte`, `react-router`, `angular`, `blazor-wasm` | `none` |
-| `--web-name` | PascalCase text | `Site` |
+| `--web-name` | a PascalCase name, such as `Admin` | `Site` |
 | `--web-audience` | `public`, `admin` | `public` |
 | `--web-rendering` | `spa`, `ssr` | `spa` |
 | `--presentation`, once per value | `api`, `blazor-server`, `mcp`, `avalonia`, `wpf`, `worker` | `api` |

@@ -173,6 +173,10 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapi -n Sample.Generated.Project -o "${{ runner.temp }}/generated" $OPTIONS
+          if [ -n "$(find "${{ runner.temp }}/generated/docs" -name index.md)" ]; then
+            echo "::error title=Index shipped::The generated project carries a docs index; bootstrap writes it."
+            exit 1
+          fi
 
       # Before any item template or official CLI writes a file: bootstrap's formatting may reorder these, and must remove none.
       - name: Record the using directives the template wrote
@@ -393,15 +397,11 @@ jobs:
             exit 1
           fi
 
-      # The project ships no docs index: bootstrap's docs-index writes each folder's from the pages the shape keeps, which hygiene then holds fresh.
+      # Generation ships no docs index and a join rewrites one: bootstrap's docs-index writes each folder's from the pages the shape keeps, which hygiene then holds fresh.
       - name: Bootstrap the documentation index
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          if [ -n "$(find docs -name index.md)" ]; then
-            echo "::error title=Index shipped::The generated project carries a docs index; bootstrap writes it."
-            exit 1
-          fi
           dotnet run Tools/Tasks.cs docs-index
           dotnet run Tools/Tasks.cs docs-index --check
 

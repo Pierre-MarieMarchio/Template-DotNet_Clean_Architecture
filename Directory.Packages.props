@@ -151,6 +151,8 @@
   <!--#endif-->
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
+    <!-- The version Microsoft.EntityFrameworkCore.Design requires exactly, through its pin on Roslyn's workspaces; the two move together. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
     <!-- The in-process relational provider the saving-pipeline tests run on. -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />

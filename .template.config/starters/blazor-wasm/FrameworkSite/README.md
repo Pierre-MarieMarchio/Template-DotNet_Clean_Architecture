@@ -263,9 +263,9 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   ```xml
     <ItemGroup Label="Web app on WebAssembly">
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.14" />
-<!--#endif-->
+  <!--#endif-->
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" />
     </ItemGroup>
 
@@ -352,9 +352,9 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = null,
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -367,14 +367,14 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```csharp
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
           ["Src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
-<!--#else-->
+  <!--#else-->
           ["Src/Web/apps/FrameworkSite"] = null,
-<!--#endif-->
-<!--#if (!hasClient)-->
+  <!--#endif-->
+  <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -389,9 +389,9 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 
   ```csharp
           ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 <!--#if (!hasClient)-->
@@ -450,11 +450,11 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```text
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
     apps/FrameworkSite                    the WebAssembly app, a .NET project: Common/{Hosting,Sessions}, no Features/
-<!--#else-->
+  <!--#else-->
     apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
-<!--#endif-->
+  <!--#endif-->
                                           Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
   ```
 <!--#if (externalAuth)-->

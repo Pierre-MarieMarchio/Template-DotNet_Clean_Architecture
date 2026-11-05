@@ -62,7 +62,8 @@ authentication context's model: in a project whose migrations exist already, add
 dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
 ```
 
-<!--#endif--> `dnx CleanArch.Create -- presentation` runs the three
+<!--#endif-->
+`dnx CleanArch.Create -- presentation` runs the three
 commands in turn, reading the options from the project's files. The edits, to make by hand where the
 task stops:
 
@@ -420,28 +421,28 @@ task stops:
       restart: unless-stopped
       environment:
         <<: *host-environment
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
         Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8091/mcp}
-<!--#endif-->
+  <!--#endif-->
       ports:
         - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_MCP_HOST_PORT:-8091}:8080"
       depends_on:
-<!--#if (api)-->
+  <!--#if (api)-->
         api:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api && serverDatabase)-->
+  <!--#endif-->
+  <!--#if (!api && serverDatabase)-->
         db:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api)-->
+  <!--#endif-->
+  <!--#if (!api)-->
         mailpit:
           condition: service_started
-<!--#endif-->
-<!--#if (!api && files)-->
+  <!--#endif-->
+  <!--#if (!api && files)-->
         objectstore:
           condition: service_healthy
-<!--#endif-->
+  <!--#endif-->
       healthcheck:
         test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
         interval: 15s
@@ -476,12 +477,12 @@ task stops:
   add:
 
   ```csharp
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
           ["Src/Presentation/AT.PresentationAppMcp"] = ["Composition", "Tools"],
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
           ["Src/Presentation/AT.PresentationAppMcp"] = ["Composition", "Configuration/Options", "Tools"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -720,14 +721,14 @@ task stops:
   add:
 
   ```text
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
     <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                           Features/<F>/{Composition,Tools}
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
     <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                           Features/<F>/{Composition,Configuration/Options,Tools}
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docs/reference/project-layout.md`, after the line:

@@ -143,36 +143,36 @@ task stops:
       restart: unless-stopped
       environment:
         <<: *host-environment
-<!--#if (!localAuth)-->
+  <!--#if (!localAuth)-->
         DataProtection__KeysDirectory: /data-protection-keys
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
         Authentication__External__Interactive__ClientId: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID:-}
         Authentication__External__Interactive__ClientSecret: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET:-}
-<!--#endif-->
-<!--#if (!localAuth)-->
+  <!--#endif-->
+  <!--#if (!localAuth)-->
       volumes:
         - presentation-app-portal-keys:/data-protection-keys
-<!--#endif-->
+  <!--#endif-->
       ports:
         - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_PORTAL_HOST_PORT:-8090}:8080"
       depends_on:
-<!--#if (api)-->
+  <!--#if (api)-->
         api:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api && serverDatabase)-->
+  <!--#endif-->
+  <!--#if (!api && serverDatabase)-->
         db:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api)-->
+  <!--#endif-->
+  <!--#if (!api)-->
         mailpit:
           condition: service_started
-<!--#endif-->
-<!--#if (!api && files)-->
+  <!--#endif-->
+  <!--#if (!api && files)-->
         objectstore:
           condition: service_healthy
-<!--#endif-->
+  <!--#endif-->
       healthcheck:
         test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
         interval: 15s
@@ -221,15 +221,15 @@ task stops:
   add:
 
   ```csharp
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
           ["Src/Presentation/AT.PresentationAppPortal"] = ["Composition"],
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
           ["Src/Presentation/AT.PresentationAppPortal"] = ["Composition", "Configuration/Options"],
-<!--#endif-->
-<!--#if (publicApi)-->
+  <!--#endif-->
+  <!--#if (publicApi)-->
           ["Src/Presentation/AT.PresentationAppPortal"] = null,
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -283,12 +283,12 @@ task stops:
   with:
 
   ```csharp
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
       private const int _fluentlyAnonymousEndpoints = 8;
-<!--#endif-->
-<!--#if (!externalAuth)-->
+  <!--#endif-->
+  <!--#if (!externalAuth)-->
       private const int _fluentlyAnonymousEndpoints = 7;
-<!--#endif-->
+  <!--#endif-->
   ```
 
 <!--#endif-->
@@ -542,19 +542,19 @@ task stops:
   add:
 
   ```text
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
     <Initials>.Portal                     Common/{Hosting,Security}
                                           Features/<F>/Composition
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
     <Initials>.Portal                     Common/{Hosting,Security}
                                           Features/<F>/{Composition,Configuration/Options}
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
-<!--#endif-->
-<!--#if (publicApi)-->
+  <!--#endif-->
+  <!--#if (publicApi)-->
     <Initials>.Portal                     Common/{Hosting,Security}
                                           no Features/
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
-<!--#endif-->
+  <!--#endif-->
   ```

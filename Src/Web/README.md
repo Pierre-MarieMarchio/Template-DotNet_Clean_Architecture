@@ -125,12 +125,12 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   add:
 
   ```markdown
-<!--#if (webFramework)-->
+  <!--#if (webFramework)-->
   | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webPlaceholder)-->
+  <!--#endif-->
+  <!--#if (webPlaceholder)-->
   | Web app | <http://localhost:8081> |
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docs/getting-started/overview.md`, after the line:
@@ -448,9 +448,9 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   costs one request. Concurrent refreshes share one request, since two would present one token twice
   and end the session, and only a refused refresh signs the page out. A server-rendered app keeps both
   tokens on its server instead, behind a session cookie of its own.
-<!--#if (webServerRendering)-->
+  <!--#if (webServerRendering)-->
   [ADR 0024](0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
+  <!--#endif-->
 
   ```
 
@@ -497,11 +497,11 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
     test per app, in Chromium alone, run by `end-to-end` against the stack. No lower type sees a
     Content-Security-Policy violation, a console error or a call through the relay from inside a page,
     and a request that reads headers and bytes does not run what the page loads.
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
     Against a provider under `.invalid`, which never resolves, the smoke stands in for its discovery
     document and expects an app that signs in from the page to read it there; it exempts no violation
     and no error.
-<!--#endif-->
+  <!--#endif-->
   ```
 
 <!--#if (localAuth)-->
@@ -536,9 +536,9 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   token stays in a variable, the cookie carries the refresh token, and one refresh runs at a time. A
   server-rendered app uses neither: its server signs in in body mode, keeps both tokens, and gives the
   browser a session cookie of its own.
-<!--#if (webServerRendering)-->
+  <!--#if (webServerRendering)-->
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
+  <!--#endif-->
   How an app signs in is in [Web front end](web-frontend.md#signing-in).
 
   ```
@@ -556,9 +556,9 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   ```markdown
   A server-rendered web app runs that flow on its server, keeps the tokens there, and gives the
   browser a session cookie of its own.
-<!--#if (webServerRendering)-->
+  <!--#if (webServerRendering)-->
   [ADR 0024](../decisions/0024-a-server-rendered-web-app-runs-on-its-own-server.md) says why.
-<!--#endif-->
+  <!--#endif-->
   How an app signs in is in [Web front end](web-frontend.md#signing-in).
   ```
 
@@ -614,10 +614,10 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   add:
 
   ```markdown
-<!--#if (webFramework)-->
+  <!--#if (webFramework)-->
   It then writes the .NET client where the web app calls the API through it, and creates the app as the
   scaffold file in its folder describes, with the generator that file names.
-<!--#endif-->
+  <!--#endif-->
   It last installs the web workspace and generates its TypeScript API client, which needs Node.js and
   pnpm.
   ```
@@ -632,12 +632,12 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
   add:
 
   ```markdown
-<!--#if (webFramework)-->
+  <!--#if (webFramework)-->
   | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webPlaceholder)-->
+  <!--#endif-->
+  <!--#if (webPlaceholder)-->
   | Web app | <http://localhost:8081> |
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docs/getting-started/first-run.md`, after the line:
@@ -916,22 +916,22 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 
   - loads `/`, which answers with a success status and renders text;
   - fails on any `securitypolicyviolation` the page raises, any console error and any uncaught exception;
-<!--#if (accounts)-->
+  <!--#if (accounts)-->
   - calls `/api/v1/relay-check` from the page and expects the API's problem answer, `route.notFound` or
     `auth.required`, so the relay and the page's `connect-src` are both held.
-<!--#endif-->
-<!--#if (!accounts)-->
+  <!--#endif-->
+  <!--#if (!accounts)-->
   - calls `/api/v1/relay-check` from the page and expects the API's `route.notFound` problem answer, so
     the relay and the page's `connect-src` are both held.
-<!--#endif-->
+  <!--#endif-->
 
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
   When `EXTERNAL_AUTH_AUTHORITY` names a host under `.invalid`, which never resolves, as `end-to-end`
   and CI give the stack, the smoke stands in for that provider: it answers its discovery document with
   a minimal one and refuses every other request to it, and expects a WebAssembly app, which reads that
   document as it starts, to have asked for it at that authority.
 
-<!--#endif-->
+  <!--#endif-->
   A page rendered on the server is driven the same way, at the port of its Node server. The smoke
   needs the stack, so `pnpm test` leaves it out; `pnpm test` runs the unit tests of how the apps and
   their ports are found.
@@ -942,10 +942,10 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 
   `end-to-end` fails with that command in its message when the browser is missing, and has no option to
   skip the smoke.
-<!--#if (ci)-->
+  <!--#if (ci)-->
   CI installs Chromium in the `end-to-end` job and caches it by the Playwright release the lockfile
   resolves.
-<!--#endif-->
+  <!--#endif-->
 
   ```
 

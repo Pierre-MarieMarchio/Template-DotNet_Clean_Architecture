@@ -386,6 +386,10 @@ No object store runs.
   GitHub shows an empty row in its place. One marker per row, never an `endif` and an `if` on the
   same one. A marker before the header or after the table keeps its own line.
   `NoMarkerOnALineOfItsOwn_EndsAMarkdownTable` holds it.
+- A marker inside a fence indented under a list item is indented to the column of that fence: written
+  at column 0, it ends the list item on GitHub, the fence closes there and the rest of the page
+  renders out of place. Generation removes the indented line whole, as it removes any marker line.
+  `NoMarkerInAnIndentedFence_SitsLeftOfTheFence` holds it.
 - Every form keeps exactly one blank line between two blocks of text: put the blank line inside the
   branch that needs it, at its start, rather than around its markers. `ConditionedMarkdownTests`
   fails on a page that keeps two in a row in any form.

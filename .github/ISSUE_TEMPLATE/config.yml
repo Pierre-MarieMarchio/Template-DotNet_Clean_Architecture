@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Ask a question
+    url: https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/discussions
+    about: Ask how to use the template, or start a conversation, in Discussions.
   - name: Security vulnerability
     url: https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/security/advisories/new
     about: Report it privately in a security advisory, never in a public issue.

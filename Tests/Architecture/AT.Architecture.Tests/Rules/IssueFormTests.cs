@@ -16,6 +16,10 @@ public sealed class IssueFormTests
     [Fact]
     public void TheIssueForms_AskForAReproducibleAndMinimalReport() => AssertForms(FormsPath);
 
+    [Fact]
+    public void TheRepositoryIssueChooser_SendsQuestionsToDiscussions() =>
+        File.ReadAllText(Path.Combine(FormsPath, "config.yml")).ShouldContain("cleanarch-dotnet/discussions", Case.Sensitive, "The repository's issue chooser no longer sends a question to Discussions.");
+
     internal static void AssertForms(string directory)
     {
         AssertConfig(Path.Combine(directory, "config.yml"));

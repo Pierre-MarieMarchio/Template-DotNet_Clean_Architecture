@@ -2382,7 +2382,7 @@ internal static class Tasks
         }
         else
         {
-            Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", required: true);
+            Join(projectFile.Root, relative, "cleanarch-presentation", "presentation-scaffold", PresentationScaffoldArgument(projectFile, name), required: true);
         }
 
         DocsIndex(projectFile.Root, check: false);
@@ -2397,6 +2397,8 @@ internal static class Tasks
 
         RecordClient(projectFile);
     }
+
+    private static string PresentationScaffoldArgument(ProjectFile projectFile, string name) => projectFile.ProjectName(name);
 
     private const string _workerName = "Worker";
 
@@ -2706,7 +2708,7 @@ internal static class Tasks
             throw new InvalidOperationException($"--web-audience is public or admin, and --web-rendering spa or ssr; not '{audience}' and '{rendering}'.");
         }
 
-        Join(projectFile.Root, "Src/Web/apps/" + name, "cleanarch-webapp", "web-scaffold", required: false, FirstAppsWorkspaceReadme(projectFile));
+        Join(projectFile.Root, "Src/Web/apps/" + name, "cleanarch-webapp", "web-scaffold", name, required: false, FirstAppsWorkspaceReadme(projectFile));
         PlaceTheServerRenderingDecision(projectFile.Root, "Src/Web/apps/" + name);
         DocsIndex(projectFile.Root, check: false);
         //#if (api)
@@ -2790,7 +2792,7 @@ internal static class Tasks
             : throw new InvalidOperationException("Src/Web/package.json names no @<scope>/ package, so the workspace's scope cannot be recorded.");
     }
 
-    private static void Join(string repoRoot, string folder, string itemTemplate, string scaffoldTask, bool required, string? workspaceReadme = null)
+    private static void Join(string repoRoot, string folder, string itemTemplate, string scaffoldTask, string scaffoldArgument, bool required, string? workspaceReadme = null)
     {
         string relative = $"{folder}/README.md";
         string readme = Path.Combine(repoRoot, relative);
@@ -2845,7 +2847,7 @@ internal static class Tasks
         }
 
         Write(
-            $"Joined {folder} to the project. Run `dotnet run Tools/Tasks.cs {scaffoldTask} {Path.GetFileName(folder)}` "
+            $"Joined {folder} to the project. Run `dotnet run Tools/Tasks.cs {scaffoldTask} {scaffoldArgument}` "
             + "next: it creates the pages and adds the project to the solution.",
             ConsoleColor.Green);
     }
@@ -3794,6 +3796,8 @@ internal static class Tasks
             ("a namespace the worker takes is renamed where it stands whole, never inside a longer name",
                 RenamedNamespaces("using n.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.Jobs.Purge;\nusing Common.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.JobsArchive;", toTheWorker)
                 == "using n.Worker.Features.Invoices.Jobs;\nusing n.Worker.Features.Invoices.Jobs.Purge;\nusing Common.Api.Features.Invoices.Jobs;\nusing n.Api.Features.Invoices.JobsArchive;"),
+            ("the presentation-scaffold argument a join prints is the project name the scaffold accepts, not the folder's",
+                ScaffoldArgumentIsAccepted()),
             ("an edit in place already is left alone and the others are made", made is [{ Number: 2 }] && inPlace is [{ Number: 1 }]
                 && partly["file"].SequenceEqual(["include:", "  - path: a", "  - path: b", "services:"])),
             ("an edit is placed by the lines an earlier edit made", chained["file"].SequenceEqual(["include:", "  - path: a", "services:"])),
@@ -3804,6 +3808,24 @@ internal static class Tasks
                 () => MakeEdits([Edit(1, "after", ["services:"], ["x"]), Edit(2, "after", ["missing"], ["y"])], File("services:")),
                 "edit 2 of README.md, after 1 line(s) of file: the lines it is placed by occur 0 times")),
         ];
+    }
+
+    private static bool ScaffoldArgumentIsAccepted()
+    {
+        string root = Directory.CreateTempSubdirectory("join-argument-").FullName;
+
+        try
+        {
+            File.WriteAllText(Path.Combine(root, ProjectFile.FileName), """{"name":"Northwind"}""");
+            ProjectFile projectFile = ProjectFile.Read(root);
+            string argument = PresentationScaffoldArgument(projectFile, "Desktop");
+
+            return argument == "Northwind.Desktop" && projectFile.FolderOfProject(argument) == projectFile.FolderOf("Desktop");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static (string Case, bool Passed)[] DocsIndexCases()

@@ -147,6 +147,8 @@ public sealed class DocumentationCitationTests
     [Fact]
     public void TheTaskTableScan_ReadsTheFirstColumnOfItsSectionAlone()
     {
+        string opening = "<!--" + "#" + "if (api)-->";
+        string closing = "<!--" + "#" + "endif-->";
         string page = string.Join(
             "\n",
             "## Before",
@@ -154,9 +156,9 @@ public sealed class DocumentationCitationTests
             _taskTableHeading,
             "| Task | Runs |",
             "|---|---|",
-            "| <!--#if (api)--> |",
+            $"| {opening} |",
             "| `run`, `test --no-integration` | runs `skipped` |",
-            "| <!--#endif--> |",
+            $"| {closing} |",
             "## After",
             "| `after` | a row of another section |");
 

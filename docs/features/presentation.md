@@ -396,21 +396,21 @@ They run on Windows; the windows and their code-behind are not tested.
 <!--#if (anyFeature)-->
 | Tool | Use case | Reads only |
 |---|---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `list_todo_lists` | the caller's to-do lists, a page at a time | yes |
 | `get_todo_list` | one list with its items | yes |
 | `create_todo_list` | a new, empty list | no |
 | `add_todo_item` | an item added to a list | no |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `list_reminders` | the reminders of one item | yes |
 | `schedule_reminder` | a reminder on one item | no |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `list_files` | the caller's stored files, a page at a time, never their content | yes |
 | `get_file` | one file's details | yes |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `list_notes` | the caller's notes, a page at a time | yes |
 | `get_note` | one note with its body | yes |
 | `create_note` | a new note | no |

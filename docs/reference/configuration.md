@@ -35,13 +35,13 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `Default` | string | — | **Required.** The one connection string, Npgsql format (`Host=…;Database=…;Username=…;Password=…`), used by every context. A blank value fails the DI registration. |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `Default` | string | — | **Required.** The one connection string, SqlClient format (`Server=…;Database=…;User Id=…;Password=…`), used by every context. A blank value fails the DI registration. |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | `Default` | string | — | **Required.** The one connection string, SQLite format (`Data Source=<file>`, relative to the directory the API starts in), used by every context. A blank value fails the DI registration. |
 <!--#endif-->
 
@@ -49,15 +49,15 @@ The Default column is what a deployment gets. `appsettings.Development.json` on 
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `MaxPoolSize` | int | `20` | 1–500. Npgsql's `Maximum Pool Size`, per instance. The sum over every instance, plus PostgreSQL's reserved connections, must stay under `max_connections`. |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `MaxPoolSize` | int | `20` | 1–500. SqlClient's `Max Pool Size`, per instance. The sum over every instance must stay under the server's connection limit. |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | `MaxPoolSize` | int | `20` | 1–500. Has no effect on SQLite, which has no server-side connection limit. |
-<!--#endif-->
+| <!--#endif--> |
 | `CommandTimeoutSeconds` | int | `30` | 1–300. Per command. `RequestTimeouts:Default` must stay above this times the retries. |
 
 <!--#if (localAuth)-->
@@ -405,10 +405,10 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-<!--#if (!presentationBlazorServer)-->
+| <!--#if (!presentationBlazorServer)--> |
 | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | Sent on every API response. |
-<!--#endif-->
-<!--#if (presentationBlazorServer)-->
+| <!--#endif--> |
+| <!--#if (presentationBlazorServer)--> |
 | `ContentSecurityPolicy` | string | `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | Sent on every API response, and on every portal response, which starts from a default of its own ([portal security headers](../features/presentation.md#portal-security-headers)). A blank value, or one without `frame-ancestors`, stops the host. |
 <!--#endif-->
 
@@ -416,10 +416,10 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-<!--#if (files)-->
+| <!--#if (files)--> |
 | `MaxRequestBodyBytes` | long | `65536` | 1024–31457280. Above it, `413`. `POST /api/v1/files/uploads` takes `Files:ApiUploadMaxBytes` plus 16 KiB instead. |
-<!--#endif-->
-<!--#if (!files)-->
+| <!--#endif--> |
+| <!--#if (!files)--> |
 | `MaxRequestBodyBytes` | long | `65536` | 1024–31457280. Above it, `413`. |
 <!--#endif-->
 
@@ -434,9 +434,9 @@ The three pages follow the contract in [Accounts](../features/accounts.md#the-pa
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `Window` | timespan | `00:01:00` | 1 second–1 day. |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `AuthenticationPermitLimit` | int | `10` | Per window and client address, on the sign-in routes. Per instance. |
-<!--#endif-->
+| <!--#endif--> |
 | `GlobalPermitLimit` | int | `300` | Per window and client address, on every request. Per instance. |
 
 ### `ProblemTypes`
@@ -566,16 +566,16 @@ Constants in code; to vary one per environment, promote it to an options class w
 | Largest `search` | 100 characters | `SearchTerm.MaxLength` |
 | Largest cursor | 512 characters | `Cursor.MaxEncodedLength` |
 | Page size, sort fields | per feature | each feature's `ICollectionPolicy` |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | Refresh token | 32 random bytes, SHA-256 hash | `SessionTokensService` |
-<!--#endif-->
-<!--#if (todoLists)-->
+| <!--#endif--> |
+| <!--#if (todoLists)--> |
 | Items per list, tags per item | 500, 20 | `TodoList.MaxItems`, `TodoItem.MaxTags` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Largest file | 5 GiB | `FileSize.MaxBytes` |
-<!--#endif-->
-<!--#if (tagging)-->
+| <!--#endif--> |
+| <!--#if (tagging)--> |
 | Used-tag list cache | 1 minute | `UsedTagsCache.Lifetime` |
 <!--#endif-->
 
@@ -585,10 +585,10 @@ Constants in code; to vary one per environment, promote it to an options class w
 |---|---|
 | `Logging:LogLevel:*` | Levels per category; the output is JSON on the console. |
 | `AllowedHosts` | Host filtering; `*` by default. |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `ASPNETCORE_ENVIRONMENT` | `Development` loads `appsettings.Development.json`, serves OpenAPI and Scalar, migrates at start-up and allows the identity seed. |
-<!--#endif-->
-<!--#if (!localAuth)-->
+| <!--#endif--> |
+| <!--#if (!localAuth)--> |
 | `ASPNETCORE_ENVIRONMENT` | `Development` loads `appsettings.Development.json`, serves OpenAPI and Scalar and migrates at start-up. |
-<!--#endif-->
+| <!--#endif--> |
 | `ASPNETCORE_HTTP_PORTS` | `8080` in the container. Do not also set `ASPNETCORE_URLS`, which wins. |

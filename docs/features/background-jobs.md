@@ -14,16 +14,16 @@ work twice.
 | Job | Pass | Default interval |
 |---|---|---|
 | Maintenance | purges expired idempotency keys | 1 hour |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | Maintenance | purges expired refresh tokens, and security events past their retention | 1 hour |
-<!--#endif-->
-<!--#if (anyFeature)-->
+| <!--#endif--> |
+| <!--#if (anyFeature)--> |
 | Maintenance | sweeps the data deleted accounts still own ([Accounts](accounts.md#deleting-an-account)) | 1 hour |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | Reminders | sends the reminders that fell due | 1 minute |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Files | inspects deposited files, purges abandoned registrations, reclaims orphaned objects ([Files](files.md#background-passes)) | 1 minute, 1 hour, 12 hours |
 <!--#endif-->
 
@@ -122,13 +122,13 @@ No pass of this project takes one yet: the maintenance purges are idempotent.
 
 | Lease | Taken by |
 |---|---|
-<!--#if (anyFeature)-->
+| <!--#if (anyFeature)--> |
 | `apptemplate.accounts.sweep-deleted-data` | the deleted-account sweep |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `apptemplate.reminders.fire-due` | the reminder pass |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `apptemplate.files.inspect-deposited`, `apptemplate.files.purge-abandoned`, `apptemplate.files.reclaim-orphans` | the three file passes |
 <!--#endif-->
 <!--#endif-->
@@ -252,12 +252,12 @@ loop.
 |---|---|
 | [`Jobs`](../reference/configuration.md#jobs) | `Enabled`: whether this instance runs jobs at all |
 | [`Jobs:Maintenance`](../reference/configuration.md#jobsmaintenance) | the maintenance interval and each task's switch |
-<!--#if (reminders)-->
+| <!--#if (reminders)--> |
 | [`Jobs:Reminders`](../reference/configuration.md#jobsreminders) | the reminder interval and switch |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | [`Jobs:Files`](../reference/configuration.md#jobsfiles) | each file pass's interval and switch |
-<!--#endif-->
+| <!--#endif--> |
 | [`IdempotencyPurge`](../reference/configuration.md#idempotencypurge) | rows deleted per round trip by the idempotency purge |
 
 An invalid interval fails start-up on an instance that runs jobs; it is never read as "disabled".

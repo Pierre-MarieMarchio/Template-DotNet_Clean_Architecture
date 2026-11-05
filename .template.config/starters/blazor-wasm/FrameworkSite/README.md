@@ -114,17 +114,17 @@ app's image and serves it on the port below.
 
 | File | What it is |
 |---|---|
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | `Common/` | the app's own code: `Hosting/` binds and checks the `SignIn` section and registers the sign-in, `Sessions/` hands the provider's access token to the client |
 | `wwwroot/appsettings.json` | the `SignIn` section, downloaded by the browser; `appsettings.Development.json` beside it relaxes `https` for `dotnet watch` |
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline, and lets the page reach the provider's origin; it serves `appsettings.json` with the provider and the client of its environment in the `SignIn` keys the file leaves empty |
-<!--#else-->
+| <!--#else--> |
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline |
-<!--#endif-->
+| <!--#endif--> |
 | `Dockerfile` | the image: the .NET SDK publishes the app from the repository root, and nginx serves `wwwroot`; `_framework/`, whose every file name carries its fingerprint, is cached for a year |
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | `compose.yml` | the `web-framework-site` service, built from the repository root, given the provider's issuer as `SIGN_IN_AUTHORITY` and the app's client as `SIGN_IN_CLIENT_ID` |
-<!--#else-->
+| <!--#else--> |
 | `compose.yml` | the `web-framework-site` service, built from the repository root |
 <!--#endif-->
 

@@ -110,7 +110,7 @@ task stops:
         "rollForward": false
       },
       "microsoft.openapi.kiota": {
-        "version": "1.37.0",
+        "version": "1.38.0",
         "commands": [
           "kiota"
         ],
@@ -133,7 +133,7 @@ task stops:
   ```xml
     <!-- The version the pinned Kiota tool generates for; the two move together. -->
     <ItemGroup Label="API client">
-      <PackageVersion Include="Microsoft.Kiota.Bundle" Version="2.1.2" />
+      <PackageVersion Include="Microsoft.Kiota.Bundle" Version="2.1.6" />
     </ItemGroup>
 
   ```

@@ -66,38 +66,38 @@ features grow beside them, and the documentation grows with them.
 | Part | Here |
 |---|---|
 | Layers | `Src/Domain`, `Src/Application`, `Src/Infrastructure` and `Src/Presentation`, each mirrored under `Tests/` |
-<!--#if (localAuth && files)-->
+| <!--#if (localAuth && files)--> |
 | Modules | Persistence, Auth, Email, Storage, InMemory |
-<!--#endif-->
-<!--#if (localAuth && !files)-->
+| <!--#endif--> |
+| <!--#if (localAuth && !files)--> |
 | Modules | Persistence, Auth, Email, InMemory |
-<!--#endif-->
-<!--#if (!localAuth && files)-->
+| <!--#endif--> |
+| <!--#if (!localAuth && files)--> |
 | Modules | Persistence, Email, Storage, InMemory |
-<!--#endif-->
-<!--#if (!localAuth && !files)-->
+| <!--#endif--> |
+| <!--#if (!localAuth && !files)--> |
 | Modules | Persistence, Email, InMemory |
-<!--#endif-->
-<!--#if (todoLists)-->
+| <!--#endif--> |
+| <!--#if (todoLists)--> |
 | Example features | TodoLists, Reminders and Notes: the rich shape, a flat aggregate, the simple shape |
-<!--#endif-->
-<!--#if (notes && !todoLists)-->
+| <!--#endif--> |
+| <!--#if (notes && !todoLists)--> |
 | Example features | Notes: the simple shape |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Files | stored files, an S3-compatible store and the background passes that inspect and reclaim them |
-<!--#endif-->
-<!--#if (!jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (!jobsWorker)--> |
 | Background jobs | timers in the API process, switched per instance |
-<!--#endif-->
-<!--#if (jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (jobsWorker)--> |
 | Background jobs | timers in the worker, `Src/Presentation/<Initials>.Worker`, a process of their own |
-<!--#endif-->
+| <!--#endif--> |
 | Tools | `Tools/Tasks.cs`, the task launcher; `Tools/NewFeature.cs` and `Tools/RemoveFeature.cs`, the feature generator and its undo; `Tools/NewUseCase.cs`, one more use case; `Tools/NewSetting.cs` and `Tools/NewEvent.cs`, a validated setting and a domain event; `Tools/UpgradeReport.cs`, what a newer version of the package changes |
-<!--#if (anyWeb)-->
+| <!--#if (anyWeb)--> |
 | Web | `Src/Web`, a pnpm workspace with one app, a generated API client and shared packages |
-<!--#endif-->
-<!--#if (ci)-->
+| <!--#endif--> |
+| <!--#if (ci)--> |
 | CI | GitHub Actions workflows under `.github/workflows` |
 <!--#endif-->
 
@@ -114,117 +114,117 @@ setting, table or test names it.
 
 | Option | Value | Gives |
 |---|---|---|
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `--auth` | `local` | local accounts with access and refresh tokens, two-factor, passkeys and roles |
-<!--#endif-->
-<!--#if (externalAuth)-->
+| <!--#endif--> |
+| <!--#if (externalAuth)--> |
 | `--auth` | `external` | callers authenticated by an OpenID Connect provider, each mapped to an internal owner |
-<!--#endif-->
-<!--#if (publicApi)-->
+| <!--#endif--> |
+| <!--#if (publicApi)--> |
 | `--auth` | `none` | a public API: no accounts, every route open on purpose |
-<!--#endif-->
-<!--#if (todoLists)-->
+| <!--#endif--> |
+| <!--#if (todoLists)--> |
 | `--examples` | `all` | TodoLists, Reminders and Notes |
-<!--#endif-->
-<!--#if (notes && !todoLists)-->
+| <!--#endif--> |
+| <!--#if (notes && !todoLists)--> |
 | `--examples` | `notes` | Notes only |
-<!--#endif-->
-<!--#if (!notes)-->
+| <!--#endif--> |
+| <!--#if (!notes)--> |
 | `--examples` | `none` | no example feature |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `--files` | `true` | the Files feature, its storage module and the object store in Compose |
-<!--#endif-->
-<!--#if (!files)-->
+| <!--#endif--> |
+| <!--#if (!files)--> |
 | `--files` | `false` | no Files feature and no object store |
-<!--#endif-->
-<!--#if (ci && anyWeb && serverDatabase)-->
+| <!--#endif--> |
+| <!--#if (ci && anyWeb && serverDatabase)--> |
 | `--ci` | `true` | the build, code-scanning, release and web workflows |
-<!--#endif-->
-<!--#if (ci && anyWeb && sqlite)-->
+| <!--#endif--> |
+| <!--#if (ci && anyWeb && sqlite)--> |
 | `--ci` | `true` | the build, code-scanning and web workflows; no release, as SQLite is a development database |
-<!--#endif-->
-<!--#if (ci && !anyWeb && serverDatabase)-->
+| <!--#endif--> |
+| <!--#if (ci && !anyWeb && serverDatabase)--> |
 | `--ci` | `true` | the build, code-scanning and release workflows |
-<!--#endif-->
-<!--#if (ci && !anyWeb && sqlite)-->
+| <!--#endif--> |
+| <!--#if (ci && !anyWeb && sqlite)--> |
 | `--ci` | `true` | the build and code-scanning workflows; no release, as SQLite is a development database |
-<!--#endif-->
-<!--#if (!ci)-->
+| <!--#endif--> |
+| <!--#if (!ci)--> |
 | `--ci` | `false` | no workflow |
-<!--#endif-->
-<!--#if (sonar)-->
+| <!--#endif--> |
+| <!--#if (sonar)--> |
 | `--sonar` | `true` | the Sonar analysis, locally and in CI |
-<!--#endif-->
-<!--#if (!sonar)-->
+| <!--#endif--> |
+| <!--#if (!sonar)--> |
 | `--sonar` | `false` | no Sonar analysis |
-<!--#endif-->
-<!--#if (aspire)-->
+| <!--#endif--> |
+| <!--#if (aspire)--> |
 | `--aspire` | `true` | an Aspire app host in `Src/AppHost`, beside Docker Compose, which it follows |
-<!--#endif-->
-<!--#if (!aspire)-->
+| <!--#endif--> |
+| <!--#if (!aspire)--> |
 | `--aspire` | `false` | no Aspire app host; Docker Compose runs the local stack |
-<!--#endif-->
-<!--#if (webAngular)-->
+| <!--#endif--> |
+| <!--#if (webAngular)--> |
 | `--web` | `angular` | an Angular app in `Src/Web/apps/FrameworkSite`, created by its official CLI at bootstrap |
-<!--#endif-->
-<!--#if (web == "vite-react")-->
+| <!--#endif--> |
+| <!--#if (web == "vite-react")--> |
 | `--web` | `vite-react` | a React app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
-<!--#endif-->
-<!--#if (webViteVue)-->
+| <!--#endif--> |
+| <!--#if (webViteVue)--> |
 | `--web` | `vite-vue` | a Vue app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
-<!--#endif-->
-<!--#if (webViteSvelte)-->
+| <!--#endif--> |
+| <!--#if (webViteSvelte)--> |
 | `--web` | `vite-svelte` | a Svelte app in `Src/Web/apps/FrameworkSite`, created by Vite's official CLI, `create-vite`, at bootstrap |
-<!--#endif-->
-<!--#if (webReactRouter && !webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webReactRouter && !webServerRendering)--> |
 | `--web` | `react-router` | a React single-page app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
-<!--#endif-->
-<!--#if (webReactRouter && webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webReactRouter && webServerRendering)--> |
 | `--web` | `react-router` | a React app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
-<!--#endif-->
-<!--#if (webBlazorWasm)-->
+| <!--#endif--> |
+| <!--#if (webBlazorWasm)--> |
 | `--web` | `blazor-wasm` | a Blazor WebAssembly app in `Src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `Src/Clients` |
-<!--#endif-->
-<!--#if (webPlaceholder)-->
+| <!--#endif--> |
+| <!--#if (webPlaceholder)--> |
 | `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
-<!--#endif-->
-<!--#if (!anyWeb)-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (!anyWeb)--> |
+| <!--#if (api)--> |
 | `--web` | `none` | no web app: a pure API |
-<!--#endif-->
-<!--#if (!api)-->
+| <!--#endif--> |
+| <!--#if (!api)--> |
 | `--web` | `none` | no web app |
-<!--#endif-->
-<!--#endif-->
-<!--#if (adminAudience)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (adminAudience)--> |
 | `--web-audience` | `admin` | the app is a back office for administrators |
-<!--#endif-->
-<!--#if (anyWeb && !adminAudience)-->
+| <!--#endif--> |
+| <!--#if (anyWeb && !adminAudience)--> |
 | `--web-audience` | `public` | the app is a site for the API's users |
-<!--#endif-->
-<!--#if (webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webServerRendering)--> |
 | `--web-rendering` | `ssr` | the app is rendered on the server for each request, by its framework's own Node server ([Web front end](../features/web-frontend.md#images-and-headers)) |
-<!--#endif-->
-<!--#if (api && !jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (api && !jobsWorker)--> |
 | `--presentation` | `api` | the HTTP API in `Src/Presentation`, which also runs the background jobs ([Background jobs](../features/background-jobs.md)) |
-<!--#endif-->
-<!--#if (api && jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (api && jobsWorker)--> |
 | `--presentation` | `api` | the HTTP API in `Src/Presentation` |
-<!--#endif-->
-<!--#if (jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (jobsWorker)--> |
 | `--presentation` | `worker` | a worker in `Src/Presentation` that runs the background jobs, written in the shape of `dotnet new worker` ([Background jobs](../features/background-jobs.md)) |
-<!--#endif-->
-<!--#if (presentationBlazorServer)-->
+| <!--#endif--> |
+| <!--#if (presentationBlazorServer)--> |
 | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation projects](../features/presentation.md)) |
-<!--#endif-->
-<!--#if (presentationAvalonia)-->
+| <!--#endif--> |
+| <!--#if (presentationAvalonia)--> |
 | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation projects](../features/presentation.md)) |
-<!--#endif-->
-<!--#if (presentationWpf)-->
+| <!--#endif--> |
+| <!--#if (presentationWpf)--> |
 | `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `Src/Clients`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
 <!--#endif-->
 

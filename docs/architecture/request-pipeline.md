@@ -23,10 +23,10 @@ authorisation rule by existing.
 | Rate limiter | before the language and the timeout, so a rejected request does no work and starts no clock |
 | Request language | sets the language of what the request writes |
 | Request timeout | before authentication, so its deadline covers it |
-<!--#if (!publicApi)-->
+| <!--#if (!publicApi)--> |
 | Authentication, authorisation | in `Program.cs`, right after `UseHttpPipeline()` |
-<!--#endif-->
-<!--#if (publicApi)-->
+| <!--#endif--> |
+| <!--#if (publicApi)--> |
 | Authorisation | in `Program.cs`, right after `UseHttpPipeline()` |
 <!--#endif-->
 
@@ -116,7 +116,7 @@ A fixed window per client address, with no queue:
 | Policy | Default | Applies to |
 |---|---|---|
 | Global | 300 requests per minute | every request but the health endpoints |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `authentication` | 10 requests per minute | the authentication endpoints, on top of the global one |
 <!--#endif-->
 

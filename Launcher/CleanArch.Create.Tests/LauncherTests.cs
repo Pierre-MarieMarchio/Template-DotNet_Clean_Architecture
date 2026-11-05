@@ -201,11 +201,13 @@ public sealed class LauncherTests : IDisposable
     [InlineData("Ab")]
     [InlineData("A_b")]
     [InlineData("Ab1.C_2")]
+    [InlineData("Abc_")]
+    [InlineData("Ab1.C2")]
     [InlineData("Northwind.Billing")]
     public void AProjectName_IsRefusedExactlyWhenItBreaksTheRuleItsMessageStates(string name)
     {
-        const string rule = "use the letters A to Z, digits, underscores and dots, with each part starting with a letter, like Acme.Shop.";
-        bool followsTheRule = name.Split('.').All(part => part.Length > 0 && char.IsAsciiLetter(part[0]) && part.All(character => char.IsAsciiLetterOrDigit(character) || character == '_'));
+        const string rule = "use the letters A to Z, digits and dots, with each part starting with a letter, like Acme.Shop.";
+        bool followsTheRule = name.Split('.').All(part => part.Length > 0 && char.IsAsciiLetter(part[0]) && part.All(char.IsAsciiLetterOrDigit));
         var console = new TestConsole();
         console.Profile.Width = Terminal.UnwrappedWidth;
         var processes = new FakeProcesses();
@@ -221,6 +223,24 @@ public sealed class LauncherTests : IDisposable
         }
 
         console.Output.ShouldContain($"--name '{name}': {rule}");
+        processes.Calls.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Abc_Def")]
+    [InlineData("Acme.Shop_")]
+    [InlineData("Ab.C_d.Ef")]
+    public void AProjectName_WithAnUnderscore_IsRefused_SinceCA1707RefusesItInEveryNamespaceTheNameReaches(string name)
+    {
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        new Launcher(console, _root, interactive: false, processes)
+            .Run(["new", "-n", name, "--yes", "--template-source", Repository.Root])
+            .ShouldBe(1, console.Output);
+
+        console.Output.ShouldContain($"--name '{name}': use the letters A to Z, digits and dots");
         processes.Calls.ShouldBeEmpty();
     }
 

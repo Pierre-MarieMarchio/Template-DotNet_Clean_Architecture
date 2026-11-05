@@ -18,7 +18,8 @@ a choice the template refuses whatever follows is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
 the answer that leaves it. A combination of flags the template refuses is explained before anything
 is written, and its options are asked again. A project name the template refuses, one under two
-characters or one that does not start with a letter from A to Z, an output folder that already holds files, or an app name already taken, is refused at
+characters or one that does not start with a letter from A to Z, a project name with a character other than the letters
+A to Z, digits and dots, such as an underscore, an output folder that already holds files, or an app name already taken, is refused at
 its own question; an item command in a project whose name an item template refuses stops before
 asking anything. It installs the `CleanArch.WebApi.Templates`
 package at its own version when another one or none is installed, generates the project, then prints

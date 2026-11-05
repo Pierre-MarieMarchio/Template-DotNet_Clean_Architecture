@@ -281,7 +281,7 @@ public sealed partial class Launcher
     }
 
     private static string? ProjectNameProblem(TemplateManifest manifest, string name) =>
-        ProjectName().IsMatch(name) ? NameRefusal(manifest, _nothing, name) : "use the letters A to Z, digits, underscores and dots, with each part starting with a letter, like Acme.Shop.";
+        ProjectName().IsMatch(name) ? NameRefusal(manifest, _nothing, name) : "use the letters A to Z, digits and dots, with each part starting with a letter, like Acme.Shop.";
 
     private static string? NameRefusal(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers, string name)
     {
@@ -791,7 +791,7 @@ public sealed partial class Launcher
 
     private sealed record Asked(string? Name, string? Output, Dictionary<string, string> Options, IReadOnlyList<string> Setup);
 
-    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)*$")]
+    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$")]
     private static partial Regex ProjectName();
 
     [GeneratedRegex("^[A-Z][A-Za-z0-9]*$")]

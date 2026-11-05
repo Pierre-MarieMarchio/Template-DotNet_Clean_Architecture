@@ -17,24 +17,27 @@ public static class CleanArchCommand
         HelpCommand.Registration,
     ];
 
-    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error)
+    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
+        Run(arguments, workingDirectory, output, error, _registrations);
+
+    internal static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
     {
-        RootCommand root = CreateRoot(CommandContext.Locate(workingDirectory));
+        RootCommand root = CreateRoot(CommandContext.Locate(workingDirectory), registrations);
         HelpOption help = root.Options.OfType<HelpOption>().Single();
         help.Action = new UsageNamedAfterTheDotnetCommand((HelpAction)help.Action!);
 
         return root.Parse([.. arguments]).Invoke(new InvocationConfiguration { Output = output, Error = error });
     }
 
-    private static RootCommand CreateRoot(CommandContext context)
+    private static RootCommand CreateRoot(CommandContext context, IReadOnlyList<CommandRegistration> registrations)
     {
         var root = new RootCommand(_description);
         root.SetAction(parseResult => Describe(context, parseResult));
 
-        foreach (CommandRegistration registration in _registrations)
+        foreach (CommandRegistration registration in registrations)
         {
             Command command = registration.Build(context);
-            string? refusal = registration.Refusal(context.Project?.File);
+            string? refusal = registration.Refusal(context);
             if (refusal is not null)
             {
                 command.Hidden = true;

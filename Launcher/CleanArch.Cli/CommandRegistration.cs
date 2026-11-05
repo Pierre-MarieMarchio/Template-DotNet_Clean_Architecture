@@ -2,4 +2,4 @@
 
 namespace CleanArch.Cli;
 
-internal sealed record CommandRegistration(Func<ProjectFile?, string?> Refusal, Func<CommandContext, Command> Build);
+internal sealed record CommandRegistration(Func<CommandContext, string?> Refusal, Func<CommandContext, Command> Build);

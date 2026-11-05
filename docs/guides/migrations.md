@@ -72,14 +72,14 @@ dotnet run Tools/Tasks.cs migration-add <Name>
 
 The task targets the business context.
 <!--#if (localAuth)-->
-`--context auth` targets the authentication context instead:
+`--context auth` targets the identity context instead:
 
 ```bash
 dotnet run Tools/Tasks.cs migration-add <Name> --context auth
 ```
 <!--#endif-->
 <!--#if (!localAuth)-->
-`--context auth` names the authentication context, which this project does not hold: the task refuses it.
+`--context auth` names the identity context, which this project does not hold: the task refuses it.
 <!--#endif-->
 
 When the model has not changed since the context's last migration, the task deletes the empty
@@ -118,7 +118,7 @@ It compares the snapshot with the model and needs no database. `verify` runs it 
 and `PendingModelChangesTests` proves the same inside the suite, which is how CI catches drift.
 <!--#if (localAuth)-->
 `dotnet run Tools/Tasks.cs migration-check` runs it for the business context, or for the
-authentication context with `--context auth`; `new-feature` and `new-field` run it before they
+identity context with `--context auth`; `new-feature` and `new-field` run it before they
 write, so the migration of a feature, or of a field, carries it alone, and `remove-feature --apply`
 before it removes a feature, so `Remove<Features>` carries the removal alone.
 <!--#endif-->
@@ -149,7 +149,7 @@ dotnet run Tools/Tasks.cs database-update    # the business context, against Con
 ```
 <!--#if (localAuth)-->
 
-`database-update --context auth` applies the authentication context's migrations in the same way.
+`database-update --context auth` applies the identity context's migrations in the same way.
 <!--#endif-->
 
 ## Seeding

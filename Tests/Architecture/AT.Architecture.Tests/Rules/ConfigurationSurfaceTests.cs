@@ -33,6 +33,28 @@ public sealed class ConfigurationSurfaceTests
         RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
+    private static readonly Regex _directRead = new(
+        @"GetConnectionString\((?<connection>[^()]+)\)"
+        + @"|GetSection\((?<section>[^()]+)\)(?:\s*\.GetValue<[^<>]+>\((?<member>[^()]+(?:\([^()]*\))?)\))?"
+        + @"|[cC]onfiguration\s*(?:\[(?<indexed>[^\[\]]+)\]|\.GetValue<[^<>]+>\((?<valued>""[^""]*""))",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _stringConstant = new(
+        @"const\s+string\s+(?<name>\w+)\s*=\s*""(?<value>[^""]*)""",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _typeName = new(
+        @"\b(?:class|record|struct)\s+(?<name>\w+)",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _interpolation = new(
+        @"\{(?<expression>[^{}]+)\}",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex _environmentKey = new(
         @"^\s*(?<key>[A-Za-z][A-Za-z0-9]*(?:__[A-Za-z0-9]+)+)\s*[:=]",
         RegexOptions.Multiline,
@@ -62,6 +84,68 @@ public sealed class ConfigurationSurfaceTests
             "These environment variables set a key (`Section__Key` is `Section:Key`) of a section " +
             $"'{_configurationGuide}' covers, and have no row there. A deployment copies what the Compose " +
             "files and .env.example show: add the key's row to that section's table, or stop setting it.");
+    }
+
+    [Fact]
+    public void EveryKeyTheCodeReadsDirectly_IsDocumented()
+    {
+        var sources = SourceFiles().ToDictionary(
+            file => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/'),
+            File.ReadAllText,
+            StringComparer.Ordinal);
+        var reads = DirectReads(sources);
+
+        reads.ShouldContain(read => read.Key == "ConnectionStrings:Default", "the connection string read was not found, so the scan of direct reads reads nothing.");
+
+        UndocumentedReads(reads, DocumentedSections()).ShouldBeEmpty(
+            "The code reads these keys straight from the configuration, outside an options class, and " +
+            $"'{_configurationGuide}' names them nowhere. An operator cannot set a key the guide does not " +
+            "name: add its row under its section, or a '### `Section:Key`' heading of its own.");
+    }
+
+    [Fact]
+    public void TheDirectReadScan_IsSensitive_AndResolvesLiteralsConstantsAndInterpolations()
+    {
+        var sources = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Widget.cs"] = """
+                public sealed class WidgetOptions
+                {
+                    public const string SectionName = "Widget";
+                }
+
+                public static class Connection
+                {
+                    public const string Name = "Default";
+
+                    public static void Read(IConfiguration configuration)
+                    {
+                        _ = configuration.GetConnectionString(Name);
+                        _ = configuration[$"{WidgetOptions.SectionName}:Mode"];
+                        _ = configuration["Gadget:Size"];
+                        _ = configuration.GetValue<int>("Gadget:Weight");
+                        _ = configuration.GetSection(WidgetOptions.SectionName).GetValue<bool>(nameof(WidgetOptions.Enabled));
+                        _ = configuration.GetSection("Gizmo");
+                    }
+                }
+                """,
+        };
+
+        var reads = DirectReads(sources);
+
+        reads.Select(read => read.Key).ShouldBe(
+            ["ConnectionStrings:Default", "Widget:Mode", "Gadget:Size", "Gadget:Weight", "Widget:Enabled", "Gizmo"],
+            ignoreOrder: true);
+
+        var documented = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["ConnectionStrings"] = "### `ConnectionStrings`\n| `Default` | string |\n",
+            ["Widget"] = "### `Widget`\n| `Enabled` | bool |\n",
+            ["Widget:Mode"] = "### `Widget:Mode`\n",
+            ["Gadget"] = "### `Gadget`\n| `Size` | int |\n",
+        };
+
+        UndocumentedReads(reads, documented).ShouldBe(["Gadget:Weight (Widget.cs)", "Gizmo (Widget.cs)"]);
     }
 
     [Fact]
@@ -254,6 +338,14 @@ public sealed class ConfigurationSurfaceTests
 
     private const string _configurationGuide = "docs/reference/configuration.md";
 
+    private static readonly string[] _sourceRoots =
+    [
+        "Src",
+        /*#if (templateMaintenance)*/
+        ".template.config/starters",
+        /*#endif*/
+    ];
+
     private sealed record SectionFacts(IReadOnlySet<string> Keys, string Origin);
 
     private static List<string> UndocumentedKeys(
@@ -394,6 +486,102 @@ public sealed class ConfigurationSurfaceTests
         return sections;
     }
 
+    private static List<(string Key, string Origin)> DirectReads(IReadOnlyDictionary<string, string> sources)
+    {
+        var constants = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (string source in sources.Values)
+        {
+            foreach (Match constant in _stringConstant.Matches(source))
+            {
+                string? owner = _typeName.Matches(source[..constant.Index]).LastOrDefault()?.Groups["name"].Value;
+
+                if (owner is not null)
+                {
+                    constants.TryAdd($"{owner}.{constant.Groups["name"].Value}", constant.Groups["value"].Value);
+                }
+            }
+        }
+
+        var reads = new List<(string Key, string Origin)>();
+
+        foreach ((string origin, string source) in sources)
+        {
+            var local = _stringConstant.Matches(source)
+                .GroupBy(constant => constant.Groups["name"].Value, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First().Groups["value"].Value, StringComparer.Ordinal);
+
+            string? Resolve(string expression)
+            {
+                string text = expression.Trim();
+
+                if (text.StartsWith("$\"", StringComparison.Ordinal) && text.EndsWith('"'))
+                {
+                    var parts = _interpolation.Matches(text[2..^1]).Select(part => Resolve(part.Groups["expression"].Value)).ToList();
+
+                    return parts.Contains(null) ? null : _interpolation.Replace(text[2..^1], part => Resolve(part.Groups["expression"].Value)!);
+                }
+
+                if (text.StartsWith('"') && text.EndsWith('"') && text.Length >= 2)
+                {
+                    return text[1..^1];
+                }
+
+                if (text.StartsWith("nameof(", StringComparison.Ordinal) && text.EndsWith(')'))
+                {
+                    return text[7..^1].Split('.')[^1];
+                }
+
+                return constants.TryGetValue(text, out string? qualified) ? qualified
+                    : local.TryGetValue(text, out string? unqualified) ? unqualified
+                    : null;
+            }
+
+            foreach (Match read in _directRead.Matches(source))
+            {
+                string? key = read.Groups["connection"].Success
+                    ? Resolve(read.Groups["connection"].Value) is { } name ? $"ConnectionStrings:{name}" : null
+                    : read.Groups["section"].Success
+                        ? Resolve(read.Groups["section"].Value) is { } section
+                            ? read.Groups["member"].Success
+                                ? Resolve(read.Groups["member"].Value) is { } member ? $"{section}:{member}" : null
+                                : section
+                            : null
+                        : Resolve(read.Groups[read.Groups["indexed"].Success ? "indexed" : "valued"].Value);
+
+                if (key is not null)
+                {
+                    reads.Add((key, origin));
+                }
+            }
+        }
+
+        return reads;
+    }
+
+    private static List<string> UndocumentedReads(
+        IEnumerable<(string Key, string Origin)> reads,
+        IReadOnlyDictionary<string, string> documented) =>
+        [.. reads
+            .Where(read => !IsDocumented(read.Key, documented))
+            .Select(read => $"{read.Key} ({read.Origin})")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
+
+    private static bool IsDocumented(string key, IReadOnlyDictionary<string, string> documented)
+    {
+        if (documented.ContainsKey(key))
+        {
+            return true;
+        }
+
+        string[] segments = key.Split(':');
+
+        return Enumerable.Range(1, segments.Length - 1).Any(length =>
+            documented.TryGetValue(string.Join(':', segments[..length]), out string? text)
+            && KeysIn(text).Contains(segments[length]));
+    }
+
     private static Dictionary<string, string> DocumentedSections() =>
         SectionsOf(File.ReadAllText(
             Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "reference", "configuration.md")));
@@ -457,7 +645,8 @@ public sealed class ConfigurationSurfaceTests
 
             if (named.Success)
             {
-                sections[named.Groups[1].Value] = text;
+                string section = named.Groups[1].Value;
+                sections[section] = sections.TryGetValue(section, out string? before) ? before + text : text;
             }
         }
 
@@ -468,11 +657,10 @@ public sealed class ConfigurationSurfaceTests
         [.. _documentedKey.Matches(sectionText).Select(match => match.Groups[1].Value)];
 
     private static IEnumerable<string> SourceFiles() =>
-        Directory
-            .EnumerateFiles(
-                Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src"),
-                "*.cs",
-                SearchOption.AllDirectories)
+        _sourceRoots
+            .Select(root => Path.Combine(ProjectReferenceGraph.RepositoryRoot, root))
+            .Where(Directory.Exists)
+            .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
             .Where(file => !file.Contains(
                 $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
                 StringComparison.Ordinal))

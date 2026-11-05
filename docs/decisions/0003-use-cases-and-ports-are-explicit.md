@@ -44,7 +44,7 @@ second intent and a split.
   writes.
 
 [Ports and adapters](../architecture/ports-and-adapters.md) and
-[Use cases, not a dispatcher](../architecture/domain-and-results.md#use-cases-not-a-dispatcher)
+[Use cases, not a dispatcher](../architecture/domain-and-results.md#use-cases-are-messages)
 describe the vocabulary and its rules.
 
 ## Revisit when

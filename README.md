@@ -71,7 +71,7 @@ dnx CleanArch.Create -- presentation                                            
 ```
 
 `new-feature` needs `--auth` other than `none`. [Adding a feature](docs/guides/adding-a-feature.md)
-gives the steps, and [the commands table](AGENTS.md#commands) every task.
+gives the steps, and [the task launcher](docs/guides/build-and-ci.md#the-task-launcher) every task.
 
 ## What you get
 

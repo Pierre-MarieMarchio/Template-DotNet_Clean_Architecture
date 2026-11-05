@@ -16,13 +16,13 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | Task | Runs |
 |---|---|
 | <!--#if (anyWeb)--> |
-| `bootstrap` | format, write the OpenAPI reference, restore the local tools, `migration-initial`, then `web-scaffold`; once, after generation |
+| `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, `api-client` where the project holds the .NET client, then `web-scaffold`; once, after generation |
 | <!--#endif--> |
 | <!--#if (!anyWeb && api)--> |
-| `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
+| `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, then `api-client` where the project holds the .NET client; once, after generation |
 | <!--#endif--> |
 | <!--#if (!api)--> |
-| `bootstrap` | format, restore the local tools, then `migration-initial`; once, after generation |
+| `bootstrap` | `presentation-scaffold`, format, `docs-index`, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, then `migration-initial`; once, after generation |
 | <!--#endif--> |
 | `check` | what `verify` would catch on the files you touched, in under a minute once built: [below](#check) |
 | `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` builds every test project, runs only the ones that need no Docker, in parallel as over the solution, through solution filters it writes under the ignored artifacts folder, and names each project it built and did not run; off Windows, `test` also names and leaves out [the tests that run on Windows alone](#tests-that-run-on-windows-alone); `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
@@ -41,8 +41,14 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `new-setting` | a feature's options class with its validator, registered, its section in each host's `appsettings.json` and in the configuration reference, as [adding a setting](adding-a-setting.md) says |
 | `new-event` | a domain event of a feature of the rich shape, with its consumer or its place among the events nobody consumes, and their tests, as [adding a domain event](adding-a-feature.md#add-a-domain-event) says |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
-| `migration-add`, `database-update` | `dotnet ef` over the business context, or the authentication context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
-| `migration-check` | fail when the business context's model, or the authentication context's with `--context auth`, holds a change no migration holds; `new-feature` and `new-field` run it before they write |
+| <!--#if (localAuth)--> |
+| `migration-add`, `database-update` | `dotnet ef` over the business context, or the identity context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
+| `migration-check` | fail when the business context's model, or the identity context's with `--context auth`, holds a change no migration holds; `new-feature` and `new-field` run it before they write |
+| <!--#endif--> |
+| <!--#if (!localAuth)--> |
+| `migration-add`, `database-update` | `dotnet ef` over the business context, once it has its initial migration; `migration-add` refuses an empty migration |
+| `migration-check` | fail when the business context's model holds a change no migration holds; `new-feature` and `new-field` run it before they write |
+| <!--#endif--> |
 | `migration-bundle` | one self-contained migration bundle per context, under `artifacts/migrate` |
 | <!--#if (api)--> |
 | `openapi` | rewrite the reviewed OpenAPI reference the contract test compares the served document with |
@@ -64,6 +70,10 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `hygiene` | the self-tests of the gates this tree carries, then `docs-index --check` |
 | `verify` | the whole gate, in CI's order |
 | `upgrade-report` | what a newer version of the package that generated the project changes in it, written nowhere in the project, as [upgrading](upgrading.md) says |
+
+`build`, `test`, `check`, `coverage`, `migration-bundle` and `verify` build in Debug unless
+`dotnet run Tools/Tasks.cs -- <task> --configuration Release` asks otherwise: the `--` comes first,
+because `dotnet run` claims `--configuration` for itself.
 
 Everything under `Tools/` is a file-based C# app: the SDK `global.json` requires is all it needs. The
 first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and

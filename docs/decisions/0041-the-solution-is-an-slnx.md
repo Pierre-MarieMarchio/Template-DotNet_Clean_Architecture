@@ -44,10 +44,10 @@ writes an `.slnx`, and `dotnet sln`, `dotnet build`, `dotnet test` and `dotnet f
   each add one is a merge of two lines.
 - A tool that parses the solution itself, rather than through MSBuild or the SDK, has to read XML.
 - A project generated with an `.sln` keeps it until it takes a `Tools/Tasks.cs` that names the
-  `.slnx`, and the launcher finds a project by either. To move, `dotnet sln <Name>.sln migrate`
-  writes `<Name>.slnx` beside it from the projects the `.sln` holds, after which the `.sln` is
-  deleted and each place that names it, such as the `SOLUTION` of a workflow, moves to the new
-  file; [upgrading](../guides/upgrading.md#what-the-report-compares) says how the report shows it.
+  `.slnx`; the launcher finds the project by its `cleanarch.json`, whatever the solution's format.
+  To move, `dotnet sln <Name>.sln migrate` writes `<Name>.slnx` beside it from the projects the
+  `.sln` holds, after which the `.sln` is deleted and each place that names it, such as the
+  `SOLUTION` of a workflow, moves to the new file; [upgrading](../guides/upgrading.md#what-the-report-compares) says how the report shows it.
 
 ## Revisit when
 

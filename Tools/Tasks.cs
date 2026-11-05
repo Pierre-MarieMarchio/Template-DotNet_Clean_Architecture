@@ -2273,6 +2273,8 @@ internal static class Tasks
 
             RefuseWhatTheProjectLacks(Path.Combine(generated, name + ".csproj"), Path.Combine(folder, name + ".csproj"));
 
+            NormaliseLineEndings(generated);
+
             foreach (string kept in (descriptor["keep"]?.AsArray() ?? []).Select(path => path?.GetValue<string>() ?? string.Empty))
             {
                 string source = Path.Combine(generated, kept);
@@ -2307,6 +2309,40 @@ internal static class Tasks
         [.. projects
             .GroupBy(project => SolutionFolderOf(repoRoot, project), StringComparer.Ordinal)
             .Select(group => (string[])["sln", solution, "add", "--solution-folder", group.Key, .. group])];
+
+    private static void NormaliseLineEndings(string directory)
+    {
+        foreach (string file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+        {
+            byte[] content = File.ReadAllBytes(file);
+            byte[] normalised = WithLfEndings(content);
+
+            if (normalised.Length != content.Length)
+            {
+                File.WriteAllBytes(file, normalised);
+            }
+        }
+    }
+
+    private static byte[] WithLfEndings(byte[] content)
+    {
+        if (content.Contains((byte)0))
+        {
+            return content;
+        }
+
+        var normalised = new List<byte>(content.Length);
+
+        for (int index = 0; index < content.Length; index++)
+        {
+            if (content[index] != (byte)'\r' || index + 1 == content.Length || content[index + 1] != (byte)'\n')
+            {
+                normalised.Add(content[index]);
+            }
+        }
+
+        return [.. normalised];
+    }
 
     private static string[] ClientProjects(ProjectFile projectFile) =>
         [.. new[]
@@ -3590,6 +3626,8 @@ internal static class Tasks
             .. SolutionFolderCases(),
             ("verify refuses a web workspace without pnpm, saying how to get it", Refused(() => RequirePnpm("pnpm-not-on-this-path"), "run `corepack enable` once")),
             ("format-fix drops a Markdown file's BOM and turns each CR ending into LF", NormalisedMarkdown([0xEF, 0xBB, 0xBF, (byte)'a', (byte)'\r', (byte)'\n', (byte)'b', (byte)'\r']).SequenceEqual("a\nb\n"u8.ToArray())),
+            ("a scaffolded text file keeps its content and turns each CRLF into LF", WithLfEndings("a\r\nb\rc\n"u8.ToArray()).SequenceEqual("a\nb\rc\n"u8.ToArray())),
+            ("a scaffolded binary file is left as it is", WithLfEndings([0x89, 0, (byte)'\r', (byte)'\n']).SequenceEqual(new byte[] { 0x89, 0, (byte)'\r', (byte)'\n' })),
             ("format-fix leaves a Markdown file without a BOM or a CR as it is", NormalisedMarkdown("# \u00e9\n"u8.ToArray()).SequenceEqual("# \u00e9\n"u8.ToArray())),
         ];
 

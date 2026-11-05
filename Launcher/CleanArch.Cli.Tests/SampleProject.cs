@@ -41,6 +41,28 @@ internal sealed class SampleProject : IDisposable
         }
         """;
 
+    public const string Web = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local" },
+          "web": {
+            "scope": "acme-shop",
+            "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
+            "packages": [ { "name": "ui" } ]
+          }
+        }
+        """;
+
+    public const string Client = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "none" },
+          "client": true
+        }
+        """;
+
     public SampleProject(string json)
     {
         Root = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;

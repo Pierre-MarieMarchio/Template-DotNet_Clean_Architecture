@@ -64,7 +64,7 @@ public sealed class HelpCommandTests : IDisposable
             .ShouldBe(["--help", "--version"], ignoreOrder: true);
 
         JsonArray commands = document["commands"].ShouldNotBeNull().AsArray();
-        JsonObject help = commands.Single().ShouldNotBeNull().AsObject();
+        JsonObject help = commands.Single(command => Text(command!["name"]) == "help").ShouldNotBeNull().AsObject();
         Text(help["name"]).ShouldBe("help");
         help["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"]))
             .ShouldBe(["--json"]);

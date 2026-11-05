@@ -254,7 +254,8 @@ internal static class Tasks
                                            in a template hive of its own, keep the folders it names
                                            beside the project's own files, refuse a generated project
                                            file that declares what the project's own lacks, add the
-                                           project and its tests to the solution and format them; a
+                                           project and its tests to the solution, in the solution
+                                           folders of their layer, and format them; a
                                            scaffold.json of kind written runs no template, the project
                                            being whole already; bootstrap runs it first, and a project
                                            created already is left alone
@@ -2208,7 +2209,10 @@ internal static class Tasks
             .. (client ? ClientProjects(projectFile) : []),
         ];
 
-        Step("dotnet", ["sln", solution, "add", .. projects]);
+        foreach (string[] arguments in SolutionAddArguments(repoRoot, solution, projects))
+        {
+            Step("dotnet", arguments);
+        }
 
         foreach (string added in projects)
         {
@@ -2285,6 +2289,14 @@ internal static class Tasks
             }
         }
     }
+
+    private static string SolutionFolderOf(string repoRoot, string project) =>
+        Path.GetRelativePath(repoRoot, Path.GetDirectoryName(Path.GetDirectoryName(project))!).Replace('\\', '/');
+
+    private static string[][] SolutionAddArguments(string repoRoot, string solution, string[] projects) =>
+        [.. projects
+            .GroupBy(project => SolutionFolderOf(repoRoot, project), StringComparer.Ordinal)
+            .Select(group => (string[])["sln", solution, "add", "--solution-folder", group.Key, .. group])];
 
     private static string[] ClientProjects(ProjectFile projectFile) =>
         [.. new[]
@@ -3565,6 +3577,7 @@ internal static class Tasks
             .. JoinCases(),
             .. DocsIndexCases(),
             .. WebAppRecordCases(),
+            .. SolutionFolderCases(),
             ("verify refuses a web workspace without pnpm, saying how to get it", Refused(() => RequirePnpm("pnpm-not-on-this-path"), "run `corepack enable` once")),
             ("format-fix drops a Markdown file's BOM and turns each CR ending into LF", NormalisedMarkdown([0xEF, 0xBB, 0xBF, (byte)'a', (byte)'\r', (byte)'\n', (byte)'b', (byte)'\r']).SequenceEqual("a\nb\n"u8.ToArray())),
             ("format-fix leaves a Markdown file without a BOM or a CR as it is", NormalisedMarkdown("# \u00e9\n"u8.ToArray()).SequenceEqual("# \u00e9\n"u8.ToArray())),
@@ -3576,6 +3589,27 @@ internal static class Tasks
         }
 
         return cases.All(result => result.Passed) ? 0 : 1;
+    }
+
+    private static (string Case, bool Passed)[] SolutionFolderCases()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "repo");
+        string[][] added = SolutionAddArguments(
+            root,
+            "X.sln",
+            [
+                Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj"),
+                Path.Combine(root, "Tests", "Presentation", "X.Desktop.UnitTests", "App.Desktop.UnitTests.csproj"),
+                Path.Combine(root, "Src", "Clients", "X.Client", "App.Client.csproj"),
+            ]);
+
+        return
+        [
+            ("a scaffolded project joins the solution folder of its layer, one call per folder", added.Length == 3
+                && added[0].SequenceEqual(["sln", "X.sln", "add", "--solution-folder", "Src/Presentation", Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj")])
+                && added[1][4] == "Tests/Presentation"
+                && added[2][4] == "Src/Clients"),
+        ];
     }
 
     private static (string Case, bool Passed)[] GeneratorOptionCases() =>

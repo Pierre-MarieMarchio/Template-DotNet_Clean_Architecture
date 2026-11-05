@@ -632,7 +632,7 @@ post-action scripts declined: `dotnet new` asks again for ever on a closed input
 option only from a template that has such a script, so one that would ask fails instead of waiting
 for an answer. It keeps the folders and files the descriptor names, a file the starter holds
 winning, and refuses a generated project file that declares a package or a property the starter's
-lacks. It adds the project and its tests to the solution. A project that references the .NET client
+lacks. It adds the project and its tests to the solution, each in the solution folder its path gives (`Src/Presentation`, `Tests/Presentation`). A project that references the .NET client
 brings the client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires: the

@@ -26,7 +26,7 @@ and keeps the folders the descriptor names, and the starter owns the rest. For t
 
 - **Such a starter holds the whole project.** Its descriptor says `"kind": "written"` and names the
   generator, the package and the version whose shape it follows; it names no template to run and
-  keeps no folder. `presentation-scaffold` adds the project and its tests to the solution, formats
+  keeps no folder. `presentation-scaffold` adds the project and its tests to the solution, in the solution folders of their layer, formats
   them and deletes the descriptor, as for any starter, without the network.
 - **It follows its generator's shape.** The SDK, the entry point and the settings files are the ones
   the generator writes at the version the descriptor names, under the repository's rules: central

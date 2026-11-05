@@ -10,7 +10,6 @@ public sealed class CommandRegistrationTests : IDisposable
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
 
-    // A command the project file makes true only under sonar true, the way the tool's own `sonar` will be.
     private static readonly CommandRegistration _sonar = new(RefuseUnlessSonar, BuildSonar);
 
     [Fact]

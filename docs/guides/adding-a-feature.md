@@ -438,6 +438,9 @@ Some lists change only on purpose, and a test fails until they name what you add
 | A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |
 | <!--#endif--> |
 | An anonymous endpoint | `_anonymousActions` in `HttpSurfaceTests` |
+| <!--#if (localAuth)--> |
+| A folder of mail templates | `_templateFolders` in `EmailTemplateCoverageTests`, and its mails in `TheWalk_FindsEveryMailThisTemplateSends` |
+| <!--#endif--> |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
 | A new project | `AppTemplate.sln`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |

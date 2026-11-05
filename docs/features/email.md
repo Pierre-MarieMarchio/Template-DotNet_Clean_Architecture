@@ -52,7 +52,8 @@ update. An embedded `*.fr.html` needs `WithCulture="false"` in its `.csproj`, al
 folders, or MSBuild compiles it into a satellite assembly.
 <!--#if (localAuth)-->
 `EmailTemplateCoverageTests` refuses a language that one mail has and another lacks, and two
-languages of one mail sharing a subject.
+languages of one mail sharing a subject. It reads the folders it names, and refuses a folder of
+mail templates under `Src` that it does not name until the folder joins its list.
 <!--#endif-->
 
 ## The mails

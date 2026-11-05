@@ -15,6 +15,8 @@ public static class CleanArchCommand
     private static readonly IReadOnlyList<CommandRegistration> _registrations =
     [
         HelpCommand.Registration,
+        MigrationsCommand.Registration,
+        DatabaseCommand.Registration,
     ];
 
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
@@ -40,14 +42,23 @@ public static class CleanArchCommand
             string? refusal = registration.Refusal(context);
             if (refusal is not null)
             {
-                command.Hidden = true;
-                command.SetAction(parseResult => Refuse(parseResult, refusal));
+                Refuse(command, refusal);
             }
 
             root.Add(command);
         }
 
         return root;
+    }
+
+    private static void Refuse(Command command, string refusal)
+    {
+        command.Hidden = true;
+        command.SetAction(parseResult => Refuse(parseResult, refusal));
+        foreach (Command subcommand in command.Subcommands)
+        {
+            Refuse(subcommand, refusal);
+        }
     }
 
     private static int Describe(CommandContext context, ParseResult parseResult)

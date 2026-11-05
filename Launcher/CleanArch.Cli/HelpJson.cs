@@ -97,7 +97,8 @@ internal static class HelpJson
         command.Name,
         command.Description,
         [.. command.Options.Where(option => !option.Hidden).Select(OptionSectionOf)],
-        [.. command.Arguments.Select(argument => new ArgumentSection(argument.Name, argument.Description))]);
+        [.. command.Arguments.Select(argument => new ArgumentSection(argument.Name, argument.Description))],
+        [.. command.Subcommands.Where(subcommand => !subcommand.Hidden).Select(CommandSectionOf)]);
 }
 
 internal sealed record HelpDocument(
@@ -123,4 +124,5 @@ internal sealed record CommandSection(
     string Name,
     string? Description,
     IReadOnlyList<OptionSection> Options,
-    IReadOnlyList<ArgumentSection> Arguments);
+    IReadOnlyList<ArgumentSection> Arguments,
+    IReadOnlyList<CommandSection> Commands);

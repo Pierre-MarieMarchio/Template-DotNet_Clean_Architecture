@@ -452,28 +452,28 @@ Under Compose, from the project root with the stack's `.env` in place, `docker c
 
 | File | What it is |
 |---|---|
-<!--#if (!webAngular && !webReactRouter)-->
+| <!--#if (!webAngular && !webReactRouter)--> |
 | `nginx.conf` | the server: the page security headers, a strict Content-Security-Policy among them, caching, the `index.html` fallback, the `/api/` and `/health` relay |
-<!--#endif-->
-<!--#if (webReactRouter && !webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webReactRouter && !webServerRendering)--> |
 | `nginx.conf` | the server: the page security headers, a strict Content-Security-Policy among them, caching, the `index.html` fallback, the `/api/` and `/health` relay; the image build adds the hashes of the page's inline scripts to its `script-src` |
-<!--#endif-->
-<!--#if (webAngular && !webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webAngular && !webServerRendering)--> |
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, and styles from it or inline, since Angular inserts each component's styles as a `<style>` element when the page runs |
-<!--#endif-->
-<!--#if (!webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (!webServerRendering)--> |
 | `Dockerfile` | the image, built from `Src/Web` with the workspace lockfile |
-<!--#endif-->
-<!--#if (webAngular && webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webAngular && webServerRendering)--> |
 | `src/server.ts` | the server: the page security headers, caching, the `/api/` and `/health` relay, and the page rendered with a nonce its Content-Security-Policy names; styles come from the app's origin or inline, since Angular inserts each component's styles as a `<style>` element |
-<!--#endif-->
-<!--#if (webReactRouter && webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webReactRouter && webServerRendering)--> |
 | `server/app.ts` | the server: the page security headers, caching, the `/api/` and `/health` relay, and the page rendered with a nonce its strict Content-Security-Policy names |
 | `server.js` | the development server `pnpm dev` runs: Vite in middleware mode in front of `server/app.ts` |
-<!--#endif-->
-<!--#if (webServerRendering)-->
+| <!--#endif--> |
+| <!--#if (webServerRendering)--> |
 | `Dockerfile` | the image, built from `Src/Web` with the workspace lockfile, running the built server on Node as an unprivileged user |
-<!--#endif-->
+| <!--#endif--> |
 | `compose.yml` | the `web-framework-site` service |
 
 ## Join the stack

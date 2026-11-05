@@ -26,15 +26,15 @@ a SQLite file for the database.
 |---|---|---|---|
 | Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `Tests/<Layer>/<Initials>.<Layer>[.<Module>].UnitTests/Features/<Feature>/`, mirroring `Src/` |
 | Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AT.Architecture.Tests` |
-<!--#if (api || localAuth)-->
+| <!--#if (api || localAuth)--> |
 | Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `Tests/Integration/` |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AT.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
 | End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AT.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `Src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
 <!--#endif-->
 <!--#if (!anyFeature)-->
@@ -69,32 +69,32 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | A message its validator refuses never reaches its handler | unit; architecture for "every message" and "every validator" | `UseCasePipelineTests`; `ContainerCompositionTests`, `ValidatorTargetTests` |
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
 | Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
-<!--#if (aspire)-->
+| <!--#if (aspire)--> |
 | The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` leaves out with the suites that need Docker |
-<!--#endif-->
+| <!--#endif--> |
 | The HTTP contract | contract | `OpenApiDocumentTests` against the committed reference; `ErrorCodeTableTests` and `ErrorCodeStatusTests` against [the API reference](../reference/api.md#error-codes) |
-<!--#if (accounts)-->
+| <!--#if (accounts)--> |
 | Default deny | integration over every mapped endpoint; architecture for the anonymous list | `DefaultDenyAuthorizationTests`, `HttpSurfaceTests` |
-<!--#endif-->
-<!--#if (anyFeature)-->
+| <!--#endif--> |
+| <!--#if (anyFeature)--> |
 | Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row; architecture for the owned load's signature | each feature's ownership tests in the integration suite; `OwnedAggregateLoadTests` |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |
 | Anonymous routes reveal nothing ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
-<!--#endif-->
+| <!--#endif--> |
 | Optimistic concurrency | integration where two writers meet; unit for the precondition decision | each feature's concurrency tests, `ApiControllerBaseTests` |
 | Idempotency | integration for the lease; architecture for the opt-in to `POST` | `IdempotencyLeaseTests`, `IdempotentActionTests` |
 | Migrations and model drift | unit, and every integration run migrates a real database | `PendingModelChangesTests` |
 | Background work under a lease | integration; architecture for the hosted services | `LeaderLeaseTests`, `BackgroundWorkTests` |
-<!--#if (files)-->
+| <!--#if (files)--> |
 | Doubles that tell the truth | contract tests run against the double and each adapter | `FileContentStoreContract`, `FileContentInventoryContract` |
 | Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AT.EndToEnd.Tests` |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | What the browser blocks or breaks in a web app | browser smoke, one test per app | `Src/Web/packages/browser-smoke` |
 <!--#endif-->
 
@@ -224,13 +224,13 @@ It sets the file inspection to run every ten seconds, so a deposit becomes reada
 | Test class | Risk it holds |
 |---|---|
 | `StackTests` | the stack starts, migrates and reports ready; an unmapped route is refused with the API's problem code |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `SessionTests` | the confirmation mail reaches Mailpit with a link that confirms the address; sign-in, `/auth/me`, refresh and sign-out work on the real stack, and the refresh token is refused after sign-out |
-<!--#endif-->
-<!--#if (localAuth && files)-->
+| <!--#endif--> |
+| <!--#if (localAuth && files)--> |
 | `FileTransferTests` | a deposit on the signed grant reaches the object store, the inspection pass runs, and the content comes back through its signed URL |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | `WebAppTests` | each web app serves its page and relays `/api` to the API |
 <!--#endif-->
 
@@ -340,7 +340,7 @@ restore it, and check the failure named what you meant.
 | A configuration test writes down the budget it asserts | the outbound HTTP policy tests |
 | A value read from outside the repository is anchored to the type name | configuration section names |
 | A presentation project grants its internals to its own unit tests only | one `InternalsVisibleTo` each |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | Anonymous routes are tested for sameness, not only refusal | `LoginUniformityTests` |
 | A credential change is proved by replaying the token in circulation | `SecurityStampRotationTests` |
 <!--#endif-->

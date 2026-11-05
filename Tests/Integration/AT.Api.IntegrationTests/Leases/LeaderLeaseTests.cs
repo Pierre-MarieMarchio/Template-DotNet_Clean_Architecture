@@ -152,7 +152,7 @@ public sealed class LeaderLeaseTests(LeaseFixture fixture) : IClassFixture<Lease
 
     private static string LeaseName(string purpose)
     {
-        string suffix = Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture)[..12];
+        string suffix = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..12];
 
         return $"apptemplate-tests:{purpose}:{suffix}";
     }

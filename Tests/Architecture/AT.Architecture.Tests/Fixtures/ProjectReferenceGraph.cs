@@ -22,6 +22,11 @@ internal static class ProjectReferenceGraph
 
     internal static IReadOnlyDictionary<string, ProjectNode> SourceProjects { get; } = ReadSourceProjects();
 
+    internal static string ArchitectureTestProjectFile { get; } = LocateArchitectureTestProjectFile();
+
+    internal static IReadOnlySet<string> ArchitectureTestReferences { get; } =
+        ReadProjectReferences(XDocument.Load(ArchitectureTestProjectFile));
+
     internal static bool IsInfrastructureModule(string projectName) =>
         projectName.StartsWith(_infrastructurePrefix, StringComparison.Ordinal)
         && !IsSdkProject(projectName);
@@ -134,6 +139,20 @@ internal static class ProjectReferenceGraph
         document
             .Descendants("IsSdkProject")
             .Any(element => bool.TryParse(element.Value.Trim(), out bool marked) && marked);
+
+    private static string LocateArchitectureTestProjectFile()
+    {
+        string projectFile = typeof(ProjectReferenceGraph).Assembly.GetName().Name + ".csproj";
+        var found = Directory
+            .EnumerateFiles(Path.Combine(RepositoryRoot, "Tests"), projectFile, SearchOption.AllDirectories)
+            .ToList();
+
+        return found is [var only]
+            ? only
+            : throw new InvalidOperationException(
+                $"Expected one '{projectFile}' under '{RepositoryRoot}/Tests' and found {found.Count}, so the " +
+                "projects the architecture rules reference directly cannot be read.");
+    }
 
     private static string LocateRepositoryRoot()
     {

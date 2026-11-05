@@ -54,7 +54,7 @@ and VS Code's C# Dev Kit then list the templates, with no extension.
 
 ## What you get
 
-| | |
+| Area | What it is |
 |---|---|
 | **Architecture** | Four layers and the dependency rule, held by an architecture test suite: a domain, an application layer of use cases, infrastructure modules behind ports, a thin presentation layer. |
 | **Features** | Two shapes, an aggregate when there is a state to protect and a service over a store when there is none, and a generator that writes either. |

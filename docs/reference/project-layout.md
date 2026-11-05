@@ -380,7 +380,7 @@ So does the app host, which `LocalStackTests` starts from its integration test p
 | Every type under `Helpers/` is a static class | `FeatureFolderVocabularyTests.EveryTypeUnderAHelpersFolder_IsAStaticClass` |
 | One use case per operation folder, named for it | `UseCaseConventionTests.EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt` |
 | Every message has one handler | `MessageRoutingTests.EveryMessage_HasExactlyOneHandler` |
-| Every message is sent by a host or a job, and crosses the validation behaviour | `MessageRoutingTests.EveryMessage_IsSentByAHostOrAJob`, `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` |
+| Every message is sent by a host or a job, under a short name no other message has, and crosses the validation behaviour | `MessageRoutingTests.EveryMessage_IsSentByAHostOrAJob`, `NoTwoMessages_ShareAShortName`, `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` |
 | Every validator targets a message or is taken by the service that runs it | `ValidatorTargetTests.EveryValidator_TargetsAMessageOrIsInjectedWhereItRuns` |
 | Every source project has its unit test project, but the exceptions the test names | `TestProjectMirrorTests.EverySourceProject_HasItsUnitTestProject_ExceptTheOnesNamedHere` |
 | MediatR, AutoMapper and Mapperly are in no project | `BannedPackageTests.NoProject_ReferencesABannedPackage` |

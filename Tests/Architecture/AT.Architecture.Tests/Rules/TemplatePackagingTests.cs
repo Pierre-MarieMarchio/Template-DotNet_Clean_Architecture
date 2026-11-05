@@ -475,6 +475,28 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void ATestSourceThePackageLeavesOut_GenerationLeavesOutToo()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var generationExcludes = manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray()
+            .Where(modifier => modifier.TryGetProperty("condition", out var condition) && condition.GetString() == "(!templateMaintenance)")
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var testSources = PackageExcludes()
+            .Where(exclude => exclude.StartsWith("Tests/", StringComparison.Ordinal) && exclude.EndsWith(".cs", StringComparison.Ordinal))
+            .ToList();
+
+        testSources.ShouldNotBeEmpty("No test source was read from the TemplateExclude items, so this rule is reading the wrong file.");
+
+        testSources
+            .Where(source => !generationExcludes.Contains(source))
+            .ShouldBeEmpty(
+                "The package leaves out these test sources, but a template installed from the checkout generates them, without the " +
+                "template-only fixtures they read: add each to the (!templateMaintenance) exclusions of template.json.");
+    }
+
+    [Fact]
     public void ThePackagesMetadataFiles_AreAtItsRootAndNotAlsoUnderContent()
     {
         string project = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "TemplatePackage.csproj");

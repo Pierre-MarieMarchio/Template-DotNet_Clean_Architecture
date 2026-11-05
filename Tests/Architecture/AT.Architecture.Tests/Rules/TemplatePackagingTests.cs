@@ -127,7 +127,47 @@ public sealed class TemplatePackagingTests
         MarkerLinesBetweenRows(lines).ShouldBe([3, 5]);
     }
 
-    private static IEnumerable<(string File, int Line)> MarkerLinesEndingATable()
+    [Fact]
+    public void NoMarkerInAnIndentedFence_SitsLeftOfTheFence()
+    {
+        var offenders = MarkdownLinesWhere(MarkerLinesLeftOfTheirFence).Select(offender => $"{offender.File}:{offender.Line}");
+
+        offenders.ShouldBeEmpty(
+            "A template marker written left of the fence it sits in ends the list item the fence is indented under, " +
+            "which closes the fence on GitHub and renders the rest of the page out of place. Indent the marker to the " +
+            "column of its fence, which generation removes whole as it removes any marker line.");
+    }
+
+    [Fact]
+    public void AMarkerLeftOfAnIndentedFence_IsFound_AndAnIndentedOrAColumnZeroFenceMarkerIsNot()
+    {
+        string opening = "<!--" + "#" + "if (files)-->";
+        string closing = "<!--" + "#" + "endif-->";
+        string[] lines =
+        [
+            "- an item:",
+            "",
+            "  ```bash",
+            opening,
+            "  run",
+            $"  {closing}",
+            $"   {opening}",
+            "  ```",
+            "",
+            "```bash",
+            opening,
+            "run",
+            closing,
+            "```",
+            opening,
+        ];
+
+        MarkerLinesLeftOfTheirFence(lines).ShouldBe([4]);
+    }
+
+    private static IEnumerable<(string File, int Line)> MarkerLinesEndingATable() => MarkdownLinesWhere(MarkerLinesBetweenRows);
+
+    private static IEnumerable<(string File, int Line)> MarkdownLinesWhere(Func<string[], List<int>> offendingLines)
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
 
@@ -135,9 +175,29 @@ public sealed class TemplatePackagingTests
             .EnumerateFiles("*.md", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
             .Select(file => Path.GetRelativePath(root, file.FullName))
             .Where(file => !file.Split(Path.DirectorySeparatorChar).SkipLast(1).Any(_markdownSkippedFolders.Contains))
-            .SelectMany(file => MarkerLinesBetweenRows(File.ReadAllLines(Path.Combine(root, file)))
+            .SelectMany(file => offendingLines(File.ReadAllLines(Path.Combine(root, file)))
                 .Select(line => (File: file.Replace('\\', '/'), Line: line)))
             .Order();
+    }
+
+    private static List<int> MarkerLinesLeftOfTheirFence(string[] lines)
+    {
+        var found = new List<int>();
+        int? fenceColumn = null;
+        for (int index = 0; index < lines.Length; index++)
+        {
+            string line = lines[index];
+            if (_fence.IsMatch(line))
+            {
+                fenceColumn = fenceColumn is null ? line.Length - line.TrimStart().Length : null;
+            }
+            else if (fenceColumn is not null && _markerLine.IsMatch(line) && line.Length - line.TrimStart().Length < fenceColumn)
+            {
+                found.Add(index + 1);
+            }
+        }
+
+        return found;
     }
 
     private static List<int> MarkerLinesBetweenRows(string[] lines)

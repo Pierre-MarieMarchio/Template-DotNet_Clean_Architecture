@@ -112,16 +112,16 @@ the other passes are idempotent. The edits, to make by hand where the task stops
 
         Jobs__Maintenance__Interval: ${JOBS_MAINTENANCE_INTERVAL:-01:00:00}
         Jobs__Maintenance__PurgeExpiredIdempotencyKeysEnabled: ${JOBS_MAINTENANCE_PURGE_IDEMPOTENCY_KEYS:-true}
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
         Jobs__Maintenance__PurgeExpiredRefreshTokensEnabled: ${JOBS_MAINTENANCE_PURGE_REFRESH_TOKENS:-true}
-<!--#endif-->
+  <!--#endif-->
 
-<!--#if (reminders)-->
+  <!--#if (reminders)-->
         Jobs__Reminders__Interval: ${JOBS_REMINDERS_INTERVAL:-00:01:00}
         Jobs__Reminders__Enabled: ${JOBS_REMINDERS_ENABLED:-true}
-<!--#endif-->
+  <!--#endif-->
 
-<!--#if (files)-->
+  <!--#if (files)-->
         # Inspection off stops the Files feature, and reclaim off leaks storage: docs/reference/configuration.md.
         Jobs__Files__InspectDepositedFilesInterval: ${JOBS_FILES_INSPECT_INTERVAL:-00:01:00}
         Jobs__Files__InspectDepositedFilesEnabled: ${JOBS_FILES_INSPECT_ENABLED:-true}
@@ -130,7 +130,7 @@ the other passes are idempotent. The edits, to make by hand where the task stops
         Jobs__Files__ReclaimOrphanedContentInterval: ${JOBS_FILES_RECLAIM_INTERVAL:-12:00:00}
         Jobs__Files__ReclaimOrphanedContentEnabled: ${JOBS_FILES_RECLAIM_ENABLED:-true}
 
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docker-compose.yml`, after the lines:
@@ -163,16 +163,16 @@ the other passes are idempotent. The edits, to make by hand where the task stops
 
         Jobs__Maintenance__Interval: ${JOBS_MAINTENANCE_INTERVAL:-01:00:00}
         Jobs__Maintenance__PurgeExpiredIdempotencyKeysEnabled: ${JOBS_MAINTENANCE_PURGE_IDEMPOTENCY_KEYS:-true}
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
         Jobs__Maintenance__PurgeExpiredRefreshTokensEnabled: ${JOBS_MAINTENANCE_PURGE_REFRESH_TOKENS:-true}
-<!--#endif-->
+  <!--#endif-->
 
-<!--#if (reminders)-->
+  <!--#if (reminders)-->
         Jobs__Reminders__Interval: ${JOBS_REMINDERS_INTERVAL:-00:01:00}
         Jobs__Reminders__Enabled: ${JOBS_REMINDERS_ENABLED:-true}
-<!--#endif-->
+  <!--#endif-->
 
-<!--#if (files)-->
+  <!--#if (files)-->
         # Inspection off stops the Files feature, and reclaim off leaks storage: docs/reference/configuration.md.
         Jobs__Files__InspectDepositedFilesInterval: ${JOBS_FILES_INSPECT_INTERVAL:-00:01:00}
         Jobs__Files__InspectDepositedFilesEnabled: ${JOBS_FILES_INSPECT_ENABLED:-true}
@@ -181,7 +181,7 @@ the other passes are idempotent. The edits, to make by hand where the task stops
         Jobs__Files__ReclaimOrphanedContentInterval: ${JOBS_FILES_RECLAIM_INTERVAL:-12:00:00}
         Jobs__Files__ReclaimOrphanedContentEnabled: ${JOBS_FILES_RECLAIM_ENABLED:-true}
 
-<!--#endif-->
+  <!--#endif-->
       depends_on:
         api:
           condition: service_healthy
@@ -232,13 +232,13 @@ the other passes are idempotent. The edits, to make by hand where the task stops
   ```json
     "Jobs": {
       "Enabled": true,
-<!--#if (reminders)-->
+  <!--#if (reminders)-->
       "Reminders": {
         "Interval": "00:01:00",
         "Enabled": true
       },
-<!--#endif-->
-<!--#if (files)-->
+  <!--#endif-->
+  <!--#if (files)-->
       "Files": {
         "PurgeAbandonedRegistrationsInterval": "01:00:00",
         "PurgeAbandonedRegistrationsEnabled": true,
@@ -247,16 +247,16 @@ the other passes are idempotent. The edits, to make by hand where the task stops
         "InspectDepositedFilesInterval": "00:01:00",
         "InspectDepositedFilesEnabled": true
       },
-<!--#endif-->
+  <!--#endif-->
       "Maintenance": {
         "Interval": "01:00:00",
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
         "PurgeExpiredRefreshTokensEnabled": true,
         "PurgeExpiredSecurityEventsEnabled": true,
-<!--#endif-->
-<!--#if (anyFeature)-->
+  <!--#endif-->
+  <!--#if (anyFeature)-->
         "SweepDeletedAccountsDataEnabled": true,
-<!--#endif-->
+  <!--#endif-->
         "PurgeExpiredIdempotencyKeysEnabled": true
       }
     },
@@ -266,17 +266,17 @@ the other passes are idempotent. The edits, to make by hand where the task stops
 
   ```json
     "Jobs": {
-<!--#if (reminders)-->
+  <!--#if (reminders)-->
       "Reminders": {
         "Interval": "00:01:00"
       },
-<!--#endif-->
-<!--#if (files)-->
+  <!--#endif-->
+  <!--#if (files)-->
       "Files": {
         "PurgeAbandonedRegistrationsInterval": "00:01:00",
         "ReclaimOrphanedContentInterval": "00:05:00"
       },
-<!--#endif-->
+  <!--#endif-->
       "Maintenance": {
         "Interval": "00:01:00"
       }
@@ -332,9 +332,9 @@ the other passes are idempotent. The edits, to make by hand where the task stops
           ["Src/Presentation/AT.Api"] =
               [
                   "Composition",
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
                   "Configuration/Options",
-<!--#endif-->
+  <!--#endif-->
                   "Contracts/Mapping", "Contracts/Requests", "Contracts/Responses",
                   "Controllers",
                   "Jobs",
@@ -529,11 +529,11 @@ the other passes are idempotent. The edits, to make by hand where the task stops
 
   The worker migrates nothing. In Development the API migrates its database as it starts, and Compose
   starts the worker once the API answers; at release the migration bundles run before either host.
-<!--#if (!api)-->
+  <!--#if (!api)-->
   The worker migrates nothing, and neither does any other host of this project: in Development the
   migrations are applied with `dotnet ef database update`, as [first run](../getting-started/first-run.md#run-with-compose)
   shows, and at release the migration bundles run before the hosts.
-<!--#endif-->
+  <!--#endif-->
   Its tests are in `Tests/Presentation/<Initials>.Worker.UnitTests`: `WorkerCompositionTests` builds the
   worker from its own `Program.cs` with every registration validated and resolves each use case's
   handler it composes in a background scope.
@@ -556,9 +556,9 @@ the other passes are idempotent. The edits, to make by hand where the task stops
   then `dotnet run Tools/Tasks.cs presentation-join AppTemplate.Worker` moves the API's `Common/Jobs`
   and `Features/*/Jobs` folders and their tests into it, their namespaces with them, with the `Jobs`
   settings, and the API stops calling `AddBackgroundJobs`.
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
   The authentication purges move with `AddAuthMaintenanceJobs`, which the worker calls instead.
-<!--#endif-->
+  <!--#endif-->
   A project generated with `--presentation worker` starts that way, and the `README.md` the item
   template writes in the worker's folder lists every other line the join changes.
   ```
@@ -738,9 +738,9 @@ the other passes are idempotent. The edits, to make by hand where the task stops
                                                   Idempotency,Jobs,Localization,Observability,OpenApi,
                                                   Security}
                                           Features/<F>/{Composition,
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
                                                         Configuration/Options,
-<!--#endif-->
+  <!--#endif-->
                                                         Contracts/{Mapping,Requests,Responses},
                                                         Controllers,Jobs}
   ```
@@ -752,9 +752,9 @@ the other passes are idempotent. The edits, to make by hand where the task stops
                                                   Idempotency,Localization,Observability,OpenApi,
                                                   Security}
                                           Features/<F>/{Composition,
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
                                                         Configuration/Options,
-<!--#endif-->
+  <!--#endif-->
                                                         Contracts/{Mapping,Requests,Responses},
                                                         Controllers}
     <Initials>.Worker                     Common/{Jobs,Security}

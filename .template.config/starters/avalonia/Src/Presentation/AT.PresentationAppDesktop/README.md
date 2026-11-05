@@ -152,9 +152,9 @@ task stops:
       <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
       <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
       <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
       <PackageVersion Include="Duende.IdentityModel.OidcClient" Version="7.1.0" />
-<!--#endif-->
+  <!--#endif-->
     </ItemGroup>
 
   ```
@@ -170,9 +170,9 @@ task stops:
 
   ```markdown
   It first creates the presentation project's pages with `dotnet run Tools/Tasks.cs presentation-scaffold`.
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
   It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.
-<!--#endif-->
+  <!--#endif-->
   ```
 
 <!--#if (!hasClient)-->
@@ -201,9 +201,9 @@ task stops:
 
   ```csharp
           ["Src/Presentation/AT.PresentationAppDesktop"] = null,
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = null,
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -216,14 +216,14 @@ task stops:
   add:
 
   ```csharp
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
           ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting", "Sessions"],
-<!--#else-->
+  <!--#else-->
           ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting"],
-<!--#endif-->
-<!--#if (!hasClient)-->
+  <!--#endif-->
+  <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -238,9 +238,9 @@ task stops:
 
   ```csharp
           ["AppTemplate.PresentationAppDesktop"] = ["Assets", "ViewModels", "Views"],
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -392,7 +392,7 @@ task stops:
   |---|---|---|---|
   | `BaseAddress` | absolute URI | `http://localhost:8080/` | **Required.** The API's `http` or `https` address, the API Compose publishes by default; the app refuses to start without it. |
 
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
   ### `SignIn`
 
   Read by the desktop app alone, as the public client it signs its user in with at the provider, from
@@ -405,7 +405,7 @@ task stops:
   | `Scope` | string | `openid profile email offline_access` | Must include `openid`. `offline_access` asks for the refresh token that keeps the session past the first access token; the API's own scope goes here when the provider issues its audience that way. |
   | `RequireHttpsMetadata` | bool | `true` | `false` for a provider on a developer's machine only. |
 
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docs/reference/project-layout.md`, after the line:
@@ -420,10 +420,10 @@ task stops:
   The desktop app's root also holds `Assets/`, `ViewModels/`, `Views/`, `App.axaml.cs` and
   the view locator, which its framework's template writes and which are its own from then on; a file
   named `<Type>.axaml.cs` declares `<Type>`.
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
   The .NET client's root also holds `Generated/`, which `dotnet run Tools/Tasks.cs api-client`
   writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docs/reference/project-layout.md`, after the line:
@@ -435,17 +435,17 @@ task stops:
   add:
 
   ```text
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
     <Initials>.Desktop                    Common/{Hosting,Sessions}
-<!--#else-->
+  <!--#else-->
     <Initials>.Desktop                    Common/{Hosting}
-<!--#endif-->
+  <!--#endif-->
                                           no Features/
                                           Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
   Src/Clients/
     AT.Client                             Common/{Composition,Errors,Sessions}
                                           no Features/
                                           Generated/: Kiota's, from the OpenAPI reference
-<!--#endif-->
+  <!--#endif-->
   ```

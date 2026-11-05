@@ -38,6 +38,8 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `new-feature`, `remove-feature` | the feature generator and its undo |
 | `new-field` | one or more fields added to a feature `new-feature --fields` generated, in every layer, with its migration |
 | `new-use-case` | one more use case in a feature of the rich shape |
+| `new-setting` | a feature's options class with its validator, registered, its section in each host's `appsettings.json` and in the configuration reference, as [adding a setting](adding-a-setting.md) says |
+| `new-event` | a domain event of a feature of the rich shape, with its consumer or its place among the events nobody consumes, and their tests, as [adding a domain event](adding-a-feature.md#add-a-domain-event) says |
 | `migration-initial` | each context's initial migration, where its `Migrations` folder holds none |
 | `migration-add`, `database-update` | `dotnet ef` over the business context, or the authentication context with `--context auth`, once it has its initial migration; `migration-add` refuses an empty migration |
 | `migration-check` | fail when the business context's model, or the authentication context's with `--context auth`, holds a change no migration holds; `new-feature` and `new-field` run it before they write |
@@ -61,6 +63,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `docs-index` | the index of each folder under `docs/`, listing its pages and its subfolders by the `title` and `description` of their frontmatter, a decision with its `status`; `--check` fails when one differs from what it writes |
 | `hygiene` | the self-tests of the gates this tree carries, then `docs-index --check` |
 | `verify` | the whole gate, in CI's order |
+| `upgrade-report` | what a newer version of the package that generated the project changes in it, written nowhere in the project, as [upgrading](upgrading.md) says |
 
 Everything under `Tools/` is a file-based C# app: the SDK `global.json` requires is all it needs. The
 first run of a file compiles it, which takes a moment, under the same `Directory.Build.props` and

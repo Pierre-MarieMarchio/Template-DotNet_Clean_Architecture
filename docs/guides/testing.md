@@ -71,7 +71,7 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
 | Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
 | <!--#if (aspire)--> |
-| The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` leaves out with the suites that need Docker |
+| The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` builds and does not run, with the suites that need Docker |
 | <!--#endif--> |
 | The HTTP contract | contract | `OpenApiDocumentTests` against the committed reference; `ErrorCodeTableTests` and `ErrorCodeStatusTests` against [the API reference](../reference/api.md#error-codes) |
 | <!--#if (accounts)--> |
@@ -237,7 +237,7 @@ It sets the file inspection to run every ten seconds, so a deposit becomes reada
 
 The project sets `IsTestingPlatformApplication` to `false`, so `dotnet test` over the solution, and
 with it `verify` and `coverage`, leaves it out; it stays in `AppTemplate.sln`, so it builds and is
-formatted with the rest. `test --no-integration` runs only the projects that set `IsTestProject`.
+formatted with the rest. `test --no-integration` and `check` build it, with every project that needs Docker, and name it as built and not run; `test --no-integration` runs only the projects that set `IsTestProject` and need no Docker.
 <!--#if (ci)-->
 CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
 test.

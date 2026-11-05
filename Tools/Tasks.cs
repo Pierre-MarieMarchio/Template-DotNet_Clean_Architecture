@@ -52,8 +52,9 @@ internal static class Tasks
                                            targets, .editorconfig, global.json, nuget.config, a project
                                            or solution file); then runs the architecture tests and the
                                            unit tests of those projects, never the projects that need
-                                           Docker, nor off Windows the ones whose TargetFramework
-                                           names Windows, which it names. It leaves out verify's gates over the whole tree,
+                                           Docker, which it builds all the same and names, nor off
+                                           Windows the ones whose TargetFramework names Windows, which
+                                           it names. It leaves out verify's gates over the whole tree,
                                            the integration tests, coverage, the migration drift check,
                                            the vulnerability listing, the generated clients and the
                                            web workspace's install, lint, test and build
@@ -99,9 +100,11 @@ internal static class Tasks
                                            context to target, the business context when left out;
                                            auth is the identity context, which only a project
                                            generated with --auth local holds
-          --no-integration                 test: run only the projects that set IsTestProject and
-                                           reference neither Testcontainers nor Aspire.Hosting.Testing,
-                                           so no Docker daemon is needed; off Windows, not the ones
+          --no-integration                 test: build every test project, and run only the ones that set
+                                           IsTestProject and reference neither Testcontainers nor
+                                           Aspire.Hosting.Testing, so no Docker daemon is needed; it
+                                           names each project it built and did not run; off Windows,
+                                           not the ones
                                            whose TargetFramework names Windows either, which it names
           --configuration <Debug|Release>  build, test, check, coverage, migration-bundle, verify, and end-to-end
                                            where the project holds the API; after a -- separator,
@@ -1507,7 +1510,10 @@ internal static class Tasks
         RegexOptions.Multiline | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(5));
 
-    private sealed record ProjectNode(string Path, string Folder, IReadOnlyList<string> References, bool DockerFreeTests, bool WindowsOnly = false);
+    private sealed record ProjectNode(string Path, string Folder, IReadOnlyList<string> References, bool DockerFreeTests, bool WindowsOnly = false)
+    {
+        public bool NeedsDocker => Path.StartsWith("Tests/", StringComparison.Ordinal) && !DockerFreeTests;
+    }
 
     private sealed record CheckScope(bool BuildWide, IReadOnlyList<string> Projects);
 
@@ -1532,8 +1538,8 @@ internal static class Tasks
 
         CheckScope scope = ScopeOf(changed, graph);
         string[] formatted = FormattableFiles(changed, graph, file => File.Exists(Path.Combine(repoRoot, file)));
-        string[] built = [.. scope.Projects.Append(architecture).Distinct(StringComparer.Ordinal)];
-        (string[] tested, string[] skipped) = TestedProjects(built, graph, architecture, OperatingSystem.IsWindows());
+        string[] built = [.. scope.Projects.Concat(graph.Where(project => project.NeedsDocker).Select(project => project.Path)).Append(architecture).Distinct(StringComparer.Ordinal)];
+        (string[] tested, string[] skipped, string[] notRun) = TestedProjects(built, graph, architecture, OperatingSystem.IsWindows());
         string scopeLine = scope.BuildWide
             ? "A file that sets the build for every project is touched: the whole solution is built and its Docker-free tests run."
             : $"Touched: {changed.Length} files, {scope.Projects.Count} projects with the ones that reference them.";
@@ -1571,7 +1577,7 @@ internal static class Tasks
             }
 
             Step("dotnet", ["build", buildTarget, "--configuration", configuration, .. nodes]);
-            RunSkipping(repoRoot, skipped, () => Step("dotnet", ["test", "--solution", testTarget, "--configuration", configuration, "--no-build", .. modules]));
+            RunSkipping(repoRoot, skipped, () => Step("dotnet", ["test", "--solution", testTarget, "--configuration", configuration, "--no-build", .. modules]), notRun);
         }
         finally
         {
@@ -1582,18 +1588,19 @@ internal static class Tasks
         }
 
         Write(
-            $"Format of {formatted.Length} C# file(s), build of {(scope.BuildWide ? "the solution" : built.Length + " project(s)")}, tests of {(scope.BuildWide ? "every Docker-free project" : tested.Length + " project(s)")}: all passed. "
+            $"Format of {formatted.Length} C# file(s), build of {(scope.BuildWide ? "the solution" : built.Length + " project(s)")}, tests of {(scope.BuildWide ? "every Docker-free project" : tested.Length + " project(s)")}: all passed; "
+            + $"{notRun.Length} project(s) that need Docker were built and not run. "
             + "The integration tests, coverage and the other gates of verify are left to verify, coverage and CI.",
             ConsoleColor.DarkGray);
     }
 
-    private static (string[] Tested, string[] Skipped) TestedProjects(IEnumerable<string> built, IReadOnlyList<ProjectNode> graph, string architecture, bool onWindows)
+    private static (string[] Tested, string[] Skipped, string[] NotRun) TestedProjects(IEnumerable<string> built, IReadOnlyList<ProjectNode> graph, string architecture, bool onWindows)
     {
         ProjectNode Node(string path) => graph.First(project => project.Path == path);
         string[] candidates = [.. built.Where(path => path == architecture || Node(path).DockerFreeTests)];
         string[] skipped = onWindows ? [] : [.. candidates.Where(path => Node(path).WindowsOnly)];
 
-        return ([.. candidates.Except(skipped, StringComparer.Ordinal)], skipped);
+        return ([.. candidates.Except(skipped, StringComparer.Ordinal)], skipped, [.. built.Where(path => Node(path).NeedsDocker)]);
     }
 
     private static string ProjectPath(ProjectFile projectFile, string tree, string layer, string part) =>
@@ -1855,15 +1862,18 @@ internal static class Tasks
     {
         string[] tests = TestProjects(repoRoot, dockerFreeOnly: noIntegration);
         string[] skipped = SkippedHere(tests);
+        string[] notRun = noIntegration ? [.. TestProjects(repoRoot).Except(tests, StringComparer.Ordinal)] : [];
         RunSkipping(repoRoot, skipped, () =>
         {
             string? run = noIntegration
                 ? DockerFreeSolutionFilter(repoRoot, solution)
                 : skipped.Length > 0 ? RunnableSolutionFilter(repoRoot, solution, skipped) : null;
-            string? build = noIntegration && skipped.Length > 0 ? SolutionFilter(repoRoot, solution, "docker-free-build.slnf", tests) : null;
+            string? build = noIntegration && (skipped.Length > 0 || notRun.Length > 0)
+                ? SolutionFilter(repoRoot, solution, "docker-free-build.slnf", [.. tests, .. notRun])
+                : null;
             try
             {
-                if (nodes.Length == 0 && skipped.Length == 0)
+                if (nodes.Length == 0 && skipped.Length == 0 && notRun.Length == 0)
                 {
                     Step("dotnet", "test", "--solution", run ?? solution, "--configuration", configuration);
                 }
@@ -1878,7 +1888,7 @@ internal static class Tasks
                 DeleteFilter(run);
                 DeleteFilter(build);
             }
-        });
+        }, notRun);
     }
 
     private static void TestTheBuiltSolution(string repoRoot, string solution, string configuration, string[] modules)
@@ -3687,11 +3697,15 @@ internal static class Tasks
             new("Tests/Presentation/P.Desktop.UnitTests/X.Desktop.UnitTests.csproj", "Tests/Presentation/P.Desktop.UnitTests", ["Src/Presentation/P.Desktop/X.Desktop.csproj"], true, WindowsOnly: true),
             new("Tests/Domain/P.Domain.UnitTests/X.Domain.UnitTests.csproj", "Tests/Domain/P.Domain.UnitTests", [], true),
             new("Tests/Architecture/P.Architecture.Tests/X.Architecture.Tests.csproj", "Tests/Architecture/P.Architecture.Tests", [], true),
+            new("Tests/EndToEnd/P.EndToEnd.Tests/X.EndToEnd.Tests.csproj", "Tests/EndToEnd/P.EndToEnd.Tests", [], false),
         ];
         string[] built = [.. graph.Select(project => project.Path)];
         const string architecture = "Tests/Architecture/P.Architecture.Tests/X.Architecture.Tests.csproj";
-        (string[] testedOff, string[] skippedOff) = TestedProjects(built, graph, architecture, onWindows: false);
-        (string[] testedOn, string[] skippedOn) = TestedProjects(built, graph, architecture, onWindows: true);
+        const string endToEnd = "Tests/EndToEnd/P.EndToEnd.Tests/X.EndToEnd.Tests.csproj";
+        (string[] testedOff, string[] skippedOff, string[] notRunOff) = TestedProjects(built, graph, architecture, onWindows: false);
+        (string[] testedOn, string[] skippedOn, string[] notRunOn) = TestedProjects(built, graph, architecture, onWindows: true);
+        string[] builtWithoutDocker = [.. built.Where(path => path != endToEnd)];
+        (_, _, string[] notRunWhenAbsent) = TestedProjects(builtWithoutDocker, graph, architecture, onWindows: true);
 
         return
         [
@@ -3707,6 +3721,14 @@ internal static class Tasks
                 skippedOff.SequenceEqual(["Tests/Presentation/P.Desktop.UnitTests/X.Desktop.UnitTests.csproj"])
                 && testedOff.Order(StringComparer.Ordinal).SequenceEqual([architecture, "Tests/Domain/P.Domain.UnitTests/X.Domain.UnitTests.csproj"])),
             ("on Windows, check runs the Windows-only test project with the others", skippedOn.Length == 0 && testedOn.Length == 3),
+            ("check builds a test project that needs Docker, and does not run it",
+                built.Contains(endToEnd) && !testedOff.Contains(endToEnd) && !testedOn.Contains(endToEnd)
+                && notRunOff.SequenceEqual([endToEnd]) && notRunOn.SequenceEqual([endToEnd])),
+            ("a project that needs Docker is named only when it is built", notRunWhenAbsent.Length == 0),
+            ("a project under Tests/ that is not Docker-free needs Docker, and a Docker-free one or a source project does not",
+                graph.Where(project => project.NeedsDocker).Select(project => project.Path).SequenceEqual([endToEnd])),
+            ("a project built and not run is named with its folder and why",
+                NotRunLine("Tests/EndToEnd/P.EndToEnd.Tests") == "Built, not run Tests/EndToEnd/P.EndToEnd.Tests: it needs Docker."),
             ("a skip names the project's folder, its target framework and where it runs",
                 SkipLine("Tests/Presentation/P.Desktop.UnitTests", "net10.0-windows")
                     == "Skipped Tests/Presentation/P.Desktop.UnitTests: it targets net10.0-windows and runs on Windows alone."),
@@ -3981,10 +4003,19 @@ internal static class Tasks
     private static string SkipLine(string folder, string framework) =>
         $"Skipped {folder}: it targets {framework} and runs on Windows alone.";
 
-    private static void RunSkipping(string repoRoot, string[] skipped, Action run)
+    private static string NotRunLine(string folder) =>
+        $"Built, not run {folder}: it needs Docker.";
+
+    private static void RunSkipping(string repoRoot, string[] skipped, Action run, string[]? notRun = null)
     {
         void Announce()
         {
+            foreach (string project in notRun ?? [])
+            {
+                string full = Path.GetFullPath(Path.Combine(repoRoot, project));
+                Write(NotRunLine(Path.GetRelativePath(repoRoot, Path.GetDirectoryName(full)!).Replace('\\', '/')), ConsoleColor.Yellow);
+            }
+
             foreach (string project in skipped)
             {
                 string full = Path.GetFullPath(Path.Combine(repoRoot, project));

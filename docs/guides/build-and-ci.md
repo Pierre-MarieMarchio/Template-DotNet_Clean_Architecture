@@ -25,7 +25,7 @@ changes the meaning of a build. `dotnet run Tools/Tasks.cs help` lists them with
 | `bootstrap` | format, restore the local tools, then `migration-initial`; once, after generation |
 | <!--#endif--> |
 | `check` | what `verify` would catch on the files you touched, in under a minute once built: [below](#check) |
-| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` skips the projects that need Docker and runs the others in parallel, as over the solution, through a solution filter it writes under the ignored artifacts folder; off Windows, `test` also names and leaves out [the tests that run on Windows alone](#tests-that-run-on-windows-alone); `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
+| `restore`, `build`, `test`, `format-fix` | the `dotnet` command of the same name over the solution; `test --no-integration` builds every test project, runs only the ones that need no Docker, in parallel as over the solution, through solution filters it writes under the ignored artifacts folder, and names each project it built and did not run; off Windows, `test` also names and leaves out [the tests that run on Windows alone](#tests-that-run-on-windows-alone); `format-fix` then names each file and line whose name breaks a naming rule, which `dotnet format` cannot rename, and fails while one is left |
 | `format` | `dotnet format --verify-no-changes` over what the build does not check, as [the gate](#the-gate) says |
 | `coverage` | the tests with coverage, against `coverage.minimum` |
 | <!--#if (api)--> |
@@ -80,13 +80,15 @@ does. With nothing touched it says so and passes. In this order it:
    sets the build for all of them: a project or solution file, `Directory.Build.props`,
    `Directory.Build.targets`, `Directory.Packages.props`, `.editorconfig`, `global.json` or
    `nuget.config`;
-3. runs the architecture tests, whatever was touched, and the unit tests of those projects, which are
-   the projects that need no Docker and, off Windows, not
+3. builds every test project that needs Docker, touched or not, so that a compile error there fails
+   the task, and names each one as built and not run;
+4. runs the architecture tests, whatever was touched, and the unit tests of the projects built, which
+   are the projects that need no Docker and, off Windows, not
    [the ones that run on Windows alone](#tests-that-run-on-windows-alone).
 
 The build fails on an `IDE1006` naming rule like any warning. `check` stands in for `verify` on a
-small change and for nothing else: it runs no test project that needs Docker, and leaves out
-`coverage`, the migration drift check, the vulnerability listing, the `hygiene` gates and, where the
+small change and for nothing else: it builds the test projects that need Docker and runs none of
+them, and leaves out `coverage`, the migration drift check, the vulnerability listing, the `hygiene` gates and, where the
 project has them, the comparison of the generated clients with the OpenAPI reference. Run
 `verify` and `coverage` before calling a change done.
 <!--#if (templateMaintenance)-->

@@ -117,20 +117,20 @@ string of at most 128 characters, on an action that accepts one.
 <!--#if (anyFeature || localAuth)-->
 | Action | Accepts a key |
 |---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items` | yes |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `POST /api/v1/todo-lists/{id}/items/{itemId}/reminders` | yes |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `POST /api/v1/files` | yes |
 | `POST /api/v1/files/uploads` | no: the body is the file, and a retried upload creates a second file |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `POST /api/v1/notes` | yes |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | the authentication endpoints | never: replaying a sign-in would keep a token at rest |
 <!--#endif-->
 
@@ -165,7 +165,7 @@ and anything else is a `400` with a code naming the rule it broke, never a clamp
 | `paging` | `offset` (default) or `cursor` |
 | `page`, `pageSize` | 1-based page, and its size within the feature's bound |
 | `cursor` | the `nextCursor` of the previous page, in cursor mode |
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `search`, `createdAfter`, `createdBefore` | the to-do lists' own filters |
 <!--#endif-->
 

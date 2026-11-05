@@ -420,23 +420,23 @@ Some lists change only on purpose, and a test fails until they name what you add
 
 | You added | What has to say so |
 |---|---|
-<!--#if (anyFeature)-->
+| <!--#if (anyFeature)--> |
 | A registration | `HostComposition` in the architecture tests and the call in `ApplicationModuleTests` |
-<!--#endif-->
-<!--#if (!anyFeature)-->
+| <!--#endif--> |
+| <!--#if (!anyFeature)--> |
 | A registration | `HostComposition` in the architecture tests |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review; the route's row under `## Routes` of [the API reference](../reference/api.md#routes), checked both ways by `ApiRouteTableTests` |
 | An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
-<!--#endif-->
+| <!--#endif--> |
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
 | A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed`; `new-event` writes either |
 | A public interface under `Common/` that is not a port | `ApplicationPorts.NotPorts`, with its reason |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |
-<!--#endif-->
+| <!--#endif--> |
 | An anonymous endpoint | `_anonymousActions` in `HttpSurfaceTests` |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
@@ -458,14 +458,14 @@ Some lists change only on purpose, and a test fails until they name what you add
 
 | When the feature | Read |
 |---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | owns child entities and protects a state | TodoLists, in every layer |
 | is a flat aggregate reached from a timer | Reminders, and its job under the API's `Features/Reminders/Jobs` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | keeps part of its state outside the database | Files, whose bytes live behind a storage port |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | has no state to protect | Notes, a service over a store: the shape `--model record` writes |
 <!--#endif-->
 <!--#endif-->

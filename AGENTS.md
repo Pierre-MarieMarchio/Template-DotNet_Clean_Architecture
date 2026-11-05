@@ -61,30 +61,30 @@ It then writes the .NET client from the OpenAPI reference with `dotnet run Tools
 | After creating or moving a file | `dotnet run Tools/Tasks.cs format-fix` (commit apart what it rewrites in files you did not touch; it names each name it cannot fix) | nothing |
 | After adding, removing or renaming a page under `docs/`, or changing its frontmatter | `dotnet run Tools/Tasks.cs docs-index` | nothing |
 | After changing the model | `dotnet run Tools/Tasks.cs migration-add <Name>` | the initial migration bootstrap creates |
-<!--#if (dotnetClient)-->
+| <!--#if (dotnetClient)--> |
 | After changing a route or a contract | `dotnet run Tools/Tasks.cs openapi`, then `dotnet run Tools/Tasks.cs api-client` | the tools bootstrap restores |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | After changing a route or a contract, with the web workspace | `pnpm api` in `Src/Web`, after `openapi` | the .NET SDK, Node.js and pnpm |
-<!--#endif-->
-<!--#if (canAddFeature)-->
+| <!--#endif--> |
+| <!--#if (canAddFeature)--> |
 | After adding a field to a feature `new-feature --fields` generated | `dotnet run Tools/Tasks.cs new-field <Features> "<Name>:<type>=<default>"` | the feature's manifest, which records its fields |
 | After adding a feature's setting | `dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "<Key>:<type>(<min>..<max>)=<default>"` | the feature registered in a host |
 | After adding a domain event | `dotnet run Tools/Tasks.cs new-event <Features> <Event> --consumer <Features>:<Reaction>`, or `--unconsumed "<reason>"` | the feature in the rich shape |
-<!--#endif-->
+| <!--#endif--> |
 | Every task and option | `dotnet run Tools/Tasks.cs help [<task>]`; `-m:<N>` caps build and test parallelism | nothing |
-<!--#if (!anyWeb)-->
+| <!--#if (!anyWeb)--> |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | Before calling a change done | `dotnet run Tools/Tasks.cs verify`, then `dotnet run Tools/Tasks.cs coverage` | Docker, the tools bootstrap restores, Node.js and pnpm |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | After changing the stack, a mail or a relay | `dotnet run Tools/Tasks.cs end-to-end` | Docker |
-<!--#endif-->
-<!--#if (aspire)-->
+| <!--#endif--> |
+| <!--#if (aspire)--> |
 | The stack from one command, with the Aspire dashboard | `dotnet run --project Src/AppHost/AT.AppHost`; a Compose service or host setting you add goes into the app host too, as `LocalStackParityTests` demands | Docker, the network on its first build |
-<!--#endif-->
+| <!--#endif--> |
 | Before taking a newer version of the package that generated the project | `dotnet run Tools/Tasks.cs upgrade-report --keep <folder>` ([upgrading](docs/guides/upgrading.md)); it writes nothing in the project | the NuGet sources, or `--source` |
 
 ## Where code goes

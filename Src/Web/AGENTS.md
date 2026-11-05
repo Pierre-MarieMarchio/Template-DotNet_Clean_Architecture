@@ -10,12 +10,12 @@ From `Src/Web`, after `corepack enable` once per machine:
 | When | Command |
 |---|---|
 | After a clone or a pull | `pnpm install --frozen-lockfile` |
-<!--#if (webNodeFramework)-->
+| <!--#if (webNodeFramework)--> |
 | While you work on one app | `pnpm --filter <app> dev`, `<app>` being the folder's kebab name |
-<!--#endif-->
-<!--#if (webBlazorWasm)-->
+| <!--#endif--> |
+| <!--#if (webBlazorWasm)--> |
 | While you work on the WebAssembly app | `dotnet watch --project apps/<Name>`, its pages without the `/api` relay |
-<!--#endif-->
+| <!--#endif--> |
 | After a change to the API's routes or bodies | `pnpm api` |
 | Before calling a change done | `pnpm lint`, `pnpm test`, `pnpm build` |
 | After a change to an app's page, headers or relay | `dotnet run Tools/Tasks.cs end-to-end`, which ends with `pnpm --filter "*browser-smoke" smoke` |

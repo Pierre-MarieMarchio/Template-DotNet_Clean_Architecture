@@ -73,10 +73,10 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 | Persistence | the record is the model; the store stages it | record, mapper, tracker |
 | Validation | FluentValidation, called by the service | FluentValidation in the use-case pipeline, then the aggregate's invariants |
 | Commit | `IUnitOfWork` | `IUnitOfWork`, the same boundary |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | Concurrency | the row's `xmin` | the root's `xmin` |
-<!--#endif-->
-<!--#if (versionCounter)-->
+| <!--#endif--> |
+| <!--#if (versionCounter)--> |
 | Concurrency | the row's `Version` counter | the root's `Version` counter |
 <!--#endif-->
 <!--#if (canAddFeature)-->

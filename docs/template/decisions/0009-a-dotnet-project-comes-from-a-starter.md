@@ -37,8 +37,9 @@ pins and refuses an install of another version beside it.
   generator writes is compared with the starter's, and a package or a property the starter's lacks
   stops the scaffold with its name, so a template version that needs more is noticed rather than
   dropped.
-- **The project joins the solution once it is created**, with its tests, through `dotnet sln add`,
-  then each is formatted. The checkout's solution never names it, since the checkout has no
+- **The project joins the solution once it is created**, with its tests, through `dotnet sln add --solution-folder`, one call per layer folder (`Src/Presentation`,
+  `Tests/Presentation`), so each lands beside the template's own projects instead of in a folder
+  named after its own directory; then each is formatted. The checkout's solution never names it, since the checkout has no
   generated folders to build it from.
 - **A starter is copied by the option whose root it fills.** A web starter holds `FrameworkSite/`
   and is copied into `Src/Web/apps/`; a presentation starter holds its project and its tests at

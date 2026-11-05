@@ -1,4 +1,11 @@
-﻿# 0030. Any known advisory fails the build
+---
+type: decision
+title: 0030. Any known advisory fails the build
+description: Why a known advisory on any package, transitive ones included, fails the build whatever its severity.
+status: Accepted
+---
+
+# 0030. Any known advisory fails the build
 
 Status: Accepted
 

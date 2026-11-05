@@ -30,7 +30,9 @@
         ".github/workflows/template-web-lockfiles.yml",
         ".github/workflows/template-web-lockfiles-commit.yml",
         ".github/release-please/**",
-        ".github/ISSUE_TEMPLATE/**"
+        ".github/ISSUE_TEMPLATE/**",
+        ".github/FUNDING.yml",
+        ".template.config/package/**"
       ],
       "tags": ["none"]
     },

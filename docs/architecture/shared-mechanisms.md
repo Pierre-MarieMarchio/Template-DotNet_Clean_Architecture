@@ -1,4 +1,10 @@
-﻿# Shared mechanisms
+---
+type: concept
+title: Shared mechanisms
+description: The mechanisms a feature composes without writing them, such as the cache, the outbound HTTP budget, the clock and the current caller.
+---
+
+# Shared mechanisms
 
 A feature composes these mechanisms without writing them: a cache, an outbound HTTP budget, a clock,
 and the answer to who is calling. Each is installed once, by the host or a module, and none can be
@@ -26,8 +32,8 @@ a bound, becomes an `ETag` or tells something else what to delete goes through t
 bound is multiplied by the number of processes holding a copy. An entry may vanish before its
 lifetime ends, so a caller is correct when it does; the port promises to be faster, never to
 remember. A key names the owner of what it holds.
-
 <!--#if (tagging)-->
+
 The tags an owner has already used are cached this way, under the key and for the one-minute
 lifetime `UsedTagsCache` decides: a suggestion a minute out of date costs a tag typed in full, and
 whatever changes an owner's tags drops the entry.

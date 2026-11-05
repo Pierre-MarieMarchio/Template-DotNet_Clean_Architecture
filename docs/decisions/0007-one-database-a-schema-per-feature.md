@@ -1,4 +1,11 @@
-﻿# 0007. One database, a schema per feature
+---
+type: decision
+title: 0007. One database, a schema per feature
+description: Why every context shares one database and one connection string, with a schema of its own per feature.
+status: Accepted
+---
+
+# 0007. One database, a schema per feature
 
 Status: Accepted
 

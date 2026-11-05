@@ -133,7 +133,7 @@ jobs:
             /d:sonar.qualitygate.wait=true
 
       #endif
-      # TreatWarningsAsErrors lives in Directory.Build.props, and no flag here overrides it; under the Sonar scanner, begin relaxes it for Sonar's own rules only.
+      # The warnings-as-errors properties live in Directory.Build.props and Directory.Build.targets, and no flag here overrides them; under the Sonar scanner, a warning does not fail the analysis build, so the quality gate judges Sonar's findings.
       - name: Build
         run: dotnet build "$SOLUTION" --configuration "$CONFIGURATION" --no-restore
 

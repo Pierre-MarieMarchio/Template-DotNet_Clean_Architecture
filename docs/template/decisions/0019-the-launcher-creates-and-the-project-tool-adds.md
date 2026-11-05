@@ -1,6 +1,13 @@
-﻿# 0019. The launcher creates, and the project's tool adds
+---
+type: decision
+title: 0019. The launcher creates, and the project's tool adds
+description: Why the launcher only creates a project, and the project's own tool adds every part afterwards.
+status: Accepted
+---
 
-Status: Accepted; replaces the project-facts bullet of [0004](0004-the-launcher-reads-the-templates-manifests.md)
+# 0019. The launcher creates, and the project's tool adds
+
+Status: Accepted
 
 ## Context
 

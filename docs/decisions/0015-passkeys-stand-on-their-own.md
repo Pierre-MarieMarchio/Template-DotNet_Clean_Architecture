@@ -1,4 +1,11 @@
-﻿# 0015. Passkeys stand on their own
+---
+type: decision
+title: 0015. Passkeys stand on their own
+description: Why a passkey signs a caller in on its own, with the ceremony state sealed and carried by the client.
+status: Accepted
+---
+
+# 0015. Passkeys stand on their own
 
 Status: Accepted
 

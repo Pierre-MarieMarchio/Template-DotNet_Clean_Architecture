@@ -1,4 +1,10 @@
-﻿# Maintaining the template
+---
+type: guide
+title: Maintaining the template
+description: How to change the template and prove every generated shape still holds, from its gates to the rules of conditioned files.
+---
+
+# Maintaining the template
 
 This repository builds, tests and runs as the default generation does: every condition is a comment
 the compiler ignores. A change is done when the project's gate passes here and every generated shape
@@ -218,7 +224,7 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 
 | A change to | Runs |
 |---|---|
-| `docs/template`, the plans, `Launcher`, `README.md`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
+| `docs/template`, the plans, `Launcher`, `README.md`, the package's readme, `.github/FUNDING.yml`, `CHANGELOG.md`, the template-only gates and tests, the release, pull request title and web lockfiles workflows, the release configuration | no leg |
 | `Src/Web`, `.github/workflows/web.yml`, the `cleanarch-webapp` and `cleanarch-webpackage` item templates, the placeholder's lockfile | the six web legs |
 | a framework starter under `.template.config/starters` | the legs that generate it: the every-starter leg alone for Vite and React Router |
 | `.template.config/starters/blazor-server`, `.template.config/starters/avalonia`, `.template.config/starters/wpf`, `.template.config/starters/mcp`, the `cleanarch-presentation` item template | the legs that pass that `--presentation`, or add the project with the item template |
@@ -308,22 +314,23 @@ plain concurrency token. A provider without schemas adds `SchemaAsTablePrefixCon
 `ApplyDatabaseConventions` and names each history table with its `TableName`. Both are in-tree and
 tested on SQLite here, and shipped only under `versionCounter` and `tablePrefixes`.
 
-The shared files carry every provider's lines already: the package references of
+The shared files carry the lines of each provider this version generates: the package references of
 `Src/Infrastructure/AT.Infrastructure.Core/AppTemplate.Infrastructure.Core.csproj` and of the
 two integration projects, the versions in `Directory.Packages.props`, the variables of `.env.example`,
 and the `developmentConnectionString` switch that rewrites `appsettings.Development.json`. An overlay's
 compose file uses the variable names `.env.example` gives it.
 
-A provider is refused until its overlay is wired. Wiring one is three edits to `template.json`: a
-source copying the folder under its computed symbol, the removal of its `NotYetGenerated` refusal with
-its `dotnetcli.host.json` entry, and its removal from `refusedOptions`. `TemplatePackagingTests`
-fails until the three agree with the folder. Its refusal line in the acceptance refusal job becomes a
-leg, tagged `database-<name>` with the overlay's rule in `.template.config/acceptance/rules.json`, and
-each leg's provider-leak check reads the leg's `database`.
+This version generates PostgreSQL, SQL Server and SQLite. MySQL is not a value of `--database`,
+because the stable EF Core 10 providers cannot map the owned JSON entity Identity's passkeys use; no
+page names a MySQL branch, and the `tablePrefixes` symbol covers SQLite alone.
 
-This version generates PostgreSQL, SQL Server and SQLite. MySQL stays refused, because the stable EF
-Core 10 providers cannot map the owned JSON entity Identity's passkeys use; no page names a MySQL
-branch, and the `tablePrefixes` symbol covers SQLite alone until it is generated.
+A version that generates a provider adds its value to `template.json`: the choice, a computed symbol,
+a source copying the folder under that symbol, its lines in the shared files above, and its place in
+`refusedOptions` wherever a combination excludes it. While its overlay is unfinished the value
+stays out of the choices, so no project is generated without it. `TemplatePackagingTests` fails until
+the choice, the symbol and the source agree with the folder. Its legs in the acceptance workflow are
+tagged `database-<name>` with the overlay's rule in `.template.config/acceptance/rules.json`, and each
+leg's provider-leak check reads the leg's `database`.
 
 An overlay file starts as a copy of its PostgreSQL counterpart, so `git log` on both paths finds a
 change one of them missed.
@@ -360,10 +367,32 @@ No object store runs.
 <!--#endif-->
 ```
 
+- A page opens with its frontmatter, which holds in every generated form: no marker inside it, and
+  none between it and the page's `# ` heading. A marker goes after the heading. The pages under
+  `docs/template/` take `type: guide`, its decisions `type: decision`, and
+  `DocumentationFrontmatterTests` holds both.
+- The index of each folder, `docs/<folder>/index.md`, is what `docs-index` writes from the pages a
+  tree holds, so it needs no marker and a page's `title` and `description` hold none. In this
+  checkout it lists every branch's pages and the template's; `template.json` and the package leave
+  it out, which `TheCheckoutsDocumentationIndex_ReachesNeitherAProjectNorTheTemplatePackage` holds,
+  and bootstrap writes a project's own from the pages its form keeps.
 - Use only real symbols of `template.json`, negated with `!` for the other branch; never a bare
   else, elseif or a marker inline in a sentence.
 - A branch holds whole sentences, whole list items or whole table rows; a table's header stays outside
   any branch that can leave rows without it.
+- A marker between two rows of a table, the `|---|` line counted as a row, is written as a row of
+  one cell, `| <!--#if (x)--> |`: a marker on a line of its own there ends the table GitHub renders,
+  and every row after it shows as text. Generation removes the row whole, as it removes the line;
+  GitHub shows an empty row in its place. One marker per row, never an `endif` and an `if` on the
+  same one. A marker before the header or after the table keeps its own line.
+  `NoMarkerOnALineOfItsOwn_EndsAMarkdownTable` holds it.
+- A marker inside a fence indented under a list item is indented to the column of that fence: written
+  at column 0, it ends the list item on GitHub, the fence closes there and the rest of the page
+  renders out of place. Generation removes the indented line whole, as it removes any marker line.
+  `NoMarkerInAnIndentedFence_SitsLeftOfTheFence` holds it.
+- Every form keeps exactly one blank line between two blocks of text: put the blank line inside the
+  branch that needs it, at its start, rather than around its markers. `ConditionedMarkdownTests`
+  fails on a page that keeps two in a row in any form.
 - No marker inside a mermaid fence. A diagram shows the full shape, unconditioned, and says so.
 - A page about an absent part is excluded by a path condition, not emptied by markers; its links from
   shared pages are conditioned the same way.
@@ -372,6 +401,10 @@ No object store runs.
   otherwise. Keep `AGENTS.md` concise and pragmatic, and link to a page rather than restate it.
 - A link from a shared file (`CONTRIBUTING.md`, `AGENTS.md`, `SECURITY.md`) to `docs/template/` sits
   in a `templateMaintenance` block, which is always false at generation.
+- A project ADR the template supersedes stays here, with its `Superseded by` status, and reaches no
+  project: `template.json` excludes it under `(!templateMaintenance)`, the package project leaves it
+  out, and the index lists it in this checkout alone, where the file is. The ADR that replaces it
+  names it in prose, never by a link, since a project lacks it.
 - A shared file conditions a line on a part a project can gain later (a web app, a presentation host,
   the worker) only when the item template that adds the part rewrites the file or its join edits it;
   otherwise the project that gains the part reads otherwise than one generated with it, and
@@ -427,7 +460,7 @@ hash step and client folder in the `Dockerfile`, and the sentences of the `READM
 CLI.
 
 The app itself comes from a starter, one folder per `--web` value under `.template.config/starters`
-([template decision 0008](decisions/0008-a-web-app-comes-from-a-starter.md)): `angular`,
+([template decision 0023](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)): `angular`,
 `vite-react`, `vite-vue`, `vite-svelte` and `react-router`, each holding
 `FrameworkSite/scaffold.json` and `FrameworkSite/overlay/`, which both templates copy into the app's
 folder by the framework chosen and `web-scaffold` consumes at bootstrap. Neither template copies anything else from there. A
@@ -435,14 +468,14 @@ framework has one value: React and Vue come from Vite's CLI, so `vite-react` and
 them, and no second value creates the same framework another way.
 
 A starter whose generator also renders on the server holds that form in `ssr/FrameworkSite/`, its
-own `scaffold.json` and `overlay/` ([template decision 0011](decisions/0011-a-starter-may-render-on-the-server.md)):
-`angular` does, with `ng new --ssr`. Both templates copy the starter's folder without `ssr/`, leave
+own `scaffold.json` and `overlay/` ([template decision 0023](decisions/0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)):
+`angular` does, with `ng new --ssr`, and `react-router`, with its `node-custom-server` template. Both templates copy the starter's folder without `ssr/`, leave
 its `FrameworkSite/` out under `webServerRendering`, and copy `ssr/` under the starter's symbol and
 `webServerRendering`; the shared `Dockerfile` then ends on Node, and `nginx.conf` is left out.
 `--web-rendering ssr`, and `cleanarch-webapp --rendering ssr`, are refused for every other starter
 by `serverRenderingNeedsAServerStarter`.
 
-Adding a starter, for a CLI that keeps the contract of decision 0008:
+Adding a starter, for a CLI that keeps the contract of decision 0023:
 
 1. Write `.template.config/starters/<value>/FrameworkSite/scaffold.json`: the CLI's package, its
    exact version, its arguments (`{name}` and `{directory}` are replaced; the CLI runs with its input
@@ -511,7 +544,7 @@ project template copies the folder into the project's root under `presentationBl
 writes at its root and in `Assets`, `ViewModels` and `Views`, owns the project file, `Program.cs`,
 `App.axaml.cs`, the main view model and window, and references the .NET client alone.
 `.template.config/starters/mcp` holds an MCP server written whole
-([template decision 0015](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)),
+([template decision 0025](decisions/0025-an-mcp-server-is-a-presentation-project-written-whole.md)),
 copied under `presentationMcp`: its `scaffold.json` is of kind `written`, in the shape of
 `dotnet new mcpserver --transport remote`, so `presentation-scaffold` only adds it to the solution;
 it owns the project file, `Program.cs`, the settings, the image, the caller's authentication (an
@@ -588,7 +621,10 @@ the app. A shared file that gains such
 a branch gains its edit in the README, with an anchor that is unique in every shape. The project's
 `presentation-join` task reads that section and makes the edits, every one or none, so a bullet keeps
 the form it reads: ``- in `<path>`, after|before|replace|remove ...:``, then the anchor's fenced
-lines, then the added ones.
+lines, then the added ones. A page a part brings, its feature page or its ADR, needs no edit to be
+listed: `presentation-join` and `web-join` run `docs-index` once their edits are made, and the
+folder's index lists the page as it lists those of a project generated with the part, so no shared
+file under `docs/` conditions a listing of pages on a part.
 
 `presentation-scaffold` installs the template package `scaffold.json` pins into a hive of its own,
 runs `dotnet new` with its input closed and, when the template offers `--allow-scripts`, its
@@ -596,7 +632,7 @@ post-action scripts declined: `dotnet new` asks again for ever on a closed input
 option only from a template that has such a script, so one that would ask fails instead of waiting
 for an answer. It keeps the folders and files the descriptor names, a file the starter holds
 winning, and refuses a generated project file that declares a package or a property the starter's
-lacks. It adds the project and its tests to the solution. A project that references the .NET client
+lacks. It adds the project and its tests to the solution, each in the solution folder its path gives (`Src/Presentation`, `Tests/Presentation`). A project that references the .NET client
 brings the client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires: the
@@ -645,7 +681,7 @@ refuses SQLite, whose file the app host's processes cannot share with Compose's 
 ## The worker
 
 `--presentation worker` moves the jobs out of the API
-([template decision 0012](decisions/0012-where-the-jobs-run-is-an-option.md)), and without the API
+([template decision 0024](decisions/0024-the-worker-takes-the-jobs-out-of-the-api.md)), and without the API
 it is the host that runs them. The worker's own files
 are a starter written whole, `.template.config/starters/worker`
 ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
@@ -677,7 +713,8 @@ is conditioned on `!jobsWorker` alone, so that no presentation project's README 
 literal that names a job namespace names the worker's, which the rename leaves alone. A launcher test
 generates a project with `--presentation api --presentation worker` and the same project without the
 worker, adds it with the item template and the join, and requires the two trees to be the same but
-for ADR 0011, superseded, and its row in the decisions index.
+for ADR 0011, superseded, and its line in the decisions index, once `docs-index` has written each
+tree's index as bootstrap would.
 
 ## Web lockfiles
 
@@ -759,7 +796,7 @@ program shares no code.
 | The three templates compute the same initials as the tools, for names with and without capitals | `TemplatePackagingTests.TheFolderSymbol_GivesTheProductsInitials_AsTheToolsComputeThem` |
 | Every `SegmentInitials` reads as the architecture tests' own | `TemplatePackagingTests.EveryCopyOfTheInitials_ReadsAsTheArchitectureTestsOwn` |
 | The token stands only before a project's folder, at the start of a word, in every path and file a template writes | `TemplatePackagingTests.TheFolderToken_NamesNothingButAProjectFolder` |
-| Each template refuses exactly the names under two characters, which hold every name whose folders differ from its projects in case alone | `TemplatePackagingTests.TheNameRefusal_RefusesEveryNameWhoseFoldersTheSolutionWouldTakeForItsProjects` |
+| Each template refuses exactly the names under two characters, which hold every name whose folders differ from its projects in case alone, and exactly the names that do not start with a letter from A to Z, which hold every name without initials | `TemplatePackagingTests.TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects` |
 | No path under `Src` and `Tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
 
 ## The generators' shared code
@@ -792,7 +829,15 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 |---|---|
 | Content | every file of the checkout under `content/`, minus what generation always leaves out, the scratch folders (`.git`, `.claude`, `bin`, `obj`, `node_modules`, `TestResults`, `artifacts`), the plans and the package project; `TemplatePackagingTests` holds the list against `template.json` |
 | Version | the `templateVersion` symbol of `.template.config/template.json`, which release-please raises, and nowhere else; it replaces `0.0.0-checkout` in a generated project's overview and its `cleanarch.json`, as [template decision 0018](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md) allows |
-| Metadata | id, authors, description, tags, licence, the repository `README.md`, `CHANGELOG.md` and `.template.config/icon.png`, all in the package project, at the package's root and outside `content/`, so no project receives them |
+| Metadata | id, authors, description, tags, licence, `CHANGELOG.md`, `.template.config/icon.png` and `.template.config/package/README.md`, all in the package project, at the package's root and outside `content/`, so no project receives them |
+| Readme | `.template.config/package/README.md`, not the repository's: nuget.org renders Markdown without HTML, and neither a relative link or image nor an image from a host it does not allow; `TemplatePackagingTests` holds each package's readme, the launcher's and the project tool's among them, to that |
+
+`dotnet pack` warns NU5123 on every entry under `content/` longer than 167 characters. This package
+accepts those entries: the database overlays under `.template.config/variants`, the Auth unit tests
+and the `ExternalIdentity` folders of the Blazor starter, the longest at 207 characters. The template
+engine reads the package, not a Windows checkout, and the generated paths keep their own budget.
+`TemplatePackagingTests.TheLongestEntryUnderContent_StaysWithinItsBudget` fails when an entry
+passes 207 characters.
 
 ## Branches and releases
 
@@ -804,7 +849,7 @@ dotnet pack .template.config/TemplatePackage.csproj --output artifacts/package
 
 Every commit is a [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/): a `feat` or a
 `fix` lands in the changelog, a `!` or a `BREAKING CHANGE` footer makes the next version a major one,
-and the other types stay out of it. A working branch is kept after its merge.
+and the other types stay out of it. A working branch is deleted once merged.
 
 A squashed pull request lands under its title, which release-please skips in silence unless it is a
 conventional commit. The `Conventional Commits title` job of
@@ -838,7 +883,7 @@ repository variable) and pushes the three packages; a version already on nuget.o
 `mirror` job then pushes the same packages to GitHub Packages, so the repository page lists them
 ([template decision 0007](decisions/0007-github-packages-mirrors-nuget-org.md)). Last,
 `promote` fast-forwards `main` to the release commit, and refuses if `main` is not its ancestor.
-[Template decision 0006](decisions/0006-develop-integrates-main-holds-the-releases.md) gives the
+[Template decision 0027](decisions/0027-develop-integrates-main-holds-the-releases.md) gives the
 reasons.
 
 ## The launcher
@@ -860,7 +905,7 @@ The tests that read the manifests through the launcher's own settings stay in
 
 | Facet | Where |
 |---|---|
-| Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) gives the rules an option and a refusal keep |
+| Questions | read from the manifests under `.template.config/`, embedded at build; [template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) gives the rules an option and a refusal keep |
 | Version | the same `templateVersion`; the launcher installs `CleanArch.WebApi.Templates` at its own version |
 | Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
 | Packages | `Spectre.Console` and `System.CommandLine`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
@@ -902,8 +947,11 @@ server under an external provider, and the same project without it, to which `cl
 --workspace` and `web-join` add the app: the two trees must match but for the options the overview
 records, so an edit of `Src/Web/README.md` or of the app's `README.md` that is missing, wrong or
 placed elsewhere than the project template writes its lines fails it. A third adds two
-server-rendered apps to a project generated with a single-page app and requires ADR 0024, its index
-row and the lines citing it as `--web-rendering ssr` writes them, once.
+server-rendered apps to a project generated with a single-page app and requires ADR 0024, its line
+in the decisions index and the lines citing it as `--web-rendering ssr` writes them, once. Each of
+these runs `docs-index` in the tree generated with the part, as its bootstrap would, so the indexes
+the joins write are compared too, and a fourth requires the indexes of a project that added the MCP
+server to be those of one generated with it.
 
 A multi-valued option, `--presentation`, is one multi-select that keeps at least one value and
 reaches `dotnet new` as the option repeated once per value; the launcher's conditions read `==` as
@@ -935,6 +983,7 @@ repository:
 | `_writtenByBootstrap` and `_editedByBootstrap` | the files `bootstrap` in `Tools/Tasks.cs` writes or edits |
 | `PlanOf`, which turns `cleanarch.json` into a generation and item templates | the options the project file records, the names generation gives each host, and the item templates' options |
 | the changelog range | the version headings release-please writes in `CHANGELOG.md`, which the package carries |
+| the packages of the released versions | each stays on a NuGet source a project reaches: the report installs the version `cleanarch.json` records from the sources, and a version no source holds cannot be generated again |
 
 Its `--self-test`, which `hygiene` runs, judges the comparison on fixtures. The `defaults` leg of
 the acceptance runs the real path on a bootstrapped project, with a version as the only change. A
@@ -951,25 +1000,5 @@ change in an existing project takes manual work.
 
 ## Decisions
 
-- [0001. Options remove parts and refuse combinations](decisions/0001-options-remove-parts-and-refuse-combinations.md)
-- [0002. Nothing about the template reaches a project](decisions/0002-nothing-about-the-template-reaches-a-project.md), superseded by 0018
-- [0003. Framework apps come from official CLIs](decisions/0003-framework-apps-come-from-official-clis.md), superseded by 0008
-- [0004. The launcher reads the templates' manifests](decisions/0004-the-launcher-reads-the-templates-manifests.md)
-- [0005. A project carries one database provider](decisions/0005-a-project-carries-one-database-provider.md)
-- [0006. develop integrates, main holds the releases](decisions/0006-develop-integrates-main-holds-the-releases.md)
-- [0007. GitHub Packages mirrors nuget.org](decisions/0007-github-packages-mirrors-nuget-org.md)
-- [0008. A web app comes from a starter](decisions/0008-a-web-app-comes-from-a-starter.md)
-- [0009. A .NET project comes from a starter](decisions/0009-a-dotnet-project-comes-from-a-starter.md)
-- [0010. A pull request runs the legs its change can affect](decisions/0010-a-pull-request-runs-the-legs-its-change-can-affect.md)
-- [0011. A starter may render on the server](decisions/0011-a-starter-may-render-on-the-server.md)
-- [0012. Where the jobs run is an option](decisions/0012-where-the-jobs-run-is-an-option.md)
-- [0013. A starter the generator cannot add to is written whole](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)
-- [0014. A Windows-only shape is proved on a Windows runner](decisions/0014-a-windows-only-shape-is-proved-on-a-windows-runner.md)
-- [0015. An MCP server is a presentation project, written whole](decisions/0015-an-mcp-server-is-a-presentation-project-written-whole.md)
-- [0016. The launcher draws only glyphs every console font carries](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md)
-- [0017. A project runs its tasks from a pinned .NET tool](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)
-- [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
-- [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004
-- [0020. A project is the presentation projects it holds](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)
-- [0021. A project reads a newer version by generating both](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md)
-- [0022. A WPF app is one Windows project, tested on Windows](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)
+[The index of the template's decisions](decisions/index.md) lists each one by number, with its
+status.

@@ -1,4 +1,10 @@
-﻿# Architecture
+---
+type: concept
+title: Architecture
+description: How this project is layered, which way its source dependencies point, and which tests hold the rule.
+---
+
+# Architecture
 
 This project is a .NET HTTP API built in four layers. Source dependencies point inward, and the
 tests in `Tests/Architecture/AT.Architecture.Tests` fail the build when one points the
@@ -61,21 +67,7 @@ document carrying the error's stable `code` on failure.
 
 ## The pages in this section
 
-| Page | Answers |
-|---|---|
-| [Layers and projects](layers-and-projects.md) | Which projects make each layer, and how is the host composed? |
-| [Feature shapes](feature-shapes.md) | Should a feature be an aggregate or a service over a store? |
-| [Modules and boundaries](modules-and-boundaries.md) | What may a feature or a module depend on? |
-| [Ports and adapters](ports-and-adapters.md) | How does the application reach storage and the outside world? |
-| [Domain and results](domain-and-results.md) | How are rules enforced, failures reported and facts published? |
-| [Persistence model](persistence-model.md) | How is data mapped, saved and protected from lost updates? |
-<!--#if (api)-->
-| [Request pipeline](request-pipeline.md) | What happens to every request on its way in and out? |
-<!--#endif-->
-<!--#if (api)-->
-| [HTTP API](http-api.md) | What contract does every endpoint offer a client? |
-<!--#endif-->
-| [Shared mechanisms](shared-mechanisms.md) | Which mechanisms can a feature use without writing them? |
+[The index](index.md) lists the pages of this section, each with the question it answers.
 
 Where each file goes, and what it is called, is [the project layout](../reference/project-layout.md).
 
@@ -83,43 +75,43 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 
 | Not here | Instead | See |
 |---|---|---|
-| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0003](../decisions/0003-use-cases-and-ports-are-explicit.md) |
+| MediatR, a dispatcher resolved at run time | Mediator's source generator writes each host's dispatch at compile time | [ADR 0033](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) |
 | A generic repository, `IQueryable` in a port | four words for four ways to reach storage | [Ports and adapters](ports-and-adapters.md#repository-queries-store-table) |
 | EF Core mapping the domain types | row records, a mapper and a tracker | [ADR 0005](../decisions/0005-the-domain-is-not-mapped-by-ef.md) |
-| Soft delete | `DELETE` removes rows | [Persistence model](persistence-model.md#deleting-removes-rows) |
+| Soft delete | `DELETE` removes rows | [ADR 0038](../decisions/0038-deleting-removes-rows.md) |
 | An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md) |
-| AutoMapper | mappings written by hand, checked by the compiler; `BannedPackageTests` refuses the package | [Layers and projects](layers-and-projects.md#the-api-host) |
-<!--#if (api)-->
+| AutoMapper, Mapperly | mappings written by hand, checked by the compiler; `BannedPackageTests` refuses both packages | [ADR 0036](../decisions/0036-mappings-are-written-by-hand.md) |
+| <!--#if (api)--> |
 | Minimal APIs | MVC controllers, which carry the filters, the result mapping and the `ETag` handling | [HTTP API](http-api.md) |
-<!--#endif-->
+| <!--#endif--> |
 | Output caching | revalidation headers on responses, `ICacheStore` for values | [Shared mechanisms](shared-mechanisms.md#cache) |
 | An abstraction made for a single case | one extracted only once two real cases prove its shape | [Ports and adapters](ports-and-adapters.md#ports-are-named-for-intent) |
 | A `.Core` and a `.<Technology>` project per module | one project per capability | [Modules and boundaries](modules-and-boundaries.md#infrastructure-per-capability) |
-<!--#if (serverDatabase)-->
+| <!--#if (serverDatabase)--> |
 | Migrations at start-up outside Development | one bundle per context, applied at release | [Deployment](../guides/deployment.md#migrations-at-release) |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | Running outside Development | SQLite is a development database, and the API refuses to start elsewhere | [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) |
-<!--#endif-->
+| <!--#endif--> |
 | HTTPS redirection, HSTS | TLS terminates upstream | [Deployment](../guides/deployment.md#behind-a-proxy) |
-<!--#if (accounts)-->
-<!--#if (api)-->
+| <!--#if (accounts)--> |
+| <!--#if (api)--> |
 | Permissions, tenants | one `Administrator` policy beside the default-deny fallback | [Request pipeline](request-pipeline.md#authorisation) |
-<!--#endif-->
-<!--#endif-->
-<!--#if (publicApi)-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (publicApi)--> |
+| <!--#if (api)--> |
 | Roles, policies, tenants | every caller is admitted; nothing is owned by a tenant | [Request pipeline](request-pipeline.md#authorisation) |
-<!--#endif-->
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | Machine-to-machine authentication | every token belongs to a person who signed in | [Authentication](../features/authentication.md) |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [ADR 0019](../decisions/0019-one-generated-api-client.md) |
-<!--#endif-->
-<!--#if (!anyWeb)-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (!anyWeb)--> |
+| <!--#if (api)--> |
 | A client contracts package | a client generates its types from the API's OpenAPI document | [HTTP API](http-api.md#versioning-and-the-openapi-document) |
 <!--#endif-->
 <!--#endif-->
@@ -128,8 +120,8 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md)
 - [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
-- [0004. Features meet through ports and events](../decisions/0004-features-meet-through-ports-and-events.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
+- [0034. Features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
 - [0005. The domain is not mapped by EF](../decisions/0005-the-domain-is-not-mapped-by-ef.md)
 - [0006. Events after commit without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md)
 - [0007. One database, a schema per feature](../decisions/0007-one-database-a-schema-per-feature.md)
@@ -137,7 +129,7 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 <!--#if (accounts)-->
 - [0009. Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
 <!--#endif-->
-- [0010. Idempotency-Key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
+- [0010. An idempotency key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
 <!--#if (!jobsWorker)-->
 - [0011. Jobs run in the API under a lease](../decisions/0011-jobs-run-in-the-api-under-a-lease.md)
 <!--#endif-->

@@ -1,4 +1,11 @@
-﻿# 0022. A presentation project reaches the core through the API or the application layer
+---
+type: decision
+title: 0022. A presentation project reaches the core through the API or the application layer
+description: Why where a presentation project runs decides whether it calls the API or the use cases in process.
+status: Accepted
+---
+
+# 0022. A presentation project reaches the core through the API or the application layer
 
 Status: Accepted
 

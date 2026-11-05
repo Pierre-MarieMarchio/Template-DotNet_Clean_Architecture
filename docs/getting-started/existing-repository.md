@@ -1,4 +1,10 @@
-﻿# Moving into an existing repository
+---
+type: guide
+title: Moving into an existing repository
+description: How to make this project a repository of its own, or move it into one that already has a history.
+---
+
+# Moving into an existing repository
 
 This project can become a repository of its own, or move into one that already has a history. Do this
 once, right after generation and bootstrap.
@@ -50,9 +56,9 @@ Three facts decide the subdirectory shape:
    ```bash
    mv services/api/.github/workflows/ci.yml      .github/workflows/api-ci.yml
    mv services/api/.github/workflows/codeql.yml  .github/workflows/api-codeql.yml
-<!--#if (serverDatabase)-->
+   <!--#if (serverDatabase)-->
    mv services/api/.github/workflows/release.yml .github/workflows/api-release.yml
-<!--#endif-->
+   <!--#endif-->
    ```
 
 <!--#endif-->

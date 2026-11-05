@@ -1,4 +1,10 @@
-﻿# Layers and projects
+---
+type: concept
+title: Layers and projects
+description: Which projects make up each layer, what each holds, and how a project declares what it references.
+---
+
+# Layers and projects
 
 Each layer is one folder under `Src/`, and each folder holds a `.Core` project for the mechanisms
 that know no feature, beside the projects that hold the business. A project declares every reference
@@ -30,8 +36,8 @@ framework; `TheDomainLayer_DependsOnNothing` holds it.
 |---|---|---|
 | `AppTemplate.Application.Core` | `Result` and `Error`, the use-case pipeline and its instruments, validation, paging, idempotency, concurrency, ownership, and the cross-cutting ports in `Common/Ports/` | `AppTemplate.Domain.Core` |
 | `AppTemplate.Application` | the business features: use cases as messages and handlers, feature ports, DTOs, validators, event consumers | `AppTemplate.Domain`, `AppTemplate.Application.Core` |
-<!--#if (localAuth)-->
-| `AppTemplate.Application.Auth` | six authentication features as use cases over their own ports; it names no aggregate | `AppTemplate.Application.Core` |
+| <!--#if (localAuth)--> |
+| `AppTemplate.Application.Auth` | the authentication features as use cases over their own ports; it names no aggregate | `AppTemplate.Application.Core` |
 <!--#endif-->
 
 <!--#if (anyFeature)-->
@@ -42,8 +48,8 @@ expired idempotency keys, and the leased sweep of the data deleted accounts leav
 `AppTemplate.Application.Core` also holds the one use case no business feature owns: the purge of
 expired idempotency keys.
 <!--#endif-->
-
 <!--#if (localAuth)-->
+
 Nothing in the other two application projects names `AppTemplate.Application.Auth`, so a project that
 needs it declares it: the identity module, the in-memory doubles and the host.
 `TheApplicationLayer_KnowsNothingOfAuthentication` reads the assembly manifests to hold it, and
@@ -75,7 +81,7 @@ module (`OnlyAHost_ReferencesInfrastructureModules`). The modules themselves are
 | The caller of a process that has no request | `NoCallerCurrentUser` |
 | The loop recurring work runs on | `PeriodicJob` |
 | The scope a pass runs in, whose ports answer that no one is calling | `CreateBackgroundScope()` |
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | The provider every host signs callers in with, and the roles read from its tokens | `AuthenticationExternalOptions`, `TokenRoleMapping` |
 <!--#endif-->
 
@@ -88,20 +94,22 @@ The one exemption is `AppTemplate.Infrastructure.Auth`, whose JWT bearer handler
 framework; the test names it with that reason and fails if the reason stops being true.
 <!--#endif-->
 
-<!--#if (postgreSql && api)-->
+<!--#if (api)-->
+<!--#if (postgreSql)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and Npgsql instrumentation and its own meters, because only it may reference those packages.
 <!--#endif-->
-<!--#if (sqlServer && api)-->
+<!--#if (sqlServer)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 and SqlClient instrumentation and its own meters, because only it may reference those packages.
 <!--#endif-->
-<!--#if (sqlite && api)-->
+<!--#if (sqlite)-->
 A host keeps a thin extension over the shared telemetry registration: the API adds the ASP.NET Core
 instrumentation and its own meters, because only it may reference those packages. SQLite has no
 database instrumentation to add.
 <!--#endif-->
 
+<!--#endif-->
 <!--#if (api)-->
 ## The API host
 
@@ -114,7 +122,9 @@ database instrumentation to add.
 the composition root in `Program.cs`, and under `Common/` the HTTP mechanisms every feature shares.
 
 A wire type is the API's own: each feature declares its requests and responses under `Contracts/`
-and maps them by hand in `Contracts/Mapping/`. No application type and no port type is serialised
+and maps them by hand in `Contracts/Mapping/`
+([ADR 0036](../decisions/0036-mappings-are-written-by-hand.md)). No application type and no port
+type is serialised
 as it is, so a field added inside the application is never published by that edit alone.
 
 <!--#endif-->
@@ -199,6 +209,7 @@ builder.Services.AddAuthFeature(builder.Configuration);
 builder.Services.AddExternalAuthentication(builder.Configuration);
 <!--#endif-->
 ```
+<!--#if (localAuth || externalAuth)-->
 
 <!--#if (localAuth)-->
 `AddAuthFeature` composes the authentication use cases, the identity module, its purge jobs, its
@@ -209,6 +220,7 @@ local accounts deletes that line and its folder.
 `AddExternalAuthentication` composes the provider's bearer validation, the mapping of its subjects
 to owners and the `Administrator` policy.
 <!--#endif-->
+<!--#endif-->
 
 `TheApiContainer_BuildsUnderStrictValidation` builds the API's container with `ValidateOnBuild` and
 `ValidateScopes`, so a missing or mis-scoped registration fails a test rather than a request.
@@ -216,5 +228,5 @@ to owners and the `Administrator` policy.
 ## Decisions
 
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): four layers, and a host-agnostic Presentation.Core.
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
 - [0022. A presentation project reaches the core through the API or the application layer](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)

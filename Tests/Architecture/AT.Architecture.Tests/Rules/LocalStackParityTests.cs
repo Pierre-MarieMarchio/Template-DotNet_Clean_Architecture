@@ -33,6 +33,14 @@ public sealed class LocalStackParityTests
         ["DataProtection__KeysDirectory"] = "a path in the container's volume; a host the app host runs in Development keeps its key ring in the user profile",
     };
 
+    private static readonly Dictionary<string, string> _appHostOnlyVariables = new(StringComparer.Ordinal)
+    {
+        ["API_UPSTREAM"] = "the API's endpoint on this machine, where the app host runs it; under Compose the image's default, http://api:8080, reaches the api service by name",
+        //#if (postgreSql)
+        ["POSTGRES_HOST_AUTH_METHOD"] = "scram-sha-256, which Aspire's PostgreSQL integration sets and the image already falls back to under Compose",
+        //#endif
+    };
+
     private static readonly Regex _topLevelKey = new(
         @"^(?<key>[a-z][a-z0-9_-]*):",
         RegexOptions.CultureInvariant,
@@ -55,6 +63,26 @@ public sealed class LocalStackParityTests
 
     private static readonly Regex _setting = new(
         @"^\s+(?<key>[A-Za-z][A-Za-z0-9]*(?:__[A-Za-z0-9]+)+):",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _environment = new(
+        @"^    environment:\s*$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _serviceKey = new(
+        @"^    [^\s#]",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _variable = new(
+        @"^      (?<name>[A-Za-z_][A-Za-z0-9_]*):",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex _buildPath = new(
+        @"^      (?<key>context|dockerfile):\s*(?<path>\S+)\s*$",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
 
@@ -104,7 +132,7 @@ public sealed class LocalStackParityTests
     {
         var published = new Dictionary<string, int?>(StringComparer.Ordinal);
 
-        foreach ((string service, string line) in ServiceLines())
+        foreach ((string service, string line) in ServiceLines(ServiceFiles()))
         {
             if (_publishedPort.Match(line) is { Success: true } port)
             {
@@ -125,6 +153,22 @@ public sealed class LocalStackParityTests
             .ShouldBeEmpty(
                 "The app host binds each web app on the port cleanarch.json records for it, the one its compose.yml publishes, "
                 + "so the app answers at the same address under either stack; record the port with web-join.");
+    }
+
+    [Fact]
+    public void EveryImageTheAppHostBuilds_ComesFromTheContextAndDockerfileItsComposeServiceNames()
+    {
+        var builds = ComposeBuilds();
+
+        AppHostResources()
+            .OfType<ContainerResource>()
+            .Where(container => builds.ContainsKey(container.Name))
+            .Select(container => (container.Name, Compose: builds[container.Name], AppHost: BuildOf(container)))
+            .Where(image => image.Compose != image.AppHost)
+            .Select(image => $"{image.Name}: Compose builds {image.Compose}, the app host {image.AppHost}")
+            .ShouldBeEmpty(
+                "The app host builds each image Compose builds from the same context and Dockerfile, so the Dockerfile's "
+                + "COPY lines find the same files under either stack.");
     }
 
     [Fact]
@@ -153,6 +197,59 @@ public sealed class LocalStackParityTests
     }
 
     [Fact]
+    public async Task EveryContainerTheAppHostStarts_GetsTheVariablesItsComposeServiceDeclares()
+    {
+        var declared = ComposeEnvironments();
+        var differences = new List<string>();
+
+        declared.Values.SelectMany(names => names).ShouldNotBeEmpty(
+            "docker-compose.yml gives the mail catcher its environment; a parse that finds no variable is broken.");
+
+        foreach (var container in AppHostResources().OfType<ContainerResource>().Where(container => declared.ContainsKey(container.Name)))
+        {
+            var compose = declared[container.Name];
+            var appHost = (await EnvironmentOf(container)).Where(name => !_appHostOnlyVariables.ContainsKey(name)).ToHashSet(StringComparer.Ordinal);
+
+            differences.AddRange(compose.Except(appHost).Select(name => $"{container.Name}: Compose sets {name}, the app host does not"));
+            differences.AddRange(appHost.Except(compose).Select(name => $"{container.Name}: the app host sets {name}, Compose does not"));
+        }
+
+        differences.Order(StringComparer.Ordinal).ShouldBeEmpty(
+            "The app host starts each container with the variables its Compose service declares, so the image runs the "
+            + "same under either stack: give each the same source in Src/AppHost, or list it in _appHostOnlyVariables "
+            + "with the reason the stacks differ.");
+    }
+
+    [Fact]
+    public async Task AWebAssemblyAppTheProjectRecords_IsBuiltFromTheRoot_AndSignsInAtTheProviderTheApiTrusts()
+    {
+        var root = Directory.CreateTempSubdirectory("local-stack-");
+
+        try
+        {
+            var site = AppHostResources(ProjectRecordingAWebAssemblyApp(root.FullName))
+                .OfType<ContainerResource>()
+                .Single(container => container.Name == "web-site");
+            var build = site.Annotations.OfType<DockerfileBuildAnnotation>().Single();
+            var variables = await EnvironmentOf(site);
+
+            build.ContextPath.ShouldBe(root.FullName, "The app's Dockerfile copies the .NET client from Src/Clients, so its compose.yml builds it from the root.");
+            build.DockerfilePath.ShouldBe(Path.Combine(root.FullName, "Src", "Web", "apps", "Site", "Dockerfile"));
+            /*#if (externalAuth)
+            variables.ShouldContain("SIGN_IN_AUTHORITY", "The app signs in at the provider the API trusts, as its compose.yml says.");
+            variables.ShouldContain("SIGN_IN_CLIENT_ID", "The app signs in as the public client its compose.yml names.");
+            #else*/
+            variables.ShouldNotContain("SIGN_IN_AUTHORITY", "Without an OpenID Connect provider, the app's compose.yml names none.");
+            variables.ShouldNotContain("SIGN_IN_CLIENT_ID", "Without an OpenID Connect provider, the app's compose.yml names no client.");
+            //#endif
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void TheAppHostSdk_IsPinnedInGlobalJson_AtTheVersionOfEveryAspirePackage()
     {
         string root = ProjectReferenceGraph.RepositoryRoot;
@@ -176,18 +273,73 @@ public sealed class LocalStackParityTests
         ProjectReferenceGraph.RootOf(ProjectReferenceGraph.SourceProjects.Values
             .Single(project => project.Name.EndsWith(".AppHost", StringComparison.Ordinal)));
 
-    private static List<IResource> AppHostResources()
+    private static List<IResource> AppHostResources() => AppHostResources(AppHostDirectory);
+
+    private static List<IResource> AppHostResources(string projectDirectory)
     {
         var builder = DistributedApplication.CreateBuilder(new DistributedApplicationOptions
         {
             Args = [],
-            ProjectDirectory = AppHostDirectory,
+            ProjectDirectory = projectDirectory,
             DisableDashboard = true,
         });
 
         builder.AddLocalStack();
 
         return [.. builder.Resources.Where(resource => resource is ProjectResource or ContainerResource)];
+    }
+
+    private static async Task<HashSet<string>> EnvironmentOf(ContainerResource container)
+    {
+        var context = new EnvironmentCallbackContext(
+            new DistributedApplicationExecutionContext(DistributedApplicationOperation.Run),
+            container,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        foreach (var annotation in container.Annotations.OfType<EnvironmentCallbackAnnotation>())
+        {
+            await annotation.Callback(context);
+        }
+
+        return [.. context.EnvironmentVariables.Keys];
+    }
+
+    private static string BuildOf(ContainerResource container) =>
+        container.Annotations.OfType<DockerfileBuildAnnotation>().LastOrDefault() is { } build
+            ? Build(build.ContextPath, build.DockerfilePath)
+            : "no image of its own";
+
+    private static string Build(string context, string dockerfile) =>
+        $"{FromTheRoot(context)} with {FromTheRoot(Path.Combine(context, dockerfile))}";
+
+    private static string FromTheRoot(string path) =>
+        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, Path.GetFullPath(path)).Replace('\\', '/');
+
+    private static string ProjectRecordingAWebAssemblyApp(string root)
+    {
+        string api = Path.Combine(root, "Src", "Presentation", "Api");
+        string site = Path.Combine(root, "Src", "Web", "apps", "Site");
+
+        Directory.CreateDirectory(api);
+        Directory.CreateDirectory(site);
+        File.WriteAllText(Path.Combine(api, "AppTemplate.Api.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk.Web\" />");
+        File.WriteAllText(Path.Combine(site, "Dockerfile"), string.Empty);
+        File.WriteAllText(
+            Path.Combine(root, "cleanarch.json"),
+            """
+            {
+              "name": "AppTemplate",
+              "presentation": [{ "name": "Api", "framework": "api" }],
+              "web": { "apps": [{ "name": "Site", "framework": "blazor-wasm", "rendering": "spa", "port": 8081 }] }
+            }
+            """);
+
+        foreach (string file in ComposeFiles().Where(file => Path.GetDirectoryName(file) == ProjectReferenceGraph.RepositoryRoot))
+        {
+            File.Copy(file, Path.Combine(root, Path.GetFileName(file)));
+        }
+
+        return root;
     }
 
     private static string ImageOf(ContainerResource container)
@@ -202,7 +354,7 @@ public sealed class LocalStackParityTests
     {
         var services = new Dictionary<string, string?>(StringComparer.Ordinal);
 
-        foreach ((string service, string line) in ServiceLines())
+        foreach ((string service, string line) in ServiceLines(ServiceFiles()))
         {
             services.TryAdd(service, null);
 
@@ -226,9 +378,63 @@ public sealed class LocalStackParityTests
         return services;
     }
 
-    private static IEnumerable<(string Service, string Line)> ServiceLines()
+    private static Dictionary<string, string> ComposeBuilds()
     {
+        var builds = new Dictionary<string, string>(StringComparer.Ordinal);
+
         foreach (string file in ServiceFiles())
+        {
+            var paths = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+
+            foreach ((string service, string line) in ServiceLines([file]))
+            {
+                if (_buildPath.Match(line) is { Success: true } path)
+                {
+                    paths.TryAdd(service, new Dictionary<string, string>(StringComparer.Ordinal));
+                    paths[service][path.Groups["key"].Value] = path.Groups["path"].Value;
+                }
+            }
+
+            foreach ((string service, var build) in paths.Where(build => build.Value.ContainsKey("context")))
+            {
+                string context = Path.Combine(Path.GetDirectoryName(file)!, build["context"]);
+
+                builds[service] = Build(context, build.GetValueOrDefault("dockerfile", "Dockerfile"));
+            }
+        }
+
+        return builds;
+    }
+
+    private static Dictionary<string, HashSet<string>> ComposeEnvironments()
+    {
+        var environments = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        string? inEnvironment = null;
+
+        foreach ((string service, string line) in ServiceLines(ComposeFiles()))
+        {
+            environments.TryAdd(service, new HashSet<string>(StringComparer.Ordinal));
+
+            if (_environment.IsMatch(line))
+            {
+                inEnvironment = service;
+            }
+            else if (inEnvironment != service || _serviceKey.IsMatch(line) || _service.IsMatch(line))
+            {
+                inEnvironment = null;
+            }
+            else if (_variable.Match(line) is { Success: true } variable)
+            {
+                environments[service].Add(variable.Groups["name"].Value);
+            }
+        }
+
+        return environments;
+    }
+
+    private static IEnumerable<(string Service, string Line)> ServiceLines(IEnumerable<string> files)
+    {
+        foreach (string file in files)
         {
             bool inServices = false;
             string? current = null;

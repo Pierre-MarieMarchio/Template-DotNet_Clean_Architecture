@@ -37,6 +37,11 @@
       "shortName": "",
       "isHidden": true
     },
+    "projectNameNeedsALeadingLetter": {
+      "longName": "project-name-needs-a-leading-letter",
+      "shortName": "",
+      "isHidden": true
+    },
     "clientPresentationNeedsAccounts": {
       "longName": "client-presentation-needs-accounts",
       "shortName": "",
@@ -44,11 +49,6 @@
     },
     "mcpNeedsAccounts": {
       "longName": "mcp-needs-accounts",
-      "shortName": "",
-      "isHidden": true
-    },
-    "mySqlNotYetGenerated": {
-      "longName": "my-sql-not-yet-generated",
       "shortName": "",
       "isHidden": true
     },

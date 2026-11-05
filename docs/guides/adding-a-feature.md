@@ -1,4 +1,10 @@
-﻿# Adding a feature
+---
+type: guide
+title: Adding a feature
+description: How to add a feature of your own, in the shape its rules call for, with its tests and its page.
+---
+
+# Adding a feature
 
 ## When
 
@@ -90,8 +96,8 @@ offer the feature through its use cases.
 <!--#endif-->
 Then it makes the edits that compose the feature: the schema, set and configuration in
 `AppDbContext`, an `Add<Features>()` in `ApplicationModule`, the adapters in `PersistenceModule`, the
-call in `Program.cs`, and the two test compositions, with the usings each needs, and the feature's row
-under `## Features` in `docs/README.md`.
+call in `Program.cs`, and the two test compositions, with the usings each needs. It then runs
+`docs-index`, which lists the feature's page in the index of `docs/features/` by its frontmatter.
 <!--#if (api)-->
 Its section of the route table and the row of its refusal go to `docs/reference/api.md`. With
 `--fields`, it also writes an integration test that creates a resource with every field and sees an
@@ -154,7 +160,8 @@ says how a rule fails.
 
 The validator's rules, the errors the feature can answer, and any use case beyond the five
 operations, which [`new-use-case`](#add-a-use-case) starts. A use case reaches another feature only
-through that feature's ports and events.
+through that feature's ports and events, as [reaching another feature](reaching-another-feature.md)
+shows.
 
 ### Persistence
 
@@ -350,7 +357,10 @@ and from the body for a command; and for a query it writes the response contract
 route's row to the feature's table in `docs/reference/api.md`, every edit or none as `new-feature`
 does, then runs `openapi`, which builds the API, `api-client`, and `pnpm api --no-build` from that
 build. `--dry-run` prints them
-and writes nothing. The contracts join the manifest, and the controller's recorded hash follows the
+and writes nothing. The route follows the controller: under a `[Route]` that holds the resource the
+action is routed from the id, and under one routed at the API root the action reuses the resource path
+of the controller's own actions that carry the id, its row then written in full; a root-routed
+controller with no such action is refused. The contracts join the manifest, and the controller's recorded hash follows the
 action when the controller was untouched.
 <!--#endif-->
 <!--#if (!api)-->
@@ -401,6 +411,8 @@ nobody wrote cannot pass the gate; and, when a consumer later joins an
 event listed as unconsumed, the deletion of its entry, which `DomainEventTests` demands. Where the
 project holds no `Add<Features>` in its `ApplicationModule`, register the consumer by hand with
 `AddDomainEventConsumer`.
+[Reaching another feature](reaching-another-feature.md#a-domain-event) covers raising the event,
+writing the consumer, testing both, and what happens when a consumer fails.
 
 ## The closed lists a feature joins
 
@@ -408,52 +420,57 @@ Some lists change only on purpose, and a test fails until they name what you add
 
 | You added | What has to say so |
 |---|---|
-<!--#if (anyFeature)-->
+| <!--#if (anyFeature)--> |
 | A registration | `HostComposition` in the architecture tests and the call in `ApplicationModuleTests` |
-<!--#endif-->
-<!--#if (!anyFeature)-->
+| <!--#endif--> |
+| <!--#if (!anyFeature)--> |
 | A registration | `HostComposition` in the architecture tests |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | A route or a contract | the OpenAPI reference, rewritten by `dotnet run Tools/Tasks.cs openapi` and read in the review; the route's row under `## Routes` of [the API reference](../reference/api.md#routes), checked both ways by `ApiRouteTableTests` |
 | An error code | its row and status in [the API reference](../reference/api.md#error-codes), checked both ways by `ErrorCodeTableTests` and against the status by `ErrorCodeStatusTests` |
-<!--#endif-->
+| <!--#endif--> |
 | An `IEntityTypeConfiguration` | `AppDbContext`, checked both ways by `PersistenceModelTests` |
 | A new folder word under `Common/` or `Features/<F>/` | the vocabularies in `LayoutConventionTests` |
 | A domain event | a consumer, or its name and reason in `DomainEventTests._deliberatelyUnconsumed`; `new-event` writes either |
 | A public interface under `Common/` that is not a port | `ApplicationPorts.NotPorts`, with its reason |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | A use case | a host or a job that sends its message, checked by `MessageRoutingTests` |
-<!--#endif-->
+| <!--#endif--> |
 | An anonymous endpoint | `_anonymousActions` in `HttpSurfaceTests` |
+| <!--#if (localAuth)--> |
+| A folder of mail templates | `_templateFolders` in `EmailTemplateCoverageTests`, and its mails in `TheWalk_FindsEveryMailThisTemplateSends` |
+| <!--#endif--> |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
-| A new project | `AppTemplate.sln`, a `COPY` line in the API's `Dockerfile`, a mirror under `Tests/`, the floors in `ModuleDependencyTests` |
+| A new project | `AppTemplate.sln`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
 | Anything, eventually | `coverage.minimum`, re-measured as [testing](testing.md#coverage) says |
 
 ## Document it
 
 1. Replace each prompt line of the feature page with what the feature does: what a caller gets, the
-   rules, the routes, the settings, the tests.
-2. Rewrite the answer of the row the generator added under `## Features` in `docs/README.md`.
+   rules, the routes, the settings, the tests; and the `description` of its frontmatter with the
+   question the page answers, in one sentence.
+2. Run `dotnet run Tools/Tasks.cs docs-index`, so that the features index shows the description you
+   wrote.
 3. A choice another team could have made differently is an ADR: `docs/decisions/`, numbered from 1000,
    linked from the page's `## Decisions`.
-
 <!--#if (anyFeature)-->
+
 ## Patterns from the examples
 
 | When the feature | Read |
 |---|---|
-<!--#endif-->
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | owns child entities and protects a state | TodoLists, in every layer |
 | is a flat aggregate reached from a timer | Reminders, and its job under the API's `Features/Reminders/Jobs` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | keeps part of its state outside the database | Files, whose bytes live behind a storage port |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | has no state to protect | Notes, a service over a store: the shape `--model record` writes |
+<!--#endif-->
 <!--#endif-->
 
 ## Promote a simple feature
@@ -480,8 +497,8 @@ change:
 <!--#endif-->
 
 The migration is empty unless the rule needs a column or an index.
-
 <!--#if (anyWeb)-->
+
 ## Web pages for it
 
 `new-feature` and `new-use-case` run `pnpm api` in `Src/Web` once the API serves the routes; run it

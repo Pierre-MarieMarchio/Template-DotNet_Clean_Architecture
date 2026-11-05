@@ -1,4 +1,11 @@
-﻿# 0018. A project keeps its provenance and its tool from the template
+---
+type: decision
+title: 0018. A project keeps its provenance and its tool from the template
+description: Why a project keeps a record of the template that generated it and the tool it pins, while every other page stays the project's own.
+status: Accepted
+---
+
+# 0018. A project keeps its provenance and its tool from the template
 
 Status: Accepted; supersedes [0002](0002-nothing-about-the-template-reaches-a-project.md)
 
@@ -49,9 +56,9 @@ project's material and the template's still has to hold, with one more thing cro
 
 ## Consequences
 
-- A project's documentation is still the ground its team builds on: its own feature pages, how-tos
+- A project's documentation is the ground its team builds on: its own feature pages, how-tos
   and ADRs join the same folders.
-- The template repository still reads its project documentation as a generated project would, and
+- The template repository reads its project documentation as a generated project would, and
   the acceptance matrix runs `Tools/CheckDocPaths.cs` from this checkout against each generated
   tree.
 - The tool's text is held to the project's voice: a help line or a message about the template is a

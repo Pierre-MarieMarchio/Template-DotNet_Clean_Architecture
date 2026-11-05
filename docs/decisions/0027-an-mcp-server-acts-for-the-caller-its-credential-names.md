@@ -1,4 +1,11 @@
-﻿# 0027. An MCP server acts for the caller its credential names
+---
+type: decision
+title: 0027. An MCP server acts for the caller its credential names
+description: Why the MCP server runs the use cases in process for the caller its credential names, over streamable HTTP.
+status: Accepted
+---
+
+# 0027. An MCP server acts for the caller its credential names
 
 Status: Accepted
 

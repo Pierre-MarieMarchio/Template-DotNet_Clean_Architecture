@@ -1,6 +1,13 @@
-﻿# 0004. The launcher reads the templates' manifests
+---
+type: decision
+title: 0004. The launcher reads the templates' manifests
+description: Why the launcher asked its questions from the templates' own manifests, until the project's tool read them too.
+status: Superseded
+---
 
-Status: Accepted; [0019](0019-the-launcher-creates-and-the-project-tool-adds.md) replaces its project-facts bullet
+# 0004. The launcher reads the templates' manifests
+
+Status: Superseded by [0026](0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md)
 
 ## Context
 

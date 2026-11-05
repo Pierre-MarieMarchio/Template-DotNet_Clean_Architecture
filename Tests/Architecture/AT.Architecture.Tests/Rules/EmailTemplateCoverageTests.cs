@@ -9,6 +9,8 @@ public sealed class EmailTemplateCoverageTests
 {
     private const string _fallbackCulture = "en";
 
+    private const string _mailFiles = "*EmailTemplate.*.html";
+
     private static readonly string[] _templateFolders =
     [
         "Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates",
@@ -45,6 +47,19 @@ public sealed class EmailTemplateCoverageTests
             customMessage:
             "These are the mails this template sends. A mail that stopped being found here is "
             + "one no rule below is checking any more.");
+    }
+
+    [Fact]
+    public void EveryFolderOfMailsUnderSrc_IsOneTheRulesRead()
+    {
+        var mails = MailFilesUnderSrc();
+
+        mails.ShouldNotBeEmpty($"No {_mailFiles} file was found under Src, so the walk cannot tell a folder the rules miss.");
+
+        FoldersTheRulesMiss(mails).ShouldBeEmpty(
+            "Every rule in this class reads the folders in _templateFolders only, so a folder of mails "
+            + "it does not name is judged by none of them. Add each folder named here to _templateFolders "
+            + "in this file, and its mails to the list in TheWalk_FindsEveryMailThisTemplateSends.");
     }
 
     [Fact]
@@ -107,6 +122,26 @@ public sealed class EmailTemplateCoverageTests
 
         return families;
     }
+
+    private static List<string> MailFilesUnderSrc()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        return
+        [
+            .. Directory.EnumerateFiles(Path.Combine(root, "Src"), _mailFiles, SearchOption.AllDirectories)
+                .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                    && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+                .Select(file => Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/')),
+        ];
+    }
+
+    private static List<string> FoldersTheRulesMiss(IEnumerable<string> mailFiles) =>
+        [.. mailFiles
+            .Select(file => file[..file.LastIndexOf('/')])
+            .Distinct(StringComparer.Ordinal)
+            .Except(_templateFolders, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
 
     private static List<TemplateFile> Templates()
     {
@@ -202,6 +237,22 @@ public sealed class EmailTemplateCoverageTests
         SharedSubjects([(english, "Welcome"), (french, "welcome")])
             .ShouldBe(["RegisterEmailTemplate: 'Welcome' is the subject of en and fr"]);
         SharedSubjects([(english, "Welcome"), (french, "Bienvenue")]).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void TheFolderWalk_IsSensitive_AndSeesAFolderOfMailsTheRulesDoNotName()
+    {
+        FoldersTheRulesMiss(
+            [
+                "Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/RegisterEmailTemplate.en.html",
+                "Src/Infrastructure/AT.Infrastructure.Email/Features/Invoices/InvoiceEmailTemplate.en.html",
+                "Src/Infrastructure/AT.Infrastructure.Email/Features/Invoices/InvoiceEmailTemplate.fr.html",
+            ])
+            .ShouldBe(["Src/Infrastructure/AT.Infrastructure.Email/Features/Invoices"]);
+
+        FoldersTheRulesMiss(
+                ["Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/RegisterEmailTemplate.en.html"])
+            .ShouldBeEmpty("A folder the rules name is not a folder they miss.");
     }
 
     [Theory]

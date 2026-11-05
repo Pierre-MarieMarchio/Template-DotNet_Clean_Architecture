@@ -1,4 +1,10 @@
-﻿# Modules and boundaries
+---
+type: concept
+title: Modules and boundaries
+description: What a feature or an infrastructure module may depend on, so that each one stays removable.
+---
+
+# Modules and boundaries
 
 A feature may reach another only through that feature's ports or its domain events, and an
 infrastructure module may reach no other module. These rules keep every feature and every module
@@ -27,21 +33,21 @@ or `HttpPipelineModule`. It is a composition concept, never a business partition
 | Module | Registers | Storage |
 |---|---|---|
 | `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the business features' repositories, queries and stores, the idempotency store | `AppDbContext`: a schema per business feature, plus `platform` |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `AppTemplate.Infrastructure.Auth` | the authentication ports over ASP.NET Core Identity, JWT bearer, refresh tokens, the data-protection key ring, the development seed | `AuthDbContext`: the `identity` schema |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender` over SMTP or Postmark, `IReminderNotifier` | none |
-<!--#endif-->
-<!--#if (!reminders)-->
+| <!--#endif--> |
+| <!--#if (!reminders)--> |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender` over SMTP or Postmark | none |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `AppTemplate.Infrastructure.Storage` | the file content store, direct transfer, inventory and scanner | an S3-compatible bucket or a local directory |
-<!--#endif-->
+| <!--#endif--> |
 | `AppTemplate.Infrastructure.InMemory` | doubles a test composes over a real module | none |
-
 <!--#if (externalAuth)-->
+
 The mapping of an external provider's subjects to owners is a business feature of the persistence
 module, in the `external_identity` schema, composed by `AddExternalIdentityPersistence`.
 <!--#endif-->
@@ -54,13 +60,16 @@ The in-memory module is the one no host composes; see
 A feature uses another only through that feature's public application port or its domain events,
 never through its records, its EF configurations, its sets or its tables. The surface of a feature
 is two namespaces: `Ports` in the application project and `Model/Events` in the domain project.
+The feature that owns the data declares the port, to read or to change it; a request several
+features answer is a port declared once in `AppTemplate.Application.Core`, which each owner
+implements.
 
 The reason is extraction: each reference that reaches past a port is an edit the remaining feature
 would need before the other could leave. `FeatureIsolationTests` reads both the application and the
 persistence project, because a query can read another feature's rows without any signature showing
-it.
-
+it. [Reaching another feature](../guides/reaching-another-feature.md) gives the steps of each way in.
 <!--#if (reminders)-->
+
 `Reminders` needs to know that a to-do item exists, who owns it and whether it is done. It asks
 `ITodoItemQueries`, a narrow port `TodoLists` declares and implements, and never reads the to-do
 rows itself. `AddReminders()` therefore needs `AddTodoLists()` in the same host.
@@ -90,7 +99,9 @@ earns the domain or application project its first one.
 A folder in the business `Common/` is earned by naming a business type, not by being repeated: the
 version precondition and the paged read every feature performs name no feature, so they live one
 project inwards. `EveryModuleCommon_KnowsNoFeature`, `ThePersistenceMechanisms_KnowNoFeature` and
-`TheCommonHttpCode_NamesNoFeature` hold the rule.
+`TheCommonHttpCode_NamesNoFeature` hold the rule. The first, and the rule that Persistence depends
+on no module, read the modules from the tree, so a module added later is held by them with no list
+to edit.
 <!--#if (anyFeature)-->
 `AppDbContext` is its one exception: it applies every feature's configuration, and
 `TheContext_IsTheOneThingInCommonThatNamesAFeature` asserts that it really does.
@@ -109,7 +120,8 @@ Under `Features/<Feature>/`, every path answers four questions in order:
 
 A concept folder exists only when it has content. What serves one operation stays in that
 operation's folder, what serves one port stays with the port, and what serves several is promoted to
-the concept folders. The vocabulary is closed per project and checked in both directions;
+the concept folders. The vocabulary is closed per project and checked in both directions
+([ADR 0035](../decisions/0035-folders-take-their-names-from-a-closed-vocabulary.md));
 [the project layout](../reference/project-layout.md) lists every word, the suffix each one takes, and
 the test that holds it.
 
@@ -118,5 +130,6 @@ feature or several, so the tree says which files leave with a feature.
 
 ## Decisions
 
-- [0004. Features meet through ports and events](../decisions/0004-features-meet-through-ports-and-events.md)
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0034. Features meet through ports their owner declares, and events](../decisions/0034-features-meet-through-ports-their-owner-declares-and-events.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
+- [0035. Folders take their names from a closed vocabulary](../decisions/0035-folders-take-their-names-from-a-closed-vocabulary.md)

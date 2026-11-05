@@ -22,10 +22,224 @@ public sealed class TemplatePackagingTests
 
     private static readonly byte[] _utf8Bom = [0xEF, 0xBB, 0xBF];
 
+    private const string _repositoryOwner = "Pierre-MarieMarchio";
+
+    private const string _repositoryName = "cleanarch-dotnet";
+
+    private const string _repositoryUrl = $"https://github.com/{_repositoryOwner}/{_repositoryName}";
+
+    private static readonly string[] _packageProjects =
+    [
+        ".template.config/TemplatePackage.csproj",
+        "Launcher/CleanArch.Create/CleanArch.Create.csproj",
+        "Launcher/CleanArch.Cli/CleanArch.Cli.csproj",
+    ];
+
+    private const string _nugetOrgReadmeRules = "https://learn.microsoft.com/en-us/nuget/nuget-org/package-readme-on-nuget-org";
+
+    private static readonly string[] _nugetOrgImageHosts =
+    [
+        "api.codacy.com", "api.codeclimate.com", "api.dependabot.com", "api.reuse.software", "api.travis-ci.com",
+        "app.codacy.com", "app.deepsource.com", "avatars.githubusercontent.com", "badgen.net", "badges.gitter.im",
+        "camo.githubusercontent.com", "caniuse.bitsofco.de", "cdn.jsdelivr.net", "cdn.syncfusion.com", "ci.appveyor.com",
+        "circleci.com", "cloudback.it", "codecov.io", "codefactor.io", "coveralls.io", "dev.azure.com", "devpod.sh",
+        "flat.badgen.net", "gitlab.com", "i.imgur.com", "img.shields.io", "infragistics.com", "isitmaintained.com",
+        "media.githubusercontent.com", "opencollective.com", "raw.github.com", "raw.githubusercontent.com", "snyk.io",
+        "sonarcloud.io", "travis-ci.com", "travis-ci.org", "user-images.githubusercontent.com",
+    ];
+
+    private static readonly Regex _workflowBadge = new(@"^/[^/]+/[^/]+/(?:actions/)?workflows/[^/]+/badge\.svg$", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _fencedBlock = new(@"^(```|~~~).*?^\1", RegexOptions.Multiline | RegexOptions.Singleline, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _codeSpan = new("(`+).+?\\1", RegexOptions.Singleline, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _htmlTag = new(@"<(?!https?://|mailto:)[A-Za-z!/][^>]*>", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _linkTarget = new(
+        @"\]\(\s*<?(?<url>[^)\s>]+)|^\s{0,3}\[[^\]]+\]:\s*<?(?<url>[^\s>]+)",
+        RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _imageTarget = new(@"!\[[^\]]*\]\(\s*<?(?<url>[^)\s>]+)", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _ownersRepository = new(
+        $@"github\.com[/:]{_repositoryOwner}/(?<repository>[A-Za-z0-9_.-]+?)(?:\.git)?(?=[/)\]\s""'<>#?`]|$)",
+        RegexOptions.IgnoreCase | RegexOptions.Multiline,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex _guid = new(
         "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
         RegexOptions.None,
         TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _markerLine = new(
+        "^\\s*<!--" + "#" + "(?:if|else|elseif|endif)\\b.*-->\\s*$",
+        RegexOptions.None,
+        TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _tableRow = new("^\\s*\\|", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly Regex _fence = new("^\\s*(?:```|~~~)", RegexOptions.None, TimeSpan.FromSeconds(5));
+
+    private static readonly string[] _markdownSkippedFolders = [".git", ".claude", "bin", "obj", "node_modules", "TestResults", "artifacts", "plans"];
+
+    [Fact]
+    public void NoMarkerOnALineOfItsOwn_EndsAMarkdownTable()
+    {
+        var offenders = MarkerLinesEndingATable().Select(offender => $"{offender.File}:{offender.Line}");
+
+        offenders.ShouldBeEmpty(
+            "A template marker on a line of its own between two table rows is an HTML block, which ends the table GitHub " +
+            "renders: every row after it shows as plain text with its pipes. Write the marker as a row of one cell, " +
+            "'| <marker> |', which generation removes whole as it removes the line.");
+    }
+
+    [Fact]
+    public void AMarkerLineBetweenTwoRows_IsFound_AndARowMarkerOrAFencedMarkerIsNot()
+    {
+        string opening = "<!--" + "#" + "if (files)-->";
+        string closing = "<!--" + "#" + "endif-->";
+        string[] lines =
+        [
+            "| Name | Value |",
+            "|---|---|",
+            opening,
+            "| a | 1 |",
+            closing,
+            "| b | 2 |",
+            $"| {opening} |",
+            "| c | 3 |",
+            $"| {closing} |",
+            "| d | 4 |",
+            "",
+            "```markdown",
+            "| e | 5 |",
+            opening,
+            "| f | 6 |",
+            "```",
+            "",
+            opening,
+            "A sentence.",
+            closing,
+        ];
+
+        MarkerLinesBetweenRows(lines).ShouldBe([3, 5]);
+    }
+
+    [Fact]
+    public void NoMarkerInAnIndentedFence_SitsLeftOfTheFence()
+    {
+        var offenders = MarkdownLinesWhere(MarkerLinesLeftOfTheirFence).Select(offender => $"{offender.File}:{offender.Line}");
+
+        offenders.ShouldBeEmpty(
+            "A template marker written left of the fence it sits in ends the list item the fence is indented under, " +
+            "which closes the fence on GitHub and renders the rest of the page out of place. Indent the marker to the " +
+            "column of its fence, which generation removes whole as it removes any marker line.");
+    }
+
+    [Fact]
+    public void AMarkerLeftOfAnIndentedFence_IsFound_AndAnIndentedOrAColumnZeroFenceMarkerIsNot()
+    {
+        string opening = "<!--" + "#" + "if (files)-->";
+        string closing = "<!--" + "#" + "endif-->";
+        string[] lines =
+        [
+            "- an item:",
+            "",
+            "  ```bash",
+            opening,
+            "  run",
+            $"  {closing}",
+            $"   {opening}",
+            "  ```",
+            "",
+            "```bash",
+            opening,
+            "run",
+            closing,
+            "```",
+            opening,
+        ];
+
+        MarkerLinesLeftOfTheirFence(lines).ShouldBe([4]);
+    }
+
+    private static IEnumerable<(string File, int Line)> MarkerLinesEndingATable() => MarkdownLinesWhere(MarkerLinesBetweenRows);
+
+    private static IEnumerable<(string File, int Line)> MarkdownLinesWhere(Func<string[], List<int>> offendingLines)
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        return new DirectoryInfo(root)
+            .EnumerateFiles("*.md", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Select(file => Path.GetRelativePath(root, file.FullName))
+            .Where(file => !file.Split(Path.DirectorySeparatorChar).SkipLast(1).Any(_markdownSkippedFolders.Contains))
+            .SelectMany(file => offendingLines(File.ReadAllLines(Path.Combine(root, file)))
+                .Select(line => (File: file.Replace('\\', '/'), Line: line)))
+            .Order();
+    }
+
+    private static List<int> MarkerLinesLeftOfTheirFence(string[] lines)
+    {
+        var found = new List<int>();
+        int? fenceColumn = null;
+        for (int index = 0; index < lines.Length; index++)
+        {
+            string line = lines[index];
+            if (_fence.IsMatch(line))
+            {
+                fenceColumn = fenceColumn is null ? line.Length - line.TrimStart().Length : null;
+            }
+            else if (fenceColumn is not null && _markerLine.IsMatch(line) && line.Length - line.TrimStart().Length < fenceColumn)
+            {
+                found.Add(index + 1);
+            }
+        }
+
+        return found;
+    }
+
+    private static List<int> MarkerLinesBetweenRows(string[] lines)
+    {
+        bool[] fenced = new bool[lines.Length];
+        bool inFence = false;
+        for (int index = 0; index < lines.Length; index++)
+        {
+            bool fence = _fence.IsMatch(lines[index]);
+            fenced[index] = inFence || fence;
+            inFence ^= fence;
+        }
+
+        bool IsMarker(int index) => !fenced[index] && _markerLine.IsMatch(lines[index]);
+        bool IsRow(int index) => index >= 0 && index < lines.Length && !fenced[index] && _tableRow.IsMatch(lines[index]);
+
+        var found = new List<int>();
+        int start = 0;
+        while (start < lines.Length)
+        {
+            if (!IsMarker(start))
+            {
+                start++;
+                continue;
+            }
+
+            int end = start;
+            while (end < lines.Length && IsMarker(end))
+            {
+                end++;
+            }
+
+            if (IsRow(start - 1) && IsRow(end))
+            {
+                found.AddRange(Enumerable.Range(start + 1, end - start));
+            }
+
+            start = end;
+        }
+
+        return found;
+    }
 
     [Fact]
     public void EveryGuidInTheSolution_IsRegeneratedOnGeneration()
@@ -321,6 +535,49 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void ATestSourceThePackageLeavesOut_GenerationLeavesOutToo()
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
+        var generationExcludes = manifest.RootElement.GetProperty("sources")[0].GetProperty("modifiers").EnumerateArray()
+            .Where(modifier => modifier.TryGetProperty("condition", out var condition) && condition.GetString() == "(!templateMaintenance)")
+            .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var testSources = PackageExcludes()
+            .Where(exclude => exclude.StartsWith("Tests/", StringComparison.Ordinal) && exclude.EndsWith(".cs", StringComparison.Ordinal))
+            .ToList();
+
+        testSources.ShouldNotBeEmpty("No test source was read from the TemplateExclude items, so this rule is reading the wrong file.");
+
+        testSources
+            .Where(source => !generationExcludes.Contains(source))
+            .ShouldBeEmpty(
+                "The package leaves out these test sources, but a template installed from the checkout generates them, without the " +
+                "template-only fixtures they read: add each to the (!templateMaintenance) exclusions of template.json.");
+    }
+
+    [Fact]
+    public void ThePackagesMetadataFiles_AreAtItsRootAndNotAlsoUnderContent()
+    {
+        string project = Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "TemplatePackage.csproj");
+        var packageExcludes = PackageExcludes();
+
+        var metadata = XDocument.Load(project)
+            .Descendants("None")
+            .Where(item => (string?)item.Attribute("PackagePath") == "/")
+            .Select(item => item.Attribute("Include")!.Value
+                .Replace("$(TemplateRoot)", string.Empty, StringComparison.Ordinal)
+                .Replace("$(MSBuildThisFileDirectory)", ".template.config/", StringComparison.Ordinal))
+            .ToList();
+
+        metadata.ShouldContain(".template.config/icon.png", "The package no longer packs its icon at its root.");
+        metadata
+            .Where(file => !packageExcludes.Any(exclude => exclude == file || (exclude.EndsWith("/**", StringComparison.Ordinal) && file.StartsWith(exclude[..^2], StringComparison.Ordinal))))
+            .ShouldBeEmpty(
+                "These metadata files sit at the package's root and, with the content glob, under content/ as well: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
     public void ThePullRequestTemplate_ReachesEveryGeneratedProject()
     {
         string[] templatePaths = [".github/pull_request_template.md", ".github/**"];
@@ -355,7 +612,7 @@ public sealed class TemplatePackagingTests
     [Fact]
     public void TheTemplatesCommunityFiles_ReachNeitherAProjectNorTheTemplatePackage()
     {
-        string[] files = ["CODE_OF_CONDUCT.md", "SUPPORT.md"];
+        string[] files = ["CODE_OF_CONDUCT.md", "SUPPORT.md", ".github/FUNDING.yml"];
 
         foreach (string file in files)
         {
@@ -421,6 +678,19 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void TheCheckoutsDocumentationIndex_ReachesNeitherAProjectNorTheTemplatePackage()
+    {
+        string[] indexes = ["docs/index.md", "docs/**/index.md"];
+
+        File.Exists(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "docs", "index.md")).ShouldBeTrue(
+            "This checkout commits the documentation index docs-index writes, so the rule has a file to keep out.");
+        indexes.Except(UnconditionalExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "template.json generates the index of this checkout's pages, every branch's and the template's: add each to its unconditional excludes, since bootstrap writes a project's own.");
+        indexes.Except(PackageExcludes(), StringComparer.Ordinal).ShouldBeEmpty(
+            "The template package carries the index of this checkout's pages: add each to the TemplateExclude items of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
     public void OnlyTheTemplateRepository_IgnoresTheMigrations()
     {
         const string migrations = "Src/Infrastructure/*/Migrations/";
@@ -444,6 +714,122 @@ public sealed class TemplatePackagingTests
 
         overview.ShouldContain($"version {token} of", Case.Sensitive, "docs/getting-started/overview.md no longer holds the token templateVersion replaces.");
         overview.ShouldContain($"`{packageId}`", Case.Sensitive, "docs/getting-started/overview.md no longer names the PackageId of .template.config/TemplatePackage.csproj.");
+    }
+
+    [Fact]
+    public void EveryLinkToTheRepository_NamesItsCurrentName()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        var links = RepositoryTextFiles(root)
+            .SelectMany(file => _ownersRepository.Matches(File.ReadAllText(file))
+                .Select(match => (File: Path.GetRelativePath(root, file), Link: match.Value, Repository: match.Groups["repository"].Value)))
+            .ToList();
+
+        links.Count.ShouldBeGreaterThanOrEqualTo(10, "Far fewer links to the repository were found than the tree holds, so this rule is reading the wrong files.");
+        links
+            .Where(link => !link.Repository.Equals(_repositoryName, StringComparison.OrdinalIgnoreCase))
+            .Select(link => $"{link.File}: {link.Link}")
+            .ShouldBeEmpty(
+                $"A link names a repository of {_repositoryOwner} other than {_repositoryUrl}, where the template lives: " +
+                "point it there. Only CHANGELOG.md keeps the links release-please wrote.");
+    }
+
+    [Fact]
+    public void EveryPackage_NamesTheRepositoryAsItsSourceAndItsProject()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        foreach (string package in _packageProjects)
+        {
+            var project = XDocument.Load(Path.Combine(root, package));
+            project.Descendants("RepositoryUrl").Single().Value.ShouldBe(_repositoryUrl, $"{package} names another repository as its source.");
+            project.Descendants("PackageProjectUrl").Single().Value.ShouldBe(_repositoryUrl, $"{package} names another repository as its project page.");
+        }
+    }
+
+    [Fact]
+    public void EveryPackageReadme_IsOneNugetOrgRenders()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        foreach (string package in _packageProjects)
+        {
+            string readme = PackedReadme(root, package);
+            NugetOrgRefusals(File.ReadAllText(readme)).ShouldBeEmpty(
+                $"{Path.GetRelativePath(root, readme)}, the readme {package} packs, holds what nuget.org does not render: " +
+                "it shows Markdown without HTML, and neither a relative link or image nor an image from a host it does not allow " +
+                $"({_nugetOrgReadmeRules}).");
+        }
+    }
+
+    [Fact]
+    public void TheRepositoryReadme_IsRefusedAsAPackageReadme_AndThePackagesOwnIsNot()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        NugetOrgRefusals(File.ReadAllText(Path.Combine(root, "README.md"))).ShouldNotBeEmpty(
+            "The repository README, whose header is HTML and whose links are relative, passed the nuget.org rule, so the rule examines nothing.");
+        NugetOrgRefusals(File.ReadAllText(Path.Combine(root, ".template.config", "package", "README.md"))).ShouldBeEmpty();
+    }
+
+    private static string PackedReadme(string root, string package)
+    {
+        string projectPath = Path.Combine(root, package);
+        string projectFolder = Path.GetDirectoryName(projectPath)!;
+        var project = XDocument.Load(projectPath);
+        string readmeName = project.Descendants("PackageReadmeFile").Single().Value;
+
+        var packed = project.Descendants("None")
+            .Where(item => (string?)item.Attribute("Pack") == "true")
+            .Select(item => item.Attribute("Include")!.Value
+                .Replace("$(MSBuildThisFileDirectory)", string.Empty, StringComparison.Ordinal)
+                .Replace("$(TemplateRoot)", Path.GetRelativePath(projectFolder, root) + "/", StringComparison.Ordinal))
+            .Where(include => Path.GetFileName(include) == readmeName)
+            .ToList();
+
+        packed.Count.ShouldBe(1, $"{package} names {readmeName} as its readme but packs {packed.Count} file(s) by that name.");
+
+        return Path.GetFullPath(Path.Combine(projectFolder, packed[0]));
+    }
+
+    private static List<string> NugetOrgRefusals(string markdown)
+    {
+        string prose = _codeSpan.Replace(_fencedBlock.Replace(markdown, string.Empty), string.Empty);
+        var refusals = new List<string>();
+
+        refusals.AddRange(_htmlTag.Matches(prose).Select(tag => $"HTML: {tag.Value}"));
+
+        refusals.AddRange(_linkTarget.Matches(prose)
+            .Select(target => target.Groups["url"].Value)
+            .Where(url => !IsAbsolute(url))
+            .Select(url => $"relative link or image: {url}"));
+        refusals.AddRange(_imageTarget.Matches(prose)
+            .Select(target => target.Groups["url"].Value)
+            .Where(url => IsAbsolute(url) && !IsAllowedImage(new Uri(url)))
+            .Select(url => $"image from a host nuget.org does not allow: {url}"));
+
+        return refusals;
+    }
+
+    private static bool IsAbsolute(string url) =>
+        url.StartsWith("https://", StringComparison.Ordinal) || url.StartsWith("http://", StringComparison.Ordinal);
+
+    private static bool IsAllowedImage(Uri image) =>
+        image.Host == "github.com"
+            ? _workflowBadge.IsMatch(image.AbsolutePath)
+            : _nugetOrgImageHosts.Contains(image.Host, StringComparer.OrdinalIgnoreCase);
+
+    private static IEnumerable<string> RepositoryTextFiles(string root)
+    {
+        string[] skipped = [".git", ".claude", ".vs", ".idea", ".sonarqube", "bin", "obj", "node_modules", "TestResults", "artifacts", "plans"];
+        string[] textExtensions = [".md", ".cs", ".csproj", ".props", ".targets", ".json", ".yml", ".yaml", ".xml", ".txt", ".http", ".sh", ".ps1", ".ts", ".js", ".html"];
+
+        return new DirectoryInfo(root).EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+            .Where(file => !Path.GetRelativePath(root, file.FullName).Split(Path.DirectorySeparatorChar).SkipLast(1).Any(skipped.Contains))
+            .Where(file => textExtensions.Contains(file.Extension, StringComparer.OrdinalIgnoreCase) || file.Name is ".env.example" or "Dockerfile")
+            .Where(file => Path.GetRelativePath(root, file.FullName) != "CHANGELOG.md")
+            .Select(file => file.FullName);
     }
 
     [Fact]
@@ -650,7 +1036,6 @@ public sealed class TemplatePackagingTests
 
     [Theory]
     [InlineData("sqlserver", "sqlServer")]
-    [InlineData("mysql", "mySql")]
     [InlineData("sqlite", "sqlite")]
     public void ADatabase_IsRefusedExactlyUntilItsOverlayIsWired(string choice, string symbol)
     {
@@ -919,13 +1304,14 @@ public sealed class TemplatePackagingTests
     }
 
     [Theory]
-    [InlineData(".template.config", "nameNeedsTwoCharacters", "name")]
-    [InlineData(".template.config/presentation/.template.config", "projectNameNeedsTwoCharacters", "projectName")]
-    [InlineData(".template.config/webapp/.template.config", "projectNameNeedsTwoCharacters", "projectName")]
-    public void TheNameRefusal_RefusesEveryNameWhoseFoldersTheSolutionWouldTakeForItsProjects(string folder, string refusal, string nameSymbol)
+    [InlineData(".template.config", "nameNeedsTwoCharacters", "nameNeedsALeadingLetter", "name")]
+    [InlineData(".template.config/presentation/.template.config", "projectNameNeedsTwoCharacters", "projectNameNeedsALeadingLetter", "projectName")]
+    [InlineData(".template.config/webapp/.template.config", "projectNameNeedsTwoCharacters", "projectNameNeedsALeadingLetter", "projectName")]
+    public void TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects(string folder, string refusal, string letterRefusal, string nameSymbol)
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
-        string condition = Text(manifest.RootElement.GetProperty("symbols").GetProperty(refusal), "isRequired")!;
+        JsonElement symbols = manifest.RootElement.GetProperty("symbols");
+        string condition = Text(symbols.GetProperty(refusal), "isRequired")!;
         string[] refused = [.. Regex.Matches(condition, $@"\b{nameSymbol} == ""([^""]*)""", RegexOptions.None, TimeSpan.FromSeconds(5)).Select(match => match.Groups[1].Value)];
         string[] oneCharacter = [.. _nameStarts.Select(start => start.ToString())];
         string[] collide = [.. Names(3).Where(FoldersDifferFromTheProjectsInCaseAlone)];
@@ -941,14 +1327,61 @@ public sealed class TemplatePackagingTests
         collide.Where(name => !refused.Contains(name, StringComparer.OrdinalIgnoreCase)).ShouldBeEmpty(
             $"These names put each project in a folder differing from its name in case alone, which a solution takes for the same name: {folder}/template.json must refuse them through {refusal}.");
 
+        string letterCondition = Text(symbols.GetProperty(letterRefusal), "isRequired")!;
+        string guard = nameSymbol == "projectName" ? $@"{nameSymbol} != """" && " : string.Empty;
+        Match bounds = Regex.Match(
+            letterCondition,
+            $@"^\({Regex.Escape(guard)}\(?{nameSymbol} < ""(?<below>[^""]+)"" \|\| {nameSymbol} >= ""(?<from>[^""]+)""\)?\)$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
+        bounds.Success.ShouldBeTrue(
+            $"{folder}/template.json must read {letterRefusal} as ({guard}{nameSymbol} < \"A\" || {nameSymbol} >= \"[\"), the one form of the rule the engine can evaluate on a parameter, which this rule and the launcher evaluate.");
+        bool LetterRefuses(string name) =>
+            !(guard.Length > 0 && name.Length == 0)
+            && (string.Compare(name, bounds.Groups["below"].Value, StringComparison.OrdinalIgnoreCase) < 0
+                || string.Compare(name, bounds.Groups["from"].Value, StringComparison.OrdinalIgnoreCase) >= 0);
+        string[] anyNames = [.. AnyNames(3)];
+
+        anyNames.Where(name => ProjectFolders.InitialsOf(name).Length == 0 && !LetterRefuses(name)).ShouldBeEmpty(
+            $"These names have no letter from A to Z to take initials from, so their projects would sit in folders such as .Api: {folder}/template.json must refuse them through {letterRefusal}.");
+        anyNames.Where(name => LetterRefuses(name) == char.IsAsciiLetter(name[0])).ShouldBeEmpty(
+            $"{folder}/template.json must refuse, through {letterRefusal}, exactly the {nameSymbol} that does not start with a letter from A to Z, the rule its description names.");
+
         if (nameSymbol == "name")
         {
-            Text(manifest.RootElement.GetProperty("symbols").GetProperty("refusedOptions"), "value")!.ShouldContain(
+            Text(symbols.GetProperty("refusedOptions"), "value")!.ShouldContain(
                 condition,
                 Case.Sensitive,
                 $"refusedOptions must hold {refusal}'s condition, so a hand-passed {refusal} selects the refused variant.");
-            File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "variants", "refused", "Src", "Presentation", ProjectFolders.FolderOf("AppTemplate.Presentation.Core"), "RefusedGenerationOptions.cs"))
-                .ShouldContain($"//#if {condition}", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {refusal}'s condition.");
+            Text(symbols.GetProperty(_nameLacksALeadingLetter), "value").ShouldBe(
+                letterCondition,
+                $"{_nameLacksALeadingLetter} must hold {letterRefusal}'s condition: the engine evaluates the ordering only in a symbol, never in a file's #if.");
+            Text(symbols.GetProperty("refusedOptions"), "value")!.ShouldContain(
+                $" || {_nameLacksALeadingLetter})",
+                Case.Sensitive,
+                $"refusedOptions must hold {_nameLacksALeadingLetter}, so a hand-passed {letterRefusal} selects the refused variant.");
+            string refusedVariant = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "variants", "refused", "Src", "Presentation", ProjectFolders.FolderOf("AppTemplate.Presentation.Core"), "RefusedGenerationOptions.cs"));
+            refusedVariant.ShouldContain($"//#if {condition}", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {refusal}'s condition.");
+            refusedVariant.ShouldContain($"//#if ({_nameLacksALeadingLetter})", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {letterRefusal}'s condition.");
+        }
+        else
+        {
+            LetterRefuses(string.Empty).ShouldBeFalse($"{folder}/template.json leaves {nameSymbol} empty where the item needs no project, which {letterRefusal} must let through.");
+        }
+    }
+
+    private static IEnumerable<string> AnyNames(int longest)
+    {
+        IEnumerable<string> ofLength = [string.Empty];
+
+        for (int length = 1; length <= longest; length++)
+        {
+            ofLength = [.. ofLength.SelectMany(name => _anyNameCharacters.Select(next => name + next))];
+
+            foreach (string name in ofLength)
+            {
+                yield return name;
+            }
         }
     }
 
@@ -1152,6 +1585,23 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
+    public void TheLongestEntryUnderContent_StaysWithinItsBudget()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var excludes = PackageExcludes().Select(GlobPattern).ToList();
+        var entries = PackedFiles(root, string.Empty)
+            .Where(relative => !excludes.Any(exclude => exclude.IsMatch(relative)))
+            .Select(relative => $"content/{relative}")
+            .ToList();
+
+        entries.Count.ShouldBeGreaterThanOrEqualTo(1000, "Far fewer files were found than the package carries, so this rule is not reading its tree.");
+
+        entries.Where(entry => entry.Length > _longestEntryBudget).Select(entry => $"{entry.Length}: {entry}").ShouldBeEmpty(
+            $"No entry the package places under content/ may exceed {_longestEntryBudget} characters, the longest one it carries today. "
+            + $"NuGet reports NU5123 beyond {_nugetPathWarning}, and the entries between the two are accepted; shorten each entry named here.");
+    }
+
+    [Fact]
     public void ThePresentationItem_ReadsTheProjectsOptionsAsTheProjectTemplateDeclaresThem()
     {
         using var project = JsonDocument.Parse(File.ReadAllText(ManifestPath()));
@@ -1207,7 +1657,7 @@ public sealed class TemplatePackagingTests
     [InlineData(
         "blazor-server/Src/Presentation/AT.PresentationAppPortal/README.md",
         "anyPresentation|presentationBlazorServer",
-        10,
+        11,
         new[] { "docs/features/presentation.md" })]
     [InlineData(
         "avalonia/Src/Presentation/AT.PresentationAppDesktop/README.md",
@@ -1217,7 +1667,7 @@ public sealed class TemplatePackagingTests
     [InlineData(
         "mcp/Src/Presentation/AT.PresentationAppMcp/README.md",
         "anyPresentation|presentationMcp|accessKeys",
-        10,
+        11,
         new[] { "docs/features/presentation.md", "docs/decisions/0027-an-mcp-server-acts-for-the-caller-its-credential-names.md" })]
     [InlineData(
         "wpf/Src/Presentation/AT.PresentationAppDesktop/README.md",
@@ -1396,6 +1846,12 @@ public sealed class TemplatePackagingTests
 
     private const int _longestPathBudget = 170;
 
+    private const int _longestEntryBudget = 207;
+
+    private const int _nugetPathWarning = 167;
+
+    private static readonly string[] _scratchFolders = [".git", "bin", "obj", "node_modules", "TestResults", "artifacts", ".claude", ".vs", ".idea", ".vscode"];
+
     private const string _folderPrefixSymbol = "projectFolderPrefix";
 
     private const string _folderPrefixAnyCaseSymbol = "projectFolderPrefixAnyCase";
@@ -1406,6 +1862,10 @@ public sealed class TemplatePackagingTests
     private static readonly char[] _nameStarts = [.. "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 
     private static readonly char[] _nameCharacters = [.. _nameStarts, .. "0123456789."];
+
+    private static readonly char[] _anyNameCharacters = [.. _nameCharacters, .. "-@[`{\u00e9\u00c9\u0131\u017f\u212a"];
+
+    private const string _nameLacksALeadingLetter = "nameLacksALeadingLetter";
 
     private static readonly string[] _productNames =
         ["AppTemplate", "Acme.Shop", "Contoso.OrderManagement", "acme.shop", "MyCompany.MyProject", "My_App", "acme-shop", "Acme.shop2", "Acme.2024", "ACME.Shop"];
@@ -1558,6 +2018,33 @@ public sealed class TemplatePackagingTests
             .Where(modifier => !modifier.TryGetProperty("condition", out _))
             .SelectMany(modifier => modifier.GetProperty("exclude").EnumerateArray().Select(pattern => pattern.GetString()!))];
     }
+
+    private static IEnumerable<string> PackedFiles(string root, string relative)
+    {
+        string directory = Path.Combine(root, relative);
+
+        foreach (string file in Directory.EnumerateFiles(directory))
+        {
+            yield return Path.Combine(relative, Path.GetFileName(file)).Replace('\\', '/');
+        }
+
+        foreach (string folder in Directory.EnumerateDirectories(directory).Where(folder => !_scratchFolders.Contains(Path.GetFileName(folder), StringComparer.Ordinal)))
+        {
+            foreach (string file in PackedFiles(root, Path.Combine(relative, Path.GetFileName(folder))))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private static Regex GlobPattern(string pattern) =>
+        new(
+            "^" + Regex.Escape(pattern.Replace('\\', '/'))
+                .Replace(@"\*\*/", "(?:.*/)?", StringComparison.Ordinal)
+                .Replace(@"\*\*", ".*", StringComparison.Ordinal)
+                .Replace(@"\*", "[^/]*", StringComparison.Ordinal) + "$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
 
     private static List<string> PackageExcludes()
     {

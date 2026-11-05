@@ -1,7 +1,13 @@
-﻿# 0015. An MCP server is a presentation project, written whole
+---
+type: decision
+title: 0015. An MCP server is a presentation project, written whole
+description: Why the MCP server was a presentation project written whole, under the rule a later decision restated.
+status: Superseded
+---
 
-Status: Accepted; amended by [0020](0020-a-project-is-the-presentation-projects-it-holds.md),
-which lets it stand beside other presentation projects under the fixed name `Mcp`
+# 0015. An MCP server is a presentation project, written whole
+
+Status: Superseded by [0025](0025-an-mcp-server-is-a-presentation-project-written-whole.md)
 
 ## Context
 

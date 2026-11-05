@@ -1,4 +1,10 @@
-﻿# Email
+---
+type: feature
+title: Email
+description: How this project sends mail, and how it picks the language a mail is written in.
+---
+
+# Email
 
 How this project sends mail, and how it picks the language a mail is written in.
 
@@ -46,12 +52,13 @@ update. An embedded `*.fr.html` needs `WithCulture="false"` in its `.csproj`, al
 folders, or MSBuild compiles it into a satellite assembly.
 <!--#if (localAuth)-->
 `EmailTemplateCoverageTests` refuses a language that one mail has and another lacks, and two
-languages of one mail sharing a subject.
+languages of one mail sharing a subject. It reads the folders it names, and refuses a folder of
+mail templates under `Src` that it does not name until the folder joins its list.
 <!--#endif-->
 
 ## The mails
-
 <!--#if (localAuth)-->
+
 | Mail | Sent when | Template folder |
 |---|---|---|
 | `Register` | a new or unconfirmed address registers | `Src/Infrastructure/AT.Infrastructure.Auth/Features/Accounts/Resources/Templates/` |
@@ -70,6 +77,7 @@ languages of one mail sharing a subject.
 The identity provider writes its own account mails.
 <!--#endif-->
 <!--#if (!localAuth && !reminders)-->
+
 No mail ships with this project yet: a feature that sends one embeds its templates and calls
 `IEmailSender`.
 <!--#endif-->

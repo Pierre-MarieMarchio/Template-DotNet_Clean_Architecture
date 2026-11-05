@@ -1,4 +1,10 @@
-﻿# Removing features
+---
+type: guide
+title: Removing features
+description: How to remove a feature, an example or another part this project no longer needs.
+---
+
+# Removing features
 
 ## When
 
@@ -65,22 +71,31 @@ It reads neither the solution, the `.props` and `.targets` files nor `Tools/`, n
 only `git restore` gives back what it removes, while a model change waits for a migration
 (`migration-check`), or while code outside the feature uses it.
 <!--#if (api)-->
-It then deletes and undoes everything or nothing, builds once, and from that build adds the
-`Remove<Features>` migration, as [below](#migrations) says, and rewrites the OpenAPI reference and
-what is written from it.
+It then deletes and undoes everything or nothing, writes the documentation index again without the
+feature's page, builds once, and from that build adds the `Remove<Features>` migration, as
+[below](#migrations) says, and rewrites the OpenAPI reference and what is written from it.
+<!--#endif-->
+<!--#if (anyWeb)-->
+With a web workspace, that rewrite includes `pnpm api` in `Src/Web`, which needs Node.js and pnpm.
 <!--#endif-->
 <!--#if (!api)-->
-It then deletes and undoes everything or nothing, builds once, and from that build adds the
-`Remove<Features>` migration, as [below](#migrations) says.
+It then deletes and undoes everything or nothing, writes the documentation index again without the
+feature's page, builds once, and from that build adds the `Remove<Features>` migration, as
+[below](#migrations) says.
 <!--#endif-->
 An edit is found by its lines, beside the line it was placed beside or, when another feature's lines
 came between, wherever its lines stand once; an edit whose lines changed since stops `--apply`, naming
 the file, until they are put back or removed by hand and committed. The first owner feature holds the
 account-deletion files later ones share, so it goes last, and a feature another one uses goes after it.
+<!--#if (todoLists && notes)-->
 
+A folder word of a layer that no feature is filed under any more fails
+`EveryFeatureFolder_IsNamedFromItsLayersVocabulary` in `LayoutConventionTests`: drop the word from that
+layer's vocabulary there, and from the folder map of [the project layout](../reference/project-layout.md).
+<!--#endif-->
 <!--#if (todoLists || notes)-->
-## Remove the examples
 
+## Remove the examples
 <!--#endif-->
 <!--#if (todoLists)-->
 
@@ -101,13 +116,16 @@ Delete `Features/<Feature>/` in every layer that has one, and its mirror under `
   `Src/Infrastructure/AT.Infrastructure.InMemory/Features/Reminders/` with Reminders.
 - `Tests/Application/AT.Application.UnitTests/TestDoubles/ATodoList.cs` and `AReminder.cs`,
   and the integration folders `TodoLists/` and `Reminders/`.
+- [the TodoLists page](../features/todo-lists.md) and [the Reminders page](../features/reminders.md).
 <!--#endif-->
 <!--#if (notes && api)-->
 - Notes in the application, persistence and API, and
   `Tests/Presentation/AT.Api.UnitTests/Composition/NotesSavingTests.cs`.
+- [the Notes page](../features/notes.md).
 <!--#endif-->
 <!--#if (notes && !api)-->
 - Notes in the application, persistence and each host.
+- [the Notes page](../features/notes.md).
 <!--#endif-->
 <!--#if (todoLists && !files)-->
 - `Common/Tagging/` in the domain and the application, with its tests: nothing is left tagged.
@@ -123,34 +141,34 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | `Src/Application/AT.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
 | `Src/Infrastructure/AT.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
 | `Src/Infrastructure/AT.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | the portal's `Program.cs` | the `Add<Features>()` line |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | the MCP server's `Program.cs` | the `Add<Features>()` line |
 | the MCP server's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | `Src/Presentation/AT.Api/Program.cs` | the `Add<Features>()` line |
-<!--#endif-->
-<!--#if (jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (jobsWorker)--> |
 | `Src/Presentation/<Initials>.Worker/Program.cs` | the same line |
-<!--#endif-->
+| <!--#endif--> |
 | `Tests/Architecture/AT.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
 | `Tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | `Tests/Integration/AT.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
-<!--#endif-->
-<!--#endif-->
-<!--#if (todoLists)-->
-<!--#if (!jobsWorker)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (todoLists)--> |
+| <!--#if (!jobsWorker)--> |
 | `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
 | `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
-<!--#endif-->
-<!--#if (jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (jobsWorker)--> |
 | `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
 | `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
-<!--#endif-->
+| <!--#endif--> |
 | `Src/Infrastructure/AT.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
 | `Src/Infrastructure/AT.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
 <!--#endif-->
@@ -171,11 +189,13 @@ None of these breaks a build, and each goes stale:
 <!--#if ((todoLists || notes) && api)-->
 - the feature's requests in `AppTemplate.Api.http`;
 - the feature's rows in [the configuration](../reference/configuration.md) and [API](../reference/api.md)
-  references, and in [adding a feature](adding-a-feature.md#patterns-from-the-examples).
+  references and in [adding a feature](adding-a-feature.md#patterns-from-the-examples); then run
+  `dotnet run Tools/Tasks.cs docs-index`, which drops the feature's page from the index.
 <!--#endif-->
 <!--#if ((todoLists || notes) && !api)-->
-- the feature's rows in [the configuration reference](../reference/configuration.md), and in
-  [adding a feature](adding-a-feature.md#patterns-from-the-examples).
+- the feature's rows in [the configuration reference](../reference/configuration.md) and in
+  [adding a feature](adding-a-feature.md#patterns-from-the-examples); then run
+  `dotnet run Tools/Tasks.cs docs-index`, which drops the feature's page from the index.
 <!--#endif-->
 <!--#if (todoLists || notes)-->
 
@@ -190,8 +210,8 @@ conditional `GET`, and the tests whose subject is a to-do list.
 
 With Notes goes the only example of the simple shape.
 <!--#endif-->
-
 <!--#if (files)-->
+
 ## Remove Files
 
 Files is a working capability: a product that stores files re-points it at its own bucket. To remove
@@ -207,13 +227,13 @@ edit:
 - `AddFileJobs` and the file instruments of the background jobs;
 - the `Files` and `Jobs:Files` settings, and the object store in Compose and `.env.example`;
 - [the Files page](../features/files.md) and [ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md),
-  with their index rows.
-
+  then `docs-index`, which drops both from the index.
 <!--#endif-->
 <!--#if (todoLists && files)-->
-`Common/Tagging/` goes when neither TodoLists nor Files is left.
 
+`Common/Tagging/` goes when neither TodoLists nor Files is left.
 <!--#endif-->
+
 ## Migrations
 
 <!--#if (localAuth)-->
@@ -222,6 +242,10 @@ Removing a business feature changes the business migration only; authentication 
 While no database has applied the initial migration, recreate it as
 [migrations](migrations.md#the-initial-migration) shows. Once a database has applied it, add a
 migration that drops the tables, and review it line by line.
+Where no database has applied `Add<Features>` or `Remove<Features>`, neither is needed: delete the
+context's `Migrations` folder and run `migration-initial` again, as
+[migrations](migrations.md#the-initial-migration) shows, and the first migration holds the model
+without the feature.
 
 `remove-feature --apply` leaves `Add<Features>`, the migration `new-feature` added, and each
 `Add<Field>To<Features>` that `new-field` added, as they are, since a database may have applied them,
@@ -257,10 +281,18 @@ with a directory over your provider, or remove Reminders too.
 <!--#endif-->
 ## Verify
 
+<!--#if (api)-->
 ```bash
 dotnet run Tools/Tasks.cs verify
 docker build -f Src/Presentation/AT.Api/Dockerfile .
 ```
+<!--#endif-->
+<!--#if (!api)-->
+```bash
+dotnet run Tools/Tasks.cs verify
+docker build -f Src/Presentation/<Initials>.Worker/Dockerfile .
+```
+<!--#endif-->
 
 The build catches the unused usings, the tests the counts, lists and migration, and the image build
 a stale `COPY` line.

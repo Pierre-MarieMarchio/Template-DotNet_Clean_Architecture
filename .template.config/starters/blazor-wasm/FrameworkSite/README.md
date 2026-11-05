@@ -1,4 +1,4 @@
-﻿# FrameworkSite
+# FrameworkSite
 
 <!--#if (adminAudience)-->
 A Blazor WebAssembly back office over the API, for administrators.
@@ -114,17 +114,17 @@ app's image and serves it on the port below.
 
 | File | What it is |
 |---|---|
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | `Common/` | the app's own code: `Hosting/` binds and checks the `SignIn` section and registers the sign-in, `Sessions/` hands the provider's access token to the client |
 | `wwwroot/appsettings.json` | the `SignIn` section, downloaded by the browser; `appsettings.Development.json` beside it relaxes `https` for `dotnet watch` |
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline, and lets the page reach the provider's origin; it serves `appsettings.json` with the provider and the client of its environment in the `SignIn` keys the file leaves empty |
-<!--#else-->
+| <!--#else--> |
 | `nginx.conf` | the server: the page security headers, caching, the `index.html` fallback, the `/api/` and `/health` relay; its Content-Security-Policy takes scripts from the app's origin only, plus `'wasm-unsafe-eval'`, which WebAssembly needs, and the SHA-256 of the import map the published page carries inline |
-<!--#endif-->
+| <!--#endif--> |
 | `Dockerfile` | the image: the .NET SDK publishes the app from the repository root, and nginx serves `wwwroot`; `_framework/`, whose every file name carries its fingerprint, is cached for a year |
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | `compose.yml` | the `web-framework-site` service, built from the repository root, given the provider's issuer as `SIGN_IN_AUTHORITY` and the app's client as `SIGN_IN_CLIENT_ID` |
-<!--#else-->
+| <!--#else--> |
 | `compose.yml` | the `web-framework-site` service, built from the repository root |
 <!--#endif-->
 
@@ -263,9 +263,9 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   ```xml
     <ItemGroup Label="Web app on WebAssembly">
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.14" />
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.14" />
-<!--#endif-->
+  <!--#endif-->
       <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.14" />
     </ItemGroup>
 
@@ -290,7 +290,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  the local tools and creates each context's initial migration, and the other tasks assume all four.
+  other tasks assume all five.
   ```
 
   add:
@@ -352,9 +352,9 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = null,
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -367,14 +367,14 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```csharp
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
           ["Src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
-<!--#else-->
+  <!--#else-->
           ["Src/Web/apps/FrameworkSite"] = null,
-<!--#endif-->
-<!--#if (!hasClient)-->
+  <!--#endif-->
+  <!--#if (!hasClient)-->
           ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -389,9 +389,9 @@ Then create the app as above, and commit it. The edits, to make by hand where th
 
   ```csharp
           ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
-<!--#if (!hasClient)-->
+  <!--#if (!hasClient)-->
           ["AppTemplate.Client"] = ["Generated"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 <!--#if (!hasClient)-->
@@ -410,18 +410,6 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
   ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
-  ```
-
-- in `docs/decisions/README.md`, after the line:
-
-  ```markdown
-  | [0022](0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md) | A presentation project reaches the core through the API or the application layer | Architecture |
-  ```
-
-  add:
-
-  ```markdown
-  | [0023](0023-a-dotnet-client-generated-by-kiota.md) | A .NET client generated by Kiota | Clients |
   ```
 
 - in `docs/reference/project-layout.md`, after the line:
@@ -462,11 +450,11 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```text
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
     apps/FrameworkSite                    the WebAssembly app, a .NET project: Common/{Hosting,Sessions}, no Features/
-<!--#else-->
+  <!--#else-->
     apps/FrameworkSite                    the WebAssembly app, a .NET project: no Common/, no Features/
-<!--#endif-->
+  <!--#endif-->
                                           Layout/, Pages/, wwwroot/: dotnet new blazorwasm's, at bootstrap
   ```
 <!--#if (externalAuth)-->

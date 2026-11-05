@@ -1,4 +1,10 @@
-﻿# First run
+---
+type: guide
+title: First run
+description: How to go from a fresh clone to a running stack, bootstrapped once, and see its hosts answer.
+---
+
+# First run
 
 <!--#if (canAddFeature && api)-->
 From a fresh clone to a running stack, an authenticated call and a first feature of your own.
@@ -17,7 +23,7 @@ Run every command from the repository root.
 |---|---|---|
 | .NET SDK | 10.0.100 or any later .NET 10 SDK, as `global.json` allows | building, running, every task |
 | Docker with Compose v2 | any recent | the local stack and the integration tests |
-<!--#if (anyWeb)-->
+| <!--#if (anyWeb)--> |
 | Node.js | the version in `Src/Web/.node-version` | the web workspace |
 | pnpm | the version `Src/Web/package.json` pins, run by Corepack | the web workspace |
 <!--#endif-->
@@ -70,16 +76,18 @@ It also adds the worker's project in `Src/Presentation`, written in the shape of
 to the solution with its tests.
 <!--#endif-->
 <!--#if (api)-->
-It formats the solution, writes the OpenAPI reference
-the contract test reads ([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)),
-pins this project's own tool, `dotnet cleanarch`, at the version of the template it came from, restores
-the local tools (`dotnet-ef` among them), then creates each database context's initial migration under
-its project's `Migrations` folder.
+It formats the solution, writes the index of each folder under `docs/` from its pages, writes the
+OpenAPI reference the contract test reads
+([HTTP API](../architecture/http-api.md#versioning-and-the-openapi-document)), pins this project's
+own tool, `dotnet cleanarch`, at the version of the template it came from, restores the local tools
+(`dotnet-ef` among them), then creates each database context's initial migration under its
+project's `Migrations` folder.
 <!--#endif-->
 <!--#if (!api)-->
-It formats the solution, pins this project's own tool, `dotnet cleanarch`, at the version of the
-template it came from, restores the local tools (`dotnet-ef` among them), then creates each database
-context's initial migration under its project's `Migrations` folder.
+It formats the solution, writes the index of each folder under `docs/` from its pages, pins this
+project's own tool, `dotnet cleanarch`, at the version of the template it came from, restores the
+local tools (`dotnet-ef` among them), then creates each database context's initial migration under
+its project's `Migrations` folder.
 <!--#endif-->
 The project ships no migration: the first one is written for this project's own model, and it is
 the project's from the commit on ([migrations](../guides/migrations.md#the-initial-migration)).
@@ -145,26 +153,26 @@ healthy. The API runs in Development, so it applies its migrations at start.
 |---|---|
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI (Development only) | <http://localhost:8080/scalar/v1> |
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | The portal | <http://localhost:8090> |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | The MCP server | <http://localhost:8091/mcp> |
-<!--#endif-->
+| <!--#endif--> |
 | Mailpit, where mails land | <http://localhost:8025> |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | PostgreSQL | `127.0.0.1:5432` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | SQL Server | `127.0.0.1:1433` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
-<!--#endif-->
-<!--#if (webFramework)-->
+| <!--#endif--> |
+| <!--#if (webFramework)--> |
 | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webPlaceholder)-->
+| <!--#endif--> |
+| <!--#if (webPlaceholder)--> |
 | Web app | <http://localhost:8081> |
 <!--#endif-->
 
@@ -241,8 +249,15 @@ come from.
 
 ## Call the API
 
+The readiness probe answers without a token, whichever way callers sign in, and says the API and its
+database are up:
+
+```bash
+curl -s http://localhost:8080/health/ready    # http://localhost:5187 on the host
+```
+
 <!--#if (localAuth)-->
-Register, confirm the address, sign in, and read your own profile. The sign-in reads the token with
+Then register, confirm the address, sign in, and read your own profile. The sign-in reads the token with
 `jq`; without it, copy `tokens.accessToken` from the response into `TOKEN` by hand.
 
 ```bash
@@ -276,8 +291,8 @@ requests that follow it, for the VS Code REST Client or Visual Studio.
 <!--#endif-->
 <!--#if (externalAuth)-->
 This API has no sign-in route: every request carries a bearer token your identity provider issued for
-the audience `Authentication:External:Audience`. Without a token every route answers `401`; with one,
-the provider's subject becomes an internal owner on its first request.
+the audience `Authentication:External:Audience`. Without a token every route answers `401`, the
+health probes apart; with one, the provider's subject becomes an internal owner on its first request.
 <!--#endif-->
 <!--#if (externalAuth && notes)-->
 
@@ -286,11 +301,8 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8080/api/v1/notes?pa
 ```
 <!--#endif-->
 <!--#if (publicApi)-->
-This API authenticates nobody, and every route is public. The readiness probe is a first call:
-
-```bash
-curl -s http://localhost:8080/health/ready
-```
+This API authenticates nobody, and every route is public: Scalar below lists them all and sends any
+of them without a token.
 <!--#endif-->
 
 ## Explore with Scalar
@@ -326,20 +338,20 @@ dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Auth --
 <!--#endif-->
 | Service | Address |
 |---|---|
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | The portal | <http://localhost:8090> |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | The MCP server | <http://localhost:8091/mcp> |
-<!--#endif-->
+| <!--#endif--> |
 | Mailpit, where mails land | <http://localhost:8025> |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | PostgreSQL | `127.0.0.1:5432` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | SQL Server | `127.0.0.1:1433` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
 <!--#endif-->
 
@@ -351,8 +363,8 @@ docker compose logs -f    # follow the hosts
 docker compose down       # stop, keep the data
 docker compose down -v    # stop and delete the data
 ```
-
 <!--#endif-->
+
 ## Run the tests
 
 <!--#if (api)-->
@@ -390,8 +402,8 @@ It then drives each web app in Chromium, which [testing](../guides/testing.md#th
 shows how to install.
 <!--#endif-->
 [Testing](../guides/testing.md) says what each suite proves.
-
 <!--#if (canAddFeature && api)-->
+
 ## Add a feature
 
 Generate the skeleton of a feature owned by its caller:
@@ -401,9 +413,10 @@ dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion d
 ```
 
 It writes the files, a manifest under `.feature-manifest`, and the feature's page in
-`docs/features/`; it makes the edits that compose the feature and adds its rows to `docs/README.md`
-and `docs/reference/api.md`; then it builds, adds the `AddWidgets` migration for the new tables and
-rewrites the OpenAPI reference. Rebuild the stack and run the tests:
+`docs/features/`; it makes the edits that compose the feature and adds its rows to
+`docs/reference/api.md`; then it lists the page in the documentation index, builds, adds the
+`AddWidgets` migration for the new tables and rewrites the OpenAPI reference. Rebuild the stack and
+run the tests:
 
 ```bash
 docker compose up -d --build --wait
@@ -414,6 +427,7 @@ dotnet run Tools/Tasks.cs test --no-integration
 write next.
 <!--#endif-->
 <!--#if (canAddFeature && !api)-->
+
 ## Add a feature
 
 Generate the skeleton of a feature owned by its caller:
@@ -424,8 +438,9 @@ dotnet run Tools/Tasks.cs new-feature Widgets Widget --access owner --deletion d
 
 It writes every layer but an HTTP one, which this project does not hold, a manifest under
 `.feature-manifest`, and the feature's page in `docs/features/`; it makes the edits that compose the
-feature, each host's `Program.cs` among them, and adds its row to `docs/README.md`; then it builds and
-adds the `AddWidgets` migration for the new tables. Apply it as the first run did, then run the tests:
+feature, each host's `Program.cs` among them; then it lists the page in the documentation index,
+builds and adds the `AddWidgets` migration for the new tables. Apply it as the first run did, then
+run the tests:
 
 ```bash
 dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Persistence --startup-project Src/Infrastructure/AT.Infrastructure.Persistence

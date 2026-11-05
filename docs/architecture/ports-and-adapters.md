@@ -1,4 +1,10 @@
-﻿# Ports and adapters
+---
+type: concept
+title: Ports and adapters
+description: How the application reaches storage and the outside world only through ports, where each port is declared and what implements it.
+---
+
+# Ports and adapters
 
 The application reaches storage and the outside world only through ports: interfaces it declares
 and an infrastructure module implements. It can be read and tested without knowing that EF Core,
@@ -15,9 +21,9 @@ Where a port is declared follows who needs it:
 |---|---|
 | An aggregate's repository | `AppTemplate.Domain`, under `Features/<Feature>/Repositories/`, since it speaks only domain types |
 | A port one feature needs | `AppTemplate.Application`, under `Features/<Feature>/Ports/<Port>/` |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | A port of an authentication feature | `AppTemplate.Application.Auth`, under `Features/<Feature>/Ports/<Port>/` |
-<!--#endif-->
+| <!--#endif--> |
 | A port any feature may need | `AppTemplate.Application.Core`, in `Common/Ports/` or beside its subject |
 
 The cross-cutting ports, and what implements each:
@@ -27,19 +33,19 @@ The cross-cutting ports, and what implements each:
 | `IUnitOfWork` | `EfUnitOfWork` over the business context |
 | `IEmailSender` | `MailKitEmailSender` or `PostmarkEmailSender`, chosen by configuration |
 | `ICurrentUser`, `ICurrentAccessToken` | the host, from the request's claims |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `ILeaderLease` | `LeaderLease`, a session-level advisory lock |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `ILeaderLease` | `LeaderLease`, a session-owned `sp_getapplock` application lock |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | `ILeaderLease` | `LeaderLease`, an in-process keyed semaphore |
-<!--#endif-->
+| <!--#endif--> |
 | `IIdempotencyStore` | `IdempotencyStore`, over the `platform.IdempotencyKeys` table |
 | `ICacheStore` | `HybridCacheStore` |
 | `IDomainEventPublisher` | `DomainEventPublisher` |
-<!--#if (anyFeature)-->
+| <!--#if (anyFeature)--> |
 | `IUserAccountDirectory` | the host, over the accounts it knows |
 | `IDeletedAccountDataPolicy` | each feature that owns user data |
 <!--#endif-->
@@ -120,4 +126,4 @@ call it cares about. Recording doubles are public, so a test can read back what 
 
 ## Decisions
 
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)

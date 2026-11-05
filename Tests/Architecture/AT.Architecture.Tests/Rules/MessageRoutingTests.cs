@@ -1,7 +1,4 @@
-﻿//#if (api)
-using System.Text.RegularExpressions;
-//#endif
-using AppTemplate.Architecture.Tests.Fixtures;
+﻿using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
 
@@ -44,18 +41,44 @@ public sealed class MessageRoutingTests
     [Fact]
     public void EveryMessage_IsSentByAHostOrAJob()
     {
-        string hosts = HostSources();
+        var named = NamesInTheHostsCode();
 
-        hosts.ShouldNotBeEmpty("No host source was read, so every message would read as unsent.");
+        named.ShouldNotBeEmpty("No host source was read, so every message would read as unsent.");
 
         UseCaseTypes.MessagesInTheApplicationLayer
-            .Where(message => !Names(hosts, message.Name))
+            .Where(message => !named.Contains(message.Name))
             .Select(message => message.FullName ?? message.Name)
             .Order(StringComparer.Ordinal)
             .ShouldBeEmpty(
                 "A message no host and no job sends is an operation no caller can reach. Send it from " +
                 "the controller, tool, page or job that offers it, through ISender, or remove it.");
     }
+
+    [Fact]
+    public void NoTwoMessages_ShareAShortName()
+    {
+        SharedShortNames(UseCaseTypes.MessagesInTheApplicationLayer).ShouldBeEmpty(
+            "The rule above reads the hosts' code by name, not by type, so of two messages sharing a " +
+            "short name, sending one reads as sending both. Rename one message of each pair named here.");
+    }
+
+    [Fact]
+    public void TheSharedNameRule_IsSensitive_AndSeesTwoFeaturesUsingOneMessageName()
+    {
+        SharedShortNames([typeof(Widgets.ArchiveCommand), typeof(Gadgets.ArchiveCommand), typeof(HandledOnce)])
+            .ShouldBe([$"ArchiveCommand: {typeof(Gadgets.ArchiveCommand).FullName}, {typeof(Widgets.ArchiveCommand).FullName}"]);
+    }
+
+    [Theory]
+    [InlineData("// await sender.Send(new RenameWidgetCommand(id), cancellationToken);")]
+    [InlineData("/* RenameWidgetCommand */ await sender.Send(command, cancellationToken);")]
+    [InlineData("logger.LogInformation(\"RenameWidgetCommand\");")]
+    [InlineData("logger.LogInformation(nameof(RenameWidgetCommand));")]
+    [InlineData("using static AppTemplate.Application.Features.Widgets.UseCases.RenameWidget.RenameWidgetCommand;")]
+    [InlineData("using Rename = AppTemplate.Application.Features.Widgets.UseCases.RenameWidget.RenameWidgetCommand;")]
+    public void TheSendingMatcher_DoesNotTakeAMentionForASend(string source) =>
+        Names(source, "RenameWidgetCommand").ShouldBeFalse(
+            "A message named in a comment, a string, a nameof or a using directive is not sent by it.");
 
     [Fact]
     public void TheSendingMatcher_IsSensitive_AndTellsAMessageFromALongerName()
@@ -71,18 +94,24 @@ public sealed class MessageRoutingTests
     }
 
     private static bool Names(string source, string message) =>
-        Regex.IsMatch(source, $@"\b{Regex.Escape(message)}\b", RegexOptions.None, TimeSpan.FromSeconds(5));
+        SourceSyntax.NamesUsedInCode(source).Contains(message, StringComparer.Ordinal);
 
-    private static string HostSources() =>
-        string.Join(
-            '\n',
-            ProjectReferenceGraph.Hosts
-                .Select(ProjectReferenceGraph.RootOf)
-                .Concat(StarterHosts())
-                .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
-                .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                    && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-                .Select(File.ReadAllText));
+    private static List<string> SharedShortNames(IEnumerable<Type> messages) =>
+        [.. messages
+            .GroupBy(message => message.Name, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => $"{group.Key}: " + string.Join(", ", group.Select(message => message.FullName).Order(StringComparer.Ordinal)))
+            .Order(StringComparer.Ordinal)];
+
+    private static HashSet<string> NamesInTheHostsCode() =>
+        ProjectReferenceGraph.Hosts
+            .Select(ProjectReferenceGraph.RootOf)
+            .Concat(StarterHosts())
+            .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(file => SourceSyntax.NamesUsedInCode(File.ReadAllText(file)))
+            .ToHashSet(StringComparer.Ordinal);
 
     private static IEnumerable<string> StarterHosts()
     {
@@ -95,6 +124,16 @@ public sealed class MessageRoutingTests
                 .SelectMany(Directory.EnumerateDirectories)
                 .Where(host => File.Exists(Path.Combine(host, "Program.cs")))
             : [];
+    }
+
+    private static class Widgets
+    {
+        internal sealed record ArchiveCommand;
+    }
+
+    private static class Gadgets
+    {
+        internal sealed record ArchiveCommand;
     }
     //#endif
 

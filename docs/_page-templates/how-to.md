@@ -1,4 +1,10 @@
-﻿# <Task>
+---
+type: template
+title: <Task>
+description: <description>
+---
+
+# <Task>
 
 ## When
 

@@ -31,6 +31,7 @@ internal sealed partial class LocalStack
     private readonly IResourceBuilder<ParameterResource> _audience;
     private readonly IResourceBuilder<ParameterResource> _interactiveClientId;
     private readonly IResourceBuilder<ParameterResource> _interactiveClientSecret;
+    private readonly IResourceBuilder<ParameterResource> _browserClientId;
     #endif*/
 
     internal LocalStack(IDistributedApplicationBuilder builder, ProjectFile project)
@@ -95,6 +96,7 @@ internal sealed partial class LocalStack
         _audience = builder.AddParameter("external-auth-audience");
         _interactiveClientId = builder.AddParameter("external-auth-interactive-client-id", string.Empty);
         _interactiveClientSecret = builder.AddParameter("external-auth-interactive-client-secret", string.Empty, secret: true);
+        _browserClientId = builder.AddParameter("external-auth-browser-client-id", string.Empty);
         #endif*/
     }
 
@@ -225,8 +227,12 @@ internal sealed partial class LocalStack
 
     private void AddWebApp(WebApp app, IResourceBuilder<ProjectResource> api)
     {
+        string workspace = Path.Combine(_project.Root, "Src", "Web");
+        string context = PublishesTheDotNetClient(app) ? _project.Root : workspace;
+        string dockerfile = Path.Combine(workspace, "apps", app.Name, "Dockerfile");
+
         var web = _builder
-            .AddDockerfile($"web-{Kebab(app.Name)}", Path.Combine(_project.Root, "Src", "Web"), $"apps/{app.Name}/Dockerfile")
+            .AddDockerfile($"web-{Kebab(app.Name)}", context, Path.GetRelativePath(context, dockerfile))
             .WithHttpEndpoint(port: app.Port, targetPort: 8080, name: "http")
             .WithHttpHealthCheck("/")
             .WithEnvironment("API_UPSTREAM", api.GetEndpoint("http"))
@@ -242,8 +248,17 @@ internal sealed partial class LocalStack
                 .WithEnvironment("EXTERNAL_AUTH_INTERACTIVE_SCOPE", string.Empty)
                 .WithEnvironment("PUBLIC_ORIGIN", web.GetEndpoint("http"));
         }
+
+        if (app.Framework == "blazor-wasm")
+        {
+            web
+                .WithEnvironment("SIGN_IN_AUTHORITY", _authority)
+                .WithEnvironment("SIGN_IN_CLIENT_ID", _browserClientId);
+        }
         #endif*/
     }
+
+    private static bool PublishesTheDotNetClient(WebApp app) => app.Framework == "blazor-wasm";
 
     private IResourceBuilder<ProjectResource> AddHost(string name, PresentationProject host)
     {
@@ -305,7 +320,7 @@ internal sealed partial class LocalStack
 
         var smtp = _mailCatcher.GetEndpoint("smtp");
 
-        return project
+        project
             .WithEnvironment("Email__Host", $"{smtp.Property(EndpointProperty.Host)}")
             .WithEnvironment("Email__Port", $"{smtp.Property(EndpointProperty.Port)}")
             .WithEnvironment("Email__Security", "None")
@@ -313,9 +328,13 @@ internal sealed partial class LocalStack
             .WithEnvironment("Email__UserName", string.Empty)
             .WithEnvironment("Email__Password", _emailPassword)
             .WithEnvironment("Email__FromAddress", "no-reply@localhost")
-            .WithEnvironment("Email__FromName", "AppTemplate (dev)")
-            .WithEnvironment("Cors__AllowedOrigins__0", "http://localhost:4200")
-            .WithEnvironment(ExportTelemetryToTheDashboard);
+            .WithEnvironment("Email__FromName", "AppTemplate (dev)");
+        //#if (api)
+
+        project.WithEnvironment("Cors__AllowedOrigins__0", string.Empty);
+        //#endif
+
+        return project.WithEnvironment(ExportTelemetryToTheDashboard);
     }
 
     private static void ExportTelemetryToTheDashboard(EnvironmentCallbackContext context)

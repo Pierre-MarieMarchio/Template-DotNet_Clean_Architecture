@@ -6,7 +6,7 @@ namespace AppTemplate.Architecture.Tests.Fixtures;
 
 internal static class TemplateMarkers
 {
-    private static readonly Regex _directive = new(@"^\s*(?://|/\*)?#(?<kind>if|elseif|elif|else|endif)\b(?<condition>.*)$", RegexOptions.None, TimeSpan.FromSeconds(5));
+    private static readonly Regex _directive = new(@"^\s*(?:\|\s*)?(?://|/\*|<!--)?#(?<kind>if|elseif|elif|else|endif)\b(?<condition>.*?)(?:\s*\|)?$", RegexOptions.None, TimeSpan.FromSeconds(5));
 
     internal static string[] Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
 
@@ -19,7 +19,7 @@ internal static class TemplateMarkers
             if (_directive.Match(lines[index]) is { Success: true } directive && directive.Groups["kind"].Value is "if" or "elseif" or "elif")
             {
                 string condition = directive.Groups["condition"].Value.Trim();
-                conditions[index] = Condition.Parse(condition.EndsWith("*/", StringComparison.Ordinal) ? condition[..^2] : condition);
+                conditions[index] = Condition.Parse(condition.EndsWith("*/", StringComparison.Ordinal) ? condition[..^2] : condition.EndsWith("-->", StringComparison.Ordinal) ? condition[..^3].TrimEnd() : condition);
             }
         }
 
@@ -316,7 +316,7 @@ internal sealed record Source(string Prefix, Condition? When, Regex[] Include, R
 
 internal sealed class Condition
 {
-    private static readonly Regex _token = new(@"\G\s*(?:""(?<text>[^""]*)""|(?<operator>&&|\|\||==|!=|!|\(|\))|(?<name>[A-Za-z_]\w*))\s*", RegexOptions.None, TimeSpan.FromSeconds(1));
+    private static readonly Regex _token = new(@"\G\s*(?:""(?<text>[^""]*)""|(?<operator>&&|\|\||==|!=|<=|>=|<|>|!|\(|\))|(?<name>[A-Za-z_]\w*))\s*", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private readonly Func<Func<string, object>, object> _evaluate;
 
@@ -400,6 +400,15 @@ internal sealed class Condition
                 return symbol => Same(left(symbol), right(symbol)) == equal;
             }
 
+            foreach (string ordering in (string[])["<=", ">=", "<", ">"])
+            {
+                if (Takes(ordering))
+                {
+                    var right = Unary();
+                    return symbol => Orders(ordering, left(symbol), right(symbol));
+                }
+            }
+
             return left;
         }
 
@@ -444,6 +453,14 @@ internal sealed class Condition
 
             return false;
         }
+
+        private static bool Orders(string ordering, object left, object right) =>
+            left is string first && right is string second && string.Compare(first, second, StringComparison.OrdinalIgnoreCase) switch
+            {
+                < 0 => ordering is "<" or "<=",
+                0 => ordering is "<=" or ">=",
+                > 0 => ordering is ">" or ">=",
+            };
 
         private static bool Same(object left, object right) => (left, right) switch
         {

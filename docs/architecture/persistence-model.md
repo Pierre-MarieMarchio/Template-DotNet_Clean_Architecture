@@ -1,4 +1,10 @@
-﻿# Persistence model
+---
+type: concept
+title: Persistence model
+description: How this project stores its data, from the schema per feature and the rows apart from the aggregates to the save, deletion and concurrency.
+---
+
+# Persistence model
 
 <!--#if (postgreSql)-->
 This project stores everything in one PostgreSQL database through EF Core.
@@ -22,29 +28,29 @@ editing a shared model, and the tables no feature owns live in `platform`.
 
 | Schema | Tables | Context |
 |---|---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `todo` | `TodoLists`, `TodoItems`, `TodoItemTags` | `AppDbContext` |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `reminders` | `Reminders` | `AppDbContext` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `files` | `StoredFiles`, `StoredFileTags`, `ContentSweepCheckpoints` | `AppDbContext` |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `notes` | `Notes` | `AppDbContext` |
-<!--#endif-->
-<!--#if (externalAuth)-->
+| <!--#endif--> |
+| <!--#if (externalAuth)--> |
 | `external_identity` | `ExternalIdentities`, `RoleAssignments` | `AppDbContext` |
-<!--#endif-->
+| <!--#endif--> |
 | `platform` | `IdempotencyKeys` | `AppDbContext` |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `public` | `__EFMigrationsHistory` of the business context | `AppDbContext` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `dbo` | `__EFMigrationsHistory` of the business context | `AppDbContext` |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | `identity` | `User`, `Role`, `UserRoles`, `UserClaims`, `UserLogins`, `RoleClaims`, `UserTokens`, `RefreshTokens`, `RefreshTokenFamilies`, `UserPasskeys`, `SpentPasskeyCeremonies`, `SecurityEvents`, `DataProtectionKeys`, and its own `__EFMigrationsHistory` | `AuthDbContext` |
 <!--#endif-->
 
@@ -56,8 +62,8 @@ test servers read it back under the context's own name. SQL Server also refuses 
 gives a table a second cascade path from one principal: `RedundantCascadePathsConvention` drops the
 direct cascade the same rows already follow through a longer path, so nothing outlives its principal.
 <!--#endif-->
-
 <!--#if (tablePrefixes)-->
+
 This database has no schemas. `SchemaAsTablePrefixConvention` turns each table's schema into a prefix
 of its name, `<schema>_<Table>` (`platform_IdempotencyKeys`), when the model is finalised, so the
 mappings and the table above stay as written. The business context's history table is
@@ -67,8 +73,8 @@ mappings and the table above stay as written. The business context's history tab
 The identity context's history table is `identity___EFMigrationsHistory`, because two contexts cannot
 share one name once no schema tells them apart.
 <!--#endif-->
-
 <!--#if (localAuth)-->
+
 The identity tables have a context of their own, `AuthDbContext`, with its own migrations history.
 The authentication half migrates without the business half's permission and is removed by deleting a
 project. Two contexts are two units of work, so no transaction spans an identity write and a business
@@ -93,8 +99,8 @@ it against replicas.
 SQLite keeps no server-side connection limit, so `Database:MaxPoolSize` has no effect;
 [the configuration reference](../reference/configuration.md) lists the setting.
 <!--#endif-->
-
 <!--#if (aggregates)-->
+
 ## Rows are not aggregates
 
 A rich feature's aggregate is mapped onto `…Record` rows by a mapper, and a tracker remembers which
@@ -105,14 +111,14 @@ The mapper is total in one direction, so everything stored becomes domain state.
 it writes the domain's columns and leaves the version and the audit stamps alone, so EF's own diff
 decides what to write. A mapper that forgets a property loses data without failing anything, so a
 round-trip test that walks the aggregate's type is the barrier.
-
 <!--#endif-->
 <!--#if (tagging)-->
+
 Child rows are entities with composite keys, not owned collections: a tag is keyed by its owner and
 its value, so a duplicate is impossible in the database, and reconciliation is a set difference.
 <!--#endif-->
-
 <!--#if (notes)-->
+
 ## Stores
 
 A simple feature has no mapper, no tracker and no aggregate. Its store loads the owner's row tracked,
@@ -176,7 +182,8 @@ failure.
 
 `DELETE` removes rows; there is no deleted flag. A flag makes every query carry a predicate that one
 forgotten filter turns into a data leak, and retention is a question for an audit trail.
-`NoPersistenceRecord_CarriesADeletedFlag` holds it.
+`NoPersistenceRecord_CarriesADeletedFlag` holds it, and
+[ADR 0038](../decisions/0038-deleting-removes-rows.md) says why.
 
 ## Concurrency
 
@@ -202,8 +209,8 @@ taken) catches the violation first and answers its own code; the central transla
 When the caller sends `If-Match`, the use case compares it with the version it just loaded, and
 answers `412` when they differ. [HTTP API](http-api.md#etag-and-if-match)
 states the client's side.
-
 <!--#if (accounts)-->
+
 Ownership is part of the read: a query names the owner in its predicate, so another user's row never
 leaves the database and is answered exactly as a missing one. A command loads an owned aggregate by
 its owner and its id together, through its repository's `GetAsync(ownerId, id, cancellationToken)`,
@@ -240,3 +247,4 @@ connection's `Default Timeout`, and a save that still finds the file busy is ret
 <!--#if (accounts)-->
 - [0009. Ownership is in the query](../decisions/0009-ownership-is-in-the-query.md)
 <!--#endif-->
+- [0038. Deleting removes rows](../decisions/0038-deleting-removes-rows.md)

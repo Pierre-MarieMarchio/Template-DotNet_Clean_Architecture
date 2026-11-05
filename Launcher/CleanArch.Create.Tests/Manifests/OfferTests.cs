@@ -12,14 +12,12 @@ public sealed class OfferTests
     private readonly TemplateManifest _webApp = Repository.Source.Manifest(TemplateKind.WebApp);
 
     [Fact]
-    public void MySql_IsNeverOffered_ThoughTheTemplateKeepsItAsAChoice()
+    public void TheDatabase_OffersEachValueTheTemplateGenerates_AndRefusesNone()
     {
-        _project.Options.Single(option => option.Symbol == "database").Choices.ShouldContain(choice => choice.Value == "mysql");
-
         Offer offer = Offer.For(_project, Option(_project, "database"), new Dictionary<string, string>(), Launcher.ProjectAskedWhen);
 
         offer.Values.ShouldBe(["postgresql", "sqlserver", "sqlite"]);
-        offer.Reasons.Select(refusal => refusal.Symbol).ShouldBe(["mySqlNotYetGenerated"]);
+        offer.Reasons.ShouldBeEmpty();
     }
 
     [Theory]

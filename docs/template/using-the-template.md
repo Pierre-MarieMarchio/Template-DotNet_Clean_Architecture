@@ -1,4 +1,10 @@
-﻿# Using the template
+---
+type: guide
+title: Using the template
+description: How to generate a project from the template, with the launcher, dotnet new or an IDE, and what each option does.
+---
+
+# Using the template
 
 ## With the launcher
 
@@ -67,7 +73,9 @@ dnx CleanArch.Create -- presentation
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
 given, or the only value the template leaves it: `--auth none --yes` generates with
-`--examples none --files false`. Without a terminal, every answer is a flag or `--yes` is passed.
+`--examples none --files false`. Such a project has no feature, so its use-case test project,
+`Tests/Application/<Initials>.Application.UnitTests`, holds no test and reports "Zero tests ran"
+when run alone, which is expected. Without a terminal, every answer is a flag or `--yes` is passed.
 `dnx` takes `--yes`, `--help` and `--version` for itself, so every argument of the launcher follows
 `--`, `--help` of a command included (`-- web-app --help` lists the options of a web app, not of a project):
 
@@ -80,7 +88,7 @@ dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the
 published package, and `--hive <folder>` keeps the template engine's settings apart, as
 `--debug:custom-hive` does. Everything below is `dotnet new` itself, which the launcher runs.
-[Template decision 0004](decisions/0004-the-launcher-reads-the-templates-manifests.md) records why
+[Template decision 0026](decisions/0026-the-launcher-and-the-project-tool-read-the-templates-manifests.md) records why
 the launcher reads the manifests rather than copying them.
 
 ## Install and uninstall
@@ -103,14 +111,6 @@ release `v<version>` on the repository's Releases page, then, in the folder hold
 ```bash
 dotnet new install ./CleanArch.WebApi.Templates.<version>.nupkg
 dotnet new uninstall CleanArch.WebApi.Templates
-```
-
-From nuget.org, once a version is published there, which also lets `dotnet new update` find the
-next one:
-
-```bash
-dotnet new install CleanArch.WebApi.Templates
-dotnet new update
 ```
 
 A package packed locally, as [the package](maintaining-the-template.md#the-package) shows, installs
@@ -160,6 +160,11 @@ regenerated.
 A segment that is a C# or Visual Basic keyword (`Default`, `Shared`) does not build: CA1716 is an
 error under warnings as errors. Pick a name with no such segment.
 
+An underscore does not build either: the name reaches every namespace, and CA1707 refuses an
+identifier that holds one. Each dot-separated segment is a letter from A to Z followed by letters
+and digits. The launcher refuses any other name; `dotnet new` lets an underscore through, since its
+conditions cannot search a name, and the build then stops on CA1707.
+
 ## Options
 
 | Option | Values | Default | Gives |
@@ -170,7 +175,7 @@ error under warnings as errors. Pick a name with no such segment.
 | `--web-audience` | `public`, `admin` | `public` | who the first app is for; `admin` builds a back office |
 | `--web-rendering` | `spa`, `ssr` | `spa` | how the first app renders: `ssr` renders each page on its framework's own Node server, with a nonce per response and, with accounts, the session, for `angular` and `react-router` |
 | `--auth` | `local`, `external`, `none` | `local` | `local`: the Auth module, its own context and migration, accounts, two-factor, passkeys, roles. `external`: bearer tokens from an OpenID Connect provider, each subject mapped to an owner in the business context. `none`: a public API, no accounts |
-| `--database` | `postgresql`, `sqlserver`, `mysql`, `sqlite` | `postgresql` | `postgresql`: a schema per feature, the row's `xmin` as its version, advisory locks for the leases. `sqlserver`: schemas, a version counter the save stamps, application locks (`sp_getapplock`). `sqlite`, for development only: one file, a table prefix per feature (`<schema>_<Table>`), in-process leases, and an API that refuses to start outside Development. A project carries its provider only, and `mysql` is refused: this version does not generate it |
+| `--database` | `postgresql`, `sqlserver`, `sqlite` | `postgresql` | `postgresql`: a schema per feature, the row's `xmin` as its version, advisory locks for the leases. `sqlserver`: schemas, a version counter the save stamps, application locks (`sp_getapplock`). `sqlite`, for development only: one file, a table prefix per feature (`<schema>_<Table>`), in-process leases, and an API that refuses to start outside Development. A project carries its provider only, and `mysql` is not a value: this version does not generate it |
 | `--examples` | `all`, `notes`, `none` | `all` | TodoLists, Reminders and Notes; Notes alone; no example. Reminders needs TodoLists, so they come together |
 | `--files` | `true`, `false` | `true` | the Files feature, its storage module, the object store in Compose and its tables |
 | `--ci` | `true`, `false` | `true` | `ci.yml`, `codeql.yml`, `release.yml` (not with `--database sqlite`), and `web.yml` with a web app |
@@ -201,13 +206,13 @@ it, and the generated solution builds and passes its tests.
 | `--auth none` with `--files true` | `--auth-none-needs-files-false` | add `--files false` |
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
 | `--web-rendering ssr` with a `--web` other than `angular` or `react-router` | `--server-rendering-needs-a-server-starter` | choose `--web angular` or `react-router`, or `--web-rendering spa` |
-| `--database mysql` | `--my-sql-not-yet-generated` | choose `--database postgresql` |
 | `--presentation avalonia` or `wpf` with `--auth none` | `--client-presentation-needs-accounts` | choose `--auth local` or `external` |
 | `--presentation mcp` with `--auth none` | `--mcp-needs-accounts` | choose `--auth local` or `external` |
 | `--presentation avalonia` with `--presentation wpf` | `--desktop-is-one-framework` | choose one of them |
 | `--presentation worker`, or presentation projects that hold neither the API nor the worker, such as `--presentation blazor-server` alone, with `--database sqlite` | `--worker-needs-server-database` | choose `--database postgresql` or `sqlserver`, or leave the jobs to the API with `--presentation api` |
 | `--aspire true` with `--database sqlite` | `--aspire-needs-server-database` | choose `--database postgresql` or `sqlserver`, or `--aspire false` |
 | `-n` of one character, whose folder `W.Api` a solution takes for its project `w.Api`; the item templates refuse such a `--project-name` too | `--name-needs-two-characters` | choose a name of two characters or more |
+| `-n` that does not start with a letter from A to Z, as `_1`, whose folders would have no initials, as `.Api`; the item templates refuse such a `--project-name` too | `--name-needs-a-leading-letter` | choose a name that starts with a letter from A to Z |
 
 Each refusal is a hidden required parameter: `dotnet new` stops with `Missing mandatory option(s)`
 naming it, before writing any file, though `-o` leaves its empty folder to delete. The launcher

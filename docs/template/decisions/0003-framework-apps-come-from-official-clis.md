@@ -1,4 +1,11 @@
-﻿# 0003. Framework apps come from their official CLIs
+---
+type: decision
+title: 0003. Framework apps come from their official CLIs
+description: Why the template kept no framework code and each web app came from its framework's official CLI, until starters replaced it.
+status: Superseded
+---
+
+# 0003. Framework apps come from their official CLIs
 
 Status: Superseded by [0008](0008-a-web-app-comes-from-a-starter.md)
 

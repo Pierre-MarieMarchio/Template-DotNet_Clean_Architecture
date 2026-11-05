@@ -4,6 +4,11 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <!-- Not in SonarScanner's analysis build, where begin defines SonarQubeTempPath: Sonar's findings stay warnings there for its quality gate to judge. -->
+  <PropertyGroup Condition="'$(SonarQubeTempPath)' == ''">
+    <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
+  </PropertyGroup>
+
   <!--#if (sqlServer)
   <Target Name="UseIcuGlobalization" BeforeTargets="GenerateBuildRuntimeConfigurationFiles;GeneratePublishRuntimeConfigurationFiles">
     <ItemGroup>

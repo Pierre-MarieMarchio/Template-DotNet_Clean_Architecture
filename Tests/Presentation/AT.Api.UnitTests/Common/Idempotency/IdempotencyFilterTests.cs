@@ -196,6 +196,68 @@ public sealed class IdempotencyFilterTests
         await store.DidNotReceive().ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(nameof(FileContentResult))]
+    [InlineData(nameof(ContentResult))]
+    [InlineData(nameof(EmptyResult))]
+    public async Task ASuccessfulResultWithNoObjectToReplay_CompletesTheClaim_SoARetryDoesNotRunTheActionAgain(string resultKind)
+    {
+        var store = AStoreThatClaims();
+        var filter = AFilterOver(store);
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+        context.HttpContext.Response.StatusCode = StatusCodes.Status201Created;
+
+        IActionResult result = resultKind switch
+        {
+            nameof(FileContentResult) => new FileContentResult([1, 2, 3], "application/octet-stream"),
+            nameof(ContentResult) => new ContentResult { Content = "created", ContentType = "text/plain" },
+            nameof(EmptyResult) => new EmptyResult(),
+            _ => throw new ArgumentOutOfRangeException(nameof(resultKind), resultKind, null),
+        };
+
+        await filter.OnResourceExecutionAsync(context, () => Task.FromResult(
+            new ResourceExecutedContext(context, filters: []) { Result = result }));
+
+        await store.Received(1).CompleteAsync(
+            Arg.Any<IdempotencyKey>(),
+            Arg.Is<IdempotentResponse>(response => response.StatusCode == StatusCodes.Status201Created && response.Body == null),
+            Arg.Any<CancellationToken>());
+        await store.DidNotReceive().ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFailedResultWithNoObject_ReleasesTheClaim()
+    {
+        var store = AStoreThatClaims();
+        var filter = AFilterOver(store);
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+        context.HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+
+        await filter.OnResourceExecutionAsync(context, () => Task.FromResult(
+            new ResourceExecutedContext(context, filters: []) { Result = new ForbidResult() }));
+
+        await store.Received(1).ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
+        await store.DidNotReceive().CompleteAsync(Arg.Any<IdempotencyKey>(), Arg.Any<IdempotentResponse>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnExceptionTheMvcPipelineCaught_ReleasesTheClaim_ThoughTheResultReads201()
+    {
+        var store = AStoreThatClaims();
+        var filter = AFilterOver(store);
+        var context = CreateIdempotentPostContext(idempotencyKey: "some-key");
+
+        await filter.OnResourceExecutionAsync(context, () => Task.FromResult(
+            new ResourceExecutedContext(context, filters: [])
+            {
+                Result = new ObjectResult(new { Id = 1 }) { StatusCode = StatusCodes.Status201Created },
+                Exception = new InvalidOperationException("the result failed to serialize before the response started"),
+            }));
+
+        await store.Received(1).ReleaseAsync(Arg.Any<IdempotencyKey>(), Arg.Any<CancellationToken>());
+        await store.DidNotReceive().CompleteAsync(Arg.Any<IdempotencyKey>(), Arg.Any<IdempotentResponse>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task ARepeated204_IsAnsweredWithTheReplayMarker_AndTheActionDoesNotRunAgain()
     {

@@ -1,4 +1,11 @@
-﻿# 0032. The app host follows Compose
+---
+type: decision
+title: 0032. The app host follows Compose
+description: Why Compose stays the reference of the local stack and the Aspire app host follows it, service for service.
+status: Accepted
+---
+
+# 0032. The app host follows Compose
 
 Status: Accepted
 
@@ -16,9 +23,11 @@ reference and a test holds the other to it.
   the files it includes is a resource of `Src/AppHost/AT.AppHost` under the same name, and the
   reverse; each container runs the image its service pins, tag and digest alike, read from the Compose
   files when the app host starts; each setting a Compose file gives a host, the app host gives it too;
-  each web app listens on the port its `Src/Web/apps/<App>/compose.yml` publishes, which
-  `cleanarch.json` records. `LocalStackParityTests` holds the four, and lists by name each service or
-  setting the app host leaves out, with its reason.
+  each container gets the variables its service declares, and each image it builds comes from the
+  context and the `Dockerfile` its service names; each web app listens on the port its
+  `Src/Web/apps/<App>/compose.yml` publishes, which `cleanarch.json` records.
+  `LocalStackParityTests` holds the six, and lists by name each service, setting or variable in which
+  the two stacks differ, with its reason.
 - The app host starts the hosts `cleanarch.json` records, not a list of its own, so a host or a web
   app the project gains later joins the stack without an edit to it.
 - A secret comes from an Aspire parameter, generated and kept in the app host's user secrets, or set
@@ -39,8 +48,8 @@ reference and a test holds the other to it.
   would fail until someone copied the reference across.
 - **A hand-written list of hosts in the app host**: a host added later with `cleanarch-presentation`
   or a web app added with `cleanarch-webapp` would be missing from it until someone remembered.
-- **The orchestrator from NuGet packages**, Aspire's earlier default: Aspire now warns on it, and
-  silencing the warning is a silence this project does not keep.
+- **The orchestrator from NuGet packages**: Aspire warns on it, and silencing the warning is a
+  silence this project does not keep.
 
 ## Consequences
 

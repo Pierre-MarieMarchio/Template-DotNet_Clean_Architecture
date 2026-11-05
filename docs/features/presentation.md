@@ -1,4 +1,10 @@
-﻿# Presentation projects
+---
+type: feature
+title: Presentation projects
+description: How each presentation project this project holds is created and composed, and how it signs people in or is called.
+---
+
+# Presentation projects
 
 How each presentation project this project holds is created and composed, and how it signs people in or is called. Each has a section of its own after the shared ones.
 
@@ -101,8 +107,8 @@ in place already and making none when one cannot be placed, and records the proj
 `cleanarch.json`; `presentation-scaffold` creates it the same way. `--framework worker -n Worker` adds
 the worker instead, whose join moves the API's jobs into it, as
 [background jobs](background-jobs.md#several-instances) says.
-
 <!--#if (presentationBlazorServer)-->
+
 ## Portal
 
 ### Calling a use case
@@ -129,14 +135,14 @@ scope, and its user is the caller. A use case sent from anywhere else refuses to
 it, rather than guess.
 
 ### Portal sign-in
-
 <!--#if (!publicApi)-->
+
 A page needs no attribute to be protected: see [the default deny](#portal-security-headers) below. `[Authorize(Policy = AuthorizationPolicies.Administrator)]`
 narrows a page to the administrators, and the router shows it only to them once the routes component
 uses `AuthorizeRouteView` in place of `RouteView`.
 <!--#endif-->
-
 <!--#if (localAuth)-->
+
 The sign-in is the application's own use cases, kept in a cookie. `Components/Pages/SignIn.razor`, at
 `/account/sign-in`, is the page: rendered statically, anonymous with `[AllowAnonymous]`, it posts a
 form, sends `LoginCommand`, then `VerifyTwoFactorCommand` with the challenge when two-factor is on, and
@@ -157,6 +163,7 @@ not, after a password change, a sign-out everywhere or an administrator's lock. 
 Passkeys need script in the page and are left to it.
 <!--#endif-->
 <!--#if (externalAuth)-->
+
 The sign-in is your provider's, with the OpenID Connect code flow: `/account/sign-in` sends the
 browser there and back, and the subject the provider returns is mapped to this project's owner as
 every host maps it ([ADR 0017](../decisions/0017-external-subjects-map-to-internal-owners.md)). Roles
@@ -165,6 +172,7 @@ them in the ID token, which is the token this host reads. A form posting to `/ac
 with its antiforgery token, ends the cookie session; the provider's own session stays.
 <!--#endif-->
 <!--#if (publicApi)-->
+
 Nobody signs in: this project authenticates nobody, and `ICurrentUser` names no caller.
 <!--#endif-->
 
@@ -277,6 +285,7 @@ challenges a caller who is not signed in.
 `NoHost_ReferencesAnotherHost` keeps the portal from reaching the jobs and migrations of another host.
 <!--#endif-->
 <!--#if (presentationAvalonia || presentationWpf)-->
+
 ## Desktop app
 
 ### Calling the API
@@ -379,6 +388,7 @@ They run on Windows; the windows and their code-behind are not tested.
 <!--#endif-->
 <!--#endif-->
 <!--#if (presentationMcp)-->
+
 ## MCP server
 
 ### The tools
@@ -386,21 +396,21 @@ They run on Windows; the windows and their code-behind are not tested.
 <!--#if (anyFeature)-->
 | Tool | Use case | Reads only |
 |---|---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `list_todo_lists` | the caller's to-do lists, a page at a time | yes |
 | `get_todo_list` | one list with its items | yes |
 | `create_todo_list` | a new, empty list | no |
 | `add_todo_item` | an item added to a list | no |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `list_reminders` | the reminders of one item | yes |
 | `schedule_reminder` | a reminder on one item | no |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `list_files` | the caller's stored files, a page at a time, never their content | yes |
 | `get_file` | one file's details | yes |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `list_notes` | the caller's notes, a page at a time | yes |
 | `get_note` | one note with its body | yes |
 | `create_note` | a new note | no |

@@ -34,32 +34,32 @@ each of their values trades safety for a start that needs nothing. A deployment 
 
 | The local stack | A deployment |
 |---|---|
-<!--#if (api)-->
+| <!--#if (api)--> |
 | `ASPNETCORE_ENVIRONMENT=Development`, under which the API applies its migrations at start and serves its OpenAPI document and reference to anyone | `Production`, the default when the variable is unset |
-<!--#endif-->
-<!--#if (!api)-->
+| <!--#endif--> |
+| <!--#if (!api)--> |
 | `ASPNETCORE_ENVIRONMENT=Development`, under which the hosts relax what they refuse elsewhere | `Production`, the default when the variable is unset |
-<!--#endif-->
-<!--#if (serverDatabase)-->
+| <!--#endif--> |
+| <!--#if (serverDatabase)--> |
 | a database in a container, its password in `.env.example` for anyone to read, one principal for everything | a database you operate or rent, its password from a secret store, and a migration principal apart from the runtime one, as [migrations at release](#migrations-at-release) says |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | SQLite, in a file the containers share | a server database, as [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) says |
-<!--#endif-->
+| <!--#endif--> |
 | Mailpit, which catches every mail, reached without TLS (`EMAIL_SECURITY=None`, `EMAIL_ALLOW_INSECURE_TRANSPORT=true`) | a relay over `StartTls` or `SslOnConnect`, with `Email:AllowInsecureTransport` false |
 | plain HTTP on ports bound to `127.0.0.1` | TLS at the proxy in front, as [behind a proxy](#behind-a-proxy) says |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | `Cors:AllowedOrigins` on `http://localhost:4200`, `AllowedHosts` at `*` | your own origins and host names |
-<!--#endif-->
-<!--#if (!api)-->
+| <!--#endif--> |
+| <!--#if (!api)--> |
 | `AllowedHosts` at `*` | your own host names |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | the public development signing key, which the hosts refuse outside Development | a key of your own from the secret store; [rotating the signing key](rotating-the-signing-key.md) replaces it later |
 | passwords of 8 characters with no class required, a lockout of 1 minute after 10 failures, access tokens of 60 minutes, `JWT_REQUIRE_HTTPS_METADATA=false` | the defaults of [the configuration reference](../reference/configuration.md#identity-and-tokens), which `.env.example` overrides |
 | mailed links that open `http://localhost:8080` | the pages of your own front end |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | an object store with a fixed access key, reached without TLS (`STORAGE_ALLOW_INSECURE_TRANSPORT=true`) | a bucket reached over TLS, with an instance role and no key in the configuration |
 <!--#endif-->
 
@@ -251,20 +251,20 @@ nothing trusted, which ASP.NET Core would read as trusting everyone.
 | Concern | What to do |
 |---|---|
 | Background jobs | `Jobs:Enabled` is `true` on one instance and `false` on the others; a pass that must not run twice also takes a lease |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | Rate limiting | each instance counts its own window, so the effective limit is the limit times the instances |
-<!--#endif-->
+| <!--#endif--> |
 | Cache | `HybridCache` is in process; a shared level is an `IDistributedCache` registration |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | Connection pool | keep instances × `Database:MaxPoolSize` under the server's `max_connections` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | Connection pool | keep instances × `Database:MaxPoolSize` under the server's connection limit |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | Instances | run one: the leases are in process and the file has one writer |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | Mailed tokens | the Data Protection key ring is persisted with the identity tables, so every instance reads the same keys |
 <!--#endif-->
 

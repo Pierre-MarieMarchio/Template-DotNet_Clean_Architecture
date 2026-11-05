@@ -117,6 +117,10 @@ knowing what it costs.
 - [The project's decisions](docs/decisions/README.md), which every generated project receives: the
   feature shapes, ownership in the query, events after commit, a schema per feature, the
   generated API client and the rest.
+- Why [Mediator](docs/decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md) and not
+  MediatR, which has a commercial licence from version 13, and why
+  [no AutoMapper](docs/decisions/0036-mappings-are-written-by-hand.md): a mapping resolved at run time
+  is one a reader cannot follow, so mappings are written by hand.
 - [The template's decisions](docs/template/README.md#its-decisions): why options remove parts and
   refuse combinations, where web apps and .NET projects come from, and what a project keeps from the
   template.

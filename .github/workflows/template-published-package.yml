@@ -64,10 +64,10 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: dotnet run Tools/Tasks.cs bootstrap
 
-      # The project's Directory.Build.props sets NuGetAudit to low over every dependency and TreatWarningsAsErrors, so an advisory on a pinned package fails this step as it fails a user's.
+      # The project's Directory.Build.props sets NuGetAudit to low over every dependency and TreatWarningsAsErrors, so an advisory on a pinned package fails this step as it fails a user's. It names no solution file, since the published version writes an .sln or an .slnx.
       - name: Build with warnings as errors
         working-directory: ${{ runner.temp }}/generated
-        run: dotnet build Sample.Published.Project.sln --configuration Release
+        run: dotnet build --configuration Release
 
       # A red run is announced by GitHub alone, to whoever last changed the cron line: docs/template/maintaining-the-template.md says what to do.
       - name: Say what a red run means

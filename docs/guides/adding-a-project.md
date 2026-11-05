@@ -27,7 +27,7 @@ says. A new folder in an existing project is not a new project.
    module references the application projects whose ports it implements and
    `AppTemplate.Infrastructure.Core`, never another module; `ModuleDependencyTests` holds it. It
    grants its internals to its unit tests with an `InternalsVisibleTo` item.
-3. Add it to the solution, in the solution folder of its layer: `dotnet sln AppTemplate.sln add --solution-folder Src/Infrastructure <path to the project file>`, and `--solution-folder Tests/Infrastructure` for its unit tests.
+3. Add it to the solution, in the solution folder of its layer: `dotnet sln AppTemplate.slnx add --solution-folder Src/Infrastructure <path to the project file>`, and `--solution-folder Tests/Infrastructure` for its unit tests.
 4. Give it its registration class at its root, `<Capability>Module` with an
    `Add<Capability>Module` extension method, the only source file a project root holds. Its adapters
    are internal, so a host composes them through that method alone; `AdapterVisibilityTests` holds it.

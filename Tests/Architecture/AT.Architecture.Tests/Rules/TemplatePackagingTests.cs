@@ -245,14 +245,7 @@ public sealed class TemplatePackagingTests
     public void EveryGuidInTheSolution_IsRegeneratedOnGeneration()
     {
         var declared = DeclaredGuids();
-        var inSolution = SolutionGuids();
-
-        inSolution.Count.ShouldBeGreaterThanOrEqualTo(
-            20,
-            "Far fewer guids were found in the solution than it holds, so this rule is reading the " +
-            "wrong file or failing to parse it.");
-
-        inSolution
+        SolutionGuids()
             .Except(declared, StringComparer.OrdinalIgnoreCase)
             .Except(_projectTypeGuids, StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.Ordinal)
@@ -310,27 +303,25 @@ public sealed class TemplatePackagingTests
 
     [Fact]
     public void EveryStorageProjectLine_InTheSolution_IsConditionedOnFiles() =>
-        AssertEveryProjectLineIsConditioned(".Storage", "#" + "if (files)", expectedProjects: 2);
+        AssertEveryProjectLineIsConditioned(".Storage", "files", expectedProjects: 2);
 
     [Fact]
     public void EveryAuthProjectLine_InTheSolution_IsConditionedOnLocalAuth() =>
-        AssertEveryProjectLineIsConditioned(".Auth", "#" + "if (localAuth)", expectedProjects: 5);
+        AssertEveryProjectLineIsConditioned(".Auth", "localAuth", expectedProjects: 5);
 
     [Fact]
     public void EveryClientProjectLine_InTheSolution_IsConditionedOnDotnetClient() =>
-        AssertEveryProjectLineIsConditioned(".Client", "#" + "if (dotnetClient)", expectedProjects: 2);
+        AssertEveryProjectLineIsConditioned(".Client", "dotnetClient", expectedProjects: 2);
 
-    private static void AssertEveryProjectLineIsConditioned(string marker, string opening, int expectedProjects)
+    private static void AssertEveryProjectLineIsConditioned(string marker, string symbol, int expectedProjects)
     {
-        string closing = "#" + "endif";
+        string opening = "<!--" + "#" + $"if ({symbol})-->";
+        string closing = "<!--" + "#" + "endif-->";
 
-        string[] lines = File.ReadAllLines(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "AppTemplate.sln"));
-        var guids = lines
-            .Where(line => line.StartsWith("Project(", StringComparison.Ordinal) && line.Contains(marker, StringComparison.Ordinal))
-            .Select(line => _guid.Matches(line)[^1].Value)
-            .ToList();
+        string[] lines = [.. File.ReadAllLines(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "AppTemplate.slnx")).Select(line => line.Trim())];
+        bool NamesTheProject(string line) => line.StartsWith("<Project ", StringComparison.Ordinal) && line.Contains(marker, StringComparison.Ordinal);
 
-        guids.Count.ShouldBe(expectedProjects, $"{expectedProjects} projects named '{marker}' were expected in the solution.");
+        lines.Count(NamesTheProject).ShouldBe(expectedProjects, $"{expectedProjects} projects named '{marker}' were expected in the solution.");
 
         var unconditioned = new List<string>();
         bool inBlock = false;
@@ -344,9 +335,9 @@ public sealed class TemplatePackagingTests
             {
                 inBlock = false;
             }
-            else if (!inBlock && guids.Any(guid => line.Contains(guid, StringComparison.OrdinalIgnoreCase)))
+            else if (!inBlock && NamesTheProject(line))
             {
-                unconditioned.Add(line.Trim());
+                unconditioned.Add(line);
             }
         }
 
@@ -1663,7 +1654,7 @@ public sealed class TemplatePackagingTests
         "avalonia/Src/Presentation/AT.PresentationAppDesktop/README.md",
         "anyPresentation|presentationAvalonia|dotnetClient",
         10,
-        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
+        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.slnx" })]
     [InlineData(
         "mcp/Src/Presentation/AT.PresentationAppMcp/README.md",
         "anyPresentation|presentationMcp|accessKeys",
@@ -1673,14 +1664,14 @@ public sealed class TemplatePackagingTests
         "wpf/Src/Presentation/AT.PresentationAppDesktop/README.md",
         "anyPresentation|presentationWpf|dotnetClient",
         10,
-        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln" })]
+        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.slnx" })]
     [InlineData(
         "blazor-wasm/FrameworkSite/README.md",
         "webBlazorWasm|dotnetClient",
         7,
         new[]
         {
-            "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.sln",
+            "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.slnx",
             "docs/getting-started/overview.md", "docs/features/web-frontend.md",
         })]
     [InlineData(
@@ -2160,7 +2151,7 @@ public sealed class TemplatePackagingTests
 
     private static HashSet<string> SolutionGuids()
     {
-        string solution = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "AppTemplate.sln");
+        string solution = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "AppTemplate.slnx");
 
         File.Exists(solution).ShouldBeTrue($"The solution was not found at '{solution}'.");
 

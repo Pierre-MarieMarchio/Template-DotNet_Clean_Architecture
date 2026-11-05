@@ -356,7 +356,7 @@ jobs:
           set -euo pipefail
           dotnet tool install CleanArch.Cli --local --version "$(jq -r .template.version cleanarch.json)" --add-source "${{ runner.temp }}/tools"
           dotnet tool restore
-          dotnet format Sample.Generated.Project.sln --diagnostics IDE0055 IDE0005
+          dotnet format Sample.Generated.Project.slnx --diagnostics IDE0055 IDE0005
           removed=$(LC_ALL=C comm -23 "${{ runner.temp }}/usings-generated.txt" <(find . \( -name .git -o -name bin -o -name obj -o -name node_modules \) -prune -o -name '*.cs' -print0 \
             | xargs -0 -r awk 'FNR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") } /^(global )?using [A-Za-z_][^(;]*;$/ { print FILENAME ": " $0 }' \
             | LC_ALL=C sort))
@@ -408,8 +408,8 @@ jobs:
       - name: Restore and build the generated project
         working-directory: ${{ runner.temp }}/generated
         run: |
-          dotnet restore Sample.Generated.Project.sln
-          dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
+          dotnet restore Sample.Generated.Project.slnx
+          dotnet build Sample.Generated.Project.slnx --configuration Release --no-restore
 
       # The reviewed OpenAPI reference the integration suite compares against, written as bootstrap writes it; the generator round trip starts from that tree, since new-feature rewrites the reference.
       - name: Write the OpenAPI reference (integration and generator legs)
@@ -429,7 +429,7 @@ jobs:
             dotnet run Tools/Tasks.cs openapi
           fi
           dotnet run Tools/Tasks.cs api-client
-          dotnet build Sample.Generated.Project.sln --configuration Release --no-restore
+          dotnet build Sample.Generated.Project.slnx --configuration Release --no-restore
 
       # A newer version that changes nothing but its number is a version in cleanarch.json and in docs/getting-started/overview.md, so the report on a project as bootstrap leaves it names those and no other file; IDE0055 may rewrite more than the usings, which only a project that went through bootstrap shows. The report writes nothing in the project, and the newer package is this checkout packed again under the next patch version.
       - name: Assert upgrade-report names only the version after bootstrap (defaults leg)
@@ -631,7 +631,7 @@ jobs:
           }
           prove() {
             local feature home persistence
-            dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once new-feature has composed $*."
+            dotnet build ./*.slnx --configuration Release --no-restore -warnaserror || fail "the solution does not compile once new-feature has composed $*."
             dotnet test --project "${architecture[0]}" --configuration Release --no-build --output Detailed || fail "the architecture tests fail once new-feature has composed $*."
             for feature in "$@"; do
               mapfile -t homes < <(for home in "${docker_free[@]}"; do [ -n "$(find "$(dirname "$home")" -type d -path "*/Features/$feature" -not -path '*/bin/*' -not -path '*/obj/*')" ] && echo "$home"; done)
@@ -706,7 +706,7 @@ jobs:
           dotnet run Tools/Tasks.cs hygiene
           commit "the four features"
           remove "${written[@]}"
-          dotnet build ./*.sln --configuration Release --no-restore -warnaserror || fail "the solution does not compile once remove-feature has removed ${written[*]}."
+          dotnet build ./*.slnx --configuration Release --no-restore -warnaserror || fail "the solution does not compile once remove-feature has removed ${written[*]}."
           dotnet ef migrations has-pending-model-changes --project "$persistence" --startup-project "$persistence" --configuration Release --no-build || fail "the Remove migrations do not hold the model remove-feature left."
           echo "::endgroup::"
 

@@ -253,7 +253,7 @@ public sealed class LauncherTests : IDisposable
     [InlineData("web-app", "Wx", null)]
     public void AnItemCommand_InAProjectWhoseNameTheItemTemplateRefuses_IsRefusedBeforeAnythingRuns(string command, string project, string? rule)
     {
-        File.WriteAllText(Path.Combine(_root, project + ".sln"), string.Empty);
+        File.WriteAllText(Path.Combine(_root, project + ".slnx"), string.Empty);
         Directory.CreateDirectory(Path.Combine(_root, "Tools"));
         File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
         var console = new TestConsole();

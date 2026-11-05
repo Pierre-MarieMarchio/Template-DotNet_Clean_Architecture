@@ -23,7 +23,7 @@ env:
   # Inside the workspace, so actions/cache sees it.
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   CONFIGURATION: Release
-  SOLUTION: AppTemplate.sln
+  SOLUTION: AppTemplate.slnx
 
 jobs:
   build-test:

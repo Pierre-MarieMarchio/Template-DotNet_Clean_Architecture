@@ -615,7 +615,7 @@ internal static class Tasks
         }
 
         string repoRoot = projectFile.Root;
-        string solution = Path.Combine(repoRoot, projectFile.Name + ".sln");
+        string solution = Path.Combine(repoRoot, projectFile.Name + ".slnx");
         string persistence = projectFile.ProjectFolder("Src", "Infrastructure", "Infrastructure.Persistence");
         string auth = projectFile.ProjectFolder("Src", "Infrastructure", "Infrastructure.Auth");
         string[] contexts = projectFile.LocalAuth ? [auth, persistence] : [persistence];
@@ -1942,9 +1942,9 @@ internal static class Tasks
               echo "My Account > Security, and set SONAR_TOKEN in .env." >&2
               exit 1
             fi
-            trap 'chown -R "$(stat -c %u:%g /repo/AppTemplate.sln)" /repo/artifacts /repo/.sonarqube 2>/dev/null || true' EXIT
+            trap 'chown -R "$(stat -c %u:%g /repo/AppTemplate.slnx)" /repo/artifacts /repo/.sonarqube 2>/dev/null || true' EXIT
             dotnet tool restore
-            dotnet restore AppTemplate.sln --artifacts-path artifacts/sonar
+            dotnet restore AppTemplate.slnx --artifacts-path artifacts/sonar
             dotnet sonarscanner begin \
               /k:"$SONAR_PROJECT_KEY" \
               /d:sonar.token="$SONAR_TOKEN" \
@@ -1953,7 +1953,7 @@ internal static class Tasks
               /d:sonar.cpd.exclusions="**/*.html" \
               /d:sonar.scanner.scanAll=false \
               /d:sonar.scm.disabled=true
-            dotnet build AppTemplate.sln --artifacts-path artifacts/sonar --no-restore
+            dotnet build AppTemplate.slnx --artifacts-path artifacts/sonar --no-restore
             {string.Join(Environment.NewLine, tests)}
             dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
             """;
@@ -3646,7 +3646,7 @@ internal static class Tasks
         string root = Path.Combine(Path.GetTempPath(), "repo");
         string[][] added = SolutionAddArguments(
             root,
-            "X.sln",
+            "X.slnx",
             [
                 Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj"),
                 Path.Combine(root, "Tests", "Presentation", "X.Desktop.UnitTests", "App.Desktop.UnitTests.csproj"),
@@ -3656,7 +3656,7 @@ internal static class Tasks
         return
         [
             ("a scaffolded project joins the solution folder of its layer, one call per folder", added.Length == 3
-                && added[0].SequenceEqual(["sln", "X.sln", "add", "--solution-folder", "Src/Presentation", Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj")])
+                && added[0].SequenceEqual(["sln", "X.slnx", "add", "--solution-folder", "Src/Presentation", Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj")])
                 && added[1][4] == "Tests/Presentation"
                 && added[2][4] == "Src/Clients"),
         ];

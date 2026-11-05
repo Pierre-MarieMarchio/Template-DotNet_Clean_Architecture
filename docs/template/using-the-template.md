@@ -153,7 +153,7 @@ tasks that join and create what it wrote.
 ## What the name substitutes into
 
 `AppTemplate` is the source name. `-n Acme.Shop` turns it into every project, namespace, solution and
-file name (the projects become Acme.Shop.Api and the like, the solution Acme.Shop.sln), and its lower-case, hyphenated form `acme-shop` into the
+file name (the projects become Acme.Shop.Api and the like, the solution Acme.Shop.slnx), and its lower-case, hyphenated form `acme-shop` into the
 Compose project, the image names and the web workspace's package scope. Every project GUID is
 regenerated.
 

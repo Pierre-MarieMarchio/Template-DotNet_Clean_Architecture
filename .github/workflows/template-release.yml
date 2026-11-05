@@ -96,7 +96,7 @@ jobs:
           generated="${{ runner.temp }}/generated"
           dotnet new install "${{ runner.temp }}"/package/CleanArch.WebApi.Templates.*.nupkg --debug:custom-hive "$hive"
           dotnet new cleanarch-webapi -n Sample.Released.Project -o "$generated" --debug:custom-hive "$hive"
-          dotnet build "$generated/Sample.Released.Project.sln" --configuration Release
+          dotnet build "$generated/Sample.Released.Project.slnx" --configuration Release
 
       # What dnx CleanArch.Create runs: the launcher from its package, installing the template package beside it.
       - name: Generate a project with the launcher
@@ -106,7 +106,7 @@ jobs:
           "${{ runner.temp }}/tools/cleanarch-create" new -n Sample.Launched.Project -o "${{ runner.temp }}/launched" --yes \
             --template-source "$(ls "${{ runner.temp }}"/package/CleanArch.WebApi.Templates.*.nupkg)" \
             --hive "${{ runner.temp }}/launcher-hive"
-          test -f "${{ runner.temp }}/launched/Sample.Launched.Project.sln"
+          test -f "${{ runner.temp }}/launched/Sample.Launched.Project.slnx"
 
       - name: Attest the packages' provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2

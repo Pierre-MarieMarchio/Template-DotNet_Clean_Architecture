@@ -748,7 +748,7 @@ public sealed partial class GuidedFlowTests : IDisposable
 
     private void AGeneratedProject()
     {
-        File.WriteAllText(Path.Combine(_root, "Acme.Shop.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(_root, "Acme.Shop.slnx"), string.Empty);
         Directory.CreateDirectory(Path.Combine(_root, "Tools"));
         File.WriteAllText(Path.Combine(_root, "Tools", "Tasks.cs"), string.Empty);
         Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Api"));

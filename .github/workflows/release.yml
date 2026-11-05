@@ -19,7 +19,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_NOLOGO: 1
   CONFIGURATION: Release
-  SOLUTION: AppTemplate.sln
+  SOLUTION: AppTemplate.slnx
   # GITHUB_TOKEN pushes here; for another registry change the login step, never widen permissions.
   REGISTRY: ghcr.io
 

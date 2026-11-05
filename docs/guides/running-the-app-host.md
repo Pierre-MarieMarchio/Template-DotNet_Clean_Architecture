@@ -55,6 +55,7 @@ The secrets are Aspire parameters, never values in the code:
 <!--#if (externalAuth)-->
 | `external-auth-authority`, `external-auth-audience` | your OpenID Connect provider and this API's identifier there | asked for by the dashboard |
 | `external-auth-interactive-client-id`, `external-auth-interactive-client-secret` | the client a portal or a server-rendered web app signs people in with | empty until you set them |
+| `external-auth-browser-client-id` | the public client a Blazor WebAssembly app signs people in with, served to it as `SIGN_IN_CLIENT_ID` beside the provider as `SIGN_IN_AUTHORITY` | empty until you set it |
 <!--#endif-->
 
 A generated value is kept in the app host's user secrets, so it survives a restart.

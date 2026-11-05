@@ -9,7 +9,8 @@ description: Which type of test holds which risk, where a new test goes, and how
 Each risk this project carries is held by one type of test, the cheapest that can fail for its real
 cause. A second type is added only when it can fail for a cause the first cannot see
 ([ADR 0020](../decisions/0020-one-risk-one-type-of-test.md)). The stack is xUnit v3 on
-Microsoft.Testing.Platform, Shouldly, NSubstitute, NetArchTest for the architecture rules and
+Microsoft.Testing.Platform, Shouldly, NSubstitute, NetArchTest for the architecture rules, Roslyn's
+syntax API for the rules that read C# source, so a comment or a string never counts as code, and
 <!--#if (postgreSql)-->
 Testcontainers for PostgreSQL.
 <!--#endif-->

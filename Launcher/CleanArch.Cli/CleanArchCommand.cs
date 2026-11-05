@@ -15,6 +15,9 @@ public static class CleanArchCommand
     private static readonly IReadOnlyList<CommandRegistration> _registrations =
     [
         HelpCommand.Registration,
+        BuildCommand.Registration,
+        TestCommand.Registration,
+        CoverageCommand.Registration,
     ];
 
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>

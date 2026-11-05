@@ -13,19 +13,19 @@ project holds exactly one context, so naming the project names the context.
 
 | Context | Project | History table |
 |---|---|---|
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `AppDbContext`, the business schemas and `platform` | `Src/Infrastructure/AT.Infrastructure.Persistence` | `public.__EFMigrationsHistory` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `AppDbContext`, the business schemas and `platform` | `Src/Infrastructure/AT.Infrastructure.Persistence` | `dbo.__EFMigrationsHistory` |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | `AppDbContext`, the business tables and `platform` | `Src/Infrastructure/AT.Infrastructure.Persistence` | `__EFMigrationsHistory` |
-<!--#endif-->
-<!--#if (localAuth && serverDatabase)-->
+| <!--#endif--> |
+| <!--#if (localAuth && serverDatabase)--> |
 | `AuthDbContext`, the `identity` schema | `Src/Infrastructure/AT.Infrastructure.Auth` | `identity.__EFMigrationsHistory` |
-<!--#endif-->
-<!--#if (localAuth && sqlite)-->
+| <!--#endif--> |
+| <!--#if (localAuth && sqlite)--> |
 | `AuthDbContext`, the `identity` tables | `Src/Infrastructure/AT.Infrastructure.Auth` | `identity___EFMigrationsHistory` |
 <!--#endif-->
 

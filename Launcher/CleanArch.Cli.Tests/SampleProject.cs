@@ -33,6 +33,29 @@ internal sealed class SampleProject : IDisposable
         }
         """;
 
+    public const string Api = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local", "sonar": true },
+          "presentation": [ { "name": "Api", "framework": "api" } ]
+        }
+        """;
+
+    public const string ApiWithWeb = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local", "sonar": true },
+          "presentation": [ { "name": "Api", "framework": "api" } ],
+          "web": {
+            "scope": "acme-shop",
+            "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
+            "packages": [ { "name": "ui" } ]
+          }
+        }
+        """;
+
     public static string WithOptions(string auth, bool sonar) => $$"""
         {
           "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },

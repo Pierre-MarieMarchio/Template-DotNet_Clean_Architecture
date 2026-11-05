@@ -19,19 +19,19 @@ starts something Compose does not, or when a web app listens on another port tha
 
 | Resource | Started as | Compose service |
 |---|---|---|
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | `db` | a container, the PostgreSQL image `docker-compose.database.yml` pins, on port 5432 | `db` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | `db` | a container, the SQL Server image `docker-compose.database.yml` pins, on port 1433 | `db` |
-<!--#endif-->
+| <!--#endif--> |
 | `mailpit` | a container, the mail catcher, its web UI on port 8025 and SMTP on 1025 | `mailpit` |
-<!--#if (files)-->
+| <!--#if (files)--> |
 | `objectstore` | a container, SeaweedFS with its bucket, on port 9000 | `objectstore` |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | `api` | a process, on port 8080, once the containers are healthy | `api` |
-<!--#endif-->
+| <!--#endif--> |
 | `worker` | a process, once the API is healthy, or the containers without the API | `worker` |
 | `presentation-<name>` | a process for each portal and MCP server, on a port the dashboard shows | `presentation-<name>` |
 | `web-<name>` | a container built from the app's `Dockerfile`, relaying to the API, on the port `cleanarch.json` records for the app | `web-<name>` |
@@ -50,15 +50,15 @@ The secrets are Aspire parameters, never values in the code:
 | Parameter | Holds | Its value |
 |---|---|---|
 | `db-password` | the database password | generated on the first run |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `jwt-key` | the key that signs the access tokens | generated on the first run |
 | `seed-enabled`, `seed-admin-password` | the development administrator, off by default | `false`, and a generated password |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `storage-secret-access-key` | the object store's secret key | generated on the first run |
-<!--#endif-->
+| <!--#endif--> |
 | `email-password` | the SMTP password, which Mailpit does not ask for | empty |
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | `external-auth-authority`, `external-auth-audience` | your OpenID Connect provider and this API's identifier there | asked for by the dashboard |
 | `external-auth-interactive-client-id`, `external-auth-interactive-client-secret` | the client a portal or a server-rendered web app signs people in with | empty until you set them |
 | `external-auth-browser-client-id` | the public client a Blazor WebAssembly app signs people in with, served to it as `SIGN_IN_CLIENT_ID` beside the provider as `SIGN_IN_AUTHORITY` | empty until you set it |

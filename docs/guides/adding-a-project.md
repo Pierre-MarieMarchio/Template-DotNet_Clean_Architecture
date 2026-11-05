@@ -39,8 +39,8 @@ says. A new folder in an existing project is not a new project.
 7. Write its unit test project, `Tests/<Layer>/<Initials>.<Layer>.<Capability>.UnitTests/`, from a
    sibling's, and add it to the solution; `TestProjectMirrorTests` names a project without one.
 8. Reference the project from `Tests/Architecture/AT.Architecture.Tests`, as it references every
-   module: the rules load each project of a layer by name, and refuse to run over one they cannot
-   load.
+   module: the rules load each project of a layer by name, and refuse to run over one the project
+   does not reference itself, even when another reference brings it along.
 9. Give it its two entries in `LayoutConventionTests`: its words under `Features/` in `_vocabulary`,
    `null` when it has no `Features/` folder and an empty list when its files sit side by side under
    each feature, and its words under `Common/` in `_commonVocabulary`.

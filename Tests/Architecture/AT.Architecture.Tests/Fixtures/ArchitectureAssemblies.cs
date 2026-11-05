@@ -158,8 +158,31 @@ internal static class ArchitectureAssemblies
         return [.. projects.Select(project => Load(project.Name))];
     }
 
+    internal static void RequireDirectReference(string projectName, IReadOnlySet<string> referenced)
+    {
+        if (referenced.Contains(projectName))
+        {
+            return;
+        }
+
+        string testProject = ProjectReferenceGraph.ArchitectureTestProjectFile;
+        string include = ProjectReferenceGraph.SourceProjects.TryGetValue(projectName, out var project)
+            ? Path.GetRelativePath(
+                Path.GetDirectoryName(testProject)!,
+                Path.Combine(ProjectReferenceGraph.RepositoryRoot, project.RelativePath))
+            : projectName + ".csproj";
+
+        throw new InvalidOperationException(
+            $"'{projectName}' is not referenced by the architecture test project itself, so the rules aimed " +
+            "at it run only while another reference happens to bring it along, and stop with a load error once that " +
+            $"reference goes. Add <ProjectReference Include=\"{include}\" /> to " +
+            $"'{Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, testProject)}'.");
+    }
+
     private static Assembly Load(string assemblyName)
     {
+        RequireDirectReference(assemblyName, ProjectReferenceGraph.ArchitectureTestReferences);
+
         try
         {
             return Assembly.Load(new AssemblyName(assemblyName));
@@ -176,6 +199,8 @@ internal static class ArchitectureAssemblies
 
     private static Assembly Anchor(Type anchor, string expectedAssemblyName)
     {
+        RequireDirectReference(expectedAssemblyName, ProjectReferenceGraph.ArchitectureTestReferences);
+
         var assembly = anchor.Assembly;
         string? actualName = assembly.GetName().Name;
 

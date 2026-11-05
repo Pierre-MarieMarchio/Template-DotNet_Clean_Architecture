@@ -102,6 +102,21 @@ public sealed class HelpCommandTests : IDisposable
     }
 
     [Fact]
+    public void HelpJson_OmitsWhatTheProjectFileLeavesOut()
+    {
+        using var project = new SampleProject(SampleProject.Minimal);
+
+        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        JsonObject found = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject()["project"].ShouldNotBeNull().AsObject();
+        found.ContainsKey("client").ShouldBeFalse("the minimal project file holds no client key");
+        found.ContainsKey("web").ShouldBeFalse();
+        found.ContainsKey("presentation").ShouldBeFalse();
+        found["options"].ShouldNotBeNull().AsObject().Select(pair => pair.Key).ShouldBe(["auth"]);
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
     public void HelpJson_RefusesOutsideAProject()
     {
         string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;

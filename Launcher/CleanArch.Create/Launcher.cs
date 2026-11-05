@@ -268,7 +268,7 @@ public sealed partial class Launcher
 
     private static GeneratedProject Required(GeneratedProject? project, string command) =>
         project ?? throw new LauncherException(
-            $"{command} only works inside a project made with this template, and there isn't one here or in any folder above (it looks for a .sln next to Tools/Tasks.cs).");
+            $"{command} only works inside a project made with this template, and there isn't one here or in any folder above (it looks for a .slnx or a .sln next to Tools/Tasks.cs).");
 
     private static string Version(TemplateSource source) =>
         source.Manifest(TemplateKind.Project).Version

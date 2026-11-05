@@ -443,7 +443,7 @@ Some lists change only on purpose, and a test fails until they name what you add
 | <!--#endif--> |
 | A setting | its section and rows in [the configuration reference](../reference/configuration.md), checked by `ConfigurationSurfaceTests`; `new-setting` writes them, and [adding a setting](adding-a-setting.md) gives the steps |
 | A background service | the floor in `BackgroundWorkTests`; an instrument in `ObservabilityRegistrationTests` |
-| A new project | `AppTemplate.sln`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
+| A new project | `AppTemplate.slnx`, a `COPY` line in each host's `Dockerfile`, a mirror under `Tests/`, its vocabularies in `LayoutConventionTests`, the module lists of `ModuleDependencyTests`; [adding a project](adding-a-project.md) gives the steps |
 | Anything, eventually | `coverage.minimum`, re-measured as [testing](testing.md#coverage) says |
 
 ## Document it

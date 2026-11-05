@@ -66,6 +66,11 @@ your decision, file by file.
   sets; the GUIDs `dotnet new` draws for a solution's entries, read as the entries they name; and
   the ones it draws for the `guids` a template declares, such as each host's `UserSecretsId`: a GUID
   neither package holds is read as drawn, so one the template writes as is still counts.
+- **A solution in the other format.** A project generated with an `.sln` reads it under Removed and
+  the `.slnx` under Added, since the newer version writes the solution as an `.slnx`
+  ([ADR 0041](../decisions/0041-the-solution-is-an-slnx.md)). Take neither as listed: run
+  `dotnet sln <Name>.sln migrate`, which writes the `.slnx` from the projects this project's
+  solution holds, the scaffolded ones among them, then delete the `.sln`.
 - **Parts added since.** The generation takes the hosts under the names it gives them and the first
   web app; every other app, package and host replays its item template, in the order
   `cleanarch.json` records, with the defaults of what the file does not record: an app is replayed

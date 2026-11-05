@@ -13,7 +13,7 @@ public sealed class GeneratedProjectTests : IDisposable
     [Fact]
     public void Find_ReadsTheProjectAroundTheFolder_FromItsFiles()
     {
-        Write("Acme.Shop.sln", string.Empty);
+        Write("Acme.Shop.slnx", string.Empty);
         Write("Tools/Tasks.cs", string.Empty);
         Write("Src/Web/package.json", """{ "name": "@acme-store/web", "private": true }""");
         Write(".github/workflows/ci.yml", string.Empty);
@@ -33,7 +33,7 @@ public sealed class GeneratedProjectTests : IDisposable
     [Fact]
     public void Find_NamesTheScopeAsWebWould_AndTellsExternalFromNoAuthentication()
     {
-        Write("Acme.Shop.sln", string.Empty);
+        Write("Acme.Shop.slnx", string.Empty);
         Write("Tools/Tasks.cs", string.Empty);
         Write("Directory.Packages.props", """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
 
@@ -144,17 +144,28 @@ public sealed class GeneratedProjectTests : IDisposable
         GeneratedProject.Find(_root).ShouldNotBeNull().HasApi.ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData("Acme.Shop.slnx")]
+    [InlineData("Acme.Shop.sln")]
+    public void Find_NamesTheProjectAfterItsSolution_InEitherFormat(string solution)
+    {
+        Write(solution, string.Empty);
+        Write("Tools/Tasks.cs", string.Empty);
+
+        GeneratedProject.Find(_root).ShouldNotBeNull().Name.ShouldBe("Acme.Shop");
+    }
+
     [Fact]
     public void Find_SeesNoProject_WithoutTheTasksBesideTheSolution()
     {
-        Write("Acme.Shop.sln", string.Empty);
+        Write("Acme.Shop.slnx", string.Empty);
 
         GeneratedProject.Find(_root).ShouldBeNull();
     }
 
     private void AProject()
     {
-        Write("Acme.Shop.sln", string.Empty);
+        Write("Acme.Shop.slnx", string.Empty);
         Write("Tools/Tasks.cs", string.Empty);
     }
 

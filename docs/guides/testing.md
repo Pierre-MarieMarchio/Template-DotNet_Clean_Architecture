@@ -184,7 +184,7 @@ The `Storage/` suite starts the object store the stack runs, at the same digest.
 
 `global.json` names Microsoft.Testing.Platform as the runner: each test project is a console
 application, and the platform runs the modules the solution lists. A test project absent from
-`AppTemplate.sln` never runs, so a new one needs `<IsTestProject>true</IsTestProject>` and an entry in
+`AppTemplate.slnx` never runs, so a new one needs `<IsTestProject>true</IsTestProject>` and an entry in
 the solution; CI fails when one is missing.
 
 Under that runner `dotnet test` takes the solution as `--solution <path>` and a project as `--project <path>`;
@@ -236,7 +236,7 @@ It sets the file inspection to run every ten seconds, so a deposit becomes reada
 <!--#endif-->
 
 The project sets `IsTestingPlatformApplication` to `false`, so `dotnet test` over the solution, and
-with it `verify` and `coverage`, leaves it out; it stays in `AppTemplate.sln`, so it builds and is
+with it `verify` and `coverage`, leaves it out; it stays in `AppTemplate.slnx`, so it builds and is
 formatted with the rest. `test --no-integration` and `check` build it, with every project that needs Docker, and name it as built and not run; `test --no-integration` runs only the projects that set `IsTestProject` and need no Docker.
 <!--#if (ci)-->
 CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red

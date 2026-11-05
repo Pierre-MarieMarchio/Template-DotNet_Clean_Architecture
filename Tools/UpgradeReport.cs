@@ -862,17 +862,19 @@ internal static class UpgradeReport
 
     private static void RequireTheProjectsPaths(string olderTree, string root, IReadOnlyCollection<string> projectFiles, string name)
     {
-        string[] generated = [.. TreeFiles(olderTree).Where(path => path.EndsWith(".csproj", StringComparison.Ordinal) || path == name + ".sln")];
+        string[] generated = [.. TreeFiles(olderTree).Where(path => path.EndsWith(".csproj", StringComparison.Ordinal) || IsTheSolution(path, name))];
         var held = new HashSet<string>(projectFiles, StringComparer.Ordinal);
 
-        if (!held.Contains(name + ".sln") || !generated.Any(held.Contains))
+        if (!held.Any(path => IsTheSolution(path, name)) || !generated.Any(held.Contains))
         {
-            string example = generated.FirstOrDefault(path => path.EndsWith(".csproj", StringComparison.Ordinal)) ?? name + ".sln";
+            string example = generated.FirstOrDefault(path => path.EndsWith(".csproj", StringComparison.Ordinal)) ?? name + ".slnx";
             throw new InvalidOperationException(
                 $"Generating '{name}', the name cleanarch.json records, writes paths this project does not hold, such as {example}, in {root}: "
                 + "the project's name or its folders' initials are not the generation's, so every file would read as changed. Compare by hand.");
         }
     }
+
+    private static bool IsTheSolution(string path, string name) => path == name + ".slnx" || path == name + ".sln";
 
     private static string[] ProjectFiles(string root)
     {
@@ -1037,7 +1039,7 @@ internal static class UpgradeReport
             }
 
             string? edited = _editedByBootstrap.FirstOrDefault(rule => rule.Path.IsMatch(path)).Editor
-                ?? (path == name + ".sln" && addsToSolution ? "presentation-scaffold and web-scaffold add the .NET projects they create to it" : null);
+                ?? (IsTheSolution(path, name) && addsToSolution ? "presentation-scaffold and web-scaffold add the .NET projects they create to it" : null);
             string? join = joined.TryGetValue(path, out string? part) ? $"the join of {part} edits it" : null;
             string? Note(params string?[] notes) => notes.OfType<string>().ToArray() is { Length: > 0 } some ? string.Join("; ", some) : null;
 
@@ -1456,6 +1458,7 @@ internal static class UpgradeReport
         Three("Usings.cs", "using B;\nusing A;\n\nnamespace N;\n", "using B;\nusing A;\n\nnamespace M;\n", "using A;\nusing B;\nnamespace N;\n");
         Three("UsingRemoved.cs", "using B;\nusing A;\n\nnamespace N;\n", "using B;\nusing A;\n\nnamespace M;\n", "using A;\n\nnamespace N;\n");
         Three("Sample.Shop.sln", "a\n", "b\n", "a\n");
+        Three("Sample.Shop.slnx", "a\n", "b\n", "a\n");
         Three(
             "Other.sln",
             Solution("11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", "Src\\A.csproj"),
@@ -1518,6 +1521,7 @@ internal static class UpgradeReport
         expect(KindOf("HeldEdited.csproj") == Kind.Merge, "A GUID the package holds, which the project replaced, was read as drawn.");
         expect(KindOf("DrawnTwo.csproj") == Kind.Merge, "Two drawn GUIDs read as one, which hides that the project made them the same.");
         expect(KindOf("Sample.Shop.sln") == Kind.Merge, "The solution, which the scaffolds edit, was offered to take as is.");
+        expect(KindOf("Sample.Shop.slnx") == Kind.Merge, "The .slnx solution, which the scaffolds edit, was offered to take as is.");
         expect(KindOf(".config/dotnet-tools.json") == Kind.Merge, "The tool manifest, which bootstrap edits, was offered to take as is.");
         expect(KindOf("Src/Web/apps/Plain/package.json") == Kind.Merge, "A web app's package.json, whose versions web-scaffold pins, was offered to take as is.");
         expect(KindOf("docker-compose.yml") == Kind.Merge, "A file a part's join edits was offered to take as is.");

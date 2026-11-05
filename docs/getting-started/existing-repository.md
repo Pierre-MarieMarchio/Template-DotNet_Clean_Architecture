@@ -86,7 +86,7 @@ dotnet run Tools/Tasks.cs verify
 docker compose config -q
 ```
 
-Then, from the host's root, `dotnet test --solution services/api/AppTemplate.sln` proves the runner reached
+Then, from the host's root, `dotnet test --solution services/api/AppTemplate.slnx` proves the runner reached
 the host's `global.json`.
 
 `coverage.minimum` holds the floor this project's own suite was measured against. It stays right on

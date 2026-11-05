@@ -1913,7 +1913,7 @@ internal static class RemoveFeature
             ("docs/guides/adding-a-feature.md", "Widgets, WidgetService and IWidgetStore are words in a sentence.", false),
             ("A.Api.http", "GET {{host}}/api/v1/widgets/{{widgetId}}", true),
             ("A.Api.http", "GET {{host}}/api/v1/widgets-archive", false),
-            ("A.sln", "Project(\"Widgets\") = \"Widgets\"", false),
+            ("A.slnx", "<Folder Name=\"/Widgets/\" />", false),
             ("Directory.Build.props", "<Widgets>true</Widgets>", false),
             ("Directory.Build.targets", "<WidgetService />", false),
             ("Tools/Sample.cs", "var service = new WidgetService();", false),

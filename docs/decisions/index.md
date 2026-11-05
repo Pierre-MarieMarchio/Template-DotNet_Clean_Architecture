@@ -44,3 +44,4 @@ edit the pages, then run it again.
 - [0038. Deleting removes rows](0038-deleting-removes-rows.md) - Accepted. Why a deletion removes the row and its children, and no record carries a deleted flag.
 - [0039. A role is checked by the host, not by the use case](0039-a-role-is-checked-by-the-host-not-by-the-use-case.md) - Accepted. Why a role is a policy each host checks, and a use case never reads the caller's roles.
 - [0040. The signing key rotates through previous keys that only validate](0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md) - Accepted. Why one key signs access tokens while the previous keys only validate, and how a rotation uses them.
+- [0041. The solution is an .slnx](0041-the-solution-is-an-slnx.md) - Accepted. Why the solution at the root is the XML .slnx format rather than the classic .sln, and what a project holding an .sln does.

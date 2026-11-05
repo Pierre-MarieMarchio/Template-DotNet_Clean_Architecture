@@ -37,9 +37,16 @@ public sealed class ProjectFileTests
     [Fact]
     public void TheName_IsTheSolutionsAndTheDomainProjects()
     {
-        string[] solutions = [.. Directory.EnumerateFiles(Root, "*.sln").Select(Path.GetFileName).OfType<string>()];
+        string[] solutions = [.. Directory.EnumerateFiles(Root, "*.sln*")
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .Where(file => Path.GetExtension(file) is ".sln" or ".slnx")
+            .Order(StringComparer.Ordinal)];
 
-        solutions.ShouldBe([Name + ".sln"], Case.Sensitive, $"cleanarch.json names the project {Name}, so its one solution is {Name}.sln.");
+        solutions.ShouldBe(
+            [Name + ".slnx"],
+            Case.Sensitive,
+            $"cleanarch.json names the project {Name}, so its one solution is {Name}.slnx: an .sln beside it or in its place is the format ADR 0041 turned down.");
         Holds($"Src/Domain/{Folder("Domain")}").ShouldBeTrue($"cleanarch.json names the project {Name}, which has no Src/Domain/{Folder("Domain")}.");
     }
 

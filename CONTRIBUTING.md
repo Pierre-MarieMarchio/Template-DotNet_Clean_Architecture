@@ -112,4 +112,15 @@ condition on the generation options are in
 [maintaining the template](docs/template/maintaining-the-template.md).
 [The roadmap](docs/template/roadmap.md) says what is coming and in which order; a change it does not
 list starts from an issue.
+
+## Your first contribution
+
+1. Pick an issue labelled `good first issue`; if none fits, ask in
+   [Discussions](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/discussions) before writing
+   code, so the change is agreed before it is made.
+2. Branch from `develop`, as `<type>/<subject>`, and keep the change to one concern.
+3. Run `dotnet run Tools/Tasks.cs check` while you work, then
+   [the gate](#the-gate) before you ask for a review.
+4. Open the pull request against `develop` and fill in its template; the title is a conventional
+   commit, as [the commit messages](#commit-messages) ask.
 <!--#endif-->

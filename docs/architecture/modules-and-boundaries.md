@@ -33,18 +33,18 @@ or `HttpPipelineModule`. It is a composition concept, never a business partition
 | Module | Registers | Storage |
 |---|---|---|
 | `AppTemplate.Infrastructure.Persistence` | `AppDbContext`, `IUnitOfWork`, `ILeaderLease`, the business features' repositories, queries and stores, the idempotency store | `AppDbContext`: a schema per business feature, plus `platform` |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `AppTemplate.Infrastructure.Auth` | the authentication ports over ASP.NET Core Identity, JWT bearer, refresh tokens, the data-protection key ring, the development seed | `AuthDbContext`: the `identity` schema |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender` over SMTP or Postmark, `IReminderNotifier` | none |
-<!--#endif-->
-<!--#if (!reminders)-->
+| <!--#endif--> |
+| <!--#if (!reminders)--> |
 | `AppTemplate.Infrastructure.Email` | `IEmailSender` over SMTP or Postmark | none |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `AppTemplate.Infrastructure.Storage` | the file content store, direct transfer, inventory and scanner | an S3-compatible bucket or a local directory |
-<!--#endif-->
+| <!--#endif--> |
 | `AppTemplate.Infrastructure.InMemory` | doubles a test composes over a real module | none |
 <!--#if (externalAuth)-->
 

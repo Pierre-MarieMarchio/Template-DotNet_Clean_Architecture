@@ -36,7 +36,7 @@ framework; `TheDomainLayer_DependsOnNothing` holds it.
 |---|---|---|
 | `AppTemplate.Application.Core` | `Result` and `Error`, the use-case pipeline and its instruments, validation, paging, idempotency, concurrency, ownership, and the cross-cutting ports in `Common/Ports/` | `AppTemplate.Domain.Core` |
 | `AppTemplate.Application` | the business features: use cases as messages and handlers, feature ports, DTOs, validators, event consumers | `AppTemplate.Domain`, `AppTemplate.Application.Core` |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `AppTemplate.Application.Auth` | the authentication features as use cases over their own ports; it names no aggregate | `AppTemplate.Application.Core` |
 <!--#endif-->
 
@@ -81,7 +81,7 @@ module (`OnlyAHost_ReferencesInfrastructureModules`). The modules themselves are
 | The caller of a process that has no request | `NoCallerCurrentUser` |
 | The loop recurring work runs on | `PeriodicJob` |
 | The scope a pass runs in, whose ports answer that no one is calling | `CreateBackgroundScope()` |
-<!--#if (externalAuth)-->
+| <!--#if (externalAuth)--> |
 | The provider every host signs callers in with, and the roles read from its tokens | `AuthenticationExternalOptions`, `TokenRoleMapping` |
 <!--#endif-->
 

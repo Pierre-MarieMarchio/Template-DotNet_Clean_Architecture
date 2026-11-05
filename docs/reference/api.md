@@ -62,7 +62,7 @@ Under `/api/v1/auth`; † marks the routes under `RateLimiting:AuthenticationPer
 | POST | `/passkeys/register` † | 200 | The credential, the state, an optional name; re-authenticates. |
 | GET | `/passkeys` | 200 | The caller's passkeys, newest first. |
 | DELETE | `/passkeys/{credentialId}` | 204 | Removes one; ends every other session. |
-<!--#if (accessKeys)-->
+| <!--#if (accessKeys)--> |
 | POST | `/access-keys` † | 201 | A name, `read` and/or `write` scopes, an optional `expiresAt` and the current password; the only response that carries the key. |
 | GET | `/access-keys` | 200 | The caller's live access keys, newest first, without their secrets. |
 | DELETE | `/access-keys/{accessKeyId}` | 204 | Revokes one of the caller's access keys. |
@@ -171,7 +171,7 @@ Under `/api/v1/maintenance`, `Administrator` policy; each answers `200` and the 
 | Method | Route | Removes |
 |---|---|---|
 | DELETE | `/idempotency-keys/expired` | idempotency keys past `Idempotency:Retention` |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | DELETE | `/refresh-tokens/expired` | refresh-token rows past `RefreshToken:RetentionInDays` |
 | DELETE | `/security-events/expired` | security events past `SecurityEventLog:RetentionInDays` |
 <!--#endif-->
@@ -190,41 +190,41 @@ carries once one does.
 <!--#endif-->
 | `code` | Status | When |
 |---|---|---|
-<!--#if (accounts)-->
+| <!--#if (accounts)--> |
 | `auth.required` | 401 | No valid token, a route that matched nothing, or an account deleted since |
 | `auth.forbidden` | 403 | Authenticated, but the endpoint's policy is not satisfied |
-<!--#endif-->
-<!--#if (publicApi)-->
+| <!--#endif--> |
+| <!--#if (publicApi)--> |
 | `auth.required` | 401 | A route that requires a caller, called without one |
 | `auth.forbidden` | 403 | A caller the endpoint's policy refuses |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | `auth.login.invalidCredentials` | 401 | One answer for an unknown address, a wrong password, an unconfirmed address and a lockout |
 | `auth.login.invalidTwoFactorChallenge` | 401 | The challenge is unknown, spent, expired or out of attempts |
 | `auth.refreshToken.invalid` | 401 | Unknown, expired, revoked or replayed; in cookie mode, no cookie |
 | `auth.externalSignIn.refused` | 401 | An unknown provider or a token that did not verify |
 | `auth.passkeySignIn.invalid` | 401 | Any passkey sign-in refusal |
 | `auth.confirmEmail.invalid`, `auth.resetPassword.invalid`, `auth.changeEmail.invalid` | 400 | The token is unknown, spent or expired |
-<!--#if (accessKeys)-->
+| <!--#if (accessKeys)--> |
 | `auth.account.reAuthenticationRequired` | 403 | Deleting the account, registering a passkey or creating an access key needs a proof, or an access token under five minutes old |
-<!--#endif-->
-<!--#if (!accessKeys)-->
+| <!--#endif--> |
+| <!--#if (!accessKeys)--> |
 | `auth.account.reAuthenticationRequired` | 403 | Deleting the account or registering a passkey needs a proof, or an access token under five minutes old |
-<!--#endif-->
+| <!--#endif--> |
 | `auth.account.notFound` | 404 | An administration action naming no account |
 | `auth.session.notFound` | 404 | A session that is not the caller's |
 | `auth.passkey.notFound` | 404 | A passkey that is not the caller's |
 | `auth.passkey.registrationRejected` | 400 | The ceremony verified, but the store refused the credential |
-<!--#if (accessKeys)-->
+| <!--#if (accessKeys)--> |
 | `auth.accessKey.notFound` | 404 | An access key that is not the caller's, or is already revoked or expired |
 | `auth.accessKey.limitReached` | 409 | Creating an access key while the account holds 25 live ones |
 | `auth.accessKey.invalid` | 401 | Answered by a host that accepts access keys, never by this API: a malformed, unknown, revoked or expired key, or one whose account may not sign in |
-<!--#endif-->
+| <!--#endif--> |
 | `auth.twoFactor.alreadyEnabled` | 409 | Setting up or confirming a factor already armed |
 | `auth.account.cannotDeleteSelf`, `auth.lockout.cannotTargetSelf`, `auth.roles.cannotTargetSelf`, `auth.twoFactor.cannotTargetSelf` | 403 | An administrator aiming at their own account |
 | `auth.account.deletionRejected`, `auth.lockout.rejected`, `auth.twoFactor.setupRejected`, `auth.twoFactor.enableRejected`, `auth.twoFactor.disableRejected`, `auth.twoFactor.administrativeDisableRejected` | 400 | The store refused the change; nothing changed |
-<!--#endif-->
-<!--#if (externalAuth)-->
+| <!--#endif--> |
+| <!--#if (externalAuth)--> |
 | `externalIdentity.mapping.notFound` | 404 | No mapping names the owner id |
 <!--#endif-->
 
@@ -232,14 +232,14 @@ carries once one does.
 
 | `code` | Status | When |
 |---|---|---|
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `todoList.notFound`, `todoItem.notFound` | 404 | Missing, or another caller's |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `reminder.notFound` | 404 | Missing, or another caller's |
 | `reminder.targetNotFound` | 404 | The item is missing, or another caller's |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `storedFile.notFound` | 404 | Missing, or another caller's, except an available file of an `Authenticated` category |
 | `storedFile.notAvailable` | 409 | No verdict yet, or the store no longer holds the content |
 | `storedFile.quarantined` | 409 | Inspected and refused; never becomes available |
@@ -248,10 +248,10 @@ carries once one does.
 | `storedFile.quotaBusy` | 409 | The quota lock was held more than 10 seconds; nothing written, retry |
 | `storedFile.directUploadUnavailable` | 409 | The store cannot sign, or the category allows uploads through the API only |
 | `storedFile.apiUploadUnavailable` | 409 | The category allows direct uploads only |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `note.notFound` | 404 | Missing, or another caller's |
-<!--#endif-->
+| <!--#endif--> |
 | `domain.invariantViolated` | 409 | A domain rule refused the change |
 | `concurrency.conflict` | 409 | The row changed between the write's read and its commit; reload and retry |
 | `uniqueness.conflict` | 409 | A write broke a unique index that no endpoint answers with a code of its own; the other request won, read again before writing |

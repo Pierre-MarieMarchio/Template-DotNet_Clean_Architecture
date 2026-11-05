@@ -141,34 +141,34 @@ Delete a parent folder left empty; `LayoutConventionTests` names one you missed.
 | `Src/Application/AT.Application/ApplicationModule.cs` | the feature's `Add<Features>()` method and its constant |
 | `Src/Infrastructure/AT.Infrastructure.Persistence/PersistenceModule.cs` | the `Add<Features>Feature` method and its call |
 | `Src/Infrastructure/AT.Infrastructure.Persistence/Common/Contexts/AppDbContext.cs` | the set, the schema constant, the `ApplyConfiguration` calls |
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | the portal's `Program.cs` | the `Add<Features>()` line |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | the MCP server's `Program.cs` | the `Add<Features>()` line |
 | the MCP server's `Program.cs`, `Features/<Features>/Tools` and its tests, and `TestSupport/ToolCatalogue.cs` | the feature's `WithTools` line, its tools, their tests and their names |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | `Src/Presentation/AT.Api/Program.cs` | the `Add<Features>()` line |
-<!--#endif-->
-<!--#if (jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (jobsWorker)--> |
 | `Src/Presentation/<Initials>.Worker/Program.cs` | the same line |
-<!--#endif-->
+| <!--#endif--> |
 | `Tests/Architecture/AT.Architecture.Tests/Composition/HostComposition.cs` | the same calls |
 | `Tests/Application/AT.Application.UnitTests/ApplicationModuleTests.cs` | the feature's call and the facts naming its types |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | `Tests/Integration/AT.Api.IntegrationTests/Infrastructure/TestDatabase.cs` | the feature's schema |
-<!--#endif-->
-<!--#endif-->
-<!--#if (todoLists)-->
-<!--#if (!jobsWorker)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (todoLists)--> |
+| <!--#if (!jobsWorker)--> |
 | `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
 | `Src/Presentation/AT.Api/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
-<!--#endif-->
-<!--#if (jobsWorker)-->
+| <!--#endif--> |
+| <!--#if (jobsWorker)--> |
 | `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsModule.cs` | `AddReminderJobs` |
 | `Src/Presentation/<Initials>.Worker/Features/BackgroundJobs/Jobs/BackgroundJobsTelemetry.cs` | the reminder source and meters |
-<!--#endif-->
+| <!--#endif--> |
 | `Src/Infrastructure/AT.Infrastructure.Email/EmailModule.cs` | the reminder notifier; `IEmailSender` stays |
 | `Src/Infrastructure/AT.Infrastructure.InMemory/InMemoryModule.cs` | `AddInMemoryReminderNotifications` |
 <!--#endif-->

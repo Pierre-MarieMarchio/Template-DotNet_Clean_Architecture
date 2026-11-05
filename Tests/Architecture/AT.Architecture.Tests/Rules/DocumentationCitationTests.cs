@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
@@ -19,6 +20,18 @@ public sealed class DocumentationCitationTests
         "docs/template/",
         /*#endif*/
         "docs/_page-templates/",
+    ];
+
+    private const string _taskTablePage = "docs/guides/build-and-ci.md";
+
+    private const string _taskTableHeading = "## The task launcher";
+
+    private static readonly string[] _tasksOutsideTheTable =
+    [
+        "help",
+        /*#if (templateMaintenance)*/
+        "web-lockfiles",
+        /*#endif*/
     ];
 
     private static readonly string[] _skippedDirectories = ["bin", "obj", "node_modules", "plans"];
@@ -111,6 +124,43 @@ public sealed class DocumentationCitationTests
             .ShouldBeEmpty(
                 "A page cites a task Tools/Tasks.cs does not have, so the command it gives fails. "
                 + "Cite a task `dotnet run Tools/Tasks.cs help` lists, or add the task.");
+    }
+
+    [Fact]
+    public void EveryTaskOfTheLauncher_HasItsRowInTheTaskTable()
+    {
+        var listed = TaskTableTasks(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, _taskTablePage)));
+
+        listed.ShouldContain("verify", $"the task table of {_taskTablePage} was not found under '{_taskTableHeading}'.");
+
+        LauncherTasks()
+            .Where(task => !_tasksOutsideTheTable.Contains(task, StringComparer.Ordinal))
+            .Where(task => task != "sonar" || SonarRecorded())
+            .Where(task => !listed.Contains(task))
+            .Order(StringComparer.Ordinal)
+            .ShouldBeEmpty(
+                $"`dotnet run Tools/Tasks.cs help` lists a task the table under '{_taskTableHeading}' in {_taskTablePage} "
+                + "has no row for, so a reader of the reference list never learns it exists. Add its row, "
+                + "conditioned as the task is, with a code span naming it in the first column.");
+    }
+
+    [Fact]
+    public void TheTaskTableScan_ReadsTheFirstColumnOfItsSectionAlone()
+    {
+        string page = string.Join(
+            "\n",
+            "## Before",
+            "| `ignored` | a row of another section |",
+            _taskTableHeading,
+            "| Task | Runs |",
+            "|---|---|",
+            "| <!--#if (api)--> |",
+            "| `run`, `test --no-integration` | runs `skipped` |",
+            "| <!--#endif--> |",
+            "## After",
+            "| `after` | a row of another section |");
+
+        TaskTableTasks(page).Order(StringComparer.Ordinal).ShouldBe(["run", "test"]);
     }
 
     [Fact]
@@ -302,6 +352,29 @@ public sealed class DocumentationCitationTests
 
         return tasks;
     }
+
+    private static HashSet<string> TaskTableTasks(string page)
+    {
+        var tasks = new HashSet<string>(StringComparer.Ordinal);
+        bool inSection = false;
+
+        foreach (string line in page.ReplaceLineEndings("\n").Split('\n'))
+        {
+            if (line.StartsWith("## ", StringComparison.Ordinal))
+            {
+                inSection = line.TrimEnd() == _taskTableHeading;
+            }
+            else if (inSection && line.StartsWith('|') && line.Split('|') is [_, var firstCell, _, ..])
+            {
+                tasks.UnionWith(_codeSpan.Matches(firstCell).Select(span => span.Groups["span"].Value.Split(' ')[0]));
+            }
+        }
+
+        return tasks;
+    }
+
+    private static bool SonarRecorded() =>
+        JsonNode.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "cleanarch.json")))?["options"]?["sonar"]?.GetValue<bool>() ?? false;
 
     private static HashSet<string> LauncherOptions()
     {

@@ -10,7 +10,12 @@ dotnet cleanarch --help
 dotnet cleanarch --version
 dotnet cleanarch help        # what this project's commands are
 dotnet cleanarch help --json # the commands and options that apply to this project, as JSON
+dotnet cleanarch openapi     # write the OpenAPI reference, then regenerate the .NET client with the pinned Kiota
+dotnet cleanarch openapi --check # fail where it would write, instead of writing
 ```
+
+A command that runs an external tool prints the exact line it runs, runs it at the project
+root and forwards its exit code.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

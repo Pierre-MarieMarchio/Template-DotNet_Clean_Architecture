@@ -41,6 +41,36 @@ internal sealed class SampleProject : IDisposable
         }
         """;
 
+    public const string Api = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local" },
+          "client": true,
+          "presentation": [ { "name": "Api", "framework": "api" } ]
+        }
+        """;
+
+    public static string ApiWith(string auth, bool client) => $$"""
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "{{auth}}" },
+          "client": {{(client ? "true" : "false")}},
+          "presentation": [ { "name": "Api", "framework": "api" } ]
+        }
+        """;
+
+    public const string NoApi = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local" },
+          "client": true,
+          "presentation": [ { "name": "Portal", "framework": "blazor-server" } ]
+        }
+        """;
+
     public SampleProject(string json)
     {
         Root = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;

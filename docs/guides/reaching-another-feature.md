@@ -131,10 +131,10 @@ The account-deletion sweep is the worked case, behind the consumers of `UserAcco
 | The raise | the aggregate's tests | the method raises it once, with the state it changed, and a refusal raises nothing |
 | The reaction | the consumer's tests, with substitutes of its ports | it acts on the state it re-derives, and changes and commits nothing when nothing is left to do |
 | The registration | the test `new-event` writes beside the consumer | the consumer is registered for the event |
-<!--#if (api && !todoLists)-->
+| <!--#if (api && !todoLists)--> |
 | The delivery | an integration test that reads `Fixture.DomainEvents` | the operation reaches the consumer after the commit |
-<!--#endif-->
-<!--#if (api && todoLists)-->
+| <!--#endif--> |
+| <!--#if (api && todoLists)--> |
 | The delivery | an integration test that reads `Fixture.DomainEvents` | the operation reaches the consumer after the commit; `DomainEventDispatchTests` is the model |
 <!--#endif-->
 

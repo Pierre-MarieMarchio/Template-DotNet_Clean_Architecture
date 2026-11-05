@@ -329,7 +329,7 @@ A type's suffix names its nature, and the nature names its folder:
 | `…Controller` | `Controllers/` |
 | `…BackgroundService`, `…Task`, `…Telemetry` | `Jobs/` |
 | `…Composition`, a host-supplied `…Directory`, `…Provider` or `…Session` | `Composition/` |
-<!--#if (presentationMcp)-->
+| <!--#if (presentationMcp)--> |
 | `…Tools`, the MCP server's tools of one feature | `Tools/` |
 <!--#endif-->
 

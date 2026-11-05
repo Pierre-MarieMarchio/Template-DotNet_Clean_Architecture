@@ -52,6 +52,27 @@ dotnet new cleanarch-webapi -n <Company.Product>
 `.nupkg` a GitHub Release attaches, a package packed locally, or this checkout; Visual Studio, Rider
 and VS Code's C# Dev Kit then list the templates, with no extension.
 
+## Inside a project
+
+The generators and the gate are what the template offers once the project exists:
+
+```bash
+dotnet run Tools/Tasks.cs new-feature <Features> <Feature> --access owner --deletion delete  # a feature, its tests and its migration
+dotnet run Tools/Tasks.cs new-use-case <Features> <UseCase> --kind command                   # one more operation on a feature
+dotnet run Tools/Tasks.cs new-field <Features> "Code:string(20)='none'"                      # a field, down to its column
+dotnet run Tools/Tasks.cs new-setting <Features> <Section> --keys "MaxItems:int(1..100)=10"  # a validated setting
+dotnet run Tools/Tasks.cs new-event <Features> <Event> --unconsumed "<reason>"               # a domain event
+dotnet run Tools/Tasks.cs remove-feature <Features>                                          # reports; --apply removes it
+dotnet run Tools/Tasks.cs migration-add <Name>                                               # a migration after a model change
+dotnet run Tools/Tasks.cs check                                                              # format, build and tests of what you touched
+dotnet run Tools/Tasks.cs verify                                                             # the whole gate, with Docker
+dnx CleanArch.Create -- web-app                                                              # add a web app to the project
+dnx CleanArch.Create -- presentation                                                         # add a host to the project
+```
+
+`new-feature` needs `--auth` other than `none`. [Adding a feature](docs/guides/adding-a-feature.md)
+gives the steps, and [the commands table](AGENTS.md#commands) every task.
+
 ## What you get
 
 | Area | What it is |

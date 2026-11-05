@@ -916,33 +916,125 @@ public sealed class TemplatePackagingTests
         projects
             .Where(project => !itemRefusal.Contains($"name == \"{project}\"", StringComparison.Ordinal))
             .ShouldBeEmpty("cleanarch-presentation must refuse each -n that names one of the template's projects or its test project, which the item would overwrite: add the name to presentationNameIsTaken of .template.config/presentation/.template.config/template.json.");
+    }
 
-        string[] namesOfACore = [.. projects
-            .Where(project => project.EndsWith(_coreSuffix, StringComparison.Ordinal))
-            .Select(project => project[..^_coreSuffix.Length])];
+    [Theory]
+    [InlineData(".template.config", "nameNeedsTwoCharacters", "nameNeedsALeadingLetter", "name")]
+    [InlineData(".template.config/presentation/.template.config", "projectNameNeedsTwoCharacters", "projectNameNeedsALeadingLetter", "projectName")]
+    [InlineData(".template.config/webapp/.template.config", "projectNameNeedsTwoCharacters", "projectNameNeedsALeadingLetter", "projectName")]
+    public void TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects(string folder, string refusal, string letterRefusal, string nameSymbol)
+    {
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, folder, "template.json")));
+        JsonElement symbols = manifest.RootElement.GetProperty("symbols");
+        string condition = Text(symbols.GetProperty(refusal), "isRequired")!;
+        string[] refused = [.. Regex.Matches(condition, $@"\b{nameSymbol} == ""([^""]*)""", RegexOptions.None, TimeSpan.FromSeconds(5)).Select(match => match.Groups[1].Value)];
+        string[] oneCharacter = [.. _nameStarts.Select(start => start.ToString())];
+        string[] collide = [.. Names(3).Where(FoldersDifferFromTheProjectsInCaseAlone)];
 
-        namesOfACore.Length.ShouldBeGreaterThanOrEqualTo(4, "Far fewer .Core projects were found than this template writes, so this rule is not reading its tree.");
-        namesOfACore
-            .Where(name => !itemRefusal.Contains($"name == \"{name}\"", StringComparison.Ordinal))
-            .ShouldBeEmpty("--framework wpf writes <Project>.<name>.Core beside the app, so a name whose .Core is one of the template's projects must be refused too: add it to presentationNameIsTaken under framework == \"wpf\".");
+        collide.ShouldNotBeEmpty("No name was found whose folders differ from its projects in case alone, so this rule compares nothing.");
+        condition.ShouldBe(
+            $"({string.Join(" || ", refused.Select(name => $"{nameSymbol} == \"{name}\""))})",
+            $"{folder}/template.json must read {refusal} as one {nameSymbol} == \"...\" per refused name, which this rule and the launcher evaluate.");
+        oneCharacter.Where(name => !refused.Contains(name, StringComparer.OrdinalIgnoreCase)).ShouldBeEmpty(
+            $"{folder}/template.json refuses a {nameSymbol} under two characters, the minimum its description names, through {refusal}: add each name here to it.");
+        refused.Where(name => !oneCharacter.Contains(name, StringComparer.OrdinalIgnoreCase)).ShouldBeEmpty(
+            $"{folder}/template.json refuses, through {refusal}, a {nameSymbol} of two characters or more, which generates a sound project.");
+        collide.Where(name => !refused.Contains(name, StringComparer.OrdinalIgnoreCase)).ShouldBeEmpty(
+            $"These names put each project in a folder differing from its name in case alone, which a solution takes for the same name: {folder}/template.json must refuse them through {refusal}.");
+
+        string letterCondition = Text(symbols.GetProperty(letterRefusal), "isRequired")!;
+        string guard = nameSymbol == "projectName" ? $@"{nameSymbol} != """" && " : string.Empty;
+        Match bounds = Regex.Match(
+            letterCondition,
+            $@"^\({Regex.Escape(guard)}\(?{nameSymbol} < ""(?<below>[^""]+)"" \|\| {nameSymbol} >= ""(?<from>[^""]+)""\)?\)$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(5));
+        bounds.Success.ShouldBeTrue(
+            $"{folder}/template.json must read {letterRefusal} as ({guard}{nameSymbol} < \"A\" || {nameSymbol} >= \"[\"), the one form of the rule the engine can evaluate on a parameter, which this rule and the launcher evaluate.");
+        bool LetterRefuses(string name) =>
+            !(guard.Length > 0 && name.Length == 0)
+            && (string.Compare(name, bounds.Groups["below"].Value, StringComparison.OrdinalIgnoreCase) < 0
+                || string.Compare(name, bounds.Groups["from"].Value, StringComparison.OrdinalIgnoreCase) >= 0);
+        string[] anyNames = [.. AnyNames(3)];
+
+        anyNames.Where(name => ProjectFolders.InitialsOf(name).Length == 0 && !LetterRefuses(name)).ShouldBeEmpty(
+            $"These names have no letter from A to Z to take initials from, so their projects would sit in folders such as .Api: {folder}/template.json must refuse them through {letterRefusal}.");
+        anyNames.Where(name => LetterRefuses(name) == char.IsAsciiLetter(name[0])).ShouldBeEmpty(
+            $"{folder}/template.json must refuse, through {letterRefusal}, exactly the {nameSymbol} that does not start with a letter from A to Z, the rule its description names.");
+
+        if (nameSymbol == "name")
+        {
+            Text(symbols.GetProperty("refusedOptions"), "value")!.ShouldContain(
+                condition,
+                Case.Sensitive,
+                $"refusedOptions must hold {refusal}'s condition, so a hand-passed {refusal} selects the refused variant.");
+            Text(symbols.GetProperty(_nameLacksALeadingLetter), "value").ShouldBe(
+                letterCondition,
+                $"{_nameLacksALeadingLetter} must hold {letterRefusal}'s condition: the engine evaluates the ordering only in a symbol, never in a file's #if.");
+            Text(symbols.GetProperty("refusedOptions"), "value")!.ShouldContain(
+                $" || {_nameLacksALeadingLetter})",
+                Case.Sensitive,
+                $"refusedOptions must hold {_nameLacksALeadingLetter}, so a hand-passed {letterRefusal} selects the refused variant.");
+            string refusedVariant = File.ReadAllText(Path.Combine(ProjectReferenceGraph.RepositoryRoot, ".template.config", "variants", "refused", "Src", "Presentation", ProjectFolders.FolderOf("AppTemplate.Presentation.Core"), "RefusedGenerationOptions.cs"));
+            refusedVariant.ShouldContain($"//#if {condition}", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {refusal}'s condition.");
+            refusedVariant.ShouldContain($"//#if ({_nameLacksALeadingLetter})", Case.Sensitive, $"RefusedGenerationOptions.cs must stop the build under {letterRefusal}'s condition.");
+        }
+        else
+        {
+            LetterRefuses(string.Empty).ShouldBeFalse($"{folder}/template.json leaves {nameSymbol} empty where the item needs no project, which {letterRefusal} must let through.");
+        }
+    }
+
+    private static IEnumerable<string> AnyNames(int longest)
+    {
+        IEnumerable<string> ofLength = [string.Empty];
+
+        for (int length = 1; length <= longest; length++)
+        {
+            ofLength = [.. ofLength.SelectMany(name => _anyNameCharacters.Select(next => name + next))];
+
+            foreach (string name in ofLength)
+            {
+                yield return name;
+            }
+        }
+    }
+
+    private static bool FoldersDifferFromTheProjectsInCaseAlone(string name) =>
+        ProjectFolders.InitialsOf(name) is var initials
+        && string.Equals(initials, name, StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(initials, name, StringComparison.Ordinal);
+
+    private static List<string> Names(int longest)
+    {
+        IEnumerable<string> ofLength = [string.Empty];
+        var names = new List<string>();
+
+        for (int length = 1; length <= longest; length++)
+        {
+            ofLength = [.. ofLength.SelectMany(name => _nameCharacters.Select(next => name + next))];
+            names.AddRange(ofLength.Where(name => name.Split('.').All(part => part.Length > 0 && _nameStarts.Contains(part[0]))));
+        }
+
+        return names;
     }
 
     [Fact]
-    public void TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_InTheCoresNamespace()
+    public void TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_ByteForByte()
     {
         string[] avalonia = DesktopSessionCode("avalonia");
         string[] wpf = DesktopSessionCode("wpf");
 
         avalonia.Length.ShouldBeGreaterThanOrEqualTo(10, "Far fewer files were found than the Avalonia starter's session and its tests hold, so this rule is not reading them.");
         wpf.ShouldBe(
-            [.. avalonia.Select(path => path.Replace(_desktopFolder, _desktopFolder + _coreSuffix, StringComparison.Ordinal))],
-            "The WPF starter's .Core holds a copy of the Avalonia starter's desktop session and its tests, file for file. Change both copies together; a third desktop client is the time to move them into a project of their own.");
+            avalonia,
+            "The WPF starter holds a copy of the Avalonia starter's desktop session and its tests, at the same paths. Change both copies together; a third desktop client is the time to move them into a project of their own.");
 
-        foreach ((string from, string to) in avalonia.Zip(wpf))
+        foreach (string path in avalonia)
         {
-            File.ReadAllText(Path.Combine(StartersFolder, "wpf", to)).ShouldBe(
-                File.ReadAllText(Path.Combine(StartersFolder, "avalonia", from)).Replace(_desktopProject + ".", _desktopProject + _coreSuffix + ".", StringComparison.Ordinal),
-                $"wpf/{to} differs from avalonia/{from} in more than the namespace: change both copies together.");
+            File.ReadAllBytes(Path.Combine(StartersFolder, "wpf", path)).ShouldBe(
+                File.ReadAllBytes(Path.Combine(StartersFolder, "avalonia", path)),
+                $"wpf/{path} differs from avalonia/{path}: change both copies together.");
         }
     }
 
@@ -1359,6 +1451,14 @@ public sealed class TemplatePackagingTests
     private static readonly HashSet<string> _foldersNoTemplateWrites =
         new([.. _outsideTheProject.Where(folder => folder != ".template.config"), "plans"], StringComparer.Ordinal);
 
+    private static readonly char[] _nameStarts = [.. "_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+
+    private static readonly char[] _nameCharacters = [.. _nameStarts, .. "0123456789."];
+
+    private static readonly char[] _anyNameCharacters = [.. _nameCharacters, .. "-@[`{\u00e9\u00c9\u0131\u017f\u212a"];
+
+    private const string _nameLacksALeadingLetter = "nameLacksALeadingLetter";
+
     private static readonly string[] _productNames =
         ["AppTemplate", "Acme.Shop", "Contoso.OrderManagement", "acme.shop", "MyCompany.MyProject", "My_App", "acme-shop", "Acme.shop2", "Acme.2024", "ACME.Shop"];
 
@@ -1405,12 +1505,6 @@ public sealed class TemplatePackagingTests
 
     private const string _workerStarter = "worker";
 
-    private const string _coreSuffix = ".Core";
-
-    private const string _desktopProject = "AppTemplate.PresentationAppDesktop";
-
-    private static readonly string _desktopFolder = ProjectFolders.FolderOf(_desktopProject);
-
     private static readonly string[] _desktopSessionCode =
     [
         "Src/Presentation/AT.PresentationAppDesktop/Common/Sessions",
@@ -1425,10 +1519,9 @@ public sealed class TemplatePackagingTests
     private static string[] DesktopSessionCode(string starter)
     {
         string root = Path.Combine(StartersFolder, starter);
-        string project = starter == "wpf" ? _desktopFolder + _coreSuffix : _desktopFolder;
 
         return [.. _desktopSessionCode
-            .Select(path => Path.Combine(root, path.Replace(_desktopFolder, project, StringComparison.Ordinal)))
+            .Select(path => Path.Combine(root, path))
             .SelectMany(path => Directory.Exists(path) ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories) : File.Exists(path) ? [path] : [])
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
             .Order(StringComparer.Ordinal)];

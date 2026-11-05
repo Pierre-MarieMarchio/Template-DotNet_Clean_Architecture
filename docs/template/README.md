@@ -41,3 +41,5 @@ propose one.
 - [0018. A project keeps its provenance and its tool from the template](decisions/0018-a-project-keeps-its-provenance-and-its-tool-from-the-template.md), supersedes 0002
 - [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004
 - [0020. A project is the presentation projects it holds](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)
+- [0021. A project reads a newer version by generating both](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md)
+- [0022. A WPF app is one Windows project, tested on Windows](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)

@@ -219,7 +219,7 @@ setting, table or test names it.
 | `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation projects](../features/presentation.md)) |
 <!--#endif-->
 <!--#if (presentationWpf)-->
-| `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, its view models and host in `<Project>.Desktop.Core`, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `Src/Clients`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
 <!--#endif-->
 
 To change a value, remove the part by hand or add it:

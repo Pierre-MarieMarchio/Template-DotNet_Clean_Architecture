@@ -6,11 +6,13 @@ internal static class ProjectFolders
 {
     internal static string ProductName { get; } = ReadProductName();
 
-    internal static string FolderOf(string project) =>
-        project.StartsWith(ProductName + ".", StringComparison.Ordinal)
-            ? InitialsOf(ProductName) + project[ProductName.Length..]
+    internal static string FolderOf(string project) => $"{InitialsOf(ProductName)}.{PartOf(ProductName, project)}";
+
+    internal static string PartOf(string product, string project) =>
+        project.StartsWith(product + ".", StringComparison.Ordinal)
+            ? project[(product.Length + 1)..]
             : throw new InvalidOperationException(
-                $"'{project}' does not start with the product's name, {ProductName}, as every project's name does.");
+                $"'{project}' does not start with the product's name, {product}, as every project's name does.");
 
     internal static string InitialsOf(string product) => string.Concat(product.Split('.').Select(SegmentInitials));
 

@@ -463,10 +463,10 @@ public sealed class ModuleDependencyTests
         References(
                 ProjectReferenceGraph.ProjectsInLayer("Clients")
                     .Concat(ProjectReferenceGraph.Clients.Where(client => !withinTheClients.Contains(client.Name))),
-                (client, reference) => !withinTheClients.Contains(reference) && reference != $"{client.Name}.Core")
+                (_, reference) => !withinTheClients.Contains(reference))
             .ShouldBeEmpty(
                 "A client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
-                + "that calls the API through it, with the <Name>.Core that holds its view models: a reference to a domain, "
+                + "that calls the API through it: a reference to a domain, "
                 + "application, infrastructure or other presentation project would ship the server's code to it (ADR 0022, ADR 0023). "
                 + "Remove each reference named here and call the API over HTTP through the generated client instead.");
     }

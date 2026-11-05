@@ -55,6 +55,9 @@ internal static class WorkflowGate
             it reports under its unexpanded name and none of its legs does; allowed only on a
             matrix read from an earlier job's output (fromJSON(needs....)) when another job of
             the workflow carries the same name, to report the legs that one leaves out
+          - a run: line whose first word, past VAR=value assignments, is dotnet, with no earlier
+            actions/setup-dotnet step taking global-json-file: global.json (dotnet-version in a
+            job with no checkout); a job in a container: runs its image's SDK
 
         Exit code 0 when every workflow is sound; 1 on a problem, and on a directory holding no
         workflow, which proves nothing.
@@ -106,6 +109,8 @@ internal static class WorkflowGate
         "GITHUB_TOKEN", "GITHUB_ACTOR", "RUNNER_OS", "HOME", "PATH", "PWD",
         "IFS", "PY", "REGISTRY",
     };
+
+    private static readonly Regex _dotnetCommand = new(@"^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*dotnet(?:\.exe)?(?:\s|$)", RegexOptions.Compiled);
 
     private static readonly UTF8Encoding _utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
@@ -224,6 +229,13 @@ internal static class WorkflowGate
             foreach (var problem in MissingPath(repo, "a default working-directory", Get(Get(Get(job, "defaults"), "run"), "working-directory")))
             {
                 problems.Add($"{name}: job '{jobName}' {problem}");
+            }
+
+            if (RunnerSdkStep(job) is { } runnerSdkStep)
+            {
+                problems.Add(
+                    $"{name}: job '{jobName}' step '{runnerSdkStep}' runs dotnet on the runner image's SDK; add an actions/setup-dotnet step "
+                    + "with global-json-file: global.json after the checkout, as the other jobs do (dotnet-version in a job with no checkout)");
             }
 
             foreach (var (where, image) in JobImages(job))
@@ -391,6 +403,9 @@ internal static class WorkflowGate
             timeout-minutes: 10
             steps:
               - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+              - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+                with:
+                  global-json-file: global.json
               - name: Set up Buildx
                 uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
                 with:
@@ -442,6 +457,9 @@ internal static class WorkflowGate
               - run: echo skipped
 
         """;
+
+    private const string _sdkStep =
+        "      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68\n        with:\n          global-json-file: global.json\n";
 
     private const string _inlineMatrixWithIf =
         "    if: github.actor != 'bot'\n    strategy:\n      matrix:\n        leg: [a, b]\n    runs-on: ubuntu-latest";
@@ -549,6 +567,10 @@ internal static class WorkflowGate
                 "    timeout-minutes: 10\n    defaults:\n      run:\n        working-directory: Absent\n")
         ),
         (
+            "dotnet run with no actions/setup-dotnet step before it",
+            _cleanFixture.Replace(_sdkStep, "")
+        ),
+        (
             "no runs-on",
             _cleanFixture.Replace("    runs-on: ubuntu-latest\n", "")
         ),
@@ -608,6 +630,22 @@ internal static class WorkflowGate
                     + "        with:\n          cache: true\n          cache_dependency_path: Web/pnpm-lock.yaml\n      - name: Build\n")
         ),
         (
+            "dotnet only in a comment and a container's command line, with no actions/setup-dotnet step",
+            _cleanFixture
+                .Replace(_sdkStep, "")
+                .Replace("          dotnet run Tools/Present.cs\n", "          # dotnet run is the next step's\n          docker run --rm sdk:10 dotnet --info\n")
+        ),
+        (
+            "dotnet build in a job that runs in a container, with no actions/setup-dotnet step",
+            _cleanFixture
+                .Replace(_sdkStep, "")
+                .Replace("          dotnet run Tools/Present.cs\n", "          dotnet build\n")
+                .Replace(
+                    "    runs-on: ubuntu-latest",
+                    "    runs-on: ubuntu-latest\n    container: mcr.microsoft.com/dotnet/sdk:10.0@sha256:"
+                    + "1a0c23d53c1ad77468c8653fa6eed4f4105cfbef9e6f027bc1dfeb16949a8c29")
+        ),
+        (
             "permissions declared on the job rather than the workflow",
             _cleanFixture
                 .Replace("permissions:\n  contents: read\n", "")
@@ -625,6 +663,7 @@ internal static class WorkflowGate
         var tools = Path.Combine(root, "Tools");
         Directory.CreateDirectory(tools);
         File.WriteAllText(Path.Combine(tools, "Present.cs"), "", _utf8NoBom);
+        File.WriteAllText(Path.Combine(root, "global.json"), "{}", _utf8NoBom);
         Directory.CreateDirectory(Path.Combine(root, "Web"));
         File.WriteAllText(Path.Combine(root, "Web", "pnpm-lock.yaml"), "", _utf8NoBom);
         Directory.CreateDirectory(Path.Combine(root, ".github", "workflows"));
@@ -753,6 +792,38 @@ internal static class WorkflowGate
             && Get(other.Value, "name") is { } otherName
             && string.Equals(ScalarText(otherName), ScalarText(name!), StringComparison.Ordinal));
     }
+
+    private static string? RunnerSdkStep(YamlMappingNode job)
+    {
+        if (!IsNull(Get(job, "container")))
+        {
+            return null;
+        }
+
+        var checksOut = Steps(job).Any(step => Uses(step, "actions/checkout"));
+
+        foreach (var step in Steps(job))
+        {
+            var with = Get(step, "with");
+            if (Uses(step, "actions/setup-dotnet")
+                && (Get(with, "global-json-file") is YamlScalarNode { Value: "global.json" }
+                    || (!checksOut && !IsNull(Get(with, "dotnet-version")))))
+            {
+                return null;
+            }
+
+            if (Get(step, "run") is YamlScalarNode { Value: { } run }
+                && run.Split('\n').Any(line => _dotnetCommand.IsMatch(line.Trim())))
+            {
+                return StepName(step);
+            }
+        }
+
+        return null;
+    }
+
+    private static bool Uses(YamlMappingNode step, string action)
+        => Get(step, "uses") is YamlScalarNode { Value: { } uses } && uses.Trim().StartsWith(action + "@", StringComparison.Ordinal);
 
     private static IEnumerable<string> MissingPath(string repo, string what, YamlNode? node)
     {

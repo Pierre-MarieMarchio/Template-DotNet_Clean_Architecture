@@ -11,7 +11,7 @@ still holds.
 | Gate | Checks |
 |---|---|
 | `Tools/CheckDocPaths.cs` | every repository path in a Markdown code span exists, and every `docs/` path a workflow, script or `.http` file names; `CHANGELOG.md` and the plans folder are exempt |
-| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job |
+| `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job, a job that runs `dotnet` on the runner image's SDK |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
 | `api-client --check` | `Src/Clients/AT.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
@@ -25,6 +25,13 @@ CI runs them in `.github/workflows/ci.yml`, under `templateMaintenance` blocks a
 does not receive. Its end-to-end job skips its steps in this repository, whose stack includes web
 apps no CLI has created yet, among them those that install the workspace and Chromium for the browser
 smoke; the acceptance matrix runs the suite and the smoke instead.
+
+A job that runs `dotnet` sets up the SDK `global.json` pins first, with `actions/setup-dotnet` and
+`global-json-file: global.json`: the runner image's SDK changes under the workflow, and NuGet audit
+judges the packages it carries. A job with no checkout has no `global.json` and names its SDK with
+`dotnet-version`. `Tools/CheckWorkflows.cs` reads a `run:` line as running `dotnet` when its first
+word, past `VAR=value` assignments, is `dotnet`; a comment or `docker run <image> dotnet` starts
+with another word, and a job with a `container:` runs its image's SDK, which the digest rule pins.
 
 ### The published package each week
 
@@ -223,8 +230,9 @@ same name, `Template acceptance (<leg>)`, the check the `develop` ruleset requir
 The `windows, wpf, local auth` leg generates the default shape with the WPF app added and nothing
 else changed, so it proves the default project's tasks on Windows too. The two WPF legs carry the
 WPF starter's tag, as the Linux leg that adds the app with `cleanarch-presentation` does: a change to
-the starter builds the app and runs its `.Core` tests on Linux, and builds, tests and checks it on
-Windows under both kinds of sign-in.
+the starter builds the app and its tests on Linux, where the leg fails unless `test --no-integration`
+names the app's test project as skipped, and builds, tests and checks it on Windows under both kinds
+of sign-in.
 
 Every leg runs on a push to `main`, on a manual run, on the nightly run of `develop`, under the
 `full-acceptance` label, on an empty or unreadable diff, and on a change to the selector, its rules,
@@ -515,12 +523,16 @@ they add to shared files; `cleanarch-presentation` brings the same files and its
 those lines for `presentation-join`.
 `.template.config/starters/wpf`, copied under `presentationWpf`, which sets `dotnetClient` too, is
 written whole ([template decision 0013](decisions/0013-a-starter-the-generator-cannot-add-to-is-written-whole.md)):
-the WPF app, on `net10.0-windows` with `EnableWindowsTargeting` so that it builds on every system,
-holds `App.xaml`, `MainWindow.xaml` and their code-behind and references
-`AppTemplate.PresentationAppDesktop.Core` alone; that project, on `net10.0`, holds the view models, the
-settings, the host and the session, references the .NET client alone, and is the one its tests
-reference, so they run on Linux too. Its session is a copy of the Avalonia starter's, in its own
-namespace: `TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_InTheCoresNamespace` fails until a
+the WPF app is one project on `net10.0-windows`, with `EnableWindowsTargeting` so that it builds on
+every system, laid out as the Avalonia starter's: `App.xaml`, `MainWindow.xaml` and their code-behind,
+`ViewModels/`, the settings and the host under `Common/Hosting` and the session under
+`Common/Sessions`, referencing the .NET client alone. It adds `System.IO` and `System.Net.Http` to
+its usings, which `UseWPF` takes out of the implicit ones, so the files it shares with the Avalonia
+starter compile unchanged. Its one test project, on `net10.0-windows` too, runs on Windows alone,
+and the tasks name it as skipped elsewhere
+([template decision 0022](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)).
+Its session and its tests are a copy of the Avalonia starter's, at the same paths and in the same
+namespace: `TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_ByteForByte` fails until a
 change to one copy is made to the other, and a third desktop client is the time to move them into a
 project of their own.
 Each starter carries a token of its own, so that two hosts never meet on a path, a service or a port:
@@ -584,9 +596,8 @@ post-action scripts declined: `dotnet new` asks again for ever on a closed input
 option only from a template that has such a script, so one that would ask fails instead of waiting
 for an answer. It keeps the folders and files the descriptor names, a file the starter holds
 winning, and refuses a generated project file that declares a package or a property the starter's
-lacks. It adds the project to the solution with its `<Name>.Core` sibling when it has one, and the
-tests of each. A project that references the .NET client, itself or through that sibling, brings the
-client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
+lacks. It adds the project and its tests to the solution. A project that references the .NET client
+brings the client and its tests into the solution with it, and, once the OpenAPI reference exists, `api-client` writes the client. The package is pinned by hand: bump its
 `version` with the ASP.NET Core runtime image of the `Dockerfile`s, generate a project with
 `--presentation api --presentation blazor-server`, scaffold it, and commit what the scaffold now requires: the
 starter keeps its own `Components/App.razor`, a copy of the one the template writes without its `<ImportMap />`, so
@@ -596,9 +607,7 @@ resynchronise it with the new version's, and drop that component again.
 `<Project>.<Name>` or its test project one of the template's own projects, but `Worker` for the
 worker itself;
 `ThePresentationItemsNameRefusal_NamesEveryProjectTheTemplateWrites` lists the projects under `Src`
-and `Tests` and fails until a new one is refused. Under `wpf` it also refuses each name whose
-`<Name>.Core` is one of them, `Infrastructure` and `Presentation` beyond those already refused, and the
-same test fails until it does.
+and `Tests` and fails until a new one is refused.
 
 ## The app host
 
@@ -750,6 +759,7 @@ program shares no code.
 | The three templates compute the same initials as the tools, for names with and without capitals | `TemplatePackagingTests.TheFolderSymbol_GivesTheProductsInitials_AsTheToolsComputeThem` |
 | Every `SegmentInitials` reads as the architecture tests' own | `TemplatePackagingTests.EveryCopyOfTheInitials_ReadsAsTheArchitectureTestsOwn` |
 | The token stands only before a project's folder, at the start of a word, in every path and file a template writes | `TemplatePackagingTests.TheFolderToken_NamesNothingButAProjectFolder` |
+| Each template refuses exactly the names under two characters, which hold every name whose folders differ from its projects in case alone, and exactly the names that do not start with a letter from A to Z, which hold every name without initials | `TemplatePackagingTests.TheNameRefusals_RefuseEveryNameWhoseFoldersTheSolutionCannotHoldForItsProjects` |
 | No path under `Src` and `Tests` passes 170 characters under the default name | `TemplatePackagingTests.TheLongestPathUnderSrcAndTests_StaysWithinItsBudget_UnderTheDefaultNameAppTemplate` |
 
 ## The generators' shared code
@@ -962,3 +972,4 @@ change in an existing project takes manual work.
 - [0019. The launcher creates, and the project's tool adds](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md), replaces a bullet of 0004
 - [0020. A project is the presentation projects it holds](decisions/0020-a-project-is-the-presentation-projects-it-holds.md)
 - [0021. A project reads a newer version by generating both](decisions/0021-a-project-reads-a-newer-version-by-generating-both.md)
+- [0022. A WPF app is one Windows project, tested on Windows](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)

@@ -189,6 +189,9 @@ public sealed class ConditionedUsingTests
         Holds("(!files || auth != \"local\")").ShouldBeFalse();
         Holds("(presentation == \"worker\")").ShouldBeTrue("a multi-valued option equals each of its values");
         Holds("(presentation != \"mcp\" && !(auth == \"none\"))").ShouldBeTrue();
+        Holds("(auth < \"M\" && auth >= \"LOCAL\")").ShouldBeTrue("an ordering compares text ordinally without case, as the engine does");
+        Holds("(auth > \"local\" || auth <= \"Lo\")").ShouldBeFalse();
+        Holds("(files < \"z\")").ShouldBeFalse("an ordering holds only between two texts");
         Condition.Parse("(a || b && !c)").Names.Order(StringComparer.Ordinal).ShouldBe(["a", "b", "c"]);
         Should.Throw<FormatException>(() => Condition.Parse("(files &&)"));
         Should.Throw<FormatException>(() => Condition.Parse("(files"));

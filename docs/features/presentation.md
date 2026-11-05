@@ -26,14 +26,17 @@ Its tests are in `Tests/Presentation/<Initials>.Desktop.UnitTests`.
 `Src/Presentation/<Initials>.Desktop` is the desktop app, a WPF app for Windows on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
 client of `Src/Clients/<Initials>.Client`, generated from the API's OpenAPI document
-([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). The app targets
-`net10.0-windows` and holds its windows alone. Its view models, its settings, its host and its
-session are in `Src/Presentation/<Initials>.Desktop.Core`, on `net10.0`, which references that client
-alone, never the domain, the application layer or a module, so it composes no use case of its own
+([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It is one project on
+`net10.0-windows`, holding its windows, its view models, its settings, its host and its session, and
+references that client alone, never the domain, the application layer or a module, so it composes no
+use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
-The app builds on every system, with `EnableWindowsTargeting`, and runs on Windows. Its tests are in
-`Tests/Presentation/<Initials>.Desktop.Core.UnitTests`, against the `.Core` project, and run on every
-system.
+Its tests are in `Tests/Presentation/<Initials>.Desktop.UnitTests`, on `net10.0-windows` too.
+
+WPF is Windows first: the app is developed, run and tested on Windows. Other systems build it and its
+tests, with `EnableWindowsTargeting`, and there `test`, `check`, `coverage` and `verify` leave its
+tests out and name them before and after the run, as
+[tests that run on Windows alone](../guides/build-and-ci.md#tests-that-run-on-windows-alone) says.
 
 <!--#endif-->
 <!--#if (presentationMcp)-->
@@ -72,9 +75,9 @@ and `app.manifest`; a file the project already holds is kept. It needs the netwo
 
 <!--#endif-->
 <!--#if (presentationWpf)-->
-The desktop app and its `.Core` project come whole with this project. `dotnet new wpf` ships with
-the .NET SDK alone, so no version of it can be pinned: the app is written in the shape it gives, a
-`WinExe` on `net10.0-windows` with `UseWPF`, `App.xaml`, `MainWindow.xaml` and their code-behind.
+The desktop app comes whole with this project. `dotnet new wpf` ships with the .NET SDK alone, so
+no version of it can be pinned: the app is written in the shape it gives, a `WinExe` on
+`net10.0-windows` with `UseWPF`, `App.xaml`, `MainWindow.xaml` and their code-behind.
 `App.xaml` names no start-up window: `App.xaml.cs` builds the host and shows the main window with
 its view model. The generator's assembly information file is left out, its theme attribute serving
 custom control themes the app has none of. The step runs no template and adds the .NET client
@@ -281,8 +284,8 @@ challenges a caller who is not signed in.
 <!--#if (presentationAvalonia)-->
 The app builds a generic host in `Common/Hosting/AppHost.cs` before Avalonia starts.
 <!--#else-->
-`App.xaml.cs` builds the generic host of the `.Core` project's `Common/Hosting/AppHost.cs` before it
-shows the main window, and disposes it when the app exits.
+`App.xaml.cs` builds the generic host of `Common/Hosting/AppHost.cs` before it shows the main window,
+and disposes it when the app exits.
 <!--#endif-->
 <!--#if (localAuth)-->
 The host binds and validates the `Api` settings, registers the client with `AddApiClient`, and the
@@ -371,9 +374,8 @@ the setting. No test reaches a real provider.
 The views are not tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app
 to the client.
 <!--#else-->
-They test the `.Core` project, and run on every system; the windows and their code-behind are not
-tested. `EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app to its `.Core` project, and
-that project to the client.
+They run on Windows; the windows and their code-behind are not tested.
+`EveryClient_ReachesTheCoreThroughTheApiAlone` keeps the app to the client.
 <!--#endif-->
 <!--#endif-->
 <!--#if (presentationMcp)-->

@@ -146,6 +146,7 @@ public sealed partial class EndToEndTests : IDisposable
     [
         ("vite-react", "vite-react", "public", "spa", []),
         ("angular-ssr-external", "angular", "admin", "ssr", ["--auth", "external", "--examples", "notes"]),
+        ("vite-react-no-auth", "vite-react", "public", "spa", ["--auth", "none", "--examples", "none", "--files", "false"]),
     ];
 
     private static string WithoutTheOptions(string overview)

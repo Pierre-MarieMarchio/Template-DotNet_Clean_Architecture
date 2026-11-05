@@ -81,37 +81,37 @@ Where each file goes, and what it is called, is [the project layout](../referenc
 | Soft delete | `DELETE` removes rows | [ADR 0038](../decisions/0038-deleting-removes-rows.md) |
 | An outbox, a message bus | events published in process after the commit, and sweeps that re-derive | [ADR 0006](../decisions/0006-events-after-commit-without-an-outbox.md) |
 | AutoMapper, Mapperly | mappings written by hand, checked by the compiler; `BannedPackageTests` refuses both packages | [ADR 0036](../decisions/0036-mappings-are-written-by-hand.md) |
-<!--#if (api)-->
+| <!--#if (api)--> |
 | Minimal APIs | MVC controllers, which carry the filters, the result mapping and the `ETag` handling | [HTTP API](http-api.md) |
-<!--#endif-->
+| <!--#endif--> |
 | Output caching | revalidation headers on responses, `ICacheStore` for values | [Shared mechanisms](shared-mechanisms.md#cache) |
 | An abstraction made for a single case | one extracted only once two real cases prove its shape | [Ports and adapters](ports-and-adapters.md#ports-are-named-for-intent) |
 | A `.Core` and a `.<Technology>` project per module | one project per capability | [Modules and boundaries](modules-and-boundaries.md#infrastructure-per-capability) |
-<!--#if (serverDatabase)-->
+| <!--#if (serverDatabase)--> |
 | Migrations at start-up outside Development | one bundle per context, applied at release | [Deployment](../guides/deployment.md#migrations-at-release) |
-<!--#endif-->
-<!--#if (sqlite)-->
+| <!--#endif--> |
+| <!--#if (sqlite)--> |
 | Running outside Development | SQLite is a development database, and the API refuses to start elsewhere | [ADR 0021](../decisions/0021-sqlite-is-a-development-database.md) |
-<!--#endif-->
+| <!--#endif--> |
 | HTTPS redirection, HSTS | TLS terminates upstream | [Deployment](../guides/deployment.md#behind-a-proxy) |
-<!--#if (accounts)-->
-<!--#if (api)-->
+| <!--#if (accounts)--> |
+| <!--#if (api)--> |
 | Permissions, tenants | one `Administrator` policy beside the default-deny fallback | [Request pipeline](request-pipeline.md#authorisation) |
-<!--#endif-->
-<!--#endif-->
-<!--#if (publicApi)-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (publicApi)--> |
+| <!--#if (api)--> |
 | Roles, policies, tenants | every caller is admitted; nothing is owned by a tenant | [Request pipeline](request-pipeline.md#authorisation) |
-<!--#endif-->
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | Machine-to-machine authentication | every token belongs to a person who signed in | [Authentication](../features/authentication.md) |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | A shared contracts assembly | the web apps use a client generated from the API's OpenAPI document | [ADR 0019](../decisions/0019-one-generated-api-client.md) |
-<!--#endif-->
-<!--#if (!anyWeb)-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (!anyWeb)--> |
+| <!--#if (api)--> |
 | A client contracts package | a client generates its types from the API's OpenAPI document | [HTTP API](http-api.md#versioning-and-the-openapi-document) |
 <!--#endif-->
 <!--#endif-->

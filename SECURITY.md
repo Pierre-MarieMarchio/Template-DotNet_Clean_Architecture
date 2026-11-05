@@ -22,16 +22,16 @@ Each row links to the page that describes it.
 
 | Protection | Where it is described |
 |---|---|
-<!--#if (accounts && api)-->
+| <!--#if (accounts && api)--> |
 | Default-deny authorisation: an endpoint is protected unless it opts out, and an unknown route answers `401` to an anonymous caller | [Request pipeline › Authorisation](docs/architecture/request-pipeline.md#authorisation) |
-<!--#endif-->
-<!--#if (accounts)-->
+| <!--#endif--> |
+| <!--#if (accounts)--> |
 | Another caller's resource answers `404`, never `403`: the owner is in the query | [ADR 0009](docs/decisions/0009-ownership-is-in-the-query.md) |
-<!--#endif-->
-<!--#if (publicApi)-->
+| <!--#endif--> |
+| <!--#if (publicApi)--> |
 | Public access is a policy written in the composition, and no caller is ever identified | [Authentication › A public API](docs/features/authentication.md#a-public-api) |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | Opaque refresh tokens that rotate on every use; a replay ends every session of the account | [Authentication › Access and refresh tokens](docs/features/authentication.md#access-and-refresh-tokens), [ADR 0013](docs/decisions/0013-a-session-is-a-refresh-token-family.md) |
 | Sessions an owner can list and end; a credential change ends the others | [Authentication › Sessions](docs/features/authentication.md#sessions) |
 | Two-factor sign-in and passkeys | [Authentication › Two-factor](docs/features/authentication.md#two-factor), [ADR 0015](docs/decisions/0015-passkeys-stand-on-their-own.md) |
@@ -39,30 +39,30 @@ Each row links to the page that describes it.
 | Registration and recovery reveal nothing about which addresses exist | [ADR 0014](docs/decisions/0014-anonymous-routes-reveal-nothing.md), [Accounts](docs/features/accounts.md#registration-and-email-confirmation) |
 | Password policy and lockout | [Authentication › Configure](docs/features/authentication.md#configure) |
 | A security log of sign-ins and credential changes, naming no address | [Accounts › The security log](docs/features/accounts.md#the-security-log) |
-<!--#endif-->
-<!--#if (externalAuth)-->
+| <!--#endif--> |
+| <!--#if (externalAuth)--> |
 | Bearer tokens validated against the provider's keys; each (issuer, subject) mapped to an internal owner | [Authentication › An external identity provider](docs/features/authentication.md#an-external-identity-provider), [ADR 0017](docs/decisions/0017-external-subjects-map-to-internal-owners.md) |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | Rate limiting per client address, answering `429` with `Retry-After` | [Request pipeline › Rate limiting](docs/architecture/request-pipeline.md#rate-limiting) |
 | An oversized body refused before it is buffered, and logged; a timeout per request | [Request pipeline › Body size and timeouts](docs/architecture/request-pipeline.md#body-size-and-timeouts) |
 | Security headers on every response, a default-deny CSP, CORS that allows nothing until told | [Request pipeline › CORS and security headers](docs/architecture/request-pipeline.md#cors-and-security-headers) |
 | No exception text reaches a client; every refusal is a problem document with a `code` and a `traceId` | [Request pipeline › Problem details](docs/architecture/request-pipeline.md#problem-details) |
 | Request logs carry a fixed field list: never the `Authorization` header, cookies, the query or the body | [Request pipeline › Request logging](docs/architecture/request-pipeline.md#request-logging) |
-<!--#endif-->
+| <!--#endif--> |
 | Lost updates refused: the row version exposed as `ETag`, checked from `If-Match` | [ADR 0008](docs/decisions/0008-optimistic-concurrency-end-to-end.md) |
-<!--#if (files)-->
+| <!--#if (files)--> |
 | Stored files keyed by a random key, bound to their digest, inspected from their bytes, served through narrow signed grants | [Files › Inspection and scanning](docs/features/files.md#inspection-and-scanning), [ADR 0018](docs/decisions/0018-stored-files-are-keyed-granted-and-refused.md) |
-<!--#endif-->
+| <!--#endif--> |
 | A setting the host cannot use stops it at start, naming the key | [Deployment › Configuration and secrets](docs/guides/deployment.md#configuration-and-secrets) |
-<!--#if (anyWeb)-->
+| <!--#if (anyWeb)--> |
 | Every dependency pinned and audited, NuGet by `NuGetAudit` and the web packages by `pnpm audit`; any known advisory fails the build | [Build and CI › Supply chain](docs/guides/build-and-ci.md#supply-chain) |
-<!--#endif-->
-<!--#if (!anyWeb)-->
+| <!--#endif--> |
+| <!--#if (!anyWeb)--> |
 | Every dependency pinned and audited; any known advisory fails the build | [Build and CI › Supply chain](docs/guides/build-and-ci.md#supply-chain) |
-<!--#endif-->
+| <!--#endif--> |
 | An unprivileged image exposing 8080 only | [Deployment › The image](docs/guides/deployment.md#the-image) |
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | The portal sends the API's security headers and a policy that allows no script but its own and forbids framing; where the project authenticates, every page asks for a signed-in user unless it opts out | [Presentation projects › Portal security headers](docs/features/presentation.md#portal-security-headers) |
 <!--#endif-->
 

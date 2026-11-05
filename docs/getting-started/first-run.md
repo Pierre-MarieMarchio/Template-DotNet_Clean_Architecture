@@ -23,7 +23,7 @@ Run every command from the repository root.
 |---|---|---|
 | .NET SDK | 10.0.100 or any later .NET 10 SDK, as `global.json` allows | building, running, every task |
 | Docker with Compose v2 | any recent | the local stack and the integration tests |
-<!--#if (anyWeb)-->
+| <!--#if (anyWeb)--> |
 | Node.js | the version in `Src/Web/.node-version` | the web workspace |
 | pnpm | the version `Src/Web/package.json` pins, run by Corepack | the web workspace |
 <!--#endif-->
@@ -153,26 +153,26 @@ healthy. The API runs in Development, so it applies its migrations at start.
 |---|---|
 | API | <http://localhost:8080> |
 | Scalar, the OpenAPI UI (Development only) | <http://localhost:8080/scalar/v1> |
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | The portal | <http://localhost:8090> |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | The MCP server | <http://localhost:8091/mcp> |
-<!--#endif-->
+| <!--#endif--> |
 | Mailpit, where mails land | <http://localhost:8025> |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | PostgreSQL | `127.0.0.1:5432` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | SQL Server | `127.0.0.1:1433` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
-<!--#endif-->
-<!--#if (webFramework)-->
+| <!--#endif--> |
+| <!--#if (webFramework)--> |
 | Web app | <http://localhost:5173> |
-<!--#endif-->
-<!--#if (webPlaceholder)-->
+| <!--#endif--> |
+| <!--#if (webPlaceholder)--> |
 | Web app | <http://localhost:8081> |
 <!--#endif-->
 
@@ -338,20 +338,20 @@ dotnet ef database update --project Src/Infrastructure/AT.Infrastructure.Auth --
 <!--#endif-->
 | Service | Address |
 |---|---|
-<!--#if (presentationBlazorServer)-->
+| <!--#if (presentationBlazorServer)--> |
 | The portal | <http://localhost:8090> |
-<!--#endif-->
-<!--#if (presentationMcp)-->
+| <!--#endif--> |
+| <!--#if (presentationMcp)--> |
 | The MCP server | <http://localhost:8091/mcp> |
-<!--#endif-->
+| <!--#endif--> |
 | Mailpit, where mails land | <http://localhost:8025> |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | PostgreSQL | `127.0.0.1:5432` |
-<!--#endif-->
-<!--#if (sqlServer)-->
+| <!--#endif--> |
+| <!--#if (sqlServer)--> |
 | SQL Server | `127.0.0.1:1433` |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | Object store (SeaweedFS, S3 API) | <http://localhost:9000> |
 <!--#endif-->
 

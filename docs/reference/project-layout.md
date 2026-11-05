@@ -1,7 +1,13 @@
-﻿# Project layout
+---
+type: reference
+title: Project layout
+description: Where a file goes in this project and what it is called.
+---
+
+# Project layout
 
 Where a file goes and what it is called. Every rule on this page is held by a test in
-`Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails the build. Why the
+`Tests/Architecture/AT.Architecture.Tests`, so a misplaced file fails a test there. Why the
 layers are drawn this way is [the architecture](../architecture/README.md).
 
 ## The folder map
@@ -231,11 +237,16 @@ feature leaves `examples` as it was. A part added later is recorded by the task 
 `web-join` for a web app or package and `presentation-join` for a presentation project. A key this
 table does not name is kept by every task that writes the file. `ProjectFileTests` fails when the
 file and the tree disagree.
+<!--#if (localAuth && api)-->
 
-<!--#if (localAuth)-->
-The API's `Features/Auth/` is one host feature over the six authentication features: one route
+The API's `Features/Auth/` is one host feature over the authentication features: one route
 tree, one composition entry, `AddAuthFeature`, and one folder to delete for a host without local
 accounts.
+<!--#endif-->
+<!--#if (localAuth && !api)-->
+
+Each host's `Features/Auth/` is one host feature over the authentication features: one composition
+entry and one folder to delete for a host without local accounts.
 <!--#endif-->
 
 ## The worked example
@@ -272,8 +283,8 @@ Services/                           the gate every command loads its aggregate t
 Services/Consumers/<Event>/         one folder per event the feature answers
 ```
 <!--#endif-->
-
 <!--#if (notes)-->
+
 A simple feature has no operation folders, so an input DTO's validator sits beside the DTO:
 
 ```
@@ -318,7 +329,7 @@ A type's suffix names its nature, and the nature names its folder:
 | `…Controller` | `Controllers/` |
 | `…BackgroundService`, `…Task`, `…Telemetry` | `Jobs/` |
 | `…Composition`, a host-supplied `…Directory`, `…Provider` or `…Session` | `Composition/` |
-<!--#if (presentationMcp)-->
+| <!--#if (presentationMcp)--> |
 | `…Tools`, the MCP server's tools of one feature | `Tools/` |
 <!--#endif-->
 
@@ -336,11 +347,12 @@ as `ResultExtensions` lives in `Common/Results/`.
 
 ## Adding a project
 
-A project under `Src/` fails the build until `LayoutConventionTests` gives it an entry in both of its
+A project under `Src/` fails `LayoutConventionTests` until that test gives it an entry in both of its
 vocabularies, the `Common/` one and the `Features/` one, and this page's folder map lists its words.
 An entry is `null` when the project has no such folder, checked in both directions, and an empty
 list when its features hold their files side by side.
 
+[Adding a project](../guides/adding-a-project.md) walks through every step.
 A `.Core` project is marked `IsSdkProject`; an infrastructure project is a module only a host
 references. Its folder takes the initials, as [the folder map](#the-folder-map) says, and
 `ProjectFolderTests` names the folder a misplaced project belongs in.
@@ -368,9 +380,9 @@ So does the app host, which `LocalStackTests` starts from its integration test p
 | Every type under `Helpers/` is a static class | `FeatureFolderVocabularyTests.EveryTypeUnderAHelpersFolder_IsAStaticClass` |
 | One use case per operation folder, named for it | `UseCaseConventionTests.EveryUseCaseFolder_HoldsOneUseCase_AndIsNamedForIt` |
 | Every message has one handler | `MessageRoutingTests.EveryMessage_HasExactlyOneHandler` |
-| Every message is sent by a host or a job, and crosses the validation behaviour | `MessageRoutingTests.EveryMessage_IsSentByAHostOrAJob`, `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` |
+| Every message is sent by a host or a job, under a short name no other message has, and crosses the validation behaviour | `MessageRoutingTests.EveryMessage_IsSentByAHostOrAJob`, `NoTwoMessages_ShareAShortName`, `ContainerCompositionTests.EveryMessage_PassesThroughTheValidationBehaviour` |
 | Every validator targets a message or is taken by the service that runs it | `ValidatorTargetTests.EveryValidator_TargetsAMessageOrIsInjectedWhereItRuns` |
 | Every source project has its unit test project, but the exceptions the test names | `TestProjectMirrorTests.EverySourceProject_HasItsUnitTestProject_ExceptTheOnesNamedHere` |
-| MediatR and AutoMapper are in no project | `BannedPackageTests.NoProject_ReferencesABannedPackage` |
+| MediatR, AutoMapper and Mapperly are in no project | `BannedPackageTests.NoProject_ReferencesABannedPackage` |
 | A repository contract lives in the domain | `StorageVocabularyTests.EveryRepositoryContract_IsDeclaredInTheDomain` |
 | No `Common/` names a feature | `ModuleDependencyTests.EveryModuleCommon_KnowsNoFeature`, `HttpCommonBoundaryTests.TheCommonHttpCode_NamesNoFeature` |

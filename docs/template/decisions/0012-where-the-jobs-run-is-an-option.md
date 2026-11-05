@@ -1,8 +1,13 @@
-﻿# 0012. Where the jobs run is an option
+---
+type: decision
+title: 0012. Where the jobs run is an option
+description: Why where the jobs run was an option of its own, until the worker became a presentation project.
+status: Superseded
+---
 
-Status: Accepted; its option is the `worker` value of `--presentation` since
-[0020](0020-a-project-is-the-presentation-projects-it-holds.md); amended: a project adds the worker
-later too
+# 0012. Where the jobs run is an option
+
+Status: Superseded by [0024](0024-the-worker-takes-the-jobs-out-of-the-api.md)
 
 ## Context
 
@@ -38,7 +43,8 @@ places there, so generating it means generating the API without them.
   a copy first, so a job that needs a type of the API leaves the project unchanged.
 - **Tests hold the addition.** A launcher test generates the project with the worker and without it,
   adds the worker to the second, and requires the same tree but for ADR 0011, kept and superseded,
-  and its row in the decisions index, which a generated worker project never had.
+  and its line in the decisions index, which `docs-index` lists once the join runs it and a
+  generated worker project never had.
 - **Tests hold the move.** `TemplatePackagingTests` fails when a namespace declared under a moved
   folder has no switch symbol, or when the folders the worker's sources copy differ from those the
   API's source excludes.

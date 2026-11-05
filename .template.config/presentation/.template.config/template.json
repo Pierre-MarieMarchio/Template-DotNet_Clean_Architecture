@@ -138,10 +138,6 @@
           "description": "The project was generated with --database sqlserver."
         },
         {
-          "choice": "mysql",
-          "description": "The project was generated with --database mysql."
-        },
-        {
           "choice": "sqlite",
           "description": "The project was generated with --database sqlite."
         }
@@ -268,18 +264,6 @@
       "isRequired": "(framework == \"worker\" && database == \"sqlite\")",
       "description": "Never set. The worker runs the jobs in a second process, and a SQLite file serves one: add the worker to a project generated with --database postgresql or sqlserver."
     },
-    "mySqlNotYetGenerated": {
-      "type": "parameter",
-      "datatype": "choice",
-      "choices": [
-        {
-          "choice": "refused",
-          "description": "Not an option to set: it names the refusal."
-        }
-      ],
-      "isRequired": "(database == \"mysql\")",
-      "description": "Never set. This version of the template does not generate --database mysql yet: choose --database postgresql."
-    },
     "localAuth": {
       "type": "computed",
       "value": "(auth == \"local\")"
@@ -303,10 +287,6 @@
     "sqlServer": {
       "type": "computed",
       "value": "(database == \"sqlserver\")"
-    },
-    "mySql": {
-      "type": "computed",
-      "value": "(database == \"mysql\")"
     },
     "sqlite": {
       "type": "computed",
@@ -404,10 +384,6 @@
           {
             "condition": "(sqlServer)",
             "value": "Server=localhost,1433;Database=appdb;User Id=sa;Password=Local_dev_sa_1;TrustServerCertificate=True"
-          },
-          {
-            "condition": "(mySql)",
-            "value": "Server=localhost;Port=3306;Database=appdb;User=appuser;Password=appuser_local_dev"
           },
           {
             "condition": "(sqlite)",

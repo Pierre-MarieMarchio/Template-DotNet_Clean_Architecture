@@ -238,7 +238,7 @@ public sealed class QuestionnaireTests
     }
 
     [Fact]
-    public void InATerminal_MySql_IsNeverOffered()
+    public void InATerminal_TheDatabase_OffersOnlyWhatTheTemplateGenerates()
     {
         var console = new TestConsole().Interactive();
         console.Profile.Width = 200;

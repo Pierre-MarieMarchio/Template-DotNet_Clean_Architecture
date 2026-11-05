@@ -1,4 +1,11 @@
-﻿# 0032. The app host follows Compose
+---
+type: decision
+title: 0032. The app host follows Compose
+description: Why Compose stays the reference of the local stack and the Aspire app host follows it, service for service.
+status: Accepted
+---
+
+# 0032. The app host follows Compose
 
 Status: Accepted
 
@@ -41,8 +48,8 @@ reference and a test holds the other to it.
   would fail until someone copied the reference across.
 - **A hand-written list of hosts in the app host**: a host added later with `cleanarch-presentation`
   or a web app added with `cleanarch-webapp` would be missing from it until someone remembered.
-- **The orchestrator from NuGet packages**, Aspire's earlier default: Aspire now warns on it, and
-  silencing the warning is a silence this project does not keep.
+- **The orchestrator from NuGet packages**: Aspire warns on it, and silencing the warning is a
+  silence this project does not keep.
 
 ## Consequences
 

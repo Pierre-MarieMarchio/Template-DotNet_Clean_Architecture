@@ -1,4 +1,11 @@
-﻿# 0001. Options remove parts and refuse combinations
+---
+type: decision
+title: 0001. Options remove parts and refuse combinations
+description: Why an option removes what it leaves out of a generated project rather than disabling it, and refuses the combinations that cannot hold.
+status: Accepted
+---
+
+# 0001. Options remove parts and refuse combinations
 
 Status: Accepted
 
@@ -18,7 +25,7 @@ constraint between parameters.
   are excluded by conditions in `template.json`; content shared by several shapes is conditioned
   with template markers.
 - **A forbidden combination is refused at generation.** Each refusal is a hidden parameter that the
-  combination makes required: `authNoneNeedsExamplesNone`, `authNoneNeedsFilesFalse`,
+  combination makes required, such as `authNoneNeedsExamplesNone`, `authNoneNeedsFilesFalse` or
   `adminWebNeedsAccounts`. The engine stops and prints the parameter's description, which names the
   option to change.
 - **A refusal that slips through cannot build.** The same combinations select the `refused`

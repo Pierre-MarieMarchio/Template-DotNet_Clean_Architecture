@@ -14,9 +14,6 @@ using AppTemplate.Infrastructure.Auth;
 using AppTemplate.Infrastructure.Email;
 using AppTemplate.Infrastructure.InMemory;
 using AppTemplate.Infrastructure.Persistence;
-//#if (files)
-using AppTemplate.Infrastructure.Storage;
-//#endif
 using AppTemplate.Presentation.Core;
 
 namespace AppTemplate.Architecture.Tests.Fixtures;
@@ -40,9 +37,6 @@ internal static class ArchitectureAssemblies
     //#endif
     internal const string EmailInfrastructureNamespace = "AppTemplate.Infrastructure.Email";
     internal const string InMemoryInfrastructureNamespace = "AppTemplate.Infrastructure.InMemory";
-    //#if (files)
-    internal const string StorageInfrastructureNamespace = "AppTemplate.Infrastructure.Storage";
-    //#endif
 
     internal const string PersistenceCommonNamespace = "AppTemplate.Infrastructure.Persistence.Common";
 
@@ -89,13 +83,13 @@ internal static class ArchitectureAssemblies
     private static readonly Lazy<Assembly> _inMemoryInfrastructure =
         new(() => Anchor(typeof(InMemoryModule), InMemoryInfrastructureNamespace));
 
-    //#if (files)
-    private static readonly Lazy<Assembly> _storageInfrastructure =
-        new(() => Anchor(typeof(StorageModule), StorageInfrastructureNamespace));
-
-    //#endif
     private static readonly Lazy<IReadOnlyList<Assembly>> _allInfrastructure =
         new(() => LayerAssemblies("Infrastructure"));
+
+    private static readonly Lazy<IReadOnlyList<Assembly>> _modulesBesidesPersistence =
+        new(() => LayerAssemblies("Infrastructure", project =>
+            ProjectReferenceGraph.IsInfrastructureModule(project.Name)
+            && !string.Equals(project.Name, PersistenceNamespace, StringComparison.Ordinal)));
 
     private static readonly Lazy<IReadOnlyList<Assembly>> _productionInfrastructure =
         new(() => LayerAssemblies("Infrastructure", module => ProjectReferenceGraph.Hosts
@@ -131,10 +125,8 @@ internal static class ArchitectureAssemblies
 
     internal static Assembly InMemoryInfrastructure => _inMemoryInfrastructure.Value;
 
-    //#if (files)
-    internal static Assembly StorageInfrastructure => _storageInfrastructure.Value;
+    internal static IReadOnlyList<Assembly> ModulesBesidesPersistence => _modulesBesidesPersistence.Value;
 
-    //#endif
     internal static IReadOnlyList<Assembly> ProductionInfrastructure => _productionInfrastructure.Value;
 
     internal static IReadOnlyList<Assembly> AllInfrastructure => _allInfrastructure.Value;
@@ -166,8 +158,31 @@ internal static class ArchitectureAssemblies
         return [.. projects.Select(project => Load(project.Name))];
     }
 
+    internal static void RequireDirectReference(string projectName, IReadOnlySet<string> referenced)
+    {
+        if (referenced.Contains(projectName))
+        {
+            return;
+        }
+
+        string testProject = ProjectReferenceGraph.ArchitectureTestProjectFile;
+        string include = ProjectReferenceGraph.SourceProjects.TryGetValue(projectName, out var project)
+            ? Path.GetRelativePath(
+                Path.GetDirectoryName(testProject)!,
+                Path.Combine(ProjectReferenceGraph.RepositoryRoot, project.RelativePath))
+            : projectName + ".csproj";
+
+        throw new InvalidOperationException(
+            $"'{projectName}' is not referenced by the architecture test project itself, so the rules aimed " +
+            "at it run only while another reference happens to bring it along, and stop with a load error once that " +
+            $"reference goes. Add <ProjectReference Include=\"{include}\" /> to " +
+            $"'{Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, testProject)}'.");
+    }
+
     private static Assembly Load(string assemblyName)
     {
+        RequireDirectReference(assemblyName, ProjectReferenceGraph.ArchitectureTestReferences);
+
         try
         {
             return Assembly.Load(new AssemblyName(assemblyName));
@@ -184,6 +199,8 @@ internal static class ArchitectureAssemblies
 
     private static Assembly Anchor(Type anchor, string expectedAssemblyName)
     {
+        RequireDirectReference(expectedAssemblyName, ProjectReferenceGraph.ArchitectureTestReferences);
+
         var assembly = anchor.Assembly;
         string? actualName = assembly.GetName().Name;
 

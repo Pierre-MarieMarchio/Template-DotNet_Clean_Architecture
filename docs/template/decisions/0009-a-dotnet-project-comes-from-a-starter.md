@@ -1,12 +1,18 @@
-﻿# 0009. A .NET project comes from a starter
+---
+type: decision
+title: 0009. A .NET project comes from a starter
+description: Why a .NET project a starter adds comes from a template package its descriptor names, as a web app comes from pnpm.
+status: Accepted
+---
+
+# 0009. A .NET project comes from a starter
 
 Status: Accepted
 
 ## Context
 
-[0008](0008-a-web-app-comes-from-a-starter.md) made each web app a starter: a pinned CLI that
-`web-scaffold` runs with pnpm, and an overlay. It left a `kind` for a starter that is no pnpm app
-until one arrived. `--presentation blazor-server` is the first: a Blazor Web App written by
+A web app is a starter: a pinned CLI that `web-scaffold` runs with pnpm, and an overlay. A .NET
+project is not a pnpm app: `--presentation blazor-server`, for one, is a Blazor Web App written by
 `dotnet new blazor`, from Microsoft's ASP.NET Core templates. Its output is C#, built by the
 solution and held by the architecture tests, so it has to come under the repository's rules: the
 central package versions, the properties `Directory.Build.props` already sets, the solution, the
@@ -15,8 +21,8 @@ pins and refuses an install of another version beside it.
 
 ## Decision
 
-- **A descriptor says its kind.** `scaffold.json` holds `kind`: `pnpm` when absent, so every web
-  starter reads as before, and `dotnet` for a template package. A `dotnet` descriptor names the
+- **A descriptor says its kind.** `scaffold.json` holds `kind`: `pnpm` when absent, so a web starter
+  of pnpm needs none, and `dotnet` for a template package. A `dotnet` descriptor names the
   package, its exact version, the template's short name, its arguments, and the generated folders
   the project keeps.
 - **The template runs in a hive of its own.** `presentation-scaffold`, or `web-scaffold` for a web
@@ -31,8 +37,9 @@ pins and refuses an install of another version beside it.
   generator writes is compared with the starter's, and a package or a property the starter's lacks
   stops the scaffold with its name, so a template version that needs more is noticed rather than
   dropped.
-- **The project joins the solution once it is created**, with its tests, through `dotnet sln add`,
-  then each is formatted. The checkout's solution never names it, since the checkout has no
+- **The project joins the solution once it is created**, with its tests, through `dotnet sln add --solution-folder`, one call per layer folder (`Src/Presentation`,
+  `Tests/Presentation`), so each lands beside the template's own projects instead of in a folder
+  named after its own directory; then each is formatted. The checkout's solution never names it, since the checkout has no
   generated folders to build it from.
 - **A starter is copied by the option whose root it fills.** A web starter holds `FrameworkSite/`
   and is copied into `Src/Web/apps/`; a presentation starter holds its project and its tests at

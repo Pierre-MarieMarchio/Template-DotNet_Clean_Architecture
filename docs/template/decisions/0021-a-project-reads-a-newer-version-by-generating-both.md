@@ -1,4 +1,11 @@
-﻿# 0021. A project reads a newer version by generating both
+---
+type: decision
+title: 0021. A project reads a newer version by generating both
+description: Why a project reads what a newer template version changes by generating both versions and comparing three ways.
+status: Accepted
+---
+
+# 0021. A project reads a newer version by generating both
 
 Status: Accepted
 
@@ -58,4 +65,6 @@ generation holds, and an item template's join edits files outside its part.
 
 ## Revisit when
 
-`dotnet new` gains an update of its own, or `dotnet cleanarch` takes the report over.
+`dotnet new` gains an update of its own, or the report, a command of the project's tool as every
+task is ([0017](0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)), comes to need to write
+in the project rather than report.

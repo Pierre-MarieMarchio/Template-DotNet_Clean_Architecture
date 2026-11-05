@@ -1,4 +1,10 @@
-﻿# Feature shapes
+---
+type: concept
+title: Feature shapes
+description: Which of the two shapes a feature takes, an aggregate with use cases or a service over a store, and the one question that chooses.
+---
+
+# Feature shapes
 
 A feature in this project takes one of two shapes: an aggregate with use cases, or a service over a
 store. Both are first-class, and one question chooses between them.
@@ -27,8 +33,8 @@ The rest of the architecture still applies. The owner comes from `ICurrentUser`,
 and every store and queries method names it. The store loads the owner's row and stages the change,
 and `IUnitOfWork` commits it. When the feature keeps a version, the store checks the caller's
 `If-Match` against the row, and the database refuses a write whose version moved in between.
-
 <!--#if (notes)-->
+
 `Notes` is this shape: `INoteService` over `INoteStore` and `INoteQueries`, with `NoteRecord` as its
 only model.
 <!--#endif-->
@@ -43,6 +49,7 @@ contract. The application holds one use case per operation, each in its own fold
 its command or query and that message's handler, and its validator beside it, plus a queries port for
 the reads. Persistence maps
 the aggregate onto row records through a mapper and a tracker, so the domain never sees EF Core.
+<!--#if (todoLists || files)-->
 
 <!--#if (todoLists)-->
 `TodoLists` is this shape: the `TodoList` aggregate, `ITodoListRepository`, `ITodoListQueries`, and a
@@ -50,6 +57,7 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 <!--#endif-->
 <!--#if (files)-->
 `Files` is this shape too: a stored file's states and transitions are rules the aggregate protects.
+<!--#endif-->
 <!--#endif-->
 
 `new-use-case` adds one operation to a feature of this shape, as
@@ -65,14 +73,14 @@ folder per operation such as `CreateTodoList` and `CompleteTodoItem`.
 | Persistence | the record is the model; the store stages it | record, mapper, tracker |
 | Validation | FluentValidation, called by the service | FluentValidation in the use-case pipeline, then the aggregate's invariants |
 | Commit | `IUnitOfWork` | `IUnitOfWork`, the same boundary |
-<!--#if (postgreSql)-->
+| <!--#if (postgreSql)--> |
 | Concurrency | the row's `xmin` | the root's `xmin` |
-<!--#endif-->
-<!--#if (versionCounter)-->
+| <!--#endif--> |
+| <!--#if (versionCounter)--> |
 | Concurrency | the row's `Version` counter | the root's `Version` counter |
 <!--#endif-->
-
 <!--#if (canAddFeature)-->
+
 The generator writes either shape: `new-feature --model record` the simple one, and
 `--model aggregate` the rich one, which needs `--concurrency etag` and at least one write operation.
 [Adding a feature](../guides/adding-a-feature.md) walks through both.

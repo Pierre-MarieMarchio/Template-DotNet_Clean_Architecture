@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using AppTemplate.Architecture.Tests.Fixtures;
+﻿using AppTemplate.Architecture.Tests.Fixtures;
 using Shouldly;
 using Xunit;
 
@@ -38,10 +37,7 @@ public sealed class HttpSurfaceTests
     private static readonly string[] _scheduleNeedles =
         ["\"Deprecation\"", "\"Sunset\"", "Headers.Deprecation", "HeaderNames.Sunset"];
 
-    private static readonly Regex _anonymousAction = new(
-        @"\[AllowAnonymous\][^{};]*?\b(?:public|internal)\s[^(]*?\b(\w+)\s*\(",
-        RegexOptions.Singleline,
-        TimeSpan.FromSeconds(5));
+    private const string _anonymousOptOut = "AllowAnonymous";
 
     [Fact]
     public void NoResponse_CarriesALinkHeader()
@@ -117,30 +113,80 @@ public sealed class HttpSurfaceTests
     public void TheAnonymousScan_IsSensitive_AndSeesAnAttributeAndAFluentCallButNotAnAuthorizedAction()
     {
         const string controller = """
-            [AllowAnonymous]
-            [HttpPost("login")]
-            public async Task<IActionResult> Login(LoginRequest request) => Ok();
+            public sealed class SessionsController : ControllerBase
+            {
+                [AllowAnonymous]
+                [HttpPost("login")]
+                public async Task<IActionResult> Login(LoginRequest request) => Ok();
 
-            [Authorize]
-            [HttpGet("me")]
-            public Task<IActionResult> Me() => Ok();
+                [Authorize]
+                [HttpGet("me")]
+                public Task<IActionResult> Me() => Ok();
 
-            [AllowAnonymous]
-            [HttpPost("refresh")]
-            internal Task<IActionResult> Refresh() => Ok();
+                [AllowAnonymous]
+                [HttpPost("refresh")]
+                internal Task<IActionResult> Refresh() => Ok();
+            }
             """;
 
         AnonymousActionsIn(controller).ShouldBe(["Login", "Refresh"]);
-        AnonymousActionsIn("[Authorize]\npublic Task<IActionResult> Me() => Ok();").ShouldBeEmpty();
+        AnonymousActionsIn("class C { [Authorize] public Task<IActionResult> Me() => Ok(); }").ShouldBeEmpty();
 
         FluentlyAnonymousIn("app.MapGet(\"/health\", Ping).AllowAnonymous();\napp.MapGet(\"/me\", Me).RequireAuthorization();")
             .ShouldBe(1);
     }
 
-    private static IEnumerable<string> AnonymousActionsIn(string source) =>
-        _anonymousAction.Matches(source).Select(match => match.Groups[1].Value);
+    [Theory]
+    [InlineData("[AllowAnonymous, HttpPost(\"login\")]")]
+    [InlineData("[AllowAnonymous()]")]
+    [InlineData("[AllowAnonymousAttribute]")]
+    [InlineData("[Microsoft.AspNetCore.Authorization.AllowAnonymous]")]
+    [InlineData("[HttpPost(\"login\")]\n[AllowAnonymous]\n// a { brace; and a semicolon }")]
+    public void TheAnonymousScan_SeesTheAttributeInEveryFormItCanBeWritten(string attributes)
+    {
+        string controller = $$"""
+            public sealed class SessionsController : ControllerBase
+            {
+                {{attributes}}
+                public Task<IActionResult> Login() => Ok();
+            }
+            """;
 
-    private static int FluentlyAnonymousIn(string source) => source.Split(".AllowAnonymous()").Length - 1;
+        AnonymousActionsIn(controller).ShouldBe(
+            ["Login"],
+            "An action opts out of authorisation through the attribute in any form C# accepts, so the scan reads the attribute, not one spelling of it.");
+    }
+
+    [Fact]
+    public void TheAnonymousScan_SeesAWholeControllerOptingOut()
+    {
+        AnonymousActionsIn("[AllowAnonymous] public sealed class PublicController(ISender sender) : ControllerBase { }")
+            .ShouldBe(["PublicController"], "An attribute on the class opts every action of it out.");
+    }
+
+    [Fact]
+    public void TheAnonymousScan_IgnoresAnOptOutWrittenInACommentOrAString()
+    {
+        const string controller = """
+            public sealed class SessionsController : ControllerBase
+            {
+                // [AllowAnonymous]
+                /* [AllowAnonymous] */
+                [Authorize]
+                public Task<IActionResult> Me() => Ok("[AllowAnonymous] public Task Login()");
+            }
+            """;
+
+        AnonymousActionsIn(controller).ShouldBeEmpty("A commented-out attribute opts nothing out.");
+
+        FluentlyAnonymousIn("// app.MapGet(\"/a\", A).AllowAnonymous();\nlog(\".AllowAnonymous()\");\napp.MapGet(\"/b\", B).AllowAnonymous( );")
+            .ShouldBe(1, "Only the call in code opts an endpoint out, however it is spaced.");
+    }
+
+    private static IEnumerable<string> AnonymousActionsIn(string source) =>
+        SourceSyntax.DeclarationsCarrying(source, _anonymousOptOut);
+
+    private static int FluentlyAnonymousIn(string source) => SourceSyntax.InvocationsOf(source, _anonymousOptOut);
 
     private static bool Mentions(string content, string[] needles) =>
         needles.Any(needle => content.Contains(needle, StringComparison.Ordinal));

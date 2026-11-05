@@ -1,4 +1,10 @@
-﻿# HTTP API
+---
+type: concept
+title: HTTP API
+description: The contract every endpoint offers a client, from versioning and the error format to conditional writes, safe retries and collections.
+---
+
+# HTTP API
 
 Every endpoint of this API offers a client the same contract: one version in the path, one error
 format, conditional writes on versioned resources, safe retries of a create, and one shape for every
@@ -111,24 +117,24 @@ string of at most 128 characters, on an action that accepts one.
 <!--#if (anyFeature || localAuth)-->
 | Action | Accepts a key |
 |---|---|
-<!--#endif-->
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `POST /api/v1/todo-lists`, `POST /api/v1/todo-lists/{id}/items` | yes |
-<!--#endif-->
-<!--#if (reminders)-->
+| <!--#endif--> |
+| <!--#if (reminders)--> |
 | `POST /api/v1/todo-lists/{id}/items/{itemId}/reminders` | yes |
-<!--#endif-->
-<!--#if (files)-->
+| <!--#endif--> |
+| <!--#if (files)--> |
 | `POST /api/v1/files` | yes |
 | `POST /api/v1/files/uploads` | no: the body is the file, and a retried upload creates a second file |
-<!--#endif-->
-<!--#if (notes)-->
+| <!--#endif--> |
+| <!--#if (notes)--> |
 | `POST /api/v1/notes` | yes |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | the authentication endpoints | never: replaying a sign-in would keep a token at rest |
 <!--#endif-->
 
+<!--#endif-->
 | Situation | Answer |
 |---|---|
 | First use of the key | the request runs |
@@ -136,13 +142,14 @@ string of at most 128 characters, on an action that accepts one.
 | Same key, a different body | `409` `idempotency.keyReused` |
 | Same key while the first is still running | `409` `idempotency.inProgress` |
 | Same key after the first attempt failed | the request runs: a failure releases its claim |
-| A stored response too large to keep | `409` `idempotency.notReplayable` |
+| Same key after the process stopped between the write's commit and the stored response | `409` `idempotency.inProgress` until `Idempotency:ClaimLease` (15 minutes by default) has passed, then the request runs again: at most once does not hold in that window |
+| Same key after it completed with a body this server does not keep (too large, a file, a text, an empty `200`) | `409` `idempotency.notReplayable`; nothing runs again |
 | A key on a request with no identifiable caller | `400` `idempotency.callerNotIdentifiable` |
 
 Keys are scoped per user, so two callers may use the same string. A completed key stays replayable
 for `Idempotency:Retention`, and the maintenance job purges the expired ones.
-
 <!--#if (publicApi)-->
+
 This API identifies no caller, so it accepts no key; an action marks itself `[Idempotent]` once
 callers exist.
 <!--#endif-->
@@ -158,7 +165,7 @@ and anything else is a `400` with a code naming the rule it broke, never a clamp
 | `paging` | `offset` (default) or `cursor` |
 | `page`, `pageSize` | 1-based page, and its size within the feature's bound |
 | `cursor` | the `nextCursor` of the previous page, in cursor mode |
-<!--#if (todoLists)-->
+| <!--#if (todoLists)--> |
 | `search`, `createdAfter`, `createdBefore` | the to-do lists' own filters |
 <!--#endif-->
 
@@ -212,7 +219,7 @@ one caller's response to another. A value an endpoint sets itself is never overw
 ## Decisions
 
 - [0008. Optimistic concurrency end to end](../decisions/0008-optimistic-concurrency-end-to-end.md)
-- [0010. Idempotency-Key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
+- [0010. An idempotency key is a lease per user](../decisions/0010-idempotency-key-is-a-lease-per-user.md)
 - [0001. Adopt the generated baseline](../decisions/0001-adopt-the-generated-baseline.md): MVC controllers, `Asp.Versioning`, the framework's OpenAPI generator.
 <!--#if (anyWeb)-->
 - [0019. One generated API client](../decisions/0019-one-generated-api-client.md)

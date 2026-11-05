@@ -1,4 +1,4 @@
-﻿# PresentationAppPortal
+# PresentationAppPortal
 
 The presentation project beside the API: a Blazor Web App with server interactivity that calls the
 use cases in its own process. [Presentation project](../../../docs/features/presentation.md)
@@ -80,6 +80,18 @@ task stops:
   | The portal | <http://localhost:8090> |
   ```
 
+- in `README.md`, before the line:
+
+  ```markdown
+  | Mailpit | <http://localhost:8025> |
+  ```
+
+  add:
+
+  ```markdown
+  | The portal | <http://localhost:8090> |
+  ```
+
 <!--#if (externalAuth)-->
 - in `.env.example`, after the line:
 
@@ -131,36 +143,36 @@ task stops:
       restart: unless-stopped
       environment:
         <<: *host-environment
-<!--#if (!localAuth)-->
+  <!--#if (!localAuth)-->
         DataProtection__KeysDirectory: /data-protection-keys
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
         Authentication__External__Interactive__ClientId: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID:-}
         Authentication__External__Interactive__ClientSecret: ${EXTERNAL_AUTH_INTERACTIVE_CLIENT_SECRET:-}
-<!--#endif-->
-<!--#if (!localAuth)-->
+  <!--#endif-->
+  <!--#if (!localAuth)-->
       volumes:
         - presentation-app-portal-keys:/data-protection-keys
-<!--#endif-->
+  <!--#endif-->
       ports:
         - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_PORTAL_HOST_PORT:-8090}:8080"
       depends_on:
-<!--#if (api)-->
+  <!--#if (api)-->
         api:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api && serverDatabase)-->
+  <!--#endif-->
+  <!--#if (!api && serverDatabase)-->
         db:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api)-->
+  <!--#endif-->
+  <!--#if (!api)-->
         mailpit:
           condition: service_started
-<!--#endif-->
-<!--#if (!api && files)-->
+  <!--#endif-->
+  <!--#if (!api && files)-->
         objectstore:
           condition: service_healthy
-<!--#endif-->
+  <!--#endif-->
       healthcheck:
         test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
         interval: 15s
@@ -189,7 +201,7 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  the local tools and creates each context's initial migration, and the other tasks assume all four.
+  other tasks assume all five.
   ```
 
   add:
@@ -209,15 +221,15 @@ task stops:
   add:
 
   ```csharp
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
           ["Src/Presentation/AT.PresentationAppPortal"] = ["Composition"],
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
           ["Src/Presentation/AT.PresentationAppPortal"] = ["Composition", "Configuration/Options"],
-<!--#endif-->
-<!--#if (publicApi)-->
+  <!--#endif-->
+  <!--#if (publicApi)-->
           ["Src/Presentation/AT.PresentationAppPortal"] = null,
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -271,12 +283,12 @@ task stops:
   with:
 
   ```csharp
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
       private const int _fluentlyAnonymousEndpoints = 8;
-<!--#endif-->
-<!--#if (!externalAuth)-->
+  <!--#endif-->
+  <!--#if (!externalAuth)-->
       private const int _fluentlyAnonymousEndpoints = 7;
-<!--#endif-->
+  <!--#endif-->
   ```
 
 <!--#endif-->
@@ -438,19 +450,6 @@ task stops:
   | The portal sends the API's security headers and a policy that allows no script but its own and forbids framing; where the project authenticates, every page asks for a signed-in user unless it opts out | [Presentation projects › Portal security headers](docs/features/presentation.md#portal-security-headers) |
   ```
 
-- in `docs/README.md`, before the lines:
-
-  ```markdown
-
-  ## Guides
-  ```
-
-  add:
-
-  ```markdown
-  | [The portal](features/presentation.md#portal) | the server-rendered project, how it is created, and signing people in to it |
-  ```
-
 - in `docs/reference/configuration.md`, replace the line:
 
   ```markdown
@@ -543,19 +542,19 @@ task stops:
   add:
 
   ```text
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
     <Initials>.Portal                     Common/{Hosting,Security}
                                           Features/<F>/Composition
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
     <Initials>.Portal                     Common/{Hosting,Security}
                                           Features/<F>/{Composition,Configuration/Options}
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
-<!--#endif-->
-<!--#if (publicApi)-->
+  <!--#endif-->
+  <!--#if (publicApi)-->
     <Initials>.Portal                     Common/{Hosting,Security}
                                           no Features/
                                           Components/, wwwroot/: dotnet new blazor's, at bootstrap
-<!--#endif-->
+  <!--#endif-->
   ```

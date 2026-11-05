@@ -1,4 +1,11 @@
-﻿# 0024. A server-rendered web app runs on its own server
+---
+type: decision
+title: 0024. A server-rendered web app runs on its own server
+description: Why a server-rendered web app is served by its own Node server in place of nginx, and how it relays the API.
+status: Accepted
+---
+
+# 0024. A server-rendered web app runs on its own server
 
 Status: Accepted
 
@@ -30,7 +37,7 @@ changes the forces nginx answers for the others:
   serves the browser files with the cache rules nginx gives a static app, sends the same page
   headers, and relays `/api/` and `/health` to `API_UPSTREAM` through `relayToApi` of the
   `api-client` package, forwarding the browser's address, so the browser keeps one origin and the
-  API keeps CORS closed.
+  API keeps CORS closed ([ADR 0037](0037-a-web-app-is-deployed-apart-behind-a-relay-to-the-api.md)).
 - **The server calls the API directly**, at `API_UPSTREAM`, through `createApiClient` with that base
   address ([ADR 0019](0019-one-generated-api-client.md)), never through its own relay.
 - **Every page carries a fresh nonce.** Each response draws 128 random bits, sends them in
@@ -166,8 +173,7 @@ changes the forces nginx answers for the others:
 - The API's rate limits see the browser's address once `ReverseProxy` names the web server, as they
   do for nginx ([Behind a proxy](../guides/deployment.md#behind-a-proxy)).
 <!--#if (localAuth)-->
-- ADR 0016 still governs the single-page apps; its revisit condition named this backend-for-frontend.
-  No row of
+- [ADR 0016](0016-browser-refresh-token-in-a-cookie.md) governs the single-page apps. No row of
   [ADR 0001](0001-adopt-the-generated-baseline.md) changes.
 <!--#else-->
 - No row of [ADR 0001](0001-adopt-the-generated-baseline.md) changes.

@@ -14,6 +14,7 @@ internal static class CorsExtensions
 
         services.AddOptions<CorsOptions>()
             .Bind(configuration.GetSection(CorsOptions.SectionName))
+            .PostConfigure(DropOriginsLeftBlank)
             .ValidateOnStart();
 
         services.AddSingleton<IValidateOptions<CorsOptions>, CorsOptionsValidator>();
@@ -37,5 +38,13 @@ internal static class CorsExtensions
             }));
 
         return services;
+    }
+
+    private static void DropOriginsLeftBlank(CorsOptions options)
+    {
+        foreach (string blank in options.AllowedOrigins.Where(string.IsNullOrEmpty).ToList())
+        {
+            options.AllowedOrigins.Remove(blank);
+        }
     }
 }

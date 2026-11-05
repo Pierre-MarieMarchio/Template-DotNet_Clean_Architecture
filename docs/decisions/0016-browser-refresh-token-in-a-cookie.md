@@ -1,4 +1,11 @@
-﻿# 0016. A browser's refresh token travels in a cookie
+---
+type: decision
+title: 0016. A browser's refresh token travels in a cookie
+description: Why a browser may ask, request by request, for its refresh token in a cookie rather than in the body.
+status: Accepted
+---
+
+# 0016. A browser's refresh token travels in a cookie
 
 Status: Accepted
 

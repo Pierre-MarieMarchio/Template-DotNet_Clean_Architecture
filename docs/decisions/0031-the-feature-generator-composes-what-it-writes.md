@@ -1,4 +1,11 @@
-﻿# 0031. The feature generator composes what it writes
+---
+type: decision
+title: 0031. The feature generator composes what it writes
+description: Why the feature generator makes the edits that compose a feature into the shared files instead of printing them.
+status: Accepted
+---
+
+# 0031. The feature generator composes what it writes
 
 Status: Accepted
 
@@ -58,8 +65,7 @@ changed.
 ## Alternatives considered
 
 - **Printing the edits for a person to make**: no file outside the feature changes without a person,
-  and a dozen lines copied by hand, in order, is where a feature goes wrong; the printed form also
-  needed a second program to prove it in the acceptance.
+  and a dozen lines copied by hand, in order, is where a feature goes wrong.
 - **Discovering the features by reflection or a source generator** instead of registering them:
   nothing to edit, and a composition nobody can read in `Program.cs`, which every host of this
   project states line by line.

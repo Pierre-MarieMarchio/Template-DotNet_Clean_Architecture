@@ -1,6 +1,13 @@
-﻿# 0008. A web app comes from a starter
+---
+type: decision
+title: 0008. A web app comes from a starter
+description: Why a web app came from a starter, one shared wiring and a folder per framework, before server rendering joined it.
+status: Superseded
+---
 
-Status: Accepted; [0011](0011-a-starter-may-render-on-the-server.md) replaces its server-side rendering bullet
+# 0008. A web app comes from a starter
+
+Status: Superseded by [0023](0023-a-web-app-comes-from-a-starter-static-or-server-rendered.md)
 
 ## Context
 

@@ -1,4 +1,4 @@
-﻿# PresentationAppMcp
+# PresentationAppMcp
 
 The presentation project beside the API: an MCP server whose tools call the use cases in its own
 process, for the caller its credential names. [Presentation project](../../../docs/features/presentation.md)
@@ -62,7 +62,8 @@ authentication context's model: in a project whose migrations exist already, add
 dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
 ```
 
-<!--#endif--> `dnx CleanArch.Create -- presentation` runs the three
+<!--#endif-->
+`dnx CleanArch.Create -- presentation` runs the three
 commands in turn, reading the options from the project's files. The edits, to make by hand where the
 task stops:
 
@@ -355,6 +356,18 @@ task stops:
   | The MCP server | <http://localhost:8091/mcp> |
   ```
 
+- in `README.md`, before the line:
+
+  ```markdown
+  | Mailpit | <http://localhost:8025> |
+  ```
+
+  add:
+
+  ```markdown
+  | The MCP server | <http://localhost:8091/mcp> |
+  ```
+
 <!--#if (externalAuth)-->
 - in `.env.example`, after the line:
 
@@ -408,28 +421,28 @@ task stops:
       restart: unless-stopped
       environment:
         <<: *host-environment
-<!--#if (externalAuth)-->
+  <!--#if (externalAuth)-->
         Mcp__Resource: ${MCP_RESOURCE:-http://localhost:8091/mcp}
-<!--#endif-->
+  <!--#endif-->
       ports:
         - "127.0.0.1:${PRESENTATION_PRESENTATION_APP_MCP_HOST_PORT:-8091}:8080"
       depends_on:
-<!--#if (api)-->
+  <!--#if (api)-->
         api:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api && serverDatabase)-->
+  <!--#endif-->
+  <!--#if (!api && serverDatabase)-->
         db:
           condition: service_healthy
-<!--#endif-->
-<!--#if (!api)-->
+  <!--#endif-->
+  <!--#if (!api)-->
         mailpit:
           condition: service_started
-<!--#endif-->
-<!--#if (!api && files)-->
+  <!--#endif-->
+  <!--#if (!api && files)-->
         objectstore:
           condition: service_healthy
-<!--#endif-->
+  <!--#endif-->
       healthcheck:
         test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/health || exit 1"]
         interval: 15s
@@ -444,7 +457,7 @@ task stops:
 - in `AGENTS.md`, after the line:
 
   ```markdown
-  the local tools and creates each context's initial migration, and the other tasks assume all four.
+  other tasks assume all five.
   ```
 
   add:
@@ -464,12 +477,12 @@ task stops:
   add:
 
   ```csharp
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
           ["Src/Presentation/AT.PresentationAppMcp"] = ["Composition", "Tools"],
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
           ["Src/Presentation/AT.PresentationAppMcp"] = ["Composition", "Configuration/Options", "Tools"],
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `Tests/Architecture/AT.Architecture.Tests/Rules/LayoutConventionTests.cs`, after the
@@ -573,22 +586,6 @@ task stops:
     its credential names ([ADR 0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md)).
   ```
 
-- in `docs/decisions/README.md`, before the lines:
-
-  ```markdown
-
-  Add this project's own ADRs as rows at the end of the table, numbered from 1000.
-  ```
-
-  add:
-
-  ```markdown
-<!--#if (localAuth)-->
-  | [0026](0026-an-access-key-stands-for-its-owner-where-a-token-cannot-be-refreshed.md) | An access key stands for its owner where a token cannot be refreshed | Authentication |
-<!--#endif-->
-  | [0027](0027-an-mcp-server-acts-for-the-caller-its-credential-names.md) | An MCP server acts for the caller its credential names | Architecture |
-  ```
-
 - in `docs/features/authentication.md`, before the line:
 
   ```markdown
@@ -677,19 +674,6 @@ task stops:
   ```
 
 <!--#endif-->
-- in `docs/README.md`, before the lines:
-
-  ```markdown
-
-  ## Guides
-  ```
-
-  add:
-
-  ```markdown
-  | [The MCP server](features/presentation.md#mcp-server) | the MCP server, how it is created, its tools, and who may call them |
-  ```
-
 <!--#if (externalAuth)-->
 - in `docs/reference/configuration.md`, after the lines:
 
@@ -737,14 +721,14 @@ task stops:
   add:
 
   ```text
-<!--#if (localAuth)-->
+  <!--#if (localAuth)-->
     <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                           Features/<F>/{Composition,Tools}
-<!--#endif-->
-<!--#if (externalAuth)-->
+  <!--#endif-->
+  <!--#if (externalAuth)-->
     <Initials>.Mcp                        Common/{Hosting,Security,Tools}
                                           Features/<F>/{Composition,Configuration/Options,Tools}
-<!--#endif-->
+  <!--#endif-->
   ```
 
 - in `docs/reference/project-layout.md`, after the line:

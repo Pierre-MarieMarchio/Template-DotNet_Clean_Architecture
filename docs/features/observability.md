@@ -1,4 +1,10 @@
-﻿# Observability
+---
+type: feature
+title: Observability
+description: How to see what this project is doing through its logs, metrics, traces and health probes.
+---
+
+# Observability
 
 How to see what the API is doing: its logs, its metrics and traces, and its health probes.
 

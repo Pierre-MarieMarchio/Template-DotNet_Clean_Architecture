@@ -1,4 +1,11 @@
-﻿# 0028. The author answers for every line
+---
+type: decision
+title: 0028. The author answers for every line
+description: Why a commit or a pull request names its human author only, with an Assisted-by trailer for the tool that helped.
+status: Accepted
+---
+
+# 0028. The author answers for every line
 
 Status: Accepted
 

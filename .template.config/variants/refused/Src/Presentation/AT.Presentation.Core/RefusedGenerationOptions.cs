@@ -25,7 +25,7 @@
 //#if (aspire && database == "sqlite")
 #error The template refuses --aspire true with --database sqlite, whose file lives in the volume Compose shares between containers, which the app host's processes cannot share: generate with --database postgresql or sqlserver, or with --aspire false.
 //#endif
-//#if (database == "sqlserver" || database == "mysql" || database == "sqlite")
+//#if (database == "sqlserver" || database == "sqlite")
 #error This version of the template generates --database postgresql only: generate with --database postgresql.
 //#endif
 //#if (name == "_" || name == "a" || name == "b" || name == "c" || name == "d" || name == "e" || name == "f" || name == "g" || name == "h" || name == "i" || name == "j" || name == "k" || name == "l" || name == "m" || name == "n" || name == "o" || name == "p" || name == "q" || name == "r" || name == "s" || name == "t" || name == "u" || name == "v" || name == "w" || name == "x" || name == "y" || name == "z")

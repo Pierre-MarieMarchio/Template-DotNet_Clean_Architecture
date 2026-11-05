@@ -1,4 +1,11 @@
-﻿# NNNN. <Title>
+---
+type: template
+title: NNNN. <Title>
+description: <description>
+status: Proposed
+---
+
+# NNNN. <Title>
 
 Status: Proposed
 
@@ -20,6 +27,11 @@ it lost; leaving things as they are counts when it was one: <alternatives>.
 
 What becomes easier, what becomes harder, and what a maintainer must know before changing it; if it
 changes a row of ADR 0001, the row it changes: <consequences>.
+
+## When this decision does not apply
+
+Optional, and left out when the decision has no exception: each case it does not govern, one bullet
+each, with what governs it instead: <exceptions>.
 
 ## Revisit when
 

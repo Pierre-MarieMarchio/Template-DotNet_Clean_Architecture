@@ -17,13 +17,7 @@ public sealed class ModuleDependencyTests
     private const string _contextTypeName = "AppDbContext";
 
     private static readonly string[] _modulesThatMustNotReachIntoPersistence =
-    [
-        //#if (localAuth)
-        ArchitectureAssemblies.IdentityInfrastructureNamespace,
-        //#endif
-        ArchitectureAssemblies.EmailInfrastructureNamespace,
-        ArchitectureAssemblies.InMemoryInfrastructureNamespace,
-    ];
+        [.. ArchitectureAssemblies.ModulesBesidesPersistence.Select(ArchitectureAssemblies.NamespaceOf)];
 
     private static readonly string[] _forbiddenInPersistenceCommon =
     [
@@ -36,18 +30,19 @@ public sealed class ModuleDependencyTests
     ];
 
     private static readonly (string Module, System.Reflection.Assembly Assembly)[] _moduleCommons =
-    [
-        //#if (localAuth)
-        ("AppTemplate.Infrastructure.Auth", ArchitectureAssemblies.IdentityInfrastructure),
-        //#endif
-        //#if (files)
-        ("AppTemplate.Infrastructure.Storage", ArchitectureAssemblies.StorageInfrastructure),
-        //#endif
-        ("AppTemplate.Infrastructure.Email", ArchitectureAssemblies.EmailInfrastructure),
-        ("AppTemplate.Infrastructure.InMemory", ArchitectureAssemblies.InMemoryInfrastructure),
-    ];
+        [.. ArchitectureAssemblies.ModulesBesidesPersistence.Select(assembly => (ArchitectureAssemblies.NamespaceOf(assembly), assembly))];
 
     private static readonly string[] _commonTypesAllowedToNameAFeature = [];
+
+    [Fact]
+    public void TheModuleLists_ReadTheModulesTheyAreAssertedOver()
+    {
+        _moduleCommons.ShouldNotBeEmpty(
+            "No infrastructure module was read from the tree, so the Common/ rule would pass having checked nothing.");
+        _modulesThatMustNotReachIntoPersistence.ShouldNotBeEmpty(
+            "No infrastructure module was read from the tree, so the rule that Persistence depends on no module "
+            + "would pass having checked nothing.");
+    }
 
     [Fact]
     public void NoModuleCommon_CarriesAnException() =>

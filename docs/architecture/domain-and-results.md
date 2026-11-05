@@ -1,4 +1,10 @@
-﻿# Domain and results
+---
+type: concept
+title: Domain and results
+description: How an aggregate enforces its rules, how a use case reports an expected failure as a value, and how a fact becomes a domain event.
+---
+
+# Domain and results
 
 An aggregate enforces its own rules, a use case reports an expected failure as a value, and a fact
 reaches the rest of the system as a domain event once it is true. This page is the mechanics every
@@ -21,6 +27,7 @@ Time is a parameter, not an ambient dependency: a factory or a behaviour takes `
 so the aggregate is reproducible in a test without freezing a clock. `DomainModelTests` holds the
 rest of the shape: roots are sealed, entities expose no settable state, value objects and events are
 immutable.
+<!--#if (todoLists || tagging)-->
 
 <!--#if (todoLists)-->
 `TodoList` is the worked case. Item titles are unique within a list and a list holds at most
@@ -29,7 +36,8 @@ reaches an item without naming its list.
 <!--#endif-->
 <!--#if (tagging)-->
 A tag set belongs to its aggregate: the aggregate chooses the cap and owns the set, while the rules
-every tagged aggregate shares, held once, sit in `TagSet` under the domain's `Common/Tagging/`.
+every tagged aggregate shares, held once, sit in `TagSet` xs `Common/Tagging/`.
+<!--#endif-->
 <!--#endif-->
 
 ## Domain events after the commit
@@ -51,7 +59,8 @@ the same context commits a transaction of its own. A consumer implements
 logged and skipped, so delivery is at most once. Every consumer therefore re-derives its
 precondition when it runs and is idempotent by shape, and a sweep, not a retry, is the guarantee
 behind a fact that must not be lost. `DomainEventTests` fails when an event is neither consumed nor
-listed with the reason it is not.
+listed with the reason it is not. [Reaching another feature](../guides/reaching-another-feature.md#a-domain-event)
+shows how to raise one, consume it and test both.
 
 ## Result for expected failures, exceptions for bugs
 
@@ -86,7 +95,7 @@ the sealed class that handles it, in one file, with the message's validator besi
 the message through `ISender`; each host's generated mediator dispatches it, and the build stops when
 a message has no handler or two. `MessageRoutingTests` holds that each message has one handler and is
 sent by a host or a job, `ValidatorTargetTests` that each validator is run by the pipeline or by the
-service that takes it, and `BannedPackageTests` refuses MediatR and AutoMapper in every project.
+service that takes it, and `BannedPackageTests` refuses MediatR in every project.
 
 Every message crosses the same pipeline, which `AddUseCasePipeline` registers once, in this order:
 
@@ -99,6 +108,7 @@ Every message crosses the same pipeline, which `AddUseCasePipeline` registers on
 The validation behaviour answers a failure of the handler's own `Result` type through
 `IFailable<TSelf>`, so a handler starts from a message its validators accepted. Logging inside the
 handler is `ILogger`, and the transaction boundary is `IUnitOfWork`.
+[Adding a pipeline behaviour](../guides/adding-a-pipeline-behaviour.md) says how to add one.
 
 A command handler reads the caller, loads or creates, changes the aggregate, commits and maps:
 
@@ -135,6 +145,6 @@ queries port projects rows straight onto DTOs, since a list view needs no invari
 
 ## Decisions
 
-- [0003. Use cases and ports are explicit](../decisions/0003-use-cases-and-ports-are-explicit.md)
+- [0033. Use cases are Mediator messages, and ports are explicit](../decisions/0033-use-cases-are-mediator-messages-and-ports-are-explicit.md)
 - [0006. Events after commit without an outbox](../decisions/0006-events-after-commit-without-an-outbox.md)
 - [0002. Two feature shapes](../decisions/0002-two-feature-shapes.md)

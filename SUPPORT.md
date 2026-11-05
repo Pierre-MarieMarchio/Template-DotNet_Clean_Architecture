@@ -1,4 +1,4 @@
-﻿# Support
+# Support
 
 Where to take a question, a problem or a vulnerability about the template.
 

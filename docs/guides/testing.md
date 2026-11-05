@@ -1,9 +1,16 @@
-﻿# Testing
+---
+type: guide
+title: Testing
+description: Which type of test holds which risk, where a new test goes, and how the suites run.
+---
+
+# Testing
 
 Each risk this project carries is held by one type of test, the cheapest that can fail for its real
 cause. A second type is added only when it can fail for a cause the first cannot see
 ([ADR 0020](../decisions/0020-one-risk-one-type-of-test.md)). The stack is xUnit v3 on
-Microsoft.Testing.Platform, Shouldly, NSubstitute, NetArchTest for the architecture rules and
+Microsoft.Testing.Platform, Shouldly, NSubstitute, NetArchTest for the architecture rules, Roslyn's
+syntax API for the rules that read C# source, so a comment or a string never counts as code, and
 <!--#if (postgreSql)-->
 Testcontainers for PostgreSQL.
 <!--#endif-->
@@ -20,16 +27,22 @@ a SQLite file for the database.
 |---|---|---|---|
 | Unit | a decision of one type: an invariant, a refusal with its control, a choice a mapper or a policy makes | wiring, a framework or compiler guarantee, an argument passed on, isolation between owners | `Tests/<Layer>/<Initials>.<Layer>[.<Module>].UnitTests/Features/<Feature>/`, mirroring `Src/` |
 | Architecture | a property of a population ("every use case…", "no domain type…") and the composition of the real host | the behaviour of one type | `Tests/Architecture/AT.Architecture.Tests` |
-<!--#if (api || localAuth)-->
+| <!--#if (api || localAuth)--> |
 | Integration | what only the real stack decides: authentication, ownership in the query, races, the schema, the real stores | logic a unit test already decides branch by branch | `Tests/Integration/` |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | Contract | the surface a client relies on: routes, statuses, problem `code`s, the OpenAPI document, every response member on the wire | internals | `Tests/Integration/AT.Api.IntegrationTests/OpenApi/`, the error-code tests, one wire read per feature |
 | End-to-end | the stack as shipped composes and works: the Compose file, the images, the migrations at start-up, the mail path, the object store, the web relay | anything a lower type can prove | `Tests/EndToEnd/AT.EndToEnd.Tests`, over HTTP against the Compose stack |
 | Load smoke | nothing comes apart under concurrency | a gate; it never fails a build | `Tests/Load/smoke.js`, a k6 script against a running stack |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | Browser smoke | what a browser blocks or breaks in each served web app: a Content-Security-Policy violation, a console error, an uncaught exception, a relay call that fails | what a lower type can prove; a flow or a screen's content | `Src/Web/packages/browser-smoke`, Playwright in Chromium against the Compose stack |
+<!--#endif-->
+<!--#if (!anyFeature)-->
+
+The use-case unit tests are the ones a feature brings, so this project has none yet: its
+`Tests/Application/AT.Application.UnitTests` project holds only test doubles, and `dotnet test` run on
+it alone ends with "Zero tests ran", which is expected. The first feature fills it.
 <!--#endif-->
 
 Unit and architecture tests need nothing and run in seconds.
@@ -57,32 +70,32 @@ The browser smoke needs the stack and Chromium, and runs with the end-to-end sui
 | A message its validator refuses never reaches its handler | unit; architecture for "every message" and "every validator" | `UseCasePipelineTests`; `ContainerCompositionTests`, `ValidatorTargetTests` |
 | Request and configuration validation | unit; architecture for "every section has a validator" | the validator tests, boundary rows only; `ConfigurationSurfaceTests` |
 | Layers, folders, closed lists, composition | architecture | `Tests/Architecture/AT.Architecture.Tests`, `ContainerCompositionTests` among them |
-<!--#if (aspire)-->
-| The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` leaves out with the suites that need Docker |
-<!--#endif-->
+| <!--#if (aspire)--> |
+| The app host drifts from the Compose files, or its stack does not start | architecture for the services, images, host settings and web ports; integration for the start | `LocalStackParityTests`; `LocalStackTests`, which `test --no-integration` builds and does not run, with the suites that need Docker |
+| <!--#endif--> |
 | The HTTP contract | contract | `OpenApiDocumentTests` against the committed reference; `ErrorCodeTableTests` and `ErrorCodeStatusTests` against [the API reference](../reference/api.md#error-codes) |
-<!--#if (accounts)-->
+| <!--#if (accounts)--> |
 | Default deny | integration over every mapped endpoint; architecture for the anonymous list | `DefaultDenyAuthorizationTests`, `HttpSurfaceTests` |
-<!--#endif-->
-<!--#if (anyFeature)-->
+| <!--#endif--> |
+| <!--#if (anyFeature)--> |
 | Data ownership, in the query ([ADR 0009](../decisions/0009-ownership-is-in-the-query.md)) | integration, every entry point that names a row; architecture for the owned load's signature | each feature's ownership tests in the integration suite; `OwnedAggregateLoadTests` |
-<!--#endif-->
-<!--#if (localAuth)-->
+| <!--#endif--> |
+| <!--#if (localAuth)--> |
 | Sign-in, sessions, two-factor, passkeys, lockout | integration; unit for each use case's refusals | the `Security/` and `Auth/` integration folders, `Tests/Integration/AT.Infrastructure.Auth.IntegrationTests` |
 | Anonymous routes reveal nothing ([ADR 0014](../decisions/0014-anonymous-routes-reveal-nothing.md)) | integration | `LoginUniformityTests` and the "answers as a missing one" tests |
-<!--#endif-->
+| <!--#endif--> |
 | Optimistic concurrency | integration where two writers meet; unit for the precondition decision | each feature's concurrency tests, `ApiControllerBaseTests` |
 | Idempotency | integration for the lease; architecture for the opt-in to `POST` | `IdempotencyLeaseTests`, `IdempotentActionTests` |
 | Migrations and model drift | unit, and every integration run migrates a real database | `PendingModelChangesTests` |
 | Background work under a lease | integration; architecture for the hosted services | `LeaderLeaseTests`, `BackgroundWorkTests` |
-<!--#if (files)-->
+| <!--#if (files)--> |
 | Doubles that tell the truth | contract tests run against the double and each adapter | `FileContentStoreContract`, `FileContentInventoryContract` |
 | Stored-file safety: keys, grants, inspection | unit for the policy and the state machine; integration for the stores | the files suites ([ADR 0018](../decisions/0018-stored-files-are-keyed-granted-and-refused.md)) |
-<!--#endif-->
-<!--#if (api)-->
+| <!--#endif--> |
+| <!--#if (api)--> |
 | The stack as shipped | end-to-end, one test per flow | `Tests/EndToEnd/AT.EndToEnd.Tests` |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | What the browser blocks or breaks in a web app | browser smoke, one test per app | `Src/Web/packages/browser-smoke` |
 <!--#endif-->
 
@@ -178,8 +191,8 @@ Under that runner `dotnet test` takes the solution as `--solution <path>` and a 
 [the runner's reference](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp) lists both from
 SDK 10.0.100, and a newer SDK refuses the positional path. `DotnetTestTargetTests` reads the tasks, the
 workflows, the scripts and the pages, and fails on a `dotnet test` that names its target any other way.
-
 <!--#if (serverDatabase || files)-->
+
 A run killed outright leaves its containers behind, because the resource reaper is off
 (`ResourceReaperSwitch`). Remove them by label:
 
@@ -187,8 +200,8 @@ A run killed outright leaves its containers behind, because the resource reaper 
 docker rm -f $(docker ps -aq --filter label=org.testcontainers=true)
 ```
 <!--#endif-->
-
 <!--#if (api)-->
+
 ## The end-to-end suite
 
 `dotnet run Tools/Tasks.cs end-to-end` builds and starts the Compose stack from `.env.example` under a
@@ -212,19 +225,19 @@ It sets the file inspection to run every ten seconds, so a deposit becomes reada
 | Test class | Risk it holds |
 |---|---|
 | `StackTests` | the stack starts, migrates and reports ready; an unmapped route is refused with the API's problem code |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | `SessionTests` | the confirmation mail reaches Mailpit with a link that confirms the address; sign-in, `/auth/me`, refresh and sign-out work on the real stack, and the refresh token is refused after sign-out |
-<!--#endif-->
-<!--#if (localAuth && files)-->
+| <!--#endif--> |
+| <!--#if (localAuth && files)--> |
 | `FileTransferTests` | a deposit on the signed grant reaches the object store, the inspection pass runs, and the content comes back through its signed URL |
-<!--#endif-->
-<!--#if (anyWeb)-->
+| <!--#endif--> |
+| <!--#if (anyWeb)--> |
 | `WebAppTests` | each web app serves its page and relays `/api` to the API |
 <!--#endif-->
 
 The project sets `IsTestingPlatformApplication` to `false`, so `dotnet test` over the solution, and
 with it `verify` and `coverage`, leaves it out; it stays in `AppTemplate.sln`, so it builds and is
-formatted with the rest. `test --no-integration` runs only the projects that set `IsTestProject`.
+formatted with the rest. `test --no-integration` and `check` build it, with every project that needs Docker, and name it as built and not run; `test --no-integration` runs only the projects that set `IsTestProject` and need no Docker.
 <!--#if (ci)-->
 CI runs the task in the `end-to-end` job, once the Compose manifest is checked, and fails on a red
 test.
@@ -295,9 +308,14 @@ holds it.
 
 The floor is a tripwire: it catches an area shipped with no test, which no review of single tests
 sees. It is measured, never invented: a Debug run with Docker present, both integration suites
-contributing, a few points under the figure. Re-measure it when your own code lands, under the same
-conditions. It is never raised to reward tests, and a drop is answered by naming the risk now
-untested, not by a test written for the figure.
+contributing, a few points under the figure. CI applies the floor to a Release run, so the figure is
+the one measured locally and the gate is the one CI enforces. Re-measure it when your own code
+lands, under the same conditions. It is never raised to reward tests, and a drop is answered by
+naming the risk now untested, not by a test written for the figure.
+
+The coverage profiler fails to start from a checkout whose path is long, which a nested worktree or
+a deep scratch folder makes easy: run `coverage` from a short path, and under WSL keep `TMPDIR`
+short as well.
 
 ## House rules
 
@@ -323,7 +341,7 @@ restore it, and check the failure named what you meant.
 | A configuration test writes down the budget it asserts | the outbound HTTP policy tests |
 | A value read from outside the repository is anchored to the type name | configuration section names |
 | A presentation project grants its internals to its own unit tests only | one `InternalsVisibleTo` each |
-<!--#if (localAuth)-->
+| <!--#if (localAuth)--> |
 | Anonymous routes are tested for sameness, not only refusal | `LoginUniformityTests` |
 | A credential change is proved by replaying the token in circulation | `SecurityStampRotationTests` |
 <!--#endif-->
@@ -354,7 +372,8 @@ Async calls pass `TestContext.Current.CancellationToken`; NSubstitute placeholde
 <!--#endif-->
 - A unit-test project with no test exits with code 8; the domain and application projects ignore it
   only while they hold no test folder.
-- `.cs` and `.md` files are UTF-8 with BOM, and a file without one fails `format`.
+- `.cs` files are UTF-8 with BOM, and one without it fails `format`; `.md` files are UTF-8 without
+  BOM, and one with it, or with a CR, fails `MarkdownEncodingTests`.
 - An unused `using` and a stale `<see cref="…"/>` fail the build, since every project generates its
   documentation file.
 

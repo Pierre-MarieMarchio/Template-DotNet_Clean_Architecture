@@ -39,7 +39,7 @@ dotnet_style_qualification_for_property = false:warning
 dotnet_style_qualification_for_method = false:warning
 dotnet_style_predefined_type_for_locals_parameters_members = true:warning
 
-csharp_style_prefer_primary_constructors = false:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
 csharp_style_throw_expression = true:suggestion
 csharp_style_prefer_pattern_matching = true:suggestion
 csharp_style_null_propagation = true:warning

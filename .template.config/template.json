@@ -336,7 +336,7 @@
         },
         {
           "choice": "blazor-wasm",
-          "description": "One Blazor WebAssembly app in Src/Web, created by dotnet new blazorwasm and calling the API through the .NET client of Src/Clients."
+          "description": "One Blazor WebAssembly app in Src/Web, created by dotnet new blazorwasm and calling the API through the .NET client in Src/Presentation."
         }
       ],
       "description": "The first web front end, in the pnpm workspace Src/Web. More apps are added later with dotnet new cleanarch-webapp."
@@ -732,11 +732,11 @@
         },
         {
           "choice": "avalonia",
-          "description": "An Avalonia desktop app, <Project>.Desktop, created by dotnet new avalonia.mvvm and calling the API through the .NET client of Src/Clients."
+          "description": "An Avalonia desktop app, <Project>.Desktop, created by dotnet new avalonia.mvvm and calling the API through the .NET client in Src/Presentation."
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, calling the API through the .NET client of Src/Clients; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
+          "description": "A WPF desktop app for Windows, <Project>.Desktop, written in the shape of dotnet new wpf, calling the API through the .NET client in Src/Presentation; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
         },
         {
           "choice": "worker",
@@ -798,7 +798,7 @@
     "dotnetClient": {
       "type": "computed",
       "value": "(presentationAvalonia || presentationWpf || webBlazorWasm)",
-      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client of Src/Clients. Brings the client, its tests, the api-client task and the Kiota tool."
+      "description": "True when the project holds a presentation or a web app that calls the API through the .NET client in Src/Presentation. Brings the client, its tests, the api-client task and the Kiota tool."
     },
     "clientPresentationNeedsAccounts": {
       "type": "parameter",
@@ -2019,8 +2019,8 @@
         {
           "condition": "(!dotnetClient)",
           "exclude": [
-            "Src/Clients/**",
-            "Tests/Clients/**",
+            "Src/Presentation/AT.Presentation.Client/**",
+            "Tests/Presentation/AT.Presentation.Client.UnitTests/**",
             "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md"
           ]
         },
@@ -2050,22 +2050,22 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "Src/Clients/AT.Client/Common/Sessions/ApiSession.cs",
-            "Src/Clients/AT.Client/Common/Sessions/ApiSessionHandler.cs",
-            "Src/Clients/AT.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "Src/Clients/AT.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "Src/Clients/AT.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "Src/Clients/AT.Client/Common/Sessions/RefreshTokenMode.cs",
-            "Tests/Clients/AT.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/ApiSession.cs",
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/ApiSessionHandler.cs",
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/RefreshTokenMode.cs",
+            "Tests/Presentation/AT.Presentation.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "Src/Clients/AT.Client/Common/Sessions/AccessTokenHandler.cs",
-            "Src/Clients/AT.Client/Common/Sessions/IAccessTokenSource.cs",
-            "Tests/Clients/AT.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "Tests/Clients/AT.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/AccessTokenHandler.cs",
+            "Src/Presentation/AT.Presentation.Client/Common/Sessions/IAccessTokenSource.cs",
+            "Tests/Presentation/AT.Presentation.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "Tests/Presentation/AT.Presentation.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         },
         {
@@ -2558,7 +2558,7 @@
       "description": "Bootstrap also writes the .NET client.",
       "manualInstructions": [
         {
-          "text": "It writes the client in Src/Clients from the OpenAPI reference with Kiota, one of the local tools."
+          "text": "It writes the client in Src/Presentation from the OpenAPI reference with Kiota, one of the local tools."
         }
       ],
       "continueOnError": true

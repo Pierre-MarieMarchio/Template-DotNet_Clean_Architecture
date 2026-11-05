@@ -1402,14 +1402,13 @@ internal static class RemoveFeature
     private static List<TextEdits.Command> ContractSteps(string root)
     {
         string presentation = Path.Combine(root, "Src", "Presentation");
-        string clients = Path.Combine(root, "Src", "Clients");
 
         if (!Directory.Exists(presentation) || !Directory.EnumerateDirectories(presentation, "*.Api").Any())
         {
             return [];
         }
 
-        string client = Directory.Exists(clients) ? Directory.EnumerateDirectories(clients).Select(Path.GetFileName).OfType<string>().FirstOrDefault() ?? string.Empty : string.Empty;
+        string client = Directory.EnumerateDirectories(presentation, "*.Presentation.Client").Select(Path.GetFileName).OfType<string>().FirstOrDefault() ?? string.Empty;
 
         return TextEdits.ContractSteps(root, client, built: true);
     }
@@ -1917,7 +1916,7 @@ internal static class RemoveFeature
             ("Directory.Build.props", "<Widgets>true</Widgets>", false),
             ("Directory.Build.targets", "<WidgetService />", false),
             ("Tools/Sample.cs", "var service = new WidgetService();", false),
-            ("Src/Clients/A.Client/Generated/WidgetsClient.cs", "public sealed class WidgetsClient(IWidgetService widgets);", false),
+            ("Src/Presentation/A.Presentation.Client/Generated/WidgetsClient.cs", "public sealed class WidgetsClient(IWidgetService widgets);", false),
             ("Src/Web/packages/api-client/src/schema.ts", "\"/api/v1/widgets\": {", false),
             ("Tests/Integration/A.Api.IntegrationTests/OpenApi/v1.json", "\"/api/v1/widgets\": {", false),
             ("Src/Infrastructure/A.Infrastructure.Persistence/Migrations/20240102_AddWidgets.cs", "using Acme.Persistence.Features.Widgets.Rows.Models;", false),
@@ -3170,7 +3169,7 @@ internal static class TextEdits
     internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
         built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
-        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. client.Length > 0 && Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
             ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),

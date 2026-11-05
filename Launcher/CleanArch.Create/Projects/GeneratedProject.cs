@@ -59,7 +59,7 @@ public sealed partial record GeneratedProject(
             Authentication(root, name),
             ExampleFeatures(root, name),
             Directory.Exists(Path.Combine(root, "Src", "Infrastructure", FolderOf(name, "Infrastructure.Storage"))),
-            File.Exists(Path.Combine(root, "Src", "Clients", FolderOf(name, "Client"), name + ".Client.csproj")),
+            File.Exists(Path.Combine(root, "Src", "Presentation", FolderOf(name, "Presentation.Client"), name + ".Presentation.Client.csproj")),
             DatabaseProvider(root, name),
             File.Exists(Path.Combine(root, ".github", "workflows", "ci.yml")),
             File.Exists(Path.Combine(root, "AGENTS.md")),

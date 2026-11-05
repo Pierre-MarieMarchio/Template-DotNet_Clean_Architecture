@@ -17,11 +17,6 @@
     <Project Path="Src/Application/AT.Application.Core/AppTemplate.Application.Core.csproj" />
     <Project Path="Src/Application/AT.Application/AppTemplate.Application.csproj" />
   </Folder>
-<!--#if (dotnetClient)-->
-  <Folder Name="/Src/Clients/">
-    <Project Path="Src/Clients/AT.Client/AppTemplate.Client.csproj" />
-  </Folder>
-<!--#endif-->
   <Folder Name="/Src/Domain/">
     <Project Path="Src/Domain/AT.Domain.Core/AppTemplate.Domain.Core.csproj" />
     <Project Path="Src/Domain/AT.Domain/AppTemplate.Domain.csproj" />
@@ -42,6 +37,9 @@
 <!--#if (api)-->
     <Project Path="Src/Presentation/AT.Api/AppTemplate.Api.csproj" />
 <!--#endif-->
+<!--#if (dotnetClient)-->
+    <Project Path="Src/Presentation/AT.Presentation.Client/AppTemplate.Presentation.Client.csproj" />
+<!--#endif-->
     <Project Path="Src/Presentation/AT.Presentation.Core/AppTemplate.Presentation.Core.csproj" />
   </Folder>
   <Folder Name="/Tests/">
@@ -51,9 +49,6 @@
     <Project Path="Tests/Application/AT.Application.Core.UnitTests/AppTemplate.Application.Core.UnitTests.csproj" />
     <Project Path="Tests/Application/AT.Application.UnitTests/AppTemplate.Application.UnitTests.csproj" />
     <Project Path="Tests/Architecture/AT.Architecture.Tests/AppTemplate.Architecture.Tests.csproj" />
-<!--#if (dotnetClient)-->
-    <Project Path="Tests/Clients/AT.Client.UnitTests/AppTemplate.Client.UnitTests.csproj" />
-<!--#endif-->
     <Project Path="Tests/Domain/AT.Domain.Core.UnitTests/AppTemplate.Domain.Core.UnitTests.csproj" />
     <Project Path="Tests/Domain/AT.Domain.UnitTests/AppTemplate.Domain.UnitTests.csproj" />
 <!--#if (api)-->
@@ -86,6 +81,9 @@
   <Folder Name="/Tests/Presentation/">
 <!--#if (api)-->
     <Project Path="Tests/Presentation/AT.Api.UnitTests/AppTemplate.Api.UnitTests.csproj" />
+<!--#endif-->
+<!--#if (dotnetClient)-->
+    <Project Path="Tests/Presentation/AT.Presentation.Client.UnitTests/AppTemplate.Presentation.Client.UnitTests.csproj" />
 <!--#endif-->
     <Project Path="Tests/Presentation/AT.Presentation.Core.UnitTests/AppTemplate.Presentation.Core.UnitTests.csproj" />
   </Folder>

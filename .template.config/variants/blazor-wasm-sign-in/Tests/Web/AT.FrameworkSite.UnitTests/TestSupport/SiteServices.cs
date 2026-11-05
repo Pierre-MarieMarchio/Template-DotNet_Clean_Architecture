@@ -1,4 +1,4 @@
-﻿using AppTemplate.Client;
+﻿using AppTemplate.Presentation.Client;
 using AppTemplate.FrameworkSite.Common.Hosting;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;

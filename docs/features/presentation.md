@@ -21,7 +21,7 @@ Its tests are in `Tests/Presentation/<Initials>.Portal.UnitTests`.
 <!--#if (presentationAvalonia)-->
 `Src/Presentation/<Initials>.Desktop` is the desktop app, an Avalonia app on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
-client of `Src/Clients/<Initials>.Client`, generated from the API's OpenAPI document
+client of `Src/Presentation/<Initials>.Presentation.Client`, generated from the API's OpenAPI document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It references that client
 alone, never the domain, the application layer or a module, so it composes no use case of its own
 ([ADR 0022](../decisions/0022-a-presentation-project-reaches-the-core-through-the-api-or-the-application-layer.md)).
@@ -31,7 +31,7 @@ Its tests are in `Tests/Presentation/<Initials>.Desktop.UnitTests`.
 <!--#if (presentationWpf)-->
 `Src/Presentation/<Initials>.Desktop` is the desktop app, a WPF app for Windows on the MVVM pattern, with
 CommunityToolkit.Mvvm. It runs on the user's machine and calls the API over HTTP through the .NET
-client of `Src/Clients/<Initials>.Client`, generated from the API's OpenAPI document
+client of `Src/Presentation/<Initials>.Presentation.Client`, generated from the API's OpenAPI document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)). It is one project on
 `net10.0-windows`, holding its windows, its view models, its settings, its host and its session, and
 references that client alone, never the domain, the application layer or a module, so it composes no

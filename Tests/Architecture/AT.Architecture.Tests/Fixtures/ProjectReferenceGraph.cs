@@ -16,7 +16,7 @@ internal static class ProjectReferenceGraph
 {
     private const string _infrastructurePrefix = "AppTemplate.Infrastructure.";
 
-    private const string _clientProject = "AppTemplate.Client";
+    private const string _clientProject = "AppTemplate.Presentation.Client";
 
     internal static string RepositoryRoot { get; } = LocateRepositoryRoot();
 
@@ -33,6 +33,8 @@ internal static class ProjectReferenceGraph
 
     internal static IEnumerable<ProjectNode> InfrastructureModules =>
         SourceProjects.Values.Where(project => IsInfrastructureModule(project.Name));
+
+    internal static string ClientProject => _clientProject;
 
     internal static bool IsClient(ProjectNode project) =>
         project.Name != _clientProject && ClosureOf(project).Any(reached => reached.Name == _clientProject);

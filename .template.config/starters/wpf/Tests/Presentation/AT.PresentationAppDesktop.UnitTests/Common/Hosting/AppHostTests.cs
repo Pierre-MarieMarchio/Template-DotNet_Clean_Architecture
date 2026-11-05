@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using AppTemplate.Client.Generated;
+using AppTemplate.Presentation.Client.Generated;
 //#if (externalAuth)
 using AppTemplate.PresentationAppDesktop.Common.Sessions;
 //#endif

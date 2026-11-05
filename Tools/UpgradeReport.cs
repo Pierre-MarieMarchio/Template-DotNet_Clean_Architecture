@@ -124,7 +124,7 @@ internal static class UpgradeReport
             "the migrations: bootstrap's migration-initial creates them, migration-add <Name> adds to them"),
         (Rx(@"^docs/(?:.+/)?index\.md$"), "dotnet run Tools/Tasks.cs docs-index"),
         (Rx(@"^Tests/Integration/[^/]+\.Api\.IntegrationTests/OpenApi/v1\.json$"), "dotnet run Tools/Tasks.cs openapi"),
-        (Rx(@"^Src/Clients/[^/]+\.Client/Generated/"), "dotnet run Tools/Tasks.cs api-client"),
+        (Rx(@"^Src/Presentation/[^/]+\.Presentation\.Client/Generated/"), "dotnet run Tools/Tasks.cs api-client"),
         (Rx(@"^Src/Web/pnpm-lock\.yaml$"), "pnpm install, in Src/Web"),
         (Rx(@"^Src/Web/packages/api-client/(?:src/generated|openapi)/"), "pnpm api, in Src/Web"),
     ];
@@ -684,7 +684,7 @@ internal static class UpgradeReport
             Template item = content.Require(replay.Template, release.Version);
             (string, string)[] state =
             [
-                ("hasClient", Directory.Exists(Path.Combine(tree, "Src", "Clients")) && Directory.EnumerateDirectories(Path.Combine(tree, "Src", "Clients"), "*.Client").Any() ? "true" : "false"),
+                ("hasClient", Directory.Exists(Path.Combine(tree, "Src", "Presentation")) && Directory.EnumerateDirectories(Path.Combine(tree, "Src", "Presentation"), "*.Presentation.Client").Any() ? "true" : "false"),
                 ("hasApi", Directory.Exists(Path.Combine(tree, "Src", "Presentation")) && Directory.EnumerateDirectories(Path.Combine(tree, "Src", "Presentation"), "*.Api").Any() ? "true" : "false"),
                 ("workspace", File.Exists(Path.Combine(tree, "Src", "Web", "package.json")) ? "false" : "true"),
             ];
@@ -1482,7 +1482,7 @@ internal static class UpgradeReport
         Three("docker-compose.yml", "a\n", "b\n", "a\n");
         Three(_projectFileName, "{}\n", "{ }\n", "{}\n");
         Three("Src/Infrastructure/SS.Infrastructure.Persistence/Migrations/1_InitialCreate.cs", null, null, "class M;\n");
-        Three("Src/Clients/SS.Client/Generated/ApiClient.cs", "a\n", "b\n", "c\n");
+        Three("Src/Presentation/SS.Presentation.Client/Generated/ApiClient.cs", "a\n", "b\n", "c\n");
         Three("Tests/Integration/SS.Api.IntegrationTests/OpenApi/v1.json", null, null, "{}\n");
         Three("Src/Web/apps/Site/scaffold.json", "{\"version\":\"1\"}\n", "{\"version\":\"2\"}\n", null);
         Three("Src/Presentation/SS.Portal/scaffold.json", "{\"kind\":\"dotnet\"}\n", "{\"kind\":\"dotnet\"}\n", null);
@@ -1528,7 +1528,7 @@ internal static class UpgradeReport
         expect(KindOf(_projectFileName) is null && comparison.Provenance is not null, "cleanarch.json was compared as a template file instead of named as the project's record.");
         expect(comparison.Bootstrap.Values.SelectMany(paths => paths).Contains("Src/Infrastructure/SS.Infrastructure.Persistence/Migrations/1_InitialCreate.cs"), "A migration is not listed as written by bootstrap.");
         expect(comparison.Bootstrap.Values.SelectMany(paths => paths).Contains("Tests/Integration/SS.Api.IntegrationTests/OpenApi/v1.json"), "The OpenAPI reference is not listed as written by bootstrap.");
-        expect(KindOf("Src/Clients/SS.Client/Generated/ApiClient.cs") is null, "The generated client was compared, though api-client rewrites it.");
+        expect(KindOf("Src/Presentation/SS.Presentation.Client/Generated/ApiClient.cs") is null, "The generated client was compared, though api-client rewrites it.");
         expect(comparison.Bootstrap.Any(group => group.Key.Contains("web-scaffold Site", StringComparison.Ordinal) && group.Value.Contains("Src/Web/apps/Site/vite.config.ts")), "A file a framework's CLI created is not listed under web-scaffold.");
         expect(comparison.Scaffolds.Any(line => line.StartsWith("Src/Web/apps/Site/scaffold.json", StringComparison.Ordinal)), "A changed scaffold descriptor is not reported.");
         expect(comparison.Findings.Any(finding => finding.Path == "Src/Web/apps/Site/src/main.ts" && finding.Kind == Kind.Merge), "A changed overlay file is not mapped to the file the scaffold laid it on.");

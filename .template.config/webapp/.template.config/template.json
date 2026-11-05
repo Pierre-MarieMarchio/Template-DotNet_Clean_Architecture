@@ -28,7 +28,7 @@
         { "choice": "vite-vue", "description": "A Vue app, created by Vite's official CLI (create-vite, vue-ts) when web-scaffold runs." },
         { "choice": "vite-svelte", "description": "A Svelte app, created by Vite's official CLI (create-vite, svelte-ts) when web-scaffold runs." },
         { "choice": "react-router", "description": "A React app, created by React Router's official CLI (create-react-router) when web-scaffold runs: a single-page app, or rendered on the server with --rendering ssr." },
-        { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app, created by dotnet new blazorwasm when web-scaffold runs, calling the API through the .NET client of Src/Clients, which comes with it." }
+        { "choice": "blazor-wasm", "description": "A Blazor WebAssembly app, created by dotnet new blazorwasm when web-scaffold runs, calling the API through the .NET client in Src/Presentation, which comes with it." }
       ],
       "description": "The app's framework."
     },
@@ -188,7 +188,7 @@
       "displayName": "Project holds the .NET client",
       "datatype": "bool",
       "defaultValue": "false",
-      "description": "The project holds Src/Clients/<initials>.Client already, generated with --presentation avalonia, --presentation wpf or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia or wpf: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
+      "description": "The project holds Src/Presentation/<initials>.Presentation.Client already, generated with --presentation avalonia, --presentation wpf or --web blazor-wasm, or added by cleanarch-presentation --framework avalonia or wpf: a Blazor WebAssembly app uses it, and the item template writes neither the client nor its tests nor its decision."
     },
     "auth": {
       "type": "parameter",
@@ -480,9 +480,12 @@
       "condition": "(webBlazorWasm && externalAuth)"
     },
     {
-      "source": "../../Src/Clients/",
-      "target": "./Src/Clients/",
+      "source": "../../Src/Presentation/",
+      "target": "./Src/Presentation/",
       "condition": "(webBlazorWasm && !hasClient)",
+      "include": [
+        "AT.Presentation.Client/**"
+      ],
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -491,27 +494,30 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AT.Client/Common/Sessions/ApiSession.cs",
-            "AT.Client/Common/Sessions/ApiSessionHandler.cs",
-            "AT.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "AT.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "AT.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "AT.Client/Common/Sessions/RefreshTokenMode.cs"
+            "AT.Presentation.Client/Common/Sessions/ApiSession.cs",
+            "AT.Presentation.Client/Common/Sessions/ApiSessionHandler.cs",
+            "AT.Presentation.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "AT.Presentation.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "AT.Presentation.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "AT.Presentation.Client/Common/Sessions/RefreshTokenMode.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AT.Client/Common/Sessions/AccessTokenHandler.cs",
-            "AT.Client/Common/Sessions/IAccessTokenSource.cs"
+            "AT.Presentation.Client/Common/Sessions/AccessTokenHandler.cs",
+            "AT.Presentation.Client/Common/Sessions/IAccessTokenSource.cs"
           ]
         }
       ]
     },
     {
-      "source": "../../Tests/Clients/",
-      "target": "./Tests/Clients/",
+      "source": "../../Tests/Presentation/",
+      "target": "./Tests/Presentation/",
       "condition": "(webBlazorWasm && !hasClient)",
+      "include": [
+        "AT.Presentation.Client.UnitTests/**"
+      ],
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -520,14 +526,14 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AT.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "AT.Presentation.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AT.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "AT.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "AT.Presentation.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "AT.Presentation.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         }
       ]

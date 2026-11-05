@@ -276,7 +276,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-presentation -n Portal --project-name Sample.Generated.Project $FIRST_PRESENTATION
-          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation $(ls -d Src/Clients Tests/Clients 2>/dev/null) docs || true)
+          leaked=$(grep -rIl -e AppTemplate -e app-template -e PresentationApp -e presentation-app -e PRESENTATION_APP Src/Presentation Tests/Presentation docs || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -308,7 +308,7 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           dotnet new cleanarch-webapp -n WasmSite --framework blazor-wasm --port 8089 --project-name Sample.Generated.Project $WASM_APP
-          leaked=$( (grep -rIl -e AppTemplate -e apptemplate Src/Web/apps/WasmSite Src/Clients Tests/Clients docs; grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE Src/Web/apps/WasmSite) || true)
+          leaked=$( (grep -rIl -e AppTemplate -e apptemplate Src/Web/apps/WasmSite Src/Presentation/SGP.Presentation.Client Tests/Presentation/SGP.Presentation.Client.UnitTests docs; grep -rIl -e FrameworkSite -e framework-site -e FRAMEWORK_SITE Src/Web/apps/WasmSite) || true)
           if [ -n "$leaked" ]; then
             echo "::error title=Item template token leaked::$leaked"
             exit 1
@@ -422,7 +422,7 @@ jobs:
         working-directory: ${{ runner.temp }}/generated
         run: |
           set -euo pipefail
-          if [ ! -d Src/Clients ]; then
+          if [ ! -d Src/Presentation/SGP.Presentation.Client ]; then
             exit 0
           fi
           if [ ! -f Tests/Integration/SGP.Api.IntegrationTests/OpenApi/v1.json ]; then

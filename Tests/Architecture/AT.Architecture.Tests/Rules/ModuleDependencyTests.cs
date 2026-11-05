@@ -451,18 +451,18 @@ public sealed class ModuleDependencyTests
     [Fact]
     public void EveryClient_ReachesTheCoreThroughTheApiAlone()
     {
-        var withinTheClients = ProjectReferenceGraph.ProjectsInLayer("Clients")
-            .Select(project => project.Name)
-            .ToHashSet(StringComparer.Ordinal);
+        string client = ProjectReferenceGraph.ClientProject;
 
         References(
-                ProjectReferenceGraph.ProjectsInLayer("Clients")
-                    .Concat(ProjectReferenceGraph.Clients.Where(client => !withinTheClients.Contains(client.Name))),
-                (_, reference) => !withinTheClients.Contains(reference))
+                ProjectReferenceGraph.SourceProjects.Values
+                    .Where(project => project.Name == client)
+                    .Concat(ProjectReferenceGraph.Clients),
+                (_, reference) => reference != client)
             .ShouldBeEmpty(
-                "A client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
-                + "that calls the API through it: a reference to a domain, "
-                + "application, infrastructure or other presentation project would ship the server's code to it (ADR 0022, ADR 0023). "
-                + "Remove each reference named here and call the API over HTTP through the generated client instead.");
+                "The .NET client runs on another machine than the API and speaks to it over HTTP alone, and so does a presentation "
+                + "that calls the API through it: the client references no project, and such a presentation the client alone. "
+                + "A reference to a domain, application, infrastructure or other presentation project would ship the server's code "
+                + "to it (ADR 0022, ADR 0023). Remove each reference named here and call the API over HTTP through the generated "
+                + "client instead.");
     }
 }

@@ -96,9 +96,9 @@ public sealed class ProjectFileTests
     {
         bool client = ProjectFile["client"]?.GetValue<bool>() ?? false;
 
-        Holds($"Src/Clients/{Folder("Client")}").ShouldBe(
+        Holds($"Src/Presentation/{Folder("Presentation.Client")}").ShouldBe(
             client,
-            $"cleanarch.json records client as {client}; whatever adds Src/Clients/{Folder("Client")} records it as true.");
+            $"cleanarch.json records client as {client}; whatever adds Src/Presentation/{Folder("Presentation.Client")} records it as true.");
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class ProjectFileTests
         string[] recorded = [.. presentations.Select(presentation => Folder(Text(presentation, "name")))];
 
         Folders("Src/Presentation")
-            .Where(folder => folder != Folder("Presentation.Core"))
+            .Where(folder => folder != Folder("Presentation.Core") && folder != Folder("Presentation.Client"))
             .ShouldBe(
                 [.. recorded.Order(StringComparer.Ordinal)],
                 Case.Sensitive,
@@ -185,7 +185,7 @@ public sealed class ProjectFileTests
     [
         "Src/Web",
         "Src/AppHost/AT.AppHost",
-        "Src/Clients/AT.Client",
+        "Src/Presentation/AT.Presentation.Client",
         "Src/Presentation/AT.Api/Features/ExternalIdentity",
     ];
 

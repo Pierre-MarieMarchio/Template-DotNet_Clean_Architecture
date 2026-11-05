@@ -1,4 +1,4 @@
-﻿using AppTemplate.Client.Common.Sessions;
+﻿using AppTemplate.Presentation.Client.Common.Sessions;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 namespace AppTemplate.FrameworkSite.Common.Sessions;

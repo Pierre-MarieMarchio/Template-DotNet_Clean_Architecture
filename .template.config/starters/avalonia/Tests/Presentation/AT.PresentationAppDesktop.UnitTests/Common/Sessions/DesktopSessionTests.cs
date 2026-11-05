@@ -1,6 +1,6 @@
 ﻿using System.Net;
 using System.Web;
-using AppTemplate.Client.Common.Sessions;
+using AppTemplate.Presentation.Client.Common.Sessions;
 using AppTemplate.PresentationAppDesktop.Common.Sessions;
 using AppTemplate.PresentationAppDesktop.UnitTests.TestSupport;
 using Microsoft.Extensions.DependencyInjection;

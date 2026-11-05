@@ -67,7 +67,7 @@ keeps the template's pages, layout and `wwwroot`, beside the project file and th
 project owns, and adds the project to the solution: it builds, formats and is tested with the rest,
 under the same analyzers and central package versions.
 
-It calls the API through the .NET client of `Src/Clients`, generated from the same document
+It calls the API through the .NET client of `Src/Presentation/AT.Presentation.Client`, generated from the same document
 ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)), at the page's own address, so
 the `/api` relay of its server keeps the API on the same origin.
 <!--#if (localAuth)-->

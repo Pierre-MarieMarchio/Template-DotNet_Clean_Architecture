@@ -184,7 +184,7 @@ setting, table or test names it.
 | `--web` | `react-router` | a React app in `Src/Web/apps/FrameworkSite`, created by React Router's official CLI, `create-react-router`, at bootstrap |
 | <!--#endif--> |
 | <!--#if (webBlazorWasm)--> |
-| `--web` | `blazor-wasm` | a Blazor WebAssembly app in `Src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `Src/Clients` |
+| `--web` | `blazor-wasm` | a Blazor WebAssembly app in `Src/Web/apps/FrameworkSite`, created by `dotnet new blazorwasm` at bootstrap, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client` |
 | <!--#endif--> |
 | <!--#if (webPlaceholder)--> |
 | `--web` | `placeholder` | a static page in `Src/Web/apps/PlaceholderSite`, served by nginx |
@@ -219,13 +219,13 @@ setting, table or test names it.
 | `--presentation` | `blazor-server` | a Blazor Web App with server interactivity in `Src/Presentation`, its pages created by `dotnet new blazor` at bootstrap ([Presentation projects](../features/presentation.md)) |
 | <!--#endif--> |
 | <!--#if (presentationAvalonia)--> |
-| `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client` ([Presentation projects](../features/presentation.md)) |
 | <!--#endif--> |
 | <!--#if (presentationMcp)--> |
 | `--presentation` | `mcp` | an MCP server in `Src/Presentation`, written in the shape of `dotnet new mcpserver`, whose tools call the use cases in process ([Presentation projects](../features/presentation.md)) |
 | <!--#endif--> |
 | <!--#if (presentationWpf)--> |
-| `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `Src/Clients`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
+| `--presentation` | `wpf` | a WPF desktop app for Windows in `Src/Presentation`, in the shape of `dotnet new wpf`, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client`, developed, run and tested on Windows ([Presentation projects](../features/presentation.md)) |
 <!--#endif-->
 
 To change a value, remove the part by hand or add it:

@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Clients\AT.Client\AppTemplate.Client.csproj" />
+    <ProjectReference Include="..\AT.Presentation.Client\AppTemplate.Presentation.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

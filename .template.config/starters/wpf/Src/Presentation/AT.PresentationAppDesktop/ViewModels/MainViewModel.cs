@@ -1,8 +1,8 @@
 ﻿//#if (localAuth)
-using AppTemplate.Client.Common.Errors;
-using AppTemplate.Client.Common.Sessions;
-using AppTemplate.Client.Generated;
-using AppTemplate.Client.Generated.Models;
+using AppTemplate.Presentation.Client.Common.Errors;
+using AppTemplate.Presentation.Client.Common.Sessions;
+using AppTemplate.Presentation.Client.Generated;
+using AppTemplate.Presentation.Client.Generated.Models;
 //#endif
 using AppTemplate.PresentationAppDesktop.Common.Hosting;
 //#if (externalAuth)

@@ -54,7 +54,7 @@ public sealed class CoverageSettingsTests
     }
 
     [Theory]
-    [InlineData("/home/me/app/Src/Clients/P.Client/Generated/Models/LoginRequest.cs")]
+    [InlineData("/home/me/app/Src/Presentation/P.Presentation.Client/Generated/Models/LoginRequest.cs")]
     [InlineData("/home/me/app/Src/Infrastructure/P.Infrastructure.Auth/Migrations/20261103_InitialCreate.cs")]
     [InlineData("/home/me/app/Src/Application/P.Application/obj/Release/net10.0/Mediator.g.cs")]
     [InlineData(@"C:\app\Src\Presentation\P.Desktop\obj\Debug\net10.0-windows\App.g.cs")]

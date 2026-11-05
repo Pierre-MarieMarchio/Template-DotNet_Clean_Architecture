@@ -13,7 +13,7 @@
     <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(TemplateConfig)template.json')), '(?&lt;="templateVersion"[^}]*"value":\s*")[^"]+'))</Version>
     <Title>.NET Clean Architecture API launcher</Title>
     <Authors>Pierre-MarieMarchio</Authors>
-    <Description>Creates a .NET 10 HTTP API on Clean Architecture from the CleanArch.WebApi.Templates package by asking for each option, or adds a web app, a web package or a presentation project to a project it generated: dnx CleanArch.Create.</Description>
+    <Description>Creates a .NET 10 project on Clean Architecture, an HTTP API or hosts without one, from the CleanArch.WebApi.Templates package by asking for each option, or adds a web app, a web package or a presentation project to a project it generated: dnx CleanArch.Create.</Description>
     <PackageTags>dotnet-new;dotnet-tool;clean-architecture;webapi;scaffolding</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

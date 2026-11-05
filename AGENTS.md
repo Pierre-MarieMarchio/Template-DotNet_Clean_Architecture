@@ -33,13 +33,15 @@ once before a change that adds a type; [the documentation index](docs/README.md)
 <!--#if (api)-->
 From the repository root. Right after generating, before anything else, run `bootstrap` and commit
 what it writes: it formats the usings the rename reordered, writes the documentation index and the
-OpenAPI reference, restores the local tools and creates each context's initial migration, and the
+OpenAPI reference, restores the local tools, with the project's own `dotnet cleanarch` pinned at the
+template's version among them, and creates each context's initial migration, and the
 other tasks assume all five.
 <!--#endif-->
 <!--#if (!api)-->
 From the repository root. Right after generating, before anything else, run `bootstrap` and commit
 what it writes: it formats the usings the rename reordered, writes the documentation index,
-restores the local tools and creates each context's initial migration, and the other tasks assume
+restores the local tools, with the project's own `dotnet cleanarch` pinned at the template's
+version among them, and creates each context's initial migration, and the other tasks assume
 all four.
 <!--#endif-->
 <!--#if (presentationBlazorServer || presentationAvalonia)-->

@@ -205,6 +205,7 @@ it, and the generated solution builds and passes its tests.
 | `--auth none` with an example | `--auth-none-needs-examples-none` | add `--examples none` |
 | `--auth none` with `--files true` | `--auth-none-needs-files-false` | add `--files false` |
 | `--web-audience admin` with `--auth none` | `--admin-web-needs-accounts` | choose `--auth local` or `external` |
+| `--web blazor-wasm` with `--auth none` | `--wasm-web-needs-accounts` | choose `--auth local` or `external`, or another `--web` |
 | `--web-rendering ssr` with a `--web` other than `angular` or `react-router` | `--server-rendering-needs-a-server-starter` | choose `--web angular` or `react-router`, or `--web-rendering spa` |
 | `--presentation avalonia` or `wpf` with `--auth none` | `--client-presentation-needs-accounts` | choose `--auth local` or `external` |
 | `--presentation mcp` with `--auth none` | `--mcp-needs-accounts` | choose `--auth local` or `external` |

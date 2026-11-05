@@ -56,7 +56,7 @@ dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppMcp
 Then create the project as above and commit it.
 <!--#if (localAuth)-->
 The edits bring the access keys the server's callers present, whose table changes the
-authentication context's model: in a project whose migrations exist already, add one:
+identity context's model: in a project whose migrations exist already, add one:
 
 ```bash
 dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth

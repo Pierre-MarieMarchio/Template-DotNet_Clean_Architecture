@@ -22,8 +22,8 @@ are the ones a host is likely to have already: `README.md`, `.gitignore`, `globa
 
 Three facts decide the subdirectory shape:
 
-- `Tools/Tasks.cs` finds the repository root by walking up to the solution, so every task works from
-  the subdirectory unchanged.
+- `Tools/Tasks.cs` finds the repository root by walking up to `cleanarch.json`, so every task works
+  from the subdirectory unchanged.
 - MSBuild stops at the nearest `Directory.Build.props` and `Directory.Packages.props`, and
   `.editorconfig` declares `root = true`: the host's root files do not reach these projects, and these
   do not reach the host's.

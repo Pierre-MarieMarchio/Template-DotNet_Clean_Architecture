@@ -1,8 +1,8 @@
 # CleanArch.Create
 
-Creates a .NET 10 HTTP API on Clean Architecture by asking for each option of the
-`cleanarch-webapi` template, then runs `dotnet new` with the answers. Run inside a project it
-generated, it adds a web app, a web package or a presentation project the same way.
+Creates a .NET 10 project on Clean Architecture, an HTTP API or hosts without one, by asking for
+each option of the `cleanarch-webapi` template, then runs `dotnet new` with the answers. Run inside
+a project it generated, it adds a web app, a web package or a presentation project the same way.
 
 ## Create a project
 
@@ -133,3 +133,4 @@ dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 | `--setup` | after `new`, every step of "Set the project up" above, without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |
 | `--hive <folder>` | the template engine's settings folder, passed as `--debug:custom-hive` |
+| `-h`, `--help` | the commands and options, with the values the template generates and their defaults; after a command, that command's own |

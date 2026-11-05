@@ -127,8 +127,11 @@ Recommended:
   address; one password against many accounts from many addresses trips neither.
 - **Lockout is itself a denial of service**: with the defaults, five failures lock an account for
   fifteen minutes, so about twenty requests an hour keep a chosen account shut.
-- **One signing key, no rotation, no `kid`**: replacing it ends every token at once, and no single
-  access token can be revoked.
+- **One symmetric key signs, with no `kid`**: during a rotation the keys of `Jwt:PreviousKeys` only
+  validate, until the access-token lifetime has passed
+  ([ADR 0040](docs/decisions/0040-the-signing-key-rotates-through-previous-keys-that-only-validate.md),
+  [rotating the signing key](docs/guides/rotating-the-signing-key.md)); a leaked key still ends every
+  token signed with it at once, and no single access token can be revoked.
 - **A rotation whose response is lost ends every session**, since its retry reads as a replay.
 - **On `localhost`, web apps share one refresh-token cookie**, because cookies are not scoped by port.
 - **The security log is not tamper-evident**: it lives beside the business data, writable by the same

@@ -701,13 +701,13 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/guides/build-and-ci.md`, replace the line:
 
   ```markdown
-  | `bootstrap` | format, write the OpenAPI reference, restore the local tools, then `migration-initial`; once, after generation |
+  | `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, then `api-client` where the project holds the .NET client; once, after generation |
   ```
 
   with:
 
   ```markdown
-  | `bootstrap` | format, write the OpenAPI reference, restore the local tools, `migration-initial`, then `web-scaffold`; once, after generation |
+  | `bootstrap` | `presentation-scaffold`, format, `docs-index`, write the OpenAPI reference, pin the project's own tool `dotnet cleanarch` at the template's version, restore the local tools, `migration-initial`, `api-client` where the project holds the .NET client, then `web-scaffold`; once, after generation |
   ```
 
 - in `docs/guides/build-and-ci.md`, replace the line:

@@ -160,6 +160,11 @@ regenerated.
 A segment that is a C# or Visual Basic keyword (`Default`, `Shared`) does not build: CA1716 is an
 error under warnings as errors. Pick a name with no such segment.
 
+An underscore does not build either: the name reaches every namespace, and CA1707 refuses an
+identifier that holds one. Each dot-separated segment is a letter from A to Z followed by letters
+and digits. The launcher refuses any other name; `dotnet new` lets an underscore through, since its
+conditions cannot search a name, and the build then stops on CA1707.
+
 ## Options
 
 | Option | Values | Default | Gives |

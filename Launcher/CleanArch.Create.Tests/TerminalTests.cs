@@ -16,7 +16,7 @@ public sealed class TerminalTests
 
         string output = Launched(["new", "-n", name, "--yes"]);
 
-        output.ShouldContain($"--name '{name}': use the letters A to Z, digits, underscores and dots, with each part starting with a letter, like Acme.Shop.");
+        output.ShouldContain($"--name '{name}': use the letters A to Z, digits and dots, with each part starting with a letter, like Acme.Shop.");
     }
 
     private static string Launched(string[] arguments)

@@ -167,7 +167,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        string suffix = Guid.CreateVersion7().ToString("N")[..12];
+        string suffix = Guid.NewGuid().ToString("N")[..12];
         var request = new RegisterRequest($"{label ?? "user"}-{suffix}@integration.test", ValidPassword);
 
         using var response = await client.PostAsJsonAsync($"{AuthRoute}/register", request, TestToken);

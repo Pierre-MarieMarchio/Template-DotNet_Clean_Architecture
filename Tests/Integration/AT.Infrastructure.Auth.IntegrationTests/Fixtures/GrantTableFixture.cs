@@ -63,7 +63,7 @@ public sealed class GrantTableFixture : IAsyncLifetime
 
     public async Task<AppUser> CreateUserAsync(CancellationToken cancellationToken)
     {
-        string suffix = Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture)[..12];
+        string suffix = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..12];
         string userName = $"grant-{suffix}";
         string email = $"{userName}@identity.test";
 

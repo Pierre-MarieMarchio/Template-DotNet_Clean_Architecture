@@ -82,7 +82,7 @@ public sealed class ObjectStoreFixture : IAsyncLifetime
         $"{prefix}/{Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture)}";
 
     public static string UniquePrefix(string purpose) =>
-        $"{purpose}-{Guid.CreateVersion7().ToString("N", CultureInfo.InvariantCulture)[..12]}";
+        $"{purpose}-{Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..12]}";
 
     public async Task<HttpResponseMessage> DepositAsync(
         IssuedUploadGrant grant,

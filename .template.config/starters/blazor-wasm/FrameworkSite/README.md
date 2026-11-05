@@ -5,7 +5,7 @@ A Blazor WebAssembly back office over the API, for administrators.
 <!--#else-->
 A Blazor WebAssembly front end over the API.
 <!--#endif-->
-It runs in the browser and calls the API through the .NET client of `Src/Clients`, on the page's
+It runs in the browser and calls the API through the .NET client of `Src/Presentation/AT.Presentation.Client`, on the page's
 own origin: nginx serves the app and relays `/api/` to the API, so the API keeps CORS closed.
 
 The app itself is what `dotnet new blazorwasm` writes; this folder adds the project file,
@@ -152,7 +152,7 @@ defaults: the client's files are written for them. Pass `--has-client true` when
 project. A project generated with `--auth none` publishes no route for it to call, and the item
 template refuses it.
 
-It writes this folder, the .NET client in `Src/Clients` with its tests, and the client's decision;
+It writes this folder, the .NET client in `Src/Presentation/AT.Presentation.Client` with its tests, and the client's decision;
 `--has-client true` leaves the client, its tests and its decision out, and its edits below with them.
 <!--#if (externalAuth)-->
 With `--auth external` it also writes the app's unit tests under `Tests`, which `web-scaffold` adds to
@@ -337,7 +337,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   ```markdown
   - The WebAssembly app starts from `dotnet new blazorwasm`, which `dotnet run Tools/Tasks.cs web-scaffold`
     runs once; it is a .NET project of the solution, built and formatted with it, and calls the API
-    through the .NET client of `Src/Clients`, never through `@app-template/api-client`.
+    through the .NET client of `Src/Presentation/AT.Presentation.Client`, never through `@app-template/api-client`.
   ```
 
 <!--#endif-->
@@ -353,7 +353,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   ```csharp
           ["Src/Web/apps/FrameworkSite"] = null,
   <!--#if (!hasClient)-->
-          ["Src/Clients/AT.Client"] = null,
+          ["Src/Presentation/AT.Presentation.Client"] = null,
   <!--#endif-->
   ```
 
@@ -373,7 +373,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
           ["Src/Web/apps/FrameworkSite"] = null,
   <!--#endif-->
   <!--#if (!hasClient)-->
-          ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
+          ["Src/Presentation/AT.Presentation.Client"] = ["Composition", "Errors", "Sessions"],
   <!--#endif-->
   ```
 
@@ -390,7 +390,7 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   ```csharp
           ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
   <!--#if (!hasClient)-->
-          ["AppTemplate.Client"] = ["Generated"],
+          ["AppTemplate.Presentation.Client"] = ["Generated"],
   <!--#endif-->
   ```
 
@@ -405,13 +405,36 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   add:
 
   ```markdown
-  The .NET client of `Src/Clients/AT.Client` is generated from the reference itself:
+  The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
   `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
   manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
   ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
   ```
 
+<!--#if (!hasClient)-->
+- in `docs/architecture/layers-and-projects.md`, before the line:
+
+  ```markdown
+  ## Composition
+  ```
+
+  add:
+
+  ```markdown
+  ## The .NET client
+
+  `AppTemplate.Presentation.Client` is the .NET client of the API, beside
+  `AppTemplate.Presentation.Core`: Kiota writes its `Generated/` folder from the OpenAPI reference,
+  and `Common/` adds the base address, the resilience handler, the session and the reading of a
+  problem's `code`. Only a presentation that runs on the user's machine calls it, so it is a
+  presentation project and not a layer of its own. It references no project, and a presentation that
+  calls the API through it references it alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`);
+  [ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md) says why.
+
+  ```
+
+<!--#endif-->
 - in `docs/reference/project-layout.md`, after the line:
 
   ```markdown
@@ -425,17 +448,17 @@ Then create the app as above, and commit it. The edits, to make by hand where th
   writes and nobody edits ([ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md)).
   ```
 
-- in `docs/reference/project-layout.md`, before the line:
+- in `docs/reference/project-layout.md`, after the lines:
 
   ```text
-  Src/Web/                                the pnpm workspace: apps/ and packages/
+    AT.Presentation.Core                  Common/{Jobs,Localization,Observability,Outbound,Security}
+                                          no Features/
   ```
 
   add:
 
   ```text
-  Src/Clients/
-    AT.Client                             Common/{Composition,Errors,Sessions}
+    AT.Presentation.Client                Common/{Composition,Errors,Sessions}
                                           no Features/
                                           Generated/: Kiota's, from the OpenAPI reference
   ```

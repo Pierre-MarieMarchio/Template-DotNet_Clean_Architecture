@@ -20,7 +20,7 @@ still holds.
 | `Tools/CheckWorkflows.cs` | what a YAML parse misses: a dangling `needs:`, an action on a mutable tag, an image without a digest, a missing `permissions:`, an undeclared `$VAR`, a path absent from disk, a trigger filtered by `paths:` or `paths-ignore:`, a job-level `if:` on a pull request's matrix job, a job that runs `dotnet` on the runner image's SDK |
 | `Tools/CheckComments.cs` | no comment outside the allowlist, one guidance line at a time in configuration files, no Markdown narrating the repository's history |
 | `web-lockfiles --check` | each generated web shape's lockfile equals what the pinned pnpm writes for it; needs pnpm (`corepack enable`) |
-| `api-client --check` | `Src/Clients/AT.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
+| `api-client --check` | `Src/Presentation/AT.Presentation.Client/Generated` equals what the pinned Kiota writes from the OpenAPI reference; needs the tools `dotnet tool restore` restores |
 
 Each gate runs its `--self-test` first, against fixtures that must make it fire and fixtures that
 must leave it silent, and fails when it examined nothing. A rule added to a gate comes with the fixture
@@ -434,7 +434,7 @@ build sees it, so two checks hold the rule.
 The test judges a namespace by the names the template's own C# files declare in it, types, their
 attributes' short names and extension methods, and a line as reading a name it spells. It reads the
 files under `.template.config/variants` and `.template.config/starters` as the forms that write them,
-and the client Kiota writes in `Src/Clients/AT.Client/Generated` for the names it declares only. It
+and the client Kiota writes in `Src/Presentation/AT.Presentation.Client/Generated` for the names it declares only. It
 leaves out what it cannot know: a namespace from a package, and the projects an official CLI creates,
 whose `scaffold.json` has the kind `dotnet`; the acceptance check covers those in the shapes the legs
 build.
@@ -582,7 +582,7 @@ the SQLite external-auth leg that adds it with `cleanarch-presentation`.
 
 `cleanarch-presentation`, in `.template.config/presentation/.template.config`, copies the same
 folder by `--framework`, with `docs/features/presentation.md`; for `avalonia` and `wpf` it also brings
-`Src/Clients`, `Tests/Clients` and ADR 0023, which a project without a client lacks. For `worker`
+`Src/Presentation/AT.Presentation.Client`, `Tests/Presentation/AT.Presentation.Client.UnitTests` and ADR 0023, which a project without a client lacks. For `worker`
 it brings ADR 0025 instead of the page, refuses every `-n` but `Worker` (`workerIsNamedWorker`), a
 project without the API (`workerTakesTheJobsOfTheApi`) and SQLite (`workerNeedsServerDatabase`), and
 the project's `presentation-join` moves the jobs, as [the worker](#the-worker) says. `--has-api`, true by default, says whether the project holds the
@@ -649,7 +649,7 @@ and `Tests` and fails until a new one is refused.
 
 `--aspire` adds `Src/AppHost/AT.AppHost`, an Aspire app host, beside Docker Compose, which stays the
 reference ([ADR 0032](../decisions/0032-the-app-host-follows-compose.md)). Its source is in-tree, built
-and tested in this checkout like `Src/Clients`, and `template.json` leaves it out with its
+and tested in this checkout like `Src/Presentation/AT.Presentation.Client`, and `template.json` leaves it out with its
 integration tests, `LocalStackParityTests`, its page and its ADR under `!aspire`; `ProjectFileTests`
 reads it as absent here. It starts the hosts and the web apps `cleanarch.json` records rather than
 a list of its own, so `presentation-join` and `web-join` need no edit of it, and its C# conditions
@@ -743,13 +743,13 @@ of a secret that can push, which this repository does not hold.
 
 ## The .NET client
 
-`Src/Clients/AT.Client` and its tests are built and tested in this checkout, and reach a
+`Src/Presentation/AT.Presentation.Client` and its tests are built and tested in this checkout, and reach a
 generated project only when `dotnetClient` is true, which `--presentation avalonia` and
 `--presentation wpf` set, or through `cleanarch-presentation --framework avalonia` or `wpf`. Its session is written under `localAuth`, its
 validation problem under `localAuth || anyFeature`, the two shapes whose document holds them.
 `dotnetClient` also brings the Kiota entry of the tool manifest; the `api-client` task, the CI step
 that runs `api-client --check`, the Dependabot group and the `Generated` exclusions are in every
-project and act once `Src/Clients` holds the client. `Generated/` is copied as Kiota wrote it:
+project and act once `Src/Presentation/AT.Presentation.Client` holds the client. `Generated/` is copied as Kiota wrote it:
 `template.json` gives `**/Generated/**.cs` a conditional syntax no line uses, so Kiota's own `#if`
 lines survive and only the names are replaced. The tool manifest therefore comes in four shapes:
 `.config/dotnet-tools.json` with every tool, and `no-sonar`, `no-client` and `no-sonar-no-client`
@@ -761,7 +761,7 @@ and commits what it writes.
 ## The project file
 
 `cleanarch.json` records what a project was generated with: the template package and version, the
-project's name, every option that is not a part under its value, `client` when `Src/Clients`
+project's name, every option that is not a part under its value, `client` when `Src/Presentation/AT.Presentation.Client`
 holds the .NET client, the web workspace with its apps and packages, and the presentation project
 ([template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)).
 This checkout holds the file the defaults generate; `Tools/Tasks.cs` finds the root by it and reads
@@ -774,7 +774,7 @@ the options there rather than through markers.
 | Additions | `presentation-join` and `web-join` record the part they join, `client` with it, and `web-join` a package of the workspace; every writer keeps the key order and any key it does not know |
 | Tests | `ProjectFileTests` holds the file to the tree in every project; `TemplatePackagingTests` holds the checkout's file to the defaults, each variant to it, and every value to a symbol that replaces it; `CheckProjectFile.cs` holds each leg's file to its options |
 
-In this checkout `Src/Web`, `Src/Clients` and the API's external-identity mapping are the sources of
+In this checkout `Src/Web`, `Src/Presentation/AT.Presentation.Client` and the API's external-identity mapping are the sources of
 shapes the defaults leave out, so `ProjectFileTests` reads them as absent, in a `templateMaintenance`
 block. A new option that is not a part gets its key in `cleanarch.json` and in the three variants,
 a generated symbol that replaces it, its place in the list of `.template.config/acceptance/CheckProjectFile.cs`, and a check in

@@ -20,7 +20,7 @@
               <Exclude>
                 <Source>.*[\\/]Src[\\/]Infrastructure[\\/][^\\/]+[\\/]Migrations[\\/].*</Source>
                 <Source>.*[\\/]obj[\\/][^\\/]+[\\/]net\d+\.\d+[^\\/]*[\\/].*</Source>
-                <Source>.*[\\/]Src[\\/]Clients[\\/][^\\/]+[\\/]Generated[\\/].*</Source>
+                <Source>.*[\\/]Src[\\/]Presentation[\\/][^\\/]+\.Presentation\.Client[\\/]Generated[\\/].*</Source>
               </Exclude>
             </Sources>
 

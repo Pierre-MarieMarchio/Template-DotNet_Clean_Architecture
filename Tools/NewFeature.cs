@@ -340,7 +340,7 @@ internal static partial class NewFeature
         TextEdits.Task(root, "docs-index"),
         TextEdits.Task(root, "build"),
         .. migrated ? Array.Empty<TextEdits.Command>() : [TextEdits.FromLastBuild(root, "migration-add", $"Add{spec.Features}")],
-        .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client"), built: true) : [],
+        .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Presentation.Client"), built: true) : [],
     ];
 
     private static string[] SweepMethod() =>
@@ -801,7 +801,7 @@ internal static partial class NewFeature
 
     private static bool IsClientPresentation(string folder) =>
         Directory.EnumerateFiles(folder, "*.csproj")
-            .Any(project => File.ReadAllText(project).Contains(@"..\..\Clients\", StringComparison.Ordinal));
+            .Any(project => File.ReadAllText(project).Contains(".Presentation.Client.csproj", StringComparison.Ordinal));
 
     private static string HostComposition(string root, string host, string adapter)
     {
@@ -2660,7 +2660,7 @@ internal static partial class NewFeature
 
         string contractRoot = NewTree(scratch);
 
-        Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Clients/A.Client"));
+        Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Presentation/A.Presentation.Client"));
         Directory.CreateDirectory(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
         File.WriteAllText(System.IO.Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
 
@@ -3560,7 +3560,7 @@ internal static partial class NewFeature
         File.WriteAllText(System.IO.Path.Combine(desktop, "Program.cs"), "return 0;\n");
         File.WriteAllText(
             System.IO.Path.Combine(desktop, "Acme.Desk.csproj"),
-            "<Project><ItemGroup><ProjectReference Include=\"..\\..\\Clients\\A.Client\\Acme.Client.csproj\" /></ItemGroup></Project>\n");
+            "<Project><ItemGroup><ProjectReference Include=\"..\\A.Presentation.Client\\Acme.Presentation.Client.csproj\" /></ItemGroup></Project>\n");
 
         var withClient = Invoke(presented, "Gadgets", "Gadget", "--access", "owner", "--deletion", "delete");
 
@@ -5076,7 +5076,7 @@ internal static partial class NewFeature
                     root,
                     _inProcess,
                     [])],
-            .. addition.After.HasApi ? TextEdits.ContractSteps(root, FolderOf(addition.After.Prefix, "Client"), built: !written) : [],
+            .. addition.After.HasApi ? TextEdits.ContractSteps(root, FolderOf(addition.After.Prefix, "Presentation.Client"), built: !written) : [],
         ];
     }
 
@@ -12155,7 +12155,7 @@ internal static class TextEdits
     internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
         built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
-        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. client.Length > 0 && Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
             ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),

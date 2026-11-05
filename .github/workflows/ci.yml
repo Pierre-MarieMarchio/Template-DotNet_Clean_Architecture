@@ -107,7 +107,7 @@ jobs:
       #endif
       # Generated is committed, so Kiota at the version the tool manifest pins writes it again from the OpenAPI reference and any difference fails.
       - name: The .NET client is what Kiota writes from the OpenAPI reference
-        if: hashFiles('Src/Clients/**/*.csproj') != ''
+        if: hashFiles('Src/Presentation/*.Presentation.Client/*.csproj') != ''
         run: |
           dotnet tool restore
           dotnet run Tools/Tasks.cs api-client --check

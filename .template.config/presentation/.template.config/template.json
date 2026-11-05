@@ -30,7 +30,7 @@
         },
         {
           "choice": "avalonia",
-          "description": "An Avalonia desktop app, created by dotnet new avalonia.mvvm when presentation-scaffold runs, calling the API through the .NET client of Src/Clients, which comes with it."
+          "description": "An Avalonia desktop app, created by dotnet new avalonia.mvvm when presentation-scaffold runs, calling the API through the .NET client in Src/Presentation, which comes with it."
         },
         {
           "choice": "mcp",
@@ -38,7 +38,7 @@
         },
         {
           "choice": "wpf",
-          "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, calling the API through the .NET client of Src/Clients, which comes with it; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
+          "description": "A WPF desktop app for Windows, written in the shape of dotnet new wpf, calling the API through the .NET client in Src/Presentation, which comes with it; Windows first: developed, run and tested on Windows, while other systems build it and the tasks name the tests they skip."
         },
         {
           "choice": "worker",
@@ -71,7 +71,7 @@
           "description": "Not an option to set: it names the refusal."
         }
       ],
-      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"AppHost\" || name == \"AppHost.IntegrationTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Client\" || name == \"Client.UnitTests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\"))",
+      "isRequired": "(framework != \"worker\" && (name == \"Api\" || name == \"Api.IntegrationTests\" || name == \"Api.UnitTests\" || name == \"AppHost\" || name == \"AppHost.IntegrationTests\" || name == \"Application\" || name == \"Application.Auth\" || name == \"Application.Auth.UnitTests\" || name == \"Application.Core\" || name == \"Application.Core.UnitTests\" || name == \"Application.UnitTests\" || name == \"Architecture.Tests\" || name == \"Domain\" || name == \"Domain.Core\" || name == \"Domain.Core.UnitTests\" || name == \"Domain.UnitTests\" || name == \"EndToEnd.Tests\" || name == \"Infrastructure.Auth\" || name == \"Infrastructure.Auth.IntegrationTests\" || name == \"Infrastructure.Auth.UnitTests\" || name == \"Infrastructure.Core\" || name == \"Infrastructure.Core.UnitTests\" || name == \"Infrastructure.Email\" || name == \"Infrastructure.Email.UnitTests\" || name == \"Infrastructure.InMemory\" || name == \"Infrastructure.InMemory.UnitTests\" || name == \"Infrastructure.Persistence\" || name == \"Infrastructure.Persistence.UnitTests\" || name == \"Infrastructure.Storage\" || name == \"Infrastructure.Storage.UnitTests\" || name == \"Presentation.Client\" || name == \"Presentation.Client.UnitTests\" || name == \"Presentation.Core\" || name == \"Presentation.Core.UnitTests\" || name == \"Worker\" || name == \"Worker.UnitTests\"))",
       "description": "Never set. -n names a project the template already writes, which would be overwritten: choose another name, such as Portal."
     },
     "auth": {
@@ -356,7 +356,7 @@
       "displayName": "Project holds the .NET client",
       "datatype": "bool",
       "defaultValue": "false",
-      "description": "The project holds Src/Clients/<initials>.Client already, generated with --web blazor-wasm, --presentation avalonia or --presentation wpf, or added by cleanarch-webapp --framework blazor-wasm: an Avalonia or a WPF app uses it, and the item template writes neither the client nor its tests nor its decision."
+      "description": "The project holds Src/Presentation/<initials>.Presentation.Client already, generated with --web blazor-wasm, --presentation avalonia or --presentation wpf, or added by cleanarch-webapp --framework blazor-wasm: an Avalonia or a WPF app uses it, and the item template writes neither the client nor its tests nor its decision."
     },
     "hasApi": {
       "type": "parameter",
@@ -845,9 +845,12 @@
       ]
     },
     {
-      "source": "../../Src/Clients/",
-      "target": "./Src/Clients/",
+      "source": "../../Src/Presentation/",
+      "target": "./Src/Presentation/",
       "condition": "((presentationAvalonia || presentationWpf) && !hasClient)",
+      "include": [
+        "AT.Presentation.Client/**"
+      ],
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -856,27 +859,30 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AT.Client/Common/Sessions/ApiSession.cs",
-            "AT.Client/Common/Sessions/ApiSessionHandler.cs",
-            "AT.Client/Common/Sessions/CookieRefreshTokenStore.cs",
-            "AT.Client/Common/Sessions/IRefreshTokenStore.cs",
-            "AT.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
-            "AT.Client/Common/Sessions/RefreshTokenMode.cs"
+            "AT.Presentation.Client/Common/Sessions/ApiSession.cs",
+            "AT.Presentation.Client/Common/Sessions/ApiSessionHandler.cs",
+            "AT.Presentation.Client/Common/Sessions/CookieRefreshTokenStore.cs",
+            "AT.Presentation.Client/Common/Sessions/IRefreshTokenStore.cs",
+            "AT.Presentation.Client/Common/Sessions/InMemoryRefreshTokenStore.cs",
+            "AT.Presentation.Client/Common/Sessions/RefreshTokenMode.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AT.Client/Common/Sessions/AccessTokenHandler.cs",
-            "AT.Client/Common/Sessions/IAccessTokenSource.cs"
+            "AT.Presentation.Client/Common/Sessions/AccessTokenHandler.cs",
+            "AT.Presentation.Client/Common/Sessions/IAccessTokenSource.cs"
           ]
         }
       ]
     },
     {
-      "source": "../../Tests/Clients/",
-      "target": "./Tests/Clients/",
+      "source": "../../Tests/Presentation/",
+      "target": "./Tests/Presentation/",
       "condition": "((presentationAvalonia || presentationWpf) && !hasClient)",
+      "include": [
+        "AT.Presentation.Client.UnitTests/**"
+      ],
       "exclude": [
         "**/bin/**",
         "**/obj/**"
@@ -885,14 +891,14 @@
         {
           "condition": "(!localAuth)",
           "exclude": [
-            "AT.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
+            "AT.Presentation.Client.UnitTests/Common/Sessions/ApiSessionTests.cs"
           ]
         },
         {
           "condition": "(!externalAuth)",
           "exclude": [
-            "AT.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
-            "AT.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
+            "AT.Presentation.Client.UnitTests/Common/Sessions/AccessTokenHandlerTests.cs",
+            "AT.Presentation.Client.UnitTests/TestSupport/StubAccessTokenSource.cs"
           ]
         }
       ]

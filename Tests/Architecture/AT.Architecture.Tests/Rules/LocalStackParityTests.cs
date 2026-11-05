@@ -233,7 +233,7 @@ public sealed class LocalStackParityTests
             var build = site.Annotations.OfType<DockerfileBuildAnnotation>().Single();
             var variables = await EnvironmentOf(site);
 
-            build.ContextPath.ShouldBe(root.FullName, "The app's Dockerfile copies the .NET client from Src/Clients, so its compose.yml builds it from the root.");
+            build.ContextPath.ShouldBe(root.FullName, "The app's Dockerfile copies the .NET client from Src/Presentation, so its compose.yml builds it from the root.");
             build.DockerfilePath.ShouldBe(Path.Combine(root.FullName, "Src", "Web", "apps", "Site", "Dockerfile"));
             /*#if (externalAuth)
             variables.ShouldContain("SIGN_IN_AUTHORITY", "The app signs in at the provider the API trusts, as its compose.yml says.");

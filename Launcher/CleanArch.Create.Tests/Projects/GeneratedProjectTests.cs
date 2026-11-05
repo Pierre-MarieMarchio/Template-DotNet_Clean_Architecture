@@ -78,10 +78,10 @@ public sealed class GeneratedProjectTests : IDisposable
     public void Find_ReadsTheClient_FromItsProject()
     {
         AProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Clients", "AS.Client"));
+        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Presentation.Client"));
         GeneratedProject.Find(_root).ShouldNotBeNull().HasClient.ShouldBeFalse();
 
-        Write("Src/Clients/AS.Client/Acme.Shop.Client.csproj", string.Empty);
+        Write("Src/Presentation/AS.Presentation.Client/Acme.Shop.Presentation.Client.csproj", string.Empty);
 
         GeneratedProject.Find(_root).ShouldNotBeNull().HasClient.ShouldBeTrue();
     }

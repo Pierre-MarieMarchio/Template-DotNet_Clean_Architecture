@@ -105,7 +105,7 @@ public sealed class LayoutConventionTests
         ["Src/Presentation/AT.Worker"] = ["Jobs"],
         #endif*/
         //#if (dotnetClient)
-        ["Src/Clients/AT.Client"] = null,
+        ["Src/Presentation/AT.Presentation.Client"] = null,
         //#endif
     };
 
@@ -222,7 +222,7 @@ public sealed class LayoutConventionTests
         ["Src/Web/apps/FrameworkSite"] = ["Hosting", "Sessions"],
         #endif*/
         //#if (dotnetClient)
-        ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
+        ["Src/Presentation/AT.Presentation.Client"] = ["Composition", "Errors", "Sessions"],
         //#endif
     };
 
@@ -394,7 +394,7 @@ public sealed class LayoutConventionTests
         ["AppTemplate.FrameworkSite"] = ["Layout", "Pages", "wwwroot"],
         #endif*/
         //#if (dotnetClient)
-        ["AppTemplate.Client"] = ["Generated"],
+        ["AppTemplate.Presentation.Client"] = ["Generated"],
         //#endif
     };
 

@@ -2918,7 +2918,7 @@ internal static class TextEdits
     internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
         built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
-        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. client.Length > 0 && Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
             ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),

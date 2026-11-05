@@ -213,8 +213,8 @@ public sealed class SilencedDiagnosticTests
     }
 
     [Theory]
-    [InlineData("**/Generated/**.cs", "Src/Clients/X.Client/Generated/Models/A.cs", true)]
-    [InlineData("**/Generated/**.cs", "Src/Clients/X.Client/A.cs", false)]
+    [InlineData("**/Generated/**.cs", "Src/Presentation/X.Presentation.Client/Generated/Models/A.cs", true)]
+    [InlineData("**/Generated/**.cs", "Src/Presentation/X.Presentation.Client/A.cs", false)]
     [InlineData("**/Migrations/*.cs", "Src/X/Migrations/20260101_Initial.cs", true)]
     [InlineData("**/Migrations/*.cs", "Src/X/Migrations/Deeper/A.cs", false)]
     [InlineData("*.cs", "Src/X/A.cs", true)]

@@ -121,6 +121,11 @@ Src/Infrastructure/
 Src/Presentation/
   AT.Presentation.Core                  Common/{Jobs,Localization,Observability,Outbound,Security}
                                         no Features/
+<!--#if (dotnetClient)-->
+  AT.Presentation.Client                Common/{Composition,Errors,Sessions}
+                                        no Features/
+                                        Generated/: Kiota's, from the OpenAPI reference
+<!--#endif-->
 <!--#if (api && !jobsWorker)-->
   AT.Api                                Common/{Caching,Concurrency,Contracts,Controllers,Errors,Hosting,
                                                 Idempotency,Jobs,Localization,Observability,OpenApi,
@@ -195,12 +200,6 @@ Src/AppHost/
   AT.AppHost                            Common/{Hosting}
                                         no Features/; AppHostModule.cs at its root: the app host's entry
 <!--#endif-->
-<!--#if (dotnetClient)-->
-Src/Clients/
-  AT.Client                             Common/{Composition,Errors,Sessions}
-                                        no Features/
-                                        Generated/: Kiota's, from the OpenAPI reference
-<!--#endif-->
 <!--#if (anyWeb)-->
 Src/Web/                                the pnpm workspace: apps/ and packages/
 <!--#if (webBlazorWasm && !externalAuth)-->
@@ -230,7 +229,7 @@ Server and which carries the schema in its name on SQLite.
 | `options` | each generation option that adds no part: `auth`, `database`, `examples`, `files`, `ci`, `sonar`, `agentFiles`, `aspire` |
 | `client` | `true` when the project holds the .NET client of the API |
 | `web` | present with the web workspace: its npm `scope`, its `apps` with the `framework`, `audience`, `rendering` and host `port` each was added with, and the `packages` added to it |
-| `presentation` | every presentation project under `Src/Presentation`, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
+| `presentation` | every presentation project under `Src/Presentation` but `Presentation.Core` and the .NET client, the API and the worker among them: its `name`, the part of its project's name after this project's name, and its `framework` |
 
 The options are a fact about the day of generation, and no task rewrites them: removing an example
 feature leaves `examples` as it was. A part added later is recorded by the task that joins it,

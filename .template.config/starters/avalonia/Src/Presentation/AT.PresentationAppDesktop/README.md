@@ -1,7 +1,7 @@
 # PresentationAppDesktop
 
 The presentation project beside the API: an Avalonia desktop app that calls the API through the
-.NET client of `Src/Clients`. [Presentation project](../../../docs/features/presentation.md)
+.NET client of `Src/Presentation/AT.Presentation.Client`. [Presentation project](../../../docs/features/presentation.md)
 describes it.
 
 ## Create the project
@@ -75,7 +75,7 @@ project holds the .NET client already, generated with `--web blazor-wasm` or add
 WebAssembly app. A project generated with `--auth none` publishes no route for it to call, and the
 item template refuses it.
 
-It writes this folder, its tests, the .NET client in `Src/Clients` with its tests,
+It writes this folder, its tests, the .NET client in `Src/Presentation/AT.Presentation.Client` with its tests,
 `docs/features/presentation.md` and the client's decision; `--has-client true` leaves the client, its
 tests and its decision out, and its edits below with them. The lines `--presentation` writes in
 files the item template cannot edit are listed below, each placed by the lines it goes beside. One
@@ -202,7 +202,7 @@ task stops:
   ```csharp
           ["Src/Presentation/AT.PresentationAppDesktop"] = null,
   <!--#if (!hasClient)-->
-          ["Src/Clients/AT.Client"] = null,
+          ["Src/Presentation/AT.Presentation.Client"] = null,
   <!--#endif-->
   ```
 
@@ -222,7 +222,7 @@ task stops:
           ["Src/Presentation/AT.PresentationAppDesktop"] = ["Hosting"],
   <!--#endif-->
   <!--#if (!hasClient)-->
-          ["Src/Clients/AT.Client"] = ["Composition", "Errors", "Sessions"],
+          ["Src/Presentation/AT.Presentation.Client"] = ["Composition", "Errors", "Sessions"],
   <!--#endif-->
   ```
 
@@ -239,7 +239,7 @@ task stops:
   ```csharp
           ["AppTemplate.PresentationAppDesktop"] = ["Assets", "ViewModels", "Views"],
   <!--#if (!hasClient)-->
-          ["AppTemplate.Client"] = ["Generated"],
+          ["AppTemplate.Presentation.Client"] = ["Generated"],
   <!--#endif-->
   ```
 
@@ -268,7 +268,7 @@ task stops:
   add:
 
   ```markdown
-  The .NET client of `Src/Clients/AT.Client` is generated from the reference itself:
+  The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
   `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
   manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
   the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both
@@ -289,12 +289,35 @@ task stops:
   ## The desktop app
 
   `Src/Presentation/<Initials>.Desktop` is a desktop client: an Avalonia app that calls the API over
-  HTTP through the .NET client of `Src/Clients/<Initials>.Client`. It references that client alone
-  (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use
-  case and no module. [Presentation projects](../features/presentation.md) describes it.
+  HTTP through the .NET client of `Src/Presentation/<Initials>.Presentation.Client`. It references
+  that client alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes
+  no use case and no module. [Presentation projects](../features/presentation.md) describes it.
 
   ```
 
+<!--#if (!hasClient)-->
+- in `docs/architecture/layers-and-projects.md`, before the line:
+
+  ```markdown
+  ## Composition
+  ```
+
+  add:
+
+  ```markdown
+  ## The .NET client
+
+  `AppTemplate.Presentation.Client` is the .NET client of the API, beside
+  `AppTemplate.Presentation.Core`: Kiota writes its `Generated/` folder from the OpenAPI reference,
+  and `Common/` adds the base address, the resilience handler, the session and the reading of a
+  problem's `code`. Only a presentation that runs on the user's machine calls it, so it is a
+  presentation project and not a layer of its own. It references no project, and a presentation that
+  calls the API through it references it alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`);
+  [ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md) says why.
+
+  ```
+
+<!--#endif-->
 - in `docs/decisions/0001-adopt-the-generated-baseline.md`, before the lines:
 
   ```markdown
@@ -360,7 +383,7 @@ task stops:
   add:
 
   ```markdown
-  | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Clients` ([Presentation projects](../features/presentation.md)) |
+  | `--presentation` | `avalonia` | an Avalonia desktop app in `Src/Presentation`, its views created by `dotnet new avalonia.mvvm` at bootstrap, calling the API through the .NET client of `Src/Presentation/AT.Presentation.Client` ([Presentation projects](../features/presentation.md)) |
   ```
 
 <!--#if (files)-->
@@ -442,10 +465,22 @@ task stops:
   <!--#endif-->
                                           no Features/
                                           Assets/, ViewModels/, Views/: dotnet new avalonia.mvvm's, at bootstrap
-  <!--#if (!hasClient)-->
-  Src/Clients/
-    AT.Client                             Common/{Composition,Errors,Sessions}
+  ```
+
+<!--#if (!hasClient)-->
+- in `docs/reference/project-layout.md`, after the lines:
+
+  ```text
+    AT.Presentation.Core                  Common/{Jobs,Localization,Observability,Outbound,Security}
+                                          no Features/
+  ```
+
+  add:
+
+  ```text
+    AT.Presentation.Client                Common/{Composition,Errors,Sessions}
                                           no Features/
                                           Generated/: Kiota's, from the OpenAPI reference
-  <!--#endif-->
   ```
+
+<!--#endif-->

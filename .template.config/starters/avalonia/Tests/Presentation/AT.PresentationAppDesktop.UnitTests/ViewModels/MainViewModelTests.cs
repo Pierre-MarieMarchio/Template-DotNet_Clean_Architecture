@@ -1,6 +1,6 @@
 ﻿using System.Net;
 //#if (localAuth)
-using AppTemplate.Client.Common.Sessions;
+using AppTemplate.Presentation.Client.Common.Sessions;
 //#else
 using AppTemplate.PresentationAppDesktop.Common.Sessions;
 //#endif

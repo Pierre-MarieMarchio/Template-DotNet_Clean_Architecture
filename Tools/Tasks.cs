@@ -297,7 +297,7 @@ internal static class Tasks
                                            workspace, those Src/Web/README.md lists before them; then
                                            rewrite the documentation index and record the app in
                                            cleanarch.json, with the client when
-                                           Src/Clients holds it
+                                           Src/Presentation holds it
           web-join <package>               record Src/Web/packages/<package> in cleanarch.json, which
                                            cleanarch-webpackage cannot edit
         """;
@@ -305,7 +305,7 @@ internal static class Tasks
     private const string _clientUsage =
         """
 
-        .NET client, once the project holds Src/Clients/AT.Client:
+        .NET client, once the project holds Src/Presentation/AT.Presentation.Client:
           api-client                       regenerate its Generated folder with the Kiota the tool
                                            manifest pins, from the OpenAPI reference openapi writes: a
                                            BOM on each C# file, and kiota-lock.json naming the
@@ -1031,7 +1031,7 @@ internal static class Tasks
         Path.Combine(projectFile.ProjectFolder("Tests", "Integration", "Api.IntegrationTests"), "OpenApi", "v1.json");
 
     //#endif
-    private static string ClientFolder(ProjectFile projectFile) => projectFile.ProjectFolder("Src", "Clients", "Client");
+    private static string ClientFolder(ProjectFile projectFile) => projectFile.ProjectFolder("Src", "Presentation", "Presentation.Client");
 
     private static bool HoldsTheClient(ProjectFile projectFile) => Directory.Exists(ClientFolder(projectFile));
 
@@ -1047,7 +1047,7 @@ internal static class Tasks
         if (!HoldsTheClient(projectFile))
         {
             throw new InvalidOperationException(
-                "Src/Clients/AT.Client does not exist, so there is no client to write: a presentation that calls the API through it brings it.");
+                "Src/Presentation/AT.Presentation.Client does not exist, so there is no client to write: a presentation that calls the API through it brings it.");
         }
 
         if (!File.Exists(reference))
@@ -1064,7 +1064,7 @@ internal static class Tasks
                 "--openapi", reference,
                 "--output", output,
                 "--class-name", "ApiClient",
-                "--namespace-name", "AppTemplate.Client.Generated",
+                "--namespace-name", "AppTemplate.Presentation.Client.Generated",
                 "--exclude-backward-compatible",
                 "--clean-output",
                 "--log-level", "Warning");
@@ -2210,7 +2210,7 @@ internal static class Tasks
         File.Delete(Path.Combine(folder, _scaffoldDescriptor));
 
         string source = Path.Combine(folder, name + ".csproj");
-        bool client = HoldsTheClient(projectFile) && File.ReadAllText(source).Contains(@"..\..\Clients\", StringComparison.Ordinal);
+        bool client = HoldsTheClient(projectFile) && File.ReadAllText(source).Contains(projectFile.ProjectName("Presentation.Client") + ".csproj", StringComparison.Ordinal);
         string tests = Path.Combine(repoRoot, "Tests", task == "web-scaffold" ? "Web" : "Presentation", projectFile.FolderOfProject(name + ".UnitTests"), name + ".UnitTests.csproj");
         string[] projects =
         [
@@ -2347,8 +2347,8 @@ internal static class Tasks
     private static string[] ClientProjects(ProjectFile projectFile) =>
         [.. new[]
         {
-            Path.Combine(ClientFolder(projectFile), projectFile.ProjectName("Client") + ".csproj"),
-            Path.Combine(projectFile.ProjectFolder("Tests", "Clients", "Client.UnitTests"), projectFile.ProjectName("Client.UnitTests") + ".csproj"),
+            Path.Combine(ClientFolder(projectFile), projectFile.ProjectName("Presentation.Client") + ".csproj"),
+            Path.Combine(projectFile.ProjectFolder("Tests", "Presentation", "Presentation.Client.UnitTests"), projectFile.ProjectName("Presentation.Client.UnitTests") + ".csproj"),
         }.Where(File.Exists)];
 
     private const string _joiningSection = "## Joining a project generated without one";
@@ -3650,15 +3650,19 @@ internal static class Tasks
             [
                 Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj"),
                 Path.Combine(root, "Tests", "Presentation", "X.Desktop.UnitTests", "App.Desktop.UnitTests.csproj"),
-                Path.Combine(root, "Src", "Clients", "X.Client", "App.Client.csproj"),
+                Path.Combine(root, "Src", "Presentation", "X.Presentation.Client", "App.Presentation.Client.csproj"),
             ]);
 
         return
         [
-            ("a scaffolded project joins the solution folder of its layer, one call per folder", added.Length == 3
-                && added[0].SequenceEqual(["sln", "X.slnx", "add", "--solution-folder", "Src/Presentation", Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj")])
-                && added[1][4] == "Tests/Presentation"
-                && added[2][4] == "Src/Clients"),
+            ("a scaffolded project joins the solution folder of its layer, one call per folder", added.Length == 2
+                && added[0].SequenceEqual(
+                [
+                    "sln", "X.slnx", "add", "--solution-folder", "Src/Presentation",
+                    Path.Combine(root, "Src", "Presentation", "X.Desktop", "App.Desktop.csproj"),
+                    Path.Combine(root, "Src", "Presentation", "X.Presentation.Client", "App.Presentation.Client.csproj"),
+                ])
+                && added[1][4] == "Tests/Presentation"),
         ];
     }
 
@@ -3729,7 +3733,7 @@ internal static class Tasks
                 "<Project><PropertyGroup>\n    <TargetFramework> net10.0-windows10.0.19041.0 </TargetFramework>\n  </PropertyGroup></Project>",
             ["Tests/Domain/P.Domain.UnitTests/X.Domain.UnitTests.csproj"] =
                 "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>",
-            ["Tests/Clients/P.Client.UnitTests/X.Client.UnitTests.csproj"] = "<Project><PropertyGroup /></Project>",
+            ["Tests/Presentation/P.Presentation.Client.UnitTests/X.Presentation.Client.UnitTests.csproj"] = "<Project><PropertyGroup /></Project>",
         };
         ProjectNode[] graph =
         [
@@ -3753,7 +3757,7 @@ internal static class Tasks
             ("a Windows target framework with a platform version runs on Windows alone", WindowsTargetFramework(texts["Tests/Presentation/P.Kiosk.UnitTests/X.Kiosk.UnitTests.csproj"]) == "net10.0-windows10.0.19041.0"),
             ("a test project on net10.0, or on the framework the props set, runs everywhere",
                 WindowsTargetFramework(texts["Tests/Domain/P.Domain.UnitTests/X.Domain.UnitTests.csproj"]) is null
-                && WindowsTargetFramework(texts["Tests/Clients/P.Client.UnitTests/X.Client.UnitTests.csproj"]) is null),
+                && WindowsTargetFramework(texts["Tests/Presentation/P.Presentation.Client.UnitTests/X.Presentation.Client.UnitTests.csproj"]) is null),
             ("off Windows, the Windows-only test projects are the ones left out", WindowsOnly(texts.Keys, path => texts[path], onWindows: false).Order(StringComparer.Ordinal).SequenceEqual(
                 ["Tests/Presentation/P.Desktop.UnitTests/X.Desktop.UnitTests.csproj", "Tests/Presentation/P.Kiosk.UnitTests/X.Kiosk.UnitTests.csproj"])),
             ("on Windows, no test project is left out", WindowsOnly(texts.Keys, path => texts[path], onWindows: true).Length == 0),

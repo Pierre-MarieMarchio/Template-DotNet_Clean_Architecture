@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using AppTemplate.Client.Generated;
+using AppTemplate.Presentation.Client.Generated;
 using AppTemplate.FrameworkSite.Common.Hosting;
 using AppTemplate.FrameworkSite.UnitTests.TestSupport;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;

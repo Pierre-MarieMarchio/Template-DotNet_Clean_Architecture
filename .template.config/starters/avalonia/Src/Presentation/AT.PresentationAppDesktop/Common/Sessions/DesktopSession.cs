@@ -1,5 +1,5 @@
 ﻿using System.Security.Claims;
-using AppTemplate.Client.Common.Sessions;
+using AppTemplate.Presentation.Client.Common.Sessions;
 using AppTemplate.PresentationAppDesktop.Common.Hosting;
 using Duende.IdentityModel;
 using Duende.IdentityModel.OidcClient;

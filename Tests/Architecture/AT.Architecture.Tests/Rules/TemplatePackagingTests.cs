@@ -904,7 +904,7 @@ public sealed class TemplatePackagingTests
     [InlineData(".template.config", "(!refusedOptions && !api)", "dotnet run Tools/Tasks.cs bootstrap")]
     [InlineData(".template.config", "(!refusedOptions && !api)", "the network, not Docker")]
     [InlineData(".template.config", "(!refusedOptions && scaffoldedAtBootstrap)", "scaffold.json")]
-    [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Clients")]
+    [InlineData(".template.config", "(!refusedOptions && dotnetClient)", "the client in Src/Presentation")]
     [InlineData(".template.config", "(!refusedOptions && anyWeb)", "Node.js and pnpm")]
     [InlineData(".template.config/webapp/.template.config", null, "web-join <name> --web <framework>")]
     [InlineData(".template.config/webpackage/.template.config", null, "web-join <name>")]
@@ -1654,7 +1654,7 @@ public sealed class TemplatePackagingTests
         "avalonia/Src/Presentation/AT.PresentationAppDesktop/README.md",
         "anyPresentation|presentationAvalonia|dotnetClient",
         10,
-        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.slnx" })]
+        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Presentation/AT.Presentation.Client/", "Tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx" })]
     [InlineData(
         "mcp/Src/Presentation/AT.PresentationAppMcp/README.md",
         "anyPresentation|presentationMcp|accessKeys",
@@ -1664,14 +1664,14 @@ public sealed class TemplatePackagingTests
         "wpf/Src/Presentation/AT.PresentationAppDesktop/README.md",
         "anyPresentation|presentationWpf|dotnetClient",
         10,
-        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.slnx" })]
+        new[] { "docs/features/presentation.md", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Presentation/AT.Presentation.Client/", "Tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx" })]
     [InlineData(
         "blazor-wasm/FrameworkSite/README.md",
         "webBlazorWasm|dotnetClient",
         7,
         new[]
         {
-            "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Clients/", "Tests/Clients/", "AppTemplate.slnx",
+            "Src/Web/apps/FrameworkSite/", "docs/decisions/0023-a-dotnet-client-generated-by-kiota.md", "Src/Presentation/AT.Presentation.Client/", "Tests/Presentation/AT.Presentation.Client.UnitTests/", "AppTemplate.slnx",
             "docs/getting-started/overview.md", "docs/features/web-frontend.md",
         })]
     [InlineData(

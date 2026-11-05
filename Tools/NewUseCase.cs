@@ -225,7 +225,7 @@ internal static class NewUseCase
         Report(output, root, spec, plan, skipped, Mode.Applied);
 
         return contracts.Count == 0 && editor.Applied.Count == 0
-            || TextEdits.RunAll(TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Client"), built: false), run, output, error, "the use case's files, its action, its contracts and its route's row")
+            || TextEdits.RunAll(TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), run, output, error, "the use case's files, its action, its contracts and its route's row")
                 ? 0
                 : 1;
     }
@@ -1176,7 +1176,7 @@ internal static class NewUseCase
                 ? "Then a run without --dry-run rewrites what the contract feeds, in this order:"
                 : "Then rewrite what the contract feeds, once the edit is made:");
 
-            foreach (var step in TextEdits.ContractSteps(root, FolderOf(p, "Client"), built: false))
+            foreach (var step in TextEdits.ContractSteps(root, FolderOf(p, "Presentation.Client"), built: false))
             {
                 output.WriteLine($"  {step.Display}");
             }
@@ -2195,7 +2195,7 @@ internal static class NewUseCase
 
         string contractRoot = NewTree(scratch);
 
-        Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Clients/A.Client"));
+        Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Presentation/A.Presentation.Client"));
         Directory.CreateDirectory(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts"));
         File.WriteAllText(Path.Combine(contractRoot, "Src/Web/packages/api-client/scripts/generate.mjs"), "// the script pnpm api runs\n");
 
@@ -3161,7 +3161,7 @@ internal static class TextEdits
     internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
         built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
-        .. Directory.Exists(System.IO.Path.Combine(root, "Src", "Clients", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. client.Length > 0 && Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
             ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),

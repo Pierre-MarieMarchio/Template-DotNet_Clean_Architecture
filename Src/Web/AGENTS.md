@@ -43,7 +43,7 @@ API's last build instead.
 <!--#if (webBlazorWasm)-->
 - The WebAssembly app starts from `dotnet new blazorwasm`, which `dotnet run Tools/Tasks.cs web-scaffold`
   runs once; it is a .NET project of the solution, built and formatted with it, and calls the API
-  through the .NET client of `Src/Clients`, never through `@app-template/api-client`.
+  through the .NET client of `Src/Presentation/AT.Presentation.Client`, never through `@app-template/api-client`.
 <!--#endif-->
 <!--#if (webPlaceholder)-->
 - The placeholder app is a static page under `public/`, served by nginx; replace those files with the

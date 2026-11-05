@@ -1,6 +1,6 @@
-﻿using AppTemplate.Client;
+﻿using AppTemplate.Presentation.Client;
 //#if (externalAuth)
-using AppTemplate.Client.Common.Sessions;
+using AppTemplate.Presentation.Client.Common.Sessions;
 using AppTemplate.PresentationAppDesktop.Common.Sessions;
 //#endif
 using AppTemplate.PresentationAppDesktop.ViewModels;

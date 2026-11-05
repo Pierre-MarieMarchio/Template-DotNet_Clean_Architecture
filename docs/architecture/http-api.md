@@ -39,7 +39,7 @@ The web apps' API client is generated from the same document, written at build t
 ([ADR 0019](../decisions/0019-one-generated-api-client.md)).
 <!--#endif-->
 <!--#if (dotnetClient)-->
-The .NET client of `Src/Clients/AT.Client` is generated from the reference itself:
+The .NET client of `Src/Presentation/AT.Presentation.Client` is generated from the reference itself:
 `dotnet run Tools/Tasks.cs api-client` rewrites its `Generated/` folder with the Kiota the tool
 manifest pins, and `dotnet run Tools/Tasks.cs api-client --check`, which `verify` runs, fails while
 the folder differs from what Kiota writes. Run it after `openapi`, and the review reads both

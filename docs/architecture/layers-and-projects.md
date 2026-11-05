@@ -142,9 +142,9 @@ describes it.
 ## The desktop app
 
 `Src/Presentation/<Initials>.Desktop` is a desktop client: an Avalonia app that calls the API over
-HTTP through the .NET client of `Src/Clients/<Initials>.Client`. It references that client alone
-(`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use
-case and no module. [Presentation projects](../features/presentation.md) describes it.
+HTTP through the .NET client of `Src/Presentation/<Initials>.Presentation.Client`. It references
+that client alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes
+no use case and no module. [Presentation projects](../features/presentation.md) describes it.
 
 <!--#endif-->
 <!--#if (presentationMcp)-->
@@ -161,10 +161,22 @@ supplies. [Presentation projects](../features/presentation.md) describes it.
 ## The desktop app
 
 `Src/Presentation/<Initials>.Desktop` is a desktop client for Windows: a WPF app that calls the API
-over HTTP through the .NET client of `Src/Clients/<Initials>.Client`. It references that client alone
-(`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it composes no use case and no
-module. It is developed, run and tested on Windows; other systems build it.
+over HTTP through the .NET client of `Src/Presentation/<Initials>.Presentation.Client`. It
+references that client alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`), so it is no host: it
+composes no use case and no module. It is developed, run and tested on Windows; other systems build it.
 [Presentation projects](../features/presentation.md) describes it.
+
+<!--#endif-->
+<!--#if (dotnetClient)-->
+## The .NET client
+
+`AppTemplate.Presentation.Client` is the .NET client of the API, beside
+`AppTemplate.Presentation.Core`: Kiota writes its `Generated/` folder from the OpenAPI reference,
+and `Common/` adds the base address, the resilience handler, the session and the reading of a
+problem's `code`. Only a presentation that runs on the user's machine calls it, so it is a
+presentation project and not a layer of its own. It references no project, and a presentation that
+calls the API through it references it alone (`EveryClient_ReachesTheCoreThroughTheApiAlone`);
+[ADR 0023](../decisions/0023-a-dotnet-client-generated-by-kiota.md) says why.
 
 <!--#endif-->
 ## Composition

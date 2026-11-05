@@ -1,6 +1,6 @@
-﻿using AppTemplate.Client;
+﻿using AppTemplate.Presentation.Client;
 //#if (localAuth)
-using AppTemplate.Client.Common.Sessions;
+using AppTemplate.Presentation.Client.Common.Sessions;
 //#endif
 using AppTemplate.FrameworkSite;
 //#if (externalAuth)

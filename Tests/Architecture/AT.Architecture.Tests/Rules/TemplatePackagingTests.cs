@@ -1396,15 +1396,15 @@ public sealed class TemplatePackagingTests
     }
 
     [Fact]
-    public void TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_ByteForByte()
+    public void TheWpfStartersSharedCode_IsTheAvaloniaStartersOwn_ByteForByte()
     {
-        string[] avalonia = DesktopSessionCode("avalonia");
-        string[] wpf = DesktopSessionCode("wpf");
+        string[] avalonia = SharedDesktopCode("avalonia");
+        string[] wpf = SharedDesktopCode("wpf");
 
-        avalonia.Length.ShouldBeGreaterThanOrEqualTo(10, "Far fewer files were found than the Avalonia starter's session and its tests hold, so this rule is not reading them.");
+        avalonia.Length.ShouldBeGreaterThanOrEqualTo(20, "Far fewer files were found than the Avalonia starter's shared code and its tests hold, so this rule is not reading them.");
         wpf.ShouldBe(
             avalonia,
-            "The WPF starter holds a copy of the Avalonia starter's desktop session and its tests, at the same paths. Change both copies together; a third desktop client is the time to move them into a project of their own.");
+            "The WPF starter holds a copy of the Avalonia starter's hosting, desktop session, settings and their tests, at the same paths. Change both copies together; a third desktop client is the time to move them into a project of their own.");
 
         foreach (string path in avalonia)
         {
@@ -1904,22 +1904,20 @@ public sealed class TemplatePackagingTests
 
     private const string _workerStarter = "worker";
 
-    private static readonly string[] _desktopSessionCode =
+    private static readonly string[] _sharedDesktopCode =
     [
-        "Src/Presentation/AT.PresentationAppDesktop/Common/Sessions",
-        "Src/Presentation/AT.PresentationAppDesktop/Common/Hosting/SignInOptions.cs",
-        "Src/Presentation/AT.PresentationAppDesktop/Common/Hosting/SignInOptionsValidator.cs",
-        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/Common/Sessions",
-        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/Common/Hosting/SignInOptionsValidatorTests.cs",
-        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/TestSupport/ScriptedBrowser.cs",
-        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/TestSupport/StubProvider.cs",
+        "Src/Presentation/AT.PresentationAppDesktop/Common",
+        "Src/Presentation/AT.PresentationAppDesktop/appsettings.json",
+        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/Common",
+        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/TestSupport",
+        "Tests/Presentation/AT.PresentationAppDesktop.UnitTests/ViewModels/MainViewModelTests.cs",
     ];
 
-    private static string[] DesktopSessionCode(string starter)
+    private static string[] SharedDesktopCode(string starter)
     {
         string root = Path.Combine(StartersFolder, starter);
 
-        return [.. _desktopSessionCode
+        return [.. _sharedDesktopCode
             .Select(path => Path.Combine(root, path))
             .SelectMany(path => Directory.Exists(path) ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories) : File.Exists(path) ? [path] : [])
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))

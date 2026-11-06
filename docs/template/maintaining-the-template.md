@@ -566,8 +566,8 @@ its usings, which `UseWPF` takes out of the implicit ones, so the files it share
 starter compile unchanged. Its one test project, on `net10.0-windows` too, runs on Windows alone,
 and the tasks name it as skipped elsewhere
 ([template decision 0022](decisions/0022-a-wpf-app-is-one-windows-project-tested-on-windows.md)).
-Its session and its tests are a copy of the Avalonia starter's, at the same paths and in the same
-namespace: `TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_ByteForByte` fails until a
+Its hosting, session, settings and tests are a copy of the Avalonia starter's, at the same paths and in the same
+namespace: `TheWpfStartersSharedCode_IsTheAvaloniaStartersOwn_ByteForByte` fails until a
 change to one copy is made to the other, and a third desktop client is the time to move them into a
 project of their own.
 Each starter carries a token of its own, so that two hosts never meet on a path, a service or a port:

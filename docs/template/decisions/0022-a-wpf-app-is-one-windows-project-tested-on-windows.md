@@ -37,9 +37,9 @@ on Linux but its tests cannot run there, so the tasks that run the tests must kn
   skip. `Tools/Tasks.cs --self-test` holds the matcher and the selection, and
   `WindowsTestProjectTests` holds the premise: such a test project says so in its own file, with one
   target framework, and no `.props` or `.targets` sets a Windows one.
-- **The session stays a copy.** The WPF starter's session, its sign-in settings and their tests are
-  the Avalonia starter's, byte for byte, at the same paths;
-  `TheWpfStartersDesktopSession_IsTheAvaloniaStartersOwn_ByteForByte` holds it.
+- **The session stays a copy.** The WPF starter's hosting, session, settings, test support and their
+  tests are the Avalonia starter's, byte for byte, at the same paths;
+  `TheWpfStartersSharedCode_IsTheAvaloniaStartersOwn_ByteForByte` holds it.
 
 ## Alternatives considered
 

@@ -6,6 +6,8 @@ namespace CleanArch.Cli.Generators.RemoveFeature;
 
 internal static class RemovalScan
 {
+    private static readonly string[] _sourceTops = ["Src", "Tests"];
+
     internal static readonly Regex _declaration = new(@"\b(?:(?:record\s+)?(?:class|struct)|interface|record|enum)\s+([A-Z]\w*)", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     internal static readonly Regex _sectionName = new(@"\bconst\s+string\s+SectionName\s*=\s*""([A-Z][A-Za-z0-9]*)""", RegexOptions.None, TimeSpan.FromSeconds(1));
@@ -122,231 +124,299 @@ internal static class RemovalScan
     {
         string trimmed = line.TrimStart();
 
-        if (trimmed.StartsWith("//", StringComparison.Ordinal) || trimmed.StartsWith("/*", StringComparison.Ordinal) || trimmed.StartsWith('*'))
-        {
-            return string.Empty;
-        }
-
-        var code = new StringBuilder(line.Length);
-        int i = 0;
-
-        while (i < line.Length)
-        {
-            char c = line[i];
-
-            if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
-            {
-                break;
-            }
-
-            if (c == '\'')
-            {
-                int close = line.IndexOf('\'', i + (i + 1 < line.Length && line[i + 1] == '\\' ? 3 : 2));
-
-                i = close < 0 ? i + 1 : close + 1;
-
-                continue;
-            }
-
-            if (c is '"' or '@' or '$')
-            {
-                int start = i;
-                bool verbatim = false;
-
-                while (i < line.Length && line[i] is '@' or '$')
-                {
-                    verbatim |= line[i] == '@';
-                    i++;
-                }
-
-                if (i >= line.Length || line[i] != '"')
-                {
-                    code.Append(line, start, i - start);
-
-                    continue;
-                }
-
-                int quotes = 0;
-
-                while (i + quotes < line.Length && line[i + quotes] == '"')
-                {
-                    quotes++;
-                }
-
-                if (quotes >= 3)
-                {
-                    int end = line.IndexOf(new string('"', quotes), i + quotes, StringComparison.Ordinal);
-
-                    i = end < 0 ? line.Length : end + quotes;
-                }
-                else
-                {
-                    i++;
-
-                    while (i < line.Length)
-                    {
-                        if (!verbatim && line[i] == '\\')
-                        {
-                            i += 2;
-                        }
-                        else if (verbatim && line[i] == '"' && i + 1 < line.Length && line[i + 1] == '"')
-                        {
-                            i += 2;
-                        }
-                        else if (line[i] == '"')
-                        {
-                            i++;
-
-                            break;
-                        }
-                        else
-                        {
-                            i++;
-                        }
-                    }
-                }
-
-                code.Append("\"\"");
-
-                continue;
-            }
-
-            code.Append(c);
-            i++;
-        }
-
-        return code.ToString();
+        return trimmed.StartsWith("//", StringComparison.Ordinal) || trimmed.StartsWith("/*", StringComparison.Ordinal) || trimmed.StartsWith('*')
+            ? string.Empty
+            : new CodeLine(line).Strip();
     }
 
     internal static bool Outside(string relative, List<string> folders, HashSet<string> own) =>
         !own.Contains(relative) && !folders.Any(folder => relative.StartsWith(folder + "/", StringComparison.Ordinal));
 
+    internal static IEnumerable<string> CodeFiles(string root) =>
+        _sourceTops
+            .Select(top => Path.Combine(root, top))
+            .Where(Directory.Exists)
+            .SelectMany(start => Walk(root, start, "*.cs"));
+
     internal static List<Hit> ScanCode(string root, string features, string? type, List<string> declared, List<string> folders, HashSet<string> own, Func<string, string?[]?> read)
     {
-        var composition = new List<Regex>
-        {
-            FeatureRemoval.Rx($@"\bAdd{features}(Feature)?\b"),
-            FeatureRemoval.Rx($@"nameof\(\w+\.Add{features}\)"),
-        };
+        var patterns = new CodePatterns(features, type, declared);
 
-        var named = FeatureRemoval.Rx($@"AddFeature\(\s*""{features}""");
-        var model = new List<Regex> { FeatureRemoval.Rx($@"\b{features}Schema\b") };
-        var reference = new List<Regex> { FeatureRemoval.Rx($@"\.Features\.{features}\b") };
-        Regex? typedRegistration = null;
-        Regex? declaredName = null;
-
-        if (type is not null)
-        {
-            model.Add(FeatureRemoval.Rx($@"\b{type}Record(Configuration)?\b"));
-
-            if (declared.Count > 0)
-            {
-                string names = string.Join("|", declared.Select(Regex.Escape));
-
-                declaredName = FeatureRemoval.Rx($@"\b(?:{names})\b");
-                typedRegistration = FeatureRemoval.Rx($@"\b(Try)?Add\w*\s*[<(].*\b(?:{names})\b");
-            }
-        }
-
-        var hits = new List<Hit>();
-
-        foreach (string top in new[] { "Src", "Tests" })
-        {
-            string start = Path.Combine(root, top);
-
-            if (!Directory.Exists(start))
-            {
-                continue;
-            }
-
-            foreach (string file in Walk(root, start, "*.cs"))
-            {
-                string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-
-                if (!Outside(relative, folders, own) || read(relative) is not { } lines)
-                {
-                    continue;
-                }
-
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    if (lines[i] is not { } line)
-                    {
-                        continue;
-                    }
-
-                    string code = Code(line);
-
-                    HitKind? kind = composition.Any(pattern => pattern.IsMatch(code)) || named.IsMatch(line) || (typedRegistration?.IsMatch(code) ?? false) ? HitKind.Composition
-                        : model.Any(pattern => pattern.IsMatch(code)) ? HitKind.Model
-                        : reference.Any(pattern => pattern.IsMatch(code)) || (declaredName?.IsMatch(code) ?? false) ? HitKind.Reference
-                        : null;
-
-                    if (kind is not null)
-                    {
-                        hits.Add(new Hit(kind.Value, relative, i + 1, line.Trim()));
-                    }
-                }
-            }
-        }
-
-        return hits;
+        return
+        [
+            .. OutsideLines(root, CodeFiles(root), folders, own, read)
+                .Select(line => (line, Kind: patterns.Classify(line.Text)))
+                .Where(found => found.Kind is not null)
+                .Select(found => new Hit(found.Kind!.Value, found.line.Relative, found.line.Number, found.line.Text.Trim())),
+        ];
     }
 
     internal static List<Note> ScanNotes(string root, string features, string type, List<string> sections, List<string> folders, HashSet<string> own, Func<string, string?[]?> read)
     {
-        const string Configuration = "Configuration";
-        const string Documentation = "Documentation and samples";
+        var patterns = new NotePatterns(features, type, sections);
 
-        string kebab = CSharpNames.Kebab(features);
-        var route = FeatureRemoval.Rx($@"/api/v1/{Regex.Escape(kebab)}(?![\w-])");
-        var link = FeatureRemoval.Rx($@"\]\([^)\s]*\bfeatures/{Regex.Escape(kebab)}\.md(#[^)\s]*)?\)");
-        var code = FeatureRemoval.Rx($@"`{Regex.Escape(char.ToLowerInvariant(type[0]) + type[1..])}\.[A-Za-z]+`");
-        var keys = sections.Select(section => FeatureRemoval.Rx($@"^\s*""{section}""\s*:")).ToList();
-        var variables = sections.Select(section => FeatureRemoval.Rx($@"^\s*#?\s*{UpperSnake(section)}_[A-Z0-9_]*=")).ToList();
-        var mapped = sections.Select(section => FeatureRemoval.Rx($@"\b{section}__")).ToList();
-        var headings = sections.Select(section => $"### `{section}`").ToHashSet(StringComparer.Ordinal);
-        var notes = new List<Note>();
+        return
+        [
+            .. OutsideLines(root, Walk(root, root, "*").Where(file => NoteFile.Of(file) is not null), folders, own, read)
+                .Select(line => (line, Group: patterns.Group(NoteFile.Of(line.Relative)!, line.Text)))
+                .Where(found => found.Group is not null)
+                .Select(found => new Note(found.Group!, found.line.Relative, found.line.Number, found.line.Text.Trim())),
+        ];
+    }
 
-        foreach (string file in Walk(root, root, "*"))
+    private static IEnumerable<(string Relative, int Number, string Text)> OutsideLines(
+        string root, IEnumerable<string> files, List<string> folders, HashSet<string> own, Func<string, string?[]?> read)
+    {
+        foreach (string file in files)
         {
             string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-            string name = Path.GetFileName(relative);
-            bool settings = name.StartsWith("appsettings", StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal);
-            bool environment = name.StartsWith(".env", StringComparison.Ordinal);
-            bool compose = (name.StartsWith("docker-compose", StringComparison.Ordinal) || name.StartsWith("compose", StringComparison.Ordinal))
-                && (name.EndsWith(".yml", StringComparison.Ordinal) || name.EndsWith(".yaml", StringComparison.Ordinal));
-            bool markdown = name.EndsWith(".md", StringComparison.Ordinal);
-            bool samples = name.EndsWith(".http", StringComparison.Ordinal);
 
-            if (!(settings || environment || compose || markdown || samples) || !Outside(relative, folders, own) || read(relative) is not { } lines)
+            if (!Outside(relative, folders, own) || read(relative) is not { } lines)
             {
                 continue;
             }
 
-            for (int i = 0; i < lines.Length; i++)
+            for (int index = 0; index < lines.Length; index++)
             {
-                if (lines[i] is not { } line)
+                if (lines[index] is { } line)
                 {
+                    yield return (relative, index + 1, line);
+                }
+            }
+        }
+    }
+
+    private sealed class CodeLine(string line)
+    {
+        private readonly StringBuilder _code = new(line.Length);
+
+        private int _at;
+
+        internal string Strip()
+        {
+            while (_at < line.Length && !StartsComment())
+            {
+                char character = line[_at];
+
+                if (character == '\'')
+                {
+                    SkipCharacter();
+                }
+                else if (character is '"' or '@' or '$')
+                {
+                    String();
+                }
+                else
+                {
+                    _code.Append(character);
+                    _at++;
+                }
+            }
+
+            return _code.ToString();
+        }
+
+        private bool StartsComment() => line[_at] == '/' && _at + 1 < line.Length && line[_at + 1] == '/';
+
+        private void SkipCharacter()
+        {
+            int close = line.IndexOf('\'', _at + (_at + 1 < line.Length && line[_at + 1] == '\\' ? 3 : 2));
+
+            _at = close < 0 ? _at + 1 : close + 1;
+        }
+
+        private void String()
+        {
+            int start = _at;
+            bool verbatim = false;
+
+            while (_at < line.Length && line[_at] is '@' or '$')
+            {
+                verbatim |= line[_at] == '@';
+                _at++;
+            }
+
+            if (_at >= line.Length || line[_at] != '"')
+            {
+                _code.Append(line, start, _at - start);
+
+                return;
+            }
+
+            int quotes = Quotes();
+
+            if (quotes >= 3)
+            {
+                int end = line.IndexOf(new string('"', quotes), _at + quotes, StringComparison.Ordinal);
+
+                _at = end < 0 ? line.Length : end + quotes;
+            }
+            else
+            {
+                SkipQuoted(verbatim);
+            }
+
+            _code.Append("\"\"");
+        }
+
+        private int Quotes()
+        {
+            int quotes = 0;
+
+            while (_at + quotes < line.Length && line[_at + quotes] == '"')
+            {
+                quotes++;
+            }
+
+            return quotes;
+        }
+
+        private void SkipQuoted(bool verbatim)
+        {
+            _at++;
+
+            while (_at < line.Length)
+            {
+                if (Escape(verbatim) is var step and > 0)
+                {
+                    _at += step;
+
                     continue;
                 }
 
-                string? group =
-                    settings && keys.Any(key => key.IsMatch(line)) ? Configuration
-                    : environment && variables.Any(variable => variable.IsMatch(line)) ? Configuration
-                    : compose && mapped.Any(key => key.IsMatch(line)) ? Configuration
-                    : markdown && headings.Contains(line.TrimEnd()) ? Configuration
-                    : markdown && (link.IsMatch(line) || route.IsMatch(line) || code.IsMatch(line)) ? Documentation
-                    : samples && route.IsMatch(line) ? Documentation
-                    : null;
+                _at++;
 
-                if (group is not null)
+                if (line[_at - 1] == '"')
                 {
-                    notes.Add(new Note(group, relative, i + 1, line.Trim()));
+                    return;
                 }
             }
         }
 
-        return notes;
+        private int Escape(bool verbatim) => (verbatim, line[_at]) switch
+        {
+            (false, '\\') => 2,
+            (true, '"') when _at + 1 < line.Length && line[_at + 1] == '"' => 2,
+            _ => 0,
+        };
+    }
+
+    private sealed class CodePatterns
+    {
+        private readonly List<Regex> _composition;
+
+        private readonly Regex _named;
+
+        private readonly List<Regex> _model;
+
+        private readonly Regex _reference;
+
+        private readonly Regex? _typedRegistration;
+
+        private readonly Regex? _declaredName;
+
+        internal CodePatterns(string features, string? type, List<string> declared)
+        {
+            _composition = [FeatureRemoval.Rx($@"\bAdd{features}(Feature)?\b"), FeatureRemoval.Rx($@"nameof\(\w+\.Add{features}\)")];
+            _named = FeatureRemoval.Rx($@"AddFeature\(\s*""{features}""");
+            _model = [FeatureRemoval.Rx($@"\b{features}Schema\b"), .. type is null ? [] : new[] { FeatureRemoval.Rx($@"\b{type}Record(Configuration)?\b") }];
+            _reference = FeatureRemoval.Rx($@"\.Features\.{features}\b");
+
+            if (type is not null && declared.Count > 0)
+            {
+                string names = string.Join("|", declared.Select(Regex.Escape));
+
+                _declaredName = FeatureRemoval.Rx($@"\b(?:{names})\b");
+                _typedRegistration = FeatureRemoval.Rx($@"\b(Try)?Add\w*\s*[<(].*\b(?:{names})\b");
+            }
+        }
+
+        internal HitKind? Classify(string line)
+        {
+            string code = Code(line);
+
+            if (_composition.Any(pattern => pattern.IsMatch(code)) || _named.IsMatch(line) || (_typedRegistration?.IsMatch(code) ?? false))
+            {
+                return HitKind.Composition;
+            }
+
+            if (_model.Any(pattern => pattern.IsMatch(code)))
+            {
+                return HitKind.Model;
+            }
+
+            return _reference.IsMatch(code) || (_declaredName?.IsMatch(code) ?? false) ? HitKind.Reference : null;
+        }
+    }
+
+    private sealed record NoteFile(bool Settings, bool Environment, bool Compose, bool Markdown, bool Samples)
+    {
+        internal static NoteFile? Of(string path)
+        {
+            string name = Path.GetFileName(path);
+            var file = new NoteFile(
+                name.StartsWith("appsettings", StringComparison.Ordinal) && name.EndsWith(".json", StringComparison.Ordinal),
+                name.StartsWith(".env", StringComparison.Ordinal),
+                (name.StartsWith("docker-compose", StringComparison.Ordinal) || name.StartsWith("compose", StringComparison.Ordinal))
+                    && (name.EndsWith(".yml", StringComparison.Ordinal) || name.EndsWith(".yaml", StringComparison.Ordinal)),
+                name.EndsWith(".md", StringComparison.Ordinal),
+                name.EndsWith(".http", StringComparison.Ordinal));
+
+            return file.Settings || file.Environment || file.Compose || file.Markdown || file.Samples ? file : null;
+        }
+    }
+
+    private sealed class NotePatterns
+    {
+        private const string _configuration = "Configuration";
+
+        private const string _documentation = "Documentation and samples";
+
+        private readonly Regex _route;
+
+        private readonly Regex _link;
+
+        private readonly Regex _code;
+
+        private readonly List<Regex> _keys;
+
+        private readonly List<Regex> _variables;
+
+        private readonly List<Regex> _mapped;
+
+        private readonly HashSet<string> _headings;
+
+        internal NotePatterns(string features, string type, List<string> sections)
+        {
+            string kebab = CSharpNames.Kebab(features);
+
+            _route = FeatureRemoval.Rx($@"/api/v1/{Regex.Escape(kebab)}(?![\w-])");
+            _link = FeatureRemoval.Rx($@"\]\([^)\s]*\bfeatures/{Regex.Escape(kebab)}\.md(#[^)\s]*)?\)");
+            _code = FeatureRemoval.Rx($@"`{Regex.Escape(char.ToLowerInvariant(type[0]) + type[1..])}\.[A-Za-z]+`");
+            _keys = [.. sections.Select(section => FeatureRemoval.Rx($@"^\s*""{section}""\s*:"))];
+            _variables = [.. sections.Select(section => FeatureRemoval.Rx($@"^\s*#?\s*{UpperSnake(section)}_[A-Z0-9_]*="))];
+            _mapped = [.. sections.Select(section => FeatureRemoval.Rx($@"\b{section}__"))];
+            _headings = sections.Select(section => $"### `{section}`").ToHashSet(StringComparer.Ordinal);
+        }
+
+        internal string? Group(NoteFile file, string line)
+        {
+            if (Configures(file, line))
+            {
+                return _configuration;
+            }
+
+            return Documents(file, line) ? _documentation : null;
+        }
+
+        private bool Configures(NoteFile file, string line) =>
+            (file.Settings && _keys.Any(key => key.IsMatch(line)))
+            || (file.Environment && _variables.Any(variable => variable.IsMatch(line)))
+            || (file.Compose && _mapped.Any(key => key.IsMatch(line)))
+            || (file.Markdown && _headings.Contains(line.TrimEnd()));
+
+        private bool Documents(NoteFile file, string line) =>
+            (file.Markdown && (_link.IsMatch(line) || _route.IsMatch(line) || _code.IsMatch(line)))
+            || (file.Samples && _route.IsMatch(line));
     }
 }

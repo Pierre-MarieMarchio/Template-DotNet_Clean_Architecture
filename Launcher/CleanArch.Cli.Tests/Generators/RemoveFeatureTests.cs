@@ -40,6 +40,14 @@ public sealed class RemoveFeatureTests
     [Fact]
     public void Page() => Expectations.Hold(PageCases);
 
+    [Theory]
+    [InlineData("var a = \"x\\\"y\"; // Widgets", "var a = \"\"; ")]
+    [InlineData("x = @\"a\"\"b\" + 'c';", "x = \"\" + ;")]
+    [InlineData("y = \"\"\"raw \"Widgets\" \"\"\";", "y = \"\";")]
+    [InlineData("z = $\"{w}\\\\\" + Widgets;", "z = \"\" + Widgets;")]
+    public void Code_BlanksEveryLiteral_AndDropsTheTrailingComment(string line, string code) =>
+        Assert.Equal(code, RemovalScan.Code(line));
+
     [Fact]
     public void WithoutAnApi() => Expectations.Hold(WithoutTheApiCases);
 

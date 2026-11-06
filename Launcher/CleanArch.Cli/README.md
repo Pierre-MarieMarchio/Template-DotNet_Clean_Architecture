@@ -10,7 +10,15 @@ dotnet cleanarch --help
 dotnet cleanarch --version
 dotnet cleanarch help        # what this project's commands are
 dotnet cleanarch help --json # the commands and options that apply to this project, as JSON
+dotnet cleanarch format      # repair the tree: UTF-8 BOM rules, LF endings, usings ordering
+dotnet cleanarch format --check # fail where format would write instead of writing
 ```
+
+`format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
+folders but `.github` and `.template.config`), saves each C# file as UTF-8 with a BOM and each
+Markdown file without one, both with LF endings, and orders the usings of each C# file, System
+first. It prints each file it saves; `--check` prints them on stderr and fails instead of
+writing.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

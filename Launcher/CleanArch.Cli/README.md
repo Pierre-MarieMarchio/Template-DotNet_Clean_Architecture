@@ -36,7 +36,7 @@ dotnet cleanarch database update                               # dotnet ef datab
 dotnet cleanarch openapi     # write the OpenAPI reference, then the .NET client and the web schema the project holds
 dotnet cleanarch openapi --no-build # write the reference from the API's last build
 dotnet cleanarch openapi --check # fail where it would write, instead of writing
-dotnet cleanarch bootstrap   # format the solution, restore the local tools, create each context's initial migration
+dotnet cleanarch bootstrap   # once, after generating: scaffold, format, index, reference, restore, migrations, client
 dotnet cleanarch run         # dotnet run --project Src/Presentation/<Initials>.Api
 dotnet cleanarch compose up  # docker compose up -d --wait
 dotnet cleanarch compose down # docker compose down
@@ -99,6 +99,18 @@ presentation, its scaffold step: these steps belong to the command and are not c
 own. Each takes `--name`, `--yes`, `--template-source`, `--hive`, `--dry-run` and one `--<option>`
 per option of its template; `--dry-run` prints the install, the template and the steps it would run
 and writes nothing. `add web-package` exists only where the project file records a `web` workspace.
+
+`bootstrap` runs, in this order and stopping at the first that fails: `presentation-scaffold`,
+`dotnet format` of the usings and the whitespace, `docs-index`, the OpenAPI reference as `openapi`
+writes it where the project file records an api presentation, `dotnet tool restore`, each context's
+initial migration (a context that already has its migrations is left as it is), the .NET client as
+`openapi` writes it where the file also records `client`, then `web-scaffold` where it records a web
+app. The steps the tool does not hold yet, `presentation-scaffold`, `docs-index` and `web-scaffold`,
+run as `dotnet run Tools/Tasks.cs <task>`, printed like every other line. It does not install the
+tool itself: the tool that runs it is the one the project pins, which `dotnet tool restore` keeps.
+When a step fails, it names that step, says what is done and what is not, and forwards the step's
+exit code; what is done stays done, and bootstrap runs again once the cause is fixed. On success it
+says what it did and to commit it before anything else.
 
 `run` and `end-to-end` exist only where the project file records a presentation of framework
 `api`; `sonar` only where it records `sonar` true.

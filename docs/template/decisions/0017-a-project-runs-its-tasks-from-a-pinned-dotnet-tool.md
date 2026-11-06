@@ -49,16 +49,19 @@ expose one by one.
   1. Each command prints what it runs, so the printed line gives the same result without the tool.
   2. A command takes the names of the tool its users already know: `add` and `remove` as
      `dotnet add` has them, `migrations add` and `database update` as `dotnet ef` has them.
-  3. A command that writes a file takes `--check`, which fails where it would write instead.
+  3. A command that keeps a file in step takes `--check`, which fails where it would write instead.
      `verify` is the chain of those checks with the build and the tests.
   4. A generator takes `--dry-run`, and a command that deletes reports by default and writes only
-     with `--apply`.
+     with `--apply`. `adopt` and `eject` create a file once rather than keep one in step, so they
+     take `--dry-run` as a generator does, and no `--check`.
   5. `help` lists only what the project file makes true. A command that does not apply to the
      project is refused, with the reason.
 - **Each task becomes a command or a step.** `new-feature`, `new-use-case`, `new-field`,
   `new-setting` and `new-event` become `add feature`, `add use-case`, `add field`, `add setting` and
   `add event`, each with `--dry-run`. `remove-feature`, which reports and writes only with
-  `--apply`, becomes `remove feature`, with the same `--apply`. `upgrade-report` stays a command of
+  `--apply`, becomes `remove feature`, with the same `--apply`. `add feature` and `add field` are
+  refused where the project file records `auth: none`, as `new-feature` is, since every feature
+  they write needs an authenticated caller. `upgrade-report` stays a command of
   its name, which writes nothing in the project, and `migration-check` becomes the `--check` of
   `migrations add`.
 - **The internal steps are not commands.** Joining and scaffolding an addition are steps of
@@ -77,9 +80,17 @@ expose one by one.
      template the project overrides, as `.feature-manifest/` does for a feature. The edits a
      generator makes to existing files are the tool's code, outside this depth.
   3. **Local commands.** A file-based app `Tools/<name>.cs` runs as `dotnet cleanarch <name>`. A new
-     name adds a command, a built-in name is replaced by it, and `help` says which is which.
+     name adds a command, a built-in name is replaced by it, and `help` says which is which. Only a
+     name of lower-case words joined by hyphens is a command, so `Tools/Tasks.cs` and the other
+     scripts named in PascalCase stay scripts, and `help` stays the tool's, since it says which
+     commands are the project's own.
   4. **Ejection.** `dotnet cleanarch eject <command>` copies a command's source into `Tools/`,
      where the third depth takes it over. That one command stops following the tool's releases.
+     `help`, `eject` and `adopt` are not ejected, since they say what the project's own commands
+     are, make them, and run before the tool knows the project. Nor are `add` and `remove`: they
+     run on CleanArch.Tooling, the library they share with the launcher, on Spectre.Console and on
+     Roslyn, none of which a file-based app carries, and the code a generator writes changes
+     through its code templates instead.
 - **The template's own tasks and gates stay here.** `Tools/CheckComments.cs`,
   `Tools/CheckDocPaths.cs`, `Tools/CheckWorkflows.cs` and the web lockfiles' task audit this
   repository and the generated trees, and the tool never carries them. This repository runs the tool
@@ -116,7 +127,9 @@ expose one by one.
 - About 25 commands replace the 33 tasks: the joins, the scaffolds, the initial migrations, the
   migration check, the restore and the repository checks stop being commands of their own, `format`
   and `format-fix` become `format` and its `--check`, and `openapi` writes the clients after the
-  reference, in place of `api-client`.
+  reference, in place of `api-client`: the .NET client where the project holds one, and the web
+  workspace's schema through `pnpm api --no-build` where it holds the `api-client` package. A
+  project with the API and no .NET client still gets its reference.
 - The launcher and the tool share their process, terminal and manifest code in one solution.
 - The tool becomes a public interface. The project file's schema, the code templates and the
   contract of a local command are versioned with care, and breaking one of them takes a major

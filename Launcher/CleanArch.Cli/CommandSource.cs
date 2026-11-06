@@ -52,8 +52,10 @@ internal static partial class CommandSource
     public static string FileBasedApp(string commandName, string commandType, string commandLineVersion)
     {
         IReadOnlyList<string> files = FilesOf(commandType);
+        string[] merged = [.. files.Select(file => FileScopedNamespace().Match(Shipped[file]).Groups["namespace"].Value)];
         string[] usings = [.. files
             .SelectMany(file => Usings().Matches(Shipped[file]).Select(match => match.Groups["namespace"].Value))
+            .Except(merged, StringComparer.Ordinal)
             .Append(_namespace)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(name => name == "System" || name.StartsWith("System.", StringComparison.Ordinal) ? 0 : 1)
@@ -117,6 +119,6 @@ internal static partial class CommandSource
     [GeneratedRegex(@"^using (?<namespace>[\w.]+);\n", RegexOptions.Multiline)]
     private static partial Regex Usings();
 
-    [GeneratedRegex(@"^namespace [\w.]+;\n", RegexOptions.Multiline)]
+    [GeneratedRegex(@"^namespace (?<namespace>[\w.]+);\n", RegexOptions.Multiline)]
     private static partial Regex FileScopedNamespace();
 }

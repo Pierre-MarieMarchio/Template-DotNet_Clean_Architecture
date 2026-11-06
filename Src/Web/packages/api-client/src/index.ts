@@ -15,13 +15,9 @@ export {
   unreadableResponseCode,
   type ProblemDetails,
 } from './problem-details.ts';
+export { cookieModePaths, csrfHeader, logoutPath, refreshPath, refreshTokenModeHeader } from './protocol.ts';
 export {
-  cookieModePaths,
   createBrowserSession,
-  csrfHeader,
-  logoutPath,
-  refreshPath,
-  refreshTokenModeHeader,
   serverSessionMiddleware,
   sessionMiddleware,
   type BrowserSession,

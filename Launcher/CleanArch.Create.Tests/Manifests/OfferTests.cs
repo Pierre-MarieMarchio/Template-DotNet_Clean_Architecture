@@ -1,4 +1,5 @@
-﻿using CleanArch.Tooling.Manifests;
+﻿using CleanArch.Create.Hosting;
+using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
 

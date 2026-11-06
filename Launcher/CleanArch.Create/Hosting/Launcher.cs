@@ -1,5 +1,5 @@
 ﻿using System.Text.RegularExpressions;
-using CleanArch.Create.Projects;
+using CleanArch.Create.Setup;
 using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
@@ -10,7 +10,7 @@ using CleanArch.Tooling.Prompts;
 using CleanArch.Tooling.Templates;
 using Spectre.Console;
 
-namespace CleanArch.Create;
+namespace CleanArch.Create.Hosting;
 
 public sealed partial class Launcher
 {

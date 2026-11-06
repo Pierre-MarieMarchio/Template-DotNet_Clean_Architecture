@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
-using CleanArch.Create.Projects;
+using CleanArch.Create.Hosting;
+using CleanArch.Create.Setup;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Processes;
 using CleanArch.Tooling.Prompts;

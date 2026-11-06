@@ -1,7 +1,7 @@
 ﻿using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 
-namespace CleanArch.Create;
+namespace CleanArch.Create.Hosting;
 
 public sealed class Arguments
 {

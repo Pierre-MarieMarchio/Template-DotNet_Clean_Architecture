@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text.Json.Nodes;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.AddFeature;
+using CleanArch.Cli.Generators.Shared;
 using CleanArch.Cli.Tests.Generators;
 using Shouldly;
 using Xunit;

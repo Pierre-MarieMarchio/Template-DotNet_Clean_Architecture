@@ -1,5 +1,5 @@
 ﻿using System.CommandLine;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.RemoveFeature;
 
 namespace CleanArch.Cli;
 
@@ -29,7 +29,7 @@ internal static class RemoveCommand
         feature.Options.Add(apply);
         if (context.Project is { } project)
         {
-            feature.SetAction(parseResult => RemoveFeature.Run(
+            feature.SetAction(parseResult => FeatureRemoval.Run(
                 [
                     parseResult.GetRequiredValue(features),
                     .. GeneratorCommand.Flag(parseResult, apply),

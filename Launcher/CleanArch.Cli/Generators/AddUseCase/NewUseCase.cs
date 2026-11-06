@@ -1,7 +1,8 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.Shared;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.AddUseCase;
 
 internal static class NewUseCase
 {

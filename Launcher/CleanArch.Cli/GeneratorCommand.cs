@@ -1,6 +1,6 @@
 ﻿using System.CommandLine;
 using System.Reflection;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.Shared;
 
 namespace CleanArch.Cli;
 

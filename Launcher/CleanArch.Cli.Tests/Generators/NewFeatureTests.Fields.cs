@@ -1,10 +1,10 @@
 ﻿using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using static CleanArch.Cli.Generators.NewFeature;
+using static CleanArch.Cli.Generators.AddFeature.NewFeature;
 
 namespace CleanArch.Cli.Tests.Generators;
 

@@ -2,9 +2,10 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.AddFeature;
 
 internal static partial class NewFeature
 {

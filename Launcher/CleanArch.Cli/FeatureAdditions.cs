@@ -1,5 +1,8 @@
 ﻿using System.CommandLine;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.AddEvent;
+using CleanArch.Cli.Generators.AddFeature;
+using CleanArch.Cli.Generators.AddSetting;
+using CleanArch.Cli.Generators.AddUseCase;
 
 namespace CleanArch.Cli;
 

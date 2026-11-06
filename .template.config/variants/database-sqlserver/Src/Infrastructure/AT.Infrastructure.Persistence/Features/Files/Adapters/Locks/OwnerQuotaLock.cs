@@ -72,7 +72,7 @@ internal sealed class OwnerQuotaLock(string connectionString, ILogger<OwnerQuota
         await using var acquire = CommandFor(connection, _acquireSql, key);
         acquire.Parameters.Add("@timeout", SqlDbType.Int).Value = (int)WaitLimit.TotalMilliseconds;
 
-        int result = (int)(await acquire.ExecuteScalarAsync(cancellationToken))!;
+        int result = (int)(await acquire.ExecuteScalarAsync(cancellationToken));
 
         if (result == _timedOut)
         {

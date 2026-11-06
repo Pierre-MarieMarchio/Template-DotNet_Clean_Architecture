@@ -12,11 +12,12 @@ internal static class CoverageCommand
     private static Command Build(CommandContext context)
     {
         var command = new Command(Name, "Run this project's tests with coverage, then check the floor coverage.minimum states.");
-        command.SetAction(parseResult => Run(context, parseResult));
+        BuildSettings.Options settings = BuildSettings.Add(command);
+        command.SetAction(parseResult => Run(context, parseResult, settings.Of(parseResult)));
         return command;
     }
 
-    private static int Run(CommandContext context, ParseResult parseResult)
+    private static int Run(CommandContext context, ParseResult parseResult, BuildSettings settings)
     {
         if (context.Project is not { } project)
         {
@@ -41,9 +42,9 @@ internal static class CoverageCommand
             }
 
             string[] built = [];
-            if (skipped.Length > 0)
+            if (settings.MaxCpuCount is not null || skipped.Length > 0)
             {
-                int exit = Dotnet.Run(parseResult, root, ["build", SolutionLocator.Relative(root, solution), "--configuration", "Debug"]);
+                int exit = Dotnet.Run(parseResult, root, ["build", SolutionLocator.Relative(root, solution), "--configuration", settings.Configuration, .. settings.Nodes]);
                 if (exit != CleanArchCommand.Succeeded)
                 {
                     return exit;
@@ -60,8 +61,9 @@ internal static class CoverageCommand
                     root,
                     [
                         "test", "--solution", SolutionLocator.Relative(root, filter ?? solution),
-                        "--configuration", "Debug",
+                        "--configuration", settings.Configuration,
                         .. built,
+                        .. settings.Modules,
                         "--results-directory", SolutionLocator.Relative(root, results),
                         "--coverage",
                         "--coverage-settings", SolutionLocator.Relative(root, Path.Combine(root, "coverage.runsettings")),

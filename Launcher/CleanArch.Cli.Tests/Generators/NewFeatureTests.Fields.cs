@@ -45,7 +45,7 @@ public sealed partial class NewFeatureTests
                 string name = command.Arguments[command.Arguments.ToList().IndexOf("migration-add") + 1];
                 var manifest = JsonNode.Parse(File.ReadAllText(Directory.EnumerateFiles(System.IO.Path.Combine(root, FeatureManifest.Folder)).Single()))!;
                 var fields = FieldGrammar.Parse(
-                    manifest["addedFields"]!.AsArray().Last()!["declaration"]!.GetValue<string>(),
+                    manifest["addedFields"]!.AsArray()[^1]!["declaration"]!.GetValue<string>(),
                     FieldProfile.AddedField,
                     [])!;
 
@@ -168,7 +168,8 @@ public sealed partial class NewFeatureTests
                     && added.Output.Contains("Notes is nullable: a request may leave it out, so none breaks", StringComparison.Ordinal),
                 $"[{label}] the report does not say which field breaks the clients and which does not: {added.Output}");
 
-            var again = InvokeField(root, Recording(ran = []), "Things", _everyAdded);
+            ran = [];
+            var again = InvokeField(root, Recording(ran), "Things", _everyAdded);
 
             expect(
                 again.Code == 1 && again.Error.Contains("Things already has a field Nickname", StringComparison.Ordinal) && ran.Count == 0
@@ -425,7 +426,8 @@ public sealed partial class NewFeatureTests
             Directory.EnumerateFiles(System.IO.Path.Combine(root, _thingMigrations), "*_AddBudgetToThings.cs").Select(File.ReadAllText).Single().Contains("defaultValue: 5m", StringComparison.Ordinal),
             "Resuming new-field did not set the default in the migration it added.");
 
-        var done = InvokeField(root, Recording(ran = []), "Things", "Budget:decimal(12,2)>=0=5");
+        ran = [];
+        var done = InvokeField(root, Recording(ran), "Things", "Budget:decimal(12,2)>=0=5");
 
         expect(done.Code == 1 && done.Error.Contains("already has a field Budget", StringComparison.Ordinal) && ran.Count == 0, "A field added and migrated was not refused the second time.");
 
@@ -434,7 +436,7 @@ public sealed partial class NewFeatureTests
         Invoke(pending, "Things", "Thing", "--access", "shared", "--fields", _existingFields);
 
         var untouched = Snapshot(pending);
-        var check = InvokeField(pending, Recording(ran = [], failing: "dotnet run Tools/Tasks.cs migration-check"), "Things", "Budget:decimal(12,2)>=0=5");
+        var check = InvokeField(pending, Recording([], failing: "dotnet run Tools/Tasks.cs migration-check"), "Things", "Budget:decimal(12,2)>=0=5");
 
         expect(
             check.Code == 1 && Same(untouched, Snapshot(pending)) && check.Error.Contains("migration-add <Name>", StringComparison.Ordinal),
@@ -443,7 +445,8 @@ public sealed partial class NewFeatureTests
         Directory.Delete(System.IO.Path.Combine(pending, _thingMigrations), recursive: true);
 
         var bare = Snapshot(pending);
-        var unmigrated = InvokeField(pending, Recording(ran = []), "Things", "Budget:decimal(12,2)>=0=5");
+        ran = [];
+        var unmigrated = InvokeField(pending, Recording(ran), "Things", "Budget:decimal(12,2)>=0=5");
 
         expect(
             unmigrated.Code == 1 && Same(bare, Snapshot(pending)) && ran.Count == 0 && unmigrated.Error.Contains("has no initial migration", StringComparison.Ordinal),

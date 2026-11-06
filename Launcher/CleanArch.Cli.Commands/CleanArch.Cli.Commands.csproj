@@ -18,4 +18,8 @@
     <InternalsVisibleTo Include="CleanArch.Cli.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+  </ItemGroup>
+
 </Project>

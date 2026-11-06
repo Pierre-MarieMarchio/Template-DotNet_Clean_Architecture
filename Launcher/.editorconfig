@@ -6,3 +6,6 @@ dotnet_diagnostic.CA1707.severity = none
 
 [CleanArch.Cli.Tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+[{CleanArch.Create,CleanArch.Tooling,CleanArch.Cli,CleanArch.Cli.Commands}/**.cs]
+dotnet_diagnostic.S3776.severity = error

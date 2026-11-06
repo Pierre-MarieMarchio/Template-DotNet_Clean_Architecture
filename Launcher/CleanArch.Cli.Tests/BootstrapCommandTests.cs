@@ -43,30 +43,57 @@ public sealed class BootstrapCommandTests : IDisposable
     {
         {
             _apiWithClientAndWeb,
-            ["presentation-scaffold", "format", "docs-index", "openapi", "tool restore", "migration", "migration", "client", "web-scaffold"]
+            ["format", "openapi", "tool restore", "migration", "migration", "client", "install", "api"]
         },
         {
             SampleProject.ApiWith("none", client: false),
-            ["presentation-scaffold", "format", "docs-index", "openapi", "tool restore", "migration"]
+            ["format", "openapi", "tool restore", "migration"]
         },
         {
             SampleProject.NoApi,
-            ["presentation-scaffold", "format", "docs-index", "tool restore", "migration", "migration"]
+            ["format", "tool restore", "migration", "migration"]
         },
     };
 
     [Theory]
     [MemberData(nameof(ProjectFiles))]
-    public void Bootstrap_RunsTheStepsTheProjectFileMakesTrue_InTheTasksOrder(string projectFile, string[] steps)
+    public void Bootstrap_RunsTheStepsTheProjectFileMakesTrue_InTheirOrder(string projectFile, string[] steps)
     {
         using var project = new SampleProject(projectFile);
         project.Folder(Path.Combine("Src", "Presentation", "AS.Presentation.Client"));
+        File.WriteAllText(Path.Combine(project.Folder(Path.Combine("Src", "Web")), "package.json"), "{}");
 
         Run(project).ShouldBe(CleanArchCommand.Succeeded);
 
         _calls.Select(StepOf).ShouldBe(steps);
         _output.ToString().ShouldContain("Commit this before anything else");
         _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Bootstrap_WritesTheDocumentationIndexInTheTree()
+    {
+        using var project = new SampleProject(SampleProject.NoApi);
+        string docs = project.Folder("docs");
+        File.WriteAllText(Path.Combine(docs, "page.md"), "---\ntitle: Page\ndescription: A page.\n---\n");
+
+        Run(project).ShouldBe(CleanArchCommand.Succeeded);
+
+        File.ReadAllText(Path.Combine(docs, "index.md")).ShouldContain("- [Page](page.md) - A page.");
+    }
+
+    [Fact]
+    public void Bootstrap_CreatesAPresentationProjectThatHoldsADescriptor_BeforeFormatting()
+    {
+        using var project = new SampleProject(SampleProject.NoApi);
+        string desktop = project.Folder(Path.Combine("Src", "Presentation", "AS.Desktop"));
+        File.WriteAllText(
+            Path.Combine(desktop, "scaffold.json"),
+            """{ "kind": "dotnet", "name": "Acme.Shop.Desktop", "package": "Avalonia.Templates", "version": "12.1.4", "template": "avalonia.mvvm", "arguments": [], "keep": [] }""");
+
+        Run(project);
+
+        _calls[0].Arguments.Take(2).ShouldBe(["new", "install"]);
     }
 
     [Fact]

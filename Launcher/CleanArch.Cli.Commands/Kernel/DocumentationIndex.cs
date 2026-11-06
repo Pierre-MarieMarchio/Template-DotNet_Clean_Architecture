@@ -19,6 +19,20 @@ internal static class DocumentationIndex
 
     private sealed record Entry(string Link, string Title, string Description, string? Status);
 
+    public static int Written(LocatedProject project, Shell shell) =>
+        TestRuns.Guarded(shell, () =>
+        {
+            Write(project.Root, shell.Output);
+            return ExitCode.Succeeded;
+        });
+
+    public static int Checked(LocatedProject project, Shell shell) =>
+        TestRuns.Guarded(shell, () =>
+        {
+            Check(project.Root, shell.Output);
+            return ExitCode.Succeeded;
+        });
+
     public static void Write(string root, TextWriter output)
     {
         string docs = Path.Combine(root, _docsFolder);

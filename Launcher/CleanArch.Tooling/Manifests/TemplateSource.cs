@@ -1,5 +1,4 @@
-﻿using System.IO.Compression;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text;
 using CleanArch.Tooling.Failures;
 
@@ -16,8 +15,6 @@ public sealed record TemplateKind(string ShortName, string Folder)
 public sealed class TemplateSource
 {
     public const string PackageId = "CleanArch.WebApi.Templates";
-
-    private const string _packageContent = "content/";
 
     private readonly Func<string, string?> _read;
 
@@ -65,28 +62,20 @@ public sealed class TemplateSource
 
         if (File.Exists(path) && path.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase))
         {
-            return new TemplateSource(path, relative =>
-            {
-                using ZipArchive archive = ZipFile.OpenRead(path);
-                ZipArchiveEntry? entry = archive.GetEntry(_packageContent + relative);
-                if (entry is null)
-                {
-                    return null;
-                }
-
-                using var reader = new StreamReader(entry.Open(), Encoding.UTF8);
-                return reader.ReadToEnd();
-            });
+            return new TemplateSource(path, relative => NuGetPackage.Entry(path, NuGetPackage.ContentFolder + relative));
         }
 
         throw new LauncherException($"--template-source '{path}' is neither a folder nor a .nupkg file.");
     }
 
-    public TemplateManifest Manifest(TemplateKind kind)
-    {
-        string template = _read(kind.Folder + "template.json")
-            ?? throw new LauncherException($"The template source holds no {kind.Folder}template.json for {kind.ShortName}.");
+    public TemplateManifest Manifest(TemplateKind kind) =>
+        ManifestIn(kind.Folder, kind.ShortName);
 
-        return TemplateManifest.Read(template, _read(kind.Folder + "dotnetcli.host.json"), _read(kind.Folder + "ide.host.json"));
+    public TemplateManifest ManifestIn(string folder, string? shortName = null)
+    {
+        string template = _read(folder + "template.json")
+            ?? throw new LauncherException($"The template source holds no {folder}template.json for {shortName ?? folder}.");
+
+        return TemplateManifest.Read(template, _read(folder + "dotnetcli.host.json"), _read(folder + "ide.host.json"));
     }
 }

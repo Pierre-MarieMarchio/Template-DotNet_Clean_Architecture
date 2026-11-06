@@ -25,7 +25,7 @@ internal sealed class ReportBuilder(ReportProcesses processes)
 
     private Report Compare(string root, Provenance project, UpgradeRequest request, (Release From, Release To) versions, string scratch)
     {
-        var generator = new Generator(processes, root, project, scratch);
+        var generator = new Generator(processes.EngineIn, root, project, scratch);
         Generation older = generator.Generate(versions.From);
         Generation newer = generator.Generate(versions.To);
 

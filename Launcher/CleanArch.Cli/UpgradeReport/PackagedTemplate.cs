@@ -1,8 +1,8 @@
-﻿using System.Text.Json.Nodes;
+﻿using CleanArch.Tooling.Manifests;
 
 namespace CleanArch.Cli.UpgradeReport;
 
-internal sealed record PackagedTemplate(string Identity, string ShortName, JsonObject Symbols, JsonArray PostActions, IReadOnlyDictionary<string, string> LongNames)
+internal sealed record PackagedTemplate(string Identity, TemplateManifest Manifest)
 {
     public const string Main = "CleanArch.WebApi.CSharp";
 
@@ -12,20 +12,15 @@ internal sealed record PackagedTemplate(string Identity, string ShortName, JsonO
 
     public const string PresentationItem = "CleanArch.WebApi.Presentation.CSharp";
 
+    public string ShortName => Manifest.ShortName;
+
     public IEnumerable<TemplateParameter> Parameters() =>
-        Symbols
-            .Where(symbol => symbol.Value?["type"]?.GetValue<string>() == "parameter")
-            .Select(symbol => new TemplateParameter(
-                symbol.Key,
-                symbol.Value!["datatype"]?.GetValue<string>() ?? "text",
-                symbol.Value["defaultValue"]?.ToString(),
-                [.. (symbol.Value["choices"] as JsonArray ?? []).Select(choice => choice?["choice"]?.GetValue<string>() ?? string.Empty)]))
-            .Where(parameter => parameter.Choices is not ["refused"]);
+        Manifest.Parameters.Select(option => new TemplateParameter(option.Symbol, option.CliName, option.DefaultValue, [.. option.Choices.Select(choice => choice.Value)]));
 
     public Dictionary<string, TemplateParameter> ParametersByName() =>
         Parameters().ToDictionary(parameter => parameter.Name, StringComparer.Ordinal);
 
-    public bool Declares(string symbol) => Parameters().Any(parameter => parameter.Name == symbol);
+    public bool Declares(string symbol) => Manifest.Parameters.Any(option => option.Symbol == symbol);
 
-    public string Option(string symbol) => "--" + LongNames.GetValueOrDefault(symbol, symbol);
+    public string Option(string symbol) => "--" + (Manifest.Parameters.FirstOrDefault(option => option.Symbol == symbol)?.CliName ?? symbol);
 }

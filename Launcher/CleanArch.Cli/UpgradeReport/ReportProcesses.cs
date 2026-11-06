@@ -1,8 +1,9 @@
-﻿using CleanArch.Tooling.Failures;
+﻿using CleanArch.Tooling.Output;
+using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Cli.UpgradeReport;
 
-internal sealed class ReportProcesses(IProcessLauncher launcher, Shell shell)
+internal sealed class ReportProcesses(IProcessLauncher launcher, TextWriter report)
 {
     private static readonly IReadOnlyDictionary<string, string> _environment = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -10,14 +11,8 @@ internal sealed class ReportProcesses(IProcessLauncher launcher, Shell shell)
         ["DOTNET_NOLOGO"] = "1",
     };
 
-    public void Step(string directory, string executable, IReadOnlyList<string> arguments)
-    {
-        int exitCode = shell.Run(Call(directory, executable, arguments) with { DirectoryNote = directory });
-        if (exitCode != ExitCode.Succeeded)
-        {
-            throw new LauncherException($"'{executable} {string.Join(' ', arguments)}' exited with {exitCode}.");
-        }
-    }
+    public TemplateEngine EngineIn(string hive) =>
+        new(Terminal.Over(report), hive, echo: true, new ExternalProcessRunner(launcher));
 
     public (int ExitCode, string Output, string Errors) Capture(string directory, string executable, params IReadOnlyList<string> arguments)
     {

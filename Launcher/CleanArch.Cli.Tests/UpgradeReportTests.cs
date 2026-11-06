@@ -2,6 +2,7 @@
 using System.Text.Json.Nodes;
 using CleanArch.Cli.UpgradeReport;
 using CleanArch.Tooling.Failures;
+using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
 
@@ -85,7 +86,7 @@ public sealed class UpgradeReportTests : IDisposable
     public void TheOptionChanges_NameWhatTheTargetChanged_AndNeverARefusalGuard(string fragment, bool reported)
     {
         TemplatePackage older = Package(new JsonObject { ["auth"] = Choice("local", "local", "external", "none"), ["webName"] = Text("Site") });
-        TemplatePackage newer = Package(new JsonObject { ["auth"] = Choice("external", "local", "external"), ["siteName"] = Text("Site"), ["guard"] = Choice("none", "refused") });
+        TemplatePackage newer = Package(new JsonObject { ["auth"] = Choice("external", "local", "external"), ["siteName"] = Text("Site"), ["guard"] = Guard() });
 
         string[] changes = [.. OptionChanges.Between(older, newer, Project(options: [("auth", "none"), ("webName", "Shop")]), "2.1.0")];
 
@@ -223,19 +224,20 @@ public sealed class UpgradeReportTests : IDisposable
     }
 
     [Fact]
-    public void APackage_HoldsTheGuidsItsFilesWrite_AndDrawsGuidsOnlyWhereATemplateDeclaresThem()
+    public void APackage_HoldsTheGuidsItsFilesWrite_DrawsGuidsOnlyWhereATemplateDeclaresThem_AndNamesATemplateByItsFirstShortName()
     {
         TemplatePackage drawing = Packed(
             "drawing",
-            "{ \"identity\": \"P\", \"guids\": [\"11111111-2222-3333-4444-555555555555\"] }",
+            "{ \"identity\": \"P\", \"shortName\": \"p\", \"symbols\": {}, \"guids\": [\"11111111-2222-3333-4444-555555555555\"] }",
             "<UserSecretsId>11111111-2222-3333-4444-555555555555</UserSecretsId><Type>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Type>");
-        TemplatePackage plain = Packed("plain", "{ \"identity\": \"P\" }", "<Type>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Type>");
+        TemplatePackage plain = Packed("plain", "{ \"identity\": \"P\", \"shortName\": [\"p\", \"q\"], \"symbols\": {} }", "<Type>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Type>");
 
         drawing.DrawsGuids.ShouldBeTrue();
         drawing.HeldGuids.ShouldContain("fae04ec0-301f-11d3-bf4b-00c04f79efbc");
         drawing.HeldGuids.ShouldContain("11111111-2222-3333-4444-555555555555");
         drawing.HeldGuids.Count.ShouldBe(2);
         plain.DrawsGuids.ShouldBeFalse();
+        plain.Require("P", "1.0.0").ShortName.ShouldBe("p");
     }
 
     [Theory]
@@ -323,6 +325,13 @@ public sealed class UpgradeReportTests : IDisposable
         ["choices"] = new JsonArray([.. choices.Select(choice => (JsonNode)new JsonObject { ["choice"] = choice })]),
     };
 
+    private static JsonObject Guard()
+    {
+        JsonObject guard = Choice("none", "refused");
+        guard["isRequired"] = "auth == \"none\"";
+        return guard;
+    }
+
     private static JsonObject Text(string defaultValue) => new() { ["type"] = "parameter", ["datatype"] = "text", ["defaultValue"] = defaultValue };
 
     private static TemplatePackage Package(JsonObject symbols, JsonArray? postActions = null) => new(
@@ -331,10 +340,10 @@ public sealed class UpgradeReportTests : IDisposable
         {
             [PackagedTemplate.Main] = new(
                 PackagedTemplate.Main,
-                "cleanarch-webapi",
-                symbols,
-                postActions ?? [],
-                new Dictionary<string, string>(StringComparer.Ordinal) { ["webName"] = "web-name", ["siteName"] = "site-name" }),
+                TemplateManifest.Read(
+                    new JsonObject { ["shortName"] = "cleanarch-webapi", ["symbols"] = symbols, ["postActions"] = postActions ?? [] }.ToJsonString(),
+                    """{ "symbolInfo": { "webName": { "longName": "web-name" }, "siteName": { "longName": "site-name" } } }""",
+                    """{ "symbolInfo": [ { "id": "auth", "isVisible": true } ] }""")),
         },
         null,
         null,

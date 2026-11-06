@@ -49,30 +49,42 @@ public sealed class TemplateManifest
     private readonly IReadOnlyDictionary<string, string> _parameterDefaults;
 
     private TemplateManifest(
-        string shortName,
-        string? defaultName,
+        TemplateIdentity identity,
         string? version,
         IReadOnlyList<TemplateOption> options,
+        IReadOnlyList<TemplateOption> parameters,
         IReadOnlyList<Refusal> refusals,
         IReadOnlyDictionary<string, Condition> computed,
         IReadOnlyDictionary<string, string> parameterDefaults)
     {
-        ShortName = shortName;
-        DefaultName = defaultName;
+        Identity = identity.Identity;
+        ShortName = identity.ShortName;
+        DefaultName = identity.DefaultName;
+        PostActionIds = identity.PostActionIds;
+        DeclaresGuids = identity.DeclaresGuids;
         Version = version;
         Options = options;
+        Parameters = parameters;
         Refusals = refusals;
         Computed = computed;
         _parameterDefaults = parameterDefaults;
     }
 
+    public string? Identity { get; }
+
     public string ShortName { get; }
+
+    public IReadOnlyList<string> PostActionIds { get; }
+
+    public bool DeclaresGuids { get; }
 
     public string? DefaultName { get; }
 
     public string? Version { get; }
 
     public IReadOnlyList<TemplateOption> Options { get; }
+
+    public IReadOnlyList<TemplateOption> Parameters { get; }
 
     public IReadOnlyList<Refusal> Refusals { get; }
 
@@ -93,13 +105,13 @@ public sealed class TemplateManifest
         }
 
         return new TemplateManifest(
-            Text(root, "shortName") ?? throw new FormatException("The template has no shortName."),
-            Text(root, "defaultName"),
+            IdentityOf(root),
             symbols.TryGetProperty("templateVersion", out JsonElement version)
                 && version.TryGetProperty("parameters", out JsonElement parameters)
                 ? Text(parameters, "value")
                 : null,
             [.. VisibleOrder(ideHost, read.Declared).Select(name => read.Options[name])],
+            [.. read.Declared.Select(name => read.Options[name])],
             read.Refusals,
             read.Computed,
             read.ParameterDefaults);
@@ -182,6 +194,19 @@ public sealed class TemplateManifest
         return arguments;
     }
 
+    private static TemplateIdentity IdentityOf(JsonElement root)
+    {
+        string shortName = root.TryGetProperty("shortName", out JsonElement names) && names.ValueKind == JsonValueKind.Array && names.GetArrayLength() > 0
+            ? names[0].GetString()!
+            : Text(root, "shortName") ?? throw new FormatException("The template has no shortName.");
+        string[] postActionIds = root.TryGetProperty("postActions", out JsonElement actions) && actions.ValueKind == JsonValueKind.Array
+            ? [.. actions.EnumerateArray().Where(action => action.ValueKind == JsonValueKind.Object).Select(action => Text(action, "actionId") ?? string.Empty)]
+            : [];
+        bool declaresGuids = root.TryGetProperty("guids", out JsonElement guids) && guids.ValueKind == JsonValueKind.Array && guids.GetArrayLength() > 0;
+
+        return new TemplateIdentity(Text(root, "identity"), shortName, Text(root, "defaultName"), postActionIds, declaresGuids);
+    }
+
     private static string WithoutBom(string json) => json.TrimStart('﻿');
 
     private static string? Text(JsonElement element, string property) =>
@@ -201,6 +226,8 @@ public sealed class TemplateManifest
             .Select(entry => Text(entry, "id")!)
             .Where(declared.Contains);
     }
+
+    private sealed record TemplateIdentity(string? Identity, string ShortName, string? DefaultName, IReadOnlyList<string> PostActionIds, bool DeclaresGuids);
 
     private sealed class SymbolReader(JsonDocument? commandLineHost, JsonDocument? ideHost)
     {

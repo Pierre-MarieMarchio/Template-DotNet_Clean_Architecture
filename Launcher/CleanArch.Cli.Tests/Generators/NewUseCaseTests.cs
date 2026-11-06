@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.AddUseCase;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
-using static CleanArch.Cli.Generators.AddUseCase.NewUseCase;
 using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Tests.Generators;
@@ -246,7 +245,7 @@ public sealed class NewUseCaseTests
             "A dry run did not print the edit it would make.");
 
         string failing = NewTree(scratch);
-        var failed = Invoke(failing, Recording(ran = [], failing: "dotnet run Tools/Tasks.cs openapi"), "Invoices", "ApproveInvoice", "--kind", "command");
+        var failed = Invoke(failing, Recording([], failing: "dotnet run Tools/Tasks.cs openapi"), "Invoices", "ApproveInvoice", "--kind", "command");
 
         expect(
             failed.Code == 1 && failed.Error.Contains("  dotnet run Tools/Tasks.cs openapi", StringComparison.Ordinal) && Occurrences(failing, _controller, "ISender sender,") == 1,
@@ -281,10 +280,10 @@ public sealed class NewUseCaseTests
 
             expect(result.Code == 0, $"[{label}] the use case was refused: {result.Error}");
             expect(Occurrences(root, _controller, action) == 1, $"[{label}] the action did not carry {action}.");
-            expect(
-                result.Output.Contains(row!.StartsWith("| POST | `/api/", StringComparison.Ordinal) ? "written in full, from /api" : "relative to that table's 'Under' prefix", StringComparison.Ordinal),
-                $"[{label}] the output does not say how the row is written.");
-            expect(Occurrences(root, _apiPage, row!) == 1, $"[{label}] the route's row was not {row}.");
+            string written = row!.StartsWith("| POST | `/api/", StringComparison.Ordinal) ? "written in full, from /api" : "relative to that table's 'Under' prefix";
+
+            expect(result.Output.Contains(written, StringComparison.Ordinal), $"[{label}] the output does not say how the row is written.");
+            expect(Occurrences(root, _apiPage, row) == 1, $"[{label}] the route's row was not {row}.");
         }
 
         (string Label, string[] Arguments, string Fragment)[] refused =
@@ -377,7 +376,7 @@ public sealed class NewUseCaseTests
         foreach (var (input, hasId, declared) in accepted)
         {
             var problems = new List<string>();
-            var (readId, inputs) = ReadInputs(input, problems);
+            var (readId, inputs) = UseCaseInputs.ReadInputs(input, problems);
             string[] read = [.. inputs.Select(parameter => $"{parameter.Type} {parameter.Name}")];
 
             expect(problems.Count == 0, $"[--input {input}] was refused: {string.Join(" ", problems)}");
@@ -842,9 +841,9 @@ public sealed class NewUseCaseTests
             yield return $"{relative}: not LF endings closed by exactly one newline.";
         }
 
-        if (_tokenPattern.IsMatch(text))
+        if (UseCasePlan._tokenPattern.IsMatch(text))
         {
-            yield return $"{relative}: a token was left unsubstituted: {_tokenPattern.Match(text).Value}";
+            yield return $"{relative}: a token was left unsubstituted: {UseCasePlan._tokenPattern.Match(text).Value}";
         }
 
         string code = relative.Contains("/Contracts/", StringComparison.Ordinal)
@@ -867,8 +866,9 @@ public sealed class NewUseCaseTests
         }
 
         string stem = Path.GetFileNameWithoutExtension(relative);
+        string message = segments[^3] == "Commands" ? "Command" : "Query";
         string[] declared = segments[^2] == stem
-            ? [$"{stem}{(segments[^3] == "Commands" ? "Command" : "Query")}", $"{stem}{(segments[^3] == "Commands" ? "Command" : "Query")}Handler"]
+            ? [$"{stem}{message}", $"{stem}{message}Handler"]
             : [stem];
 
         foreach (string type in declared.Where(type => !Regex.IsMatch(text, $@"^public (?:sealed )?(?:class|interface|record) {type}\b", RegexOptions.Multiline, TimeSpan.FromSeconds(2))))

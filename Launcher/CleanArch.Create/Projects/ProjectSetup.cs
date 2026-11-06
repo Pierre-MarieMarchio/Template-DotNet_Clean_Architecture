@@ -67,8 +67,6 @@ public sealed partial class ProjectSetup
             ])
         + ". Needs internet.";
 
-    private const int _tail = 6;
-    private const string _journalFolder = "artifacts";
     private const string _toolPackage = "CleanArch.Cli";
     private const string _init = "git init";
     private const string _longPaths = "git config --global core.longpaths true";
@@ -142,51 +140,6 @@ public sealed partial class ProjectSetup
         }
     }
 
-    internal static string Why(string command, ProcessResult result, string? journal = null, string? knownCause = null)
-    {
-        string[] lines = [.. result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
-        string[] tail = [.. lines.TakeLast(_tail)];
-        string? lastError = lines.LastOrDefault(line => ErrorLine().IsMatch(line));
-        var why = new List<string> { $"{command} exited with code {result.ExitCode}." };
-        if (knownCause is not null)
-        {
-            why.Add("Last error: " + (lastError ?? lines.LastOrDefault() ?? "none printed."));
-            why.Add(knownCause);
-        }
-        else
-        {
-            if (lastError is not null && !tail.Contains(lastError))
-            {
-                why.Add("Last error: " + lastError);
-            }
-
-            why.AddRange(tail);
-        }
-
-        if (journal is not null)
-        {
-            why.Add("The full output is in " + journal);
-        }
-
-        return string.Join(Environment.NewLine, why);
-    }
-
-    internal static string? Journal(string root, string name, string command, ProcessResult result)
-    {
-        try
-        {
-            string folder = Path.Combine(root, _journalFolder);
-            Directory.CreateDirectory(folder);
-            string path = Path.Combine(folder, name + ".log");
-            File.WriteAllText(path, $"> {command}{Environment.NewLine}exit code {result.ExitCode}{Environment.NewLine}{Environment.NewLine}{result.Output}");
-            return path;
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
     internal static bool ProjectToolNotFound(string output) =>
         output.Contains(_toolPackage, StringComparison.Ordinal) && MissingPackage().IsMatch(output);
 
@@ -198,15 +151,12 @@ public sealed partial class ProjectSetup
     internal static string ProjectToolInstall(string version) =>
         $"dotnet tool install {_toolPackage} --local --version {version} --add-source <folder holding {_toolPackage}.{version}.nupkg>";
 
-    [GeneratedRegex(@"\berror\s+[A-Z]{2,}\d+|^error:|\bNU\d{4}\b|\bfatal:|not found in NuGet feeds|unhandled exception", RegexOptions.IgnoreCase)]
-    private static partial Regex ErrorLine();
-
     [GeneratedRegex(@"NU110[123]|Unable to find package|not found in NuGet feeds", RegexOptions.IgnoreCase)]
     private static partial Regex MissingPackage();
 
     private static SetupOutcome Failed(SetupStep step, string command, ProcessResult result, IReadOnlyList<string> rerun, string? journal = null)
     {
-        string why = Why(command, result, journal);
+        string why = ProcessFailure.Why(command, result, journal);
         if (result.Output.Contains("Filename too long", StringComparison.Ordinal))
         {
             why += Environment.NewLine + "Some paths in the project are too long for git on Windows. Turn on long paths, or create the project in a shorter folder.";
@@ -273,9 +223,9 @@ public sealed partial class ProjectSetup
             return new SetupOutcome(Bootstrap, SetupStatus.Done, null, []);
         }
 
-        string? journal = Journal(_root, BootstrapTask, BootstrapCommand, result);
+        string? journal = ProcessFailure.Journal(_root, BootstrapTask, BootstrapCommand, result);
         return ProjectToolNotFound(result.Output)
-            ? new SetupOutcome(Bootstrap, SetupStatus.Failed, Why(BootstrapCommand, result, journal, ProjectToolCause(_version)), [ProjectToolInstall(_version), BootstrapCommand])
+            ? new SetupOutcome(Bootstrap, SetupStatus.Failed, ProcessFailure.Why(BootstrapCommand, result, journal, ProjectToolCause(_version)), [ProjectToolInstall(_version), BootstrapCommand])
             : Failed(Bootstrap, BootstrapCommand, result, [BootstrapCommand], journal);
     }
 

@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
 using CleanArch.Cli.Generators.AddEvent;
 using CleanArch.Cli.Generators.AddFeature;
+using CleanArch.Cli.Generators.AddField;
 using CleanArch.Cli.Generators.AddSetting;
 using CleanArch.Cli.Generators.AddUseCase;
 
@@ -88,7 +89,7 @@ internal static class FeatureAdditions
         field.Options.Add(dryRun);
         if (context.Project is { } project)
         {
-            field.SetAction(parseResult => NewFeature.RunField(
+            field.SetAction(parseResult => NewField.Run(
                 [
                     parseResult.GetRequiredValue(features),
                     parseResult.GetRequiredValue(declarations),

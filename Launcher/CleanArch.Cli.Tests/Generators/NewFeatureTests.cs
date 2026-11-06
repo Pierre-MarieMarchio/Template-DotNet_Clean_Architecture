@@ -2,11 +2,11 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using CleanArch.Cli.Generators.AddFeature;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Xunit;
 using static CleanArch.Cli.Generators.AddFeature.NewFeature;
+using static CleanArch.Cli.Generators.Shared.FeatureCode;
 using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Tests.Generators;
@@ -2200,7 +2200,7 @@ public sealed partial class NewFeatureTests
         TimeSpan.FromSeconds(2));
 
     private static readonly Lazy<HashSet<string>> _templatePrivateMethods = new(() =>
-        [.. typeof(Templates)
+        [.. typeof(FeatureTemplates)
             .GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
             .Where(field => field.IsLiteral && field.FieldType == typeof(string))
             .SelectMany(field => _privateMethodDeclaration.Matches((string)field.GetRawConstantValue()!))

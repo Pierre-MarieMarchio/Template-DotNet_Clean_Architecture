@@ -8,9 +8,9 @@ namespace CleanArch.Cli.Commands.Hosting;
 
 public static class CleanArchCommand
 {
-    public const int Succeeded = 0;
-    public const int Failed = 1;
-    public const string Name = "dotnet cleanarch";
+    public const int Succeeded = ExitCode.Succeeded;
+    public const int Failed = ExitCode.Failed;
+    public const string Name = Tool.Name;
 
     private static readonly ConditionalWeakTable<Command, string> _refusals = [];
 

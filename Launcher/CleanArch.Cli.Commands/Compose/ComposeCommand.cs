@@ -8,40 +8,23 @@ internal static class ComposeCommand
 {
     public const string Name = "compose";
 
-    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Build);
+    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private static Command Build(CommandContext context)
-    {
-        var compose = new Command(Name, "Start or stop this project's Compose stack, as docker compose does.");
-        compose.Add(UpCommand(context));
-        compose.Add(DownCommand(context));
-        compose.SetAction(parseResult =>
-        {
-            parseResult.CommandResult.Command.Parse(["--help"]).Invoke(parseResult.InvocationConfiguration);
-            return CleanArchCommand.Succeeded;
-        });
-        return compose;
-    }
+    private static Command Create(CommandContext context) =>
+        CommandGroup.Of(
+            Name,
+            "Start or stop this project's Compose stack, as docker compose does.",
+            Subcommand(context, "up", "Start the stack in the background and wait until every service is healthy.", "up", "-d", "--wait"),
+            Subcommand(context, "down", "Stop the stack and remove its containers.", "down"));
 
-    private static Command UpCommand(CommandContext context)
+    private static Command Subcommand(CommandContext context, string name, string description, params string[] arguments)
     {
-        var up = new Command("up", "Start the stack in the background and wait until every service is healthy.");
+        var subcommand = new Command(name, description);
         if (context.Project is { } project)
         {
-            up.SetAction(parseResult => context.Shell(parseResult).Run(new ExternalCall("docker", ["compose", "up", "-d", "--wait"], project.Root)));
+            subcommand.SetAction(parseResult => context.Shell(parseResult).Run(Docker.Compose(project.Root, arguments)));
         }
 
-        return up;
-    }
-
-    private static Command DownCommand(CommandContext context)
-    {
-        var down = new Command("down", "Stop the stack and remove its containers.");
-        if (context.Project is { } project)
-        {
-            down.SetAction(parseResult => context.Shell(parseResult).Run(new ExternalCall("docker", ["compose", "down"], project.Root)));
-        }
-
-        return down;
+        return subcommand;
     }
 }

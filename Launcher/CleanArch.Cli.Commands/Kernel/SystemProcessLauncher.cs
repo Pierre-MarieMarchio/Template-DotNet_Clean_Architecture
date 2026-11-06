@@ -1,7 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using CleanArch.Cli.Commands.Hosting;
 
 namespace CleanArch.Cli.Commands.Kernel;
 
@@ -22,7 +21,7 @@ internal sealed class SystemProcessLauncher : IProcessLauncher
         catch (Win32Exception)
         {
             error.WriteLine($"'{call.FileName}' is not on PATH.");
-            return CleanArchCommand.Failed;
+            return ExitCode.Failed;
         }
     }
 

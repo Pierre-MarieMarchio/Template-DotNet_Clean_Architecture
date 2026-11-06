@@ -1,6 +1,8 @@
 ﻿using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace CleanArch.Cli.Commands.Kernel;
 
@@ -23,9 +25,9 @@ internal static class SolutionFilter
         {
             ["solution"] = new JsonObject
             {
-                ["path"] = Path.GetRelativePath(directory, solution).Replace('\\', '/'),
+                ["path"] = ProjectPath.Relative(directory, solution),
                 ["projects"] = new JsonArray([.. projects
-                    .Select(project => JsonValue.Create(Path.GetRelativePath(solutionDirectory, project).Replace('\\', '/')))]),
+                    .Select(project => JsonValue.Create(ProjectPath.Relative(solutionDirectory, project)))]),
             },
         };
         File.WriteAllText(filter, content.ToJsonString(_json));
@@ -40,7 +42,7 @@ internal static class SolutionFilter
             root,
             solution,
             "runnable.slnf",
-            SolutionLocator.ProjectPaths(root, solution)
+            ProjectPaths(solution)
                 .Select(path => Path.GetFullPath(Path.Combine(root, path)))
                 .Where(path => !left.Contains(path)));
     }
@@ -51,5 +53,14 @@ internal static class SolutionFilter
         {
             File.Delete(filter);
         }
+    }
+
+    private static string[] ProjectPaths(string solution)
+    {
+        string text = File.ReadAllText(solution);
+        IEnumerable<string> paths = solution.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)
+            ? XDocument.Parse(text).Descendants("Project").Select(element => element.Attribute("Path")?.Value).OfType<string>()
+            : Regex.Matches(text, @"""(?<path>[^""]+\.csproj)""").Select(match => match.Groups["path"].Value);
+        return [.. paths.Select(ProjectPath.Shown).Order(StringComparer.Ordinal)];
     }
 }

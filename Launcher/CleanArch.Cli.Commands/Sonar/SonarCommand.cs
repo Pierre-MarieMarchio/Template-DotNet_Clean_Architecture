@@ -1,5 +1,4 @@
 ﻿using System.CommandLine;
-using System.Text.RegularExpressions;
 using CleanArch.Cli.Commands.Hosting;
 using CleanArch.Cli.Commands.Kernel;
 
@@ -9,23 +8,15 @@ internal static class SonarCommand
 {
     public const string Name = "sonar";
 
-    public static readonly CommandRegistration Registration = new(Refusal, Build);
+    public static readonly CommandRegistration Registration = new(ProjectCommand.Requiring(Refusal), Create);
 
-    private static readonly Regex _windowsTargetFramework = new(
-        @"<TargetFramework>\s*(?<framework>net\d+(\.\d+)*-windows(\d+(\.\d+)*)?)\s*</TargetFramework>",
-        RegexOptions.ExplicitCapture,
-        TimeSpan.FromSeconds(5));
+    private static string? Refusal(LocatedProject project) =>
+        project.File.Options.Sonar == true ? null : $"This project has no sonar command: its {ProjectLocator.FileName} records sonar false.";
 
-    private static string? Refusal(CommandContext context) =>
-        ProjectCommand.Refusal(context)
-        ?? (context.Project is { } project && project.File.Options.Sonar == true
-            ? null
-            : $"This project has no sonar command: its {ProjectLocator.FileName} records sonar false.");
-
-    private static Command Build(CommandContext context)
+    private static Command Create(CommandContext context)
     {
         var sonar = new Command(Name, "Send this project's code to SonarCloud: start the SonarQube service the Compose file holds, then scan from its scanner.");
-        if (context.Project is { } project && project.File.Options.Sonar == true)
+        if (context.Project is { } project)
         {
             sonar.SetAction(parseResult => Run(project, context.Shell(parseResult)));
         }
@@ -35,66 +26,26 @@ internal static class SonarCommand
 
     private static int Run(LocatedProject project, Shell shell)
     {
-        TextWriter output = shell.Output;
-        TextWriter error = shell.Error;
-        int exit = shell.Run(new ExternalCall("docker", ["compose", "--profile", "sonar", "up", "--detach", "--wait", "sonarqube"], project.Root));
-        if (exit != CleanArchCommand.Succeeded)
+        int exit = shell.Run(Docker.Compose(project.Root, "--profile", "sonar", "up", "--detach", "--wait", "sonarqube"));
+        if (exit != ExitCode.Succeeded)
         {
             return exit;
         }
 
-        string[]? tests = DockerFreeTests(project, error);
-        if (tests is null)
-        {
-            return CleanArchCommand.Failed;
-        }
-
-        return shell.Run(new ExternalCall(
-                "docker",
-                ["compose", "--profile", "sonar", "run", "--rm", "--build", "sonar-scanner", "/bin/sh", "-c", ScanScriptOf(project, tests)],
-                project.Root));
+        string[] tests = DockerFreeTests(project);
+        return tests.Length == 0
+            ? shell.Fail(TestProjects.NoneFound)
+            : shell.Run(Docker.Compose(project.Root, "--profile", "sonar", "run", "--rm", "--build", "sonar-scanner", "/bin/sh", "-c", ScanScriptOf(project, tests)));
     }
 
-    private static string[]? DockerFreeTests(LocatedProject project, TextWriter error)
+    private static string[] DockerFreeTests(LocatedProject project)
     {
-        string tests = Path.Combine(project.Root, "Tests");
-        var discovered = new List<string>();
-        if (Directory.Exists(tests))
-        {
-            foreach (string path in Directory.EnumerateFiles(tests, "*.csproj", SearchOption.AllDirectories))
-            {
-                string text = File.ReadAllText(path);
-                if (!IsDockerFree(text))
-                {
-                    continue;
-                }
-
-                if (!OperatingSystem.IsWindows() && WindowsFramework(text) is not null)
-                {
-                    continue;
-                }
-
-                discovered.Add(Path.GetRelativePath(project.Root, path).Replace('\\', '/'));
-            }
-        }
-
-        string[] paths = [.. discovered.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)];
-        if (paths.Length == 0)
-        {
-            error.WriteLine("Discovery found no test project under Tests/. A run over nothing is a false green.");
-            return null;
-        }
-
-        return paths;
+        string[] tests = TestProjects.Under(project.Root);
+        return [.. tests
+            .Where(TestProjects.IsDockerFree)
+            .Except(TestProjects.SkippedHere(tests), StringComparer.Ordinal)
+            .Select(test => ProjectPath.Relative(project.Root, test))];
     }
-
-    private static bool IsDockerFree(string projectText) =>
-        projectText.Contains("<IsTestProject>true</IsTestProject>", StringComparison.Ordinal)
-        && !projectText.Contains("Testcontainers", StringComparison.OrdinalIgnoreCase)
-        && !projectText.Contains("Aspire.Hosting.Testing", StringComparison.OrdinalIgnoreCase);
-
-    private static string? WindowsFramework(string projectText) =>
-        _windowsTargetFramework.Match(projectText) is { Success: true } match ? match.Groups["framework"].Value : null;
 
     private static string ScanScriptOf(LocatedProject project, IReadOnlyList<string> testProjects)
     {

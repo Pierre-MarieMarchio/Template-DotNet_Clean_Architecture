@@ -9,9 +9,7 @@ internal static class FormatCommand
 {
     public const string Name = "format";
 
-    public static readonly CommandRegistration Registration = new(Refuse, Create);
-
-    internal static readonly string[] StyleRulesTheBuildLacks = ["IDE0003", "IDE0049"];
+    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
     private static readonly string[] _skippedDirectories = ["bin", "obj", "node_modules", "plans"];
 
@@ -22,39 +20,26 @@ internal static class FormatCommand
         RegexOptions.Multiline | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(5));
 
-    private static string? Refuse(CommandContext context) =>
-        context.Project is null
-            ? context.RefusedProjectFile?.Message ?? context.OutsideProject
-            : null;
-
     private static Command Create(CommandContext context)
     {
         var command = new Command(Name, "dotnet format over the solution, Markdown saved as UTF-8 without a BOM with LF endings, then the names no formatter can fix.");
         Option<bool> check = new("--check") { Description = "Fail where the command would write instead of writing: dotnet format --verify-no-changes over what the build does not check, and the Markdown." };
         command.Options.Add(check);
-        command.SetAction(parseResult => Run(context, parseResult, check));
+        if (context.Project is { } project)
+        {
+            command.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult.GetValue(check)));
+        }
+
         return command;
     }
 
-    private static int Run(CommandContext context, ParseResult parseResult, Option<bool> check)
-    {
-        Shell shell = context.Shell(parseResult);
-        if (context.Project is not { } project)
-        {
-            shell.Error.WriteLine(context.RefusedProjectFile?.Message ?? context.OutsideProject);
-            return CleanArchCommand.Failed;
-        }
-
-        return parseResult.GetValue(check)
-            ? Check(project, shell)
-            : Fix(project, shell);
-    }
+    private static int Run(LocatedProject project, Shell shell, bool checking) => checking ? Check(project, shell) : Fix(project, shell);
 
     private static int Fix(LocatedProject project, Shell shell)
     {
         string solution = ProjectLayout.Solution(project);
-        int formatted = shell.Run(Dotnet(project, ["format", solution]));
-        if (formatted != CleanArchCommand.Succeeded)
+        int formatted = shell.Run(Dotnet.Call(project.Root, "format", solution));
+        if (formatted != ExitCode.Succeeded)
         {
             return formatted;
         }
@@ -62,7 +47,7 @@ internal static class FormatCommand
         foreach (string file in MarkdownToNormalise(project.Root))
         {
             File.WriteAllBytes(file, NormalisedMarkdown(File.ReadAllBytes(file)));
-            shell.Output.WriteLine($"{Relative(project.Root, file)}: saved as UTF-8 without a BOM, with LF endings.");
+            shell.Output.WriteLine($"{ProjectPath.Relative(project.Root, file)}: saved as UTF-8 without a BOM, with LF endings.");
         }
 
         return RequireNamingStyle(project, solution, shell);
@@ -70,10 +55,8 @@ internal static class FormatCommand
 
     private static int Check(LocatedProject project, Shell shell)
     {
-        TextWriter error = shell.Error;
-        string[] arguments = ["format", ProjectLayout.Solution(project), "--diagnostics", .. StyleRulesTheBuildLacks, "--verify-no-changes", "--verbosity", "normal"];
-        int verified = shell.Run(Dotnet(project, arguments));
-        if (verified != CleanArchCommand.Succeeded)
+        int verified = shell.Run(Dotnet.StyleCheck(project.Root, ProjectLayout.Solution(project), "--verbosity", "normal"));
+        if (verified != ExitCode.Succeeded)
         {
             return verified;
         }
@@ -81,50 +64,42 @@ internal static class FormatCommand
         string[] markdown = [.. MarkdownToNormalise(project.Root)];
         foreach (string file in markdown)
         {
-            error.WriteLine($"{Relative(project.Root, file)}: would be saved as UTF-8 without a BOM, with LF endings.");
+            shell.Error.WriteLine($"{ProjectPath.Relative(project.Root, file)}: would be saved as UTF-8 without a BOM, with LF endings.");
         }
 
-        if (markdown.Length == 0)
-        {
-            return CleanArchCommand.Succeeded;
-        }
-
-        error.WriteLine($"{CleanArchCommand.Name} {Name} would write {markdown.Length} Markdown file(s); run it without --check to repair them.");
-        return CleanArchCommand.Failed;
+        return markdown.Length == 0
+            ? ExitCode.Succeeded
+            : shell.Fail($"{Tool.Name} {Name} would write {markdown.Length} Markdown file(s); run it without --check to repair them.");
     }
 
     private static int RequireNamingStyle(LocatedProject project, string solution, Shell shell)
     {
-        TextWriter error = shell.Error;
-        ExternalCall call = Dotnet(project, ["format", solution, "--diagnostics", "IDE1006", "--verify-no-changes", "--no-restore"]);
         using var captured = new StringWriter();
-        int exit = shell.Run(call, captured, captured);
+        int exit = shell.Run(Dotnet.Call(project.Root, "format", solution, "--diagnostics", "IDE1006", "--verify-no-changes", "--no-restore"), captured, captured);
         string[] violations = NamingViolations(project.Root, captured.ToString());
         if (violations.Length > 0)
         {
-            error.WriteLine("dotnet format cannot rename a symbol, so these names break a naming rule of .editorconfig (IDE1006) and are left as they are:");
+            shell.Error.WriteLine("dotnet format cannot rename a symbol, so these names break a naming rule of .editorconfig (IDE1006) and are left as they are:");
             foreach (string violation in violations)
             {
-                error.WriteLine("  " + violation);
+                shell.Error.WriteLine("  " + violation);
             }
 
-            error.WriteLine($"Rename each one, with the IDE's rename or by hand, then run {CleanArchCommand.Name} {Name} again.");
-            return CleanArchCommand.Failed;
+            return shell.Fail($"Rename each one, with the IDE's rename or by hand, then run {Tool.Name} {Name} again.");
         }
 
-        if (exit != CleanArchCommand.Succeeded)
+        if (exit != ExitCode.Succeeded)
         {
-            error.Write(captured.ToString());
-            error.WriteLine($"dotnet format exited with {exit} and named no naming violation: its output is above.");
-            return exit;
+            shell.Error.Write(captured.ToString());
+            shell.Error.WriteLine($"dotnet format exited with {exit} and named no naming violation: its output is above.");
         }
 
-        return CleanArchCommand.Succeeded;
+        return exit;
     }
 
     private static string[] NamingViolations(string root, string output) =>
         [.. _namingViolation.Matches(output)
-            .Select(match => $"{Relative(root, match.Groups["file"].Value)}:{match.Groups["line"].Value}: {match.Groups["message"].Value}")
+            .Select(match => $"{ProjectPath.Relative(root, match.Groups["file"].Value)}:{match.Groups["line"].Value}: {match.Groups["message"].Value}")
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)];
 
@@ -159,9 +134,4 @@ internal static class FormatCommand
 
         return [.. normalised];
     }
-
-    private static string Relative(string root, string file) => Path.GetRelativePath(root, file).Replace('\\', '/');
-
-    private static ExternalCall Dotnet(LocatedProject project, IReadOnlyList<string> arguments) =>
-        new("dotnet", arguments, project.Root);
 }

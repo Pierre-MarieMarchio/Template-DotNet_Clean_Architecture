@@ -8,9 +8,11 @@ internal static class TestCommand
 {
     public const string Name = "test";
 
-    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Build);
+    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private static Command Build(CommandContext context)
+    private sealed record Selection(string? Run, string? Build, bool LeavesOut);
+
+    private static Command Create(CommandContext context)
     {
         var command = new Command(Name, "Run this project's tests.");
         Option<bool> noIntegration = new("--no-integration")
@@ -20,96 +22,69 @@ internal static class TestCommand
         };
         command.Options.Add(noIntegration);
         BuildSettings.Options settings = BuildSettings.Add(command);
-        command.SetAction(parseResult => Run(context, context.Shell(parseResult), parseResult.GetValue(noIntegration), settings.Of(parseResult)));
+        if (context.Project is { } project)
+        {
+            command.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult.GetValue(noIntegration), settings.Of(parseResult)));
+        }
+
         return command;
     }
 
-    public static int RunBuilt(LocatedProject project, Shell shell, BuildSettings settings) =>
-        Guarded(shell, () =>
+    private static int Run(LocatedProject project, Shell shell, bool dockerFreeOnly, BuildSettings settings) =>
+        TestRuns.Guarded(shell, () =>
         {
-            string root = project.Root;
-            string solution = Path.Combine(root, ProjectLayout.Solution(project));
-            string[] skipped = Skipped(root, shell.Output);
-            string? run = skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
+            Selection selection = Select(project, shell.Output, dockerFreeOnly);
             try
             {
-                return Dotnet.Run(shell, root, ["test", "--solution", SolutionLocator.Relative(root, run ?? solution), "--configuration", settings.Configuration, "--no-build", .. settings.Modules]);
+                return Execute(project, shell, settings, selection);
             }
             finally
             {
-                SolutionFilter.Delete(run);
+                SolutionFilter.Delete(selection.Run);
+                SolutionFilter.Delete(selection.Build);
             }
         });
 
-    private static int Run(CommandContext context, Shell shell, bool dockerFreeOnly, BuildSettings settings)
+    private static Selection Select(LocatedProject project, TextWriter output, bool dockerFreeOnly)
     {
-        if (context.Project is not { } project)
+        string root = project.Root;
+        string solution = SolutionOf(project);
+        string[] tests = TestProjects.All(root);
+        string[] dockerFree = [.. tests.Where(TestProjects.IsDockerFree)];
+        string[] notRun = dockerFreeOnly ? [.. tests.Except(dockerFree, StringComparer.Ordinal)] : [];
+        foreach (string test in notRun)
         {
-            return CleanArchCommand.Failed;
+            output.WriteLine(TestProjects.NotRunLine(root, test));
         }
 
-        return Guarded(shell, () =>
+        string[] skipped = TestRuns.Skipped(root, output);
+        bool leavesOut = skipped.Length > 0 || notRun.Length > 0;
+        if (!dockerFreeOnly)
         {
-            string root = project.Root;
-            string solution = Path.Combine(root, ProjectLayout.Solution(project));
-            TextWriter output = shell.Output;
-            string[] tests = TestProjects.All(root);
-            string[] dockerFree = [.. tests.Where(path => TestProjects.IsDockerFree(File.ReadAllText(path)))];
-            string[] notRun = dockerFreeOnly ? [.. tests.Except(dockerFree, StringComparer.Ordinal)] : [];
-            foreach (string test in notRun)
-            {
-                output.WriteLine(TestProjects.NotRunLine(root, test));
-            }
+            return new Selection(skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null, null, leavesOut);
+        }
 
-            string[] skipped = Skipped(root, shell.Output);
-            string? run = dockerFreeOnly
-                ? SolutionFilter.Write(root, solution, "docker-free.slnf", dockerFree.Except(skipped, StringComparer.Ordinal))
-                : skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
-            string? build = dockerFreeOnly && (skipped.Length > 0 || notRun.Length > 0)
-                ? SolutionFilter.Write(root, solution, "docker-free-build.slnf", tests)
-                : null;
-            try
-            {
-                string target = SolutionLocator.Relative(root, run ?? solution);
-                if (settings.MaxCpuCount is null && skipped.Length == 0 && notRun.Length == 0)
-                {
-                    return Dotnet.Run(shell, root, ["test", "--solution", target, "--configuration", settings.Configuration]);
-                }
-
-                int exit = Dotnet.Run(shell, root, ["build", SolutionLocator.Relative(root, build ?? run ?? solution), "--configuration", settings.Configuration, .. settings.Nodes]);
-                return exit != CleanArchCommand.Succeeded
-                    ? exit
-                    : Dotnet.Run(shell, root, ["test", "--solution", target, "--configuration", settings.Configuration, "--no-build", .. settings.Modules]);
-            }
-            finally
-            {
-                SolutionFilter.Delete(run);
-                SolutionFilter.Delete(build);
-            }
-        });
+        string run = SolutionFilter.Write(root, solution, "docker-free.slnf", dockerFree.Except(skipped, StringComparer.Ordinal));
+        string? build = leavesOut ? SolutionFilter.Write(root, solution, "docker-free-build.slnf", tests) : null;
+        return new Selection(run, build, leavesOut);
     }
 
-    private static string[] Skipped(string root, TextWriter output)
+    private static int Execute(LocatedProject project, Shell shell, BuildSettings settings, Selection selection)
     {
-        string[] skipped = TestProjects.SkippedHere(TestProjects.All(root));
-        foreach (string test in skipped)
+        string root = project.Root;
+        string solution = SolutionOf(project);
+        string target = ProjectPath.Relative(root, selection.Run ?? solution);
+        if (settings.MaxCpuCount is null && !selection.LeavesOut)
         {
-            output.WriteLine(TestProjects.SkipLine(root, test));
+            return shell.Run(Dotnet.Test(root, target, settings.Configuration));
         }
 
-        return skipped;
+        return ExitCode.FirstFailureOf(
+        [
+            () => shell.Run(Dotnet.Build(root, ProjectPath.Relative(root, selection.Build ?? selection.Run ?? solution), settings.Configuration, settings.Nodes)),
+            () => shell.Run(Dotnet.Test(root, target, settings.Configuration, ["--no-build", .. settings.Modules])),
+        ]);
     }
 
-    private static int Guarded(Shell shell, Func<int> run)
-    {
-        try
-        {
-            return run();
-        }
-        catch (Exception error) when (error is InvalidOperationException or IOException)
-        {
-            shell.Error.WriteLine(error.Message);
-            return CleanArchCommand.Failed;
-        }
-    }
+    private static string SolutionOf(LocatedProject project) => Path.Combine(project.Root, ProjectLayout.Solution(project));
 }

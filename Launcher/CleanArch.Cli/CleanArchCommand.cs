@@ -22,6 +22,7 @@ public static class CleanArchCommand
         VerifyCommand.Registration,
         MigrationsCommand.Registration,
         DatabaseCommand.Registration,
+        OpenApiCommand.Registration,
     ];
 
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>

@@ -411,7 +411,7 @@ internal static class VerifyCommand
         new("dotnet", arguments, workingDirectory);
 
     private static ExternalCall Pnpm(IReadOnlyList<string> arguments, string workingDirectory, string? note = null) =>
-        new(_pnpm, arguments, workingDirectory, note);
+        new(_pnpm, arguments, workingDirectory, DirectoryNote: note);
 
     private static string Tool(string fileName) => Path.Combine("Tools", fileName);
 

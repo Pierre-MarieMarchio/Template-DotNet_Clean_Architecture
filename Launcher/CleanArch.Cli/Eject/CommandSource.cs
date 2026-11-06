@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace CleanArch.Cli;
+namespace CleanArch.Cli.Eject;
 
 internal static partial class CommandSource
 {
@@ -30,6 +30,8 @@ internal static partial class CommandSource
 
     public static IEnumerable<(string Type, string File)> Declared =>
         Shipped.SelectMany(file => DeclaredTypes().Matches(file.Value).Select(match => (Type: match.Groups["type"].Value, File: file.Key)));
+
+    public static bool Ships(string type) => Declared.Any(declared => declared.Type == type);
 
     public static IReadOnlyList<string> FilesOf(string commandType)
     {

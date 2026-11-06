@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Nodes;
+using CleanArch.Cli.Adopt;
 using CleanArch.Tooling.Projects;
 using Shouldly;
 using Xunit;

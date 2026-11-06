@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Text;
 
-namespace CleanArch.Cli;
+namespace CleanArch.Cli.Eject;
 
 internal static class EjectCommand
 {
@@ -10,15 +10,13 @@ internal static class EjectCommand
 
     public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private static readonly string[] _staysTheTools = [nameof(HelpCommand), nameof(EjectCommand), nameof(AdoptCommand), nameof(AddCommand), nameof(RemoveCommand)];
-
     public static string CommandLineVersion { get; } =
         typeof(EjectCommand).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .Single(metadata => metadata.Key == "System.CommandLine").Value
         ?? throw new InvalidOperationException("The tool records no version of System.CommandLine.");
 
     public static IEnumerable<CommandRegistration> Ejectable() =>
-        BuiltInCommands.All.Where(registration => !_staysTheTools.Contains(CommandSource.TypeOf(registration), StringComparer.Ordinal));
+        BuiltInCommands.All.Where(registration => CommandSource.Ships(CommandSource.TypeOf(registration)));
 
     private static IEnumerable<CommandRegistration> Applicable(CommandContext context) =>
         Ejectable().Where(registration => registration.Refusal(context) is null);

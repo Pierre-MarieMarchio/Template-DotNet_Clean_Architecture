@@ -25,6 +25,13 @@ dotnet cleanarch migrations bundle                             # dotnet ef migra
 dotnet cleanarch database update                               # dotnet ef database update, at the project root
 dotnet cleanarch openapi     # write the OpenAPI reference, then regenerate the .NET client with the pinned Kiota
 dotnet cleanarch openapi --check # fail where it would write, instead of writing
+dotnet cleanarch bootstrap   # format the solution, restore the local tools, create each context's initial migration
+dotnet cleanarch run         # dotnet run --project Src/Presentation/<Initials>.Api
+dotnet cleanarch compose up  # docker compose up -d --wait
+dotnet cleanarch compose down # docker compose down
+dotnet cleanarch end-to-end  # the stack from .env.example, the end-to-end tests, then down --volumes
+dotnet cleanarch end-to-end --keep-stack # the same, leaving the stack running
+dotnet cleanarch sonar       # SonarCloud, where the project file records sonar true
 ```
 
 `format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
@@ -33,17 +40,16 @@ Markdown file without one, both with LF endings, and orders the usings of each C
 first. It prints each file it saves; `--check` prints them on stderr and fails instead of
 writing.
 
-`build`, `test` and `coverage` each print the exact `dotnet ...` line they run, then forward its exit code.
+A command that runs an external tool prints the exact line it runs, runs it at the project root
+and forwards its exit code.
 
-`verify` prints each line it runs and runs it at the project root. It chains its steps and stops at the first failing one, forwarding its exit code; its steps
-follow the project file: the client check runs where the file records `client`, the web workspace's
-install, audit, lint, test and build where it records a `web` workspace, and the identity context's
-pending-model-changes check where it records `auth: local`.
+`verify` chains its steps and stops at the first failing one, forwarding its exit code; its steps
+follow the project file: the client check runs where the file records `client`, the web
+workspace's install, audit, lint, test and build where it records a `web` workspace, and the
+identity context's pending-model-changes check where it records `auth: local`.
 
-Each command prints the `dotnet ef` line it runs, runs it at the project root and forwards its exit code.
-
-A command that runs an external tool prints the exact line it runs, runs it at the project
-root and forwards its exit code.
+`run` and `end-to-end` exist only where the project file records a presentation of framework
+`api`; `sonar` only where it records `sonar` true.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

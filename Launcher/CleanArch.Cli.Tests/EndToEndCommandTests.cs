@@ -164,7 +164,7 @@ public sealed class EndToEndCommandTests : IDisposable
     }
 
     private int Run(SampleProject project, params string[] options) =>
-        CleanArchCommand.Run(["end-to-end", .. options], project.Root, _output, _error);
+        BuiltInCommands.Run(["end-to-end", .. options], project.Root, _output, _error);
 
     private static string[] Named(ExternalCall call) =>
         StepOf(call) == "smoke"

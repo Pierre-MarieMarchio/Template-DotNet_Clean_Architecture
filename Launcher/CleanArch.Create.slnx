@@ -4,5 +4,6 @@
   <Project Path="CleanArch.Tooling/CleanArch.Tooling.csproj" />
   <Project Path="CleanArch.Tooling.Tests/CleanArch.Tooling.Tests.csproj" />
   <Project Path="CleanArch.Cli/CleanArch.Cli.csproj" />
+  <Project Path="CleanArch.Cli.Commands/CleanArch.Cli.Commands.csproj" />
   <Project Path="CleanArch.Cli.Tests/CleanArch.Cli.Tests.csproj" />
 </Solution>

@@ -120,22 +120,21 @@ public sealed class EjectCommandTests : IDisposable
     }
 
     [Fact]
-    public void TheToolShipsTheSourceOfEveryFileItIsBuiltFrom_ButItsEntryAndItsList()
+    public void TheToolShipsTheSourceOfEveryFileItsCommandsAreBuiltFrom()
     {
-        string tool = Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli");
-        IEnumerable<string> linked = System.Xml.Linq.XDocument.Load(Path.Combine(tool, "CleanArch.Cli.csproj"))
+        string commands = Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli.Commands");
+        IEnumerable<string> linked = System.Xml.Linq.XDocument.Load(Path.Combine(commands, "CleanArch.Cli.Commands.csproj"))
             .Descendants("Compile")
             .Select(compile => compile.Attribute("Link")?.Value)
             .OfType<string>();
-        string[] sources = [.. Directory.EnumerateFiles(tool, "*.cs")
+        string[] sources = [.. Directory.EnumerateFiles(commands, "*.cs")
             .Select(Path.GetFileName).OfType<string>()
             .Concat(linked)
-            .Except(["Program.cs", "BuiltInCommands.cs"])
             .Order(StringComparer.Ordinal)];
 
         CommandSource.Shipped.Keys.Order(StringComparer.Ordinal).ShouldBe(sources);
         CommandSource.Shipped["FormatCommand.cs"].ShouldBe(
-            File.ReadAllText(Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli", "FormatCommand.cs")).TrimStart('﻿'));
+            File.ReadAllText(Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli.Commands", "FormatCommand.cs")).TrimStart('﻿'));
     }
 
     [Fact]
@@ -226,5 +225,5 @@ public sealed class EjectCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
 }

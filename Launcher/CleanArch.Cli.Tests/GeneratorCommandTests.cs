@@ -133,5 +133,5 @@ public sealed class GeneratorCommandTests : IDisposable
             .ToDictionary(path => Path.GetRelativePath(root, path), path => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path))));
 
     private int Run(string[] arguments, string workingDirectory) =>
-        CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
 }

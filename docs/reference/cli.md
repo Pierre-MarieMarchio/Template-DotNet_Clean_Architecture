@@ -44,7 +44,9 @@ fails, and a `cleanarch.json` it cannot read is named with the reason.
 |---|---|---|
 | `build` | `dotnet build` of the solution | `build` |
 | `test` | `dotnet test` of the solution; `--no-integration` builds every test project and runs only the ones that need no Docker daemon, naming each one it built and did not run | `test` |
-| `coverage` | the tests with coverage under `TestResults`, then `dotnet run Tools/CoverageGate.cs` against the floor `coverage.minimum` states | `coverage` |
+| `coverage` | the tests with coverage under `TestResults`, then their reports merged as a union over (file, line) and held to the floor `coverage.minimum` states; `--reports-only` judges the reports already there without running the tests, `--summary <file>` appends the coverage table as Markdown, `--json <file>` writes the merged totals | `coverage` |
+| `check` | while you work, over what `git diff` touches since the merge base with `origin/develop`, or the first of `origin/HEAD`, `origin/main`, `origin/master`, `develop`, `main` and `master` that exists, with the files not yet tracked: the format of the C# files touched, the build of what they reach, then the unit and architecture tests that cover them; a test project that needs Docker or Windows is built and named, not run | `check` |
+| `docs-index` | the index of each folder under `docs/`, written from each page's frontmatter; `--check` fails where an index differs from what it would write or indexes a folder that holds no page, and writes nothing | `docs-index` |
 | `verify` | the whole gate, below | `verify` |
 | `format` | `dotnet format` of the solution, every Markdown file saved as UTF-8 without a BOM with LF endings, then each name that breaks a naming rule (IDE1006), which `dotnet format` cannot rename; it fails while one is left | `format-fix` |
 | `format --check` | `dotnet format --verify-no-changes` over the style rules the build does not enforce (IDE0003, IDE0049), then each Markdown file `format` would save; it writes nothing | `format` |
@@ -56,7 +58,7 @@ and `verify` leave out a test project that targets Windows alone, and say so.
 
 `verify` refuses to start while a database context has no initial migration. It then runs, stopping
 at the first step that fails: the self-tests of the scripts under `Tools/`, the documentation index
-check `dotnet run Tools/Tasks.cs docs-index --check`, the comparison of the .NET client with what
+check `docs-index --check` runs, the comparison of the .NET client with what
 Kiota writes from the OpenAPI reference where the project holds the client, the web workspace's
 schema check, `pnpm audit`, `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test` and
 `pnpm build` where `cleanarch.json` records a web workspace, then the restore,
@@ -91,17 +93,19 @@ and names `bootstrap`, which creates it.
 
 `bootstrap` sets this project up once, right after generation.
 <!--#if (api)-->
-It runs, in this order and stopping at the first step that fails: `presentation-scaffold`,
-`dotnet format` of the usings and the whitespace (IDE0005 and IDE0055), `docs-index`, the OpenAPI
-reference as `openapi` writes it, `dotnet tool restore`, the initial migration of each context
-whose `Migrations` folder holds none, the .NET client as `openapi` writes it where the project
-holds the client, then `web-scaffold` where `cleanarch.json` records a web app.
+It runs, in this order and stopping at the first step that fails: the pages of each presentation
+project still holding its scaffold file, `dotnet format` of the usings and the whitespace (IDE0005
+and IDE0055), `docs-index`, the OpenAPI reference as `openapi` writes it, `dotnet tool restore`,
+the initial migration of each context whose `Migrations` folder holds none, the .NET client as
+`openapi` writes it where the project holds the client, then the pages of each web app still
+holding its scaffold file where `cleanarch.json` records a web app.
 <!--#endif-->
 <!--#if (!api)-->
-It runs, in this order and stopping at the first step that fails: `presentation-scaffold`,
-`dotnet format` of the usings and the whitespace (IDE0005 and IDE0055), `docs-index`,
-`dotnet tool restore`, the initial migration of each context whose `Migrations` folder holds none,
-then `web-scaffold` where `cleanarch.json` records a web app.
+It runs, in this order and stopping at the first step that fails: the pages of each presentation
+project still holding its scaffold file, `dotnet format` of the usings and the whitespace (IDE0005
+and IDE0055), `docs-index`, `dotnet tool restore`, the initial migration of each context whose
+`Migrations` folder holds none, then the pages of each web app still holding its scaffold file
+where `cleanarch.json` records a web app.
 <!--#endif-->
 A context that has its migrations
 keeps them as they are. When a step fails, it names that step, says what is done and what is not,
@@ -196,6 +200,14 @@ nothing to eject, and a `Tools/<command>.cs` already there is never overwritten.
 files, and is refused where one exists; `--dry-run` prints it, and `--template-version` gives the
 version where `docs/getting-started/overview.md` no longer names it.
 
+## Taking a newer version
+
+| Command | Does | Stands for |
+|---|---|---|
+| `upgrade-report` | generates the project's options at the version `cleanarch.json` records and at the target, then classifies each file between the two and this project, without writing in the project; `--to` names the target, the latest stable version by default, `--source` reads a `.nupkg` or a folder of them in place of the NuGet sources, `--json` writes the report outside the project, `--keep <folder>` keeps both generations there | `upgrade-report` |
+
+[Upgrading](../guides/upgrading.md) says how to read the report and take the version.
+
 ## What still runs through Tools/Tasks.cs
 
 These tasks have no command of the tool, and `dotnet run Tools/Tasks.cs bootstrap` stays the one
@@ -203,16 +215,11 @@ that pins it:
 
 | Task | Runs |
 |---|---|
-| `check` | what `verify` would catch on the files a change touches |
 | `restore` | `dotnet restore` of the solution, which `verify` runs as a step |
-| `docs-index` | the index of each folder under `docs/`, and its `--check` |
 | `hygiene` | the self-tests of the gates, then `docs-index --check` |
-| `upgrade-report` | what a newer version of the template changes in this project |
-| `presentation-scaffold`, `web-scaffold` | each presentation project or web app still holding its scaffold file |
 
 The tool also runs some of its steps through `Tools/Tasks.cs`, and prints each one:
 
-- `bootstrap` runs `presentation-scaffold`, `docs-index` and `web-scaffold`.
 - `add web-app` and `add web-package` run `web-join`, and `add presentation` runs
   `presentation-join`, then `presentation-scaffold`.
 <!--#if (canAddFeature && api)-->
@@ -237,4 +244,4 @@ The tool also runs some of its steps through `Tools/Tasks.cs`, and prints each o
 - `remove feature --apply` runs `migration-check` before it writes, then `docs-index`, `build` and
   `migration-add` from that build.
 <!--#endif-->
-- `verify` runs `docs-index --check`, and `coverage` runs `Tools/CoverageGate.cs`.
+- `verify` runs the self-tests of the scripts under `Tools/`.

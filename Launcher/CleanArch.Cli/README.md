@@ -17,6 +17,10 @@ dotnet cleanarch test        # dotnet test of the solution at the project root
 dotnet cleanarch test --no-integration
                             # build every test project, run only the ones that need no Docker daemon
 dotnet cleanarch coverage    # dotnet test with coverage, then the floor coverage.minimum states
+dotnet cleanarch check       # while you work: format, build and unit tests over what a change touches
+dotnet cleanarch docs-index  # the index of each folder under docs/, from the pages' frontmatter
+dotnet cleanarch upgrade-report --keep ../upgrade
+                             # what a newer template version changes here; writes nothing in the project
 dotnet cleanarch verify      # the whole gate: the repository checks, the build, every test,
                              # the pending-model-changes checks and the vulnerable-packages audit
 dotnet cleanarch add web-app --name Backoffice --framework vite-react
@@ -100,13 +104,13 @@ own. Each takes `--name`, `--yes`, `--template-source`, `--hive`, `--dry-run` an
 per option of its template; `--dry-run` prints the install, the template and the steps it would run
 and writes nothing. `add web-package` exists only where the project file records a `web` workspace.
 
-`bootstrap` runs, in this order and stopping at the first that fails: `presentation-scaffold`,
-`dotnet format` of the usings and the whitespace, `docs-index`, the OpenAPI reference as `openapi`
-writes it where the project file records an api presentation, `dotnet tool restore`, each context's
-initial migration (a context that already has its migrations is left as it is), the .NET client as
-`openapi` writes it where the file also records `client`, then `web-scaffold` where it records a web
-app. The steps the tool does not hold yet, `presentation-scaffold`, `docs-index` and `web-scaffold`,
-run as `dotnet run Tools/Tasks.cs <task>`, printed like every other line. It does not install the
+`bootstrap` runs, in this order and stopping at the first that fails: the pages of each
+presentation project still holding its scaffold file, `dotnet format` of the usings and the
+whitespace, `docs-index`, the OpenAPI reference as `openapi` writes it where the project file
+records an api presentation, `dotnet tool restore`, each context's initial migration (a context that
+already has its migrations is left as it is), the .NET client as `openapi` writes it where the file
+also records `client`, then the pages of each web app still holding its scaffold file where it
+records a web app. It does not install the
 tool itself: the tool that runs it is the one the project pins, which `dotnet tool restore` keeps.
 When a step fails, it names that step, says what is done and what is not, and forwards the step's
 exit code; what is done stays done, and bootstrap runs again once the cause is fixed. On success it

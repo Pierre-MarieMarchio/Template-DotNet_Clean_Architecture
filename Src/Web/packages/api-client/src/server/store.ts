@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
+import { csrfHeader, csrfHeaderKey, csrfHeaderName, refreshTokenModeHeaderKey } from '../protocol.ts';
 import { forward } from './relay.ts';
 
 export const sessionCookie = '__Host-session';
@@ -39,7 +40,7 @@ interface Session<G extends Grant> {
 
 export const safeMethods = new Set(['GET', 'HEAD']);
 
-export const browserCredentials = ['authorization', 'cookie', 'x-refresh-token-mode', 'x-csrf'];
+export const browserCredentials = ['authorization', 'cookie', refreshTokenModeHeaderKey, csrfHeaderKey];
 
 export function sessionStore<G extends Grant>(renew: Renew<G>, options: SessionStoreOptions): SessionStore<G> {
   const { refreshAhead, now } = options;
@@ -158,12 +159,12 @@ export function changesState(request: IncomingMessage): boolean {
 }
 
 export function refusedWithoutCsrfHeader(request: IncomingMessage, response: ServerResponse): boolean {
-  if (!changesState(request) || request.headers['x-csrf'] === '1') {
+  if (!changesState(request) || request.headers[csrfHeaderKey] === csrfHeader[csrfHeaderName]) {
     return false;
   }
 
   request.resume();
-  answerProblem(response, 403, 'Forbidden', 'A request that changes state carries the X-CSRF: 1 header.', csrfRefusalCode);
+  answerProblem(response, 403, 'Forbidden', `A request that changes state carries the ${csrfHeaderName}: ${csrfHeader[csrfHeaderName]} header.`, csrfRefusalCode);
 
   return true;
 }

@@ -1,5 +1,5 @@
 ﻿import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
-import { logoutPath, refreshPath } from '../session.ts';
+import { grantPaths, logoutPath, refreshPath } from '../protocol.ts';
 import { apiOrigin, forwardedHeaders, isRelayedToApi, pathOf, type ApiRelay } from './relay.ts';
 import {
   accessTokenOf,
@@ -26,13 +26,6 @@ export interface ServerSessions {
 interface LocalGrant extends Grant {
   readonly refreshToken: string;
 }
-
-const grantPaths = [
-  '/api/v1/auth/login',
-  '/api/v1/auth/login/two-factor',
-  '/api/v1/auth/login/external',
-  '/api/v1/auth/passkeys/sign-in',
-];
 
 const unrelayedAnswerHeaders = new Set(['connection', 'content-encoding', 'content-length', 'keep-alive', 'set-cookie', 'transfer-encoding']);
 

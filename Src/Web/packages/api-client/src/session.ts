@@ -1,27 +1,18 @@
 import type { Middleware } from 'openapi-fetch';
-
-export const refreshTokenModeHeader: Readonly<Record<'X-Refresh-Token-Mode', 'cookie'>> = Object.freeze({
-  'X-Refresh-Token-Mode': 'cookie',
-});
-
-export const refreshPath = '/api/v1/auth/refresh';
-export const logoutPath = '/api/v1/auth/logout';
-
-export const cookieModePaths: readonly string[] = Object.freeze([
-  '/api/v1/auth/login',
-  '/api/v1/auth/login/two-factor',
-  '/api/v1/auth/login/external',
-  '/api/v1/auth/passkeys/sign-in',
-  refreshPath,
+import {
+  cookieModePaths,
+  csrfHeader,
+  csrfHeaderName,
   logoutPath,
-]);
-
-export const csrfHeader: Readonly<Record<'X-CSRF', '1'>> = Object.freeze({ 'X-CSRF': '1' });
+  refreshPath,
+  refreshTokenModeHeader,
+  refreshTokenModeHeaderName,
+} from './protocol.ts';
 
 export function serverSessionMiddleware(): Middleware {
   return {
     onRequest({ request }) {
-      request.headers.set('X-CSRF', csrfHeader['X-CSRF']);
+      request.headers.set(csrfHeaderName, csrfHeader[csrfHeaderName]);
       return request;
     },
   };
@@ -162,7 +153,7 @@ export function sessionMiddleware(session: BrowserSession): Middleware {
   return {
     onRequest({ request, schemaPath, id }) {
       if (cookieModePaths.includes(schemaPath)) {
-        request.headers.set('X-Refresh-Token-Mode', refreshTokenModeHeader['X-Refresh-Token-Mode']);
+        request.headers.set(refreshTokenModeHeaderName, refreshTokenModeHeader[refreshTokenModeHeaderName]);
         return request;
       }
 

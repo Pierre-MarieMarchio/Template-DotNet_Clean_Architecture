@@ -1,26 +1,16 @@
 ﻿import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
-import { grantPaths, logoutPath, refreshPath } from '../protocol.ts';
-import { apiOrigin, forwardedHeaders, isRelayedToApi, pathOf, type ApiRelay } from './relay.ts';
-import {
-  accessTokenOf,
-  browserCredentials,
-  clearedCookie,
-  refusedWithoutCsrfHeader,
-  relayWithSession,
-  sessionCookie,
-  sessionStore,
-  type Grant,
-  type Renewal,
-} from './store.ts';
+import { bearer, grantPaths, logoutPath, refreshPath } from '../protocol.ts';
+import { answerUncached } from './answers.ts';
+import { clearedCookie } from './cookies.ts';
+import { apiOrigin, forwardedHeaders } from './relay.ts';
+import { browserCredentials, sessionServer, type ServerSessions, type SessionRoute } from './router.ts';
+import { sessionCookie, sessionStore, type Grant, type Renewal } from './store.ts';
+
+export type { ServerSessions } from './router.ts';
 
 export interface ServerSessionsOptions {
   readonly refreshAhead?: number;
   readonly now?: () => number;
-}
-
-export interface ServerSessions {
-  readonly relay: ApiRelay;
-  accessToken(request: IncomingMessage, response?: ServerResponse): Promise<string | undefined>;
 }
 
 interface LocalGrant extends Grant {
@@ -39,7 +29,7 @@ export function serverSessions(upstream: string, options: ServerSessionsOptions 
     headers['content-type'] = 'application/json';
 
     if (accessToken !== undefined) {
-      headers['authorization'] = `Bearer ${accessToken}`;
+      headers['authorization'] = bearer(accessToken);
     }
 
     return fetch(new URL(path, target), { method: 'POST', headers, body });
@@ -61,7 +51,7 @@ export function serverSessions(upstream: string, options: ServerSessionsOptions 
     return (answer.ok ? readGrant(await readJson(answer)) : undefined) ?? 'ended';
   }
 
-  const store = sessionStore(refresh, { refreshAhead: options.refreshAhead ?? 30_000, now: options.now ?? Date.now });
+  const store = sessionStore(refresh, { refreshAhead: options.refreshAhead, now: options.now ?? Date.now });
 
   async function signIn(grantPath: string, request: IncomingMessage, response: ServerResponse): Promise<void> {
     const headers = callHeaders(request);
@@ -71,8 +61,7 @@ export function serverSessions(upstream: string, options: ServerSessionsOptions 
     try {
       answer = await fetch(new URL(grantPath, target), { method: 'POST', headers, body });
     } catch {
-      response.writeHead(502, { 'cache-control': 'no-store' });
-      response.end();
+      answerUncached(response, 502);
       return;
     }
 
@@ -99,39 +88,18 @@ export function serverSessions(upstream: string, options: ServerSessionsOptions 
       await call(logoutPath, request, JSON.stringify({ refreshToken: grant.refreshToken }), grant.accessToken).catch(() => undefined);
     }
 
-    response.writeHead(204, { 'set-cookie': clearedCookie(sessionCookie), 'cache-control': 'no-store' });
-    response.end();
+    answerUncached(response, 204, { 'set-cookie': clearedCookie(sessionCookie) });
   }
 
-  const relay: ApiRelay = (request, response, next) => {
-    const url = request.url ?? '/';
-
-    if (!isRelayedToApi(url)) {
-      next();
-      return;
-    }
-
-    if (refusedWithoutCsrfHeader(request, response)) {
-      return;
-    }
-
-    const method = (request.method ?? 'GET').toUpperCase();
-    const path = pathOf(url);
-    const grantPath = grantPaths.find((candidate) => candidate === path);
-    const handled =
-      method === 'POST' && grantPath !== undefined
-        ? signIn(grantPath, request, response)
-        : method === 'POST' && path === logoutPath
-          ? signOut(request, response)
-          : relayWithSession(target, store, request, response);
-
-    handled.catch(next);
+  const routes: Record<string, SessionRoute> = {
+    [logoutPath]: { method: 'POST', handle: signOut },
   };
 
-  return {
-    relay,
-    accessToken: (request, response) => accessTokenOf(store, request, response),
-  };
+  for (const grantPath of grantPaths) {
+    routes[grantPath] = { method: 'POST', handle: (request, response) => signIn(grantPath, request, response) };
+  }
+
+  return sessionServer(target, store, routes);
 }
 
 function callHeaders(request: IncomingMessage): Record<string, string> {

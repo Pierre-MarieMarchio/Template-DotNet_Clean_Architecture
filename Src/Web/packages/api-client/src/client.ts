@@ -1,6 +1,7 @@
 import createClient, { type Client, type Middleware } from 'openapi-fetch';
 import type { paths } from './generated/schema.ts';
 import { toApiError } from './problem-details.ts';
+import { bearer } from './protocol.ts';
 
 export type AccessTokenProvider = () => string | undefined | Promise<string | undefined>;
 
@@ -36,7 +37,7 @@ export function bearerToken(accessToken: AccessTokenProvider): Middleware {
       const token = await accessToken();
 
       if (token !== undefined && token !== '') {
-        request.headers.set('Authorization', `Bearer ${token}`);
+        request.headers.set('Authorization', bearer(token));
       }
 
       return request;

@@ -1,5 +1,6 @@
 import type { Middleware } from 'openapi-fetch';
 import {
+  bearer,
   cookieModePaths,
   csrfHeader,
   csrfHeaderName,
@@ -160,7 +161,7 @@ export function sessionMiddleware(session: BrowserSession): Middleware {
       const token = session.accessToken();
 
       if (token !== undefined) {
-        request.headers.set('Authorization', `Bearer ${token}`);
+        request.headers.set('Authorization', bearer(token));
       }
 
       retries.set(id, { request: request.clone(), token });
@@ -182,7 +183,7 @@ export function sessionMiddleware(session: BrowserSession): Middleware {
         return response;
       }
 
-      retry.request.headers.set('Authorization', `Bearer ${token}`);
+      retry.request.headers.set('Authorization', bearer(token));
       return options.fetch(retry.request);
     },
     onError({ id }) {

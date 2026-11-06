@@ -1,20 +1,10 @@
-import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as oidc from 'openid-client';
-import { apiOrigin, isRelayedToApi, pathOf, type ApiRelay } from './relay.ts';
-import type { ServerSessions } from './session.ts';
-import {
-  accessTokenOf,
-  answerProblem,
-  clearedCookie,
-  readCookie,
-  refusedWithoutCsrfHeader,
-  relayWithSession,
-  sessionCookie,
-  sessionStore,
-  type Grant,
-  type Renewal,
-} from './store.ts';
+import { answerProblem, answerUncached } from './answers.ts';
+import { clearedCookie, cookie, newId, readCookie } from './cookies.ts';
+import { apiOrigin } from './relay.ts';
+import { sessionServer, type ServerSessions } from './router.ts';
+import { evictExpired, sessionCookie, sessionStore, type Grant, type Renewal } from './store.ts';
 
 export const signInPath = '/session/sign-in';
 export const callbackPath = '/session/callback';
@@ -122,7 +112,7 @@ export function providerSessions(upstream: string, settings: ProviderSettings, o
     }
   }
 
-  const store = sessionStore(refresh, { refreshAhead: options.refreshAhead ?? 30_000, now });
+  const store = sessionStore(refresh, { refreshAhead: options.refreshAhead, now });
 
   async function signIn(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const { origin, scope } = configured();
@@ -144,14 +134,9 @@ export function providerSessions(upstream: string, settings: ProviderSettings, o
       returnTo: localPath(new URL(request.url ?? '/', origin).searchParams.get('returnTo'), origin),
       expiresAt: now() + signInLifetime,
     };
-    const id = randomBytes(32).toString('base64url');
+    const id = newId();
 
-    for (const [stale, entry] of pending) {
-      if (entry.expiresAt <= now() || pending.size >= pendingSignInLimit) {
-        pending.delete(stale);
-      }
-    }
-
+    evictExpired(pending, now(), (entry) => entry.expiresAt, pendingSignInLimit);
     pending.set(id, signingIn);
 
     const location = oidc.buildAuthorizationUrl(config, {
@@ -164,12 +149,7 @@ export function providerSessions(upstream: string, settings: ProviderSettings, o
       nonce: signingIn.nonce,
     });
 
-    response.writeHead(302, {
-      location: location.href,
-      'set-cookie': `${signInCookie}=${id}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${String(signInLifetime / 1000)}`,
-      'cache-control': 'no-store',
-    });
-    response.end();
+    answerUncached(response, 302, { location: location.href, 'set-cookie': cookie(signInCookie, id, signInLifetime / 1000) });
   }
 
   async function callback(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -211,12 +191,7 @@ export function providerSessions(upstream: string, settings: ProviderSettings, o
       return;
     }
 
-    response.writeHead(302, {
-      location: signingIn.returnTo,
-      'set-cookie': [store.open(request, grant), clearedCookie(signInCookie)],
-      'cache-control': 'no-store',
-    });
-    response.end();
+    answerUncached(response, 302, { location: signingIn.returnTo, 'set-cookie': [store.open(request, grant), clearedCookie(signInCookie)] });
   }
 
   async function signOut(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -236,50 +211,14 @@ export function providerSessions(upstream: string, settings: ProviderSettings, o
       }
     }
 
-    const body = JSON.stringify({ location });
-
-    response.writeHead(200, {
-      'set-cookie': clearedCookie(sessionCookie),
-      'content-type': 'application/json',
-      'content-length': Buffer.byteLength(body),
-      'cache-control': 'no-store',
-    });
-    response.end(body);
+    answerUncached(response, 200, { 'set-cookie': clearedCookie(sessionCookie), 'content-type': 'application/json' }, JSON.stringify({ location }));
   }
 
-  const routes: Readonly<Record<string, { readonly method: string; readonly handle: typeof signIn }>> = {
+  return sessionServer(target, store, {
     [signInPath]: { method: 'GET', handle: signIn },
     [callbackPath]: { method: 'GET', handle: callback },
     [signOutPath]: { method: 'POST', handle: signOut },
-  };
-
-  const relay: ApiRelay = (request, response, next) => {
-    const url = request.url ?? '/';
-    const route = Object.hasOwn(routes, pathOf(url)) ? routes[pathOf(url)] : undefined;
-
-    if (route === undefined && !isRelayedToApi(url)) {
-      next();
-      return;
-    }
-
-    if (refusedWithoutCsrfHeader(request, response)) {
-      return;
-    }
-
-    if (route !== undefined && (request.method ?? 'GET').toUpperCase() !== route.method) {
-      request.resume();
-      response.writeHead(405, { allow: route.method, 'cache-control': 'no-store' });
-      response.end();
-      return;
-    }
-
-    (route === undefined ? relayWithSession(target, store, request, response) : route.handle(request, response)).catch(next);
-  };
-
-  return {
-    relay,
-    accessToken: (request, response) => accessTokenOf(store, request, response),
-  };
+  });
 }
 
 export function checkProviderSettings(settings: ProviderSettings): void {

@@ -83,7 +83,7 @@ public sealed class TestCommandTests : IDisposable
     {
         using var project = SampleSolution.WithSolution();
         SampleSolution.AddUnitAndIntegrationTests(project);
-        FakeDotnet.ExitWith(3);
+        _dotnet.ExitWith(3);
 
         Run(["test"], project.Root).ShouldBe(3);
     }
@@ -93,7 +93,7 @@ public sealed class TestCommandTests : IDisposable
     {
         using var project = SampleSolution.WithSolution();
         SampleSolution.AddUnitAndIntegrationTests(project);
-        FakeDotnet.ExitWith(2);
+        _dotnet.ExitWith(2);
 
         Run(["test", "--no-integration"], project.Root).ShouldBe(2);
 

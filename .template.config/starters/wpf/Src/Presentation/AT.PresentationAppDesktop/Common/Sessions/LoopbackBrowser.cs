@@ -119,9 +119,13 @@ internal sealed class LoopbackBrowser : IBrowser, IDisposable
 
     private static async Task ReadHeadersSoClosingDoesNotResetTheAnswerAsync(StreamReader reader, CancellationToken cancellationToken)
     {
-        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { Length: > 0 })
+        string? header;
+
+        do
         {
+            header = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
         }
+        while (header is { Length: > 0 });
     }
 
     private static async Task RespondAsync(Stream stream, bool isCallback, CancellationToken cancellationToken)

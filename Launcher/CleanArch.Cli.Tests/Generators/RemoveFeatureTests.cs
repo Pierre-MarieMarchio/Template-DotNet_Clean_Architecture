@@ -49,7 +49,7 @@ public sealed class RemoveFeatureTests
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = Run([.. args, "--root", root], output, error, run);
+        int code = Run([.. args, "--root", root], output, error, new FakeExecutor(run));
 
         return (code, output.ToString(), error.ToString());
     }
@@ -86,26 +86,7 @@ public sealed class RemoveFeatureTests
 
     private static string NewRoot(string scratch) => Path.Combine(scratch, (++_trees).ToString(CultureInfo.InvariantCulture));
 
-    private static void Commit(string root)
-    {
-        if (!Directory.Exists(Path.Combine(root, ".git")))
-        {
-            Succeeded(root, "init", "--quiet");
-        }
-
-        Succeeded(root, "add", "-A");
-        Succeeded(root, "-c", "user.name=self-test", "-c", "user.email=self-test@localhost", "-c", "commit.gpgsign=false", "commit", "--quiet", "--allow-empty", "-m", "self-test");
-    }
-
-    private static void Succeeded(string root, params string[] arguments)
-    {
-        var (code, output) = Git(root, arguments);
-
-        if (code != 0)
-        {
-            throw new InvalidOperationException($"git {string.Join(' ', arguments)} failed in {root} with exit code {code}: {output}");
-        }
-    }
+    private static void Commit(string root) => FakeGit.Commit(root);
 
     private static Dictionary<string, string> Snapshot(string root) =>
         Directory.EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories)
@@ -152,16 +133,6 @@ public sealed class RemoveFeatureTests
     };
 
     private const string _program = "builder.Services.AddTodoLists();\n\nbuilder.Services.AddCacheStore();\n";
-
-    private static void DeleteTreeWithReadOnlyFiles(string path)
-    {
-        foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
-        {
-            File.SetAttributes(file, FileAttributes.Normal);
-        }
-
-        Directory.Delete(path, recursive: true);
-    }
 
     private static string Skeleton(string scratch, string edits = "")
     {
@@ -268,7 +239,7 @@ public sealed class RemoveFeatureTests
 
         string loose = Skeleton(scratch);
 
-        DeleteTreeWithReadOnlyFiles(Path.Combine(loose, ".git"));
+        FakeGit.Forget(loose);
         Refused(expect, "a tree git does not hold", loose, "Widgets", "not a git work tree");
 
         void Composed(string name, string path, string line, params string[] expected)
@@ -478,7 +449,7 @@ public sealed class RemoveFeatureTests
     }
 
     private static int Generate(string root, params string[] args) =>
-        NewFeature.Run([.. args, "--root", root], TextWriter.Null, TextWriter.Null, _ => 0, NewFeatureTests.Version);
+        NewFeature.Run([.. args, "--root", root], TextWriter.Null, TextWriter.Null, new FakeExecutor(_ => 0), NewFeatureTests.Version);
 
     private static void Projects(string root)
     {

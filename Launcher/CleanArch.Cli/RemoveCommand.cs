@@ -37,7 +37,7 @@ internal static class RemoveCommand
                 ],
                 parseResult.InvocationConfiguration.Output,
                 parseResult.InvocationConfiguration.Error,
-                GeneratorCommand.Runner(parseResult)));
+                GeneratorCommand.Executor(parseResult)));
         }
 
         return feature;

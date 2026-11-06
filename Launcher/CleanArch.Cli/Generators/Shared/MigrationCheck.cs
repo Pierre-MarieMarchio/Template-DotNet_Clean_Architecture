@@ -2,14 +2,14 @@
 
 internal static class MigrationCheck
 {
-    internal static string? Refusal(string root, TextWriter output, Func<TextEdits.Command, int> run, string migration)
+    internal static string? Refusal(string root, TextWriter output, IExecutor executor, string migration)
     {
         var check = TextEdits.Task(root, "migration-check");
 
         output.WriteLine($"Checking that no model change waits for a migration: {check.Display}");
         output.Flush();
 
-        return run(check) == 0
+        return executor.Run(check) == 0
             ? null
             : $"`{check.Display}` failed: the business model holds a change no migration holds yet, or it could not be checked. "
                 + $"{migration} would carry that change too, so put it in a migration of its own with "

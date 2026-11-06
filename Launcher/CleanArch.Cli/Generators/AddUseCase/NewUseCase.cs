@@ -129,7 +129,7 @@ internal static class NewUseCase
         internal Parameter[] Unknown => [.. Inputs.Where(parameter => !parameter.IsKnown)];
     }
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor)
     {
         var problems = new List<string>();
         var request = Parse(args, problems);
@@ -139,10 +139,10 @@ internal static class NewUseCase
 
         return spec is null
             ? Refusal.Write(error, problems, _usage)
-            : new UseCaseGeneration(spec with { Routing = ReadRouting(root, spec) }, new GenerationContext(root, request.DryRun, output, error), run).Generate();
+            : new UseCaseGeneration(spec with { Routing = ReadRouting(root, spec) }, new GenerationContext(root, request.DryRun, output, error), executor).Generate();
     }
 
-    private sealed class UseCaseGeneration(Spec spec, GenerationContext context, Func<TextEdits.Command, int> run) : Generation(context)
+    private sealed class UseCaseGeneration(Spec spec, GenerationContext context, IExecutor executor) : Generation(context)
     {
         private readonly TextEdits.Editor _editor = new(context.Root);
 
@@ -196,7 +196,7 @@ internal static class NewUseCase
 
         protected override int Finish() =>
             _contracts.Count == 0 && _editor.Applied.Count == 0
-            || TextEdits.RunAll(TextEdits.ContractSteps(Root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), run, Output, Error, "the use case's files, its action, its contracts and its route's row")
+            || TextEdits.RunAll(TextEdits.ContractSteps(Root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), executor.Run, Output, Error, "the use case's files, its action, its contracts and its route's row")
                 ? Succeeded
                 : Failed;
     }

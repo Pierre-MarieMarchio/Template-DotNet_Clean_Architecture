@@ -33,7 +33,7 @@ public sealed partial class NewFeatureTests
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = NewField.Run([.. args, "--root", root], output, error, run);
+        int code = NewField.Run([.. args, "--root", root], output, error, new FakeExecutor(run));
 
         return (code, output.ToString().ReplaceLineEndings("\n"), error.ToString().ReplaceLineEndings("\n"));
     }

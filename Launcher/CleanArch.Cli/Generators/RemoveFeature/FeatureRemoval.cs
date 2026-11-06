@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -118,7 +117,7 @@ internal static class FeatureRemoval
         "DeletedAccounts", "Auth", "ExternalIdentity", "BackgroundJobs",
     };
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor)
     {
         string? features = null;
         string root = Directory.GetCurrentDirectory();
@@ -153,10 +152,10 @@ internal static class FeatureRemoval
 
         root = Path.GetFullPath(root);
 
-        return new Removal(Analyze(root, features), new GenerationContext(root, !apply, output, error), run).Generate();
+        return new Removal(Analyze(root, features, executor), new GenerationContext(root, !apply, output, error), executor).Generate();
     }
 
-    private sealed class Removal(Analysis analysis, GenerationContext context, Func<TextEdits.Command, int> run) : Generation(context)
+    private sealed class Removal(Analysis analysis, GenerationContext context, IExecutor executor) : Generation(context)
     {
         private readonly string[] _deleted = [.. analysis.Deleted];
 
@@ -216,7 +215,7 @@ internal static class FeatureRemoval
 
         protected override string? Preconditions() =>
             analysis.Migration is not null || HasInitialMigration(Root)
-                ? MigrationCheck.Refusal(Root, Output, run, $"The migration that removes {analysis.Features}")
+                ? MigrationCheck.Refusal(Root, Output, executor, $"The migration that removes {analysis.Features}")
                 : null;
 
         protected override void Commit() => TextEdits.Commit(Root, Created, Replaced, _deleted);
@@ -230,7 +229,7 @@ internal static class FeatureRemoval
         {
             RemoveEmptyFolders();
 
-            if (!TextEdits.RunAll(Steps(Root, analysis), run, Output, Error, $"{analysis.Features} removed, its edits undone"))
+            if (!TextEdits.RunAll(Steps(Root, analysis), executor.Run, Output, Error, $"{analysis.Features} removed, its edits undone"))
             {
                 foreach (var step in ContractSteps(Root))
                 {
@@ -247,7 +246,7 @@ internal static class FeatureRemoval
 
             var contract = ContractSteps(Root);
 
-            if (contract.Count > 0 && !TextEdits.RunAll(contract, run, Output, Error, $"{analysis.Features} removed and its migration added"))
+            if (contract.Count > 0 && !TextEdits.RunAll(contract, executor.Run, Output, Error, $"{analysis.Features} removed and its migration added"))
             {
                 return Failed;
             }
@@ -285,7 +284,7 @@ internal static class FeatureRemoval
         return 1;
     }
 
-    private static Analysis Analyze(string root, string features)
+    private static Analysis Analyze(string root, string features, IExecutor executor)
     {
         var blockers = new List<string>();
         string manifestPath = FeatureManifest.PathOf(features);
@@ -436,7 +435,7 @@ internal static class FeatureRemoval
 
         if (manifest is not null && blockers.Count == 0)
         {
-            blockers.AddRange(GitProblems(root, [.. analysis.Deleted, .. undone.Keys]));
+            blockers.AddRange(GitProblems(root, [.. analysis.Deleted, .. undone.Keys], executor));
         }
 
         return analysis;
@@ -622,14 +621,14 @@ internal static class FeatureRemoval
         return contiguous.Length + spread.Length == 0 && !visible.Any(lines.Contains) ? (State.Gone, [], -1) : (State.Displaced, [], -1);
     }
 
-    private static IEnumerable<string> GitProblems(string root, List<string> paths)
+    private static IEnumerable<string> GitProblems(string root, List<string> paths, IExecutor executor)
     {
         if (paths.Count == 0)
         {
             yield break;
         }
 
-        if (Git(root, "rev-parse", "--is-inside-work-tree").Code != 0)
+        if (Git(executor, root, "rev-parse", "--is-inside-work-tree").Code != 0)
         {
             yield return "This tree is not a git work tree. --apply deletes and edits files that only git restore gives back, so it runs on a committed tree alone.";
 
@@ -637,13 +636,13 @@ internal static class FeatureRemoval
         }
 
         string[] specs = [.. paths.Select(path => ":(literal)" + path)];
-        var tracked = Git(root, ["ls-files", "-z", "--", .. specs]).Output.Split('\0', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
-        var changed = Git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", .. specs]).Output
+        var tracked = Git(executor, root, ["ls-files", "-z", "--", .. specs]).Output.Split('\0', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        var changed = Git(executor, root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", .. specs]).Output
             .Split('\0', StringSplitOptions.RemoveEmptyEntries)
             .Where(entry => entry.Length > 3)
             .Select(entry => entry[3..])
             .ToHashSet(StringComparer.Ordinal);
-        string prefix = Git(root, "rev-parse", "--show-prefix").Output.Trim();
+        string prefix = Git(executor, root, "rev-parse", "--show-prefix").Output.Trim();
         string[] unsafePaths = [.. paths.Where(path => !tracked.Contains(path) || changed.Contains(prefix + path)).Order(StringComparer.Ordinal)];
 
         if (unsafePaths.Length > 0)
@@ -655,31 +654,8 @@ internal static class FeatureRemoval
         }
     }
 
-    internal static (int Code, string Output) Git(string root, params string[] arguments)
-    {
-        var start = new ProcessStartInfo("git") { WorkingDirectory = root, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        try
-        {
-            using var process = Process.Start(start)!;
-            var errors = process.StandardError.ReadToEndAsync();
-            string text = process.StandardOutput.ReadToEnd();
-
-            process.WaitForExit();
-            errors.Wait();
-
-            return (process.ExitCode, text);
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            return (127, string.Empty);
-        }
-    }
+    private static (int Code, string Output) Git(IExecutor executor, string root, params string[] arguments) =>
+        executor.Read(new TextEdits.Command($"git {string.Join(' ', arguments)}", root, "git", arguments));
 
     private static string? Persistence(string root)
     {

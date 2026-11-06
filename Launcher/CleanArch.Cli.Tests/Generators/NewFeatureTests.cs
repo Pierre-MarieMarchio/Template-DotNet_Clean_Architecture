@@ -352,7 +352,7 @@ public sealed partial class NewFeatureTests
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = Run([.. args, "--root", root], output, error, run, Version);
+        int code = Run([.. args, "--root", root], output, error, new FakeExecutor(run), Version);
 
         return (code, output.ToString().ReplaceLineEndings("\n"), error.ToString().ReplaceLineEndings("\n"));
     }

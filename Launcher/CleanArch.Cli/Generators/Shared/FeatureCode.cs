@@ -37,7 +37,7 @@ internal static class FeatureCode
 
     internal static string PersistenceProject(Spec spec) => ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Persistence");
 
-    internal static string? Preconditions(string root, Spec spec, TextWriter output, Func<TextEdits.Command, int> run)
+    internal static string? Preconditions(string root, Spec spec, TextWriter output, IExecutor executor)
     {
         string auth = ProjectOf(spec, "Src/Infrastructure", "Infrastructure.Auth");
         string[] contexts =
@@ -55,7 +55,7 @@ internal static class FeatureCode
                 + "and commit the migrations first (docs/guides/migrations.md).";
         }
 
-        return MigrationCheck.Refusal(root, output, run, $"The migration of {spec.Features}");
+        return MigrationCheck.Refusal(root, output, executor, $"The migration of {spec.Features}");
     }
 
     internal static bool HasInitialMigration(string root, string context)

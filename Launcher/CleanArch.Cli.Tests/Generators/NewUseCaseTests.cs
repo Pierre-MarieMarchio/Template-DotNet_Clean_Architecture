@@ -136,7 +136,7 @@ public sealed class NewUseCaseTests
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        int code = Run([.. args, "--root", root], output, error, run);
+        int code = Run([.. args, "--root", root], output, error, new FakeExecutor(run));
 
         return (code, output.ToString(), error.ToString());
     }

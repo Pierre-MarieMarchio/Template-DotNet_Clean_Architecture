@@ -76,7 +76,7 @@ internal static class NewFeature
         string Root,
         bool DryRun);
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run, string version)
+    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor, string version)
     {
         var problems = new List<string>();
         var request = Parse(args, problems);
@@ -86,10 +86,10 @@ internal static class NewFeature
 
         return spec is null
             ? Refusal.Write(error, problems, _usage)
-            : new FeatureGeneration(spec, problems, new GenerationContext(root, request.DryRun, output, error), run, version).Generate();
+            : new FeatureGeneration(spec, problems, new GenerationContext(root, request.DryRun, output, error), executor, version).Generate();
     }
 
-    private sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, Func<TextEdits.Command, int> run, string version) : Generation(context)
+    private sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, IExecutor executor, string version) : Generation(context)
     {
         private List<Emission> _plan = [];
 
@@ -125,7 +125,7 @@ internal static class NewFeature
                 $"{ManifestPath(spec)} records {spec.Features} with these options already: its files and edits are written, "
                 + "so nothing is written again.");
 
-            return Context.DryRun ? Succeeded : NewFeature.Finish(Root, spec, Output, Error, run, resumed: true);
+            return Context.DryRun ? Succeeded : NewFeature.Finish(Root, spec, Output, Error, executor, resumed: true);
         }
 
         protected override bool Draft(List<string> problems)
@@ -152,7 +152,7 @@ internal static class NewFeature
                 "Nothing was written: every edit is made or none is. Put back the line each failed edit is placed beside, "
                 + "or write the feature by hand from the edits above.");
 
-        protected override string? Preconditions() => FeatureCode.Preconditions(Root, spec, Output, run);
+        protected override string? Preconditions() => FeatureCode.Preconditions(Root, spec, Output, executor);
 
         protected override void Report(ReportMode mode)
         {
@@ -166,7 +166,7 @@ internal static class NewFeature
             }
         }
 
-        protected override int Finish() => NewFeature.Finish(Root, spec, Output, Error, run, resumed: false);
+        protected override int Finish() => NewFeature.Finish(Root, spec, Output, Error, executor, resumed: false);
 
     }
 
@@ -193,7 +193,7 @@ internal static class NewFeature
                 : spec.Fields is null);
     }
 
-    private static int Finish(string root, Spec spec, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run, bool resumed)
+    private static int Finish(string root, Spec spec, TextWriter output, TextWriter error, IExecutor executor, bool resumed)
     {
         string migrations = System.IO.Path.Combine(root, PersistenceProject(spec), "Migrations");
         bool migrated = resumed
@@ -204,7 +204,7 @@ internal static class NewFeature
             ? "the feature's files and edits, written by an earlier run"
             : "the feature's files, its edits and its manifest, which are consistent with each other";
 
-        return TextEdits.RunAll(Steps(root, spec, migrated), run, output, error, done) ? 0 : 1;
+        return TextEdits.RunAll(Steps(root, spec, migrated), executor.Run, output, error, done) ? 0 : 1;
     }
 
     private static List<TextEdits.Command> Steps(string root, Spec spec, bool migrated = false) =>

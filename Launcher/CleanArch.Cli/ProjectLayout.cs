@@ -41,9 +41,9 @@ internal static class ProjectLayout
     public static string EndToEndTests(LocatedProject project) =>
         Path.Combine("Tests", "EndToEnd", FolderOf(project, "EndToEnd.Tests"), ProjectName(project, "EndToEnd.Tests") + ".csproj");
 
-    public static string EndToEndComposeProject(LocatedProject project) => ProjectFacts.KebabName(project.File.Name) + "-end-to-end";
+    public static string EndToEndComposeProject(LocatedProject project) => ProjectNames.KebabName(project.File.Name) + "-end-to-end";
 
-    private static string FolderOf(LocatedProject project, string part) => ProjectFacts.FolderOf(project.File.Name, part);
+    private static string FolderOf(LocatedProject project, string part) => ProjectNames.FolderOf(project.File.Name, part);
 
     private static string ProjectName(LocatedProject project, string part) => $"{project.File.Name}.{part}";
 }

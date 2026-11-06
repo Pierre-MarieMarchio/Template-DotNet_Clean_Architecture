@@ -122,8 +122,14 @@ public sealed class EjectCommandTests : IDisposable
     [Fact]
     public void TheToolShipsTheSourceOfEveryFileItIsBuiltFrom_ButItsEntryAndItsList()
     {
-        string[] sources = [.. Directory.EnumerateFiles(Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli"), "*.cs")
+        string tool = Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli");
+        IEnumerable<string> linked = System.Xml.Linq.XDocument.Load(Path.Combine(tool, "CleanArch.Cli.csproj"))
+            .Descendants("Compile")
+            .Select(compile => compile.Attribute("Link")?.Value)
+            .OfType<string>();
+        string[] sources = [.. Directory.EnumerateFiles(tool, "*.cs")
             .Select(Path.GetFileName).OfType<string>()
+            .Concat(linked)
             .Except(["Program.cs", "BuiltInCommands.cs"])
             .Order(StringComparer.Ordinal)];
 
@@ -151,13 +157,14 @@ public sealed class EjectCommandTests : IDisposable
         CSharpParseOptions options = CSharpParseOptions.Default
             .WithLanguageVersion(LanguageVersion.Latest)
             .WithFeatures([new("FileBasedProgram", "true")]);
-        string[] platform = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator);
+        string sharedFramework = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        IEnumerable<string> platform = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
+            .Where(path => Path.GetDirectoryName(path) == sharedFramework);
         var written = CSharpCompilation.Create(
             "ejected",
             [CSharpSyntaxTree.ParseText(app, options), CSharpSyntaxTree.ParseText(_implicitUsings, options)],
             [.. platform
                 .Append(typeof(System.CommandLine.Command).Assembly.Location)
-                .Except([typeof(CleanArchCommand).Assembly.Location, typeof(EjectCommandTests).Assembly.Location])
                 .Select(path => MetadataReference.CreateFromFile(path))],
             new CSharpCompilationOptions(OutputKind.ConsoleApplication, nullableContextOptions: NullableContextOptions.Enable));
         CSharpGeneratorDriver.Create([.. new AnalyzerFileReference(RegexGenerator, new GeneratorLoader()).GetGenerators(LanguageNames.CSharp)], parseOptions: options)

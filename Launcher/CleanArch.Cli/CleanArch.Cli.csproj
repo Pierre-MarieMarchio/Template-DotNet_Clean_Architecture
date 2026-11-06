@@ -56,7 +56,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="*.cs" Exclude="Program.cs;BuiltInCommands.cs" LogicalName="source/%(Filename)%(Extension)" />
+    <Compile Include="../CleanArch.Tooling/ProjectNames.cs" Link="ProjectNames.cs" />
+    <EmbeddedResource Include="*.cs;../CleanArch.Tooling/ProjectNames.cs" Exclude="Program.cs;BuiltInCommands.cs" LogicalName="source/%(Filename)%(Extension)" />
     <AssemblyMetadata Include="System.CommandLine" Value="@(PackageVersion->WithMetadataValue('Identity', 'System.CommandLine')->'%(Version)')" />
   </ItemGroup>
 

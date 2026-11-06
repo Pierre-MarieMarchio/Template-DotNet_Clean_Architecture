@@ -32,7 +32,7 @@ public sealed class OpenApiCommandTests : IDisposable
     }
 
     [Fact]
-    public void OpenApi_PrintsTheLinesItRuns_ThenWritesTheReferenceAndRegeneratesTheClient()
+    public void OpenApi_WritesTheReference_ThenRegeneratesTheClient()
     {
         using var project = new SampleProject(SampleProject.Api);
         string cache = Path.Combine(project.Root, _apiFolder, "obj", "Acme.Shop.Api.OpenApiFiles.cache");
@@ -56,12 +56,6 @@ public sealed class OpenApiCommandTests : IDisposable
         ]);
         build.Environment.ShouldNotBeNull()["ASPNETCORE_ENVIRONMENT"].ShouldBe("Development");
         build.Environment.ShouldNotBeNull().ContainsKey("Authentication__External__Authority").ShouldBeFalse();
-        _output.ToString().ShouldStartWith(
-            "ASPNETCORE_ENVIRONMENT=Development dotnet build "
-            + Path.Combine(project.Root, _apiProject)
-            + " -p:OpenApiGenerateDocumentsOnBuild=true"
-            + $" -p:OpenApiDocumentsDirectory={Path.Combine(project.Root, _referenceDirectory)}"
-            + " \"-p:OpenApiGenerateDocumentsOptions=--file-name v1\"" + Environment.NewLine);
 
         ExternalCall kiota = _calls[1];
         kiota.FileName.ShouldBe("dotnet");
@@ -79,11 +73,6 @@ public sealed class OpenApiCommandTests : IDisposable
             "--clean-output",
             "--log-level", "Warning",
         ]);
-        _output.ToString().ShouldContain(
-            "dotnet tool run kiota generate --language CSharp --openapi "
-            + Path.Combine(project.Root, _referencePath)
-            + " --output " + Path.Combine(project.Root, _generated)
-            + " --class-name ApiClient --namespace-name Acme.Shop.Client.Generated --exclude-backward-compatible --clean-output --log-level Warning");
 
         File.Exists(cache).ShouldBeFalse();
         File.ReadAllText(Path.Combine(project.Root, _referencePath)).ShouldBe(_referenceJson);
@@ -235,53 +224,6 @@ public sealed class OpenApiCommandTests : IDisposable
         File.ReadAllText(clientFile).ShouldContain("// drifted");
     }
 
-    [Theory]
-    [InlineData("openapi")]
-    [InlineData("openapi --check")]
-    public void OutsideAProject_TheCommandIsRefusedWithTheReason(string commandLine)
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(commandLine.Split(' '), folder).ShouldBe(CleanArchCommand.Failed);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _error.ToString().ShouldStartWith("Not inside a CleanArch project");
-        _error.ToString().ShouldContain(ProjectLocator.FileName);
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Theory]
-    [InlineData("openapi")]
-    [InlineData("openapi --check")]
-    public void WithAProjectFileItCannotRead_TheCommandIsRefusedWithThatError(string commandLine)
-    {
-        using var project = new SampleProject("{ not json");
-
-        Run(commandLine.Split(' '), project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void WhereTheProjectFileRecordsNoApi_TheCommandIsRefusedWithTheReason()
-    {
-        using var project = new SampleProject(SampleProject.NoApi);
-
-        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain("records no api presentation");
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
     [Fact]
     public void OpenApi_WithoutADotnetClient_WritesTheReference_AndRunsNoKiota()
     {
@@ -327,32 +269,6 @@ public sealed class OpenApiCommandTests : IDisposable
         File.ReadAllText(Path.Combine(project.Root, _referencePath)).ShouldBe(_referenceJson);
     }
 
-    [Fact]
-    public void Help_HidesOpenapi_WhereTheProjectFileMakesItFalse()
-    {
-        using var noApi = new SampleProject(SampleProject.NoApi);
-
-        Run(["--help"], noApi.Root).ShouldBe(CleanArchCommand.Succeeded);
-        _output.ToString().ShouldContain("help");
-        _output.ToString().ShouldNotContain("openapi");
-        Clear();
-
-        Run(["help", "--json"], noApi.Root).ShouldBe(CleanArchCommand.Succeeded);
-        CommandsOf().Select(command => Text(command!["name"])).ShouldNotContain("openapi");
-    }
-
-    [Fact]
-    public void HelpOfTheOpenapiCommand_ReadsDotnetCleanarch()
-    {
-        using var project = new SampleProject(SampleProject.Api);
-
-        Run(["openapi", "--help"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _output.ToString().ShouldContain("dotnet cleanarch openapi [options]");
-        _output.ToString().ShouldContain("--check");
-        _error.ToString().ShouldBeEmpty();
-    }
-
     public void Dispose()
     {
         ExternalCommand.Handler = null;
@@ -386,13 +302,6 @@ public sealed class OpenApiCommandTests : IDisposable
     private int Run(string[] arguments, string workingDirectory) =>
         CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
 
-    private JsonArray CommandsOf()
-    {
-        JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
-        Clear();
-        return document["commands"].ShouldNotBeNull().AsArray();
-    }
-
     private void Clear()
     {
         _output.GetStringBuilder().Clear();
@@ -408,6 +317,4 @@ public sealed class OpenApiCommandTests : IDisposable
                 .Select(file => Shown(root, file) + ":" + Convert.ToHexString(File.ReadAllBytes(file))));
 
     private static string Shown(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
-
-    private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
 }

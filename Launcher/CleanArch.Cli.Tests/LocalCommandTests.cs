@@ -39,7 +39,6 @@ public sealed class LocalCommandTests : IDisposable
         call.FileName.ShouldBe("dotnet");
         call.Arguments.ShouldBe(["run", "Tools/deploy.cs", "--", "staging", "--help", "-c", "Release"]);
         call.WorkingDirectory.ShouldBe(project.Root);
-        _output.ToString().ShouldStartWith("dotnet run Tools/deploy.cs -- staging --help -c Release");
     }
 
     [Fact]

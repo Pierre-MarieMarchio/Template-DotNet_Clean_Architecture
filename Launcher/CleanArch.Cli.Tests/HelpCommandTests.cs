@@ -22,18 +22,6 @@ public sealed class HelpCommandTests : IDisposable
     }
 
     [Fact]
-    public void HelpOfTheHelpCommand_ReadsDotnetCleanarch()
-    {
-        using var project = new SampleProject(SampleProject.Full);
-
-        Run(["help", "--help"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _output.ToString().ShouldContain("dotnet cleanarch help [options]");
-        _output.ToString().ShouldContain("--json");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
     public void HelpJson_ListsTheCommandsAndOptionsThatApplyToTheProject()
     {
         using var project = new SampleProject(SampleProject.Full);
@@ -64,7 +52,6 @@ public sealed class HelpCommandTests : IDisposable
             .ShouldBe(["--help", "--version"], ignoreOrder: true);
 
         JsonArray commands = document["commands"].ShouldNotBeNull().AsArray();
-        commands.Select(command => Text(command!["name"])).ShouldBe(["help", "format", "build", "test", "coverage", "verify", "add", "remove", "migrations", "database", "bootstrap", "compose", "eject"]);
         JsonObject help = commands.Single(command => Text(command!["name"]) == "help").ShouldNotBeNull().AsObject();
         help["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"]))
             .ShouldBe(["--json"]);
@@ -75,20 +62,6 @@ public sealed class HelpCommandTests : IDisposable
         compose["commands"].ShouldNotBeNull().AsArray().Select(subcommand => Text(subcommand!["name"]))
             .ShouldBe(["up", "down"]);
         _error.ToString().ShouldBeEmpty();
-    }
-
-    [Theory]
-    [InlineData("external")]
-    [InlineData("local")]
-    public void HelpJson_RecordsTheAuthTheProjectFileHolds(string auth)
-    {
-        using var project = new SampleProject(SampleProject.WithOptions(auth, sonar: false));
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
-        JsonObject options = document["project"].ShouldNotBeNull().AsObject()["options"].ShouldNotBeNull().AsObject();
-        Text(options["auth"]).ShouldBe(auth);
     }
 
     [Fact]

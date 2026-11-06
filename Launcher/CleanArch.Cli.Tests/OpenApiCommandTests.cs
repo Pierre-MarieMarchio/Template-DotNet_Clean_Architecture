@@ -20,6 +20,7 @@ public sealed class OpenApiCommandTests : IDisposable
     private readonly List<ExternalCall> _calls = [];
     private int _exit = CleanArchCommand.Succeeded;
     private int _kiotaExit = CleanArchCommand.Succeeded;
+    private bool _kiotaWritesItsLockFile = true;
 
     private readonly FakeProcesses _processes;
 
@@ -133,6 +134,19 @@ public sealed class OpenApiCommandTests : IDisposable
         _calls.Count.ShouldBe(2);
         _output.ToString().ShouldContain("kiota");
         _output.ToString().ShouldNotContain("Wrote");
+    }
+
+    [Fact]
+    public void OpenApi_WritesTheClient_WhereKiotaWritesNoLockFile()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+        _kiotaWritesItsLockFile = false;
+
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
+
+        File.Exists(Path.Combine(project.Root, _generated, "ApiClient.cs")).ShouldBeTrue();
+        _output.ToString().ShouldContain("Wrote Src/Presentation/AS.Presentation.Client/Generated from the OpenAPI reference.");
     }
 
     [Fact]
@@ -293,7 +307,10 @@ public sealed class OpenApiCommandTests : IDisposable
             Directory.CreateDirectory(target);
             File.WriteAllText(Path.Combine(target, ".kiota.log"), "kiota log");
             File.WriteAllText(Path.Combine(target, "ApiClient.cs"), "\uFEFFnamespace Acme.Shop.Client.Generated;\r\npublic class ApiClient { }\r\n");
-            File.WriteAllText(Path.Combine(target, "kiota-lock.json"), "{\n  \"descriptionLocation\": \"https://example.invalid/v1.json\"\n}");
+            if (_kiotaWritesItsLockFile)
+            {
+                File.WriteAllText(Path.Combine(target, "kiota-lock.json"), "{\n  \"descriptionLocation\": \"https://example.invalid/v1.json\"\n}");
+            }
         }
 
         return call.Arguments.Contains("kiota") ? _kiotaExit : _exit;

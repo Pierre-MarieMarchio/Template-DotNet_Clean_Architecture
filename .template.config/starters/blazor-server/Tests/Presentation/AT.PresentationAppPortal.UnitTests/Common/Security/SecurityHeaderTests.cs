@@ -58,6 +58,6 @@ public sealed class SecurityHeaderTests
         response.Headers.TryGetValues(name, out var values)
             .ShouldBeTrue($"No '{name}' header. Present: {string.Join(", ", response.Headers.Select(header => header.Key))}");
 
-        return values!.Single();
+        return values.Single();
     }
 }

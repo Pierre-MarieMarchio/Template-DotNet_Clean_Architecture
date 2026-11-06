@@ -25,36 +25,10 @@ internal static class RemovalManifest
         var files = new List<Entry>();
         var shared = new List<string>();
         var consumers = new List<string>();
-        var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, FeatureRemoval._timeout);
-        var events = read.Files.Keys
-            .Where(path => pattern.IsMatch(path) && path.EndsWith("DomainEvent.cs", StringComparison.Ordinal))
-            .Select(path => Path.GetFileNameWithoutExtension(path)[..^"DomainEvent".Length])
-            .ToHashSet(StringComparer.Ordinal);
 
-        foreach (var (entry, digest) in read.Files)
+        if (!ReadEntries(read, features, files, shared, consumers, blockers))
         {
-            bool isShared = FeatureRemoval._sharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
-            bool isConsumer = FeatureRemoval._consumer.Match(entry) is { Success: true } consumer && events.Contains(consumer.Groups["base"].Value);
-
-            if (entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !(pattern.IsMatch(entry) || isShared || isConsumer) || digest.Length != 64)
-            {
-                blockers.Add(
-                    $"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares, "
-                    + $"nor the consumer of an event of {features} that new-event wrote in another feature.");
-
-                return null;
-            }
-
-            files.Add(new Entry(entry, digest));
-
-            if (isShared)
-            {
-                shared.Add(entry);
-            }
-            else if (isConsumer)
-            {
-                consumers.Add(entry);
-            }
+            return null;
         }
 
         if (type.Length == 0 || files.Count == 0)
@@ -82,4 +56,44 @@ internal static class RemovalManifest
 
         return new Manifest(type, files, shared, consumers, read.Page, read.Edits, read.AddedFields);
     }
+
+    private static bool ReadEntries(FeatureManifest read, string features, List<Entry> files, List<string> shared, List<string> consumers, List<string> blockers)
+    {
+        var pattern = new Regex($"^(Src|Tests)/(.+/)?Features/{features}/.+$", RegexOptions.None, FeatureRemoval._timeout);
+        var events = read.Files.Keys
+            .Where(path => pattern.IsMatch(path) && path.EndsWith("DomainEvent.cs", StringComparison.Ordinal))
+            .Select(path => Path.GetFileNameWithoutExtension(path)[..^"DomainEvent".Length])
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var (entry, digest) in read.Files)
+        {
+            bool isShared = FeatureRemoval._sharedPaths.Any(sharedPath => sharedPath.IsMatch(entry));
+            bool isConsumer = FeatureRemoval._consumer.Match(entry) is { Success: true } consumer && events.Contains(consumer.Groups["base"].Value);
+
+            if (IsStray(entry, digest, pattern.IsMatch(entry) || isShared || isConsumer))
+            {
+                blockers.Add(
+                    $"The manifest lists '{entry}', which is not a file under a Features/{features} folder of Src or Tests, nor one of the account-deletion files every owner feature shares, "
+                    + $"nor the consumer of an event of {features} that new-event wrote in another feature.");
+
+                return false;
+            }
+
+            files.Add(new Entry(entry, digest));
+
+            if (isShared)
+            {
+                shared.Add(entry);
+            }
+            else if (isConsumer)
+            {
+                consumers.Add(entry);
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsStray(string entry, string digest, bool belongs) =>
+        entry.Contains("..", StringComparison.Ordinal) || entry.Contains('\\', StringComparison.Ordinal) || !belongs || digest.Length != 64;
 }

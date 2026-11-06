@@ -8,55 +8,18 @@ public static partial class ReadmeText
 
     public static IEnumerable<(string Text, bool Code)> Blocks(string markdown)
     {
-        bool code = false;
-        string? paragraph = null;
-        var table = new List<string>();
+        var reader = new BlockReader();
         foreach (string line in markdown.Split('\n').Select(line => line.TrimEnd('\r')))
         {
-            bool fence = MarkdownFence.Opens(line);
-            bool row = !code && line.StartsWith('|');
-            if (row)
+            foreach ((string Text, bool Code) block in reader.Read(line))
             {
-                table.Add(line);
-                continue;
-            }
-
-            foreach (string aligned in Aligned(table))
-            {
-                yield return (aligned, false);
-            }
-
-            table.Clear();
-            if (!code && !fence && line.Length > 0)
-            {
-                paragraph = paragraph is null ? Inline(line) : paragraph + " " + Inline(line);
-                continue;
-            }
-
-            if (paragraph is not null)
-            {
-                yield return (paragraph, false);
-                paragraph = null;
-            }
-
-            if (fence)
-            {
-                code = !code;
-            }
-            else
-            {
-                yield return (line, code);
+                yield return block;
             }
         }
 
-        foreach (string aligned in Aligned(table))
+        foreach ((string Text, bool Code) block in reader.End())
         {
-            yield return (aligned, false);
-        }
-
-        if (paragraph is not null)
-        {
-            yield return (paragraph, false);
+            yield return block;
         }
     }
 
@@ -88,4 +51,63 @@ public static partial class ReadmeText
 
     [GeneratedRegex(@"^\|[\s:|-]+\|$")]
     private static partial Regex Separator();
+
+    private sealed class BlockReader
+    {
+        private readonly List<string> _table = [];
+        private bool _code;
+        private string? _paragraph;
+
+        public List<(string Text, bool Code)> Read(string line)
+        {
+            if (!_code && line.StartsWith('|'))
+            {
+                _table.Add(line);
+                return [];
+            }
+
+            List<(string Text, bool Code)> blocks = Table();
+            bool fence = MarkdownFence.Opens(line);
+            if (!_code && !fence && line.Length > 0)
+            {
+                _paragraph = _paragraph is null ? Inline(line) : _paragraph + " " + Inline(line);
+                return blocks;
+            }
+
+            Paragraph(blocks);
+            if (fence)
+            {
+                _code = !_code;
+            }
+            else
+            {
+                blocks.Add((line, _code));
+            }
+
+            return blocks;
+        }
+
+        public List<(string Text, bool Code)> End()
+        {
+            List<(string Text, bool Code)> blocks = Table();
+            Paragraph(blocks);
+            return blocks;
+        }
+
+        private List<(string Text, bool Code)> Table()
+        {
+            List<(string Text, bool Code)> blocks = [.. Aligned(_table).Select(aligned => (aligned, false))];
+            _table.Clear();
+            return blocks;
+        }
+
+        private void Paragraph(List<(string Text, bool Code)> blocks)
+        {
+            if (_paragraph is not null)
+            {
+                blocks.Add((_paragraph, false));
+                _paragraph = null;
+            }
+        }
+    }
 }

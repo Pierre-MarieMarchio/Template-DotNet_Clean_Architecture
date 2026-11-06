@@ -87,8 +87,10 @@ public sealed class RailSelection
 
     private string Hint() =>
         _inline
-            ? $"{string.Join('/', _choices.Select(choice => char.ToLowerInvariant(choice.Value[0])))} · enter = {_choices[_default].Value}{(_canGoBack ? RailKeys.Back : string.Empty)}"
-            : "↑/↓ move · enter select · first letter jumps" + (_canGoBack ? RailKeys.BackOrLeft : string.Empty);
+            ? $"{string.Join('/', _choices.Select(choice => char.ToLowerInvariant(choice.Value[0])))} · enter = {_choices[_default].Value}{Back(RailKeys.Back)}"
+            : "↑/↓ move · enter select · first letter jumps" + Back(RailKeys.BackOrLeft);
+
+    private string Back(string keys) => _canGoBack ? keys : string.Empty;
 
     private Markup Inline() =>
         new(string.Join(" [grey]/[/] ", _choices.Select((choice, index) => Marker(index) + " " + Value(choice.Value, index))));

@@ -6,9 +6,9 @@ public sealed class Condition
     public const string False = "false";
     public const char ValueSeparator = '|';
 
-    private readonly Node _root;
+    private readonly INode _root;
 
-    private Condition(string text, Node root, IReadOnlySet<string> symbols)
+    private Condition(string text, INode root, IReadOnlySet<string> symbols)
     {
         Text = text;
         _root = root;
@@ -22,7 +22,7 @@ public sealed class Condition
     public static Condition Parse(string text)
     {
         var parser = new Parser(Tokenize(text), text);
-        Node root = parser.Disjunction();
+        INode root = parser.Disjunction();
         parser.ExpectEnd();
 
         return new Condition(text, root, parser.Symbols);
@@ -34,68 +34,76 @@ public sealed class Condition
 
     public static bool IsTruthy(string? value) => string.Equals(value, True, StringComparison.OrdinalIgnoreCase);
 
-    private static string Of(bool value) => value ? True : False;
+    public static string Of(bool value) => value ? True : False;
 
     private static List<Token> Tokenize(string text)
     {
         var tokens = new List<Token>();
         int index = 0;
-
         while (index < text.Length)
         {
-            char current = text[index];
-
-            if (char.IsWhiteSpace(current))
-            {
-                index++;
-            }
-            else if (current is '(' or ')')
-            {
-                tokens.Add(new Token(TokenKind.Operator, current.ToString()));
-                index++;
-            }
-            else if (index + 1 < text.Length && text.Substring(index, 2) is "==" or "!=" or "<=" or ">=" or "&&" or "||")
-            {
-                tokens.Add(new Token(TokenKind.Operator, text.Substring(index, 2)));
-                index += 2;
-            }
-            else if (current is '!' or '<' or '>')
-            {
-                tokens.Add(new Token(TokenKind.Operator, current.ToString()));
-                index++;
-            }
-            else if (current == '"')
-            {
-                int end = text.IndexOf('"', index + 1);
-                if (end < 0)
-                {
-                    throw new FormatException($"The condition '{text}' opens a string it never closes.");
-                }
-
-                tokens.Add(new Token(TokenKind.Literal, text[(index + 1)..end]));
-                index = end + 1;
-            }
-            else if (char.IsLetterOrDigit(current) || current == '_')
-            {
-                int start = index;
-                while (index < text.Length && (char.IsLetterOrDigit(text[index]) || text[index] == '_'))
-                {
-                    index++;
-                }
-
-                string word = text[start..index];
-                tokens.Add(word is True or False || char.IsDigit(word[0])
-                    ? new Token(TokenKind.Literal, word)
-                    : new Token(TokenKind.Symbol, word));
-            }
-            else
-            {
-                throw new FormatException($"The condition '{text}' holds '{current}', which this launcher does not read.");
-            }
+            index = char.IsWhiteSpace(text[index]) ? index + 1 : Read(text, index, tokens);
         }
 
         return tokens;
     }
+
+    private static int Read(string text, int index, List<Token> tokens)
+    {
+        char current = text[index];
+        if (index + 1 < text.Length && text.Substring(index, 2) is "==" or "!=" or "<=" or ">=" or "&&" or "||")
+        {
+            tokens.Add(new Token(TokenKind.Operator, text.Substring(index, 2)));
+            return index + 2;
+        }
+
+        if (current is '(' or ')' or '!' or '<' or '>')
+        {
+            tokens.Add(new Token(TokenKind.Operator, current.ToString()));
+            return index + 1;
+        }
+
+        if (current == '"')
+        {
+            return ReadLiteral(text, index, tokens);
+        }
+
+        if (IsWordCharacter(current))
+        {
+            return ReadWord(text, index, tokens);
+        }
+
+        throw new FormatException($"The condition '{text}' holds '{current}', which this launcher does not read.");
+    }
+
+    private static int ReadLiteral(string text, int index, List<Token> tokens)
+    {
+        int end = text.IndexOf('"', index + 1);
+        if (end < 0)
+        {
+            throw new FormatException($"The condition '{text}' opens a string it never closes.");
+        }
+
+        tokens.Add(new Token(TokenKind.Literal, text[(index + 1)..end]));
+        return end + 1;
+    }
+
+    private static int ReadWord(string text, int index, List<Token> tokens)
+    {
+        int end = index;
+        while (end < text.Length && IsWordCharacter(text[end]))
+        {
+            end++;
+        }
+
+        string word = text[index..end];
+        tokens.Add(word is True or False || char.IsDigit(word[0])
+            ? new Token(TokenKind.Literal, word)
+            : new Token(TokenKind.Symbol, word));
+        return end;
+    }
+
+    private static bool IsWordCharacter(char character) => char.IsLetterOrDigit(character) || character == '_';
 
     private enum TokenKind
     {
@@ -106,29 +114,29 @@ public sealed class Condition
 
     private sealed record Token(TokenKind Kind, string Text);
 
-    private abstract record Node
+    private interface INode
     {
-        public abstract string? Evaluate(Func<string, string?> resolve);
+        string? Evaluate(Func<string, string?> resolve);
     }
 
-    private sealed record LiteralNode(string Value) : Node
+    private sealed record LiteralNode(string Value) : INode
     {
-        public override string? Evaluate(Func<string, string?> resolve) => Value;
+        public string? Evaluate(Func<string, string?> resolve) => Value;
     }
 
-    private sealed record SymbolNode(string Name) : Node
+    private sealed record SymbolNode(string Name) : INode
     {
-        public override string? Evaluate(Func<string, string?> resolve) => resolve(Name);
+        public string? Evaluate(Func<string, string?> resolve) => resolve(Name);
     }
 
-    private sealed record NotNode(Node Operand) : Node
+    private sealed record NotNode(INode Operand) : INode
     {
-        public override string? Evaluate(Func<string, string?> resolve) => Of(!IsTruthy(Operand.Evaluate(resolve)));
+        public string? Evaluate(Func<string, string?> resolve) => Of(!IsTruthy(Operand.Evaluate(resolve)));
     }
 
-    private sealed record BinaryNode(string Operator, Node Left, Node Right) : Node
+    private sealed record BinaryNode(string Operator, INode Left, INode Right) : INode
     {
-        public override string? Evaluate(Func<string, string?> resolve) => Operator switch
+        public string? Evaluate(Func<string, string?> resolve) => Operator switch
         {
             "&&" => Of(IsTruthy(Left.Evaluate(resolve)) && IsTruthy(Right.Evaluate(resolve))),
             "||" => Of(IsTruthy(Left.Evaluate(resolve)) || IsTruthy(Right.Evaluate(resolve))),
@@ -166,9 +174,9 @@ public sealed class Condition
 
         public IReadOnlySet<string> Symbols => _symbols;
 
-        public Node Disjunction()
+        public INode Disjunction()
         {
-            Node left = Conjunction();
+            INode left = Conjunction();
             while (Accept("||"))
             {
                 left = new BinaryNode("||", left, Conjunction());
@@ -185,9 +193,9 @@ public sealed class Condition
             }
         }
 
-        private Node Conjunction()
+        private INode Conjunction()
         {
-            Node left = Comparison();
+            INode left = Comparison();
             while (Accept("&&"))
             {
                 left = new BinaryNode("&&", left, Comparison());
@@ -196,9 +204,9 @@ public sealed class Condition
             return left;
         }
 
-        private Node Comparison()
+        private INode Comparison()
         {
-            Node left = Unary();
+            INode left = Unary();
             while (Peek() is { Kind: TokenKind.Operator, Text: "==" or "!=" or "<" or "<=" or ">" or ">=" } token)
             {
                 _position++;
@@ -208,7 +216,7 @@ public sealed class Condition
             return left;
         }
 
-        private Node Unary()
+        private INode Unary()
         {
             if (Accept("!"))
             {
@@ -217,7 +225,7 @@ public sealed class Condition
 
             if (Accept("("))
             {
-                Node inner = Disjunction();
+                INode inner = Disjunction();
                 if (!Accept(")"))
                 {
                     throw new FormatException($"The condition '{_text}' opens a parenthesis it never closes.");

@@ -86,60 +86,10 @@ public sealed class TemplateManifest
 
         JsonElement root = template.RootElement;
         JsonElement symbols = root.GetProperty("symbols");
-
-        var computed = new Dictionary<string, Condition>(StringComparer.Ordinal);
-        var parameterDefaults = new Dictionary<string, string>(StringComparer.Ordinal);
-        var refusals = new List<Refusal>();
-        var options = new Dictionary<string, TemplateOption>(StringComparer.Ordinal);
-        var declared = new List<string>();
-
+        var read = new SymbolReader(commandLineHost, ideHost);
         foreach (JsonProperty symbol in symbols.EnumerateObject())
         {
-            string type = Text(symbol.Value, "type") ?? string.Empty;
-
-            if (type == "computed" && Text(symbol.Value, "value") is { } expression)
-            {
-                computed[symbol.Name] = Condition.Parse(expression);
-                continue;
-            }
-
-            if (type != "parameter")
-            {
-                continue;
-            }
-
-            string cliName = CliName(commandLineHost, symbol.Name);
-            if (IsRefusal(symbol.Value))
-            {
-                Condition when = RequiredWhen(symbol.Value)
-                    ?? throw new FormatException($"The refusal '{symbol.Name}' has no isRequired condition.");
-                string explanation = Text(symbol.Value, "description") ?? symbol.Name;
-                if (explanation.StartsWith(_neverSetPrefix, StringComparison.Ordinal))
-                {
-                    explanation = explanation[_neverSetPrefix.Length..];
-                }
-
-                refusals.Add(new Refusal(symbol.Name, cliName, when, explanation));
-                continue;
-            }
-
-            string? defaultValue = Text(symbol.Value, "defaultValue");
-            if (defaultValue is not null)
-            {
-                parameterDefaults[symbol.Name] = defaultValue;
-            }
-
-            declared.Add(symbol.Name);
-            options[symbol.Name] = new TemplateOption(
-                symbol.Name,
-                cliName,
-                Label(ideHost, symbol.Name) ?? Text(symbol.Value, "displayName") ?? symbol.Name,
-                Text(symbol.Value, "description") ?? string.Empty,
-                Kind(symbol.Value),
-                Choices(symbol.Value),
-                defaultValue,
-                RequiredWhen(symbol.Value),
-                symbol.Value.TryGetProperty("allowMultipleValues", out JsonElement many) && many.ValueKind == JsonValueKind.True);
+            read.Add(symbol);
         }
 
         return new TemplateManifest(
@@ -149,10 +99,10 @@ public sealed class TemplateManifest
                 && version.TryGetProperty("parameters", out JsonElement parameters)
                 ? Text(parameters, "value")
                 : null,
-            [.. VisibleOrder(ideHost, declared).Select(name => options[name])],
-            refusals,
-            computed,
-            parameterDefaults);
+            [.. VisibleOrder(ideHost, read.Declared).Select(name => read.Options[name])],
+            read.Refusals,
+            read.Computed,
+            read.ParameterDefaults);
     }
 
     public string? Resolve(string symbol, IReadOnlyDictionary<string, string> answers)
@@ -239,56 +189,6 @@ public sealed class TemplateManifest
             ? value.GetString()
             : null;
 
-    private static bool IsRefusal(JsonElement symbol) =>
-        symbol.TryGetProperty("choices", out JsonElement choices)
-        && choices.GetArrayLength() > 0
-        && choices.EnumerateArray().All(choice => Text(choice, "choice") == _refusedChoice);
-
-    private static Condition? RequiredWhen(JsonElement symbol)
-    {
-        if (!symbol.TryGetProperty("isRequired", out JsonElement required))
-        {
-            return null;
-        }
-
-        return required.ValueKind switch
-        {
-            JsonValueKind.True => Condition.Parse(Condition.True),
-            JsonValueKind.False => null,
-            JsonValueKind.String => Condition.Parse(required.GetString()!),
-            _ => throw new FormatException("An isRequired is neither a boolean nor a condition."),
-        };
-    }
-
-    private static OptionKind Kind(JsonElement symbol) => Text(symbol, "datatype") switch
-    {
-        "choice" => OptionKind.Choice,
-        "bool" => OptionKind.Bool,
-        "integer" or "int" => OptionKind.WholeNumber,
-        _ => OptionKind.Text,
-    };
-
-    private static List<OptionChoice> Choices(JsonElement symbol) =>
-        symbol.TryGetProperty("choices", out JsonElement choices)
-            ? [.. choices.EnumerateArray().Select(choice => new OptionChoice(Text(choice, "choice")!, Text(choice, "description") ?? string.Empty))]
-            : [];
-
-    private static string CliName(JsonDocument? commandLineHost, string symbol) =>
-        commandLineHost is not null
-        && commandLineHost.RootElement.TryGetProperty("symbolInfo", out JsonElement info)
-        && info.TryGetProperty(symbol, out JsonElement entry)
-        && Text(entry, "longName") is { Length: > 0 } longName
-            ? longName
-            : symbol;
-
-    private static string? Label(JsonDocument? ideHost, string symbol) =>
-        ideHost is not null && ideHost.RootElement.TryGetProperty("symbolInfo", out JsonElement info)
-            ? info.EnumerateArray()
-                .Where(entry => Text(entry, "id") == symbol && entry.TryGetProperty("name", out _))
-                .Select(entry => Text(entry.GetProperty("name"), "text"))
-                .FirstOrDefault()
-            : null;
-
     private static IEnumerable<string> VisibleOrder(JsonDocument? ideHost, List<string> declared)
     {
         if (ideHost is null || !ideHost.RootElement.TryGetProperty("symbolInfo", out JsonElement info))
@@ -300,5 +200,119 @@ public sealed class TemplateManifest
             .Where(entry => entry.TryGetProperty("isVisible", out JsonElement visible) && visible.ValueKind == JsonValueKind.True)
             .Select(entry => Text(entry, "id")!)
             .Where(declared.Contains);
+    }
+
+    private sealed class SymbolReader(JsonDocument? commandLineHost, JsonDocument? ideHost)
+    {
+        public Dictionary<string, Condition> Computed { get; } = new(StringComparer.Ordinal);
+
+        public Dictionary<string, string> ParameterDefaults { get; } = new(StringComparer.Ordinal);
+
+        public List<Refusal> Refusals { get; } = [];
+
+        public Dictionary<string, TemplateOption> Options { get; } = new(StringComparer.Ordinal);
+
+        public List<string> Declared { get; } = [];
+
+        public void Add(JsonProperty symbol)
+        {
+            string type = Text(symbol.Value, "type") ?? string.Empty;
+            if (type == "computed" && Text(symbol.Value, "value") is { } expression)
+            {
+                Computed[symbol.Name] = Condition.Parse(expression);
+            }
+            else if (type == "parameter" && IsRefusal(symbol.Value))
+            {
+                Refusals.Add(ReadRefusal(symbol, CliName(commandLineHost, symbol.Name)));
+            }
+            else if (type == "parameter")
+            {
+                AddOption(symbol, CliName(commandLineHost, symbol.Name));
+            }
+        }
+
+        private static Refusal ReadRefusal(JsonProperty symbol, string cliName)
+        {
+            Condition when = RequiredWhen(symbol.Value)
+                ?? throw new FormatException($"The refusal '{symbol.Name}' has no isRequired condition.");
+            string explanation = Text(symbol.Value, "description") ?? symbol.Name;
+            if (explanation.StartsWith(_neverSetPrefix, StringComparison.Ordinal))
+            {
+                explanation = explanation[_neverSetPrefix.Length..];
+            }
+
+            return new Refusal(symbol.Name, cliName, when, explanation);
+        }
+
+        private void AddOption(JsonProperty symbol, string cliName)
+        {
+            string? defaultValue = Text(symbol.Value, "defaultValue");
+            if (defaultValue is not null)
+            {
+                ParameterDefaults[symbol.Name] = defaultValue;
+            }
+
+            Declared.Add(symbol.Name);
+            Options[symbol.Name] = new TemplateOption(
+                symbol.Name,
+                cliName,
+                Label(ideHost, symbol.Name) ?? Text(symbol.Value, "displayName") ?? symbol.Name,
+                Text(symbol.Value, "description") ?? string.Empty,
+                Kind(symbol.Value),
+                Choices(symbol.Value),
+                defaultValue,
+                RequiredWhen(symbol.Value),
+                symbol.Value.TryGetProperty("allowMultipleValues", out JsonElement many) && many.ValueKind == JsonValueKind.True);
+        }
+
+        private static bool IsRefusal(JsonElement symbol) =>
+            symbol.TryGetProperty("choices", out JsonElement choices)
+            && choices.GetArrayLength() > 0
+            && choices.EnumerateArray().All(choice => Text(choice, "choice") == _refusedChoice);
+
+        private static Condition? RequiredWhen(JsonElement symbol)
+        {
+            if (!symbol.TryGetProperty("isRequired", out JsonElement required))
+            {
+                return null;
+            }
+
+            return required.ValueKind switch
+            {
+                JsonValueKind.True => Condition.Parse(Condition.True),
+                JsonValueKind.False => null,
+                JsonValueKind.String => Condition.Parse(required.GetString()!),
+                _ => throw new FormatException("An isRequired is neither a boolean nor a condition."),
+            };
+        }
+
+        private static OptionKind Kind(JsonElement symbol) => Text(symbol, "datatype") switch
+        {
+            "choice" => OptionKind.Choice,
+            "bool" => OptionKind.Bool,
+            "integer" or "int" => OptionKind.WholeNumber,
+            _ => OptionKind.Text,
+        };
+
+        private static List<OptionChoice> Choices(JsonElement symbol) =>
+            symbol.TryGetProperty("choices", out JsonElement choices)
+                ? [.. choices.EnumerateArray().Select(choice => new OptionChoice(Text(choice, "choice")!, Text(choice, "description") ?? string.Empty))]
+                : [];
+
+        private static string CliName(JsonDocument? commandLineHost, string symbol) =>
+            commandLineHost is not null
+            && commandLineHost.RootElement.TryGetProperty("symbolInfo", out JsonElement info)
+            && info.TryGetProperty(symbol, out JsonElement entry)
+            && Text(entry, "longName") is { Length: > 0 } longName
+                ? longName
+                : symbol;
+
+        private static string? Label(JsonDocument? ideHost, string symbol) =>
+            ideHost is not null && ideHost.RootElement.TryGetProperty("symbolInfo", out JsonElement info)
+                ? info.EnumerateArray()
+                    .Where(entry => Text(entry, "id") == symbol && entry.TryGetProperty("name", out _))
+                    .Select(entry => Text(entry.GetProperty("name"), "text"))
+                    .FirstOrDefault()
+                : null;
     }
 }

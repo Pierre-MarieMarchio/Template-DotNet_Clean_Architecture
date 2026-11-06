@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="NetArchTest.Rules" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
@@ -18,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CleanArch.Cli\CleanArch.Cli.csproj" />
+    <ProjectReference Include="..\CleanArch.Create\CleanArch.Create.csproj" />
   </ItemGroup>
 
   <ItemGroup>

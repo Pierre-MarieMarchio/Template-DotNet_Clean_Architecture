@@ -55,7 +55,7 @@ internal sealed class WorkerHost : IDisposable
                 _capturing.Value = true;
                 typeof(WorkerCallerIdentity).Assembly.EntryPoint!.Invoke(null, [arguments.ToArray()]);
             }
-            catch (TargetInvocationException stopped) when (stopped.InnerException is HostCaptured)
+            catch (TargetInvocationException stopped) when (stopped.InnerException is HostCapturedException)
             {
                 return new WorkerHost(observer.Host!, observer.UseCases);
             }
@@ -69,8 +69,6 @@ internal sealed class WorkerHost : IDisposable
     }
 
     public void Dispose() => Host.Dispose();
-
-    private sealed class HostCaptured : Exception;
 
     private sealed class BuiltHostObserver
         : IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object?>>, IDisposable
@@ -110,7 +108,7 @@ internal sealed class WorkerHost : IDisposable
             {
                 Host = host;
 
-                throw new HostCaptured();
+                throw new HostCapturedException();
             }
         }
 

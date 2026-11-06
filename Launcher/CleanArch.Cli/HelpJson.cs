@@ -81,6 +81,11 @@ internal static class HelpJson
             options["agentFiles"] = JsonValue.Create(true);
         }
 
+        if (file.Options.Aspire is true)
+        {
+            options["aspire"] = JsonValue.Create(true);
+        }
+
         return new ProjectSection(
             project.Root,
             file.Name,
@@ -98,14 +103,18 @@ internal static class HelpJson
         command.Description,
         [.. command.Options.Where(option => !option.Hidden).Select(OptionSectionOf)],
         [.. command.Arguments.Select(argument => new ArgumentSection(argument.Name, argument.Description))],
-        [.. command.Subcommands.Where(subcommand => !subcommand.Hidden).Select(CommandSectionOf)]);
+        [.. command.Subcommands.Where(subcommand => !subcommand.Hidden).Select(CommandSectionOf)],
+        command is LocalCommandLine ? LocalCommand.FileOf(command.Name) : null,
+        command is LocalCommandLine { ReplacesBuiltIn: true } ? true : null);
 }
 
 internal sealed record HelpDocument(
     string Command,
     ProjectSection Project,
     IReadOnlyList<OptionSection> Options,
-    IReadOnlyList<CommandSection> Commands);
+    IReadOnlyList<CommandSection> Commands,
+    string? Local = null,
+    bool? ReplacesBuiltIn = null);
 
 internal sealed record ProjectSection(
     string Root,
@@ -125,4 +134,6 @@ internal sealed record CommandSection(
     string? Description,
     IReadOnlyList<OptionSection> Options,
     IReadOnlyList<ArgumentSection> Arguments,
-    IReadOnlyList<CommandSection> Commands);
+    IReadOnlyList<CommandSection> Commands,
+    string? Local = null,
+    bool? ReplacesBuiltIn = null);

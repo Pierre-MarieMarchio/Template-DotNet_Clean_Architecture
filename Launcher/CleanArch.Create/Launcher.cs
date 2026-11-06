@@ -3,6 +3,7 @@ using CleanArch.Create.Projects;
 using CleanArch.Tooling;
 using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
 using Spectre.Console;
 

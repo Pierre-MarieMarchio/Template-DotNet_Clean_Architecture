@@ -1,9 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using CleanArch.Tooling;
-
-namespace CleanArch.Create.Projects;
+namespace CleanArch.Tooling.Projects;
 
 public static partial class GeneratedProject
 {

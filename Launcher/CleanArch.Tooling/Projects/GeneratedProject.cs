@@ -38,7 +38,7 @@ public static class GeneratedProject
             Directory.Exists(Path.Combine(root, "Src", "Presentation", ProjectFacts.FolderOf(name, "Api"))));
     }
 
-    private static string? WorkspaceScope(string packageJson)
+    public static string? WorkspaceScope(string packageJson)
     {
         if (!File.Exists(packageJson))
         {

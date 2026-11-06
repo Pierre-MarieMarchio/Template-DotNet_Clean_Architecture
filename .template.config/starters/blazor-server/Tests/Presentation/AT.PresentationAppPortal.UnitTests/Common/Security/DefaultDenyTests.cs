@@ -66,7 +66,7 @@ public sealed class DefaultDenyTests
         using var client = host.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(
-            new Uri(ProtectedRoutes(host).First(), UriKind.Relative),
+            new Uri(ProtectedRoutes(host)[0], UriKind.Relative),
             TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Redirect);

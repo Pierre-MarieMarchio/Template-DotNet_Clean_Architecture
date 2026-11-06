@@ -47,6 +47,9 @@ internal static partial class SolutionFilter
                 .Where(path => !left.Contains(path)));
     }
 
+    public static string WriteDockerFree(string root, string solution, string[] tests, string[] skipped) =>
+        Write(root, solution, "docker-free.slnf", tests.Where(TestProjects.IsDockerFree).Except(skipped, StringComparer.Ordinal));
+
     public static void Delete(string? filter)
     {
         if (filter is not null)

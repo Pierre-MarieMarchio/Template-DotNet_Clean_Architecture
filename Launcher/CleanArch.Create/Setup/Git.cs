@@ -1,4 +1,5 @@
-﻿using CleanArch.Tooling.Processes;
+﻿using System.Collections.ObjectModel;
+using CleanArch.Tooling.Processes;
 
 namespace CleanArch.Create.Setup;
 
@@ -7,14 +8,13 @@ internal sealed class Git(IProcessRunner processes, string root, Func<string, st
     public const string Init = "git init";
     public const string LongPaths = "git config --global core.longpaths true";
 
-    private static readonly IReadOnlyDictionary<string, string> _noVariables = new Dictionary<string, string>(StringComparer.Ordinal);
     private static readonly string[] _identity = ["user.name", "user.email"];
 
     public static bool Repeatable(string command) =>
         command != Init && !command.StartsWith("git config", StringComparison.Ordinal);
 
     public ProcessResult Run(params string[] arguments) =>
-        processes.Run(new ProcessCall("git", root, arguments, _noVariables), null);
+        processes.Run(new ProcessCall("git", root, arguments, ReadOnlyDictionary<string, string>.Empty), null);
 
     public bool InsideAWorkTree()
     {

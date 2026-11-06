@@ -891,14 +891,15 @@ reasons.
 ## The launcher
 
 `Launcher/CleanArch.Create` is the .NET tool `dnx CleanArch.Create` runs, with its tests in
-`Launcher/CleanArch.Create.Tests`. The folder is its own solution, `Launcher/CleanArch.Create.slnx`,
-which holds four more projects. Generation and the template package leave the folder out, and
+`Launcher/CleanArch.Create.Tests`. Its `Hosting` folder starts it, `Commands` holds one folder per
+command, each listed once in `LauncherCommands`, and `Setup` one class per step of a new project's setup. The folder is its own solution, `Launcher/CleanArch.Create.slnx`,
+which holds five more projects. Generation and the template package leave the folder out, and
 `TemplatePackagingTests` holds both.
 
 | Project | What it is |
 |---|---|
 | `Launcher/CleanArch.Tooling` | the library both tools share, never packed on its own: running a process and its verbatim output, the terminal, the templates' manifests with the evaluation of their refusals, and the questions asked from them; its tests are in `Launcher/CleanArch.Tooling.Tests` |
-| `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `Launcher/CleanArch.Cli/Eject` with the source it ships; its tests are in `Launcher/CleanArch.Cli.Tests` |
+| `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `Launcher/CleanArch.Cli/Eject` with the source it ships. `Launcher/CleanArch.Cli/Generators` holds one folder per generator, its command, request, plan, edits, report and templates, over `Launcher/CleanArch.Cli/Generators/Shared`, the pipeline every generator runs and the code they share, which references no generator; its tests are in `Launcher/CleanArch.Cli.Tests`, whose `Launcher/CleanArch.Cli.Tests/Architecture` holds the launcher's boundaries: no command, generator or launcher command references another, `Kernel` and `Shared` reference none, `CleanArch.Cli.Commands` references System.CommandLine alone, and only the two process launchers call `Process.Start` |
 | `Launcher/CleanArch.Cli.Commands` | the commands `eject` can copy into a project, never packed on its own: it references System.CommandLine alone, since an ejected command is a file-based app that declares nothing else. Each command has a folder and a namespace of its own and references no other; `Launcher/CleanArch.Cli.Commands/Hosting` holds the root command, the registration and the context, and `Launcher/CleanArch.Cli.Commands/Kernel` what the commands share, the process launcher the context carries and every external call among it, referencing neither the commands nor `Hosting`. `CleanArch.Cli` composes them with the ones that stay the tool's, and ships the source of every folder, which eject merges into one namespace |
 
 [Template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
@@ -913,7 +914,7 @@ The tests that read the manifests through the launcher's own settings stay in
 | Thread | drawn with the glyphs every console font carries; [template decision 0016](decisions/0016-the-launcher-draws-only-glyphs-every-console-font-carries.md) gives the rule and the test that holds it |
 | Packages | `Spectre.Console` and `System.CommandLine`, pinned in `Launcher/Directory.Packages.props`, which imports the repository's |
 | Analysis | `SonarAnalyzer.CSharp`, pinned beside them, runs its default rules on all seven projects, and the build fails on any of them; a method of the four projects that ship holds a cognitive complexity (S3776) of 15 at most, set in `Launcher/.editorconfig`. The measure counts nesting and breaks in flow rather than branches, so a flat `switch` stays cheap and a method that nests is split. A finding is fixed in the code, never silenced |
-| Gate | `verify` restores, formats, builds and tests the launcher's solution, all five projects, after the project's gate; CI's `launcher` job does the same |
+| Gate | `verify` restores, formats, builds and tests the launcher's solution, all seven projects, after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
 Inside a generated project its item commands read the options the project was generated with from

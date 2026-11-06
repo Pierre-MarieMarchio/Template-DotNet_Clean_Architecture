@@ -2,6 +2,7 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using CleanArch.Create.Hosting;
+using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Processes;
 using Shouldly;
 using Spectre.Console.Testing;
@@ -223,7 +224,7 @@ public sealed partial class EndToEndTests : IDisposable
         private readonly ProcessRunner _processes = new();
 
         public ProcessResult Run(ProcessCall command, Action<string>? line) =>
-            command.Arguments.Contains(Launcher.PresentationScaffoldTask)
+            command.Arguments.Contains(ItemAdditions.PresentationScaffoldTask)
                 ? new ProcessResult(0, string.Empty)
                 : _processes.Run(command, line);
     }

@@ -1,4 +1,7 @@
-﻿using CleanArch.Create.Hosting;
+﻿using CleanArch.Create.Commands;
+using CleanArch.Create.Hosting;
+using CleanArch.Tooling.Additions;
+using CleanArch.Tooling.Markdown;
 using CleanArch.Tooling.Output;
 using Shouldly;
 using Spectre.Console.Testing;
@@ -33,7 +36,7 @@ public sealed class LauncherTests : IDisposable
             ## Next
             """);
 
-        string section = Launcher.MarkdownSection(readme, "## Join the stack").ShouldNotBeNull();
+        string section = MarkdownSection.Of(readme, "## Join the stack").ShouldNotBeNull();
 
         section.ShouldContain("# One line per web app");
         section.ShouldContain("### Detail");
@@ -43,13 +46,13 @@ public sealed class LauncherTests : IDisposable
     [Fact]
     public void TheWebAppReadmeSections_TheLauncherPrints_AreInTheTemplate()
     {
-        Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "README.md"), Launcher.JoiningSection)
-            .ShouldNotBeNull().ShouldContain(Launcher.WebJoinTask);
-        Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "apps", "FrameworkSite", "README.md"), "## Join the stack")
+        MarkdownSection.Of(Path.Combine(Repository.Root, "Src", "Web", "README.md"), ItemAdditions.JoiningSection)
+            .ShouldNotBeNull().ShouldContain(ItemAdditions.WebJoinTask);
+        MarkdownSection.Of(Path.Combine(Repository.Root, "Src", "Web", "apps", "FrameworkSite", "README.md"), "## Join the stack")
             .ShouldNotBeNullOrWhiteSpace();
-        Launcher.MarkdownSection(Path.Combine(Repository.Root, "Src", "Web", "apps", "PlaceholderSite", "README.md"), "## Join the stack")
+        MarkdownSection.Of(Path.Combine(Repository.Root, "Src", "Web", "apps", "PlaceholderSite", "README.md"), "## Join the stack")
             .ShouldNotBeNullOrWhiteSpace();
-        Launcher.MarkdownSection(Path.Combine(Repository.Root, ".template.config", "variants", "project", "README.md"), "## Run it")
+        MarkdownSection.Of(Path.Combine(Repository.Root, ".template.config", "variants", "project", "README.md"), "## Run it")
             .ShouldNotBeNullOrWhiteSpace();
     }
 
@@ -58,8 +61,8 @@ public sealed class LauncherTests : IDisposable
     {
         string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-server", "Src", "Presentation", "AT.PresentationAppPortal", "README.md");
 
-        Launcher.MarkdownSection(readme, Launcher.JoiningSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationJoinTask);
-        Launcher.MarkdownSection(readme, Launcher.PresentationCreateSection).ShouldNotBeNull().ShouldContain(Launcher.PresentationScaffoldTask);
+        MarkdownSection.Of(readme, ItemAdditions.JoiningSection).ShouldNotBeNull().ShouldContain(ItemAdditions.PresentationJoinTask);
+        MarkdownSection.Of(readme, ItemAdditions.PresentationCreateSection).ShouldNotBeNull().ShouldContain(ItemAdditions.PresentationScaffoldTask);
     }
 
     [Fact]
@@ -67,7 +70,7 @@ public sealed class LauncherTests : IDisposable
     {
         string readme = Path.Combine(Repository.Root, ".template.config", "starters", "blazor-wasm", "FrameworkSite", "README.md");
 
-        Launcher.MarkdownSection(readme, Launcher.JoiningSection).ShouldNotBeNull().ShouldContain(Launcher.WebJoinTask);
+        MarkdownSection.Of(readme, ItemAdditions.JoiningSection).ShouldNotBeNull().ShouldContain(ItemAdditions.WebJoinTask);
     }
 
     [Fact]
@@ -75,9 +78,9 @@ public sealed class LauncherTests : IDisposable
     {
         string tasks = File.ReadAllText(Path.Combine(Repository.Root, "Tools", "Tasks.cs"));
 
-        tasks.ShouldContain($"case \"{Launcher.PresentationJoinTask}\":");
-        tasks.ShouldContain($"case \"{Launcher.PresentationScaffoldTask}\":");
-        tasks.ShouldContain($"case \"{Launcher.WebJoinTask}\":");
+        tasks.ShouldContain($"case \"{ItemAdditions.PresentationJoinTask}\":");
+        tasks.ShouldContain($"case \"{ItemAdditions.PresentationScaffoldTask}\":");
+        tasks.ShouldContain($"case \"{ItemAdditions.WebJoinTask}\":");
     }
 
     [Theory]
@@ -120,7 +123,7 @@ public sealed class LauncherTests : IDisposable
 
         new Launcher(console, _root, interactive: false).Run([command, "--help"]).ShouldBe(0, console.Output);
 
-        console.Output.ShouldContain($"Usage: {Launcher.InvocationWithArguments} {command} ");
+        console.Output.ShouldContain($"Usage: {LauncherCommands.InvocationWithArguments} {command} ");
         console.Output.ShouldContain(shown);
         console.Output.ShouldContain(alsoShown);
         console.Output.ShouldNotContain("--presentation api|");
@@ -137,7 +140,7 @@ public sealed class LauncherTests : IDisposable
             .Run(["new", "-n", "Acme.Shop", "--yes", "--template-source", Repository.Root, "--hive", "hive"])
             .ShouldBe(0, console.Output);
 
-        console.Output.ShouldNotContain(Launcher.Invocation);
+        console.Output.ShouldNotContain(LauncherCommands.Invocation);
         console.Output.ShouldContain("dotnet new cleanarch-webapi -n Acme.Shop -o Acme.Shop --debug:custom-hive hive");
     }
 

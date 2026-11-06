@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Create.Commands.NewProject;
 using CleanArch.Create.Hosting;
+using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;
@@ -154,7 +156,7 @@ public sealed class TemplateManifestTests
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
         string[] symbols = [.. manifest.Options.Select(option => option.Symbol)];
 
-        foreach ((string symbol, Condition when) in Launcher.ProjectAskedWhen)
+        foreach ((string symbol, Condition when) in NewCommand.ProjectAskedWhen)
         {
             symbols.ShouldContain(symbol);
             string asking = manifest.ParametersBehind(when).ShouldHaveSingleItem(symbol);
@@ -210,9 +212,9 @@ public sealed class TemplateManifestTests
                     var answers = new Dictionary<string, string> { ["presentation"] = chosen, ["web"] = web, ["auth"] = auth };
                     bool needsApi = Condition.IsTruthy(manifest.Resolve("needsApi", answers));
 
-                    Launcher.ApiCallers.Any(caller => manifest.Holds(caller.When, answers)).ShouldBe(needsApi, $"presentation={chosen}, web={web}, auth={auth}");
-                    Launcher.CallersOfTheApiAdded(manifest, answers).Count.ShouldBe(needsApi && !chosen.Split('|').Contains("api") ? Launcher.ApiCallers.Count(caller => manifest.Holds(caller.When, answers)) : 0);
-                    added += Launcher.CallersOfTheApiAdded(manifest, answers).Count > 0 ? 1 : 0;
+                    AddedHosts.ApiCallers.Any(caller => manifest.Holds(caller.When, answers)).ShouldBe(needsApi, $"presentation={chosen}, web={web}, auth={auth}");
+                    AddedHosts.CallersOfTheApiAdded(manifest, answers).Count.ShouldBe(needsApi && !chosen.Split('|').Contains("api") ? AddedHosts.ApiCallers.Count(caller => manifest.Holds(caller.When, answers)) : 0);
+                    added += AddedHosts.CallersOfTheApiAdded(manifest, answers).Count > 0 ? 1 : 0;
                 }
             }
         }
@@ -236,8 +238,8 @@ public sealed class TemplateManifestTests
                     var answers = new Dictionary<string, string> { ["presentation"] = chosen, ["web"] = web, ["auth"] = auth };
                     bool needsWorker = Condition.IsTruthy(manifest.Resolve("needsWorker", answers));
 
-                    Launcher.WorkerAdded(manifest, answers).ShouldBe(needsWorker, $"presentation={chosen}, web={web}, auth={auth}");
-                    Condition.IsTruthy(manifest.Resolve("jobsWorker", Launcher.WithTheHostsAdded(manifest, answers))).ShouldBe(Condition.IsTruthy(manifest.Resolve("jobsWorker", answers)));
+                    AddedHosts.WorkerAdded(manifest, answers).ShouldBe(needsWorker, $"presentation={chosen}, web={web}, auth={auth}");
+                    Condition.IsTruthy(manifest.Resolve("jobsWorker", AddedHosts.WithTheHostsAdded(manifest, answers))).ShouldBe(Condition.IsTruthy(manifest.Resolve("jobsWorker", answers)));
                     added += needsWorker ? 1 : 0;
                 }
             }
@@ -254,8 +256,8 @@ public sealed class TemplateManifestTests
 
         foreach (OptionChoice framework in item.Options.Single(option => option.Symbol == "framework").Choices)
         {
-            Launcher.PresentationNames.ShouldContainKey(framework.Value);
-            string name = Launcher.PresentationNames[framework.Value];
+            ItemAdditions.PresentationNames.ShouldContainKey(framework.Value);
+            string name = ItemAdditions.PresentationNames[framework.Value];
             presentation.Choices.Single(choice => choice.Value == framework.Value).Description.ShouldContain($"<Project>.{name},");
         }
     }

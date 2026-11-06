@@ -143,71 +143,30 @@ internal static class NewSetting
         string root = Path.GetFullPath(request.Root);
         var spec = problems.Count == 0 ? Check(request, root, problems) : null;
 
-        if (spec is null)
+        return spec is null
+            ? Refusal.Write(error, problems, _usage)
+            : new SettingGeneration(spec, new GenerationContext(root, request.DryRun, output, error)).Generate();
+    }
+
+    private sealed class SettingGeneration(Spec spec, GenerationContext context) : FileGeneration(context, spec.Features, spec.Manifest)
+    {
+        private List<string> _hosts = [];
+
+        protected override string Usage => _usage;
+
+        protected override string EditAdvice => "Fix that file, or make this edit by hand and leave the setting to the steps of docs/guides/adding-a-setting.md.";
+
+        protected override IReadOnlyList<Emission> Plan() => NewSetting.Emissions(spec, Root);
+
+        protected override TextEdits.Editor Edit(List<string> problems)
         {
-            return Refusal.Write(error, problems, _usage);
+            (var editor, _hosts) = Edits(spec, Root, problems);
+
+            return editor;
         }
 
-        var emissions = Emissions(spec, root);
-        string[] existing = [.. emissions.Select(emission => emission.Path).Where(path => File.Exists(Path.Combine(root, path)))];
-
-        if (existing.Length > 0)
-        {
-            problems.Add($"{existing.Length} of the files to write already exist, and none is ever overwritten:\n" + string.Join("\n", existing.Select(path => $"  {path}")));
-
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        var (editor, hosts) = Edits(spec, root, problems);
-
-        if (problems.Count > 0)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        problems.AddRange(editor.Failures.Select(failure =>
-            $"{failure} Fix that file, or make this edit by hand and leave the setting to the steps of docs/guides/adding-a-setting.md."));
-
-        if (problems.Count > 0)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        var replaced = TextEdits.Replacements(editor).ToList();
-
-        if (spec.Manifest is not null)
-        {
-            try
-            {
-                replaced.Add(ManifestWith(root, spec.Features, emissions, editor));
-            }
-            catch (InvalidOperationException exception)
-            {
-                problems.Add(
-                    $"{exception.Message} {spec.Manifest} records each edit for remove-feature to undo with the feature: "
-                    + "give the file the ending this project writes (format-fix), or make this edit by hand, then run this again.");
-
-                return Refusal.Write(error, problems, _usage);
-            }
-        }
-
-        if (!request.DryRun)
-        {
-            try
-            {
-                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, emission.Bytes()))], replaced);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
-
-                return 1;
-            }
-        }
-
-        Report(output, spec, emissions, editor.Changed.Select(sheet => sheet.Path), hosts, request.DryRun);
-
-        return 0;
+        protected override void Report(ReportMode mode) =>
+            NewSetting.Report(Output, spec, Emissions, Editor.Changed.Select(sheet => sheet.Path), _hosts, mode == ReportMode.DryRun);
     }
 
     private static Request Parse(string[] args, List<string> problems)
@@ -1257,21 +1216,7 @@ internal static class NewSetting
         return text.Insert(at, $"{indent}\"Configuration/Options\",\n");
     }
 
-    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> plan, TextEdits.Editor editor)
-    {
-        var manifest = FeatureManifest.Read(root, features, out _)!;
-
-        foreach (var emission in plan)
-        {
-            manifest.Record(emission.Path, emission.Bytes());
-        }
-
-        manifest.Record(editor);
-
-        return manifest.Replacement;
-    }
-
-    private static void Report(TextWriter output, Spec spec, List<Emission> emissions, IEnumerable<string> edited, List<string> hosts, bool dryRun)
+    private static void Report(TextWriter output, Spec spec, IReadOnlyList<Emission> emissions, IEnumerable<string> edited, List<string> hosts, bool dryRun)
     {
         string verb = dryRun ? "Would write" : "Wrote";
 

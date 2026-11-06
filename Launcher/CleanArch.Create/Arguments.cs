@@ -1,4 +1,4 @@
-﻿using CleanArch.Tooling;
+﻿using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 
 namespace CleanArch.Create;

@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Tooling;
+﻿namespace CleanArch.Tooling.Projects;
 
 public sealed record ProjectFacts(
     string Root,

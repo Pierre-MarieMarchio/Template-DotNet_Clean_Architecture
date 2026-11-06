@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace CleanArch.Tooling.Prompts;
+namespace CleanArch.Tooling.Markdown;
 
 public static partial class ReadmeText
 {

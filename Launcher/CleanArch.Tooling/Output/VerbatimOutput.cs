@@ -1,6 +1,6 @@
 ﻿using Spectre.Console;
 
-namespace CleanArch.Tooling;
+namespace CleanArch.Tooling.Output;
 
 public static class VerbatimOutput
 {

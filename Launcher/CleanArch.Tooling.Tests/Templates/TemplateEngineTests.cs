@@ -1,7 +1,8 @@
-﻿using Shouldly;
+﻿using CleanArch.Tooling.Templates;
+using Shouldly;
 using Xunit;
 
-namespace CleanArch.Tooling.Tests;
+namespace CleanArch.Tooling.Tests.Templates;
 
 public sealed class TemplateEngineTests
 {

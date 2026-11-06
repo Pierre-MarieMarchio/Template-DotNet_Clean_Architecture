@@ -1,6 +1,12 @@
 ﻿using System.Text.RegularExpressions;
+using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Markdown;
+using CleanArch.Tooling.Output;
+using CleanArch.Tooling.Processes;
+using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
+using CleanArch.Tooling.Templates;
 using Spectre.Console;
 
 namespace CleanArch.Tooling.Additions;

@@ -65,54 +65,13 @@ internal static class NewFeature
 
     internal static FeatureSpec? Check(AddFeatureRequest request, string root, LocatedProject project, List<string> problems)
     {
-        string features = request.Features;
-        string type = request.Type;
-
-        problems.AddRange(NameProblems(features, type));
-
-        string access = request.Access;
-
-        if (access is not ("owner" or "shared"))
-        {
-            problems.Add($"--access '{access}' is not a choice. It is owner or shared.");
-        }
-
-        string deletion = request.Deletion ?? string.Empty;
-
-        if (access == "owner")
-        {
-            if (request.Deletion is null)
-            {
-                problems.Add(
-                    "--deletion is required with --access owner and has no default. Say what the feature does "
-                    + "with its rows when the account that owns them is deleted: --deletion delete or "
-                    + "--deletion anonymise.");
-            }
-            else if (deletion is not ("delete" or "anonymise"))
-            {
-                problems.Add($"--deletion '{deletion}' is not a choice. It is delete or anonymise.");
-            }
-        }
-        else if (access == "shared" && request.Deletion is not null)
-        {
-            problems.Add(
-                "--deletion names the fate of user data and --access shared holds none: every authenticated "
-                + "caller reaches the same rows, which no account owns. Leave --deletion out.");
-        }
+        problems.AddRange(NameProblems(request.Features, request.Type));
+        CheckAccess(request, problems);
 
         string model = request.Model ?? "record";
-
-        if (model is not ("record" or "aggregate"))
-        {
-            problems.Add($"--model '{model}' is not a choice. It is record or aggregate.");
-        }
-
         string concurrency = request.Concurrency ?? "none";
 
-        if (concurrency is not ("none" or "etag"))
-        {
-            problems.Add($"--concurrency '{concurrency}' is not a choice. It is none or etag.");
-        }
+        CheckChoices(model, concurrency, problems);
 
         string[]? operations = ParseOperations(request.Operations, problems);
         var fields = request.Fields is null ? null : FieldGrammar.Parse(request.Fields, FieldProfile.Feature, problems);
@@ -124,61 +83,98 @@ internal static class NewFeature
 
         problems.AddRange(Contradictions(operations, model, concurrency));
 
-        if (problems.Count > 0)
+        if (problems.Count > 0 || TablePrefixesOf(project, problems) is not { } tablePrefixes)
         {
             return null;
         }
 
         string prefix = project.File.Name;
-        bool tablePrefixes;
-
-        try
-        {
-            tablePrefixes = TablePrefixes(project);
-        }
-        catch (InvalidOperationException exception)
-        {
-            problems.Add(exception.Message);
-
-            return null;
-        }
-
-        string? reaction = null;
         bool hasApi = Directory.Exists(Full(root, $"{Presentation}/{FolderOf(prefix, "Api")}"));
+        string? reaction = request.Access == "owner" ? Reaction(root, prefix, hasApi, problems) : null;
+
+        return new FeatureSpec(prefix, request.Features, request.Type, request.Access, request.Deletion ?? string.Empty, operations, model, concurrency, reaction, hasApi, fields, tablePrefixes);
+    }
+
+    private static void CheckAccess(AddFeatureRequest request, List<string> problems)
+    {
+        string access = request.Access;
+
+        if (access is not ("owner" or "shared"))
+        {
+            problems.Add($"--access '{access}' is not a choice. It is owner or shared.");
+        }
 
         if (access == "owner")
         {
-            string policyPort = System.IO.Path.Combine(
-                root, "Src", "Application", FolderOf(prefix, "Application.Core"), "Common", "Ports", "IDeletedAccountDataPolicy.cs");
+            CheckDeletion(request.Deletion, problems);
+        }
+        else if (access == "shared" && request.Deletion is not null)
+        {
+            problems.Add(
+                "--deletion names the fate of user data and --access shared holds none: every authenticated "
+                + "caller reaches the same rows, which no account owns. Leave --deletion out.");
+        }
+    }
 
-            if (!File.Exists(policyPort))
-            {
-                string[] identityHosts = hasApi ? [FolderOf(prefix, "Api")] : [.. PresentationHosts(root, prefix)];
+    private static void CheckDeletion(string? deletion, List<string> problems)
+    {
+        if (deletion is null)
+        {
+            problems.Add(
+                "--deletion is required with --access owner and has no default. Say what the feature does "
+                + "with its rows when the account that owns them is deleted: --deletion delete or "
+                + "--deletion anonymise.");
+        }
+        else if (deletion is not ("delete" or "anonymise"))
+        {
+            problems.Add($"--deletion '{deletion}' is not a choice. It is delete or anonymise.");
+        }
+    }
 
-                reaction = identityHosts.Select(host => IdentityFeature(root, host)).FirstOrDefault(found => found is not null);
-
-                if (reaction is null)
-                {
-                    problems.Add(
-                        "This tree ships none of the account-deleted reaction, and it has neither the local accounts "
-                        + "(Features/Auth) nor an external-identity mapping (Features/ExternalIdentity) to read whether "
-                        + "an id still names an account, so the reaction's precondition has no authority to re-derive "
-                        + "from. Scaffold the feature into a tree this template generated, or write an "
-                        + "IUserAccountDirectory adapter by hand first.");
-                }
-            }
+    private static void CheckChoices(string model, string concurrency, List<string> problems)
+    {
+        if (model is not ("record" or "aggregate"))
+        {
+            problems.Add($"--model '{model}' is not a choice. It is record or aggregate.");
         }
 
-        return new FeatureSpec(prefix, features, type, access, deletion, operations, model, concurrency, reaction, hasApi, fields, tablePrefixes);
+        if (concurrency is not ("none" or "etag"))
+        {
+            problems.Add($"--concurrency '{concurrency}' is not a choice. It is none or etag.");
+        }
+    }
+
+    private static string? Reaction(string root, string prefix, bool hasApi, List<string> problems)
+    {
+        string policyPort = System.IO.Path.Combine(
+            root, "Src", "Application", FolderOf(prefix, "Application.Core"), "Common", "Ports", "IDeletedAccountDataPolicy.cs");
+
+        if (File.Exists(policyPort))
+        {
+            return null;
+        }
+
+        string[] identityHosts = hasApi ? [FolderOf(prefix, "Api")] : [.. PresentationHosts(root, prefix)];
+        string? reaction = identityHosts.Select(host => IdentityFeature(root, host)).FirstOrDefault(found => found is not null);
+
+        if (reaction is null)
+        {
+            problems.Add(
+                "This tree ships none of the account-deleted reaction, and it has neither the local accounts "
+                + "(Features/Auth) nor an external-identity mapping (Features/ExternalIdentity) to read whether "
+                + "an id still names an account, so the reaction's precondition has no authority to re-derive "
+                + "from. Scaffold the feature into a tree this template generated, or write an "
+                + "IUserAccountDirectory adapter by hand first.");
+        }
+
+        return reaction;
     }
 
     private static string? IdentityFeature(string root, string host)
     {
         string features = Full(root, $"{Presentation}/{host}/Features");
 
-        return Directory.Exists(System.IO.Path.Combine(features, "Auth")) ? "Auth"
-            : Directory.Exists(System.IO.Path.Combine(features, "ExternalIdentity")) ? "ExternalIdentity"
-            : null;
+        return Array.Find(["Auth", "ExternalIdentity"], adapter => Directory.Exists(System.IO.Path.Combine(features, adapter)));
     }
 
     private static string[]? ParseOperations(string? text, List<string> problems)
@@ -292,15 +288,12 @@ internal static class NewFeature
             problems.Add("Names longer than 40 characters make a path that some tools cannot open. Shorten them.");
         }
 
-        foreach (string name in new[] { features, type }.Distinct(StringComparer.Ordinal))
-        {
-            if (_reservedNames.Contains(name, StringComparer.Ordinal))
-            {
-                problems.Add(
-                    $"'{name}' is already a segment of every namespace in this tree "
-                    + $"({string.Join(", ", _reservedNames.Take(6))}, ...). Choose a name that is not one.");
-            }
-        }
+        problems.AddRange(new[] { features, type }
+            .Distinct(StringComparer.Ordinal)
+            .Where(name => _reservedNames.Contains(name, StringComparer.Ordinal))
+            .Select(name =>
+                $"'{name}' is already a segment of every namespace in this tree "
+                + $"({string.Join(", ", _reservedNames.Take(6))}, ...). Choose a name that is not one."));
 
         if (CSharpNames.Keywords.Contains(CSharpNames.Lower(type), StringComparer.Ordinal))
         {

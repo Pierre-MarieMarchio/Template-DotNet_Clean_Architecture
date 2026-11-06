@@ -138,7 +138,7 @@ internal sealed class FeatureGeneration(FeatureSpec spec, IReadOnlyList<string> 
         var options = new JsonObject
         {
             ["access"] = spec.Access,
-            ["operations"] = new JsonArray([.. spec.Operations.Select(operation => (JsonNode)JsonValue.Create(operation)!)]),
+            ["operations"] = new JsonArray([.. spec.Operations.Select(operation => (JsonNode)JsonValue.Create(operation))]),
             ["model"] = spec.Model,
             ["concurrency"] = spec.Concurrency,
         };

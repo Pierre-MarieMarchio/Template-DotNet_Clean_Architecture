@@ -73,60 +73,57 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
         var before = Plan(addition.Before, root, out _).ToDictionary(emission => emission.Path, StringComparer.Ordinal);
         var after = Plan(addition.After, root, out _);
         var recorded = addition.Manifest.Files.Keys.ToHashSet(StringComparer.Ordinal);
-        var changes = new List<FieldChange>();
 
         foreach (string path in before.Keys.Where(path => after.All(emission => emission.Path != path)))
         {
             problems.Add($"{path}: these fields would remove it, which new-field never does. Add the fields by hand.");
         }
 
-        foreach (var emission in after)
+        return [.. after.Select(emission => Change(root, addition, before.GetValueOrDefault(emission.Path), recorded, emission, problems)).OfType<FieldChange>()];
+    }
+
+    private static FieldChange? Change(string root, Addition addition, Emission? earlier, HashSet<string> recorded, Emission emission, List<string> problems)
+    {
+        string full = System.IO.Path.Combine(root, emission.Path);
+
+        if (earlier is null)
         {
-            string full = System.IO.Path.Combine(root, emission.Path);
-
-            if (!before.TryGetValue(emission.Path, out var earlier))
-            {
-                if (File.Exists(full))
-                {
-                    problems.Add($"{emission.Path} exists, and these fields need it written by the generator: move it away, or add the fields by hand.");
-                }
-                else
-                {
-                    changes.Add(new FieldChange(emission.Path, null, emission.Bytes(), ["written"]));
-                }
-
-                continue;
-            }
-
-            if (earlier.Content == emission.Content)
-            {
-                continue;
-            }
-
             if (!File.Exists(full))
             {
-                if (recorded.Contains(emission.Path))
-                {
-                    problems.Add($"{emission.Path}, which new-feature wrote and {ManifestPath(addition.After)} records, is gone, so the fields cannot reach it. Put it back.");
-                }
-
-                continue;
+                return new FieldChange(emission.Path, null, emission.Bytes(), ["written"]);
             }
 
-            byte[] original = File.ReadAllBytes(full);
-            var merged = SyntaxMerge.Merge(emission.Path, earlier.Content, emission.Content, original);
+            problems.Add($"{emission.Path} exists, and these fields need it written by the generator: move it away, or add the fields by hand.");
 
-            if (merged.Problems.Count > 0)
-            {
-                problems.AddRange(merged.Problems);
-
-                continue;
-            }
-
-            changes.Add(new FieldChange(emission.Path, original, merged.Bytes!, merged.Changes));
+            return null;
         }
 
-        return changes;
+        if (earlier.Content == emission.Content)
+        {
+            return null;
+        }
+
+        if (!File.Exists(full))
+        {
+            if (recorded.Contains(emission.Path))
+            {
+                problems.Add($"{emission.Path}, which new-feature wrote and {ManifestPath(addition.After)} records, is gone, so the fields cannot reach it. Put it back.");
+            }
+
+            return null;
+        }
+
+        byte[] original = File.ReadAllBytes(full);
+        var merged = SyntaxMerge.Merge(emission.Path, earlier.Content, emission.Content, original);
+
+        if (merged.Problems.Count > 0)
+        {
+            problems.AddRange(merged.Problems);
+
+            return null;
+        }
+
+        return new FieldChange(emission.Path, original, merged.Bytes!, merged.Changes);
     }
 
     private static byte[] UpdatedManifest(Addition addition, List<FieldChange> changes)
@@ -182,49 +179,10 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
 
     private static int FinishField(string root, Addition addition, TextWriter output, TextWriter error, IExecutor executor)
     {
-        int Run(TextEdits.Command command)
-        {
-            if (command.FileName != _inProcess)
-            {
-                return executor.Run(command);
-            }
-
-            string folder = System.IO.Path.Combine(root, PersistenceProject(addition.After), "Migrations");
-            string? file = Directory.Exists(folder) ? Directory.EnumerateFiles(folder, $"*_{addition.Migration}.cs").FirstOrDefault() : null;
-
-            if (file is null)
-            {
-                error.WriteLine($"error: no migration named {addition.Migration} was found in {PersistenceProject(addition.After)}/Migrations.");
-
-                return 1;
-            }
-
-            byte[] original = File.ReadAllBytes(file);
-            bool bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
-            string text = Encoding.UTF8.GetString(original.AsSpan(bom ? 3 : 0));
-            var applied = MigrationDefaults.Apply(text, NewField.TableOf(addition.After), addition.Added);
-
-            if (applied.Problem is { } problem)
-            {
-                error.WriteLine($"error: {problem}");
-                error.WriteLine("Set each defaultValue by hand in the migration's Up, the value the rows the table already holds receive.");
-
-                return 1;
-            }
-
-            if (applied.Changed)
-            {
-                byte[] bytes = Encoding.UTF8.GetBytes(applied.Text!);
-
-                TextEdits.Commit(root, [], [(System.IO.Path.GetRelativePath(root, file), original, bom ? [.. Encoding.UTF8.Preamble, .. bytes] : bytes)]);
-            }
-
-            output.WriteLine($"Set in {System.IO.Path.GetFileName(file)}: {string.Join(", ", addition.Added.Where(field => field.Default is not null).Select(field => $"{field.Name} = {field.Default!.Expression}"))}.");
-
-            return 0;
-        }
-
         string done = $"the fields in every layer and in {ManifestPath(addition.After)}";
+
+        int Run(TextEdits.Command command) =>
+            command.FileName != _inProcess ? executor.Run(command) : SetDefaults(root, addition, output, error);
 
         if (TextEdits.RunAll(FieldSteps(root, addition), Run, output, error, done))
         {
@@ -234,5 +192,42 @@ internal sealed class FieldGeneration(Addition addition, GenerationContext conte
         error.WriteLine("Once the failure is fixed, the same new-field command resumes these steps, and writes nothing again.");
 
         return 1;
+    }
+
+    private static int SetDefaults(string root, Addition addition, TextWriter output, TextWriter error)
+    {
+        string folder = System.IO.Path.Combine(root, PersistenceProject(addition.After), "Migrations");
+        string? file = Directory.Exists(folder) ? Directory.EnumerateFiles(folder, $"*_{addition.Migration}.cs").FirstOrDefault() : null;
+
+        if (file is null)
+        {
+            error.WriteLine($"error: no migration named {addition.Migration} was found in {PersistenceProject(addition.After)}/Migrations.");
+
+            return 1;
+        }
+
+        byte[] original = File.ReadAllBytes(file);
+        bool bom = original.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+        string text = Encoding.UTF8.GetString(original.AsSpan(bom ? 3 : 0));
+        var applied = MigrationDefaults.Apply(text, NewField.TableOf(addition.After), addition.Added);
+
+        if (applied.Problem is { } problem)
+        {
+            error.WriteLine($"error: {problem}");
+            error.WriteLine("Set each defaultValue by hand in the migration's Up, the value the rows the table already holds receive.");
+
+            return 1;
+        }
+
+        if (applied.Changed)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(applied.Text!);
+
+            TextEdits.Commit(root, [], [(System.IO.Path.GetRelativePath(root, file), original, bom ? [.. Encoding.UTF8.Preamble, .. bytes] : bytes)]);
+        }
+
+        output.WriteLine($"Set in {System.IO.Path.GetFileName(file)}: {string.Join(", ", addition.Added.Where(field => field.Default is not null).Select(field => $"{field.Name} = {field.Default!.Expression}"))}.");
+
+        return 0;
     }
 }

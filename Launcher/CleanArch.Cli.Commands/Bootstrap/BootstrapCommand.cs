@@ -12,7 +12,7 @@ internal static class BootstrapCommand
 
     private const string _initialMigrationName = "InitialCreate";
 
-    private sealed record Step(string Done, Func<int> Run, string? IfNotDone = null);
+    private sealed record Step(string Done, Func<int> Perform, string? IfNotDone = null);
 
     private static Command Create(CommandContext context)
     {
@@ -33,7 +33,7 @@ internal static class BootstrapCommand
         Step[] steps = [.. Steps(project, shell)];
         for (int index = 0; index < steps.Length; index++)
         {
-            int exit = steps[index].Run();
+            int exit = steps[index].Perform();
             if (exit != ExitCode.Succeeded)
             {
                 shell.Error.WriteLine(

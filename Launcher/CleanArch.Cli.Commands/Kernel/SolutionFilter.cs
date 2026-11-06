@@ -6,7 +6,7 @@ using System.Xml.Linq;
 
 namespace CleanArch.Cli.Commands.Kernel;
 
-internal static class SolutionFilter
+internal static partial class SolutionFilter
 {
     private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web)
     {
@@ -60,7 +60,10 @@ internal static class SolutionFilter
         string text = File.ReadAllText(solution);
         IEnumerable<string> paths = solution.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)
             ? XDocument.Parse(text).Descendants("Project").Select(element => element.Attribute("Path")?.Value).OfType<string>()
-            : Regex.Matches(text, @"""(?<path>[^""]+\.csproj)""").Select(match => match.Groups["path"].Value);
+            : ProjectReference().Matches(text).Select(match => match.Groups["path"].Value);
         return [.. paths.Select(ProjectPath.Shown).Order(StringComparer.Ordinal)];
     }
+
+    [GeneratedRegex(@"""(?<path>[^""]+\.csproj)""", RegexOptions.None, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex ProjectReference();
 }

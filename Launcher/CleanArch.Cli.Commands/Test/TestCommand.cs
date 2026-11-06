@@ -10,7 +10,7 @@ internal static class TestCommand
 
     public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private sealed record Selection(string? Run, string? Build, bool LeavesOut);
+    private sealed record Selection(string? RunFilter, string? BuildFilter, bool LeavesOut);
 
     private static Command Create(CommandContext context)
     {
@@ -40,8 +40,8 @@ internal static class TestCommand
             }
             finally
             {
-                SolutionFilter.Delete(selection.Run);
-                SolutionFilter.Delete(selection.Build);
+                SolutionFilter.Delete(selection.RunFilter);
+                SolutionFilter.Delete(selection.BuildFilter);
             }
         });
 
@@ -73,7 +73,7 @@ internal static class TestCommand
     {
         string root = project.Root;
         string solution = SolutionOf(project);
-        string target = ProjectPath.Relative(root, selection.Run ?? solution);
+        string target = ProjectPath.Relative(root, selection.RunFilter ?? solution);
         if (settings.MaxCpuCount is null && !selection.LeavesOut)
         {
             return shell.Run(Dotnet.Test(root, target, settings.Configuration));
@@ -81,7 +81,7 @@ internal static class TestCommand
 
         return ExitCode.FirstFailureOf(
         [
-            () => shell.Run(Dotnet.Build(root, ProjectPath.Relative(root, selection.Build ?? selection.Run ?? solution), settings.Configuration, settings.Nodes)),
+            () => shell.Run(Dotnet.Build(root, ProjectPath.Relative(root, selection.BuildFilter ?? selection.RunFilter ?? solution), settings.Configuration, settings.Nodes)),
             () => shell.Run(Dotnet.Test(root, target, settings.Configuration, ["--no-build", .. settings.Modules])),
         ]);
     }

@@ -103,7 +103,7 @@ public sealed class VerifyCommandTests : IDisposable
         Run(["verify"], project.Root).ShouldBe(7);
 
         _calls.Count.ShouldBe(GateLines().Length + 3);
-        _calls.Last().Arguments.ShouldBe(["build", _solution, "--configuration", "Debug", "--no-restore"]);
+        _calls[^1].Arguments.ShouldBe(["build", _solution, "--configuration", "Debug", "--no-restore"]);
         _output.ToString().ShouldContain($"dotnet build {_solution}");
         _output.ToString().ShouldNotContain("dotnet test");
         _error.ToString().ShouldBeEmpty();
@@ -286,7 +286,7 @@ public sealed class VerifyCommandTests : IDisposable
         lines.ShouldContain($"dotnet format {launcher} --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore");
         lines.ShouldContain($"dotnet build {launcher} --configuration Debug --no-restore");
         lines.ShouldContain($"dotnet test --solution {launcher} --configuration Debug --no-build");
-        _calls.Last().Arguments.ShouldBe(["test", "--solution", launcher, "--configuration", "Debug", "--no-build"]);
+        _calls[^1].Arguments.ShouldBe(["test", "--solution", launcher, "--configuration", "Debug", "--no-build"]);
         _error.ToString().ShouldBeEmpty();
     }
 
@@ -318,7 +318,7 @@ public sealed class VerifyCommandTests : IDisposable
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
         _error.ToString().ShouldContain("known vulnerability");
-        _calls.Last().Arguments.ShouldContain("--vulnerable");
+        _calls[^1].Arguments.ShouldContain("--vulnerable");
     }
 
     public void Dispose()

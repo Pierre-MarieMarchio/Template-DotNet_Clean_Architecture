@@ -39,12 +39,11 @@ internal sealed class SystemProcessLauncher : IProcessLauncher
             start.ArgumentList.Add(argument);
         }
 
-        foreach (KeyValuePair<string, string> variable in call.Environment ?? ReadOnlyDictionary<string, string>.Empty)
+        IEnumerable<KeyValuePair<string, string>> unset = (call.Environment ?? ReadOnlyDictionary<string, string>.Empty)
+            .Where(variable => string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)));
+        foreach (KeyValuePair<string, string> variable in unset)
         {
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
-            {
-                start.Environment[variable.Key] = variable.Value;
-            }
+            start.Environment[variable.Key] = variable.Value;
         }
 
         return start;

@@ -173,10 +173,12 @@ public sealed class EndToEndCommandTests : IDisposable
             : [.. (call.Environment?.Keys ?? []).Order(StringComparer.Ordinal)];
 
     private static string StepOf(ExternalCall call) =>
-        call.FileName switch
+        call switch
         {
-            "dotnet" => "tests",
-            "docker" => call.Arguments.Contains("up") ? "up" : call.Arguments.Contains("logs") ? "logs" : "down",
+            { FileName: "dotnet" } => "tests",
+            { FileName: "docker" } when call.Arguments.Contains("up") => "up",
+            { FileName: "docker" } when call.Arguments.Contains("logs") => "logs",
+            { FileName: "docker" } => "down",
             _ => "smoke",
         };
 

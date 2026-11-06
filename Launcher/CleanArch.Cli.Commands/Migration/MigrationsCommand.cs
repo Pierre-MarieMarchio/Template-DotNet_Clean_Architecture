@@ -11,7 +11,7 @@ internal static partial class MigrationsCommand
 
     public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private sealed record AddOptions(Argument<string?> Name, Option<bool> Check, Option<bool> NoBuild, Option<string?> Context);
+    private sealed record AddOptions(Argument<string?> Migration, Option<bool> Check, Option<bool> NoBuild, Option<string?> Context);
 
     private static Command Create(CommandContext context) =>
         CommandGroup.Of(
@@ -52,7 +52,7 @@ internal static partial class MigrationsCommand
     private static int RunAdd(LocatedProject project, Shell shell, ParseResult parseResult, AddOptions options)
     {
         bool check = parseResult.GetValue(options.Check);
-        string? migration = parseResult.GetValue(options.Name);
+        string? migration = parseResult.GetValue(options.Migration);
         string target = PersistenceContexts.Target(project, parseResult.GetValue(options.Context), out string? refusal);
         if (!check && string.IsNullOrWhiteSpace(migration))
         {

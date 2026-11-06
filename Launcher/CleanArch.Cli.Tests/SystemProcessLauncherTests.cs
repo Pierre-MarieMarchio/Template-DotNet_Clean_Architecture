@@ -28,6 +28,18 @@ public sealed class SystemProcessLauncherTests : IDisposable
         error.ToString().ShouldBe("trouble" + Environment.NewLine);
     }
 
+    [Fact]
+    public async Task AProcessWaitingForInput_EndsWhenItsInputIsClosed()
+    {
+        var shell = new Shell(new SystemProcessLauncher(), new StringWriter(), new StringWriter());
+
+        Task<int> run = Task.Run(() => shell.Run(new ExternalCall("sh", ["-c", "cat"], _folder, CloseInput: true)));
+
+        int exit = await run.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        exit.ShouldBe(0);
+    }
+
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 
     private sealed class ReleasingWriter(string release) : StringWriter

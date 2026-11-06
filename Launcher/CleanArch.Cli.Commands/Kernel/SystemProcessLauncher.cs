@@ -15,6 +15,11 @@ internal sealed class SystemProcessLauncher : IProcessLauncher
             process.ErrorDataReceived += (_, received) => Forward(received.Data, error);
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+            if (call.CloseInput)
+            {
+                process.StandardInput.Close();
+            }
+
             process.WaitForExit();
             return process.ExitCode;
         }
@@ -33,6 +38,7 @@ internal sealed class SystemProcessLauncher : IProcessLauncher
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            RedirectStandardInput = call.CloseInput,
         };
         foreach (string argument in call.Arguments)
         {

@@ -53,6 +53,8 @@ It first adds the MCP server to the solution with `dotnet run Tools/Tasks.cs pre
 <!--#if (dotnetClient)-->
 It then writes the .NET client from the OpenAPI reference with `dotnet run Tools/Tasks.cs api-client`.
 <!--#endif-->
+[The project tool](docs/reference/cli.md) says which of these tasks `dotnet cleanarch` runs as a
+command of its own, and which still run through `Tools/Tasks.cs`.
 
 | When | Command | Needs |
 |---|---|---|

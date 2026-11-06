@@ -364,10 +364,10 @@ public sealed class RemoveFeatureTests
             $"--apply did not remove the feature, or did not print what is left to do by hand: {applied.Output}{applied.Error}");
     }
 
-    private static string Json(string[] lines) => new JsonArray([.. lines.Select(line => (JsonNode)JsonValue.Create(line)!)]).ToJsonString();
+    private static string Json(string[] lines) => new JsonArray([.. lines.Select(line => (JsonNode)JsonValue.Create(line))]).ToJsonString();
 
     private static string Edit(string path, string anchor, string position, string[] lines, string[]? replaced = null) =>
-        $"{{ \"path\": \"{path}\", \"anchor\": {JsonValue.Create(anchor)!.ToJsonString()}, \"position\": \"{position}\", \"lines\": {Json(lines)}"
+        $"{{ \"path\": \"{path}\", \"anchor\": {JsonValue.Create(anchor).ToJsonString()}, \"position\": \"{position}\", \"lines\": {Json(lines)}"
         + (replaced is null ? " }" : $", \"replaced\": {Json(replaced)} }}");
 
     private static void UndoCases(string scratch, Action<bool, string> expect)

@@ -10,23 +10,43 @@ internal static class RemovalReport
 
         if (!analysis.HasManifest)
         {
-            output.WriteLine();
-            output.WriteLine($"Feature folders found ({analysis.Folders.Count}), none of them recorded by a manifest:");
-
-            foreach (string folder in analysis.Folders)
-            {
-                output.WriteLine($"  {folder}");
-            }
-
-            output.WriteLine();
+            PrintFoundFolders(output, analysis);
             PrintHits(output, analysis);
             PrintBlockers(output, analysis);
 
             return;
         }
 
+        PrintDeleted(output, analysis);
+        PrintUndone(output, analysis);
+        PrintAddedFields(output, analysis);
+        PrintPage(output, analysis);
+        PrintChanged(output, analysis);
+        PrintGone(output, analysis);
+        PrintShared(output, analysis);
+        PrintSteps(output, root, analysis);
+        output.WriteLine();
+        PrintHits(output, analysis);
+        PrintNotes(output, analysis);
+        PrintBlockers(output, analysis);
+    }
+
+    private static void PrintFoundFolders(TextWriter output, Analysis analysis)
+    {
+        output.WriteLine();
+        output.WriteLine($"Feature folders found ({analysis.Folders.Count}), none of them recorded by a manifest:");
+
+        foreach (string folder in analysis.Folders)
+        {
+            output.WriteLine($"  {folder}");
+        }
+
+        output.WriteLine();
+    }
+
+    private static void PrintDeleted(TextWriter output, Analysis analysis)
+    {
         var unchanged = analysis.Owned.Except(analysis.Modified, StringComparer.Ordinal).Except(analysis.Missing, StringComparer.Ordinal).ToList();
-        var undone = analysis.Undos.Where(undo => undo.State == UndoState.Undo).ToList();
 
         output.WriteLine();
         output.WriteLine($"--apply deletes the {unchanged.Count} file(s) the generators wrote, unchanged since, in:");
@@ -40,91 +60,126 @@ internal static class RemovalReport
         {
             output.WriteLine($"  {file}");
         }
+    }
+
+    private static void PrintUndone(TextWriter output, Analysis analysis)
+    {
+        var undone = analysis.Undos.Where(undo => undo.State == UndoState.Undo).Select(undo => undo.Edit).ToList();
 
         output.WriteLine();
         output.WriteLine($"--apply undoes the {undone.Count} edit(s) the generators recorded, each exactly as it was made:");
 
-        foreach (var undo in undone)
+        foreach (var edit in undone)
         {
-            output.WriteLine($"  {undo.Edit.Path}: {Count(undo.Edit.Lines.Length, "line")} {(undo.Edit.Replaced.Length > 0 ? $"in place of {Count(undo.Edit.Replaced.Length, "line")} " : string.Empty)}{undo.Edit.Position} '{undo.Edit.Anchor.Trim()}'");
+            string replacing = edit.Replaced.Length > 0 ? $"in place of {Count(edit.Replaced.Length, "line")} " : string.Empty;
+
+            output.WriteLine($"  {edit.Path}: {Count(edit.Lines.Length, "line")} {replacing}{edit.Position} '{edit.Anchor.Trim()}'");
+        }
+    }
+
+    private static void PrintAddedFields(TextWriter output, Analysis analysis)
+    {
+        if (analysis.AddedFields.Count == 0)
+        {
+            return;
         }
 
-        if (analysis.AddedFields.Count > 0)
-        {
-            output.WriteLine();
-            output.WriteLine("Fields new-field added, which go with the files they changed:");
+        output.WriteLine();
+        output.WriteLine("Fields new-field added, which go with the files they changed:");
 
-            foreach (var (declaration, added, paths) in analysis.AddedFields)
-            {
-                output.WriteLine($"  {declaration}, in {Count(paths.Length, "file")}, with its migration {added}");
-            }
+        foreach (var (declaration, added, paths) in analysis.AddedFields)
+        {
+            output.WriteLine($"  {declaration}, in {Count(paths.Length, "file")}, with its migration {added}");
+        }
+    }
+
+    private static void PrintPage(TextWriter output, Analysis analysis)
+    {
+        if (analysis.Page is null)
+        {
+            return;
         }
 
-        if (analysis.Page is not null)
+        output.WriteLine();
+        output.WriteLine(analysis.PageGone
+            ? $"Feature page: {analysis.Page} is already gone."
+            : $"Feature page: {analysis.Page}, written by the generator; --apply deletes it, edited or not.");
+    }
+
+    private static void PrintChanged(TextWriter output, Analysis analysis)
+    {
+        if (analysis.Modified.Count + analysis.Extra.Count == 0)
         {
-            output.WriteLine();
-            output.WriteLine(analysis.PageGone
-                ? $"Feature page: {analysis.Page} is already gone."
-                : $"Feature page: {analysis.Page}, written by the generator; --apply deletes it, edited or not.");
+            return;
         }
 
-        if (analysis.Modified.Count + analysis.Extra.Count > 0)
+        output.WriteLine();
+        output.WriteLine("--apply deletes these too, though they changed since the generators wrote them; git log and git show keep what they held:");
+
+        foreach (string file in analysis.Modified)
         {
-            output.WriteLine();
-            output.WriteLine("--apply deletes these too, though they changed since the generators wrote them; git log and git show keep what they held:");
-
-            foreach (string file in analysis.Modified)
-            {
-                output.WriteLine($"  Edited: {file}");
-            }
-
-            foreach (string file in analysis.Extra)
-            {
-                output.WriteLine($"  Added: {file}");
-            }
+            output.WriteLine($"  Edited: {file}");
         }
 
-        var gone = analysis.Undos.Where(undo => undo.State == UndoState.Gone).ToList();
-
-        if (analysis.Missing.Count + gone.Count > 0)
+        foreach (string file in analysis.Extra)
         {
-            output.WriteLine();
-            output.WriteLine("Already gone, so left as they are:");
+            output.WriteLine($"  Added: {file}");
+        }
+    }
 
-            foreach (string file in analysis.Missing)
-            {
-                output.WriteLine($"  Missing: {file}");
-            }
+    private static void PrintGone(TextWriter output, Analysis analysis)
+    {
+        var gone = analysis.Undos.Where(undo => undo.State == UndoState.Gone).Select(undo => undo.Edit).ToList();
 
-            foreach (var undo in gone)
-            {
-                output.WriteLine($"  Undone: {undo.Edit.Path}: {Count(undo.Edit.Lines.Length, "line")} {undo.Edit.Position} '{undo.Edit.Anchor.Trim()}'");
-            }
+        if (analysis.Missing.Count + gone.Count == 0)
+        {
+            return;
         }
 
-        if (analysis.Shared.Count > 0)
+        output.WriteLine();
+        output.WriteLine("Already gone, so left as they are:");
+
+        foreach (string file in analysis.Missing)
         {
-            output.WriteLine();
-            output.WriteLine($"Shared by every owner feature (brought by this one into a tree generated with none): {analysis.Shared.Count} file(s)");
-
-            foreach (string file in analysis.Shared)
-            {
-                output.WriteLine($"  {file}");
-            }
-
-            output.WriteLine(analysis.Dependents.Count + analysis.SharedUses.Count == 0 ? "Still used by: nothing." : "Still used by:");
-
-            foreach (var dependent in analysis.Dependents)
-            {
-                output.WriteLine($"  {dependent.Name} ({dependent.How})");
-            }
-
-            foreach (var use in analysis.SharedUses)
-            {
-                output.WriteLine($"  {use.Path}:{use.Line}  {use.Text}");
-            }
+            output.WriteLine($"  Missing: {file}");
         }
 
+        foreach (var edit in gone)
+        {
+            output.WriteLine($"  Undone: {edit.Path}: {Count(edit.Lines.Length, "line")} {edit.Position} '{edit.Anchor.Trim()}'");
+        }
+    }
+
+    private static void PrintShared(TextWriter output, Analysis analysis)
+    {
+        if (analysis.Shared.Count == 0)
+        {
+            return;
+        }
+
+        output.WriteLine();
+        output.WriteLine($"Shared by every owner feature (brought by this one into a tree generated with none): {analysis.Shared.Count} file(s)");
+
+        foreach (string file in analysis.Shared)
+        {
+            output.WriteLine($"  {file}");
+        }
+
+        output.WriteLine(analysis.Dependents.Count + analysis.SharedUses.Count == 0 ? "Still used by: nothing." : "Still used by:");
+
+        foreach (var dependent in analysis.Dependents)
+        {
+            output.WriteLine($"  {dependent.Name} ({dependent.How})");
+        }
+
+        foreach (var use in analysis.SharedUses)
+        {
+            output.WriteLine($"  {use.Path}:{use.Line}  {use.Text}");
+        }
+    }
+
+    private static void PrintSteps(TextWriter output, string root, Analysis analysis)
+    {
         output.WriteLine();
         output.WriteLine("Then --apply runs, from one build:");
 
@@ -141,11 +196,6 @@ internal static class RemovalReport
                 + $"; {string.Join(", ", [$"Add{analysis.Features}", .. analysis.AddedFields.Select(added => added.Migration)])}, which a database may have applied, "
                 + (analysis.AddedFields.Count == 0 ? "stays as it is." : "stay as they are."));
         }
-
-        output.WriteLine();
-        PrintHits(output, analysis);
-        PrintNotes(output, analysis);
-        PrintBlockers(output, analysis);
     }
 
     internal static string Count(int count, string noun) => count == 1 ? $"1 {noun}" : $"{count} {noun}s";

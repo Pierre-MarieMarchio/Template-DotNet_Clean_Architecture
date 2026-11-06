@@ -149,13 +149,18 @@ internal static class FeatureRemoval
 
         foreach (string folder in shared.Select(path => _sharedFolder.Match(path)).Where(match => match.Success).Select(match => match.Groups[1].Value))
         {
-            if (!folders.Contains(folder, StringComparer.Ordinal))
-            {
-                folders.Add(folder);
-            }
+            AddOnce(folders, folder);
         }
 
         return folders;
+    }
+
+    private static void AddOnce(List<string> folders, string folder)
+    {
+        if (!folders.Contains(folder, StringComparer.Ordinal))
+        {
+            folders.Add(folder);
+        }
     }
 
     private static List<string> Extra(string root, List<string> folders, HashSet<string> listed)
@@ -283,10 +288,11 @@ internal static class FeatureRemoval
         }
 
         string name = $"Remove{features}";
+        int again = 2;
 
-        for (int again = 2; Directory.EnumerateFiles(folder, $"*_{name}.cs").Any(); again++)
+        while (Directory.EnumerateFiles(folder, $"*_{name}.cs").Any())
         {
-            name = $"Remove{features}{again}";
+            name = $"Remove{features}{again++}";
         }
 
         var constant = new Regex($@"\bconst\s+string\s+{features}Schema\s*=\s*""([^""]+)""", RegexOptions.None, _timeout);

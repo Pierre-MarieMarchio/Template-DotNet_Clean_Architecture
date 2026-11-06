@@ -20,6 +20,8 @@ public static class CleanArchCommand
         TestCommand.Registration,
         CoverageCommand.Registration,
         VerifyCommand.Registration,
+        MigrationsCommand.Registration,
+        DatabaseCommand.Registration,
     ];
 
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>

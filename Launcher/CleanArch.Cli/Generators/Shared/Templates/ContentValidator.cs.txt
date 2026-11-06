@@ -1,0 +1,26 @@
+using %P%.Application.Features.%F%.Model.Policies; //?%A%InputPolicy
+using FluentValidation;
+
+namespace %P%.Application.Features.%F%.Model.Dtos;
+
+public sealed class %A%ContentDtoValidator : AbstractValidator<%A%ContentDto>
+{
+    public %A%ContentDtoValidator()
+    {
+%if fields%
+%FRulesContent%
+%else%
+        RuleFor(content => content.Name)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty().WithMessage("%An% %L% name is required.")
+            .Must(name => name.Trim().Length <= %Limits%.NameMaxLength)
+            .WithMessage($"%An% %L% name cannot exceed {%Limits%.NameMaxLength} characters.");
+
+        RuleFor(content => content.Description)
+            .Cascade(CascadeMode.Stop)
+            .NotNull().WithMessage("%An% %L% description is required; it may be empty.")
+            .MaximumLength(%Limits%.DescriptionMaxLength)
+            .WithMessage($"%An% %L% description cannot exceed {%Limits%.DescriptionMaxLength} characters.");
+%end%
+    }
+}

@@ -1,0 +1,85 @@
+using %P%.Application.Features.%F%.Model.Policies; //?%A%InputPolicy|%A%CollectionPolicy
+%if agg%
+using %P%.Domain.Features.%F%.Model.Entities; //?%A%
+%end%
+using %P%.Infrastructure.Core.Common.Contexts;
+using %P%.Infrastructure.Persistence.Common.Contexts;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Infrastructure.Persistence.UnitTests.Features.%F%.Rows.Configurations;
+
+public sealed class %A%RecordConfigurationTests
+{
+%if etag%
+    [Fact]
+    public void TheVersion_IsTheDatabasesOwnConcurrencyToken()
+    {
+        var version = Entity().FindProperty(nameof(%A%Record.Version))!;
+
+        version.IsConcurrencyToken.ShouldBeTrue();
+        version.GetColumnName().ShouldBe(DatabaseProvider.VersionColumnName);
+    }
+%else%
+    [Fact]
+    public void NoPropertyIsAConcurrencyToken() =>
+        Entity().GetProperties().ShouldAllBe(property => !property.IsConcurrencyToken);
+%end%
+
+%if fields%
+%FConfigurationTests%
+%else%
+    [Theory]
+    [InlineData(nameof(%A%Record.Name), %Limits%.NameMaxLength)]
+    [InlineData(nameof(%A%Record.Description), %Limits%.DescriptionMaxLength)]
+    public void EveryTextColumn_IsAsLongAsTheValidatorAllows(string property, int expected) =>
+        Entity().FindProperty(property)!.GetMaxLength().ShouldBe(expected);
+%end%
+
+%if list%
+    [Fact]
+    public void EverySortIndex_ServesASortableField_AndEndsWithTheId()
+    {
+        var indexes = Entity().GetIndexes().ToList();
+
+        indexes.Count.ShouldBe(%A%CollectionPolicy.Instance.SortableFields.Count);
+
+        foreach (var index in indexes)
+        {
+            var names = index.Properties.Select(property => property.Name).ToList();
+
+%if owner%
+            names[0].ShouldBe(nameof(%A%Record.OwnerId));
+%end%
+            names[^1].ShouldBe(nameof(%A%Record.Id));
+        }
+    }
+
+%end%
+    [Fact]
+%if prefixed%
+    public void TheTable_IsPrefixedWithThe%F%Schema()
+    {
+        Entity().GetTableName().ShouldBe($"{AppDbContext.%F%Schema}_%F%");
+        Entity().GetSchema().ShouldBeNull();
+    }
+%else%
+    public void TheTable_LivesInItsOwnSchema()
+    {
+        Entity().GetTableName().ShouldBe("%F%");
+        Entity().GetSchema().ShouldBe(AppDbContext.%F%Schema);
+    }
+%end%
+
+    private static IEntityType Entity()
+    {
+        using var context = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseDatabase(DatabaseProvider.DesignTimeConnectionString)
+            .Options);
+
+        return context.Model.FindEntityType(typeof(%A%Record))!;
+    }
+}

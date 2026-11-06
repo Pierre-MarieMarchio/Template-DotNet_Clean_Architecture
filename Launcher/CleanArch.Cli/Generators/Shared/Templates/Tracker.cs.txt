@@ -1,0 +1,33 @@
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Infrastructure.Core.Common.Saving.Tracking;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Tracking;
+
+internal sealed class %A%Tracker(I%A%Mapper mapper)
+    : AggregateTracker<%A%, %A%Record>(record => record.Version), I%A%Tracker
+{
+    public override void FlushTo(DbContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        foreach (var tracked in TrackedAggregates)
+        {
+            var entry = context.Entry(tracked.Record);
+
+            if (tracked.IsRemoved || entry.State is EntityState.Deleted or EntityState.Detached)
+            {
+                continue;
+            }
+
+            mapper.WriteTo(tracked.Aggregate, tracked.Record);
+
+            if (entry.State != EntityState.Added)
+            {
+                entry.Property(record => record.Version).OriginalValue = tracked.Aggregate.Version;
+            }
+        }
+    }
+}

@@ -1,0 +1,6 @@
+namespace %P%.Application.Features.%F%.Ports.%A%Queries;
+
+public sealed record %A%Filter
+{
+    public static readonly %A%Filter None = new();
+}

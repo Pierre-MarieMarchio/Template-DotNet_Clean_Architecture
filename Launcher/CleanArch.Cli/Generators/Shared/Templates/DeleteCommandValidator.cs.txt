@@ -1,0 +1,10 @@
+using FluentValidation;
+
+namespace %P%.Application.Features.%F%.UseCases.Commands.Delete%A%;
+
+public sealed class Delete%A%CommandValidator : AbstractValidator<Delete%A%Command>
+{
+    public Delete%A%CommandValidator() =>
+        RuleFor(command => command.%A%Id)
+            .NotEmpty().WithMessage("%An% %L% id is required.");
+}

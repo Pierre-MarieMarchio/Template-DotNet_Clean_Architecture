@@ -1,0 +1,56 @@
+using %P%.Application.Core.Common.Concurrency; //?VersionPrecondition
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto
+using %P%.Domain.Core.Common.Primitives; //?UserId
+
+namespace %P%.Application.Features.%F%.Ports.%A%Store;
+
+public interface I%A%Store
+{
+%if create%
+    void Add(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        %A%ContentDto content,
+        DateTimeOffset createdAt);
+
+%end%
+%if update%
+    Task<%A%ChangeStatus> StageReplacementAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        %A%ContentDto content,
+        DateTimeOffset modifiedAt,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default);
+
+%end%
+%if delete%
+    Task<%A%ChangeStatus> StageRemovalAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default);
+%end%
+%if purge%
+
+    Task<int> StageRemovalForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken = default);
+%end%
+%if anon%
+
+    Task<int> StageAnonymisationForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken = default);
+%end%
+}

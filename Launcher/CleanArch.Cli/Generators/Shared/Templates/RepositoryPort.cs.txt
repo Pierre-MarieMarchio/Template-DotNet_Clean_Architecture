@@ -1,0 +1,29 @@
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Domain.Features.%F%.Model.Entities;
+
+namespace %P%.Domain.Features.%F%.Repositories;
+
+public interface I%A%Repository
+{
+%if change%
+%if owner%
+    Task<%A%?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken);
+%else%
+    Task<%A%?> GetAsync(Guid id, CancellationToken cancellationToken);
+%end%
+
+%end%
+%if owner%
+    Task<IReadOnlyList<%A%>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken);
+
+%end%
+%if create%
+    void Add(%A% aggregate);
+
+%end%
+%if delete|owner%
+    void Remove(%A% aggregate);
+%end%
+}

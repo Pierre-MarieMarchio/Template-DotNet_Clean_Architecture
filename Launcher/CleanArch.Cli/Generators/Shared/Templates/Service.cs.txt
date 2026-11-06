@@ -1,0 +1,222 @@
+using %P%.Application.Core.Common.Collections; //?CollectionBinding
+using %P%.Application.Core.Common.Concurrency; //?Versioned|ConcurrencyErrors|VersionPrecondition
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Core.Common.Validation; //?EnsureValidAsync
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%Dto|%A%SummaryDto|%A%ListQueryDto
+using %P%.Application.Features.%F%.Model.Errors; //?%A%Errors
+using %P%.Application.Features.%F%.Model.Policies; //?%A%CollectionPolicy
+using %P%.Application.Features.%F%.Ports.%A%Queries; //?I%A%Queries|%A%Filter
+using %P%.Application.Features.%F%.Ports.%A%Store; //?I%A%Store|%A%ChangeStatus
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using FluentValidation; //?IValidator
+
+namespace %P%.Application.Features.%F%.Services;
+
+internal sealed class %A%Service(
+%if rq%
+    I%A%Queries queries,
+%end%
+%if wq%
+    I%A%Store store,
+    IUnitOfWork unitOfWork,
+%end%
+%if clock%
+    TimeProvider timeProvider,
+%end%
+%if content%
+    IValidator<%A%ContentDto> validator,
+%end%
+    ICurrentUser currentUser) : I%A%Service
+{
+%if list%
+    public async Task<Result<PagedResult<%A%SummaryDto>>> ListAsync(
+        %A%ListQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<PagedResult<%A%SummaryDto>>();
+        }
+
+        var bound = CollectionBinding.Bind(
+            query,
+            %A%CollectionPolicy.Instance,
+            () => Result.Success(%A%Filter.None),
+            %DateKeys%);
+
+        if (bound.IsFailure)
+        {
+            return bound.To<PagedResult<%A%SummaryDto>>();
+        }
+
+        return await queries.%ListQuery%(%SvcOwner%bound.Value, cancellationToken);
+    }
+
+%end%
+%if get%
+    public async Task<Result<%ReadDto%>> GetAsync(Guid %L%Id, CancellationToken cancellationToken = default)
+    {
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<%ReadDto%>();
+        }
+
+        return await ReadAsync(%SvcOwner%%L%Id, cancellationToken);
+    }
+
+%end%
+%if create%
+    public async Task<Result<%ReadDto%>> CreateAsync(
+        %A%ContentDto content,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<%ReadDto%>();
+        }
+
+        var validation = await validator.EnsureValidAsync(content, cancellationToken);
+
+        if (validation.IsFailure)
+        {
+            return validation.To<%ReadDto%>();
+        }
+
+        var %L%Id = Guid.CreateVersion7();
+
+        store.Add(%SvcOwner%%L%Id, %Staged%, timeProvider.GetUtcNow());
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return await ReadAsync(%SvcOwner%%L%Id, cancellationToken);
+    }
+
+%end%
+%if update%
+    public async Task<Result<%ReadDto%>> UpdateAsync(
+        Guid %L%Id,
+        %A%ContentDto content,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<%ReadDto%>();
+        }
+
+        var validation = await validator.EnsureValidAsync(content, cancellationToken);
+
+        if (validation.IsFailure)
+        {
+            return validation.To<%ReadDto%>();
+        }
+
+        var status = await store.StageReplacementAsync(
+%if owner%
+            userId.Value,
+%end%
+            %L%Id,
+            %Staged%,
+            timeProvider.GetUtcNow(),
+%if etag%
+            precondition,
+%end%
+            cancellationToken);
+
+        if (status != %A%ChangeStatus.Staged)
+        {
+            return Result.Failure<%ReadDto%>(FailureOf(status, %L%Id));
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return await ReadAsync(%SvcOwner%%L%Id, cancellationToken);
+    }
+
+%end%
+%if delete%
+    public async Task<Result> DeleteAsync(
+        Guid %L%Id,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default)
+    {
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId;
+        }
+
+        var status = await store.StageRemovalAsync(
+%if owner%
+            userId.Value,
+%end%
+            %L%Id,
+%if etag%
+            precondition,
+%end%
+            cancellationToken);
+
+        if (status != %A%ChangeStatus.Staged)
+        {
+            return Result.Failure(FailureOf(status, %L%Id));
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
+%end%
+%if single%
+    private async Task<Result<%ReadDto%>> ReadAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        CancellationToken cancellationToken)
+    {
+        var %L% = await queries.GetAsync(%OwnerArg%%L%Id, cancellationToken);
+
+        return %L% is null
+            ? Result.Failure<%ReadDto%>(%A%Errors.%A%NotFound(%L%Id))
+            : %L%;
+    }
+
+%end%
+%if trim&fields%
+    private static %A%ContentDto Trimmed(%A%ContentDto content) => content with { %FTrimmed% };
+%end%
+%if trim&!fields%
+    private static %A%ContentDto Trimmed(%A%ContentDto content) => content with { Name = content.Name.Trim() };
+
+%end%
+%if change%
+    private static Error FailureOf(%A%ChangeStatus status, Guid %L%Id) => status switch
+    {
+        %A%ChangeStatus.NotFound => %A%Errors.%A%NotFound(%L%Id),
+%if etag%
+        %A%ChangeStatus.VersionMismatch => ConcurrencyErrors.PreconditionFailed,
+%end%
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, "A staged change has no failure."),
+    };
+%end%
+}

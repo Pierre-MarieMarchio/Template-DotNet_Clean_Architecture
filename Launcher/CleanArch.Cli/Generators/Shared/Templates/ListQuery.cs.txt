@@ -1,0 +1,13 @@
+using %P%.Application.Core.Common.Collections;
+
+namespace %ListInputNamespace%;
+
+public sealed record %ListInput%(
+    string? Paging,
+    int? Page,
+    int? PageSize,
+    string? Cursor,
+    string? Sort) : ICollectionQuery
+{
+    public static %ListInput% Offset(int? page, int? pageSize) => new(null, page, pageSize, null, null);
+}

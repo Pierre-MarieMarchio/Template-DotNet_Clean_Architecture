@@ -1,0 +1,8 @@
+using %P%.Domain.Core.Common.Primitives;
+
+namespace %P%.Application.Core.Common.Ports;
+
+public interface IUserAccountDirectory
+{
+    Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default);
+}

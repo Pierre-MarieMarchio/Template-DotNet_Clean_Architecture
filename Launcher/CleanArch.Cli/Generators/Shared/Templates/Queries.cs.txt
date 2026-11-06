@@ -1,0 +1,152 @@
+using System.Linq.Expressions; //?Expression
+using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
+using %P%.Application.Core.Common.Concurrency; //?Versioned
+using %P%.Application.Core.Common.Results; //?PagedResult
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%SummaryDto|%A%Dto
+using %P%.Application.Features.%F%.Ports.%A%Queries;
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Infrastructure.Persistence.Common.Contexts;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models; //?%A%Record
+using Microsoft.EntityFrameworkCore;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Queries;
+
+internal sealed class %A%Queries(AppDbContext context) : I%A%Queries
+{
+%if list%
+    public async Task<PagedResult<%A%SummaryDto>> %ListQuery%(
+%if owner%
+        UserId ownerId,
+%end%
+        FeaturePageRequest<%A%Filter> request,
+        CancellationToken cancellationToken = default)
+    {
+%if owner%
+        ArgumentNullException.ThrowIfNull(ownerId);
+%end%
+        ArgumentNullException.ThrowIfNull(request);
+
+        IQueryable<%A%Record> scoped = context.%F%.AsNoTracking();
+%if owner%
+        scoped = scoped.Where(record => record.OwnerId == ownerId.Value);
+%end%
+
+        return request.Paging.Mode == PagingMode.Offset
+            ? await GetOffsetPageAsync(scoped, request, cancellationToken)
+            : await GetKeysetPageAsync(scoped, request, cancellationToken);
+    }
+
+%end%
+%if single%
+    public Task<%ReadDto%?> GetAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        CancellationToken cancellationToken = default)
+    {
+%if owner%
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+%end%
+        return context.%F%
+            .AsNoTracking()
+            .Where(record => record.Id == %L%Id%OwnerClause%)
+%if etag%
+            .Select(record => new Versioned<%A%Dto>(
+%if fields%
+                new %A%Dto(record.Id, %FRecordArgs%, record.CreatedAt, record.LastModifiedAt),
+%else%
+                new %A%Dto(record.Id, record.Name, record.Description, record.CreatedAt, record.LastModifiedAt),
+%end%
+                record.Version))
+%else%
+            .Select(record => new %A%Dto(
+                record.Id,
+%if fields%
+%FRecordArgLines%
+%else%
+                record.Name,
+                record.Description,
+%end%
+                record.CreatedAt,
+                record.LastModifiedAt))
+%end%
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+%end%
+%if owner%
+    public async Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var ids = await context.%F%
+            .AsNoTracking()
+            .Select(record => record.OwnerId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return [.. ids.Select(UserId.Create)];
+    }
+
+%end%
+%if list%
+    private static async Task<PagedResult<%A%SummaryDto>> GetOffsetPageAsync(
+        IQueryable<%A%Record> scoped,
+        FeaturePageRequest<%A%Filter> request,
+        CancellationToken cancellationToken)
+    {
+        int totalCount = await scoped.CountAsync(cancellationToken);
+
+        int page = request.Paging.Page!.Value;
+        int pageSize = request.Paging.PageSize;
+
+        var items = await %A%SortMap.ApplyOrder(scoped, request.Sort)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(_toSummary)
+            .ToListAsync(cancellationToken);
+
+        return PagedResult.Offset(items, page, pageSize, totalCount);
+    }
+
+    private static async Task<PagedResult<%A%SummaryDto>> GetKeysetPageAsync(
+        IQueryable<%A%Record> scoped,
+        FeaturePageRequest<%A%Filter> request,
+        CancellationToken cancellationToken)
+    {
+        var term = request.Sort.Terms[0];
+        int pageSize = request.Paging.PageSize;
+
+        var keysetSource = request.Paging.Cursor is { } cursor
+            ? %A%SortMap.ApplyKeyset(scoped, term, cursor)
+            : scoped;
+
+        var items = await %A%SortMap.ApplyOrder(keysetSource, request.Sort)
+            .Take(pageSize + 1)
+            .Select(_toSummary)
+            .ToListAsync(cancellationToken);
+
+        bool hasNext = items.Count > pageSize;
+        var page = hasNext ? items.GetRange(0, pageSize) : items;
+
+        string? nextCursor = null;
+
+        if (hasNext)
+        {
+            var last = page[^1];
+
+            nextCursor = Cursor.After(term, %A%SortMap.KeyOf(last, term.Field), last.Id).Encode();
+        }
+
+        return PagedResult.Keyset(page, pageSize, nextCursor);
+    }
+
+    private static readonly Expression<Func<%A%Record, %A%SummaryDto>> _toSummary =
+%if fields%
+        record => new %A%SummaryDto(record.Id, %FSummaryArgs%record.CreatedAt, record.LastModifiedAt);
+%else%
+        record => new %A%SummaryDto(record.Id, record.Name, record.CreatedAt, record.LastModifiedAt);
+%end%
+%end%
+}

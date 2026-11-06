@@ -1,0 +1,26 @@
+namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+
+internal sealed class %A%Record
+{
+    public Guid Id { get; set; }
+
+%if owner%
+    public Guid OwnerId { get; set; }
+
+%end%
+%if fields%
+%FRecordProperties%
+%else%
+    public string Name { get; set; } = string.Empty;
+
+    public string Description { get; set; } = string.Empty;
+%end%
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? LastModifiedAt { get; set; }
+%if etag%
+
+    public uint Version { get; set; }
+%end%
+}

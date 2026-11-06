@@ -1,0 +1,86 @@
+using %P%.Domain.Core.Common.Exceptions;
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Domain.Features.%F%.Model.Entities;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Domain.UnitTests.Features.%F%.Model.Entities;
+
+public sealed class %A%Tests
+{
+%if owner%
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
+
+%end%
+%if create%
+    [Fact]
+    public void Create_KeepsTheTrimmedNameAndTheDescription()
+    {
+        var %L% = %A%.Create(%OwnerIdArg%"  Groceries  ", "Milk, eggs");
+
+        %L%.Id.ShouldNotBe(Guid.Empty);
+        %L%.Name.ShouldBe("Groceries");
+        %L%.Description.ShouldBe("Milk, eggs");
+%if owner%
+        %L%.OwnerId.ShouldBe(_ownerId);
+%end%
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_RefusesABlankName(string name) =>
+        Should.Throw<DomainException>(() => %A%.Create(%OwnerIdArg%name, "Milk, eggs"));
+
+    [Fact]
+    public void Create_RefusesANameOverTheLimit() =>
+        Should.Throw<DomainException>(
+            () => %A%.Create(%OwnerIdArg%new string('a', %A%.NameMaxLength + 1), string.Empty));
+
+%end%
+%if update%
+    [Fact]
+    public void Update_ReplacesTheNameAndTheDescription()
+    {
+        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), %OwnerIdArg%"Groceries", "Milk");
+
+        %L%.Update("  Errands  ", "Parcel");
+
+        %L%.Name.ShouldBe("Errands");
+        %L%.Description.ShouldBe("Parcel");
+    }
+
+    [Fact]
+    public void Update_RefusesABlankName()
+    {
+        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), %OwnerIdArg%"Groceries", "Milk");
+
+        Should.Throw<DomainException>(() => %L%.Update("   ", "Parcel"));
+        %L%.Name.ShouldBe("Groceries");
+    }
+
+    [Fact]
+    public void Update_RefusesAMissingDescription_WithoutChangingTheName()
+    {
+        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), %OwnerIdArg%"Groceries", "Milk");
+
+        Should.Throw<DomainException>(() => %L%.Update("Errands", null!));
+        %L%.Name.ShouldBe("Groceries");
+        %L%.Description.ShouldBe("Milk");
+    }
+
+%end%
+    [Fact]
+    public void Rehydrate_KeepsWhatWasStored_EvenOverTheCurrentLimit()
+    {
+        string stored = new('a', %A%.NameMaxLength + 1);
+
+        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), %OwnerIdArg%stored, "Milk");
+
+        %L%.Name.ShouldBe(stored);
+    }
+
+    [Fact]
+    public void Rehydrate_RefusesAnEmptyId() =>
+        Should.Throw<DomainException>(() => %A%.Rehydrate(Guid.Empty, %OwnerIdArg%"Groceries", "Milk"));
+}

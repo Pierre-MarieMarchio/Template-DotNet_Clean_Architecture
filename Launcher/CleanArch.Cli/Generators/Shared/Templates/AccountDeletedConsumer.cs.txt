@@ -1,0 +1,96 @@
+using %P%.Application.Core.Common.Events; //?UserAccountDeleted
+using %P%.Application.Core.Common.Ports; //?IDeletedAccountDataPolicy|IUserAccountDirectory|IUnitOfWork
+using %P%.Domain.Core.Common.Primitives;
+using %P%.Application.Features.%F%.Ports.%A%Queries;
+%if rec%
+using %P%.Application.Features.%F%.Ports.%A%Store;
+%end%
+%if agg%
+using %P%.Domain.Features.%F%.Repositories;
+%end%
+
+namespace %P%.Application.Features.%F%.Services.Consumers;
+
+internal sealed class %Verb%%A%OnAccountDeletedConsumer(
+%if rec%
+    I%A%Store store,
+%end%
+%if agg%
+    I%A%Repository repository,
+%end%
+    I%A%Queries queries,
+    IUserAccountDirectory accounts,
+    IUnitOfWork unitOfWork) : IDomainEventConsumer<UserAccountDeleted>, IDeletedAccountDataPolicy
+{
+    public Task ConsumeAsync(UserAccountDeleted domainEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+
+        return ApplyAsync(domainEvent.UserId, cancellationToken);
+    }
+
+    public async Task<bool> ApplyAsync(UserId owner, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+
+        if (await accounts.ExistsAsync(owner, cancellationToken))
+        {
+            return false;
+        }
+
+%if purge%
+%if rec%
+        int staged = await store.StageRemovalForOwnerAsync(owner, cancellationToken);
+
+        if (staged == 0)
+        {
+            return false;
+        }
+%end%
+%if agg%
+        var owned = await repository.GetForOwnerAsync(owner, cancellationToken);
+
+        if (owned.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var aggregate in owned)
+        {
+            repository.Remove(aggregate);
+        }
+%end%
+%end%
+%if anon%
+%if rec%
+        int staged = await store.StageAnonymisationForOwnerAsync(owner, cancellationToken);
+
+        if (staged == 0)
+        {
+            return false;
+        }
+%end%
+%if agg%
+        var owned = await repository.GetForOwnerAsync(owner, cancellationToken);
+
+        if (owned.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var aggregate in owned)
+        {
+            aggregate.Anonymise();
+        }
+%end%
+%end%
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
+    public Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(
+        CancellationToken cancellationToken = default) =>
+        queries.ListDataOwnerIdsAsync(cancellationToken);
+}

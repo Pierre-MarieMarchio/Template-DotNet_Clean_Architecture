@@ -1,0 +1,12 @@
+namespace %P%.Application.Features.%F%.Ports.%A%Store;
+
+public enum %A%ChangeStatus
+{
+    Staged,
+
+    NotFound,
+%if etag%
+
+    VersionMismatch,
+%end%
+}

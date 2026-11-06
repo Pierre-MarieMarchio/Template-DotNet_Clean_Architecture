@@ -1,0 +1,56 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Core.Common.Validation;
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Mapping;
+using %P%.Application.Features.%F%.Services;
+using Mediator;
+
+namespace %P%.Application.Features.%F%.UseCases.Commands.Update%A%;
+
+public sealed record Update%A%Command(
+    Guid %A%Id,
+%if fields%
+%FParamList%,
+%else%
+    string Name,
+    string Description,
+%end%
+    VersionPrecondition? Precondition = null) : ICommand<Result<Versioned<%A%Dto>>>;
+
+public sealed class Update%A%CommandHandler(
+    I%A%Service service,
+    IUnitOfWork unitOfWork) : ICommandHandler<Update%A%Command, Result<Versioned<%A%Dto>>>
+{
+    public async ValueTask<Result<Versioned<%A%Dto>>> Handle(
+        Update%A%Command command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var loaded = await service.%Load%(command.%A%Id, command.Precondition, cancellationToken);
+
+        if (loaded.IsFailure)
+        {
+            return loaded.To<Versioned<%A%Dto>>();
+        }
+
+        var %L% = loaded.Value;
+
+%if fields%
+        var update = DomainGuard.Try(() => %L%.Update(%FCommandArgs%));
+%else%
+        var update = DomainGuard.Try(() => %L%.Update(command.Name, command.Description));
+%end%
+
+        if (update.IsFailure)
+        {
+            return update.To<Versioned<%A%Dto>>();
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return %A%DtoMapping.Detail(%L%);
+    }
+}

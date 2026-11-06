@@ -1,0 +1,10 @@
+using FluentValidation;
+
+namespace %P%.Application.Features.%F%.UseCases.Queries.Get%A%;
+
+public sealed class Get%A%QueryValidator : AbstractValidator<Get%A%Query>
+{
+    public Get%A%QueryValidator() =>
+        RuleFor(query => query.%A%Id)
+            .NotEmpty().WithMessage("%An% %L% id is required.");
+}

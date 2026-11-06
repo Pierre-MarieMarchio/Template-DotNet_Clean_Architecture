@@ -1,0 +1,26 @@
+using %P%.Domain.Features.%F%.Model.Entities; //?%A%
+using FluentValidation;
+
+namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
+
+public sealed class Create%A%CommandValidator : AbstractValidator<Create%A%Command>
+{
+    public Create%A%CommandValidator()
+    {
+%if fields%
+%FRulesCommand%
+%else%
+        RuleFor(command => command.Name)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty().WithMessage("%An% %L% name is required.")
+            .Must(name => name.Trim().Length <= %A%.NameMaxLength)
+            .WithMessage($"%An% %L% name cannot exceed {%A%.NameMaxLength} characters.");
+
+        RuleFor(command => command.Description)
+            .Cascade(CascadeMode.Stop)
+            .NotNull().WithMessage("%An% %L% description is required; it may be empty.")
+            .MaximumLength(%A%.DescriptionMaxLength)
+            .WithMessage($"%An% %L% description cannot exceed {%A%.DescriptionMaxLength} characters.");
+%end%
+    }
+}

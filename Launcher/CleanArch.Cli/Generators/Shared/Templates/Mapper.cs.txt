@@ -1,0 +1,69 @@
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Infrastructure.Core.Common.Saving.Tracking;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+
+internal sealed class %A%Mapper : I%A%Mapper
+{
+    public %A% ToAggregate(%A%Record record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        var aggregate = %A%.Rehydrate(
+            record.Id,
+%if owner%
+            UserId.Create(record.OwnerId),
+%end%
+%if fields%
+%FMapperRehydrate%
+%else%
+            record.Name,
+            record.Description);
+%end%
+
+        StoredStamps.ApplyTo(aggregate, record, record.Version, record.Id, "%A%");
+
+        return aggregate;
+    }
+
+    public %A%Record ToNewRecord(%A% aggregate)
+    {
+        ArgumentNullException.ThrowIfNull(aggregate);
+
+        return new %A%Record
+        {
+            Id = aggregate.Id,
+%if owner%
+            OwnerId = aggregate.OwnerId.Value,
+%end%
+%if fields%
+%FMapperNew%
+%else%
+            Name = aggregate.Name,
+            Description = aggregate.Description,
+%end%
+
+            Version = aggregate.Version,
+
+            CreatedAt = aggregate.CreatedAt,
+            CreatedBy = aggregate.CreatedBy,
+            LastModifiedAt = aggregate.LastModifiedAt,
+            LastModifiedBy = aggregate.LastModifiedBy,
+        };
+    }
+
+    public void WriteTo(%A% aggregate, %A%Record record)
+    {
+        ArgumentNullException.ThrowIfNull(aggregate);
+        ArgumentNullException.ThrowIfNull(record);
+
+%if fields%
+%FMapperWrite%
+%else%
+        record.Name = aggregate.Name;
+        record.Description = aggregate.Description;
+%end%
+    }
+}

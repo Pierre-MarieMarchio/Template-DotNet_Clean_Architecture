@@ -1,0 +1,17 @@
+namespace %P%.Api.Features.%F%.Contracts.Responses;
+
+%if etag%
+/// <summary>The wire shape of one %L%, whose version travels in the <c>ETag</c> header.</summary>
+%else%
+/// <summary>The wire shape of one %L%.</summary>
+%end%
+public sealed record %A%Response(
+    Guid Id,
+%if fields%
+%FDtoParams%
+%else%
+    string Name,
+    string Description,
+%end%
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastModifiedAt);

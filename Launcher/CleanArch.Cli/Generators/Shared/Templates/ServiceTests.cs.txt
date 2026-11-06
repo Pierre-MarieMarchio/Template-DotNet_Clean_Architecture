@@ -1,0 +1,159 @@
+using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
+using %P%.Application.Core.Common.Concurrency; //?Versioned|VersionPrecondition
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%Dto|%A%ListQueryDto
+using %P%.Application.Features.%F%.Ports.%A%Queries; //?I%A%Queries|%A%Filter
+using %P%.Application.Features.%F%.Ports.%A%Store; //?I%A%Store|%A%ChangeStatus
+using %P%.Application.Features.%F%.Services;
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDtoValidator
+using %P%.Application.Features.%F%.Model.Policies; //?%A%InputPolicy
+using %P%.Application.UnitTests.TestDoubles;
+using %P%.Domain.Core.Common.Primitives;
+using NSubstitute;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Application.UnitTests.Features.%F%.Services;
+
+public sealed class %A%ServiceTests
+{
+    private static readonly UserId _callerId = UserId.Create(Guid.CreateVersion7());
+
+%if rq%
+    private readonly I%A%Queries _queries = Substitute.For<I%A%Queries>();
+%end%
+%if wq%
+    private readonly I%A%Store _store = Substitute.For<I%A%Store>();
+    private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+%end%
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+%if content&fields%
+    private static %A%ContentDto AValidContent => %FValidContent%;
+
+%end%
+%if content&!fields%
+    private static %A%ContentDto AValidContent => new("Groceries", "Milk, eggs");
+
+%end%
+    [Fact]
+    public async Task AnAnonymousCaller_IsRefusedByEveryOperation()
+    {
+        var service = ServiceFor(StubCurrentUser.Anonymous);
+%if get|update|delete%
+        var %L%Id = Guid.CreateVersion7();
+%end%
+
+        Result[] results =
+        [
+%if list%
+            await service.ListAsync(%ListInput%.Offset(null, null), TestToken),
+%end%
+%if get%
+            await service.GetAsync(%L%Id, TestToken),
+%end%
+%if create%
+            await service.CreateAsync(AValidContent, TestToken),
+%end%
+%if update%
+            await service.UpdateAsync(%L%Id, AValidContent%NullPrecondition%, TestToken),
+%end%
+%if delete%
+            await service.DeleteAsync(%L%Id%NullPrecondition%, TestToken),
+%end%
+        ];
+
+        results.ShouldAllBe(result => result.IsFailure);
+        results.ShouldAllBe(result => result.Error!.Type == ErrorType.Unauthorized && result.Error.Code == "auth.required");
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_ReadsAndWritesNothing()
+    {
+        var service = ServiceFor(StubCurrentUser.Anonymous);
+%if get|update|delete%
+        var %L%Id = Guid.CreateVersion7();
+%end%
+
+%if list%
+        await service.ListAsync(%ListInput%.Offset(null, null), TestToken);
+%end%
+%if get%
+        await service.GetAsync(%L%Id, TestToken);
+%end%
+%if create%
+        await service.CreateAsync(AValidContent, TestToken);
+%end%
+%if update%
+        await service.UpdateAsync(%L%Id, AValidContent%NullPrecondition%, TestToken);
+%end%
+%if delete%
+        await service.DeleteAsync(%L%Id%NullPrecondition%, TestToken);
+%end%
+
+%if rq%
+        _queries.ReceivedCalls().ShouldBeEmpty();
+%end%
+%if wq%
+        _store.ReceivedCalls().ShouldBeEmpty();
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+%end%
+    }
+
+%if get%
+    [Fact]
+    public async Task GetAsync_%An%%A%ThatIsNotThere_IsNotFound()
+    {
+        _queries.GetAsync(%AnyOwner%Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns((%ReadDto%?)null);
+
+        var result = await Service().GetAsync(Guid.CreateVersion7(), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.NotFound);
+        result.Error.Code.ShouldBe("%L%.notFound");
+    }
+
+%end%
+%if create&fields%
+%FServiceInvalid%
+
+%end%
+%if create&!fields%
+    [Theory]
+    [InlineData("", "description")]
+    [InlineData("   ", "description")]
+    [InlineData(null, "description")]
+    [InlineData("name", null)]
+    public async Task CreateAsync_RejectsInvalidContent_AndStagesNothing(string? name, string? description)
+    {
+        var result = await Service().CreateAsync(new %A%ContentDto(name!, description!), TestToken);
+
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+        _store.ReceivedCalls().ShouldBeEmpty();
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+%end%
+%if delete%
+    [Fact]
+    public async Task DeleteAsync_%An%%A%ThatCannotBeStaged_FailsAndCommitsNothing()
+    {
+        _store.StageRemovalAsync(%AnyOwner%Arg.Any<Guid>(), %AnyPrecondition%Arg.Any<CancellationToken>())
+            .Returns(%A%ChangeStatus.NotFound);
+
+        var result = await Service().DeleteAsync(Guid.CreateVersion7()%NullPrecondition%, TestToken);
+
+        result.Error!.Code.ShouldBe("%L%.notFound");
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+%end%
+    private %A%Service ServiceFor(ICurrentUser currentUser) =>
+        new(%ServiceArgs%);
+%if get|create|delete%
+
+    private %A%Service Service() => ServiceFor(StubCurrentUser.WithId(_callerId));
+%end%
+}

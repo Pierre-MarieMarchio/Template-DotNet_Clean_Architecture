@@ -1,0 +1,15 @@
+using %P%.Application.Auth.Features.Accounts.Ports.Accounts;
+using %P%.Application.Core.Common.Ports;
+using %P%.Domain.Core.Common.Primitives;
+
+namespace %H%.Features.Auth.Composition;
+
+internal sealed class AccountUserAccountDirectory(IAccountsService accounts) : IUserAccountDirectory
+{
+    public async Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+
+        return await accounts.FindProfileAsync(userId.Value, cancellationToken) is not null;
+    }
+}

@@ -1,0 +1,20 @@
+using %P%.Application.Features.%F%.UseCases.%K%.%U%;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Application.UnitTests.Features.%F%.UseCases.%K%.%U%;
+
+public sealed class %In%ValidatorTests
+{
+    private readonly %In%Validator _validator = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AWellFormed%Kind%_PassesValidation() =>
+        (await _validator.ValidateAsync(AWellFormed%Kind%(), TestToken))
+            .IsValid.ShouldBeTrue();
+%Refusals%
+    internal static %In% AWellFormed%Kind%() =>
+        new(%Values%);
+}

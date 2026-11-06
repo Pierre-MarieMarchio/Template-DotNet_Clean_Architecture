@@ -1,0 +1,49 @@
+using %P%.Domain.Core.Common.Abstractions;
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Infrastructure.Persistence.UnitTests.Features.%F%;
+
+public sealed class %A%MapperFidelityTests
+{
+    [Fact]
+    public void EveryPieceOfState_SurvivesTheRoundTrip()
+    {
+        var createdAt = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero);
+        var modifiedAt = new DateTimeOffset(2026, 3, 5, 8, 9, 10, TimeSpan.Zero);
+        var createdBy = new Guid("11111111-2222-3333-4444-555555555555");
+        var modifiedBy = new Guid("66666666-7777-8888-9999-aaaaaaaaaaaa");
+%if owner%
+        var ownerId = UserId.Create(new Guid("4b7f1d92-4c8a-4f4b-9a1e-0d2f3c4b5a60"));
+%end%
+
+        var original = %A%.Rehydrate(
+            new Guid("0199a3c4-1111-7000-8000-000000000001"),
+%if owner%
+            ownerId,
+%end%
+%FFidelityArgs%
+
+        ((IVersioned)original).SetVersion(987_654u);
+        ((IAuditable)original).SetCreated(createdAt, createdBy);
+        ((IAuditable)original).SetLastModified(modifiedAt, modifiedBy);
+
+        var mapper = new %A%Mapper();
+
+        var roundTripped = mapper.ToAggregate(mapper.ToNewRecord(original));
+
+        roundTripped.Id.ShouldBe(original.Id);
+%if owner%
+        roundTripped.OwnerId.ShouldBe(ownerId);
+%end%
+%FFidelityAsserts%
+        roundTripped.Version.ShouldBe(987_654u);
+        roundTripped.CreatedAt.ShouldBe(createdAt);
+        roundTripped.CreatedBy.ShouldBe(createdBy);
+        roundTripped.LastModifiedAt.ShouldBe(modifiedAt);
+        roundTripped.LastModifiedBy.ShouldBe(modifiedBy);
+    }
+}

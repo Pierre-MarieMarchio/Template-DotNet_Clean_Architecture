@@ -1,0 +1,14 @@
+namespace %P%.Api.Features.%F%.Contracts.Requests;
+
+/// <summary>The paging and sorting of a list, bound from the query string.</summary>
+/// <param name="Paging"><c>offset</c> (the default) or <c>cursor</c>.</param>
+/// <param name="Page">The page number, in offset mode.</param>
+/// <param name="PageSize">The number of items per page.</param>
+/// <param name="Cursor">The previous page's <c>nextCursor</c>, in cursor mode.</param>
+/// <param name="Sort">Comma-separated fields (%SortDoc%), each optionally suffixed <c>:asc</c> or <c>:desc</c>; at most one in cursor mode.</param>
+public sealed record Get%F%Request(
+    string? Paging,
+    int? Page,
+    int? PageSize,
+    string? Cursor,
+    string? Sort);

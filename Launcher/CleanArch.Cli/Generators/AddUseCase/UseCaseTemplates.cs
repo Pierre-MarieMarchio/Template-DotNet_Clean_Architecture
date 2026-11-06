@@ -2,100 +2,43 @@
 
 internal static class UseCaseTemplates
 {
-    internal const string Validator = """
-        using FluentValidation;
+    private const string _extension = ".cs.txt";
 
-        namespace %P%.Application.Features.%F%.UseCases.%K%.%U%;
+    private static readonly string _folder = typeof(UseCaseTemplates).Namespace + ".Templates.";
 
-        public sealed class %In%Validator : AbstractValidator<%In%>
-        {
-            public %In%Validator()
-            {
-        %Rules%
-            }
-        }
-        """;
+    private static readonly Lazy<Dictionary<string, string>> _templates = new(Load);
 
-    internal const string UseCase = """
-        using %P%.Application.Core.Common.Results;
-        using %Concurrency%;
-        using %Dtos%;
-        using Mediator;
+    internal static string Validator => Read(nameof(Validator));
 
-        namespace %P%.Application.Features.%F%.UseCases.%K%.%U%;
+    internal static string UseCase => Read(nameof(UseCase));
 
-        %Message%
+    internal static string Dto => Read(nameof(Dto));
 
-        public sealed class %In%Handler : I%Kind%Handler<%In%, %Out%>
-        {
-            public ValueTask<%Out%> Handle(%In% %in%, CancellationToken cancellationToken) =>
-                throw new NotImplementedException(
-                    %Unwritten%);
-        }
-        """;
+    internal static string DtoWithId => Read(nameof(DtoWithId));
 
-    internal const string Dto = """
-        namespace %P%.Application.Features.%F%.Model.Dtos;
+    internal static string ValidatorTests => Read(nameof(ValidatorTests));
 
-        public sealed record %D%;
-        """;
+    internal static string HandlerTests => Read(nameof(HandlerTests));
 
-    internal const string DtoWithId = """
-        namespace %P%.Application.Features.%F%.Model.Dtos;
+    private static string Read(string name) =>
+        _templates.Value.TryGetValue(name, out string? template)
+            ? template
+            : throw new InvalidOperationException($"No template is called {name}: {_folder}{name}{_extension} is not embedded in the tool.");
 
-        public sealed record %D%(Guid Id);
-        """;
+    private static Dictionary<string, string> Load()
+    {
+        var assembly = typeof(UseCaseTemplates).Assembly;
 
-    internal const string ValidatorTests = """
-        using %P%.Application.Features.%F%.UseCases.%K%.%U%;
-        using Shouldly;
-        using Xunit;
+        return assembly.GetManifestResourceNames()
+            .Where(resource => resource.StartsWith(_folder, StringComparison.Ordinal) && resource.EndsWith(_extension, StringComparison.Ordinal))
+            .ToDictionary(resource => resource[_folder.Length..^_extension.Length], resource => Text(assembly, resource), StringComparer.Ordinal);
+    }
 
-        namespace %P%.Application.UnitTests.Features.%F%.UseCases.%K%.%U%;
+    private static string Text(System.Reflection.Assembly assembly, string resource)
+    {
+        using var reader = new StreamReader(assembly.GetManifestResourceStream(resource)!);
+        string text = reader.ReadToEnd();
 
-        public sealed class %In%ValidatorTests
-        {
-            private readonly %In%Validator _validator = new();
-
-            private static CancellationToken TestToken => TestContext.Current.CancellationToken;
-
-            [Fact]
-            public async Task AWellFormed%Kind%_PassesValidation() =>
-                (await _validator.ValidateAsync(AWellFormed%Kind%(), TestToken))
-                    .IsValid.ShouldBeTrue();
-        %Refusals%
-            internal static %In% AWellFormed%Kind%() =>
-                new(%Values%);
-        }
-        """;
-
-    internal const string HandlerTests = """
-        using %P%.Application.Core.Common.Results;
-        using %P%.Application.Features.%F%.UseCases.%K%.%U%;
-        using %P%.Application.UnitTests.TestDoubles;
-        using %Dtos%;
-        using Shouldly;
-        using Xunit;
-
-        namespace %P%.Application.UnitTests.Features.%F%.UseCases.%K%.%U%;
-
-        public sealed class %U%Tests
-        {
-            private static CancellationToken TestToken => TestContext.Current.CancellationToken;
-
-            [Fact]
-            public async Task AMalformed%Kind%_NeverReachesTheHandler()
-            {
-                var malformed = %In%ValidatorTests.AWellFormed%Kind%() with { %Malformed% };
-
-                var result = await UseCase().Handle(malformed, TestToken);
-
-                result.IsFailure.ShouldBeTrue();
-                result.Error!.Type.ShouldBe(ErrorType.Validation);
-            }
-
-            private static ValidatedHandler<%In%, %Out%> UseCase() =>
-                new(new %In%Handler().Handle, new %In%Validator());
-        }
-        """;
+        return text.EndsWith('\n') ? text[..^1] : text;
+    }
 }

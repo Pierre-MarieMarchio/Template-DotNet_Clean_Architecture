@@ -1,0 +1,17 @@
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Policies; //?%A%InputPolicy
+using Shouldly;
+using Xunit;
+
+namespace %P%.Application.UnitTests.Features.%F%.Model.Dtos;
+
+public sealed class %A%ContentDtoValidatorTests
+{
+    private static readonly %A%ContentDtoValidator _validator = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+%FContentValidatorTests%
+
+    private static %A%ContentDto AValidContentDto() => %FValidContent%;
+}

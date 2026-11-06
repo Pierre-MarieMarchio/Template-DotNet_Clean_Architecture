@@ -1,0 +1,35 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.Model.Errors;
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Domain.Features.%F%.Repositories;
+
+namespace %P%.Application.Features.%F%.Services;
+
+internal sealed class %A%Service(I%A%Repository repository, ICurrentUser currentUser) : I%A%Service
+{
+    public async Task<Result<%A%>> %Load%(
+        Guid %L%Id,
+        VersionPrecondition? precondition,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<%A%>();
+        }
+
+        var aggregate = await repository.GetAsync(%SvcOwner%%L%Id, cancellationToken);
+
+        if (aggregate is null)
+        {
+            return Result.Failure<%A%>(%A%Errors.%A%NotFound(%L%Id));
+        }
+
+        return precondition is not null && !precondition.IsSatisfiedBy(aggregate.Version)
+            ? Result.Failure<%A%>(ConcurrencyErrors.PreconditionFailed)
+            : Result.Success(aggregate);
+    }
+}

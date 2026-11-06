@@ -1,0 +1,11 @@
+namespace %P%.Application.Features.%F%.Model.Dtos;
+
+public sealed record %A%SummaryDto(
+    Guid Id,
+%if fields%
+%FSummaryParams%
+%else%
+    string Name,
+%end%
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastModifiedAt);

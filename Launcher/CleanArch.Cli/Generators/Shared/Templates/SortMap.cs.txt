@@ -1,0 +1,119 @@
+using System.Globalization;
+using %P%.Application.Core.Common.Collections;
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Policies;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Queries;
+
+internal static class %A%SortMap
+{
+    public static IOrderedQueryable<%A%Record> ApplyOrder(IQueryable<%A%Record> source, SortOrder sort)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(sort);
+
+        IOrderedQueryable<%A%Record>? ordered = null;
+
+        foreach (var term in sort.Terms)
+        {
+            ordered = ordered is null ? OrderByTerm(source, term) : ThenByTerm(ordered, term);
+        }
+
+        return sort.Terms[^1].Direction == SortDirection.Ascending
+            ? ordered!.ThenBy(record => record.Id)
+            : ordered!.ThenByDescending(record => record.Id);
+    }
+
+    public static IQueryable<%A%Record> ApplyKeyset(IQueryable<%A%Record> source, SortTerm term, Cursor cursor)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(term);
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        return term.Field switch
+        {
+            %A%CollectionPolicy.NameField => ApplyNameKeyset(source, term.Direction, cursor),
+            %A%CollectionPolicy.CreatedAtField => ApplyCreatedAtKeyset(source, term.Direction, cursor),
+            _ => throw new InvalidOperationException(
+                $"'{term.Field}' has no keyset comparison: the policy should have rejected it first."),
+        };
+    }
+
+    public static string KeyOf(%A%SummaryDto summary, string field)
+    {
+        ArgumentNullException.ThrowIfNull(summary);
+
+        return field switch
+        {
+            %A%CollectionPolicy.NameField => summary.Name,
+            %A%CollectionPolicy.CreatedAtField => summary.CreatedAt.ToString("O", CultureInfo.InvariantCulture),
+            _ => throw new InvalidOperationException(
+                $"'{field}' has no cursor key: the policy should have rejected it first."),
+        };
+    }
+
+    private static IOrderedQueryable<%A%Record> OrderByTerm(IQueryable<%A%Record> source, SortTerm term) =>
+        term.Field switch
+        {
+            %A%CollectionPolicy.NameField => term.Direction == SortDirection.Ascending
+                ? source.OrderBy(record => record.Name)
+                : source.OrderByDescending(record => record.Name),
+            %A%CollectionPolicy.CreatedAtField => term.Direction == SortDirection.Ascending
+                ? source.OrderBy(record => record.CreatedAt)
+                : source.OrderByDescending(record => record.CreatedAt),
+            _ => throw new InvalidOperationException(
+                $"'{term.Field}' is not a sortable field: the policy should have rejected it first."),
+        };
+
+    private static IOrderedQueryable<%A%Record> ThenByTerm(IOrderedQueryable<%A%Record> source, SortTerm term) =>
+        term.Field switch
+        {
+            %A%CollectionPolicy.NameField => term.Direction == SortDirection.Ascending
+                ? source.ThenBy(record => record.Name)
+                : source.ThenByDescending(record => record.Name),
+            %A%CollectionPolicy.CreatedAtField => term.Direction == SortDirection.Ascending
+                ? source.ThenBy(record => record.CreatedAt)
+                : source.ThenByDescending(record => record.CreatedAt),
+            _ => throw new InvalidOperationException(
+                $"'{term.Field}' is not a sortable field: the policy should have rejected it first."),
+        };
+
+    private static IQueryable<%A%Record> ApplyNameKeyset(
+        IQueryable<%A%Record> source,
+        SortDirection direction,
+        Cursor cursor) =>
+        direction == SortDirection.Ascending
+            ? source.Where(record =>
+                record.Name.CompareTo(cursor.Key) > 0
+                || (record.Name == cursor.Key && record.Id.CompareTo(cursor.Id) > 0))
+            : source.Where(record =>
+                record.Name.CompareTo(cursor.Key) < 0
+                || (record.Name == cursor.Key && record.Id.CompareTo(cursor.Id) < 0));
+
+    private static IQueryable<%A%Record> ApplyCreatedAtKeyset(
+        IQueryable<%A%Record> source,
+        SortDirection direction,
+        Cursor cursor)
+    {
+        if (!DateTimeOffset.TryParse(
+            cursor.Key,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind,
+            out DateTimeOffset parsed))
+        {
+            throw new InvalidOperationException(
+                "The cursor's key is not a valid date/time: CursorKeys should have rejected it first.");
+        }
+
+        var key = parsed.ToUniversalTime();
+
+        return direction == SortDirection.Ascending
+            ? source.Where(record =>
+                record.CreatedAt.CompareTo(key) > 0
+                || (record.CreatedAt == key && record.Id.CompareTo(cursor.Id) > 0))
+            : source.Where(record =>
+                record.CreatedAt.CompareTo(key) < 0
+                || (record.CreatedAt == key && record.Id.CompareTo(cursor.Id) < 0));
+    }
+}

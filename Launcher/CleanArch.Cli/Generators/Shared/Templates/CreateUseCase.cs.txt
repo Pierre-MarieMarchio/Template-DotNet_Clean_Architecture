@@ -1,0 +1,56 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Core.Common.Validation;
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Mapping;
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Domain.Features.%F%.Repositories;
+using Mediator;
+
+namespace %P%.Application.Features.%F%.UseCases.Commands.Create%A%;
+
+%if fields%
+public sealed record Create%A%Command(
+%FParamList%) : ICommand<Result<Versioned<%A%Dto>>>;
+%else%
+public sealed record Create%A%Command(string Name, string Description) : ICommand<Result<Versioned<%A%Dto>>>;
+%end%
+
+public sealed class Create%A%CommandHandler(
+    I%A%Repository repository,
+    IUnitOfWork unitOfWork,
+    ICurrentUser currentUser) : ICommandHandler<Create%A%Command, Result<Versioned<%A%Dto>>>
+{
+    public async ValueTask<Result<Versioned<%A%Dto>>> Handle(
+        Create%A%Command command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<Versioned<%A%Dto>>();
+        }
+
+%if fields%
+        var created = DomainGuard.Try(() => %A%.Create(%SvcOwner%%FCommandArgs%));
+%else%
+        var created = DomainGuard.Try(() => %A%.Create(%SvcOwner%command.Name, command.Description));
+%end%
+
+        if (created.IsFailure)
+        {
+            return created.To<Versioned<%A%Dto>>();
+        }
+
+        var %L% = created.Value;
+
+        repository.Add(%L%);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return %A%DtoMapping.Detail(%L%);
+    }
+}

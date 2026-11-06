@@ -348,6 +348,67 @@ public sealed class ConfigurationSurfaceTests
 
     private sealed record SectionFacts(IReadOnlySet<string> Keys, string Origin);
 
+    private sealed class KeyReader(
+        IReadOnlyDictionary<string, string> qualified,
+        IReadOnlyDictionary<string, string> local)
+    {
+        public string? KeyOf(Match read)
+        {
+            if (read.Groups["connection"].Success)
+            {
+                return Resolve(read.Groups["connection"].Value) is { } name ? $"ConnectionStrings:{name}" : null;
+            }
+
+            if (read.Groups["section"].Success)
+            {
+                return SectionKeyOf(read);
+            }
+
+            return Resolve(read.Groups[read.Groups["indexed"].Success ? "indexed" : "valued"].Value);
+        }
+
+        private string? SectionKeyOf(Match read)
+        {
+            string? section = Resolve(read.Groups["section"].Value);
+
+            if (section is null || !read.Groups["member"].Success)
+            {
+                return section;
+            }
+
+            return Resolve(read.Groups["member"].Value) is { } member ? $"{section}:{member}" : null;
+        }
+
+        private string? Resolve(string expression)
+        {
+            string text = expression.Trim();
+
+            if (text.StartsWith("$\"", StringComparison.Ordinal) && text.EndsWith('"'))
+            {
+                return ResolveInterpolation(text[2..^1]);
+            }
+
+            if (text.StartsWith('"') && text.EndsWith('"') && text.Length >= 2)
+            {
+                return text[1..^1];
+            }
+
+            if (text.StartsWith("nameof(", StringComparison.Ordinal) && text.EndsWith(')'))
+            {
+                return text[7..^1].Split('.')[^1];
+            }
+
+            return qualified.TryGetValue(text, out string? value) ? value : local.GetValueOrDefault(text);
+        }
+
+        private string? ResolveInterpolation(string template)
+        {
+            var parts = _interpolation.Matches(template).Select(part => Resolve(part.Groups["expression"].Value)).ToList();
+
+            return parts.Contains(null) ? null : _interpolation.Replace(template, part => Resolve(part.Groups["expression"].Value)!);
+        }
+    }
+
     private static List<string> UndocumentedKeys(
         IEnumerable<(string Key, string Origin)> keys,
         IEnumerable<string> bound,
@@ -488,9 +549,24 @@ public sealed class ConfigurationSurfaceTests
 
     private static List<(string Key, string Origin)> DirectReads(IReadOnlyDictionary<string, string> sources)
     {
+        var qualified = QualifiedConstants(sources.Values);
+
+        return [.. sources.SelectMany(source =>
+        {
+            var reader = new KeyReader(qualified, LocalConstants(source.Value));
+
+            return _directRead.Matches(source.Value)
+                .Select(reader.KeyOf)
+                .OfType<string>()
+                .Select(key => (Key: key, Origin: source.Key));
+        })];
+    }
+
+    private static Dictionary<string, string> QualifiedConstants(IEnumerable<string> sources)
+    {
         var constants = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (string source in sources.Values)
+        foreach (string source in sources)
         {
             foreach (Match constant in _stringConstant.Matches(source))
             {
@@ -503,61 +579,13 @@ public sealed class ConfigurationSurfaceTests
             }
         }
 
-        var reads = new List<(string Key, string Origin)>();
-
-        foreach ((string origin, string source) in sources)
-        {
-            var local = _stringConstant.Matches(source)
-                .GroupBy(constant => constant.Groups["name"].Value, StringComparer.Ordinal)
-                .ToDictionary(group => group.Key, group => group.First().Groups["value"].Value, StringComparer.Ordinal);
-
-            string? Resolve(string expression)
-            {
-                string text = expression.Trim();
-
-                if (text.StartsWith("$\"", StringComparison.Ordinal) && text.EndsWith('"'))
-                {
-                    var parts = _interpolation.Matches(text[2..^1]).Select(part => Resolve(part.Groups["expression"].Value)).ToList();
-
-                    return parts.Contains(null) ? null : _interpolation.Replace(text[2..^1], part => Resolve(part.Groups["expression"].Value)!);
-                }
-
-                if (text.StartsWith('"') && text.EndsWith('"') && text.Length >= 2)
-                {
-                    return text[1..^1];
-                }
-
-                if (text.StartsWith("nameof(", StringComparison.Ordinal) && text.EndsWith(')'))
-                {
-                    return text[7..^1].Split('.')[^1];
-                }
-
-                return constants.TryGetValue(text, out string? qualified) ? qualified
-                    : local.TryGetValue(text, out string? unqualified) ? unqualified
-                    : null;
-            }
-
-            foreach (Match read in _directRead.Matches(source))
-            {
-                string? key = read.Groups["connection"].Success
-                    ? Resolve(read.Groups["connection"].Value) is { } name ? $"ConnectionStrings:{name}" : null
-                    : read.Groups["section"].Success
-                        ? Resolve(read.Groups["section"].Value) is { } section
-                            ? read.Groups["member"].Success
-                                ? Resolve(read.Groups["member"].Value) is { } member ? $"{section}:{member}" : null
-                                : section
-                            : null
-                        : Resolve(read.Groups[read.Groups["indexed"].Success ? "indexed" : "valued"].Value);
-
-                if (key is not null)
-                {
-                    reads.Add((key, origin));
-                }
-            }
-        }
-
-        return reads;
+        return constants;
     }
+
+    private static Dictionary<string, string> LocalConstants(string source) =>
+        _stringConstant.Matches(source)
+            .GroupBy(constant => constant.Groups["name"].Value, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().Groups["value"].Value, StringComparer.Ordinal);
 
     private static List<string> UndocumentedReads(
         IEnumerable<(string Key, string Origin)> reads,

@@ -15,15 +15,34 @@ internal static class CoverageCommand
     {
         var command = new Command(Name, "Run this project's tests with coverage, then check the floor coverage.minimum states.");
         BuildSettings.Options settings = BuildSettings.Add(command);
+        Option<bool> reportsOnly = new("--reports-only")
+        {
+            Description = "Judge the Cobertura reports already under TestResults against the floor, without running the tests.",
+        };
+        Option<string> summary = new("--summary") { Description = "Append the coverage table, as Markdown, to this file." };
+        Option<string> json = new("--json") { Description = "Write the merged totals, as JSON, to this file." };
+        command.Options.Add(reportsOnly);
+        command.Options.Add(summary);
+        command.Options.Add(json);
         if (context.Project is { } project)
         {
-            command.SetAction(parseResult => Run(project, context.Shell(parseResult), settings.Of(parseResult)));
+            command.SetAction(parseResult =>
+            {
+                Shell shell = context.Shell(parseResult);
+                var outputs = CoverageOutputs.From(
+                    InFolder(parseResult.GetValue(summary), context.WorkingDirectory),
+                    Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY"),
+                    InFolder(parseResult.GetValue(json), context.WorkingDirectory));
+                return parseResult.GetValue(reportsOnly)
+                    ? TestRuns.Guarded(shell, () => Judge(project, shell, outputs))
+                    : Run(project, shell, settings.Of(parseResult), outputs);
+            });
         }
 
         return command;
     }
 
-    private static int Run(LocatedProject project, Shell shell, BuildSettings settings) =>
+    private static int Run(LocatedProject project, Shell shell, BuildSettings settings, CoverageOutputs outputs) =>
         TestRuns.Guarded(shell, () =>
         {
             string root = project.Root;
@@ -50,7 +69,7 @@ internal static class CoverageCommand
                 return ExitCode.FirstFailureOf(
                 [
                     () => shell.Run(CoveredTests(root, ProjectPath.Relative(root, filter ?? solution), settings, built, results)),
-                    () => shell.Run(CoverageGate(root, results)),
+                    () => Judge(project, shell, outputs),
                 ]);
             }
             finally
@@ -73,12 +92,14 @@ internal static class CoverageCommand
                 "--coverage-output-format", "cobertura",
             ]);
 
-    private static ExternalCall CoverageGate(string root, string results) =>
-        Dotnet.RunFile(
-            root,
-            ProjectPath.Shown(ProjectLayout.Tool("CoverageGate.cs")),
-            "--root", ProjectPath.Relative(root, results),
-            "--minimum", CoverageMinimum(Path.Combine(root, "coverage.minimum")));
+    private static string? InFolder(string? path, string folder) => string.IsNullOrEmpty(path) ? null : Path.GetFullPath(path, folder);
+
+    private static int Judge(LocatedProject project, Shell shell, CoverageOutputs outputs) =>
+        CoverageFloor.Judge(
+            shell,
+            project.Root,
+            double.Parse(CoverageMinimum(Path.Combine(project.Root, "coverage.minimum")), CultureInfo.InvariantCulture),
+            outputs);
 
     private static string CoverageMinimum(string path) =>
         File.ReadLines(path).Select(line => line.Trim()).FirstOrDefault(candidate => double.TryParse(candidate, CultureInfo.InvariantCulture, out _))

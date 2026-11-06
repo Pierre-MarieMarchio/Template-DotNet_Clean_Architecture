@@ -1,4 +1,5 @@
-﻿using CleanArch.Tooling.Failures;
+﻿using System.Collections.ObjectModel;
+using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Output;
 using CleanArch.Tooling.Processes;
@@ -15,9 +16,6 @@ internal sealed class AdditionFlow(AdditionContext context)
     public const string Dotnet = "dotnet";
 
     private const string _nameKey = "--name";
-
-    private static readonly IReadOnlyDictionary<string, string> _nothing = new Dictionary<string, string>();
-    private static readonly IReadOnlyDictionary<string, Condition> _alwaysAsked = new Dictionary<string, Condition>();
 
     public AdditionContext Context => context;
 
@@ -57,7 +55,7 @@ internal sealed class AdditionFlow(AdditionContext context)
             manifest,
             context.Arguments.TemplateOptions,
             detected,
-            _alwaysAsked,
+            ReadOnlyDictionary<string, Condition>.Empty,
             [new(_nameKey, (_, remembered) => questionnaire.Text("--name", label, context.Arguments.Name, remembered ?? manifest.DefaultName, problem))],
             [ItemAdditions.Reviewed(Conversation, given => [KeyValuePair.Create(label, given.GetValueOrDefault(_nameKey) ?? string.Empty), .. Questionnaire.Recap(manifest, given)], _ => subject)]);
 
@@ -77,7 +75,7 @@ internal sealed class AdditionFlow(AdditionContext context)
             manifest,
             context.Arguments.TemplateOptions,
             detected,
-            _alwaysAsked,
+            ReadOnlyDictionary<string, Condition>.Empty,
             [],
             [
                 new(_nameKey, (given, remembered) => questionnaire.Text("--name", label, context.Arguments.Name, proposed(given, remembered), name => problem(given, name))),
@@ -89,7 +87,7 @@ internal sealed class AdditionFlow(AdditionContext context)
 
     public void ShowDryRun(IReadOnlyList<string> engine, IReadOnlyList<string[]> tasks)
     {
-        string version = context.Version ?? throw new LauncherException("This template source has no templateVersion, so there's no package version to install.");
+        string version = TemplateSource.Installable(context.Version);
         string install = context.Source.LocalPath is { } path
             ? TemplateEngine.CommandLine("dotnet new install", [path])
             : TemplateEngine.CommandLine("dotnet new install", [$"{TemplateSource.PackageId}@{version}"]);
@@ -113,7 +111,7 @@ internal sealed class AdditionFlow(AdditionContext context)
         string command = TemplateEngine.CommandLine(Dotnet, arguments);
         ProcessResult result = Conversation.Spin(
             running,
-            () => context.Processes.Run(new ProcessCall(Dotnet, root, arguments, _nothing), Conversation.EchoesTheTemplateEngine ? context.Console.Verbatim : null));
+            () => context.Processes.Run(new ProcessCall(Dotnet, root, arguments, ReadOnlyDictionary<string, string>.Empty), Conversation.EchoesTheTemplateEngine ? context.Console.Verbatim : null));
         bool done = result.ExitCode == 0;
         Conversation.Reported(title + (done ? " done" : " failed"), done, done ? null : ProcessFailure.Why(command, result, ProcessFailure.Journal(root, title.ToLowerInvariant(), command, result)), done ? [] : [command]);
         return done;

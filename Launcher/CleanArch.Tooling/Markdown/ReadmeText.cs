@@ -4,7 +4,6 @@ namespace CleanArch.Tooling.Markdown;
 
 public static partial class ReadmeText
 {
-    private const string _fence = "```";
     private const string _columnGap = "  ";
 
     public static IEnumerable<(string Text, bool Code)> Blocks(string markdown)
@@ -14,7 +13,7 @@ public static partial class ReadmeText
         var table = new List<string>();
         foreach (string line in markdown.Split('\n').Select(line => line.TrimEnd('\r')))
         {
-            bool fence = line.TrimStart().StartsWith(_fence, StringComparison.Ordinal);
+            bool fence = MarkdownFence.Opens(line);
             bool row = !code && line.StartsWith('|');
             if (row)
             {

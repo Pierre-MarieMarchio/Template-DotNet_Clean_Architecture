@@ -1,12 +1,11 @@
-﻿using CleanArch.Tooling.Manifests;
+﻿using System.Collections.ObjectModel;
+using CleanArch.Tooling.Manifests;
 
 namespace CleanArch.Create.Commands;
 
 public static class LauncherUsage
 {
     private const int _nameWidth = 15;
-
-    private static readonly IReadOnlyDictionary<string, string> _nothing = new Dictionary<string, string>();
 
     public static string Text() =>
         $"""
@@ -35,7 +34,7 @@ public static class LauncherUsage
         {
             string values = option.Kind switch
             {
-                OptionKind.Choice => string.Join('|', Offer.For(manifest, option, _nothing, askedWhen).Values),
+                OptionKind.Choice => string.Join('|', Offer.For(manifest, option, ReadOnlyDictionary<string, string>.Empty, askedWhen).Values),
                 OptionKind.Bool => "true|false",
                 _ => "<value>",
             };

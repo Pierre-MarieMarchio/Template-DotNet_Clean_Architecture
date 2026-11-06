@@ -80,7 +80,7 @@ public sealed class NewCommand : ILauncherCommand
         var setup = new ProjectSetup(
             machine.Processes,
             target,
-            session.Version ?? throw new LauncherException("This template source has no templateVersion, so there's no package version to install."),
+            TemplateSource.Installable(session.Version),
             session.Conversation.EchoesTheTemplateEngine ? machine.Console.Verbatim : null);
         var outcomes = new List<SetupOutcome>();
         machine.Interruption.WhileSettingUp(() =>

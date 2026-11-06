@@ -21,7 +21,7 @@ public static class MarkdownSection
         bool fenced = false;
         foreach (string line in lines.Skip(start + 1))
         {
-            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
+            if (MarkdownFence.Opens(line))
             {
                 fenced = !fenced;
             }

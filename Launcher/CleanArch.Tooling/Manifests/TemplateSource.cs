@@ -29,6 +29,9 @@ public sealed class TemplateSource
 
     public string? LocalPath { get; }
 
+    public static string Installable(string? templateVersion) =>
+        templateVersion ?? throw new LauncherException("This template source has no templateVersion, so there's no package version to install.");
+
     public static TemplateSource Embedded(Assembly assembly)
     {
         return new TemplateSource(null, path =>

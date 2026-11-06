@@ -1,4 +1,5 @@
-﻿using CleanArch.Tooling.Additions;
+﻿using System.Collections.ObjectModel;
+using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Projects;
@@ -7,8 +8,6 @@ namespace CleanArch.Create.Commands.Join;
 
 public abstract class JoinCommand : ILauncherCommand
 {
-    private static readonly IReadOnlyDictionary<string, Condition> _alwaysAsked = new Dictionary<string, Condition>();
-
     public abstract string Name { get; }
 
     public abstract IReadOnlyList<string> Summary { get; }
@@ -24,7 +23,7 @@ public abstract class JoinCommand : ILauncherCommand
     public abstract string? Offer(ProjectFacts project);
 
     public string Help(TemplateSource source) =>
-        Usage() + Environment.NewLine + Environment.NewLine + LauncherUsage.TemplateOptions(source.Manifest(Kind), Subject, _alwaysAsked);
+        Usage() + Environment.NewLine + Environment.NewLine + LauncherUsage.TemplateOptions(source.Manifest(Kind), Subject, ReadOnlyDictionary<string, Condition>.Empty);
 
     public void Run(Session session)
     {

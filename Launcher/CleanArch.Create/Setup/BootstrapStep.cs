@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using CleanArch.Tooling.Processes;
 
 namespace CleanArch.Create.Setup;
@@ -18,8 +19,6 @@ public sealed partial class BootstrapStep()
 
     private const string _toolPackage = "CleanArch.Cli";
 
-    private static readonly IReadOnlyDictionary<string, string> _noVariables = new Dictionary<string, string>(StringComparer.Ordinal);
-
     public static string DescriptionFor(Func<string, bool> holds) =>
         "Runs " + Command + ": "
         + string.Join(
@@ -35,7 +34,7 @@ public sealed partial class BootstrapStep()
 
     internal override SetupOutcome Run(SetupContext context, IReadOnlyList<SetupOutcome> before)
     {
-        ProcessResult result = context.Processes.Run(new ProcessCall("dotnet", context.Root, ["run", "Tools/Tasks.cs", "bootstrap"], _noVariables), context.Echo);
+        ProcessResult result = context.Processes.Run(new ProcessCall("dotnet", context.Root, ["run", "Tools/Tasks.cs", "bootstrap"], ReadOnlyDictionary<string, string>.Empty), context.Echo);
         if (result.ExitCode == 0)
         {
             return new SetupOutcome(this, SetupStatus.Done, null, []);

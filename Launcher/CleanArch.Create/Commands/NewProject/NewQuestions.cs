@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using CleanArch.Create.Setup;
 using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
@@ -15,13 +16,11 @@ internal static partial class NewQuestions
     private const string _setupKey = "--setup";
     private const char _setupSeparator = '|';
 
-    private static readonly IReadOnlyDictionary<string, string> _nothing = new Dictionary<string, string>();
-
     public static NewAnswers Ask(Session session, TemplateManifest manifest, IReadOnlyDictionary<string, Condition> askedWhen)
     {
         Dictionary<string, string> answers = AddedHosts.WithTheHostsAdded(
             manifest,
-            session.Questionnaire.Answer(manifest, session.Parsed.TemplateOptions, _nothing, askedWhen, Before(session, manifest), After(session, manifest)));
+            session.Questionnaire.Answer(manifest, session.Parsed.TemplateOptions, ReadOnlyDictionary<string, string>.Empty, askedWhen, Before(session, manifest), After(session, manifest)));
         return new NewAnswers(answers.GetValueOrDefault(_nameKey)!, answers.GetValueOrDefault(_outputKey)!, answers, Steps(answers.GetValueOrDefault(_setupKey)));
     }
 
@@ -101,7 +100,7 @@ internal static partial class NewQuestions
     }
 
     private static string? ProjectNameProblem(TemplateManifest manifest, string name) =>
-        ProjectName().IsMatch(name) ? ItemAdditions.NameRefusal(manifest, _nothing, name) : "use the letters A to Z, digits and dots, with each part starting with a letter, like Acme.Shop.";
+        ProjectName().IsMatch(name) ? ItemAdditions.NameRefusal(manifest, ReadOnlyDictionary<string, string>.Empty, name) : "use the letters A to Z, digits and dots, with each part starting with a letter, like Acme.Shop.";
 
     [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$")]
     private static partial Regex ProjectName();

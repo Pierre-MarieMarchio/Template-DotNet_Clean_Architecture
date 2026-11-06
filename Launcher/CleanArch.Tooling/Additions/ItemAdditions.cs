@@ -54,8 +54,7 @@ public sealed class ItemAdditions
 
     public static void Install(Conversation conversation, TemplateEngine engine, TemplateSource source, string? templateVersion, string workingDirectory)
     {
-        string version = templateVersion
-            ?? throw new LauncherException("This template source has no templateVersion, so there's no package version to install.");
+        string version = TemplateSource.Installable(templateVersion);
         string package = $"{TemplateSource.PackageId} {version}";
         conversation.Perform($"Installing {package}", $"{package} ready", () => engine.EnsureInstalled(source, version, workingDirectory));
     }

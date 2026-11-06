@@ -9,10 +9,13 @@ internal static class ExternalCommand
 {
     internal static Func<ExternalCall, TextWriter, TextWriter, int>? Handler { get; set; }
 
-    public static int Run(ExternalCall call, TextWriter output, TextWriter error)
+    public static int Run(ExternalCall call, TextWriter output, TextWriter error) =>
+        Run(call, output, output, error);
+
+    public static int Run(ExternalCall call, TextWriter announce, TextWriter output, TextWriter error)
     {
-        output.WriteLine(LineOf(call));
-        output.Flush();
+        announce.WriteLine(LineOf(call));
+        announce.Flush();
         if (Handler is { } handler)
         {
             return handler(call, output, error);

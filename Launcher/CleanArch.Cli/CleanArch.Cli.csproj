@@ -32,6 +32,24 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CleanArch.Tooling\CleanArch.Tooling.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(TemplateConfig)template.json" LogicalName=".template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)dotnetcli.host.json" LogicalName=".template.config/dotnetcli.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)ide.host.json" LogicalName=".template.config/ide.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/template.json" LogicalName=".template.config/webapp/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/dotnetcli.host.json" LogicalName=".template.config/webapp/.template.config/dotnetcli.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webapp/.template.config/ide.host.json" LogicalName=".template.config/webapp/.template.config/ide.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/template.json" LogicalName=".template.config/webpackage/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)webpackage/.template.config/ide.host.json" LogicalName=".template.config/webpackage/.template.config/ide.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)presentation/.template.config/template.json" LogicalName=".template.config/presentation/.template.config/template.json" />
+    <EmbeddedResource Include="$(TemplateConfig)presentation/.template.config/dotnetcli.host.json" LogicalName=".template.config/presentation/.template.config/dotnetcli.host.json" />
+    <EmbeddedResource Include="$(TemplateConfig)presentation/.template.config/ide.host.json" LogicalName=".template.config/presentation/.template.config/ide.host.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="$(TemplateConfig)icon.png" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>

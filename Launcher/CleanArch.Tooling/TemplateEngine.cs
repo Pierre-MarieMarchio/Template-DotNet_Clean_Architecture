@@ -1,8 +1,7 @@
-﻿using CleanArch.Tooling;
-using CleanArch.Tooling.Manifests;
+﻿using CleanArch.Tooling.Manifests;
 using Spectre.Console;
 
-namespace CleanArch.Create;
+namespace CleanArch.Tooling;
 
 public sealed class TemplateEngine
 {

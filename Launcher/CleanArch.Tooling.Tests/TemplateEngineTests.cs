@@ -1,7 +1,7 @@
 ﻿using Shouldly;
 using Xunit;
 
-namespace CleanArch.Create.Tests;
+namespace CleanArch.Tooling.Tests;
 
 public sealed class TemplateEngineTests
 {

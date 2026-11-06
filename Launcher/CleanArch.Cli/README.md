@@ -19,6 +19,14 @@ dotnet cleanarch test --no-integration
 dotnet cleanarch coverage    # dotnet test with coverage, then the floor coverage.minimum states
 dotnet cleanarch verify      # the whole gate: the repository checks, the build, every test,
                              # the pending-model-changes checks and the vulnerable-packages audit
+dotnet cleanarch add web-app --name Backoffice --framework vite-react
+                             # add a web app: dotnet new cleanarch-webapp, then its join step
+dotnet cleanarch add web-package --name tokens
+                             # add a shared package to the web workspace
+dotnet cleanarch add presentation --name Portal --framework blazor-server
+                             # add a presentation project: dotnet new cleanarch-presentation, then its join and scaffold steps
+dotnet cleanarch add web-app --dry-run
+                             # print the commands it would run, write nothing
 dotnet cleanarch migrations add AddTodoItemPriority            # dotnet ef migrations add, at the project root
 dotnet cleanarch migrations add AddTodoItemPriority --check    # dotnet ef migrations has-pending-model-changes
 dotnet cleanarch migrations bundle                             # dotnet ef migrations bundle, for each context
@@ -47,6 +55,15 @@ and forwards its exit code.
 follow the project file: the client check runs where the file records `client`, the web
 workspace's install, audit, lint, test and build where it records a `web` workspace, and the
 identity context's pending-model-changes check where it records `auth: local`.
+
+`add` asks the questions of the item template it runs, from the manifests of the tool's own
+version, and answers the ones about the project from the project file, never from the project's
+files. It installs `CleanArch.WebApi.Templates` at the version the project file records, runs the
+item template, then runs the project's own join step (`web-join`, `presentation-join`) and, for a
+presentation, its scaffold step: these steps belong to the command and are not commands of their
+own. Each takes `--name`, `--yes`, `--template-source`, `--hive`, `--dry-run` and one `--<option>`
+per option of its template; `--dry-run` prints the install, the template and the steps it would run
+and writes nothing. `add web-package` exists only where the project file records a `web` workspace.
 
 `run` and `end-to-end` exist only where the project file records a presentation of framework
 `api`; `sonar` only where it records `sonar` true.

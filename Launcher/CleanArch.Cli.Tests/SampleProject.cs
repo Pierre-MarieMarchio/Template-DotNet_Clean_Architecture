@@ -33,11 +33,77 @@ internal sealed class SampleProject : IDisposable
         }
         """;
 
+    public const string Api = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local", "sonar": true },
+          "client": true,
+          "presentation": [ { "name": "Api", "framework": "api" } ]
+        }
+        """;
+
+    public const string ApiWithWeb = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local", "sonar": true },
+          "presentation": [ { "name": "Api", "framework": "api" } ],
+          "web": {
+            "scope": "acme-shop",
+            "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
+            "packages": [ { "name": "ui" } ]
+          }
+        }
+        """;
+
     public static string WithOptions(string auth, bool sonar) => $$"""
         {
           "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
           "name": "Acme.Shop",
           "options": { "auth": "{{auth}}", "sonar": {{(sonar ? "true" : "false")}} }
+        }
+        """;
+
+    public const string Web = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local" },
+          "web": {
+            "scope": "acme-shop",
+            "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
+            "packages": [ { "name": "ui" } ]
+          }
+        }
+        """;
+
+    public const string Client = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "none" },
+          "client": true
+        }
+        """;
+
+    public static string ApiWith(string auth, bool client) => $$"""
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "{{auth}}" },
+          "client": {{(client ? "true" : "false")}},
+          "presentation": [ { "name": "Api", "framework": "api" } ]
+        }
+        """;
+
+    public const string NoApi = """
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "local" },
+          "client": true,
+          "presentation": [ { "name": "Portal", "framework": "blazor-server" } ]
         }
         """;
 

@@ -51,17 +51,17 @@ fails, and a `cleanarch.json` it cannot read is named with the reason.
 
 `build`, `test`, `coverage` and `verify` take `--configuration` (`-c`), Debug by default, and
 `-m:<N>`, which caps the build's nodes and the test modules run at once on a machine short of
-memory; with it, `test` builds first, then runs the tests it built. Off Windows they leave out a test
-project that targets Windows alone, and say so.
+memory; with it, `test` builds first, then runs the tests it built. Off Windows, `test`, `coverage`
+and `verify` leave out a test project that targets Windows alone, and say so.
 
 `verify` refuses to start while a database context has no initial migration. It then runs, stopping
 at the first step that fails: the self-tests of the scripts under `Tools/`, the documentation index
 check `dotnet run Tools/Tasks.cs docs-index --check`, the comparison of the .NET client with what
 Kiota writes from the OpenAPI reference where the project holds the client, the web workspace's
 schema check, `pnpm audit`, `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test` and
-`pnpm build` where `cleanarch.json` records a web workspace, then the restore, `format --check`, the
-build, every test, the pending-model-changes check of each context and the vulnerable-packages
-listing.
+`pnpm build` where `cleanarch.json` records a web workspace, then the restore,
+`dotnet format --verify-no-changes` over IDE0003 and IDE0049, the build, every test, the
+pending-model-changes check of each context and the vulnerable-packages listing.
 <!--#if (templateMaintenance)-->
 In this repository it also runs the template's own gates, the web lockfiles' check and the
 launcher's solution.

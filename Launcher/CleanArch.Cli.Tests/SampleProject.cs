@@ -33,6 +33,14 @@ internal sealed class SampleProject : IDisposable
         }
         """;
 
+    public static string WithOptions(string auth, bool sonar) => $$"""
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "Acme.Shop",
+          "options": { "auth": "{{auth}}", "sonar": {{(sonar ? "true" : "false")}} }
+        }
+        """;
+
     public SampleProject(string json)
     {
         Root = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;

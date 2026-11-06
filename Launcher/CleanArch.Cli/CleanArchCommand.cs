@@ -10,35 +10,70 @@ public static class CleanArchCommand
     public const int Failed = 1;
     public const string Name = "dotnet cleanarch";
 
-    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error)
+    private const string _description = "Describe this project, or run one of its commands.";
+
+    private static readonly IReadOnlyList<CommandRegistration> _registrations =
+    [
+        HelpCommand.Registration,
+    ];
+
+    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
+        Run(arguments, workingDirectory, output, error, _registrations);
+
+    internal static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
     {
-        var root = new RootCommand("The tool of a project generated from the CleanArch.WebApi.Templates package.");
+        RootCommand root = CreateRoot(CommandContext.Locate(workingDirectory), registrations);
         HelpOption help = root.Options.OfType<HelpOption>().Single();
         help.Action = new UsageNamedAfterTheDotnetCommand((HelpAction)help.Action!);
-        root.SetAction(_ => Describe(workingDirectory, output, error));
 
         return root.Parse([.. arguments]).Invoke(new InvocationConfiguration { Output = output, Error = error });
     }
 
-    private static int Describe(string workingDirectory, TextWriter output, TextWriter error)
+    private static RootCommand CreateRoot(CommandContext context, IReadOnlyList<CommandRegistration> registrations)
     {
-        try
+        var root = new RootCommand(_description);
+        root.SetAction(parseResult => Describe(context, parseResult));
+
+        foreach (CommandRegistration registration in registrations)
         {
-            LocatedProject? project = ProjectLocator.Find(workingDirectory);
-            if (project is null)
+            Command command = registration.Build(context);
+            string? refusal = registration.Refusal(context);
+            if (refusal is not null)
             {
-                error.WriteLine($"Not inside a CleanArch project: no {ProjectLocator.FileName} in {workingDirectory} or any folder above it.");
-                return Failed;
+                command.Hidden = true;
+                command.SetAction(parseResult => Refuse(parseResult, refusal));
             }
 
-            output.WriteLine($"{project.File.Name}, generated from {project.File.Template.Package} {project.File.Template.Version}, at {project.Root}");
-            return Succeeded;
+            root.Add(command);
         }
-        catch (ProjectFileException refused)
+
+        return root;
+    }
+
+    private static int Describe(CommandContext context, ParseResult parseResult)
+    {
+        TextWriter output = parseResult.InvocationConfiguration.Output;
+        TextWriter error = parseResult.InvocationConfiguration.Error;
+        if (context.RefusedProjectFile is { } refused)
         {
             error.WriteLine(refused.Message);
             return Failed;
         }
+
+        if (context.Project is not { } project)
+        {
+            error.WriteLine(context.OutsideProject);
+            return Failed;
+        }
+
+        output.WriteLine($"{project.File.Name}, generated from {project.File.Template.Package} {project.File.Template.Version}, at {project.Root}");
+        return Succeeded;
+    }
+
+    private static int Refuse(ParseResult parseResult, string refusal)
+    {
+        parseResult.InvocationConfiguration.Error.WriteLine(refusal);
+        return Failed;
     }
 }
 

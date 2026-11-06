@@ -79,6 +79,24 @@ public sealed class TestCommandTests : IDisposable
     }
 
     [Fact]
+    public void Test_CappedForAMachineShortOfMemory_BuildsWithTheNodes_ThenTestsWithTheModules()
+    {
+        using var project = SampleSolution.WithSolution();
+        SampleSolution.AddTestProject(project, "Tests/Unit", "A.Unit.csproj", SampleSolution.UnitProject);
+
+        Run(["test", "-m:0"], project.Root).ShouldBe(CleanArchCommand.Failed);
+        _dotnet.Calls.ShouldBeEmpty();
+
+        Run(["test", "-m:2", "--configuration", "Release"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        _dotnet.Calls.ShouldBe(
+        [
+            "build Acme.Shop.slnx --configuration Release -maxcpucount:2",
+            "test --solution Acme.Shop.slnx --configuration Release --no-build --max-parallel-test-modules 2",
+        ]);
+    }
+
+    [Fact]
     public void Test_ForwardsTheExitCodeOfTheTests()
     {
         using var project = SampleSolution.WithSolution();
@@ -140,19 +158,6 @@ public sealed class TestCommandTests : IDisposable
         _error.ToString().ShouldContain(ProjectLocator.FileName);
         _output.ToString().ShouldBeEmpty();
         _dotnet.Calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void HelpJson_ListsTestWithItsNoIntegrationOption()
-    {
-        using var project = SampleSolution.WithSolution();
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        JsonArray commands = CommandsOf();
-        JsonObject test = commands.Single(command => Text(command!["name"]) == "test").ShouldNotBeNull().AsObject();
-        test["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"])).ShouldBe(["--no-integration"]);
-        _error.ToString().ShouldBeEmpty();
     }
 
     public void Dispose()

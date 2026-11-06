@@ -1,18 +1,11 @@
 ﻿using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 
-namespace CleanArch.Create.Hosting;
+namespace CleanArch.Create.Commands;
 
 public sealed class Arguments
 {
     public const string Separator = "--";
-
-    public const string NewCommand = "new";
-    public const string WebAppCommand = "web-app";
-    public const string WebPackageCommand = "web-package";
-    public const string PresentationCommand = "presentation";
-
-    public static readonly IReadOnlyList<string> Commands = [NewCommand, WebAppCommand, WebPackageCommand, PresentationCommand];
 
     private readonly Dictionary<string, string> _templateOptions = new(StringComparer.OrdinalIgnoreCase);
 
@@ -49,9 +42,9 @@ public sealed class Arguments
 
             if (index == 0 && !argument.StartsWith('-'))
             {
-                parsed.Command = Commands.Contains(argument, StringComparer.Ordinal)
+                parsed.Command = LauncherCommands.Names.Contains(argument, StringComparer.Ordinal)
                     ? argument
-                    : throw new LauncherException($"'{argument}' isn't a command. Use {string.Join(", ", Commands)}, or leave it out.");
+                    : throw new LauncherException($"'{argument}' isn't a command. Use {string.Join(", ", LauncherCommands.Names)}, or leave it out.");
                 continue;
             }
 

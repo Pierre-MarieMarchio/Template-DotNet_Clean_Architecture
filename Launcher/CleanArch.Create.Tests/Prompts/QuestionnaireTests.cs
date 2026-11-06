@@ -1,4 +1,4 @@
-﻿using CleanArch.Create.Hosting;
+﻿using CleanArch.Create.Commands.NewProject;
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Output;
@@ -21,7 +21,7 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: false);
 
         LauncherException error = Should.Throw<LauncherException>(() =>
-            questionnaire.Answer(_project, new Dictionary<string, string> { ["auth"] = "local" }, _nothing, Launcher.ProjectAskedWhen));
+            questionnaire.Answer(_project, new Dictionary<string, string> { ["auth"] = "local" }, _nothing, NewCommand.ProjectAskedWhen));
 
         error.Message.ShouldContain("--examples");
         error.Message.ShouldContain("--web");
@@ -34,7 +34,7 @@ public sealed class QuestionnaireTests
     {
         var questionnaire = new Questionnaire(new TestConsole(), interactive: true, yes: true);
 
-        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, Launcher.ProjectAskedWhen);
+        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, NewCommand.ProjectAskedWhen);
 
         answers["auth"].ShouldBe("local");
         answers["web"].ShouldBe("none");
@@ -52,7 +52,7 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(console, interactive: false, yes: true);
 
         Dictionary<string, string> answers = questionnaire.Answer(
-            _project, new Dictionary<string, string> { ["auth"] = "none" }, _nothing, Launcher.ProjectAskedWhen);
+            _project, new Dictionary<string, string> { ["auth"] = "none" }, _nothing, NewCommand.ProjectAskedWhen);
 
         answers["examples"].ShouldBe("none");
         answers["files"].ShouldBe("false");
@@ -67,7 +67,7 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
         Dictionary<string, string> answers = questionnaire.Answer(
-            _project, new Dictionary<string, string> { ["web"] = "vite-react", ["web-name"] = "Shop" }, _nothing, Launcher.ProjectAskedWhen);
+            _project, new Dictionary<string, string> { ["web"] = "vite-react", ["web-name"] = "Shop" }, _nothing, NewCommand.ProjectAskedWhen);
 
         _project.CommandArguments(answers).ShouldBe(["--web", "vite-react", "--web-name", "Shop"]);
     }
@@ -91,7 +91,7 @@ public sealed class QuestionnaireTests
 
         LauncherException error = Should.Throw<LauncherException>(() =>
             questionnaire.Answer(
-                _project, new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false" }, _nothing, Launcher.ProjectAskedWhen));
+                _project, new Dictionary<string, string> { ["auth"] = "none", ["examples"] = "all", ["files"] = "false" }, _nothing, NewCommand.ProjectAskedWhen));
 
         error.Message.ShouldContain(_project.Refusals.Single(refusal => refusal.Symbol == "authNoneNeedsExamplesNone").Explanation);
         error.Message.ShouldNotContain("--files false.");
@@ -122,7 +122,7 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
         Should.Throw<LauncherException>(() =>
-            questionnaire.Answer(_project, new Dictionary<string, string> { [flag[2..]] = value }, _nothing, Launcher.ProjectAskedWhen));
+            questionnaire.Answer(_project, new Dictionary<string, string> { [flag[2..]] = value }, _nothing, NewCommand.ProjectAskedWhen));
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class QuestionnaireTests
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
         LauncherException error = Should.Throw<LauncherException>(() =>
-            questionnaire.Answer(_project, new Dictionary<string, string> { ["web"] = "vite-react", ["web-name"] = "Shop|Admin" }, _nothing, Launcher.ProjectAskedWhen));
+            questionnaire.Answer(_project, new Dictionary<string, string> { ["web"] = "vite-react", ["web-name"] = "Shop|Admin" }, _nothing, NewCommand.ProjectAskedWhen));
 
         error.Message.ShouldBe("--web-name takes one value, not Shop and Admin.");
     }
@@ -150,7 +150,7 @@ public sealed class QuestionnaireTests
             _project,
             new Dictionary<string, string> { ["auth"] = "none", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "false", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
             _nothing,
-            Launcher.ProjectAskedWhen);
+            NewCommand.ProjectAskedWhen);
 
         console.Output.ShouldContain("--auth none refuses the example features");
         console.Output.ShouldContain("Asking again: Authentication, Example features.");
@@ -175,7 +175,7 @@ public sealed class QuestionnaireTests
             _project,
             new Dictionary<string, string> { ["auth"] = "local", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "true", ["ci"] = "true" },
             _nothing,
-            Launcher.ProjectAskedWhen);
+            NewCommand.ProjectAskedWhen);
 
         console.Output.ShouldContain("Sonar analysis");
         console.Output.ShouldContain("Agent instructions");
@@ -200,7 +200,7 @@ public sealed class QuestionnaireTests
             _project,
             new Dictionary<string, string> { ["auth"] = "local", ["database"] = "postgresql", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["agent-files"] = "true", ["web"] = "none" },
             _nothing,
-            Launcher.ProjectAskedWhen);
+            NewCommand.ProjectAskedWhen);
 
         string refused = _project.Refusals.Single(refusal => refusal.Symbol == "desktopIsOneFramework").Explanation + Environment.NewLine + "Asking again: Presentation projects.";
         console.Output.IndexOf(refused, StringComparison.Ordinal).ShouldBeInRange(0, console.Output.IndexOf("Sonar analysis", StringComparison.Ordinal), "The selection is explained and asked again before the next question.");
@@ -213,7 +213,7 @@ public sealed class QuestionnaireTests
     {
         var questionnaire = new Questionnaire(new TestConsole(), interactive: false, yes: true);
 
-        Dictionary<string, string> answers = questionnaire.Answer(_project, new Dictionary<string, string> { ["presentation"] = "mcp|api" }, _nothing, Launcher.ProjectAskedWhen);
+        Dictionary<string, string> answers = questionnaire.Answer(_project, new Dictionary<string, string> { ["presentation"] = "mcp|api" }, _nothing, NewCommand.ProjectAskedWhen);
 
         answers["presentation"].ShouldBe("api|mcp");
         _project.CommandArguments(answers).ShouldBe(["--presentation", "api", "--presentation", "mcp"]);
@@ -230,11 +230,11 @@ public sealed class QuestionnaireTests
 
         if (refusal is null)
         {
-            _project.RefusalsFor(questionnaire.Answer(_project, given, _nothing, Launcher.ProjectAskedWhen)).ShouldBeEmpty();
+            _project.RefusalsFor(questionnaire.Answer(_project, given, _nothing, NewCommand.ProjectAskedWhen)).ShouldBeEmpty();
             return;
         }
 
-        LauncherException error = Should.Throw<LauncherException>(() => questionnaire.Answer(_project, given, _nothing, Launcher.ProjectAskedWhen));
+        LauncherException error = Should.Throw<LauncherException>(() => questionnaire.Answer(_project, given, _nothing, NewCommand.ProjectAskedWhen));
 
         error.Message.ShouldContain(_project.Refusals.Single(candidate => candidate.Symbol == refusal).Explanation);
     }
@@ -253,7 +253,7 @@ public sealed class QuestionnaireTests
             _project,
             new Dictionary<string, string> { ["auth"] = "local", ["examples"] = "all", ["files"] = "true", ["ci"] = "true", ["sonar"] = "true", ["agent-files"] = "true", ["web"] = "none" },
             _nothing,
-            Launcher.ProjectAskedWhen);
+            NewCommand.ProjectAskedWhen);
 
         console.Output.ShouldContain("postgresql");
         console.Output.ShouldNotContain("mysql", Case.Sensitive);
@@ -280,7 +280,7 @@ public sealed class QuestionnaireTests
         console.Input.PushKey(ConsoleKey.Enter);
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
-        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, Launcher.ProjectAskedWhen);
+        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, NewCommand.ProjectAskedWhen);
 
         answers["auth"].ShouldBe("none");
         answers["examples"].ShouldBe("none");
@@ -311,7 +311,7 @@ public sealed class QuestionnaireTests
 
         var questionnaire = new Questionnaire(console, interactive: true, yes: false);
 
-        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, Launcher.ProjectAskedWhen);
+        Dictionary<string, string> answers = questionnaire.Answer(_project, _nothing, _nothing, NewCommand.ProjectAskedWhen);
 
         answers["webAudience"].ShouldBe("admin");
         answers["auth"].ShouldBe("local");

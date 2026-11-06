@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
+using CleanArch.Create.Commands;
 using CleanArch.Create.Hosting;
 using CleanArch.Create.Setup;
+using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Processes;
 using CleanArch.Tooling.Prompts;
@@ -138,7 +140,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         Run(console, "new");
 
         string printed = Regex.Match(Plain(console), @"^.*(?<command>dnx CleanArch\.Create -- new .*--yes.*)$", RegexOptions.Multiline).Groups["command"].Value.Trim();
-        Arguments replayed = Arguments.Parse(printed[(Launcher.InvocationWithArguments.Length + 1)..].Split(' '));
+        Arguments replayed = Arguments.Parse(printed[(LauncherCommands.InvocationWithArguments.Length + 1)..].Split(' '));
 
         replayed.Command.ShouldBe("new");
         replayed.Name.ShouldBe("Demo");
@@ -615,7 +617,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(Rail.Answered);
         Order(output, _created, _bootstrapInstruction, "Done. The same with dotnet new:", "Next:", "cd Demo", ProjectSetup.BootstrapCommand);
         output.ShouldNotContain("```");
-        output.ShouldNotContain(Launcher.Invocation);
+        output.ShouldNotContain(LauncherCommands.Invocation);
         _processes.Calls.ShouldNotContain(call => call.FileName == "git");
         _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
     }
@@ -811,7 +813,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         if (call.Arguments[1] == "cleanarch-webapp")
         {
             string app = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Web", "apps", call.Arguments[3])).FullName;
-            File.WriteAllText(Path.Combine(app, "README.md"), "# App\n\n## Join the stack\n\nInclude it.\n\n" + Launcher.JoiningSection + "\n\n- an edit\n");
+            File.WriteAllText(Path.Combine(app, "README.md"), "# App\n\n## Join the stack\n\nInclude it.\n\n" + ItemAdditions.JoiningSection + "\n\n- an edit\n");
         }
 
         int output = call.Arguments.ToList().IndexOf("-o");

@@ -4,7 +4,8 @@ using AppTemplate.Domain.Core.Common.Primitives;
 
 namespace AppTemplate.PresentationAppPortal.Features.ExternalIdentity.Composition;
 
-internal sealed class ExternalIdentityUserAccountDirectory(IExternalIdentityService externalIdentities) : IUserAccountDirectory
+internal sealed class ExternalIdentityUserAccountDirectory(
+    IExternalIdentityService externalIdentities) : IUserAccountDirectory
 {
     public async Task<bool> ExistsAsync(UserId userId, CancellationToken cancellationToken = default)
     {

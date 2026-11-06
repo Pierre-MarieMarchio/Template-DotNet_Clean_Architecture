@@ -1414,6 +1414,57 @@ public sealed class TemplatePackagingTests
         }
     }
 
+    [Fact]
+    public void EveryHostsCopyOfTheApisAdapters_ReadsAsTheApisOwn_ApartFromItsNamespace()
+    {
+        int compared = 0;
+
+        foreach (string adapter in _apiAdapters)
+        {
+            string own = NamespaceNeutral(Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src", "Presentation", "AT.Api", adapter));
+
+            foreach ((string starter, string project) in _hostsOfTheApisAdapters)
+            {
+                string copy = Path.Combine(StartersFolder, starter, "Src", "Presentation", project, adapter);
+
+                if (!File.Exists(copy))
+                {
+                    continue;
+                }
+
+                compared++;
+                NamespaceNeutral(copy).ShouldBe(
+                    own,
+                    $"{starter}/{project}/{adapter} is a copy of Src/Presentation/AT.Api/{adapter}: change both together, whatever the namespace.");
+            }
+        }
+
+        compared.ShouldBeGreaterThanOrEqualTo(16, "Far fewer copies of the API's adapters were found than the starters hold, so this rule is not reading them.");
+    }
+
+    private static readonly string[] _apiAdapters =
+    [
+        "Common/Security/BackgroundAuditActor.cs",
+        "Common/Security/CurrentUserAuditActor.cs",
+        "Features/Auth/Composition/AccountUserAccountDirectory.cs",
+        "Features/ExternalIdentity/Composition/ExternalIdentityUserAccountDirectory.cs",
+        "Features/ExternalIdentity/Composition/ExternalPrincipalMapper.cs",
+        "Features/Reminders/Composition/AccountReminderRecipientDirectory.cs",
+        "Features/Reminders/Composition/ExternalIdentityReminderRecipientDirectory.cs",
+    ];
+
+    private static readonly (string Starter, string Project)[] _hostsOfTheApisAdapters =
+    [
+        ("blazor-server", "AT.PresentationAppPortal"),
+        ("mcp", "AT.PresentationAppMcp"),
+        ("worker", "AT.Worker"),
+    ];
+
+    private static string NamespaceNeutral(string file) =>
+        _fileScopedNamespace.Replace(File.ReadAllText(file), "namespace AppTemplate;", 1);
+
+    private static readonly Regex _fileScopedNamespace = new(@"^namespace \S+;", RegexOptions.Multiline, TimeSpan.FromSeconds(5));
+
     [Theory]
     [InlineData(".template.config", "name")]
     [InlineData(".template.config/presentation/.template.config", "projectName")]

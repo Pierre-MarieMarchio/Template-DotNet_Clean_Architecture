@@ -132,39 +132,18 @@ internal sealed class FeatureManifest
 
         try
         {
-            if (JsonNode.Parse(original) is not JsonObject top
-                || Text(top["feature"]) != features
-                || top["files"] is not JsonArray files
-                || files.Any(file => file is not JsonObject entry || Text(entry["path"]) is null || Text(entry["sha256"]) is null)
-                || (top["edits"] is { } edits && edits is not JsonArray))
+            if (JsonNode.Parse(original) is not JsonObject top || !IsManifestOf(top, features))
             {
                 problem = $"does not read as the manifest of {features}";
 
                 return null;
             }
 
-            var read = new List<TextEdits.Edit>();
-
-            foreach (var node in top["edits"] as JsonArray ?? [])
+            if (ReadEdits(top["edits"] as JsonArray ?? []) is not { } read)
             {
-                if (node is not JsonObject edit
-                    || Text(edit["path"]) is not { } editPath
-                    || Text(edit["anchor"]) is not { } anchor
-                    || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
-                    || lines.Any(line => Text(line) is null)
-                    || (edit["replaced"] is { } replacedNode && (replacedNode is not JsonArray replacedLines || replacedLines.Any(line => Text(line) is null))))
-                {
-                    problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
+                problem = $"does not read as the manifest of {features}: an edit names no file, anchor, position or lines";
 
-                    return null;
-                }
-
-                read.Add(new TextEdits.Edit(
-                    editPath,
-                    anchor,
-                    Text(edit["position"])!,
-                    [.. lines.Select(line => Text(line)!)],
-                    [.. (edit["replaced"] as JsonArray ?? []).Select(line => Text(line)!)]));
+                return null;
             }
 
             return new FeatureManifest(path, top, original, read);
@@ -179,6 +158,19 @@ internal sealed class FeatureManifest
 
     internal void Record(string path, byte[] bytes) => _files[path] = Sha256(bytes);
 
+    internal void Record(TextEdits.Editor editor)
+    {
+        foreach (var sheet in editor.Changed)
+        {
+            if (_files.TryGetValue(sheet.Path, out string? recorded) && recorded == Sha256(sheet.Original))
+            {
+                _files[sheet.Path] = Sha256(sheet.Bytes());
+            }
+        }
+
+        _edits.AddRange(editor.Applied.Where(edit => !_files.ContainsKey(edit.Path)));
+    }
+
     internal void RecordAddition(string declaration, string migration, IEnumerable<(string Path, byte[]? Before, byte[] After, IReadOnlyList<string> Changes)> files)
     {
         var additions = _top["addedFields"] as JsonArray ?? [];
@@ -192,23 +184,10 @@ internal sealed class FeatureManifest
                 ["path"] = file.Path,
                 ["before"] = file.Before is null ? null : Sha256(file.Before),
                 ["after"] = Sha256(file.After),
-                ["changes"] = new JsonArray([.. file.Changes.Select(change => (JsonNode)JsonValue.Create(change)!)]),
+                ["changes"] = new JsonArray([.. file.Changes.Select(change => (JsonNode)JsonValue.Create(change))]),
             })]),
         });
         _top["addedFields"] = additions;
-    }
-
-    internal void Record(TextEdits.Editor editor)
-    {
-        foreach (var sheet in editor.Changed)
-        {
-            if (_files.TryGetValue(sheet.Path, out string? recorded) && recorded == Sha256(sheet.Original))
-            {
-                _files[sheet.Path] = Sha256(sheet.Bytes());
-            }
-        }
-
-        _edits.AddRange(editor.Applied.Where(edit => !_files.ContainsKey(edit.Path)));
     }
 
     internal byte[] Bytes()
@@ -231,12 +210,12 @@ internal sealed class FeatureManifest
                 ["path"] = edit.Path,
                 ["anchor"] = edit.Anchor,
                 ["position"] = edit.Position,
-                ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line)!)]),
+                ["lines"] = new JsonArray([.. edit.Lines.Select(line => (JsonNode)JsonValue.Create(line))]),
             };
 
             if (edit.Replaced.Length > 0)
             {
-                written["replaced"] = new JsonArray([.. edit.Replaced.Select(line => (JsonNode)JsonValue.Create(line)!)]);
+                written["replaced"] = new JsonArray([.. edit.Replaced.Select(line => (JsonNode)JsonValue.Create(line))]);
             }
 
             edits.Add((JsonNode)written);
@@ -262,6 +241,51 @@ internal sealed class FeatureManifest
 
         return Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(stream.ToArray()).ReplaceLineEndings("\n") + "\n");
     }
+
+    private static bool IsManifestOf(JsonObject top, string features) =>
+        Text(top["feature"]) == features
+        && top["files"] is JsonArray files
+        && files.All(file => file is JsonObject entry && Text(entry["path"]) is not null && Text(entry["sha256"]) is not null)
+        && (top["edits"] is not { } edits || edits is JsonArray);
+
+    private static List<TextEdits.Edit>? ReadEdits(JsonArray edits)
+    {
+        var read = new List<TextEdits.Edit>();
+
+        foreach (var node in edits)
+        {
+            if (ReadEdit(node) is not { } edit)
+            {
+                return null;
+            }
+
+            read.Add(edit);
+        }
+
+        return read;
+    }
+
+    private static TextEdits.Edit? ReadEdit(JsonNode? node)
+    {
+        if (node is not JsonObject edit
+            || Text(edit["path"]) is not { } path
+            || Text(edit["anchor"]) is not { } anchor
+            || Text(edit["position"]) is not ("before" or "after") || edit["lines"] is not JsonArray lines
+            || !AreTexts(lines)
+            || (edit["replaced"] is { } replaced && (replaced is not JsonArray replacedLines || !AreTexts(replacedLines))))
+        {
+            return null;
+        }
+
+        return new TextEdits.Edit(
+            path,
+            anchor,
+            Text(edit["position"])!,
+            [.. lines.Select(line => Text(line)!)],
+            [.. (edit["replaced"] as JsonArray ?? []).Select(line => Text(line)!)]);
+    }
+
+    private static bool AreTexts(JsonArray lines) => lines.All(line => Text(line) is not null);
 
     private static string? Text(JsonNode? node) =>
         node is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;

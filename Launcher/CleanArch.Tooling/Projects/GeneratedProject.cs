@@ -1,9 +1,8 @@
 ﻿using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 namespace CleanArch.Tooling.Projects;
 
-public static partial class GeneratedProject
+public static class GeneratedProject
 {
     public static ProjectFacts? Find(string directory)
     {
@@ -28,7 +27,7 @@ public static partial class GeneratedProject
             root,
             name,
             hasWorkspace,
-            (hasWorkspace ? WorkspaceScope(Path.Combine(web, "package.json")) : null) ?? KebabName(name),
+            (hasWorkspace ? WorkspaceScope(Path.Combine(web, "package.json")) : null) ?? ProjectFacts.KebabName(name),
             Authentication(root, name),
             ExampleFeatures(root, name),
             Directory.Exists(Path.Combine(root, "Src", "Infrastructure", ProjectFacts.FolderOf(name, "Infrastructure.Storage"))),
@@ -53,8 +52,6 @@ public static partial class GeneratedProject
             ? packageName[1..slash]
             : null;
     }
-
-    private static string KebabName(string name) => Separators().Replace(name.ToLowerInvariant(), "-");
 
     private static string Authentication(string root, string name)
     {
@@ -95,6 +92,4 @@ public static partial class GeneratedProject
         return packages.Contains("Microsoft.EntityFrameworkCore.Sqlite") ? "sqlite" : "postgresql";
     }
 
-    [GeneratedRegex(@"[.\s_]+")]
-    private static partial Regex Separators();
 }

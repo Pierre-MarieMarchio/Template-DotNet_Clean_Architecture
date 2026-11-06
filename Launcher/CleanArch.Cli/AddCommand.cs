@@ -1,5 +1,4 @@
 ﻿using System.CommandLine;
-using System.Text.RegularExpressions;
 using CleanArch.Tooling;
 using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
@@ -8,7 +7,7 @@ using Spectre.Console;
 
 namespace CleanArch.Cli;
 
-internal static partial class AddCommand
+internal static class AddCommand
 {
     public const string Name = "add";
 
@@ -199,7 +198,7 @@ internal static partial class AddCommand
             project.Root,
             file.Name,
             file.Web is not null,
-            file.Web?.Scope ?? Separators().Replace(file.Name.ToLowerInvariant(), "-"),
+            file.Web?.Scope ?? ProjectFacts.KebabName(file.Name),
             file.Options.Auth ?? "none",
             file.Options.Examples ?? "none",
             file.Options.Files == true,
@@ -210,8 +209,6 @@ internal static partial class AddCommand
             ProjectLayout.HoldsTheApi(project));
     }
 
-    [GeneratedRegex(@"[.\s_]+")]
-    private static partial Regex Separators();
 
     private sealed record Addition(string Name, string Description, TemplateKind Kind, Func<LocatedProject, string?> Refusal, Action<ItemAdditions, ProjectFacts> Run);
 }

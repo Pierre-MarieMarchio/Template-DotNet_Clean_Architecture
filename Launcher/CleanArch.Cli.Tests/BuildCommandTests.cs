@@ -18,8 +18,8 @@ public sealed class BuildCommandTests : IDisposable
 
         Run(["build"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        _output.ToString().ShouldContain("dotnet build Acme.Shop.sln --configuration Debug");
-        _dotnet.Calls.ShouldBe(["build Acme.Shop.sln --configuration Debug"]);
+        _output.ToString().ShouldContain("dotnet build Acme.Shop.slnx --configuration Debug");
+        _dotnet.Calls.ShouldBe(["build Acme.Shop.slnx --configuration Debug"]);
         _error.ToString().ShouldBeEmpty();
     }
 
@@ -30,7 +30,7 @@ public sealed class BuildCommandTests : IDisposable
 
         Run(["build"], project.Folder("Src")).ShouldBe(CleanArchCommand.Succeeded);
 
-        _dotnet.Calls.ShouldBe(["build Acme.Shop.sln --configuration Debug"]);
+        _dotnet.Calls.ShouldBe(["build Acme.Shop.slnx --configuration Debug"]);
     }
 
     [Fact]

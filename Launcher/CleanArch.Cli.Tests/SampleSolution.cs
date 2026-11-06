@@ -35,12 +35,13 @@ internal static class SampleSolution
     public static SampleProject WithSolution()
     {
         var project = new SampleProject(SampleProject.Full);
-        File.WriteAllText(Path.Combine(project.Root, Name + ".sln"), """
-            Microsoft Visual Studio Solution File, Format Version 12.00
-            Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A.Unit", "Tests\Unit\A.Unit.csproj", "{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}"
-            EndProject
-            Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A.Windows", "Tests\Windows\A.Windows.csproj", "{BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB}"
-            EndProject
+        File.WriteAllText(Path.Combine(project.Root, Name + ".slnx"), """
+            <Solution>
+              <Folder Name="/Tests/">
+                <Project Path="Tests/Unit/A.Unit.csproj" />
+                <Project Path="Tests/Windows/A.Windows.csproj" />
+              </Folder>
+            </Solution>
             """);
         return project;
     }

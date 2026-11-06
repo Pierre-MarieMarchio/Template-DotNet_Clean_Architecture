@@ -19,8 +19,8 @@ public sealed class TestCommandTests : IDisposable
 
         Run(["test"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
-        _output.ToString().ShouldContain("dotnet test --solution Acme.Shop.sln --configuration Debug");
-        _dotnet.Calls.ShouldBe(["test --solution Acme.Shop.sln --configuration Debug"]);
+        _output.ToString().ShouldContain("dotnet test --solution Acme.Shop.slnx --configuration Debug");
+        _dotnet.Calls.ShouldBe(["test --solution Acme.Shop.slnx --configuration Debug"]);
         _error.ToString().ShouldBeEmpty();
     }
 

@@ -367,6 +367,17 @@ describe('providerSessions', () => {
     expect(await after.json()).toEqual({ authorization: 'Bearer access-1' });
   });
 
+  it('answers 405 with the method it takes, never cached, to a session route called with another one', async () => {
+    const base = await stack();
+
+    const signOut = await fetch(`${base}/session/sign-out`);
+    const signIn = await fetch(`${base}/session/sign-in`, { method: 'POST', headers: { 'X-CSRF': '1' } });
+
+    expect([signOut.status, signOut.headers.get('allow'), signOut.headers.get('cache-control')]).toEqual([405, 'POST', 'no-store']);
+    expect([signIn.status, signIn.headers.get('allow'), signIn.headers.get('cache-control')]).toEqual([405, 'GET', 'no-store']);
+    expect(providerCalls).toEqual([]);
+  });
+
   it('refreshes once for two concurrent calls of a session near expiry, and both carry the new token', async () => {
     const base = await stack();
     const cookie = await signedIn(base);

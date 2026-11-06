@@ -19,7 +19,7 @@ internal sealed class SampleProject : IDisposable
           "web": {
             "scope": "acme-shop",
             "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
-            "packages": [ { "name": "ui" } ]
+            "packages": [ "ui" ]
           },
           "presentation": [ { "name": "Portal", "framework": "blazor-server" } ]
         }
@@ -52,7 +52,7 @@ internal sealed class SampleProject : IDisposable
           "web": {
             "scope": "acme-shop",
             "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
-            "packages": [ { "name": "ui" } ]
+            "packages": [ "ui" ]
           }
         }
         """;
@@ -73,7 +73,7 @@ internal sealed class SampleProject : IDisposable
           "web": {
             "scope": "acme-shop",
             "apps": [ { "name": "Site", "framework": "vite-react", "audience": "public", "rendering": "spa" } ],
-            "packages": [ { "name": "ui" } ]
+            "packages": [ "ui" ]
           }
         }
         """;

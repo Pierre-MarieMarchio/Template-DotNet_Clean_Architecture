@@ -16,8 +16,19 @@ public sealed class ProjectLocatorTests
         file.Client.ShouldBeTrue();
         file.Web.ShouldNotBeNull().Scope.ShouldBe("acme-shop");
         file.Web.Apps.ShouldBe([new WebApp("Site", "vite-react", "public", "spa")]);
-        file.Web.Packages.ShouldBe([new WebPackage("ui")]);
+        file.Web.Packages.ShouldBe(["ui"]);
         file.Presentation.ShouldBe([new PresentationProject("Portal", "blazor-server")]);
+    }
+
+    [Theory]
+    [InlineData("cleanarch.json")]
+    [InlineData(".template.config/variants/project-file-web/cleanarch.json")]
+    public void Parse_ReadsTheProjectFileTheTemplateGenerates(string relative)
+    {
+        ProjectFile file = ProjectLocator.Parse(File.ReadAllText(Path.Combine(Repository.Root, relative)));
+
+        file.Options.Aspire.ShouldBe(false);
+        file.Web?.Apps.ShouldAllBe(app => app.Port > 0);
     }
 
     [Fact]

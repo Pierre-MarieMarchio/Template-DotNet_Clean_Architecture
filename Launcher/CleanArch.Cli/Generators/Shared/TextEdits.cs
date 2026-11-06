@@ -567,34 +567,9 @@ internal static class TextEdits
         built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
         .. client.Length > 0 && Directory.Exists(ProjectFolders.Full(root, $"{ProjectFolders.Presentation}/{client}")) ? [Task(root, "api-client")] : Array.Empty<Command>(),
         .. File.Exists(ProjectFolders.Full(root, $"{_web}/packages/api-client/scripts/generate.mjs"))
-            ? [new Command($"cd {_web} && pnpm api {_noBuild}", ProjectFolders.Full(root, _web), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
+            ? [new Command($"cd {_web} && pnpm api {_noBuild}", ProjectFolders.Full(root, _web), "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),
     ];
-
-    internal static int Execute(Command command)
-    {
-        var start = new System.Diagnostics.ProcessStartInfo(command.FileName) { WorkingDirectory = command.WorkingDirectory, UseShellExecute = false };
-
-        foreach (string argument in command.Arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        try
-        {
-            using var process = System.Diagnostics.Process.Start(start)!;
-
-            process.WaitForExit();
-
-            return process.ExitCode;
-        }
-        catch (System.ComponentModel.Win32Exception exception)
-        {
-            Console.Error.WriteLine($"{command.FileName} could not be started: {exception.Message}");
-
-            return 127;
-        }
-    }
 
     internal static bool RunAll(IReadOnlyList<Command> steps, Func<Command, int> run, TextWriter output, TextWriter error, string done)
     {

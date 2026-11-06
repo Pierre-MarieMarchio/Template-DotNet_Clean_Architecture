@@ -32,7 +32,7 @@ internal static class NewField
 
     private sealed record FieldChange(string Path, byte[]? Original, byte[] Bytes, List<string> Members);
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor)
     {
         var problems = new List<string>();
         var request = ParseFieldRequest(args, problems);
@@ -41,10 +41,10 @@ internal static class NewField
 
         return addition is null
             ? Refusal.Write(error, problems, _fieldUsage)
-            : new FieldGeneration(addition, new GenerationContext(root, request.DryRun, output, error), run).Generate();
+            : new FieldGeneration(addition, new GenerationContext(root, request.DryRun, output, error), executor).Generate();
     }
 
-    private sealed class FieldGeneration(Addition addition, GenerationContext context, Func<TextEdits.Command, int> run) : Generation(context)
+    private sealed class FieldGeneration(Addition addition, GenerationContext context, IExecutor executor) : Generation(context)
     {
         private readonly List<string> _failures = [];
 
@@ -96,11 +96,11 @@ internal static class NewField
         protected override int RefuseEdits(IReadOnlyList<string> failures) =>
             RefuseAfterReport(failures, "Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
 
-        protected override string? Preconditions() => FeatureCode.Preconditions(Root, addition.After, Output, run);
+        protected override string? Preconditions() => FeatureCode.Preconditions(Root, addition.After, Output, executor);
 
         protected override void Report(ReportMode mode) => ReportField(Output, Root, addition, _changes, mode);
 
-        protected override int Finish() => FinishField(Root, addition, Output, Error, run);
+        protected override int Finish() => FinishField(Root, addition, Output, Error, executor);
     }
 
     private static FieldRequest ParseFieldRequest(string[] args, List<string> problems)
@@ -462,13 +462,13 @@ internal static class NewField
         ];
     }
 
-    private static int FinishField(string root, Addition addition, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    private static int FinishField(string root, Addition addition, TextWriter output, TextWriter error, IExecutor executor)
     {
         int Run(TextEdits.Command command)
         {
             if (command.FileName != _inProcess)
             {
-                return run(command);
+                return executor.Run(command);
             }
 
             string folder = System.IO.Path.Combine(root, PersistenceProject(addition.After), "Migrations");

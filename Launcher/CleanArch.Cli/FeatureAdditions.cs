@@ -71,7 +71,7 @@ internal static class FeatureAdditions
                 ],
                 parseResult.InvocationConfiguration.Output,
                 parseResult.InvocationConfiguration.Error,
-                GeneratorCommand.Runner(parseResult),
+                GeneratorCommand.Executor(parseResult),
                 GeneratorCommand.Version));
         }
 
@@ -98,7 +98,7 @@ internal static class FeatureAdditions
                 ],
                 parseResult.InvocationConfiguration.Output,
                 parseResult.InvocationConfiguration.Error,
-                GeneratorCommand.Runner(parseResult)));
+                GeneratorCommand.Executor(parseResult)));
         }
 
         return field;
@@ -129,7 +129,7 @@ internal static class FeatureAdditions
                 ],
                 parseResult.InvocationConfiguration.Output,
                 parseResult.InvocationConfiguration.Error,
-                GeneratorCommand.Runner(parseResult)));
+                GeneratorCommand.Executor(parseResult)));
         }
 
         return useCase;

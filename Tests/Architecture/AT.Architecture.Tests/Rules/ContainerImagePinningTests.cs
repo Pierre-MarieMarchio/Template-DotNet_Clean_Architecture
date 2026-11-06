@@ -160,6 +160,9 @@ public sealed class ContainerImagePinningTests
 
         _from.Match("FROM --platform=$BUILDPLATFORM sdk:1 AS build").Groups["alias"].Value.ShouldBe("build");
         _syntax.IsMatch("# syntax=docker/dockerfile:1").ShouldBeTrue();
+        UnpinnedFrontend(["# syntax=docker/dockerfile:1", "FROM sdk:1"]).ShouldBe(["# syntax=docker/dockerfile:1"]);
+        UnpinnedFrontend([$"# syntax=docker/dockerfile:1@{digest}"]).ShouldBeEmpty();
+        UnpinnedFrontend(["FROM sdk:1"]).ShouldBeEmpty();
         _fixtureImage.IsMatch("new ContainerBuilder(\"store:17-alpine\")").ShouldBeTrue();
         _fixtureImage.IsMatch("private const string _storeImage =\n        \"a:b\";").ShouldBeTrue();
         _composeInclude.Match("  - path: Src/Web/apps/Site/compose.yml").Groups["path"].Value.ShouldBe("Src/Web/apps/Site/compose.yml");

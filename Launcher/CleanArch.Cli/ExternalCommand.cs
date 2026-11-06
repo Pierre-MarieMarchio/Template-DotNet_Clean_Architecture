@@ -16,6 +16,11 @@ internal static class ExternalCommand
     {
         announce.WriteLine(LineOf(call));
         announce.Flush();
+        return RunAnnounced(call, output, error);
+    }
+
+    public static int RunAnnounced(ExternalCall call, TextWriter output, TextWriter error)
+    {
         if (Handler is { } handler)
         {
             return handler(call, output, error);

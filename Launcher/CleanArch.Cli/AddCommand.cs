@@ -43,7 +43,12 @@ internal static partial class AddCommand
 
     private static Command Build(CommandContext context)
     {
-        var add = new Command(Name, "Add a web app, a web package or a presentation project to this project.");
+        var add = new Command(Name, "Add a feature, a field, a use case, a setting, a domain event, a web app, a web package or a presentation project to this project.");
+        foreach (Command generator in FeatureAdditions.Commands(context))
+        {
+            add.Subcommands.Add(generator);
+        }
+
         foreach (Addition addition in _additions)
         {
             Command command = BuildAddition(context, addition);

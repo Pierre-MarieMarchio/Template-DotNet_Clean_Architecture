@@ -68,10 +68,12 @@ internal static class FieldReport
     {
         string route = $"/api/v1/{Kebab(spec.Features)}";
         string item = $"{route}/{{{CSharpNames.Lower(spec.Type)}Id}}";
+        string create = spec.HasApi ? $"POST {route}" : "the create operation";
+        string update = spec.HasApi ? $"PUT {item}" : "the update operation";
         string[] writes =
         [
-            .. spec.Has("create") ? [spec.HasApi ? $"POST {route}" : "the create operation"] : Array.Empty<string>(),
-            .. spec.Has("update") ? [spec.HasApi ? $"PUT {item}" : "the update operation"] : Array.Empty<string>(),
+            .. spec.Has("create") ? [create] : Array.Empty<string>(),
+            .. spec.Has("update") ? [update] : Array.Empty<string>(),
         ];
 
         if (writes.Length == 0)

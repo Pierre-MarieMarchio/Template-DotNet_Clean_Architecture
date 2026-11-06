@@ -47,6 +47,20 @@ internal static class FeatureCode
         return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Any();
     }
 
+    internal static bool? TablePrefixesOf(LocatedProject project, List<string> problems)
+    {
+        try
+        {
+            return TablePrefixes(project);
+        }
+        catch (InvalidOperationException exception)
+        {
+            problems.Add(exception.Message);
+
+            return null;
+        }
+    }
+
     internal static bool TablePrefixes(LocatedProject project) =>
         project.File.Options.Database switch
         {

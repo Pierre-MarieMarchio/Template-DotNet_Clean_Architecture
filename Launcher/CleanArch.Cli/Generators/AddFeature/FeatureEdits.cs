@@ -38,18 +38,40 @@ internal static class FeatureEdits
     internal static TextEdits.Editor Edits(string root, FeatureSpec spec, List<Emission> plan)
     {
         var editor = new TextEdits.Editor(root);
-        string p = spec.Prefix;
-        string f = spec.Features;
-        string a = spec.Type;
-        bool record = spec.Model == "record";
-        bool owner = spec.Access == "owner";
-        var flags = Flags(spec);
-        string consumer = $"{(spec.Deletion == "anonymise" ? "Anonymise" : "Delete")}{a}OnAccountDeletedConsumer";
         string[] hosts = ComposingHosts(root, spec);
-        string persistence = PersistenceProject(spec);
         string composition = $"{ProjectOf(spec, "Tests/Architecture", "Architecture.Tests")}/Composition/HostComposition.cs";
 
-        string context = $"{persistence}/Common/Contexts/AppDbContext.cs";
+        EditContext(editor, spec, plan);
+        EditApplicationModule(editor, spec, plan);
+        EditPersistenceModule(editor, spec, plan);
+        EditHosts(editor, spec, hosts, composition);
+        EditModuleTests(editor, root, spec);
+
+        if (spec.Reaction is { } adapter)
+        {
+            Reaction(editor, root, spec, hosts, adapter, composition);
+        }
+
+        if (WritesTheFieldTests(spec, plan))
+        {
+            string database = TestDatabasePath(spec);
+            editor.Step = $"the schema of {database}";
+            editor.Place(database, ["AppDbContext.PlatformSchema,"], before: true, [$"            AppDbContext.{spec.Features}Schema,"], $"AppDbContext.{spec.Features}Schema,");
+        }
+
+        if (spec.HasApi)
+        {
+            EditApiReference(editor, spec);
+        }
+
+        return editor;
+    }
+
+    private static void EditContext(TextEdits.Editor editor, FeatureSpec spec, List<Emission> plan)
+    {
+        string f = spec.Features;
+        string a = spec.Type;
+        string context = $"{PersistenceProject(spec)}/Common/Contexts/AppDbContext.cs";
         editor.Step = $"edit 1 ({context})";
         editor.Place(context, ["public const string PlatformSchema"], before: true, [$"    public const string {f}Schema = \"{Snake(f)}\";", string.Empty], $"public const string {f}Schema ");
         editor.Place(context, ["internal DbSet<IdempotencyRecord>"], before: true, [$"    internal DbSet<{a}Record> {f} => Set<{a}Record>();", string.Empty], $"internal DbSet<{a}Record> {f} ");
@@ -61,9 +83,17 @@ internal static class FeatureEdits
             $"modelBuilder.ApplyConfiguration(new {a}RecordConfiguration());");
         editor.Using(context, NamespaceOf(plan, $"{a}RecordConfiguration"));
         editor.Using(context, NamespaceOf(plan, $"{a}Record"));
+    }
 
+    private static void EditApplicationModule(TextEdits.Editor editor, FeatureSpec spec, List<Emission> plan)
+    {
+        string p = spec.Prefix;
+        string f = spec.Features;
+        string a = spec.Type;
+        bool owner = spec.Access == "owner";
+        string consumer = $"{(spec.Deletion == "anonymise" ? "Anonymise" : "Delete")}{a}OnAccountDeletedConsumer";
         string module = $"{ProjectOf(spec, "Src/Application", "Application")}/ApplicationModule.cs";
-        bool service = record || flags.Contains("change");
+        bool service = spec.Model == "record" || Flags(spec).Contains("change");
         editor.Step = $"edit 2 ({module})";
         editor.Place(
             module,
@@ -102,21 +132,13 @@ internal static class FeatureEdits
             editor.Using(module, $"{p}.Application.Core.Common.Events");
             editor.Using(module, $"{p}.Application.Core.Common.Ports");
         }
+    }
 
-        string persistenceModule = $"{persistence}/PersistenceModule.cs";
-        (string Line, string[] Types)[] adapters = record
-            ?
-            [
-                .. flags.Contains("stage") ? [($"services.TryAddScoped<I{a}Store, {a}Store>();", (string[])[$"I{a}Store", $"{a}Store"])] : Array.Empty<(string, string[])>(),
-                .. flags.Contains("rq") ? [($"services.TryAddScoped<I{a}Queries, {a}Queries>();", (string[])[$"I{a}Queries", $"{a}Queries"])] : Array.Empty<(string, string[])>(),
-            ]
-            :
-            [
-                ($"services.TryAddSingleton<I{a}Mapper, {a}Mapper>();", [$"I{a}Mapper", $"{a}Mapper"]),
-                ($"AddScopedTracker<{a}Tracker, I{a}Tracker>(services);", [$"{a}Tracker", $"I{a}Tracker"]),
-                ($"services.TryAddScoped<I{a}Repository, {a}Repository>();", [$"I{a}Repository", $"{a}Repository"]),
-                .. flags.Contains("rq") ? [($"services.TryAddScoped<I{a}Queries, {a}Queries>();", (string[])[$"I{a}Queries", $"{a}Queries"])] : Array.Empty<(string, string[])>(),
-            ];
+    private static void EditPersistenceModule(TextEdits.Editor editor, FeatureSpec spec, List<Emission> plan)
+    {
+        string f = spec.Features;
+        string persistenceModule = $"{PersistenceProject(spec)}/PersistenceModule.cs";
+        var adapters = Adapters(spec);
         editor.Step = $"edit 3 ({persistenceModule})";
         editor.Place(persistenceModule, ["AddIdempotencyFeature(services, configuration);"], before: true, [$"        Add{f}Feature(services);"], $"Add{f}Feature(services);");
         editor.Place(
@@ -130,6 +152,36 @@ internal static class FeatureEdits
         {
             editor.Using(persistenceModule, space);
         }
+    }
+
+    private static List<(string Line, string[] Types)> Adapters(FeatureSpec spec)
+    {
+        string a = spec.Type;
+        var flags = Flags(spec);
+        var adapters = new List<(string Line, string[] Types)>();
+
+        if (spec.Model != "record")
+        {
+            adapters.Add(($"services.TryAddSingleton<I{a}Mapper, {a}Mapper>();", [$"I{a}Mapper", $"{a}Mapper"]));
+            adapters.Add(($"AddScopedTracker<{a}Tracker, I{a}Tracker>(services);", [$"{a}Tracker", $"I{a}Tracker"]));
+            adapters.Add(($"services.TryAddScoped<I{a}Repository, {a}Repository>();", [$"I{a}Repository", $"{a}Repository"]));
+        }
+        else if (flags.Contains("stage"))
+        {
+            adapters.Add(($"services.TryAddScoped<I{a}Store, {a}Store>();", [$"I{a}Store", $"{a}Store"]));
+        }
+
+        if (flags.Contains("rq"))
+        {
+            adapters.Add(($"services.TryAddScoped<I{a}Queries, {a}Queries>();", [$"I{a}Queries", $"{a}Queries"]));
+        }
+
+        return adapters;
+    }
+
+    private static void EditHosts(TextEdits.Editor editor, FeatureSpec spec, string[] hosts, string composition)
+    {
+        string f = spec.Features;
 
         foreach (string host in hosts)
         {
@@ -141,48 +193,37 @@ internal static class FeatureEdits
                 before: true,
                 [$"builder.Services.Add{f}();", string.Empty],
                 $"builder.Services.Add{f}();");
-            editor.Using(program, $"{p}.Application");
+            editor.Using(program, $"{spec.Prefix}.Application");
         }
 
         editor.Step = $"edit 5 ({composition})";
         editor.PlaceInEachMethod(composition, "services.AddPurgeExpiredIdempotencyKeys();", before: true, $"        services.Add{f}();");
-        editor.Using(composition, $"{p}.Application");
+        editor.Using(composition, $"{spec.Prefix}.Application");
+    }
 
+    private static void EditModuleTests(TextEdits.Editor editor, string root, FeatureSpec spec)
+    {
         string moduleTests = $"{ProjectOf(spec, "Tests/Application", "Application.UnitTests")}/ApplicationModuleTests.cs";
 
         if (File.Exists(System.IO.Path.Combine(root, moduleTests)))
         {
             editor.Step = $"edit 6 ({moduleTests})";
-            editor.AppendToMethod(moduleTests, "ServiceCollection ComposeEveryFeature()", "services.Add", $"        services.Add{f}();");
+            editor.AppendToMethod(moduleTests, "ServiceCollection ComposeEveryFeature()", "services.Add", $"        services.Add{spec.Features}();");
         }
+    }
 
-        if (spec.Reaction is { } adapter)
+    private static void EditApiReference(TextEdits.Editor editor, FeatureSpec spec)
+    {
+        List<string> section = RouteSection(spec);
+
+        editor.Step = "the route section of docs/reference/api.md";
+        editor.Section("docs/reference/api.md", "## Routes", [.. section, string.Empty], section[2]);
+
+        if (Flags(spec).Contains("notfound"))
         {
-            Reaction(editor, root, spec, hosts, adapter, composition);
+            editor.Step = "the error-code row of docs/reference/api.md";
+            editor.Row("docs/reference/api.md", "### Resources", FeatureReport.ErrorRow(spec), $"| `{CSharpNames.Lower(spec.Type)}.notFound` |");
         }
-
-        if (WritesTheFieldTests(spec, plan))
-        {
-            string database = TestDatabasePath(spec);
-            editor.Step = $"the schema of {database}";
-            editor.Place(database, ["AppDbContext.PlatformSchema,"], before: true, [$"            AppDbContext.{f}Schema,"], $"AppDbContext.{f}Schema,");
-        }
-
-        if (spec.HasApi)
-        {
-            List<string> section = RouteSection(spec);
-
-            editor.Step = "the route section of docs/reference/api.md";
-            editor.Section("docs/reference/api.md", "## Routes", [.. section, string.Empty], section[2]);
-
-            if (flags.Contains("notfound"))
-            {
-                editor.Step = "the error-code row of docs/reference/api.md";
-                editor.Row("docs/reference/api.md", "### Resources", FeatureReport.ErrorRow(spec), $"| `{CSharpNames.Lower(a)}.notFound` |");
-            }
-        }
-
-        return editor;
     }
 
     internal static void Reaction(TextEdits.Editor editor, string root, FeatureSpec spec, string[] hosts, string adapter, string composition)

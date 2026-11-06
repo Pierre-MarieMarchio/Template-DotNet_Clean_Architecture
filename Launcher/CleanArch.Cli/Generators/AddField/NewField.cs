@@ -43,24 +43,26 @@ internal static class NewField
             return null;
         }
 
-        string prefix = project.File.Name;
-        bool tablePrefixes;
-
-        try
+        if (TablePrefixesOf(project, problems) is not { } tablePrefixes
+            || ReadManifest(root, features, problems) is not { } manifest
+            || ManifestSpec(manifest, FeatureManifest.PathOf(features), project.File.Name, tablePrefixes, root, problems) is not { } before
+            || ReadAdded(request.Declarations, problems) is not { } added)
         {
-            tablePrefixes = TablePrefixes(project);
-        }
-        catch (InvalidOperationException exception)
-        {
-            problems.Add(exception.Message);
-
             return null;
         }
 
-        string manifestPath = FeatureManifest.PathOf(features);
-        string manifestFile = System.IO.Path.Combine(root, manifestPath);
+        string migration = MigrationName(features, added);
 
-        if (!File.Exists(manifestFile))
+        return added.Any(field => IsPresent(before.Fields!, field))
+            ? Repeated(root, features, manifest, before, added, migration, problems)
+            : Widened(root, features, manifest, before, added, migration, problems);
+    }
+
+    private static FeatureManifest? ReadManifest(string root, string features, List<string> problems)
+    {
+        string manifestPath = FeatureManifest.PathOf(features);
+
+        if (!File.Exists(System.IO.Path.Combine(root, manifestPath)))
         {
             problems.Add(WrittenByHand(root, features)
                 ? $"{features} has no manifest, {manifestPath}: it was written by hand, as the project's example features (TodoLists, "
@@ -72,56 +74,58 @@ internal static class NewField
             return null;
         }
 
-        if (FeatureManifest.Read(root, features, out string? unread) is not { } manifest)
+        var manifest = FeatureManifest.Read(root, features, out string? unread);
+
+        if (manifest is null)
         {
             problems.Add($"{manifestPath} is not the JSON object new-feature writes: it {unread}");
-
-            return null;
         }
 
-        if (ManifestSpec(manifest, manifestPath, prefix, tablePrefixes, root, problems) is not { } before)
-        {
-            return null;
-        }
+        return manifest;
+    }
 
-        var added = FieldGrammar.Parse(request.Declarations, FieldProfile.AddedField, problems);
+    private static List<Field>? ReadAdded(string declarations, List<string> problems)
+    {
+        var added = FieldGrammar.Parse(declarations, FieldProfile.AddedField, problems);
 
         for (int index = 0; index < problems.Count; index++)
         {
             problems[index] = problems[index].Replace("--fields", "The fields to add", StringComparison.Ordinal);
         }
 
-        if (added is null)
-        {
-            return null;
-        }
+        return added;
+    }
 
+    private static bool IsPresent(IReadOnlyList<Field> existing, Field field) =>
+        existing.Any(present => string.Equals(present.Name, field.Name, StringComparison.OrdinalIgnoreCase));
+
+    private static Addition? Repeated(string root, string features, FeatureManifest manifest, FeatureSpec before, List<Field> added, string migration, List<string> problems)
+    {
         var existing = before.Fields!;
-        string migration = MigrationName(features, added);
         string declared = string.Join(", ", added.Select(field => field.Declared));
+        bool recorded = manifest.AddedFields.Any(entry => entry.Declaration == declared && entry.Migration == migration);
+        var after = before with { Fields = existing };
 
-        if (added.Any(field => existing.Any(present => string.Equals(present.Name, field.Name, StringComparison.OrdinalIgnoreCase))))
+        if (recorded && !Migrated(root, after, migration, added))
         {
-            bool recorded = manifest.AddedFields.Any(entry => entry.Declaration == declared && entry.Migration == migration);
-            var after = before with { Fields = existing };
-
-            if (recorded && !Migrated(root, after, migration, added))
-            {
-                return new Addition(before with { Fields = [.. existing.Where(field => !added.Any(one => one.Name == field.Name))] }, after, added, migration, manifest, Pending: true);
-            }
-
-            foreach (var field in added.Where(field => existing.Any(present => string.Equals(present.Name, field.Name, StringComparison.OrdinalIgnoreCase))))
-            {
-                var present = existing.First(other => string.Equals(other.Name, field.Name, StringComparison.OrdinalIgnoreCase));
-
-                problems.Add(
-                    $"{features} already has a field {present.Name} ({present.Declaration}), which {manifestPath} records: a field is added "
-                    + "once. To change it, edit it by hand in each layer and add a migration.");
-            }
-
-            return null;
+            return new Addition(before with { Fields = [.. existing.Where(field => !added.Any(one => one.Name == field.Name))] }, after, added, migration, manifest, Pending: true);
         }
 
+        foreach (var field in added.Where(field => IsPresent(existing, field)))
+        {
+            var present = existing.First(other => string.Equals(other.Name, field.Name, StringComparison.OrdinalIgnoreCase));
+
+            problems.Add(
+                $"{features} already has a field {present.Name} ({present.Declaration}), which {FeatureManifest.PathOf(features)} records: a field is added "
+                + "once. To change it, edit it by hand in each layer and add a migration.");
+        }
+
+        return null;
+    }
+
+    private static Addition? Widened(string root, string features, FeatureManifest manifest, FeatureSpec before, List<Field> added, string migration, List<string> problems)
+    {
+        var existing = before.Fields!;
         IReadOnlyList<Field> combined = [.. existing, .. added];
         var known = FieldGrammar.NameProblems(existing, FieldProfile.Feature).ToHashSet(StringComparer.Ordinal);
 
@@ -130,15 +134,15 @@ internal static class NewField
             .Select(problem => problem.Replace("--fields", "The fields to add", StringComparison.Ordinal)));
 
         var widened = before with { Fields = combined };
-        var plan = Plan(widened, root, out _);
-        var names = plan.Select(emission => System.IO.Path.GetFileNameWithoutExtension(emission.Path)).ToList();
+        var names = Plan(widened, root, out _).Select(emission => System.IO.Path.GetFileNameWithoutExtension(emission.Path)).ToList();
         var conflicts = FieldCode.Conflicts(existing, features, before.Type, names, before.Deletion, before.Access == "owner", before.Has("list")).ToHashSet(StringComparer.Ordinal);
 
         problems.AddRange(FieldCode.Conflicts(combined, features, before.Type, names, before.Deletion, before.Access == "owner", before.Has("list"))
             .Where(problem => !conflicts.Contains(problem)));
 
-        if (Directory.Exists(System.IO.Path.Combine(root, PersistenceProject(before), "Migrations"))
-            && Directory.EnumerateFiles(System.IO.Path.Combine(root, PersistenceProject(before), "Migrations"), $"*_{migration}.cs").Any())
+        string migrations = System.IO.Path.Combine(root, PersistenceProject(before), "Migrations");
+
+        if (Directory.Exists(migrations) && Directory.EnumerateFiles(migrations, $"*_{migration}.cs").Any())
         {
             problems.Add($"A migration named {migration} already exists, and the migration of these fields takes that name. Rename that one first.");
         }

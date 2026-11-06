@@ -8,6 +8,13 @@ internal static class FeaturePage
 {
     internal const string _pageTemplate = "docs/_page-templates/feature.md";
 
+    private static string Concurrency(FeatureSpec spec) => spec switch
+    {
+        { Concurrency: not "etag" } => ", and the last write wins",
+        { HasApi: true } => ", and a write sends If-Match with the ETag a read returned",
+        _ => ", and a write carries the version a read returned",
+    };
+
     internal static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
 
     internal static Emission? PageOf(string root, FeatureSpec spec, List<Emission> plan, out string? unwritten)
@@ -42,17 +49,15 @@ internal static class FeaturePage
         string route = $"/api/v1/{Kebab(spec.Features)}";
         string item = $"{route}/{{{CSharpNames.Lower(spec.Type)}Id}}";
 
+        string fate = spec.Deletion == "anonymise" ? "anonymised" : "deleted";
         string access = spec.Access == "owner"
-            ? $"each authenticated caller, on their own {plural} only; once an account is deleted, its {plural} are "
-                + (spec.Deletion == "anonymise" ? "anonymised" : "deleted")
+            ? $"each authenticated caller, on their own {plural} only; once an account is deleted, its {plural} are {fate}"
             : $"every authenticated caller, on the same {plural}";
 
         string shape = (spec.Model == "record"
                 ? "a service over a store, with no domain model"
                 : $"one use case per operation over the {singular} aggregate")
-            + (spec.Concurrency != "etag" ? ", and the last write wins"
-                : spec.HasApi ? ", and a write sends If-Match with the ETag a read returned"
-                : ", and a write carries the version a read returned");
+            + Concurrency(spec);
 
         (string Operation, string Line)[] endpoints = spec.HasApi
             ?

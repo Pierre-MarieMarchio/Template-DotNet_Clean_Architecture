@@ -1,6 +1,8 @@
-﻿namespace CleanArch.Tooling;
+﻿using System.Text.RegularExpressions;
 
-public sealed record ProjectFacts(
+namespace CleanArch.Tooling;
+
+public sealed partial record ProjectFacts(
     string Root,
     string Name,
     bool HasWorkspace,
@@ -30,8 +32,13 @@ public sealed record ProjectFacts(
 
     public static string FolderOf(string name, string part) => $"{string.Concat(name.Split('.').Select(SegmentInitials))}.{part}";
 
+    public static string KebabName(string name) => Separators().Replace(name.ToLowerInvariant(), "-");
+
     private static string SegmentInitials(string segment) =>
         segment.Any(char.IsAsciiLetterUpper)
             ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
             : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
+
+    [GeneratedRegex(@"[.\s_]+")]
+    private static partial Regex Separators();
 }

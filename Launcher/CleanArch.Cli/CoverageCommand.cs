@@ -24,7 +24,7 @@ internal static class CoverageCommand
         }
 
         string root = project.Root;
-        string solution = SolutionLocator.Find(project);
+        string solution = Path.Combine(project.Root, ProjectLayout.Solution(project));
         string results = Path.Combine(root, "TestResults");
         TextWriter output = parseResult.InvocationConfiguration.Output;
         try

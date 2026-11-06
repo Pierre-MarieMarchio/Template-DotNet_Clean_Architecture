@@ -18,9 +18,9 @@ public sealed class VerifyCommandTests : IDisposable
     private string? _kiotaOutput;
 
     private static readonly string _pnpm = OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm";
-    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Persistence");
-    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Auth");
-    private static readonly string _solution = "Acme.Shop.sln";
+    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Persistence");
+    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Auth");
+    private static readonly string _solution = "Acme.Shop.slnx";
     private static readonly string _reference = Path.Combine("Tests", "Integration", "AS.Api.IntegrationTests", "OpenApi", "v1.json");
 
     private static readonly CommandRegistration _parent = new(RefuseOutsideAProject, BuildParent);
@@ -54,8 +54,8 @@ public sealed class VerifyCommandTests : IDisposable
             $"dotnet format {_solution} --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore",
             $"dotnet build {_solution} --configuration Debug --no-restore",
             $"dotnet test --solution {_solution} --configuration Debug --no-build",
-            $"dotnet ef migrations has-pending-model-changes --project {_persistence} --startup-project {_persistence} --no-build",
             $"dotnet ef migrations has-pending-model-changes --project {_auth} --startup-project {_auth} --no-build",
+            $"dotnet ef migrations has-pending-model-changes --project {_persistence} --startup-project {_persistence} --no-build",
             $"dotnet list {_solution} package --vulnerable --include-transitive",
         ];
         _output.ToString().ShouldBe(string.Join(Environment.NewLine, expected) + Environment.NewLine);
@@ -101,8 +101,8 @@ public sealed class VerifyCommandTests : IDisposable
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
         _error.ToString().ShouldContain("needs the initial migration");
-        _error.ToString().ShouldContain("AS.Persistence");
-        _error.ToString().ShouldContain("AS.Auth");
+        _error.ToString().ShouldContain("AS.Infrastructure.Persistence");
+        _error.ToString().ShouldContain("AS.Infrastructure.Auth");
         _output.ToString().ShouldBeEmpty();
         _calls.ShouldBeEmpty();
     }
@@ -245,7 +245,7 @@ public sealed class VerifyCommandTests : IDisposable
     {
         using var project = new SampleProject(SampleProject.Client);
         WithInitialMigrations(project, withAuth: false);
-        Directory.CreateDirectory(Path.Combine(project.Root, "Src", "Clients", "AS.Client", "Generated"));
+        Directory.CreateDirectory(Path.Combine(project.Root, "Src", "Presentation", "AS.Presentation.Client", "Generated"));
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
@@ -261,7 +261,7 @@ public sealed class VerifyCommandTests : IDisposable
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
-        _error.ToString().ShouldContain(Path.Combine("Src", "Clients", "AS.Client"));
+        _error.ToString().ShouldContain(Path.Combine("Src", "Presentation", "AS.Presentation.Client"));
         _error.ToString().ShouldContain("does not exist");
         _calls.ShouldNotContain(call => call.Arguments.Contains("kiota"));
     }
@@ -468,7 +468,7 @@ public sealed class VerifyCommandTests : IDisposable
 
     private static string WithClient(SampleProject project)
     {
-        string generated = Path.Combine(project.Root, "Src", "Clients", "AS.Client", "Generated");
+        string generated = Path.Combine(project.Root, "Src", "Presentation", "AS.Presentation.Client", "Generated");
         Directory.CreateDirectory(generated);
         File.WriteAllText(
             Path.Combine(generated, "ApiClient.cs"),

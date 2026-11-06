@@ -22,7 +22,7 @@ internal static class BuildCommand
             return CleanArchCommand.Failed;
         }
 
-        string solution = SolutionLocator.Find(project);
+        string solution = Path.Combine(project.Root, ProjectLayout.Solution(project));
         return Dotnet.Run(parseResult, project.Root, ["build", SolutionLocator.Relative(project.Root, solution), "--configuration", "Debug"]);
     }
 }

@@ -75,8 +75,8 @@ internal static class MigrationsCommand
     {
         TextWriter output = parseResult.InvocationConfiguration.Output;
         TextWriter error = parseResult.InvocationConfiguration.Error;
-        string auth = PersistenceContexts.Auth(project);
-        foreach (string context in PersistenceContexts.All(project))
+        string auth = ProjectLayout.Auth(project);
+        foreach (string context in ProjectLayout.Contexts(project))
         {
             string executable = context == auth ? "efbundle-identity" : "efbundle";
             int exit = ExternalCommand.Run(

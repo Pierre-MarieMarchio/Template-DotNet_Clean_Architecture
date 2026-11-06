@@ -102,7 +102,7 @@ internal static class SonarCommand
 
     private static string ScanScriptOf(LocatedProject project, IReadOnlyList<string> testProjects)
     {
-        string solution = ProjectLayout.SolutionName(project);
+        string solution = ProjectLayout.Solution(project);
         IEnumerable<string> tests = testProjects.Select(test => $"""
             dotnet test --project "{test}" \
               --artifacts-path artifacts/sonar \

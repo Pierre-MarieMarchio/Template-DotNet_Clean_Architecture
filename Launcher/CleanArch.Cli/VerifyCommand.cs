@@ -110,13 +110,13 @@ internal static class VerifyCommand
             yield return () => ExternalCommand.Run(Dotnet(["run", Tool("Tasks.cs"), "web-lockfiles", "--check"], project.Root), output, error);
         }
 
-        string solution = $"{project.File.Name}.sln";
+        string solution = ProjectLayout.Solution(project);
         yield return () => ExternalCommand.Run(Dotnet(["restore", solution], project.Root), output, error);
         yield return () => ExternalCommand.Run(Dotnet(["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
         yield return () => ExternalCommand.Run(Dotnet(["build", solution, "--configuration", "Debug", "--no-restore"], project.Root), output, error);
         yield return () => ExternalCommand.Run(Dotnet(["test", "--solution", solution, "--configuration", "Debug", "--no-build"], project.Root), output, error);
 
-        foreach (string context in Contexts(project))
+        foreach (string context in ProjectLayout.Contexts(project))
         {
             yield return () => ExternalCommand.Run(
                 Dotnet(["ef", "migrations", "has-pending-model-changes", "--project", context, "--startup-project", context, "--no-build"], project.Root),
@@ -194,7 +194,7 @@ internal static class VerifyCommand
             return CleanArchCommand.Succeeded;
         }
 
-        string reference = OpenApiReference(project);
+        string reference = ProjectLayout.OpenApiReference(project);
         if (!File.Exists(Path.Combine(root, reference)))
         {
             error.WriteLine($"{reference} is missing: run `dotnet run Tools/Tasks.cs openapi` first.");
@@ -217,8 +217,8 @@ internal static class VerifyCommand
     private static int ApiClientCheck(LocatedProject project, TextWriter output, TextWriter error)
     {
         string root = project.Root;
-        string reference = OpenApiReference(project);
-        string client = ClientFolder(project);
+        string reference = ProjectLayout.OpenApiReference(project);
+        string client = ProjectLayout.Client(project);
         string generated = Path.Combine(client, "Generated");
 
         if (!Directory.Exists(Path.Combine(root, client)))
@@ -360,7 +360,7 @@ internal static class VerifyCommand
 
     private static string? MissingInitialMigration(LocatedProject project)
     {
-        string[] missing = [.. Contexts(project)
+        string[] missing = [.. ProjectLayout.Contexts(project)
             .Where(context => !HasMigrations(Path.Combine(project.Root, context)))
             .Select(Path.GetFileName)
             .OfType<string>()];
@@ -373,31 +373,6 @@ internal static class VerifyCommand
         string migrations = Path.Combine(context, "Migrations");
         return Directory.Exists(migrations) && Directory.EnumerateFiles(migrations, "*ModelSnapshot.cs").Any();
     }
-
-    private static IReadOnlyList<string> Contexts(LocatedProject project)
-    {
-        string persistence = ContextFolder(project, "Persistence");
-        return project.File.Options.Auth == "local"
-            ? [persistence, ContextFolder(project, "Auth")]
-            : [persistence];
-    }
-
-    private static string ContextFolder(LocatedProject project, string part) =>
-        Path.Combine("Src", "Infrastructure", $"{Initials(project.File.Name)}.{part}");
-
-    private static string OpenApiReference(LocatedProject project) =>
-        Path.Combine("Tests", "Integration", $"{Initials(project.File.Name)}.Api.IntegrationTests", "OpenApi", "v1.json");
-
-    private static string ClientFolder(LocatedProject project) =>
-        Path.Combine("Src", "Clients", $"{Initials(project.File.Name)}.Client");
-
-    private static string Initials(string name) =>
-        string.Concat(name.Split('.').Select(SegmentInitials));
-
-    private static string SegmentInitials(string segment) =>
-        segment.Any(char.IsAsciiLetterUpper)
-            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
-            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 
     private static bool TemplateMaintenance(LocatedProject project) =>
         File.Exists(Path.Combine(project.Root, ".template.config", "template.json"));

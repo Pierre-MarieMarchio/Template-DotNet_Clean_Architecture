@@ -54,11 +54,10 @@ internal static class OpenApiCommand
         TextWriter error = parseResult.InvocationConfiguration.Error;
         bool checking = parseResult.GetValue(check);
         string root = project.Root;
-        string initials = Initials(project.File.Name);
-        string apiFolder = Path.Combine(root, "Src", "Presentation", $"{initials}.Api");
-        string apiProject = Path.Combine(apiFolder, $"{project.File.Name}.Api.csproj");
-        string reference = Path.Combine(root, "Tests", "Integration", $"{initials}.Api.IntegrationTests", "OpenApi", "v1.json");
-        string generated = Path.Combine(root, "Src", "Clients", $"{initials}.Client", "Generated");
+        string apiFolder = Path.Combine(root, ProjectLayout.Api(project));
+        string apiProject = Path.Combine(root, ProjectLayout.ApiProject(project));
+        string reference = Path.Combine(root, ProjectLayout.OpenApiReference(project));
+        string generated = Path.Combine(root, ProjectLayout.Client(project), "Generated");
 
         int exit = WriteReference(project, apiFolder, apiProject, reference, checking, output, error);
         if (exit != CleanArchCommand.Succeeded)
@@ -253,10 +252,4 @@ internal static class OpenApiCommand
 
     private static string Shown(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
 
-    private static string Initials(string name) => string.Concat(name.Split('.').Select(SegmentInitials));
-
-    private static string SegmentInitials(string segment) =>
-        segment.Any(char.IsAsciiLetterUpper)
-            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
-            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
 }

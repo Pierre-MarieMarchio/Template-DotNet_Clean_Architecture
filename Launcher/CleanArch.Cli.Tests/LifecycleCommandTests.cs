@@ -13,8 +13,8 @@ public sealed class LifecycleCommandTests : IDisposable
     private readonly Queue<int> _exits = new();
     private int _exit = CleanArchCommand.Succeeded;
 
-    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Persistence");
-    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Auth");
+    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Persistence");
+    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Auth");
     private static readonly string _api = Path.Combine("Src", "Presentation", "AS.Api");
     private static readonly string _endToEnd = Path.Combine("Tests", "EndToEnd", "AS.EndToEnd.Tests", "Acme.Shop.EndToEnd.Tests.csproj");
 
@@ -35,7 +35,7 @@ public sealed class LifecycleCommandTests : IDisposable
         Run(["bootstrap"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
         _output.ToString().ShouldBe(
-            $"dotnet format Acme.Shop.sln --diagnostics IDE0055 IDE0005{Environment.NewLine}" +
+            $"dotnet format Acme.Shop.slnx --diagnostics IDE0055 IDE0005{Environment.NewLine}" +
             $"dotnet tool restore{Environment.NewLine}" +
             $"dotnet ef migrations add InitialCreate --project {_auth} --startup-project {_auth}{Environment.NewLine}" +
             $"dotnet ef migrations add InitialCreate --project {_persistence} --startup-project {_persistence}{Environment.NewLine}");
@@ -57,7 +57,7 @@ public sealed class LifecycleCommandTests : IDisposable
 
         _calls.Count.ShouldBe(3);
         _calls[2].Arguments.ShouldContain(_auth);
-        _output.ToString().ShouldContain($"AS.Persistence already has its migrations");
+        _output.ToString().ShouldContain($"AS.Infrastructure.Persistence already has its migrations");
         _error.ToString().ShouldBeEmpty();
     }
 
@@ -250,7 +250,7 @@ public sealed class LifecycleCommandTests : IDisposable
         _calls[1].Arguments.Take(9).ShouldBe(["compose", "--profile", "sonar", "run", "--rm", "--build", "sonar-scanner", "/bin/sh", "-c"]);
         string script = _calls[1].Arguments[9];
         script.ShouldContain($"dotnet test --project \"{Path.Combine("Tests", "Unit", "AS.Unit.Tests.csproj").Replace('\\', '/')}\"");
-        script.ShouldContain("dotnet restore Acme.Shop.sln --artifacts-path artifacts/sonar");
+        script.ShouldContain("dotnet restore Acme.Shop.slnx --artifacts-path artifacts/sonar");
         script.ShouldNotContain("Integration");
         _output.ToString().ShouldContain("docker compose --profile sonar up --detach --wait sonarqube");
         _error.ToString().ShouldBeEmpty();
@@ -406,7 +406,7 @@ public sealed class LifecycleCommandTests : IDisposable
     private static SampleProject WithSolution(string json)
     {
         var project = new SampleProject(json);
-        File.WriteAllText(Path.Combine(project.Root, "Acme.Shop.sln"), string.Empty);
+        File.WriteAllText(Path.Combine(project.Root, "Acme.Shop.slnx"), string.Empty);
         return project;
     }
 

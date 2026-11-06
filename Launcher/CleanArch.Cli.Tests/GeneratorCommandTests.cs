@@ -8,7 +8,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class GeneratorCommandTests : IDisposable
 {
     private const string _migrationCheck = "dotnet run Tools/Tasks.cs migration-check";
@@ -17,10 +16,11 @@ public sealed class GeneratorCommandTests : IDisposable
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly List<ExternalCall> _calls = [];
+    private readonly FakeProcesses _processes;
 
     public GeneratorCommandTests()
     {
-        ExternalCommand.Handler = (call, output, _) =>
+        _processes = new FakeProcesses((call, output, _) =>
         {
             if (call.FileName == "git")
             {
@@ -31,7 +31,7 @@ public sealed class GeneratorCommandTests : IDisposable
 
             _calls.Add(call);
             return CleanArchCommand.Succeeded;
-        };
+        });
     }
 
     [Fact]
@@ -114,7 +114,6 @@ public sealed class GeneratorCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
         Directory.Delete(_scratch, recursive: true);
@@ -141,5 +140,5 @@ public sealed class GeneratorCommandTests : IDisposable
             .ToDictionary(path => Path.GetRelativePath(root, path), path => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path))));
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 }

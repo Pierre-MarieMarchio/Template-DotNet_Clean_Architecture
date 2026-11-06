@@ -9,5 +9,5 @@ public sealed class ProcessWideState
     {
     }
 
-    public const string Name = "The environment, the console, the current directory and ExternalCommand.Handler are process-wide";
+    public const string Name = "The environment variables, the console and the current directory are process-wide";
 }

@@ -136,17 +136,18 @@ internal static class AddCommand
                 : TemplateSource.FromPath(Path.GetFullPath(sourcePath, context.WorkingDirectory));
             string? version = sourcePath is null ? project.File.Template.Version : source.Manifest(TemplateKind.Project).Version;
             string? hiveFolder = parseResult.GetValue(hive);
+            var processes = new ExternalProcessRunner(context.Processes);
             var questionnaire = new Questionnaire(console, interactive, parseResult.GetValue(yes));
             var engine = new TemplateEngine(
                 console,
                 hiveFolder is null ? null : Path.GetFullPath(hiveFolder, context.WorkingDirectory),
                 questionnaire.Conversation.EchoesTheTemplateEngine,
-                new ExternalProcessRunner());
+                processes);
             var additions = new ItemAdditions(new AdditionContext(
                 questionnaire,
                 source,
                 engine,
-                new ExternalProcessRunner(),
+                processes,
                 console,
                 new AdditionArguments(parseResult.GetValue(name), GivenTemplateOptions(parseResult, templateOptions), sourcePath, hiveFolder),
                 version,

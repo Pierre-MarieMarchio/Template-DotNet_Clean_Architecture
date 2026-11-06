@@ -20,6 +20,11 @@ internal sealed record CommandContext(string WorkingDirectory, LocatedProject? P
         }
     }
 
+    public static CommandContext Of(ParseResult parseResult) =>
+        parseResult.RootCommandResult.Command is ContextRootCommand root
+            ? root.Context
+            : throw new InvalidOperationException($"'{parseResult.CommandResult.Command.Name}' was parsed outside the {Tool.Name} command tree, so it has no command context.");
+
     public Shell Shell(ParseResult parseResult) =>
         Shell(parseResult.InvocationConfiguration.Output, parseResult.InvocationConfiguration.Error);
 

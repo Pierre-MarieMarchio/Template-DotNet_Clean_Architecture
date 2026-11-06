@@ -53,6 +53,7 @@ internal static class VerifyCommand
         return
         [
             .. Running(shell, GateCalls(project)),
+            () => DocumentationIndex.Checked(project, shell),
             .. Running(shell, web ? [Pnpm.Call(root, "--version")] : []),
             .. project.File.Client ? [() => ApiClientCheck(project, shell)] : Array.Empty<Func<int>>(),
             .. web ? [() => WebSchemaCheck(project, shell)] : Array.Empty<Func<int>>(),
@@ -82,7 +83,6 @@ internal static class VerifyCommand
         .. OptionalGate(project, "CheckWorkflows.cs"),
         SelfTest(project, "CoverageGate.cs"),
         .. OptionalGate(project, "CheckComments.cs"),
-        Dotnet.RunFile(project.Root, ProjectLayout.Tasks, "docs-index", "--check"),
     ];
 
     private static ExternalCall SelfTest(LocatedProject project, string gate) =>

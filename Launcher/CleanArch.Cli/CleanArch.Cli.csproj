@@ -33,6 +33,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="CleanArch.Cli.Commands.Hosting" />
+    <Using Include="CleanArch.Cli.Commands.Kernel" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CleanArch.Cli.Commands\CleanArch.Cli.Commands.csproj" />
     <ProjectReference Include="..\CleanArch.Tooling\CleanArch.Tooling.csproj" />
   </ItemGroup>

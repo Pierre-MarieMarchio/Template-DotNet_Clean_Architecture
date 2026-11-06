@@ -1,4 +1,18 @@
-﻿namespace CleanArch.Cli;
+﻿using CleanArch.Cli.Commands.Bootstrap;
+using CleanArch.Cli.Commands.Build;
+using CleanArch.Cli.Commands.Compose;
+using CleanArch.Cli.Commands.Coverage;
+using CleanArch.Cli.Commands.Database;
+using CleanArch.Cli.Commands.EndToEnd;
+using CleanArch.Cli.Commands.Format;
+using CleanArch.Cli.Commands.Migration;
+using CleanArch.Cli.Commands.OpenApi;
+using CleanArch.Cli.Commands.Run;
+using CleanArch.Cli.Commands.Sonar;
+using CleanArch.Cli.Commands.Test;
+using CleanArch.Cli.Commands.Verify;
+
+namespace CleanArch.Cli;
 
 internal static class BuiltInCommands
 {

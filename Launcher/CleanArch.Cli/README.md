@@ -19,6 +19,10 @@ dotnet cleanarch test --no-integration
 dotnet cleanarch coverage    # dotnet test with coverage, then the floor coverage.minimum states
 dotnet cleanarch verify      # the whole gate: the repository checks, the build, every test,
                              # the pending-model-changes checks and the vulnerable-packages audit
+dotnet cleanarch migrations add AddTodoItemPriority            # dotnet ef migrations add, at the project root
+dotnet cleanarch migrations add AddTodoItemPriority --check    # dotnet ef migrations has-pending-model-changes
+dotnet cleanarch migrations bundle                             # dotnet ef migrations bundle, for each context
+dotnet cleanarch database update                               # dotnet ef database update, at the project root
 ```
 
 `format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
@@ -33,6 +37,8 @@ writing.
 follow the project file: the client check runs where the file records `client`, the web workspace's
 install, audit, lint, test and build where it records a `web` workspace, and the identity context's
 pending-model-changes check where it records `auth: local`.
+
+Each command prints the `dotnet ef` line it runs, runs it at the project root and forwards its exit code.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

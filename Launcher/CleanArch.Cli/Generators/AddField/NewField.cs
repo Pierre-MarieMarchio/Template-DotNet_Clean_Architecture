@@ -26,25 +26,21 @@ internal static class NewField
 
     private const string _inProcess = "";
 
-    private sealed record FieldRequest(string? Features, string? Declaration, string Root, bool DryRun);
-
     private sealed record Addition(Spec Before, Spec After, IReadOnlyList<Field> Added, string Migration, FeatureManifest Manifest, bool Pending);
 
     private sealed record FieldChange(string Path, byte[]? Original, byte[] Bytes, List<string> Members);
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor)
+    internal static int Run(AddFieldRequest request, GenerationContext context)
     {
         var problems = new List<string>();
-        var request = ParseFieldRequest(args, problems);
-        string root = System.IO.Path.GetFullPath(request.Root);
-        var addition = problems.Count == 0 ? CheckField(request, root, problems) : null;
+        var addition = CheckField(request, context.Root, context.Project, problems);
 
         return addition is null
-            ? Refusal.Write(error, problems, _fieldUsage)
-            : new FieldGeneration(addition, new GenerationContext(root, request.DryRun, output, error), executor).Generate();
+            ? Refusal.Write(context.Error, problems, _fieldUsage)
+            : new FieldGeneration(addition, context).Generate();
     }
 
-    private sealed class FieldGeneration(Addition addition, GenerationContext context, IExecutor executor) : Generation(context)
+    private sealed class FieldGeneration(Addition addition, GenerationContext context) : Generation(context)
     {
         private readonly List<string> _failures = [];
 
@@ -96,58 +92,16 @@ internal static class NewField
         protected override int RefuseEdits(IReadOnlyList<string> failures) =>
             RefuseAfterReport(failures, "Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
 
-        protected override string? Preconditions() => FeatureCode.Preconditions(Root, addition.After, Output, executor);
+        protected override string? Preconditions() => FeatureCode.Preconditions(Root, addition.After, Output, Context.Executor);
 
         protected override void Report(ReportMode mode) => ReportField(Output, Root, addition, _changes, mode);
 
-        protected override int Finish() => FinishField(Root, addition, Output, Error, executor);
+        protected override int Finish() => FinishField(Root, addition, Output, Error, Context.Executor);
     }
 
-    private static FieldRequest ParseFieldRequest(string[] args, List<string> problems)
+    private static Addition? CheckField(AddFieldRequest request, string root, LocatedProject project, List<string> problems)
     {
-        var positional = new List<string>();
-        string? root = null;
-        bool dryRun = false;
-
-        for (int index = 0; index < args.Length; index++)
-        {
-            string argument = args[index];
-
-            if (argument == "--dry-run")
-            {
-                dryRun = true;
-            }
-            else if (argument == "--root" && index + 1 < args.Length && root is null)
-            {
-                root = args[++index];
-            }
-            else if (argument.StartsWith("--", StringComparison.Ordinal))
-            {
-                problems.Add($"'{argument}' is not an option of new-field, which takes --root <path> and --dry-run.");
-            }
-            else
-            {
-                positional.Add(argument);
-            }
-        }
-
-        if (positional.Count != 2)
-        {
-            problems.Add(
-                $"Expected the feature and its new fields, and found {positional.Count} argument(s): "
-                + "new-field Projects \"Budget:decimal(12,2)>=0=0\".");
-        }
-
-        return new FieldRequest(
-            positional.Count > 0 ? positional[0] : null,
-            positional.Count > 1 ? positional[1] : null,
-            root ?? ".",
-            dryRun);
-    }
-
-    private static Addition? CheckField(FieldRequest request, string root, List<string> problems)
-    {
-        string features = request.Features ?? string.Empty;
+        string features = request.Features;
 
         if (!CSharpNames.PascalCase.IsMatch(features))
         {
@@ -156,13 +110,12 @@ internal static class NewField
             return null;
         }
 
-        string prefix;
+        string prefix = project.File.Name;
         bool tablePrefixes;
 
         try
         {
-            prefix = ProductName(root);
-            tablePrefixes = TablePrefixes(root);
+            tablePrefixes = TablePrefixes(project);
         }
         catch (InvalidOperationException exception)
         {
@@ -198,7 +151,7 @@ internal static class NewField
             return null;
         }
 
-        var added = FieldGrammar.Parse(request.Declaration ?? string.Empty, FieldProfile.AddedField, problems);
+        var added = FieldGrammar.Parse(request.Declarations, FieldProfile.AddedField, problems);
 
         for (int index = 0; index < problems.Count; index++)
         {

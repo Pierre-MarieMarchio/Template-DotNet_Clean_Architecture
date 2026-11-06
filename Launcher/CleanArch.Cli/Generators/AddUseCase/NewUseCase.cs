@@ -28,8 +28,6 @@ internal static class NewUseCase
         + "  the request and response contracts and the route's row, every edit or none, then rewrites the\n"
         + "  OpenAPI reference and the clients written from it.";
 
-    private static readonly string[] _optionNames = ["--kind", "--input", "--root"];
-
     private static readonly string[] _recordMembers =
         ["Deconstruct", "EqualityContract", "Equals", "GetHashCode", "GetType", "MemberwiseClone", "PrintMembers", "ToString"];
 
@@ -66,8 +64,6 @@ internal static class NewUseCase
     private static readonly Regex _rootRoute = new(@"v\{version(?::\w+)?\}/?$", RegexOptions.None, TimeSpan.FromSeconds(2));
 
     private static readonly Regex _versionSegment = new(@"v\{version(?::\w+)?\}", RegexOptions.None, TimeSpan.FromSeconds(2));
-
-    private sealed record Request(string? Features, string? Name, string? Kind, string? Input, string Root, bool DryRun);
 
     private sealed record KnownType(string? Valid, string? Empty);
 
@@ -129,20 +125,17 @@ internal static class NewUseCase
         internal Parameter[] Unknown => [.. Inputs.Where(parameter => !parameter.IsKnown)];
     }
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor)
+    internal static int Run(AddUseCaseRequest request, GenerationContext context)
     {
         var problems = new List<string>();
-        var request = Parse(args, problems);
-
-        string root = Path.GetFullPath(request.Root);
-        var spec = problems.Count == 0 ? Check(request, root, problems) : null;
+        var spec = Check(request, context.Root, context.Product, problems);
 
         return spec is null
-            ? Refusal.Write(error, problems, _usage)
-            : new UseCaseGeneration(spec with { Routing = ReadRouting(root, spec) }, new GenerationContext(root, request.DryRun, output, error), executor).Generate();
+            ? Refusal.Write(context.Error, problems, _usage)
+            : new UseCaseGeneration(spec with { Routing = ReadRouting(context.Root, spec) }, context).Generate();
     }
 
-    private sealed class UseCaseGeneration(Spec spec, GenerationContext context, IExecutor executor) : Generation(context)
+    private sealed class UseCaseGeneration(Spec spec, GenerationContext context) : Generation(context)
     {
         private readonly TextEdits.Editor _editor = new(context.Root);
 
@@ -196,104 +189,21 @@ internal static class NewUseCase
 
         protected override int Finish() =>
             _contracts.Count == 0 && _editor.Applied.Count == 0
-            || TextEdits.RunAll(TextEdits.ContractSteps(Root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), executor.Run, Output, Error, "the use case's files, its action, its contracts and its route's row")
+            || TextEdits.RunAll(TextEdits.ContractSteps(Root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), Context.Executor.Run, Output, Error, "the use case's files, its action, its contracts and its route's row")
                 ? Succeeded
                 : Failed;
     }
 
-    private static Request Parse(string[] args, List<string> problems)
+    private static Spec? Check(AddUseCaseRequest request, string root, string product, List<string> problems)
     {
-        var positional = new List<string>();
-        var options = new Dictionary<string, string>(StringComparer.Ordinal);
-        bool dryRun = false;
-
-        for (int index = 0; index < args.Length; index++)
-        {
-            string argument = args[index];
-
-            if (!argument.StartsWith('-'))
-            {
-                positional.Add(argument);
-
-                continue;
-            }
-
-            if (argument == "--dry-run")
-            {
-                dryRun = true;
-
-                continue;
-            }
-
-            string name = argument;
-            string? value = null;
-            int equals = argument.IndexOf('=', StringComparison.Ordinal);
-
-            if (equals > 0)
-            {
-                name = argument[..equals];
-                value = argument[(equals + 1)..];
-            }
-
-            if (!_optionNames.Contains(name, StringComparer.Ordinal))
-            {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])} and --dry-run.");
-
-                continue;
-            }
-
-            if (value is null)
-            {
-                if (index + 1 >= args.Length || args[index + 1].StartsWith("--", StringComparison.Ordinal))
-                {
-                    problems.Add($"'{name}' needs a value.");
-
-                    continue;
-                }
-
-                value = args[++index];
-            }
-
-            if (!options.TryAdd(name, value))
-            {
-                problems.Add($"'{name}' is given twice; it takes one value.");
-            }
-        }
-
-        if (positional.Count != 2)
-        {
-            problems.Add(
-                $"Expected two names, <Features> and <UseCase>, and found {positional.Count}. "
-                + "The feature's folder, then the operation: Invoices ApproveInvoice.");
-        }
-
-        string? Option(string name) => options.TryGetValue(name, out string? value) ? value : null;
-
-        return new Request(
-            positional.Count > 0 ? positional[0] : null,
-            positional.Count > 1 ? positional[1] : null,
-            Option("--kind"),
-            Option("--input"),
-            Option("--root") ?? ".",
-            dryRun);
-    }
-
-    private static Spec? Check(Request request, string root, List<string> problems)
-    {
-        string features = request.Features ?? string.Empty;
-        string name = request.Name ?? string.Empty;
+        string features = request.Features;
+        string name = request.Name;
 
         problems.AddRange(NameProblems(features, name));
 
-        string kind = request.Kind ?? string.Empty;
+        string kind = request.Kind;
 
-        if (request.Kind is null)
-        {
-            problems.Add(
-                "--kind is required and has no default. Say what the use case does: --kind command "
-                + "(it changes state) or --kind query (it reads).");
-        }
-        else if (kind is not ("command" or "query"))
+        if (kind is not ("command" or "query"))
         {
             problems.Add($"--kind '{kind}' is not a choice. It is command or query.");
         }
@@ -305,18 +215,7 @@ internal static class NewUseCase
             return null;
         }
 
-        string prefix;
-
-        try
-        {
-            prefix = ProductName(root);
-        }
-        catch (InvalidOperationException exception)
-        {
-            problems.Add(exception.Message);
-
-            return null;
-        }
+        string prefix = product;
 
         string applicationFeatures = Full(root, $"{SourceProject(prefix, "Application")}/Features");
         string application = Path.Combine(applicationFeatures, features);

@@ -117,45 +117,12 @@ internal static class FeatureRemoval
         "DeletedAccounts", "Auth", "ExternalIdentity", "BackgroundJobs",
     };
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor)
-    {
-        string? features = null;
-        string root = Directory.GetCurrentDirectory();
-        bool apply = false;
+    internal static int Run(RemoveFeatureRequest request, GenerationContext context) =>
+        CSharpNames.PascalCase.IsMatch(request.Features)
+            ? new Removal(Analyze(context.Root, request.Features, context.Executor), context).Generate()
+            : Refuse(context.Error, "Name the feature folder, PascalCase and plural, e.g. Widgets.");
 
-        for (int i = 0; i < args.Length; i++)
-        {
-            string argument = args[i];
-
-            if (argument == "--apply")
-            {
-                apply = true;
-            }
-            else if (argument == "--root" && i + 1 < args.Length)
-            {
-                root = args[++i];
-            }
-            else if (argument.StartsWith('-') || features is not null)
-            {
-                return Refuse(error, $"'{argument}' is not understood here.");
-            }
-            else
-            {
-                features = argument;
-            }
-        }
-
-        if (features is null || !CSharpNames.PascalCase.IsMatch(features))
-        {
-            return Refuse(error, "Name the feature folder, PascalCase and plural, e.g. Widgets.");
-        }
-
-        root = Path.GetFullPath(root);
-
-        return new Removal(Analyze(root, features, executor), new GenerationContext(root, !apply, output, error), executor).Generate();
-    }
-
-    private sealed class Removal(Analysis analysis, GenerationContext context, IExecutor executor) : Generation(context)
+    private sealed class Removal(Analysis analysis, GenerationContext context) : Generation(context)
     {
         private readonly string[] _deleted = [.. analysis.Deleted];
 
@@ -215,7 +182,7 @@ internal static class FeatureRemoval
 
         protected override string? Preconditions() =>
             analysis.Migration is not null || HasInitialMigration(Root)
-                ? MigrationCheck.Refusal(Root, Output, executor, $"The migration that removes {analysis.Features}")
+                ? MigrationCheck.Refusal(Root, Output, Context.Executor, $"The migration that removes {analysis.Features}")
                 : null;
 
         protected override void Commit() => TextEdits.Commit(Root, Created, Replaced, _deleted);
@@ -229,7 +196,7 @@ internal static class FeatureRemoval
         {
             RemoveEmptyFolders();
 
-            if (!TextEdits.RunAll(Steps(Root, analysis), executor.Run, Output, Error, $"{analysis.Features} removed, its edits undone"))
+            if (!TextEdits.RunAll(Steps(Root, analysis), Context.Executor.Run, Output, Error, $"{analysis.Features} removed, its edits undone"))
             {
                 foreach (var step in ContractSteps(Root))
                 {
@@ -246,7 +213,7 @@ internal static class FeatureRemoval
 
             var contract = ContractSteps(Root);
 
-            if (contract.Count > 0 && !TextEdits.RunAll(contract, executor.Run, Output, Error, $"{analysis.Features} removed and its migration added"))
+            if (contract.Count > 0 && !TextEdits.RunAll(contract, Context.Executor.Run, Output, Error, $"{analysis.Features} removed and its migration added"))
             {
                 return Failed;
             }

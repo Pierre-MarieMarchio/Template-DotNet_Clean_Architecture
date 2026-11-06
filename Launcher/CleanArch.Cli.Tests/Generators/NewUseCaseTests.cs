@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.AddUseCase;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.AddUseCase.NewUseCase;
@@ -131,15 +132,8 @@ public sealed class NewUseCaseTests
 
     private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, _ => 0, args);
 
-    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args)
-    {
-        using var output = new StringWriter();
-        using var error = new StringWriter();
-
-        int code = Run([.. args, "--root", root], output, error, new FakeExecutor(run));
-
-        return (code, output.ToString(), error.ToString());
-    }
+    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args) =>
+        GeneratorRun.Invoke(AddUseCaseCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(run)), args);
 
     private static Func<TextEdits.Command, int> Recording(List<TextEdits.Command> ran, string? failing = null) =>
         command =>
@@ -341,14 +335,8 @@ public sealed class NewUseCaseTests
 
         (string[] Args, string Fragment)[] refusals =
         [
-            (["Invoices", "ApproveInvoice"], "--kind is required"),
             (["Invoices", "ApproveInvoice", "--kind", "event"], "--kind 'event' is not a choice"),
-            (["Invoices", "ApproveInvoice", "--kind"], "'--kind' needs a value"),
-            (["Invoices", "ApproveInvoice", "--kind", "command", "--kind", "query"], "is given twice"),
             (["Invoices", "ApproveInvoice", "--kind", "command", "--input", "body"], "'body' in --input is neither id nor an input"),
-            (["Invoices", "ApproveInvoice", "--kind", "command", "--route", "x"], "'--route' is not an option"),
-            (["Invoices", "--kind", "command"], "Expected two names"),
-            (["Invoices", "ApproveInvoice", "Extra", "--kind", "command"], "Expected two names"),
             (["invoices", "ApproveInvoice", "--kind", "command"], "is not a feature folder"),
             (["Invoices", "approveInvoice", "--kind", "command"], "is not a use case name"),
             (["Invoices", "Invoices", "--kind", "command"], "are both 'Invoices'"),
@@ -500,14 +488,6 @@ public sealed class NewUseCaseTests
 
     private static void TreeCases(string scratch, Action<bool, string> expect)
     {
-        string stranger = Path.Combine(scratch, "stranger");
-        Directory.CreateDirectory(stranger);
-
-        var elsewhere = Invoke(stranger, "Invoices", "ApproveInvoice", "--kind", "command");
-
-        expect(elsewhere.Code == 1 && elsewhere.Error.Contains("No cleanarch.json", StringComparison.Ordinal), "A tree without a project file was not refused for it.");
-        expect(!Directory.EnumerateFileSystemEntries(stranger).Any(), "A refused tree was written to.");
-
         string root = NewTree(scratch);
 
         ExpectRefusal(root, ["Orders", "ApproveOrder", "--kind", "command"], "No feature called Orders", expect);
@@ -878,7 +858,7 @@ public sealed class NewUseCaseTests
 
         string[] segments = relative.Split('/');
         int project = Array.FindIndex(segments, segment => segment.Contains('.', StringComparison.Ordinal));
-        string prefix = ProductName(root);
+        string prefix = GeneratorRun.Project(root).File.Name;
         segments[project] = prefix + "." + segments[project][FolderOf(prefix, string.Empty).Length..];
 
         if (!text.Contains($"namespace {string.Join('.', segments[project..^1])};", StringComparison.Ordinal))

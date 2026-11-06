@@ -54,9 +54,6 @@ internal static class NewFeature
 
     internal static readonly string[] _operationNames = ["get", "list", "create", "update", "delete"];
 
-    private static readonly string[] _optionNames =
-        ["--access", "--deletion", "--operations", "--model", "--concurrency", "--fields", "--root"];
-
     private static readonly string[] _reservedNames =
     [
         "Access", "Api", "Application", "Auth", "Common", "Contracts", "Controllers", "Core", "Dtos",
@@ -64,32 +61,17 @@ internal static class NewFeature
         "Policies", "Ports", "Presentation", "Rows", "Services", "UseCases",
     ];
 
-    internal sealed record Request(
-        string? Features,
-        string? Type,
-        string? Access,
-        string? Deletion,
-        string? Operations,
-        string? Model,
-        string? Concurrency,
-        string? Fields,
-        string Root,
-        bool DryRun);
-
-    internal static int Run(string[] args, TextWriter output, TextWriter error, IExecutor executor, string version)
+    internal static int Run(AddFeatureRequest request, GenerationContext context, string version)
     {
         var problems = new List<string>();
-        var request = Parse(args, problems);
-
-        string root = Path.GetFullPath(request.Root);
-        var spec = problems.Count == 0 ? Check(request, root, problems) : null;
+        var spec = Check(request, context.Root, context.Project, problems);
 
         return spec is null
-            ? Refusal.Write(error, problems, _usage)
-            : new FeatureGeneration(spec, problems, new GenerationContext(root, request.DryRun, output, error), executor, version).Generate();
+            ? Refusal.Write(context.Error, problems, _usage)
+            : new FeatureGeneration(spec, problems, context, version).Generate();
     }
 
-    private sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, IExecutor executor, string version) : Generation(context)
+    private sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, string version) : Generation(context)
     {
         private List<Emission> _plan = [];
 
@@ -125,7 +107,7 @@ internal static class NewFeature
                 $"{ManifestPath(spec)} records {spec.Features} with these options already: its files and edits are written, "
                 + "so nothing is written again.");
 
-            return Context.DryRun ? Succeeded : NewFeature.Finish(Root, spec, Output, Error, executor, resumed: true);
+            return Context.DryRun ? Succeeded : NewFeature.Finish(Root, spec, Output, Error, Context.Executor, resumed: true);
         }
 
         protected override bool Draft(List<string> problems)
@@ -152,7 +134,7 @@ internal static class NewFeature
                 "Nothing was written: every edit is made or none is. Put back the line each failed edit is placed beside, "
                 + "or write the feature by hand from the edits above.");
 
-        protected override string? Preconditions() => FeatureCode.Preconditions(Root, spec, Output, executor);
+        protected override string? Preconditions() => FeatureCode.Preconditions(Root, spec, Output, Context.Executor);
 
         protected override void Report(ReportMode mode)
         {
@@ -166,7 +148,7 @@ internal static class NewFeature
             }
         }
 
-        protected override int Finish() => NewFeature.Finish(Root, spec, Output, Error, executor, resumed: false);
+        protected override int Finish() => NewFeature.Finish(Root, spec, Output, Error, Context.Executor, resumed: false);
 
     }
 
@@ -234,103 +216,16 @@ internal static class NewFeature
         "}",
     ];
 
-    internal static Request Parse(string[] args, List<string> problems)
+    internal static Spec? Check(AddFeatureRequest request, string root, LocatedProject project, List<string> problems)
     {
-        var positional = new List<string>();
-        var options = new Dictionary<string, string>(StringComparer.Ordinal);
-        bool dryRun = false;
-
-        for (int index = 0; index < args.Length; index++)
-        {
-            string argument = args[index];
-
-            if (!argument.StartsWith('-'))
-            {
-                positional.Add(argument);
-
-                continue;
-            }
-
-            if (argument == "--dry-run")
-            {
-                dryRun = true;
-
-                continue;
-            }
-
-            string name = argument;
-            string? value = null;
-            int equals = argument.IndexOf('=', StringComparison.Ordinal);
-
-            if (equals > 0)
-            {
-                name = argument[..equals];
-                value = argument[(equals + 1)..];
-            }
-
-            if (!_optionNames.Contains(name, StringComparer.Ordinal))
-            {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames[..^1])} and --dry-run.");
-
-                continue;
-            }
-
-            if (value is null)
-            {
-                if (index + 1 >= args.Length || args[index + 1].StartsWith("--", StringComparison.Ordinal))
-                {
-                    problems.Add($"'{name}' needs a value.");
-
-                    continue;
-                }
-
-                value = args[++index];
-            }
-
-            if (!options.TryAdd(name, value))
-            {
-                problems.Add($"'{name}' is given twice; it takes one value.");
-            }
-        }
-
-        if (positional.Count != 2)
-        {
-            problems.Add(
-                $"Expected two names, <Features> and <Feature>, and found {positional.Count}. "
-                + "The folder is the plural and the type is the singular: Widgets Widget.");
-        }
-
-        string? Option(string name) => options.TryGetValue(name, out string? value) ? value : null;
-
-        return new Request(
-            positional.Count > 0 ? positional[0] : null,
-            positional.Count > 1 ? positional[1] : null,
-            Option("--access"),
-            Option("--deletion"),
-            Option("--operations"),
-            Option("--model"),
-            Option("--concurrency"),
-            Option("--fields"),
-            Option("--root") ?? ".",
-            dryRun);
-    }
-
-    internal static Spec? Check(Request request, string root, List<string> problems)
-    {
-        string features = request.Features ?? string.Empty;
-        string type = request.Type ?? string.Empty;
+        string features = request.Features;
+        string type = request.Type;
 
         problems.AddRange(NameProblems(features, type));
 
-        string access = request.Access ?? string.Empty;
+        string access = request.Access;
 
-        if (request.Access is null)
-        {
-            problems.Add(
-                "--access is required and has no default. Say who may see a record: "
-                + "--access owner (each caller sees their own) or --access shared (every authenticated caller sees all).");
-        }
-        else if (access is not ("owner" or "shared"))
+        if (access is not ("owner" or "shared"))
         {
             problems.Add($"--access '{access}' is not a choice. It is owner or shared.");
         }
@@ -387,13 +282,12 @@ internal static class NewFeature
             return null;
         }
 
-        string prefix;
+        string prefix = project.File.Name;
         bool tablePrefixes;
 
         try
         {
-            prefix = ProductName(root);
-            tablePrefixes = TablePrefixes(root);
+            tablePrefixes = TablePrefixes(project);
         }
         catch (InvalidOperationException exception)
         {

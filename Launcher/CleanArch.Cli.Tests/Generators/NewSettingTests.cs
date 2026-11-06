@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using CleanArch.Cli.Generators.AddSetting;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.AddSetting.NewSetting;
@@ -118,15 +119,8 @@ public sealed class NewSettingTests
         return root;
     }
 
-    private static (int Code, string Output, string Error) Invoke(string root, params string[] args)
-    {
-        using var output = new StringWriter();
-        using var error = new StringWriter();
-
-        int code = Run([.. args, "--root", root], output, error);
-
-        return (code, output.ToString(), error.ToString());
-    }
+    private static (int Code, string Output, string Error) Invoke(string root, params string[] args) =>
+        GeneratorRun.Invoke(AddSettingCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(_ => 0)), args);
 
     private static void RecordedEditsUndo(string root, Dictionary<string, string> before, Action<bool, string> expect)
     {
@@ -210,12 +204,6 @@ public sealed class NewSettingTests
 
         (string[] Args, string Fragment)[] refusals =
         [
-            (["Invoices", "Limits"], "--keys is required"),
-            (["Invoices", "Limits", "--keys"], "'--keys' needs a value"),
-            (["Invoices", "Limits", .. keys, "--keys", "Max:bool=true"], "is given twice"),
-            (["Invoices", "Limits", .. keys, "--force"], "'--force' is not an option"),
-            (["Invoices", .. keys], "Expected two names"),
-            (["Invoices", "Limits", "Extra", .. keys], "Expected two names"),
             (["invoices", "Limits", .. keys], "is not a feature folder"),
             (["Invoices", "limits", .. keys], "is not a section name"),
             (["Invoices", "LimitsOptions", .. keys], "ends in 'Options'"),
@@ -556,14 +544,6 @@ public sealed class NewSettingTests
 
     private static void TreeCases(string scratch, Action<bool, string> expect)
     {
-        string stranger = Path.Combine(scratch, "stranger");
-        Directory.CreateDirectory(stranger);
-
-        var elsewhere = Invoke(stranger, "Invoices", "Limits", "--keys", "Max:int(1..9)=1");
-
-        expect(elsewhere.Code == 1 && elsewhere.Error.Contains("No cleanarch.json", StringComparison.Ordinal), "A tree without a project file was not refused for it.");
-        expect(!Directory.EnumerateFileSystemEntries(stranger).Any(), "A refused tree was written to.");
-
         string unhosted = NewTree(scratch);
 
         File.Delete(Path.Combine(unhosted, "Src/Presentation/A.Worker/Program.cs"));

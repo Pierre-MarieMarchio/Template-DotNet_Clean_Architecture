@@ -30,12 +30,9 @@ public sealed partial class NewFeatureTests
 
     private static (int Code, string Output, string Error) InvokeField(string root, Func<TextEdits.Command, int> run, params string[] args)
     {
-        using var output = new StringWriter();
-        using var error = new StringWriter();
+        var (code, output, error) = GeneratorRun.Invoke(AddFieldCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(run)), args);
 
-        int code = NewField.Run([.. args, "--root", root], output, error, new FakeExecutor(run));
-
-        return (code, output.ToString().ReplaceLineEndings("\n"), error.ToString().ReplaceLineEndings("\n"));
+        return (code, output.ReplaceLineEndings("\n"), error.ReplaceLineEndings("\n"));
     }
 
     private static Func<TextEdits.Command, int> Migrating(string root, List<TextEdits.Command> ran, string table) =>
@@ -248,8 +245,6 @@ public sealed partial class NewFeatureTests
             (["Gizmos", "Budget:decimal=0"], "No feature called Gizmos"),
             (["Plains", "Budget:decimal=0"], "Plains was generated without --fields"),
             (["things", "Budget:decimal=0"], "is not a feature's folder"),
-            (["Things"], "Expected the feature and its new fields"),
-            (["Things", "Budget:decimal=0", "--force"], "'--force' is not an option of new-field"),
             (["Things", "Budget:decimal"], "Budget cannot be null, and the rows the table already holds need a value for it: give one its rules accept after '=', as Budget:decimal(18,2)=0"),
             (["Things", "Due:DateOnly"], "as Due:DateOnly='2026-01-01'"),
             (["Things", "Notes:text?=''"], "Notes is nullable, so the rows the table already holds start with null"),

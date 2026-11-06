@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.Shared;
+using static CleanArch.Cli.Generators.Shared.ProjectFolders;
+using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Generators.RemoveFeature;
 
@@ -22,8 +24,6 @@ internal static class FeatureRemoval
     private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(2);
 
     private static readonly Regex _declaration = new(@"\b(?:(?:record\s+)?(?:class|struct)|interface|record|enum)\s+([A-Z]\w*)", RegexOptions.None, TimeSpan.FromSeconds(1));
-
-    private static readonly Regex _pascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     private static readonly Regex _sectionName = new(@"\bconst\s+string\s+SectionName\s*=\s*""([A-Z][A-Za-z0-9]*)""", RegexOptions.None, TimeSpan.FromSeconds(1));
 
@@ -146,7 +146,7 @@ internal static class FeatureRemoval
             }
         }
 
-        if (features is null || !_pascalCase.IsMatch(features))
+        if (features is null || !CSharpNames.PascalCase.IsMatch(features))
         {
             return Refuse(error, "Name the feature folder, PascalCase and plural, e.g. Widgets.");
         }
@@ -327,7 +327,7 @@ internal static class FeatureRemoval
                 return null;
             }
 
-            string?[] lines = Decode(File.ReadAllBytes(full)).Split('\n');
+            string?[] lines = Decode(File.ReadAllBytes(full)).ReplaceLineEndings("\n").Split('\n');
 
             foreach (int line in dropped.GetValueOrDefault(relative) ?? [])
             {
@@ -557,13 +557,6 @@ internal static class FeatureRemoval
         return contiguous.Length + spread.Length == 0 && !visible.Any(lines.Contains) ? (State.Gone, [], -1) : (State.Displaced, [], -1);
     }
 
-    private static string Decode(byte[] bytes)
-    {
-        bool bom = bytes is [0xEF, 0xBB, 0xBF, ..];
-
-        return Encoding.UTF8.GetString(bytes, bom ? 3 : 0, bytes.Length - (bom ? 3 : 0)).ReplaceLineEndings("\n");
-    }
-
     private static IEnumerable<string> GitProblems(string root, List<string> paths)
     {
         if (paths.Count == 0)
@@ -625,7 +618,7 @@ internal static class FeatureRemoval
 
     private static string? Persistence(string root)
     {
-        string infrastructure = Path.Combine(root, "Src", "Infrastructure");
+        string infrastructure = Full(root, $"{Src}/Infrastructure");
 
         return Directory.Exists(infrastructure)
             ? Directory.EnumerateDirectories(infrastructure, "*.Infrastructure.Persistence").Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')).FirstOrDefault()
@@ -898,17 +891,9 @@ internal static class FeatureRemoval
         }
     }
 
-    private static string Kebab(string pascal) => Separated(pascal, '-');
+    private static string UpperSnake(string pascal) => CSharpNames.Snake(pascal).ToUpperInvariant();
 
-    private static string Separated(string pascal, char separator) =>
-        string.Concat(pascal.Select((character, index) =>
-            char.IsUpper(character) && index > 0
-                ? separator + char.ToLowerInvariant(character).ToString()
-                : char.ToLowerInvariant(character).ToString()));
-
-    private static string UpperSnake(string pascal) => Separated(pascal, '_').ToUpperInvariant();
-
-    internal static string PagePath(string features) => $"docs/features/{Kebab(features)}.md";
+    internal static string PagePath(string features) => $"docs/features/{CSharpNames.Kebab(features)}.md";
 
     private static List<string> DeclaredTypes(string root, Manifest manifest, string type)
     {
@@ -1131,7 +1116,7 @@ internal static class FeatureRemoval
         const string Configuration = "Configuration";
         const string Documentation = "Documentation and samples";
 
-        string kebab = Kebab(features);
+        string kebab = CSharpNames.Kebab(features);
         var route = Rx($@"/api/v1/{Regex.Escape(kebab)}(?![\w-])");
         var link = Rx($@"\]\([^)\s]*\bfeatures/{Regex.Escape(kebab)}\.md(#[^)\s]*)?\)");
         var code = Rx($@"`{Regex.Escape(char.ToLowerInvariant(type[0]) + type[1..])}\.[A-Za-z]+`");
@@ -1380,7 +1365,7 @@ internal static class FeatureRemoval
 
     private static List<TextEdits.Command> ContractSteps(string root)
     {
-        string presentation = Path.Combine(root, "Src", "Presentation");
+        string presentation = Full(root, Presentation);
 
         if (!Directory.Exists(presentation) || !Directory.EnumerateDirectories(presentation, "*.Api").Any())
         {
@@ -1465,7 +1450,7 @@ internal static class FeatureRemoval
 
         byte[] bytes = File.ReadAllBytes(file);
         bool bom = bytes is [0xEF, 0xBB, 0xBF, ..];
-        string text = Decode(bytes);
+        string text = Decode(bytes).ReplaceLineEndings("\n");
         const string Up = "protected override void Up(MigrationBuilder migrationBuilder)\n        {\n";
         const string Down = "protected override void Down(MigrationBuilder migrationBuilder)\n        {\n";
         int up = text.IndexOf(Up, StringComparison.Ordinal);

@@ -2,6 +2,8 @@
 using System.Text.Json.Nodes;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
+using static CleanArch.Cli.Generators.Shared.CSharpNames;
+using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Generators.AddFeature;
 
@@ -38,7 +40,7 @@ internal static partial class NewFeature
 
         if (addition is null)
         {
-            return RefuseField(error, problems);
+            return Refusal.Write(error, problems, _fieldUsage);
         }
 
         if (addition.Pending)
@@ -107,21 +109,6 @@ internal static partial class NewFeature
         return FinishField(root, addition, output, error, run);
     }
 
-    private static int RefuseField(TextWriter error, List<string> problems)
-    {
-        foreach (string problem in problems)
-        {
-            error.WriteLine($"error: {problem}");
-        }
-
-        error.WriteLine();
-        error.WriteLine(_fieldUsage);
-        error.WriteLine();
-        error.WriteLine("Nothing was written.");
-
-        return 1;
-    }
-
     private static FieldRequest ParseFieldRequest(string[] args, List<string> problems)
     {
         var positional = new List<string>();
@@ -180,7 +167,7 @@ internal static partial class NewFeature
 
         try
         {
-            prefix = ProductPrefix(root);
+            prefix = ProductName(root);
             tablePrefixes = TablePrefixes(root);
         }
         catch (InvalidOperationException exception)
@@ -335,7 +322,7 @@ internal static partial class NewFeature
                 return null;
             }
 
-            bool hasApi = Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", FolderOf(prefix, "Api")));
+            bool hasApi = Directory.Exists(Full(root, $"{Presentation}/{FolderOf(prefix, "Api")}"));
 
             return new Spec(
                 prefix,
@@ -383,7 +370,7 @@ internal static partial class NewFeature
                 }
                 else
                 {
-                    changes.Add(new FieldChange(emission.Path, null, Bytes(emission), ["written"]));
+                    changes.Add(new FieldChange(emission.Path, null, emission.Bytes(), ["written"]));
                 }
 
                 continue;

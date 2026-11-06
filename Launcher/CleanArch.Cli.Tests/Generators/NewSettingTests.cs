@@ -4,6 +4,7 @@ using System.Text.Json;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.AddSetting.NewSetting;
+using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Tests.Generators;
 

@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.Shared;
+using static CleanArch.Cli.Generators.Shared.ProjectFolders;
+using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Generators.AddSetting;
 
@@ -58,8 +60,6 @@ internal static class NewSetting
         Text,
         Secret,
     }
-
-    private sealed record Emission(string Path, string Content);
 
     private sealed record Request(string? Features, string? Section, string? Keys, string Root, bool DryRun);
 
@@ -145,7 +145,7 @@ internal static class NewSetting
 
         if (spec is null)
         {
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         var emissions = Emissions(spec, root);
@@ -155,14 +155,14 @@ internal static class NewSetting
         {
             problems.Add($"{existing.Length} of the files to write already exist, and none is ever overwritten:\n" + string.Join("\n", existing.Select(path => $"  {path}")));
 
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         var (editor, hosts) = Edits(spec, root, problems);
 
         if (problems.Count > 0)
         {
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         problems.AddRange(editor.Failures.Select(failure =>
@@ -170,7 +170,7 @@ internal static class NewSetting
 
         if (problems.Count > 0)
         {
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         var replaced = TextEdits.Replacements(editor).ToList();
@@ -187,7 +187,7 @@ internal static class NewSetting
                     $"{exception.Message} {spec.Manifest} records each edit for remove-feature to undo with the feature: "
                     + "give the file the ending this project writes (format-fix), or make this edit by hand, then run this again.");
 
-                return Refuse(error, problems);
+                return Refusal.Write(error, problems, _usage);
             }
         }
 
@@ -195,7 +195,7 @@ internal static class NewSetting
         {
             try
             {
-                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, TextEdits.Encode(emission.Path, emission.Content)))], replaced);
+                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, emission.Bytes()))], replaced);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -208,21 +208,6 @@ internal static class NewSetting
         Report(output, spec, emissions, editor.Changed.Select(sheet => sheet.Path), hosts, request.DryRun);
 
         return 0;
-    }
-
-    private static int Refuse(TextWriter error, List<string> problems)
-    {
-        foreach (string problem in problems)
-        {
-            error.WriteLine($"error: {problem}");
-        }
-
-        error.WriteLine();
-        error.WriteLine(_usage);
-        error.WriteLine();
-        error.WriteLine("Nothing was written.");
-
-        return 1;
     }
 
     private static Request Parse(string[] args, List<string> problems)
@@ -336,7 +321,7 @@ internal static class NewSetting
 
         try
         {
-            prefix = ProductPrefix(root);
+            prefix = ProductName(root);
         }
         catch (InvalidOperationException exception)
         {
@@ -345,7 +330,7 @@ internal static class NewSetting
             return null;
         }
 
-        string application = Path.Combine(root, "Src", "Application", FolderOf(prefix, "Application"));
+        string application = Full(root, SourceProject(prefix, "Application"));
 
         if (!Directory.Exists(Path.Combine(application, "Features", features)))
         {
@@ -354,7 +339,7 @@ internal static class NewSetting
                 : string.Empty;
 
             problems.Add(
-                $"No feature called {features}: 'Src/Application/{FolderOf(prefix, "Application")}/Features/{features}' does not exist. "
+                $"No feature called {features}: '{SourceProject(prefix, "Application")}/Features/{features}' does not exist. "
                 + (known.Length == 0 ? "This tree has no feature yet; write one first, as docs/guides/adding-a-feature.md says." : $"The features here are {known}."));
 
             return null;
@@ -418,7 +403,7 @@ internal static class NewSetting
             || existing.StartsWith(section + ":", StringComparison.OrdinalIgnoreCase)
             || section.StartsWith(existing + ":", StringComparison.OrdinalIgnoreCase);
 
-        string src = Path.Combine(root, "Src");
+        string src = Path.Combine(root, Src);
 
         foreach (string file in SourceFiles(src, "*.cs"))
         {
@@ -431,7 +416,7 @@ internal static class NewSetting
             }
         }
 
-        string presentation = Path.Combine(src, "Presentation");
+        string presentation = Full(root, Presentation);
 
         foreach (string file in SourceFiles(presentation, "appsettings*.json"))
         {
@@ -464,14 +449,6 @@ internal static class NewSetting
             return [];
         }
     }
-
-    private static IEnumerable<string> SourceFiles(string folder, string pattern) =>
-        Directory.Exists(folder)
-            ? Directory.EnumerateFiles(folder, pattern, SearchOption.AllDirectories)
-                .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                    && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                    && !file.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            : [];
 
     private static List<Key> ReadKeys(string text, List<string> problems)
     {
@@ -696,37 +673,12 @@ internal static class NewSetting
         _ => $"TimeSpan.FromSeconds({seconds})",
     };
 
-    private static string ProductPrefix(string root)
-    {
-        string projectFile = Path.Combine(root, "cleanarch.json");
-
-        if (!File.Exists(projectFile))
-        {
-            throw new InvalidOperationException(
-                $"No cleanarch.json in '{root}', the file that records the project's name. Run this from the root of a tree generated by this template, or name that root with --root.");
-        }
-
-        using var document = JsonDocument.Parse(File.ReadAllText(projectFile));
-
-        return document.RootElement.TryGetProperty("name", out JsonElement name) && name.GetString() is { Length: > 0 } prefix
-            ? prefix
-            : throw new InvalidOperationException($"'{projectFile}' records no name.");
-    }
-
-    private static string FolderOf(string prefix, string project) =>
-        string.Concat(prefix.Split('.').Select(SegmentInitials)) + "." + project;
-
-    private static string SegmentInitials(string segment) =>
-        segment.Any(char.IsAsciiLetterUpper)
-            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
-            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
-
     private static string Words(string pascal) =>
         string.Concat(pascal.Select((character, index) => char.IsUpper(character) && index > 0 ? " " + character : character.ToString()));
 
     private static List<Emission> Emissions(Spec spec, string root)
     {
-        string application = $"Src/Application/{FolderOf(spec.Prefix, "Application")}/Features/{spec.Features}/Configuration/Options";
+        string application = $"{SourceProject(spec.Prefix, "Application")}/Features/{spec.Features}/Configuration/Options";
         var emissions = new List<Emission> { new($"{application}/{spec.Options}.cs", OptionsClass(spec)) };
         string tests = $"Tests/Application/{FolderOf(spec.Prefix, "Application.UnitTests")}";
 
@@ -949,18 +901,6 @@ internal static class NewSetting
         _ => Num(OtherNumber(key)),
     };
 
-    private static string Sorted(string source)
-    {
-        string[] lines = source.ReplaceLineEndings("\n").Split('\n');
-        int usings = lines.TakeWhile(line => line.StartsWith("using ", StringComparison.Ordinal)).Count();
-
-        string[] sorted = [.. lines[..usings].Distinct(StringComparer.Ordinal).OrderBy(UsingKey, StringComparer.Ordinal)];
-
-        return string.Join('\n', [.. sorted, .. lines[usings..]]).TrimEnd('\n') + "\n";
-    }
-
-    internal static string UsingKey(string line) => (line.StartsWith("using System", StringComparison.Ordinal) ? "0" : "1") + line.TrimEnd(';').ToUpperInvariant();
-
     private static (TextEdits.Editor Editor, List<string> Hosts) Edits(Spec spec, string root, List<string> problems)
     {
         var editor = new TextEdits.Editor(root);
@@ -1006,7 +946,7 @@ internal static class NewSetting
             return text;
         }
 
-        string module = $"Src/Application/{FolderOf(spec.Prefix, "Application")}/ApplicationModule.cs";
+        string module = $"{SourceProject(spec.Prefix, "Application")}/ApplicationModule.cs";
         string moduleText = Load(module);
         if (moduleText.Contains(spec.Options, StringComparison.Ordinal))
         {
@@ -1021,7 +961,7 @@ internal static class NewSetting
             editor.Using(module, space);
         }
 
-        string presentation = Path.Combine(root, "Src", "Presentation");
+        string presentation = Full(root, Presentation);
         string call = $".Add{spec.Features}(";
 
         foreach (string host in Directory.Exists(presentation) ? Directory.EnumerateDirectories(presentation).Order(StringComparer.Ordinal).ToArray() : [])
@@ -1096,9 +1036,6 @@ internal static class NewSetting
 
         return signature.Success && Regex.IsMatch(signature.Groups["rest"].Value, @"IConfiguration configuration\b", RegexOptions.None, TimeSpan.FromSeconds(1));
     }
-
-    internal static string Decode(byte[] bytes) =>
-        Encoding.UTF8.GetString(bytes, bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0, bytes.Length - (bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0));
 
     private static string? Register(string text, Spec spec)
     {
@@ -1326,7 +1263,7 @@ internal static class NewSetting
 
         foreach (var emission in plan)
         {
-            manifest.Record(emission.Path, TextEdits.Encode(emission.Path, emission.Content));
+            manifest.Record(emission.Path, emission.Bytes());
         }
 
         manifest.Record(editor);

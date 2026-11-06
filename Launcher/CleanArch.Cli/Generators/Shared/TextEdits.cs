@@ -16,6 +16,8 @@ internal static class TextEdits
 
     private const string _noBuild = "--no-build";
 
+    private const string _web = $"{ProjectFolders.Src}/Web";
+
     internal sealed class Sheet
     {
         private readonly bool _bom;
@@ -556,16 +558,16 @@ internal static class TextEdits
         editor.Changed.Select(sheet => (sheet.Path, sheet.Original, sheet.Bytes()));
 
     internal static Command Task(string root, params string[] task) =>
-        new($"dotnet run Tools/Tasks.cs {string.Join(' ', task)}", root, "dotnet", ["run", "Tools/Tasks.cs", .. task]);
+        new($"dotnet run {ProjectLayout.Tasks.Replace('\\', '/')} {string.Join(' ', task)}", root, "dotnet", ["run", ProjectLayout.Tasks, .. task]);
 
     internal static Command FromLastBuild(string root, params string[] task) => Task(root, ["--", .. task, _noBuild]);
 
     internal static List<Command> ContractSteps(string root, string client, bool built) =>
     [
         built ? FromLastBuild(root, "openapi") : Task(root, "openapi"),
-        .. client.Length > 0 && Directory.Exists(System.IO.Path.Combine(root, "Src", "Presentation", client)) ? [Task(root, "api-client")] : Array.Empty<Command>(),
-        .. File.Exists(System.IO.Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs"))
-            ? [new Command($"cd Src/Web && pnpm api {_noBuild}", System.IO.Path.Combine(root, "Src", "Web"), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
+        .. client.Length > 0 && Directory.Exists(ProjectFolders.Full(root, $"{ProjectFolders.Presentation}/{client}")) ? [Task(root, "api-client")] : Array.Empty<Command>(),
+        .. File.Exists(ProjectFolders.Full(root, $"{_web}/packages/api-client/scripts/generate.mjs"))
+            ? [new Command($"cd {_web} && pnpm api {_noBuild}", ProjectFolders.Full(root, _web), OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm", ["api", _noBuild])]
             : Array.Empty<Command>(),
     ];
 

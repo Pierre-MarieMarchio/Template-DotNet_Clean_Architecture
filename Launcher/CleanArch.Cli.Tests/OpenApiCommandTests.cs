@@ -1,0 +1,401 @@
+﻿using System.Text.Json.Nodes;
+using Shouldly;
+using Xunit;
+
+namespace CleanArch.Cli.Tests;
+
+[Collection(ProcessWideState.Name)]
+public sealed class OpenApiCommandTests : IDisposable
+{
+    private const string _referenceJson = """{"openapi":"3.1.0"}""";
+
+    private static readonly string _apiFolder = Path.Combine("Src", "Presentation", "AS.Api");
+    private static readonly string _apiProject = Path.Combine(_apiFolder, "Acme.Shop.Api.csproj");
+    private static readonly string _referencePath = Path.Combine("Tests", "Integration", "AS.Api.IntegrationTests", "OpenApi", "v1.json");
+    private static readonly string _referenceDirectory = Path.GetDirectoryName(_referencePath)!;
+    private static readonly string _clientFolder = Path.Combine("Src", "Clients", "AS.Client");
+    private static readonly string _generated = Path.Combine(_clientFolder, "Generated");
+
+    private readonly StringWriter _output = new();
+    private readonly StringWriter _error = new();
+    private readonly List<ExternalCall> _calls = [];
+    private int _exit = CleanArchCommand.Succeeded;
+    private int _kiotaExit = CleanArchCommand.Succeeded;
+
+    public OpenApiCommandTests()
+    {
+        ExternalCommand.Handler = (call, _, _) =>
+        {
+            _calls.Add(call);
+            return Fake(call);
+        };
+    }
+
+    [Fact]
+    public void OpenApi_PrintsTheLinesItRuns_ThenWritesTheReferenceAndRegeneratesTheClient()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        string cache = Path.Combine(project.Root, _apiFolder, "obj", "Acme.Shop.Api.OpenApiFiles.cache");
+        Directory.CreateDirectory(Path.GetDirectoryName(cache)!);
+        File.WriteAllText(cache, "cache");
+        project.Folder(_clientFolder);
+
+        Run(["openapi"], project.Folder("Src")).ShouldBe(CleanArchCommand.Succeeded);
+
+        _calls.Count.ShouldBe(2);
+
+        ExternalCall build = _calls[0];
+        build.FileName.ShouldBe("dotnet");
+        build.WorkingDirectory.ShouldBe(project.Root);
+        build.Arguments.ShouldBe(
+        [
+            "build", Path.Combine(project.Root, _apiProject),
+            "-p:OpenApiGenerateDocumentsOnBuild=true",
+            $"-p:OpenApiDocumentsDirectory={Path.Combine(project.Root, _referenceDirectory)}",
+            "-p:OpenApiGenerateDocumentsOptions=--file-name v1",
+        ]);
+        build.Environment.ShouldNotBeNull()["ASPNETCORE_ENVIRONMENT"].ShouldBe("Development");
+        build.Environment.ShouldNotBeNull().ContainsKey("Authentication__External__Authority").ShouldBeFalse();
+        _output.ToString().ShouldStartWith(
+            "ASPNETCORE_ENVIRONMENT=Development dotnet build "
+            + Path.Combine(project.Root, _apiProject)
+            + " -p:OpenApiGenerateDocumentsOnBuild=true"
+            + $" -p:OpenApiDocumentsDirectory={Path.Combine(project.Root, _referenceDirectory)}"
+            + " \"-p:OpenApiGenerateDocumentsOptions=--file-name v1\"" + Environment.NewLine);
+
+        ExternalCall kiota = _calls[1];
+        kiota.FileName.ShouldBe("dotnet");
+        kiota.WorkingDirectory.ShouldBe(project.Root);
+        kiota.Environment.ShouldBeNull();
+        kiota.Arguments.ShouldBe(
+        [
+            "tool", "run", "kiota", "generate",
+            "--language", "CSharp",
+            "--openapi", Path.Combine(project.Root, _referencePath),
+            "--output", Path.Combine(project.Root, _generated),
+            "--class-name", "ApiClient",
+            "--namespace-name", "Acme.Shop.Client.Generated",
+            "--exclude-backward-compatible",
+            "--clean-output",
+            "--log-level", "Warning",
+        ]);
+        _output.ToString().ShouldContain(
+            "dotnet tool run kiota generate --language CSharp --openapi "
+            + Path.Combine(project.Root, _referencePath)
+            + " --output " + Path.Combine(project.Root, _generated)
+            + " --class-name ApiClient --namespace-name Acme.Shop.Client.Generated --exclude-backward-compatible --clean-output --log-level Warning");
+
+        File.Exists(cache).ShouldBeFalse();
+        File.ReadAllText(Path.Combine(project.Root, _referencePath)).ShouldBe(_referenceJson);
+
+        string clientFile = Path.Combine(project.Root, _generated, "ApiClient.cs");
+        Convert.ToHexString(File.ReadAllBytes(clientFile)[..3]).ShouldBe("EFBBBF");
+        File.ReadAllText(clientFile).ShouldBe("namespace Acme.Shop.Client.Generated;\npublic class ApiClient { }\n");
+        File.Exists(Path.Combine(project.Root, _generated, ".kiota.log")).ShouldBeFalse();
+        JsonNode? settings = JsonNode.Parse(File.ReadAllText(Path.Combine(project.Root, _generated, "kiota-lock.json")));
+        settings.ShouldNotBeNull()["descriptionLocation"].ShouldNotBeNull().GetValue<string>()
+            .ShouldBe(Path.GetRelativePath(Path.Combine(project.Root, _generated), Path.Combine(project.Root, _referencePath)).Replace('\\', '/'));
+
+        _output.ToString().ShouldContain($"Wrote {Shown(project.Root, Path.Combine(project.Root, _generated))} from the OpenAPI reference.");
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void OpenApi_WithExternalAuth_RunsTheBuildWithTheAuthorityAndTheAudience()
+    {
+        using var project = new SampleProject(SampleProject.ApiWith("external", client: true));
+        project.Folder(_clientFolder);
+
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        IReadOnlyDictionary<string, string> environment = _calls[0].Environment.ShouldNotBeNull();
+        environment["ASPNETCORE_ENVIRONMENT"].ShouldBe("Development");
+        environment["Authentication__External__Authority"].ShouldBe("https://identity-provider.invalid/");
+        environment["Authentication__External__Audience"].ShouldBe("openapi-document");
+        _output.ToString().ShouldStartWith(
+            "ASPNETCORE_ENVIRONMENT=Development Authentication__External__Authority=https://identity-provider.invalid/ Authentication__External__Audience=openapi-document dotnet build ");
+    }
+
+    [Fact]
+    public void OpenApi_ForwardsTheExitCodeOfTheBuild_AndStopsThere()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+        _exit = 7;
+
+        Run(["openapi"], project.Root).ShouldBe(7);
+
+        _calls.Count.ShouldBe(1);
+        _output.ToString().ShouldContain("dotnet build");
+        _output.ToString().ShouldNotContain("kiota");
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void OpenApi_ForwardsTheExitCodeOfKiota()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+        _kiotaExit = 5;
+
+        Run(["openapi"], project.Root).ShouldBe(5);
+
+        _calls.Count.ShouldBe(2);
+        _output.ToString().ShouldContain("kiota");
+        _output.ToString().ShouldNotContain("Wrote");
+    }
+
+    [Fact]
+    public void OpenApi_RefusesToWriteAClientTheProjectDoesNotHold()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _calls.Count.ShouldBe(1);
+        _error.ToString().ShouldContain("Src/Clients/AS.Client does not exist, so there is no client to write");
+        _output.ToString().ShouldNotContain("kiota");
+    }
+
+    [Fact]
+    public void OpenApi_Check_WritesNothingAndSucceedsWhenTheTreeMatches()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+        string written = SnapshotOf(project.Root);
+        Clear();
+
+        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        _calls.Count.ShouldBe(2);
+        string prefix = "-p:OpenApiDocumentsDirectory=";
+        string documents = _calls[0].Arguments.Single(argument => argument.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..];
+        documents.ShouldStartWith(Path.GetTempPath());
+        int output = _calls[1].Arguments.ToList().IndexOf("--output");
+        string target = _calls[1].Arguments[output + 1];
+        target.ShouldStartWith(Path.GetTempPath());
+
+        _output.ToString().ShouldContain("is the OpenAPI reference the API describes itself with.");
+        _output.ToString().ShouldContain("is what Kiota writes from the OpenAPI reference.");
+        _output.ToString().ShouldNotContain("Wrote");
+        SnapshotOf(project.Root).ShouldBe(written);
+        Directory.Exists(documents).ShouldBeFalse();
+        Directory.Exists(target).ShouldBeFalse();
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void OpenApi_Check_FailsWhereTheReferenceWouldBeWritten()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+        string reference = Path.Combine(project.Root, _referencePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(reference)!);
+        File.WriteAllText(reference, """{"openapi":"3.0.0"}""");
+
+        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _calls.Count.ShouldBe(1);
+        _error.ToString().ShouldContain("Tests/Integration/AS.Api.IntegrationTests/OpenApi/v1.json is not the reference the API describes itself with");
+        _output.ToString().ShouldNotContain("kiota");
+        File.ReadAllText(reference).ShouldBe("""{"openapi":"3.0.0"}""");
+    }
+
+    [Fact]
+    public void OpenApi_Check_ReportsAReferenceThatIsMissing()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+
+        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _calls.Count.ShouldBe(1);
+        _error.ToString().ShouldContain("Tests/Integration/AS.Api.IntegrationTests/OpenApi/v1.json is missing: run `dotnet cleanarch openapi` first.");
+        _output.ToString().ShouldNotContain("kiota");
+    }
+
+    [Fact]
+    public void OpenApi_Check_FailsWhereTheClientWouldBeWritten()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+        project.Folder(_clientFolder);
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+        Clear();
+        string clientFile = Path.Combine(project.Root, _generated, "ApiClient.cs");
+        File.AppendAllText(clientFile, "// drifted");
+
+        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _calls.Count.ShouldBe(2);
+        _error.ToString().ShouldContain("Src/Clients/AS.Client/Generated differs from what Kiota writes from the OpenAPI reference:");
+        _error.ToString().ShouldContain("  ApiClient.cs");
+        _error.ToString().ShouldContain("Run `dotnet cleanarch openapi` and commit what it writes.");
+        File.ReadAllText(clientFile).ShouldContain("// drifted");
+    }
+
+    [Theory]
+    [InlineData("openapi")]
+    [InlineData("openapi --check")]
+    public void OutsideAProject_TheCommandIsRefusedWithTheReason(string commandLine)
+    {
+        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
+        try
+        {
+            Run(commandLine.Split(' '), folder).ShouldBe(CleanArchCommand.Failed);
+        }
+        finally
+        {
+            Directory.Delete(folder);
+        }
+
+        _error.ToString().ShouldStartWith("Not inside a CleanArch project");
+        _error.ToString().ShouldContain(ProjectLocator.FileName);
+        _output.ToString().ShouldBeEmpty();
+        _calls.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("openapi")]
+    [InlineData("openapi --check")]
+    public void WithAProjectFileItCannotRead_TheCommandIsRefusedWithThatError(string commandLine)
+    {
+        using var project = new SampleProject("{ not json");
+
+        Run(commandLine.Split(' '), project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _error.ToString().ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
+        _output.ToString().ShouldBeEmpty();
+        _calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void WhereTheProjectFileRecordsNoApi_TheCommandIsRefusedWithTheReason()
+    {
+        using var project = new SampleProject(SampleProject.NoApi);
+
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _error.ToString().ShouldContain("records no api presentation");
+        _output.ToString().ShouldBeEmpty();
+        _calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void WhereTheProjectFileRecordsClientFalse_TheCommandIsRefusedWithTheReason()
+    {
+        using var project = new SampleProject(SampleProject.ApiWith("local", client: false));
+
+        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _error.ToString().ShouldContain("records client false");
+        _output.ToString().ShouldBeEmpty();
+        _calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void HelpJson_ListsOpenapiWithItsCheckOption_InsideAProjectWithAnApiAndAClient()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+
+        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        JsonArray commands = CommandsOf();
+        commands.Select(command => Text(command!["name"])).ShouldContain("openapi");
+        JsonObject openapi = commands.Single(command => Text(command!["name"]) == "openapi").ShouldNotBeNull().AsObject();
+        openapi["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"])).ShouldBe(["--check"]);
+        openapi["arguments"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
+        openapi["commands"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Help_HidesOpenapi_WhereTheProjectFileMakesItFalse()
+    {
+        using var noApi = new SampleProject(SampleProject.NoApi);
+        using var noClient = new SampleProject(SampleProject.ApiWith("local", client: false));
+
+        Run(["--help"], noApi.Root).ShouldBe(CleanArchCommand.Succeeded);
+        _output.ToString().ShouldContain("help");
+        _output.ToString().ShouldNotContain("openapi");
+        Clear();
+
+        Run(["help", "--json"], noApi.Root).ShouldBe(CleanArchCommand.Succeeded);
+        CommandsOf().Select(command => Text(command!["name"])).ShouldNotContain("openapi");
+        Clear();
+
+        Run(["help", "--json"], noClient.Root).ShouldBe(CleanArchCommand.Succeeded);
+        CommandsOf().Select(command => Text(command!["name"])).ShouldNotContain("openapi");
+    }
+
+    [Fact]
+    public void HelpOfTheOpenapiCommand_ReadsDotnetCleanarch()
+    {
+        using var project = new SampleProject(SampleProject.Api);
+
+        Run(["openapi", "--help"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        _output.ToString().ShouldContain("dotnet cleanarch openapi [options]");
+        _output.ToString().ShouldContain("--check");
+        _error.ToString().ShouldBeEmpty();
+    }
+
+    public void Dispose()
+    {
+        ExternalCommand.Handler = null;
+        _output.Dispose();
+        _error.Dispose();
+    }
+
+    private int Fake(ExternalCall call)
+    {
+        if (call.Arguments[0] == "build")
+        {
+            string prefix = "-p:OpenApiDocumentsDirectory=";
+            string documents = call.Arguments.Single(argument => argument.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..];
+            Directory.CreateDirectory(documents);
+            File.WriteAllText(Path.Combine(documents, "v1.json"), _referenceJson);
+        }
+
+        if (call.Arguments.Contains("kiota"))
+        {
+            int output = call.Arguments.ToList().IndexOf("--output");
+            string target = call.Arguments[output + 1];
+            Directory.CreateDirectory(target);
+            File.WriteAllText(Path.Combine(target, ".kiota.log"), "kiota log");
+            File.WriteAllText(Path.Combine(target, "ApiClient.cs"), "\uFEFFnamespace Acme.Shop.Client.Generated;\r\npublic class ApiClient { }\r\n");
+            File.WriteAllText(Path.Combine(target, "kiota-lock.json"), "{\n  \"descriptionLocation\": \"https://example.invalid/v1.json\"\n}");
+        }
+
+        return call.Arguments.Contains("kiota") ? _kiotaExit : _exit;
+    }
+
+    private int Run(string[] arguments, string workingDirectory) =>
+        CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
+
+    private JsonArray CommandsOf()
+    {
+        JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
+        Clear();
+        return document["commands"].ShouldNotBeNull().AsArray();
+    }
+
+    private void Clear()
+    {
+        _output.GetStringBuilder().Clear();
+        _error.GetStringBuilder().Clear();
+        _calls.Clear();
+    }
+
+    private static string SnapshotOf(string root) =>
+        string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(Path.Combine(root, _generated), "*", SearchOption.AllDirectories)
+                .Order(StringComparer.Ordinal)
+                .Select(file => Shown(root, file) + ":" + Convert.ToHexString(File.ReadAllBytes(file))));
+
+    private static string Shown(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
+
+    private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
+}

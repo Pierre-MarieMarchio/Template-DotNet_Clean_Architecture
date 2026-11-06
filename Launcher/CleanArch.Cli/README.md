@@ -23,6 +23,8 @@ dotnet cleanarch migrations add AddTodoItemPriority            # dotnet ef migra
 dotnet cleanarch migrations add AddTodoItemPriority --check    # dotnet ef migrations has-pending-model-changes
 dotnet cleanarch migrations bundle                             # dotnet ef migrations bundle, for each context
 dotnet cleanarch database update                               # dotnet ef database update, at the project root
+dotnet cleanarch openapi     # write the OpenAPI reference, then regenerate the .NET client with the pinned Kiota
+dotnet cleanarch openapi --check # fail where it would write, instead of writing
 ```
 
 `format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
@@ -39,6 +41,9 @@ install, audit, lint, test and build where it records a `web` workspace, and the
 pending-model-changes check where it records `auth: local`.
 
 Each command prints the `dotnet ef` line it runs, runs it at the project root and forwards its exit code.
+
+A command that runs an external tool prints the exact line it runs, runs it at the project
+root and forwards its exit code.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace CleanArch.Cli;
 
-internal sealed record ExternalCall(string FileName, IReadOnlyList<string> Arguments, string WorkingDirectory, string? DirectoryNote = null);
+internal sealed record ExternalCall(string FileName, IReadOnlyList<string> Arguments, string WorkingDirectory, IReadOnlyDictionary<string, string>? Environment = null, string? DirectoryNote = null);
 
 internal static class ExternalCommand
 {
@@ -23,7 +23,8 @@ internal static class ExternalCommand
 
     internal static string LineOf(ExternalCall call)
     {
-        string line = string.Join(' ', new[] { call.FileName }.Concat(call.Arguments.Select(Quoted)));
+        string line = string.Concat(call.Environment?.Select(variable => $"{variable.Key}={variable.Value} ") ?? [])
+            + string.Join(' ', new[] { call.FileName }.Concat(call.Arguments.Select(Quoted)));
         return call.DirectoryNote is { } note ? $"{line}   (in {note})" : line;
     }
 
@@ -44,6 +45,17 @@ internal static class ExternalCommand
             foreach (string argument in call.Arguments)
             {
                 start.ArgumentList.Add(argument);
+            }
+
+            if (call.Environment is { } environment)
+            {
+                foreach (KeyValuePair<string, string> variable in environment)
+                {
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(variable.Key)))
+                    {
+                        start.Environment[variable.Key] = variable.Value;
+                    }
+                }
             }
 
             using Process process = Process.Start(start) ?? throw new InvalidOperationException($"'{call.FileName}' started no process.");

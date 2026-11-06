@@ -1,5 +1,7 @@
 ﻿using System.CommandLine;
 using System.Text.Json.Nodes;
+using CleanArch.Cli.Adopt;
+using CleanArch.Cli.Help;
 using Shouldly;
 using Xunit;
 

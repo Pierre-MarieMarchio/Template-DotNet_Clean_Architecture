@@ -1,6 +1,6 @@
 ﻿using System.CommandLine;
 
-namespace CleanArch.Cli;
+namespace CleanArch.Cli.Help;
 
 internal static class HelpCommand
 {

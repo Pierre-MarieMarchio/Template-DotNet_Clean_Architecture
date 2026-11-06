@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace CleanArch.Cli;
+namespace CleanArch.Cli.Help;
 
 internal static class HelpJson
 {

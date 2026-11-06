@@ -1,4 +1,5 @@
-﻿using CleanArch.Cli.Commands.Bootstrap;
+﻿using CleanArch.Cli.Adopt;
+using CleanArch.Cli.Commands.Bootstrap;
 using CleanArch.Cli.Commands.Build;
 using CleanArch.Cli.Commands.Compose;
 using CleanArch.Cli.Commands.Coverage;
@@ -11,6 +12,8 @@ using CleanArch.Cli.Commands.Run;
 using CleanArch.Cli.Commands.Sonar;
 using CleanArch.Cli.Commands.Test;
 using CleanArch.Cli.Commands.Verify;
+using CleanArch.Cli.Eject;
+using CleanArch.Cli.Help;
 
 namespace CleanArch.Cli;
 

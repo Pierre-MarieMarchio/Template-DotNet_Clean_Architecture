@@ -3,6 +3,7 @@ using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json.Nodes;
 using CleanArch.Cli.Commands.Format;
+using CleanArch.Cli.Eject;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;

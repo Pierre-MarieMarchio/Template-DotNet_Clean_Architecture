@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using CleanArch.Tooling.Projects;
 
-namespace CleanArch.Cli;
+namespace CleanArch.Cli.Adopt;
 
 internal static class AdoptCommand
 {

@@ -2189,13 +2189,18 @@ public sealed partial class NewFeatureTests
 
     private static readonly Lazy<HashSet<string>> _templatePrivateMethods = new(() =>
         [.. typeof(FeatureTemplates)
-            .GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
-            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
-            .SelectMany(field => _privateMethodDeclaration.Matches((string)field.GetRawConstantValue()!))
+            .GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            .Where(property => property.PropertyType == typeof(string))
+            .SelectMany(property => _privateMethodDeclaration.Matches((string)property.GetValue(null)!))
             .Select(match => match.Groups[1].Value.Replace("%", string.Empty, StringComparison.Ordinal))]);
 
     private static IEnumerable<string> PrivateMethodProblems(string relative, string text)
     {
+        if (_templatePrivateMethods.Value.Count == 0)
+        {
+            yield return "No feature template declares a private method, so the dead-code rule compares nothing: read the templates where FeatureTemplates keeps them.";
+        }
+
         var declared = _privateMethodDeclaration.Matches(text)
             .Select(match => match.Groups[1].Value)
             .ToHashSet(StringComparer.Ordinal);

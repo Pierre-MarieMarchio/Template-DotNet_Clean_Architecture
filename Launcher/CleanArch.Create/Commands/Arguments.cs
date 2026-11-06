@@ -9,8 +9,6 @@ public sealed class Arguments
 
     private readonly Dictionary<string, string> _templateOptions = new(StringComparer.OrdinalIgnoreCase);
 
-    public string? Command { get; private set; }
-
     public string? Name { get; private set; }
 
     public string? Output { get; private set; }
@@ -43,7 +41,7 @@ public sealed class Arguments
             string argument = arguments[index];
             if (index == 0 && !argument.StartsWith('-'))
             {
-                parsed.Command = KnownCommand(argument);
+                RefuseUnlessNew(argument);
             }
             else
             {
@@ -54,10 +52,17 @@ public sealed class Arguments
         return parsed;
     }
 
-    private static string KnownCommand(string argument) =>
-        LauncherCommands.Names.Contains(argument, StringComparer.Ordinal)
-            ? argument
-            : throw new LauncherException($"'{argument}' isn't a command. Use {string.Join(", ", LauncherCommands.Names)}, or leave it out.");
+    private static void RefuseUnlessNew(string argument)
+    {
+        if (argument == NewProject.NewCommand.Name)
+        {
+            return;
+        }
+
+        throw new LauncherException(LauncherCommands.Additions.Contains(argument, StringComparer.Ordinal)
+            ? $"The launcher creates projects: {LauncherCommands.ToolInvocation} add {argument} adds one to a project."
+            : $"'{argument}' isn't a command. The launcher has one, {NewProject.NewCommand.Name}, which is what runs when you leave it out.");
+    }
 
     private static (string Key, string? Inline) Split(string argument)
     {

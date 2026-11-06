@@ -1,8 +1,10 @@
 # CleanArch.Create
 
 Creates a .NET 10 project on Clean Architecture, an HTTP API or hosts without one, by asking for
-each option of the `cleanarch-webapi` template, then runs `dotnet new` with the answers. Run inside
-a project it generated, it adds a web app, a web package or a presentation project the same way.
+each option of the `cleanarch-webapi` template, then runs `dotnet new` with the answers. It creates
+projects and nothing else: to add a web app, a web package or a presentation project to one, run
+`dotnet cleanarch add web-app`, `add web-package` or `add presentation` in it. Run inside a project,
+the launcher says so.
 
 ## Create a project
 
@@ -25,10 +27,8 @@ a choice the template refuses whatever follows is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
 the answer that leaves it. A combination of flags the template refuses is explained before anything
 is written, and its options are asked again. A project name the template refuses, one under two
-characters or one that does not start with a letter from A to Z, a project name with a character other than the letters
-A to Z, digits and dots, such as an underscore, or an app name already taken, is refused at
-its own question; an item command in a project whose name an item template refuses stops before
-asking anything. It installs the `CleanArch.WebApi.Templates`
+characters or one that does not start with a letter from A to Z, or a project name with a character other than the letters
+A to Z, digits and dots, such as an underscore, is refused at its own question. It installs the `CleanArch.WebApi.Templates`
 package at its own version when another one or none is installed, generates the project, then prints
 the commands that do the same, with `--template-source` and `--hive` when they were given, and the
 first steps of the project's `README.md`, as plain text. After questions, those commands are the
@@ -78,67 +78,27 @@ the ones still to run: the stack's, and those of each step that did not succeed.
 chosen, the plain output leaves out the instructions `dotnet new` ends with, which ask for it. Without
 questions, `--setup` runs every step; without it nothing is set up.
 
-## Add a web app, a package or a presentation project
-
-At the root of a generated project, or in any folder under it:
-
-```bash
-dnx CleanArch.Create -- web-app
-dnx CleanArch.Create -- web-package
-dnx CleanArch.Create -- presentation
-```
-
-The project's authentication, workflows and package scope are read from its files. The first web app
-also creates the pnpm workspace, and the launcher prints the lines its README asks to add by hand.
-
-`presentation` adds a presentation project beside the API of a project generated without one. The
-project's name, authentication, example features, Files module, database, agent files and whether it holds the .NET client are read
-from its files, so it asks the presentation name, `Portal` by default, and the framework only when
-there is more than one. A name the project already uses is refused. After `cleanarch-presentation`
-it runs the project's `dotnet run Tools/Tasks.cs presentation-join <Project>.<Name>`, which makes
-the edits the new `README.md` lists outside the project's folders, all or none, then
-`presentation-scaffold`, which creates it with its framework's `dotnet new` template and needs the
-network. A step that fails says why and leaves the README's section for what remains. The plain
-output leaves out the instructions `dotnet new` ends with, which ask for those two tasks.
-
-`web-app` reads the project's scope, name, authentication, example features, Files module, CI,
-agent files and whether it holds the .NET client the same way. After `cleanarch-webapp` it runs
-`dotnet run Tools/Tasks.cs web-join <Name>` with the framework, audience and rendering it asked,
-which records the app in the project's `cleanarch.json`; a Blazor WebAssembly app brings the .NET
-client, and for it the task first makes the edits the app's `README.md` lists outside its folder,
-all or none. A project holds one Blazor WebAssembly app in this version, so a second is refused
-before anything is written. `web-package` runs `web-join <name>` after `cleanarch-webpackage`,
-which records the package, and `presentation-join` records the presentation project. The plain
-output leaves out the instruction `dotnet new` ends with that asks for `web-join`, and keeps the
-others.
-
-Each asks on the same thread, with the same summary, as a new project.
-
 ## Without questions
 
 Every question is a flag named like the template's option; `--yes` takes the default of each one not
 given, or the only value the template leaves it, as `--examples none` and `--files false` after
 `--auth none`. Without `--yes`, a choice with no default takes its only value the same way. Each value
-taken this way is printed with the answer that leaves it. An option with no default, as
-`presentation`'s `--framework` while more than one framework is left, is passed as a flag: `--yes`
-cannot choose it. Without a terminal, every answer is a flag or `--yes` is passed. `dnx` takes `--yes`,
+taken this way is printed with the answer that leaves it. Without a terminal, every answer is a flag or `--yes` is passed. `dnx` takes `--yes`,
 `--help` and `--version` for itself, so every argument of the launcher follows `--`;
 `dnx CleanArch.Create -- --help` lists the options with the values the template generates and their
 defaults.
 
 ```bash
 dnx CleanArch.Create -- new -n Acme.Shop --auth external --examples notes --yes
-dnx CleanArch.Create -- web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 ```
 
 | Option | Meaning |
 |---|---|
-| `-n`, `--name` | the project, app, package or presentation name; for `new`, the current folder's by default |
-| `-o`, `--output` | where `new` writes the project: `./<name>` when `-n` is given, the current folder otherwise; a folder that holds files is refused without questions, unless `--overwrite` is given |
-| `--overwrite` | for `new`, empties a target folder that holds files, `.git` excepted, without asking, then generates in it |
+| `-n`, `--name` | the project's name, the current folder's by default |
+| `-o`, `--output` | where the project is written: `./<name>` when `-n` is given, the current folder otherwise; a folder that holds files is refused without questions, unless `--overwrite` is given |
+| `--overwrite` | empties a target folder that holds files, `.git` excepted, without asking, then generates in it |
 | `-y`, `--yes` | the default of every option not given, or the only value the template leaves it |
-| `--setup` | after `new`, every step of "Set the project up" above, without asking |
+| `--setup` | after creating, every step of "Set the project up" above, without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |
 | `--hive <folder>` | the template engine's settings folder, passed as `--debug:custom-hive` |
-| `-h`, `--help` | the commands and options, with the values the template generates and their defaults; after a command, that command's own |
+| `-h`, `--help` | the options, with the values the template generates and their defaults |

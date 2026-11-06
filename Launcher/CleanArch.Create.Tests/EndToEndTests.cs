@@ -2,8 +2,6 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using CleanArch.Create.Hosting;
-using CleanArch.Tooling.Additions;
-using CleanArch.Tooling.Processes;
 using Shouldly;
 using Spectre.Console.Testing;
 using Xunit;
@@ -17,7 +15,7 @@ public sealed partial class EndToEndTests : IDisposable
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     [Fact]
-    public void TheLauncher_WritesWhatDotnetNewAndTheJoinsWrite_ForAProjectItsFirstWebAppAPackageAndAPresentationProject()
+    public void TheLauncher_WritesWhatDotnetNewWrites_ForAProject()
     {
         string package = PackTheTemplates();
         string hive = Path.Combine(_root, "hive");
@@ -26,23 +24,13 @@ public sealed partial class EndToEndTests : IDisposable
         string[] options = ["--auth", "external", "--examples", "notes", "--sonar", "false"];
 
         Launch(_root, ["new", "-n", "Acme.Shop", "-o", "launched", .. options, "--yes", "--template-source", package, "--hive", hive]);
-        Launch(launched, ["web-app", "-n", "BackOffice", "--framework", "vite-react", "--audience", "admin", "--yes", "--template-source", package, "--hive", hive]);
-        Launch(launched, ["web-package", "-n", "tokens", "--yes", "--template-source", package, "--hive", hive]);
-        Launch(launched, ["presentation", "--framework", "blazor-server", "--yes", "--template-source", package, "--hive", hive]);
 
-        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--presentation", "api", "--presentation", "blazor-server", "--debug:custom-hive", hive]);
-        DotNet(direct, ["new", "cleanarch-webapp", "-n", "BackOffice", "--framework", "vite-react", "--audience", "admin", "--auth", "external", "--project-name", "Acme.Shop", "--scope", "acme-shop", "--workspace", "--debug:custom-hive", hive]);
-        DotNet(direct, ["new", "cleanarch-webpackage", "-n", "tokens", "--scope", "acme-shop", "--debug:custom-hive", hive]);
-        DotNet(direct, ["run", "Tools/Tasks.cs", "web-join", "BackOffice", "--web", "vite-react", "--web-audience", "admin", "--web-rendering", "spa"]);
-        DotNet(direct, ["run", "Tools/Tasks.cs", "web-join", "tokens"]);
+        DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", direct, .. options, "--debug:custom-hive", hive]);
 
         Dictionary<string, string> written = Tree(launched);
         Dictionary<string, string> expected = Tree(direct);
         written.Keys.Order(StringComparer.Ordinal).ShouldBe(expected.Keys.Order(StringComparer.Ordinal));
         written.Where(file => file.Value != expected[file.Key]).Select(file => file.Key).ShouldBeEmpty("These files differ from what dotnet new wrote.");
-        Directory.Exists(Path.Combine(launched, "Src", "Web", "apps", "BackOffice")).ShouldBeTrue();
-        Directory.Exists(Path.Combine(launched, "Src", "Web", "packages", "tokens")).ShouldBeTrue();
-        File.Exists(Path.Combine(launched, "Src", "Presentation", "AS.Portal", "Acme.Shop.Portal.csproj")).ShouldBeTrue();
     }
 
     [Fact]
@@ -165,7 +153,7 @@ public sealed partial class EndToEndTests : IDisposable
         var console = new TestConsole();
         console.Profile.Width = 300;
 
-        int exitCode = new Launcher(console, workingDirectory, interactive: false, new WithoutThePages()).Run(arguments);
+        int exitCode = new Launcher(console, workingDirectory, interactive: false).Run(arguments);
 
         exitCode.ShouldBe(0, console.Output);
     }
@@ -217,16 +205,6 @@ public sealed partial class EndToEndTests : IDisposable
         process.WaitForExit();
 
         process.ExitCode.ShouldBe(0, $"{executable} {string.Join(' ', arguments)}{Environment.NewLine}{output.Result}{error.Result}");
-    }
-
-    private sealed class WithoutThePages : IProcessRunner
-    {
-        private readonly ProcessRunner _processes = new();
-
-        public ProcessResult Run(ProcessCall command, Action<string>? line) =>
-            command.Arguments.Contains(ItemAdditions.PresentationScaffoldTask)
-                ? new ProcessResult(0, string.Empty)
-                : _processes.Run(command, line);
     }
 
     [Fact]

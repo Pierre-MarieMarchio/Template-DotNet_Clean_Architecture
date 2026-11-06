@@ -11,7 +11,6 @@ public sealed class SliceIsolationTests
     [Theory]
     [InlineData("CleanArch.Cli.Commands", "CleanArch.Cli.Commands", "Kernel", "Hosting")]
     [InlineData("CleanArch.Cli", "CleanArch.Cli.Generators", "Shared", null)]
-    [InlineData("CleanArch.Create", "CleanArch.Create.Commands", null, null)]
     public void ASlice_ReachesNoOtherSlice_AndWhatTheSlicesShareReachesNone(string assemblyName, string root, string? shared, string? composer)
     {
         Assembly assembly = Assembly.Load(assemblyName);

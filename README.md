@@ -66,8 +66,8 @@ dotnet run Tools/Tasks.cs remove-feature <Features>                             
 dotnet run Tools/Tasks.cs migration-add <Name>                                               # a migration after a model change
 dotnet run Tools/Tasks.cs check                                                              # format, build and tests of what you touched
 dotnet run Tools/Tasks.cs verify                                                             # the whole gate, with Docker
-dnx CleanArch.Create -- web-app                                                              # add a web app to the project
-dnx CleanArch.Create -- presentation                                                         # add a host to the project
+dotnet cleanarch add web-app                                                                 # add a web app to the project
+dotnet cleanarch add presentation                                                            # add a host to the project
 ```
 
 `new-feature` needs `--auth` other than `none`. [Adding a feature](docs/guides/adding-a-feature.md)

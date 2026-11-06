@@ -665,16 +665,16 @@ placeholder, and commit the workspace with its `pnpm-lock.yaml`.
 - in `docs/getting-started/first-run.md`, replace the lines:
 
   ```markdown
-  To add a web app or a presentation project later, run `dnx CleanArch.Create -- web-app` or
-  `dnx CleanArch.Create -- presentation` at the project's root.
+  To add a web app or a presentation project later, run `dotnet cleanarch add web-app` or
+  `dotnet cleanarch add presentation` at the project's root.
   ```
 
   with:
 
   ```markdown
   To add a web app, a shared web package or a presentation project later, run
-  `dnx CleanArch.Create -- web-app`, `dnx CleanArch.Create -- web-package` or
-  `dnx CleanArch.Create -- presentation` at the project's root.
+  `dotnet cleanarch add web-app`, `dotnet cleanarch add web-package` or
+  `dotnet cleanarch add presentation` at the project's root.
   ```
 
 - in `docs/getting-started/first-run.md`, after the line:

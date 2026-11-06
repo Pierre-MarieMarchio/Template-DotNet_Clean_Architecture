@@ -5,23 +5,20 @@ namespace CleanArch.Create.Commands;
 
 public static class LauncherUsage
 {
-    private const int _nameWidth = 15;
-
     public static string Text() =>
         $"""
-        Usage: {LauncherCommands.Invocation} [-- [{string.Join('|', LauncherCommands.Names)}] [options] [--<template option> <value>]...]
+        Usage: {LauncherCommands.Invocation} [-- [{NewProject.NewCommand.Name}] [options] [--<template option> <value>]...]
 
         dnx takes -y, --yes, --help and --version for itself: put the launcher's own arguments after --.
 
-        Commands
-        {string.Join('\n', LauncherCommands.All.SelectMany(Summary))}
+        {NewProject.NewCommand.Name} creates a project, and is what runs when you leave the command out. To add a web app, a web package or a presentation project to one, run {LauncherCommands.ToolInvocation} add <item> in it.
 
         Options
-          -n, --name <name>            the project, app, package or presentation name (new: the current folder's by default)
+          -n, --name <name>            the project's name (the current folder's by default)
           -o, --output <folder>        where to create the project (default: ./<name> with --name, else the current folder)
-          --overwrite                  new: empty a target folder that has files in it, but .git, without asking
+          --overwrite                  empty a target folder that has files in it, but .git, without asking
           -y, --yes                    use the default for every option you don't pass
-          --setup                      after new, run every setup step without asking: commit, bootstrap, commit, copy .env
+          --setup                      after creating, run every setup step without asking: commit, bootstrap, commit, copy .env
           --template-source <path>     use a checkout of the template or a .nupkg instead of the published package
           --hive <folder>              keep the template engine's settings in this folder (dotnet new --debug:custom-hive)
           -h, --help                   show this help
@@ -47,7 +44,4 @@ public static class LauncherUsage
 
         return string.Join(Environment.NewLine, lines.Prepend($"{char.ToUpperInvariant(subject[0])}{subject[1..]} options, asked one by one when you don't pass them ({manifest.ShortName})"));
     }
-
-    private static IEnumerable<string> Summary(ILauncherCommand command) =>
-        command.Summary.Select((line, index) => $"  {(index == 0 ? command.Name : string.Empty).PadRight(_nameWidth)}{line}");
 }

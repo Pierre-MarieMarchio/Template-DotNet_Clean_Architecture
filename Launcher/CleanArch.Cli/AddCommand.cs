@@ -67,7 +67,7 @@ internal static class AddCommand
 
     private static Command BuildAddition(CommandContext context, Addition addition)
     {
-        var command = new Command(addition.Name, addition.Description);
+        var command = new Command(addition.Command, addition.Description);
         var name = new Option<string>("--name", "-n") { Description = "The name of what to add." };
         var yes = new Option<bool>("--yes", "-y") { Description = "Use the default for every option you don't pass." };
         var dryRun = new Option<bool>("--dry-run") { Description = "Print the commands it would run and write nothing." };
@@ -153,7 +153,7 @@ internal static class AddCommand
                 $"{CleanArchCommand.Name} {Name}",
                 parseResult.GetValue(dryRun)));
 
-            addition.Run(additions, FactsOf(project));
+            addition.Apply(additions, FactsOf(project));
             return CleanArchCommand.Succeeded;
         }
         catch (LauncherException refused)
@@ -213,5 +213,5 @@ internal static class AddCommand
     }
 
 
-    private sealed record Addition(string Name, string Description, TemplateKind Kind, Func<LocatedProject, string?> Refusal, Action<ItemAdditions, ProjectFacts> Run);
+    private sealed record Addition(string Command, string Description, TemplateKind Kind, Func<LocatedProject, string?> Refusal, Action<ItemAdditions, ProjectFacts> Apply);
 }

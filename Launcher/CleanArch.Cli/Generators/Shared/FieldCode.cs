@@ -97,11 +97,13 @@ internal static class FieldCode
 
     internal static bool IsRequiredOnTheWire(Field field) => !field.Nullable && !IsReference(field);
 
-    internal static string? Anonymised(Field field) =>
-        field.Nullable ? "null"
-        : field.Kind == FieldKind.String ? "AnonymisedText"
-        : field.Kind == FieldKind.Text ? "string.Empty"
-        : null;
+    internal static string? Anonymised(Field field) => field switch
+    {
+        { Nullable: true } => "null",
+        { Kind: FieldKind.String } => "AnonymisedText",
+        { Kind: FieldKind.Text } => "string.Empty",
+        _ => null,
+    };
 
     internal static bool HasConstants(Field field) => IsReference(field) || field.Kind == FieldKind.Decimal || field.Bounds.Any();
 
@@ -168,8 +170,13 @@ internal static class FieldCode
     {
         int before = field.Precision - field.Scale;
 
-        return field.Scale == 0 ? $"{Subject(field)} must be a whole number of at most {Count(before, "digit")}."
-            : before == 0 ? $"{Subject(field)} must lie between -1 and 1, with at most {Count(field.Scale, "decimal place")}."
+        if (field.Scale == 0)
+        {
+            return $"{Subject(field)} must be a whole number of at most {Count(before, "digit")}.";
+        }
+
+        return before == 0
+            ? $"{Subject(field)} must lie between -1 and 1, with at most {Count(field.Scale, "decimal place")}."
             : $"{Subject(field)} must have at most {Count(before, "digit")} before the decimal point and {field.Scale} after it.";
     }
 
@@ -373,12 +380,9 @@ internal static class FieldCode
             _ => presence,
         };
 
-        foreach (var bound in field.Bounds)
-        {
-            text += $", {bound.Wording} {bound.Value.ToString(CultureInfo.InvariantCulture)}";
-        }
+        string bounds = string.Concat(field.Bounds.Select(bound => $", {bound.Wording} {bound.Value.ToString(CultureInfo.InvariantCulture)}"));
 
-        return $"/// <param name=\"{field.Name}\">{text}.</param>";
+        return $"/// <param name=\"{field.Name}\">{text}{bounds}.</param>";
     }
 
     internal static string WireParameter(Field field) =>
@@ -388,9 +392,12 @@ internal static class FieldCode
     {
         string read = $"{source}.{field.Name}";
 
-        return field.Kind == FieldKind.DateTimeOffset
-            ? read + (field.Nullable ? "?.ToUniversalTime()" : ".ToUniversalTime()")
-            : read;
+        if (field.Kind != FieldKind.DateTimeOffset)
+        {
+            return read;
+        }
+
+        return read + (field.Nullable ? "?.ToUniversalTime()" : ".ToUniversalTime()");
     }
 
     internal static string RecordProperty(Field field) =>
@@ -452,97 +459,83 @@ internal static class FieldCode
         };
 
         return (
-            field.Lower is { } lower ? Math.Max(floor, lower.IsInclusive ? lower.Value : lower.Value + step) : floor,
-            field.Upper is { } upper ? Math.Min(top, upper.IsInclusive ? upper.Value : upper.Value - step) : top);
+            field.Lower is { } lower ? Math.Max(floor, Reached(lower, step)) : floor,
+            field.Upper is { } upper ? Math.Min(top, Reached(upper, -step)) : top);
     }
+
+    private static decimal Reached(FieldBound bound, decimal step) => bound.IsInclusive ? bound.Value : bound.Value + step;
 
     internal static string Sample(Field field, int which)
     {
-        static string Fit(string text, int length) => length >= text.Length ? text : text[..length];
+        bool first = which == 1;
 
-        switch (field.Kind)
+        return field.Kind switch
         {
-            case FieldKind.String:
-                return $"\"{Fit(which == 1 ? "Alpha" : "Bravo", field.Length)}\"";
-            case FieldKind.Text:
-                return $"\"{Fit(which == 1 ? "Some text" : "Other text", field.Length)}\"";
-            case FieldKind.Bool:
-                return which == 1 ? "true" : "false";
-            case FieldKind.DateOnly:
-                return which == 1 ? "new DateOnly(2026, 3, 4)" : "new DateOnly(2026, 4, 5)";
-            case FieldKind.DateTimeOffset:
-                return which == 1
-                    ? "new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero)"
-                    : "new DateTimeOffset(2026, 4, 5, 6, 7, 8, TimeSpan.Zero)";
-            case FieldKind.Guid:
-                return which == 1
-                    ? "new Guid(\"0199a3c4-2222-7000-8000-000000000002\")"
-                    : "new Guid(\"0199a3c4-3333-7000-8000-000000000003\")";
-        }
+            FieldKind.String => $"\"{Fit(first ? "Alpha" : "Bravo", field.Length)}\"",
+            FieldKind.Text => $"\"{Fit(first ? "Some text" : "Other text", field.Length)}\"",
+            FieldKind.Bool => first ? "true" : "false",
+            FieldKind.DateOnly => first ? "new DateOnly(2026, 3, 4)" : "new DateOnly(2026, 4, 5)",
+            FieldKind.DateTimeOffset => first
+                ? "new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero)"
+                : "new DateTimeOffset(2026, 4, 5, 6, 7, 8, TimeSpan.Zero)",
+            FieldKind.Guid => first
+                ? "new Guid(\"0199a3c4-2222-7000-8000-000000000002\")"
+                : "new Guid(\"0199a3c4-3333-7000-8000-000000000003\")",
+            _ => Literal(field, NumberSample(field, first)),
+        };
+    }
 
+    private static string Fit(string text, int length) => length >= text.Length ? text : text[..length];
+
+    private static decimal NumberSample(Field field, bool first)
+    {
         var (low, high) = Range(field);
         decimal[] candidates = field.Kind == FieldKind.Decimal && field.Scale > 0
-            ? which == 1 ? [1.5m, 1m, 0m, low, high] : [2.25m, 2m, 1m, 0m, high, low]
-            : which == 1 ? [1m, 0m, low, high] : [2m, 1m, 0m, high, low];
+            ? DecimalCandidates(first, low, high)
+            : WholeCandidates(first, low, high);
+        int scale = field.Kind == FieldKind.Decimal ? field.Scale : 0;
 
-        decimal chosen = candidates.First(candidate =>
-            candidate >= low && candidate <= high && decimal.Round(candidate, field.Kind == FieldKind.Decimal ? field.Scale : 0) == candidate);
-
-        return Literal(field, chosen);
+        return candidates.First(candidate => candidate >= low && candidate <= high && decimal.Round(candidate, scale) == candidate);
     }
 
-    internal static List<(string Case, string Value)> Invalid(Field field, string? holder)
+    private static decimal[] DecimalCandidates(bool first, decimal low, decimal high) => first ? [1.5m, 1m, 0m, low, high] : [2.25m, 2m, 1m, 0m, high, low];
+
+    private static decimal[] WholeCandidates(bool first, decimal low, decimal high) => first ? [1m, 0m, low, high] : [2m, 1m, 0m, high, low];
+
+    internal static List<(string Case, string Value)> Invalid(Field field, string? holder) =>
+        [
+            .. KindCases(field),
+            .. IsReference(field) ? [("OverTheLimit", $"new string('a', {Constant(field, holder, "MaxLength", field.Length)} + 1)")] : Array.Empty<(string, string)>(),
+            .. field.Kind == FieldKind.Decimal ? [("TooLarge", $"1e{field.Precision - field.Scale}m")] : Array.Empty<(string, string)>(),
+            .. field is { Kind: FieldKind.String, Nullable: false } ? [("Missing", "null!")] : Array.Empty<(string, string)>(),
+            .. field.Bounds.Select(bound => BoundCase(field, holder, bound)),
+        ];
+
+    private static IEnumerable<(string Case, string Value)> KindCases(Field field) => field switch
     {
-        string Constant(string suffix, decimal value) => holder is null ? Literal(field, value) : $"{holder}.{field.Name}{suffix}";
+        { Kind: FieldKind.String } => [("Blank", "\"   \"")],
+        { Kind: FieldKind.Text, Nullable: false } => [("Missing", "null!")],
+        { Kind: FieldKind.Decimal } when field.Scale < FieldGrammar.DecimalMaxPrecision => [("WithTooManyDecimals", Literal(field, FieldGrammar.Step(field.Scale + 1)))],
+        { Kind: FieldKind.DateOnly or FieldKind.DateTimeOffset or FieldKind.Guid, Nullable: false } => [("Empty", "default")],
+        _ => [],
+    };
 
-        var cases = new List<(string, string)>();
+    private static (string Case, string Value) BoundCase(Field field, string? holder, FieldBound bound)
+    {
         decimal step = field.Kind == FieldKind.Decimal ? FieldGrammar.Step(field.Scale) : 1m;
-        string stepText = Literal(field, step);
+        string constant = Constant(field, holder, bound.Suffix, bound.Value);
 
-        switch (field.Kind)
+        return bound.Operator switch
         {
-            case FieldKind.String:
-                cases.Add(("Blank", "\"   \""));
-                break;
-            case FieldKind.Text when !field.Nullable:
-                cases.Add(("Missing", "null!"));
-                break;
-            case FieldKind.Decimal when field.Scale < FieldGrammar.DecimalMaxPrecision:
-                cases.Add(("WithTooManyDecimals", Literal(field, FieldGrammar.Step(field.Scale + 1))));
-                break;
-            case FieldKind.DateOnly or FieldKind.DateTimeOffset or FieldKind.Guid when !field.Nullable:
-                cases.Add(("Empty", "default"));
-                break;
-        }
-
-        if (IsReference(field))
-        {
-            cases.Add(("OverTheLimit", $"new string('a', {Constant("MaxLength", field.Length)} + 1)"));
-        }
-
-        if (field.Kind == FieldKind.Decimal)
-        {
-            cases.Add(("TooLarge", $"1e{field.Precision - field.Scale}m"));
-        }
-
-        if (field is { Kind: FieldKind.String, Nullable: false })
-        {
-            cases.Add(("Missing", "null!"));
-        }
-
-        foreach (var bound in field.Bounds)
-        {
-            cases.Add(bound.Operator switch
-            {
-                ">=" => ("BelowTheMinimum", holder is null ? Literal(field, bound.Value - step) : $"{Constant(bound.Suffix, bound.Value)} - {stepText}"),
-                ">" => ("AtTheExclusiveMinimum", Constant(bound.Suffix, bound.Value)),
-                "<=" => ("AboveTheMaximum", holder is null ? Literal(field, bound.Value + step) : $"{Constant(bound.Suffix, bound.Value)} + {stepText}"),
-                _ => ("AtTheExclusiveMaximum", Constant(bound.Suffix, bound.Value)),
-            });
-        }
-
-        return cases;
+            ">=" => ("BelowTheMinimum", holder is null ? Literal(field, bound.Value - step) : $"{constant} - {Literal(field, step)}"),
+            ">" => ("AtTheExclusiveMinimum", constant),
+            "<=" => ("AboveTheMaximum", holder is null ? Literal(field, bound.Value + step) : $"{constant} + {Literal(field, step)}"),
+            _ => ("AtTheExclusiveMaximum", constant),
+        };
     }
+
+    private static string Constant(Field field, string? holder, string suffix, decimal value) =>
+        holder is null ? Literal(field, value) : $"{holder}.{field.Name}{suffix}";
 
     internal static string Assertion(string owner, Field field, string expected) =>
         $"        {owner}.{field.Name}.ShouldBe({expected});";
@@ -603,115 +596,129 @@ internal static class FieldCode
 
     internal static string AggregateTests(IReadOnlyList<Field> fields, bool create, bool update, string ownerArgument)
     {
-        var tests = new List<string>();
-        string ones = Arguments(fields, field => Sample(field, 1));
-        string twos = Arguments(fields, field => Sample(field, 2));
-        string Asserted(int which) => Joined(fields.Select(field => Assertion("%L%", field, Sample(field, which))));
-        var refusable = fields.Where(field => Invalid(field, "%A%").Count > 0).ToList();
+        var tests = new AggregateTestWriter(fields, ownerArgument);
 
-        if (create)
-        {
-            string padded = Arguments(fields, field => field.Kind == FieldKind.String ? $"\"  {Sample(field, 1)[1..^1]}  \"" : Sample(field, 1));
+        return Joined(
+            [
+                .. create ? tests.Create() : [],
+                .. update ? tests.Update() : [],
+                .. tests.Rehydrate(),
+            ],
+            "\n\n");
+    }
 
-            tests.Add(Joined(
+    private sealed class AggregateTestWriter(IReadOnlyList<Field> fields, string ownerArgument)
+    {
+        private readonly string _ones = Arguments(fields, field => Sample(field, 1));
+
+        private readonly List<Field> _refusable = [.. fields.Where(field => Invalid(field, "%A%").Count > 0)];
+
+        internal IEnumerable<string> Create() =>
+        [
+            Joined(
             [
                 "    [Fact]",
                 "    public void Create_KeepsEveryField_WithItsStringsTrimmed()",
                 "    {",
-                $"        var %L% = %A%.Create({ownerArgument}{padded});",
+                $"        var %L% = %A%.Create({ownerArgument}{Arguments(fields, Padded)});",
                 string.Empty,
                 "        %L%.Id.ShouldNotBe(Guid.Empty);",
                 Asserted(1),
                 "    }",
-            ]));
+            ]),
+            .. fields.Where(field => field.Kind == FieldKind.DateTimeOffset).Select(InUtc),
+            .. _refusable.SelectMany(field => Invalid(field, "%A%").Select(invalid => Refuses(field, invalid.Case, invalid.Value))),
+        ];
 
-            foreach (var field in fields.Where(field => field.Kind == FieldKind.DateTimeOffset))
-            {
-                tests.Add($$"""
-                        [Fact]
-                        public void Create_Keeps{{field.Name}}AsTheInstant_InUtc()
-                        {
-                            var sent = new DateTimeOffset(2026, 3, 4, 7, 6, 7, TimeSpan.FromHours(2));
-
-                            var %L% = %A%.Create({{ownerArgument}}{{WithOne(fields, field, "sent")}});
-
-                            %L%.{{field.Name}}.ShouldBe(sent);
-                            %L%.{{field.Name}}{{(field.Nullable ? "!.Value" : string.Empty)}}.Offset.ShouldBe(TimeSpan.Zero);
-                        }
-                    """);
-            }
-
-            foreach (var field in refusable)
-            {
-                foreach (var (name, value) in Invalid(field, "%A%"))
-                {
-                    tests.Add($$"""
-                            [Fact]
-                            public void Create_Refuses{{field.Name}}{{name}}() =>
-                                Should.Throw<DomainException>(() => %A%.Create({{ownerArgument}}{{WithOne(fields, field, value)}}));
-                        """);
-                }
-            }
-        }
-
-        if (update)
+        internal IEnumerable<string> Update()
         {
-            tests.Add(Joined(
+            yield return Joined(
             [
                 "    [Fact]",
                 "    public void Update_ReplacesEveryField()",
                 "    {",
-                $"        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), {ownerArgument}{ones});",
+                $"        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), {ownerArgument}{_ones});",
                 string.Empty,
-                $"        %L%.Update({twos});",
+                $"        %L%.Update({Arguments(fields, field => Sample(field, 2))});",
                 string.Empty,
                 Asserted(2),
                 "    }",
-            ]));
+            ]);
 
-            if (refusable.FirstOrDefault() is { } first)
+            if (_refusable.FirstOrDefault() is { } first)
             {
-                var (name, value) = Invalid(first, "%A%")[0];
-
-                tests.Add(Joined(
-                [
-                    "    [Fact]",
-                    $"    public void Update_Refuses{first.Name}{name}_AndChangesNothing()",
-                    "    {",
-                    $"        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), {ownerArgument}{ones});",
-                    string.Empty,
-                    $"        Should.Throw<DomainException>(() => %L%.Update({Arguments(fields, field => ReferenceEquals(field, first) ? value : Sample(field, 2))}));",
-                    string.Empty,
-                    Asserted(1),
-                    "    }",
-                ]));
+                yield return UpdateRefuses(first);
             }
         }
 
-        if (fields.FirstOrDefault(IsReference) is { } text)
+        internal IEnumerable<string> Rehydrate()
         {
-            tests.Add(Joined(
+            if (fields.FirstOrDefault(IsReference) is { } text)
+            {
+                yield return Joined(
+                [
+                    "    [Fact]",
+                    "    public void Rehydrate_KeepsWhatWasStored_EvenOverTheCurrentLimit()",
+                    "    {",
+                    $"        string stored = new('a', %A%.{text.Name}MaxLength + 1);",
+                    string.Empty,
+                    $"        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), {ownerArgument}{WithOne(fields, text, "stored")});",
+                    string.Empty,
+                    $"        %L%.{text.Name}.ShouldBe(stored);",
+                    "    }",
+                ]);
+            }
+
+            yield return Joined(
             [
                 "    [Fact]",
-                "    public void Rehydrate_KeepsWhatWasStored_EvenOverTheCurrentLimit()",
-                "    {",
-                $"        string stored = new('a', %A%.{text.Name}MaxLength + 1);",
-                string.Empty,
-                $"        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), {ownerArgument}{WithOne(fields, text, "stored")});",
-                string.Empty,
-                $"        %L%.{text.Name}.ShouldBe(stored);",
-                "    }",
-            ]));
+                "    public void Rehydrate_RefusesAnEmptyId() =>",
+                $"        Should.Throw<DomainException>(() => %A%.Rehydrate(Guid.Empty, {ownerArgument}{_ones}));",
+            ]);
         }
 
-        tests.Add(Joined(
-        [
-            "    [Fact]",
-            "    public void Rehydrate_RefusesAnEmptyId() =>",
-            $"        Should.Throw<DomainException>(() => %A%.Rehydrate(Guid.Empty, {ownerArgument}{ones}));",
-        ]));
+        private static string Padded(Field field) => field.Kind == FieldKind.String ? $"\"  {Sample(field, 1)[1..^1]}  \"" : Sample(field, 1);
 
-        return Joined(tests, "\n\n");
+        private string Asserted(int which) => Joined(fields.Select(field => Assertion("%L%", field, Sample(field, which))));
+
+        private string InUtc(Field field) =>
+            $$"""
+                [Fact]
+                public void Create_Keeps{{field.Name}}AsTheInstant_InUtc()
+                {
+                    var sent = new DateTimeOffset(2026, 3, 4, 7, 6, 7, TimeSpan.FromHours(2));
+
+                    var %L% = %A%.Create({{ownerArgument}}{{WithOne(fields, field, "sent")}});
+
+                    %L%.{{field.Name}}.ShouldBe(sent);
+                    %L%.{{field.Name}}{{(field.Nullable ? "!.Value" : string.Empty)}}.Offset.ShouldBe(TimeSpan.Zero);
+                }
+            """;
+
+        private string Refuses(Field field, string name, string value) =>
+            $$"""
+                [Fact]
+                public void Create_Refuses{{field.Name}}{{name}}() =>
+                    Should.Throw<DomainException>(() => %A%.Create({{ownerArgument}}{{WithOne(fields, field, value)}}));
+            """;
+
+        private string UpdateRefuses(Field first)
+        {
+            var (name, value) = Invalid(first, "%A%")[0];
+
+            return Joined(
+            [
+                "    [Fact]",
+                $"    public void Update_Refuses{first.Name}{name}_AndChangesNothing()",
+                "    {",
+                $"        var %L% = %A%.Rehydrate(Guid.CreateVersion7(), {ownerArgument}{_ones});",
+                string.Empty,
+                $"        Should.Throw<DomainException>(() => %L%.Update({Arguments(fields, field => ReferenceEquals(field, first) ? value : Sample(field, 2))}));",
+                string.Empty,
+                Asserted(1),
+                "    }",
+            ]);
+        }
     }
 
     internal static string ConfigurationTests(IReadOnlyList<Field> fields, string holder)

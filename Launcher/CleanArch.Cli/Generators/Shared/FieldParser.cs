@@ -344,30 +344,13 @@ internal sealed class FieldParser(List<FieldToken> tokens, FieldProfile profile,
 
     private static IEnumerable<string> RangeProblems(Field field)
     {
-        decimal step = field.Kind == FieldKind.Decimal ? FieldGrammar.Step(field.Scale) : 1m;
-        decimal floor = field.Kind switch
-        {
-            FieldKind.Int => int.MinValue,
-            FieldKind.Long => long.MinValue,
-            _ => -FieldGrammar.Ceiling(field) + step,
-        };
-        decimal top = field.Kind switch
-        {
-            FieldKind.Int => int.MaxValue,
-            FieldKind.Long => long.MaxValue,
-            _ => FieldGrammar.Ceiling(field) - step,
-        };
-
-        decimal low = field.Lower is { } lower ? Math.Max(floor, Reached(lower, step)) : floor;
-        decimal high = field.Upper is { } upper ? Math.Min(top, Reached(upper, -step)) : top;
+        var (low, high) = FieldCode.Range(field);
 
         if (low > high)
         {
             yield return $"--fields: no value satisfies the bounds of {field.Declaration}. Widen them.";
         }
     }
-
-    private static decimal Reached(FieldBound bound, decimal step) => bound.IsInclusive ? bound.Value : bound.Value + step;
 
     private Field? Defaulted(Field field)
     {

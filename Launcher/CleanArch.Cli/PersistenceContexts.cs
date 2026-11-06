@@ -39,4 +39,18 @@ internal static class PersistenceContexts
         return ProjectLayout.Persistence(project);
     }
 
+    public static bool HasInitialMigration(LocatedProject project, string context)
+    {
+        string folder = ProjectLayout.Migrations(project, context);
+        return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Any();
+    }
+
+    public static string? WithoutInitialMigration(LocatedProject project, string command, IEnumerable<string> contexts)
+    {
+        string[] missing = [.. contexts.Where(context => !HasInitialMigration(project, context)).Select(Path.GetFileName).OfType<string>()];
+        return missing.Length == 0
+            ? null
+            : $"'{CleanArchCommand.Name} {command}' needs the initial migration of {string.Join(" and ", missing)}, and there is none yet. "
+            + $"Run `{CleanArchCommand.Name} bootstrap`, which creates it, then commit it (docs/guides/migrations.md).";
+    }
 }

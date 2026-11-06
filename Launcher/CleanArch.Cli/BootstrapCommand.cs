@@ -43,7 +43,7 @@ internal static class BootstrapCommand
 
         foreach (string context in ProjectLayout.Contexts(project))
         {
-            if (HasMigrations(project, context))
+            if (PersistenceContexts.HasInitialMigration(project, context))
             {
                 output.WriteLine($"{Path.GetFileName(context)} already has its migrations; they are left as they are.");
                 continue;
@@ -63,11 +63,5 @@ internal static class BootstrapCommand
         }
 
         return CleanArchCommand.Succeeded;
-    }
-
-    private static bool HasMigrations(LocatedProject project, string context)
-    {
-        string folder = Path.Combine(project.Root, context, "Migrations");
-        return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Any();
     }
 }

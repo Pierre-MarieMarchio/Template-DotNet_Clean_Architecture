@@ -10,6 +10,10 @@ export const refreshTokenModeHeader: Readonly<Record<typeof refreshTokenModeHead
   [refreshTokenModeHeaderName]: 'cookie',
 });
 
+export function bearer(accessToken: string): string {
+  return `Bearer ${accessToken}`;
+}
+
 export const grantPaths = [
   '/api/v1/auth/login',
   '/api/v1/auth/login/two-factor',

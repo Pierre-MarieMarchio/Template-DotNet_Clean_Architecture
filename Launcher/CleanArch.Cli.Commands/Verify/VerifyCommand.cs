@@ -1,5 +1,4 @@
 ﻿using System.CommandLine;
-using System.Text;
 using CleanArch.Cli.Commands.Hosting;
 using CleanArch.Cli.Commands.Kernel;
 
@@ -137,49 +136,16 @@ internal static class VerifyCommand
 
     private static int VulnerablePackages(LocatedProject project, Shell shell, string solution)
     {
-        using var listed = new StringWriter();
-        int exit = shell.Run(
-            Dotnet.Call(project.Root, "list", solution, "package", "--vulnerable", "--include-transitive"),
-            new TeeWriter(shell.Output, listed),
-            shell.Error);
-        if (exit != ExitCode.Succeeded)
+        CapturedRun listed = shell.Capture(Dotnet.Call(project.Root, "list", solution, "package", "--vulnerable", "--include-transitive"));
+        if (listed.ExitCode != ExitCode.Succeeded)
         {
-            return exit;
+            return listed.ExitCode;
         }
 
-        return listed.ToString().Contains(_vulnerableMarker, StringComparison.OrdinalIgnoreCase)
+        return listed.Output.Contains(_vulnerableMarker, StringComparison.OrdinalIgnoreCase)
             ? shell.Fail(
                 "A package with a known vulnerability is referenced, directly or transitively. The listing above names it. "
                 + "Pin a patched version in Directory.Packages.props, under a Security pins label, with a comment saying when the pin can be removed.")
             : ExitCode.Succeeded;
-    }
-
-    private sealed class TeeWriter(TextWriter first, TextWriter second) : TextWriter
-    {
-        public override Encoding Encoding => first.Encoding;
-
-        public override void Write(char value)
-        {
-            first.Write(value);
-            second.Write(value);
-        }
-
-        public override void Write(string? value)
-        {
-            first.Write(value);
-            second.Write(value);
-        }
-
-        public override void Write(char[] buffer, int index, int count)
-        {
-            first.Write(buffer, index, count);
-            second.Write(buffer, index, count);
-        }
-
-        public override void Flush()
-        {
-            first.Flush();
-            second.Flush();
-        }
     }
 }

@@ -15,6 +15,20 @@ internal sealed class Shell(IProcessLauncher processes, TextWriter output, TextW
         return processes.Launch(call, callOutput, callError);
     }
 
+    public CapturedRun Capture(ExternalCall call, bool echo = true)
+    {
+        using var captured = new StringWriter();
+        TextWriter callOutput = echo ? new TeeWriter(output, captured) : captured;
+        if (echo)
+        {
+            output.WriteLine(call.Line);
+            output.Flush();
+        }
+
+        int exit = processes.Launch(call, callOutput, error);
+        return new CapturedRun(exit, captured.ToString());
+    }
+
     public int Fail(string message)
     {
         error.WriteLine(message);

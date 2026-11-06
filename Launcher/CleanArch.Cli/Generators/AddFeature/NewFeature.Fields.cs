@@ -38,75 +38,68 @@ internal static partial class NewFeature
         string root = System.IO.Path.GetFullPath(request.Root);
         var addition = problems.Count == 0 ? CheckField(request, root, problems) : null;
 
-        if (addition is null)
-        {
-            return Refusal.Write(error, problems, _fieldUsage);
-        }
+        return addition is null
+            ? Refusal.Write(error, problems, _fieldUsage)
+            : new FieldGeneration(addition, new GenerationContext(root, request.DryRun, output, error), run).Generate();
+    }
 
-        if (addition.Pending)
+    private sealed class FieldGeneration(Addition addition, GenerationContext context, Func<TextEdits.Command, int> run) : Generation(context)
+    {
+        private readonly List<string> _failures = [];
+
+        private List<FieldChange> _changes = [];
+
+        private byte[] _manifest = [];
+
+        protected override string Usage => _fieldUsage;
+
+        protected override bool StopsAtDryRun => true;
+
+        protected override IReadOnlyList<string> EditFailures => _failures;
+
+        protected override IReadOnlyList<(string Path, byte[] Bytes)> Created =>
+            [.. _changes.Where(change => change.Original is null).Select(change => (change.Path, change.Bytes))];
+
+        protected override IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> Replaced =>
+            [
+                .. _changes.Where(change => change.Original is not null).Select(change => (change.Path, change.Original!, change.Bytes)),
+                (ManifestPath(addition.After), File.ReadAllBytes(System.IO.Path.Combine(Root, ManifestPath(addition.After))), _manifest),
+            ];
+
+        protected override int? Resume()
         {
-            output.WriteLine(
+            if (!addition.Pending)
+            {
+                return null;
+            }
+
+            Output.WriteLine(
                 $"{ManifestPath(addition.After)} records {string.Join(", ", addition.Added.Select(field => field.Declared))} already, "
                 + $"and its migration {addition.Migration} is not complete: its files are written, so nothing is written again.");
 
-            return request.DryRun ? 0 : FinishField(root, addition, output, error, run);
+            return Context.DryRun ? Succeeded : Finish();
         }
 
-        var changes = FieldChanges(root, addition, problems);
-
-        if (problems.Count > 0)
+        protected override bool Draft(List<string> problems)
         {
-            ReportField(output, root, addition, changes, Mode.Refused);
+            _changes = FieldChanges(Root, addition, _failures);
 
-            foreach (string problem in problems)
+            if (_failures.Count == 0)
             {
-                error.WriteLine($"error: {problem}");
+                _manifest = UpdatedManifest(addition, _changes);
             }
 
-            error.WriteLine("Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
-
-            return 1;
+            return true;
         }
 
-        var manifest = UpdatedManifest(addition, changes);
+        protected override int RefuseEdits(IReadOnlyList<string> failures) =>
+            RefuseAfterReport(failures, "Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
 
-        if (request.DryRun)
-        {
-            ReportField(output, root, addition, changes, Mode.DryRun);
-            output.WriteLine();
-            output.WriteLine("--dry-run: nothing was written and nothing was run.");
+        protected override string? Preconditions() => NewFeature.Preconditions(Root, addition.After, Output, run);
 
-            return 0;
-        }
+        protected override void Report(ReportMode mode) => ReportField(Output, Root, addition, _changes, mode);
 
-        if (Preconditions(root, addition.After, output, run) is { } refusal)
-        {
-            error.WriteLine($"error: {refusal}");
-            error.WriteLine("Nothing was written.");
-
-            return 1;
-        }
-
-        try
-        {
-            TextEdits.Commit(
-                root,
-                [.. changes.Where(change => change.Original is null).Select(change => (change.Path, change.Bytes))],
-                [
-                    .. changes.Where(change => change.Original is not null).Select(change => (change.Path, change.Original!, change.Bytes)),
-                    (ManifestPath(addition.After), File.ReadAllBytes(System.IO.Path.Combine(root, ManifestPath(addition.After))), manifest),
-                ]);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
-
-            return 1;
-        }
-
-        ReportField(output, root, addition, changes, Mode.Applied);
-
-        return FinishField(root, addition, output, error, run);
+        protected override int Finish() => FinishField(Root, addition, Output, Error, run);
     }
 
     private static FieldRequest ParseFieldRequest(string[] args, List<string> problems)
@@ -524,16 +517,16 @@ internal static partial class NewFeature
         return 1;
     }
 
-    private static void ReportField(TextWriter output, string root, Addition addition, List<FieldChange> changes, Mode mode)
+    private static void ReportField(TextWriter output, string root, Addition addition, List<FieldChange> changes, ReportMode mode)
     {
         var spec = addition.After;
-        string verb = mode == Mode.Applied ? "Added" : "Would add";
+        string verb = mode == ReportMode.Applied ? "Added" : "Would add";
 
         output.WriteLine(
             $"{verb} {string.Join(", ", addition.Added.Select(field => field.Declared))} to {spec.Features}/{spec.Type} "
             + $"(access {spec.Access}, model {spec.Model}, operations {string.Join(',', spec.Operations)}, concurrency {spec.Concurrency}"
             + (spec.Access == "owner" ? $", deletion {spec.Deletion}" : string.Empty) + "), "
-            + $"{(mode == Mode.Applied ? "changing" : "changes")} {changes.Count} file(s), each through its syntax tree:");
+            + $"{(mode == ReportMode.Applied ? "changing" : "changes")} {changes.Count} file(s), each through its syntax tree:");
 
         foreach (var change in changes)
         {
@@ -547,7 +540,7 @@ internal static partial class NewFeature
 
         output.WriteLine();
         output.WriteLine(
-            $"Manifest: {ManifestPath(spec)}{(mode == Mode.Applied ? string.Empty : ", not written")}: the fields join its fields, with each "
+            $"Manifest: {ManifestPath(spec)}{(mode == ReportMode.Applied ? string.Empty : ", not written")}: the fields join its fields, with each "
             + "default, its files their new SHA-256, and addedFields the declaration, the migration and each file's change, "
             + "with its SHA-256 before and after.");
 
@@ -567,10 +560,10 @@ internal static partial class NewFeature
             output.WriteLine($"The list now sorts by {string.Join(", ", sortable)} too, each with its index, which the migration creates.");
         }
 
-        if (mode != Mode.Applied)
+        if (mode != ReportMode.Applied)
         {
             output.WriteLine();
-            output.WriteLine(mode == Mode.DryRun
+            output.WriteLine(mode == ReportMode.DryRun
                 ? "Then a run without --dry-run checks that no model change waits for a migration, writes, and runs in this order, stopping at the first that fails:"
                 : "Then, once the changes are made:");
 

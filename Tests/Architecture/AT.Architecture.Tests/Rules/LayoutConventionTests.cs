@@ -491,28 +491,9 @@ public sealed class LayoutConventionTests
 
                 examined++;
 
-                string folder = Path.GetRelativePath(root, Path.GetDirectoryName(file)!);
-                string expected = folder is "."
-                    ? project.Name
-                    : $"{project.Name}.{folder.Replace(Path.DirectorySeparatorChar, '.')}";
-
-                string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file);
-                var declaration = _fileScopedNamespace.Match(File.ReadAllText(file));
-
-                if (!declaration.Success)
+                if (NamespaceOffence(project.Name, root, file) is { } offence)
                 {
-                    if (Path.GetFileName(file) is "Program.cs" && folder is ".")
-                    {
-                        continue;
-                    }
-
-                    offenders.Add($"{relative} declares no namespace; its folder asks for '{expected}'.");
-                }
-                else if (!string.Equals(declaration.Groups[1].Value, expected, StringComparison.Ordinal))
-                {
-                    offenders.Add(
-                        $"{relative} declares '{declaration.Groups[1].Value}'; its folder asks for " +
-                        $"'{expected}'.");
+                    offenders.Add(offence);
                 }
             }
         }
@@ -530,6 +511,28 @@ public sealed class LayoutConventionTests
             $"Namespaces follow folders. No exceptions. ({examined} files read.) A namespace that " +
             "names a folder the file is not in is a wrong direction given to every reader who " +
             "follows the using directive, and nothing else in the build will say so.");
+    }
+
+    private static string? NamespaceOffence(string projectName, string root, string file)
+    {
+        string folder = Path.GetRelativePath(root, Path.GetDirectoryName(file)!);
+        string expected = folder is "."
+            ? projectName
+            : $"{projectName}.{folder.Replace(Path.DirectorySeparatorChar, '.')}";
+
+        string relative = Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file);
+        var declaration = _fileScopedNamespace.Match(File.ReadAllText(file));
+
+        if (!declaration.Success)
+        {
+            return Path.GetFileName(file) is "Program.cs" && folder is "."
+                ? null
+                : $"{relative} declares no namespace; its folder asks for '{expected}'.";
+        }
+
+        return string.Equals(declaration.Groups[1].Value, expected, StringComparison.Ordinal)
+            ? null
+            : $"{relative} declares '{declaration.Groups[1].Value}'; its folder asks for '{expected}'.";
     }
 
     [Fact]

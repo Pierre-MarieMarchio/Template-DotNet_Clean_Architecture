@@ -536,6 +536,41 @@ public sealed class LayoutConventionTests
     }
 
     [Fact]
+    public void TheNamespaceRule_IsSensitive_AndSeesANamespaceThatLeavesItsFolder()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"{nameof(LayoutConventionTests)}.{Guid.NewGuid():N}");
+        string folder = Path.Combine(root, "Features", "Orders");
+        Directory.CreateDirectory(folder);
+
+        try
+        {
+            string Write(string directory, string name, string content)
+            {
+                string file = Path.Combine(directory, name);
+                File.WriteAllText(file, content);
+
+                return file;
+            }
+
+            string right = Write(folder, "Right.cs", "namespace Probe.Features.Orders;");
+            string wrong = Write(folder, "Wrong.cs", "namespace Probe.Features.Invoices;");
+            string none = Write(folder, "None.cs", "public sealed class None;");
+            string program = Write(root, "Program.cs", "return;");
+            string rootLevel = Write(root, "Other.cs", "return;");
+
+            NamespaceOffence("Probe", root, right).ShouldBeNull();
+            NamespaceOffence("Probe", root, wrong).ShouldNotBeNull().ShouldContain("declares 'Probe.Features.Invoices'");
+            NamespaceOffence("Probe", root, none).ShouldNotBeNull().ShouldContain("declares no namespace");
+            NamespaceOffence("Probe", root, program).ShouldBeNull("a Program.cs at the root of a project declares none");
+            NamespaceOffence("Probe", root, rootLevel).ShouldNotBeNull().ShouldContain("declares no namespace");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void NoFolderInTheSourceTree_IsEmpty()
     {
         string source = Path.Combine(ProjectReferenceGraph.RepositoryRoot, "Src");

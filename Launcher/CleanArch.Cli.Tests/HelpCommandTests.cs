@@ -64,13 +64,16 @@ public sealed class HelpCommandTests : IDisposable
             .ShouldBe(["--help", "--version"], ignoreOrder: true);
 
         JsonArray commands = document["commands"].ShouldNotBeNull().AsArray();
-        commands.Select(command => Text(command!["name"])).ShouldBe(["help", "format", "build", "test", "coverage", "verify", "migrations", "database"]);
+        commands.Select(command => Text(command!["name"])).ShouldBe(["help", "format", "build", "test", "coverage", "verify", "migrations", "database", "bootstrap", "compose"]);
         JsonObject help = commands.Single(command => Text(command!["name"]) == "help").ShouldNotBeNull().AsObject();
         help["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"]))
             .ShouldBe(["--json"]);
         JsonObject format = commands.Single(command => Text(command!["name"]) == "format").ShouldNotBeNull().AsObject();
         format["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"]))
             .ShouldBe(["--check"]);
+        JsonObject compose = commands.Single(command => Text(command!["name"]) == "compose").ShouldNotBeNull().AsObject();
+        compose["commands"].ShouldNotBeNull().AsArray().Select(subcommand => Text(subcommand!["name"]))
+            .ShouldBe(["up", "down"]);
         _error.ToString().ShouldBeEmpty();
     }
 

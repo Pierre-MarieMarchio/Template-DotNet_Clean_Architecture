@@ -23,6 +23,11 @@ public static class CleanArchCommand
         MigrationsCommand.Registration,
         DatabaseCommand.Registration,
         OpenApiCommand.Registration,
+        BootstrapCommand.Registration,
+        RunCommand.Registration,
+        ComposeCommand.Registration,
+        EndToEndCommand.Registration,
+        SonarCommand.Registration,
     ];
 
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>

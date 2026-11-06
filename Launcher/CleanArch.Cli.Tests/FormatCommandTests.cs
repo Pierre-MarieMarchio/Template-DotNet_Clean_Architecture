@@ -146,5 +146,5 @@ public sealed class FormatCommandTests : IDisposable
     }
 
     private int Run(params string[] arguments) =>
-        CleanArchCommand.Run(arguments, _project.Root, _output, _error);
+        BuiltInCommands.Run(arguments, _project.Root, _output, _error);
 }

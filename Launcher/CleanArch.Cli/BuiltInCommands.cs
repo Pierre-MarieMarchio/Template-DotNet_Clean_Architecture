@@ -2,6 +2,9 @@
 
 internal static class BuiltInCommands
 {
+    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
+        CleanArchCommand.Run(arguments, workingDirectory, output, error, All);
+
     public static IReadOnlyList<CommandRegistration> All { get; } =
     [
         HelpCommand.Registration,

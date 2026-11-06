@@ -132,7 +132,7 @@ public sealed class AddCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
 
     private string[] Lines() => [.. _calls.Select(call => ExternalCommand.LineOf(call))];
 

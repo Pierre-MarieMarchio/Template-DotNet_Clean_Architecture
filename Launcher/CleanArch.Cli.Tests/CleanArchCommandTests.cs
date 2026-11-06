@@ -76,5 +76,5 @@ public sealed class CleanArchCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
 }

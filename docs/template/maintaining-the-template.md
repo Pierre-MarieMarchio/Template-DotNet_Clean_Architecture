@@ -897,6 +897,7 @@ which holds four more projects. Generation and the template package leave the fo
 |---|---|
 | `Launcher/CleanArch.Tooling` | the library both tools share, never packed on its own: running a process and its verbatim output, the terminal, the templates' manifests with the evaluation of their refusals, and the questions asked from them; its tests are in `Launcher/CleanArch.Tooling.Tests` |
 | `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root; its tests are in `Launcher/CleanArch.Cli.Tests` |
+| `Launcher/CleanArch.Cli.Commands` | the commands `eject` can copy into a project, never packed on its own: it references System.CommandLine alone, since an ejected command is a file-based app that declares nothing else; `CleanArch.Cli` composes them with the ones that stay the tool's, and ships their source |
 
 [Template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
 [0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) say what each tool is for.

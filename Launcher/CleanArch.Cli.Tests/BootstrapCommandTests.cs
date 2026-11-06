@@ -103,7 +103,7 @@ public sealed class BootstrapCommandTests : IDisposable
         _error.Dispose();
     }
 
-    private int Run(SampleProject project) => CleanArchCommand.Run(["bootstrap"], project.Root, _output, _error);
+    private int Run(SampleProject project) => BuiltInCommands.Run(["bootstrap"], project.Root, _output, _error);
 
     private int Fake(ExternalCall call)
     {

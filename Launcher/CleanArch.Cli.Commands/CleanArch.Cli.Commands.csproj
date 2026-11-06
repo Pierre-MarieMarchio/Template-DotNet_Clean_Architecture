@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CleanArch.Cli</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../CleanArch.Tooling/ProjectNames.cs" Link="ProjectNames.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CleanArch.Cli" />
+    <InternalsVisibleTo Include="CleanArch.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

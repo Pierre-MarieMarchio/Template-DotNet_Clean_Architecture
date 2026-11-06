@@ -15,9 +15,6 @@ public static class CleanArchCommand
 
     private const string _description = "Describe this project, or run one of its commands.";
 
-    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
-        Run(arguments, workingDirectory, output, error, BuiltInCommands.All);
-
     internal static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
     {
         CommandContext context = CommandContext.Locate(workingDirectory);

@@ -103,102 +103,93 @@ internal static partial class NewFeature
         string root = Path.GetFullPath(request.Root);
         var spec = problems.Count == 0 ? Check(request, root, problems) : null;
 
-        if (spec is null)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
+        return spec is null
+            ? Refusal.Write(error, problems, _usage)
+            : new FeatureGeneration(spec, problems, new GenerationContext(root, request.DryRun, output, error), run, version).Generate();
+    }
 
-        if (AlreadyGenerated(root, spec))
+    private sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, Func<TextEdits.Command, int> run, string version) : Generation(context)
+    {
+        private List<Emission> _plan = [];
+
+        private List<string> _skipped = [];
+
+        private Emission? _page;
+
+        private string? _unwritten;
+
+        private TextEdits.Editor _editor = new(context.Root);
+
+        private Emission? _manifest;
+
+        protected override string Usage => _usage;
+
+        protected override bool StopsAtDryRun => true;
+
+        protected override IReadOnlyList<string> EditFailures => _editor.Failures;
+
+        protected override IReadOnlyList<(string Path, byte[] Bytes)> Created =>
+            [.. _plan.Select(Written), .. _page is null ? Array.Empty<(string, byte[])>() : [Written(_page)], Written(_manifest!)];
+
+        protected override IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> Replaced => [.. TextEdits.Replacements(_editor)];
+
+        protected override int? Resume()
         {
-            output.WriteLine(
+            if (!AlreadyGenerated(Root, spec))
+            {
+                return null;
+            }
+
+            Output.WriteLine(
                 $"{ManifestPath(spec)} records {spec.Features} with these options already: its files and edits are written, "
                 + "so nothing is written again.");
 
-            return request.DryRun ? 0 : Finish(root, spec, output, error, run, resumed: true);
+            return Context.DryRun ? Succeeded : NewFeature.Finish(Root, spec, Output, Error, run, resumed: true);
         }
 
-        var plan = Plan(spec, root, out var skipped);
-
-        problems.AddRange(Conflicts(root, spec, plan));
-
-        if (problems.Count > 0)
+        protected override bool Draft(List<string> problems)
         {
-            return Refusal.Write(error, problems, _usage);
-        }
+            _plan = Plan(spec, Root, out _skipped);
+            problems.AddRange(checkedProblems);
+            problems.AddRange(Conflicts(Root, spec, _plan));
 
-        var page = PageOf(root, spec, plan, out string? unwritten);
-        var editor = Edits(root, spec, plan);
-        var manifest = ManifestOf(spec, plan, page, editor, version);
-
-        if (editor.Failures.Count > 0)
-        {
-            Report(output, root, spec, plan, manifest.Path, skipped, Mode.Refused);
-            ReportPage(output, spec, page, unwritten, Mode.Refused);
-
-            foreach (string failure in editor.Failures)
+            if (problems.Count > 0)
             {
-                error.WriteLine($"error: {failure}");
+                return false;
             }
 
-            error.WriteLine(
+            _page = PageOf(Root, spec, _plan, out _unwritten);
+            _editor = Edits(Root, spec, _plan);
+            _manifest = ManifestOf(spec, _plan, _page, _editor, version);
+
+            return true;
+        }
+
+        protected override int RefuseEdits(IReadOnlyList<string> failures) =>
+            RefuseAfterReport(
+                failures,
                 "Nothing was written: every edit is made or none is. Put back the line each failed edit is placed beside, "
                 + "or write the feature by hand from the edits above.");
 
-            return 1;
-        }
+        protected override string? Preconditions() => NewFeature.Preconditions(Root, spec, Output, run);
 
-        if (request.DryRun)
+        protected override void Report(ReportMode mode)
         {
-            Report(output, root, spec, plan, manifest.Path, skipped, Mode.DryRun);
-            ReportPage(output, spec, page, unwritten, Mode.DryRun);
-            output.WriteLine();
-            output.WriteLine("--dry-run: nothing was written and nothing was run.");
+            NewFeature.Report(Output, Root, spec, _plan, _manifest!.Path, _skipped, mode);
+            ReportPage(Output, spec, _page, _unwritten, mode);
 
-            return 0;
+            if (mode == ReportMode.Applied && _editor.Kept.Count > 0)
+            {
+                Output.WriteLine();
+                Output.WriteLine($"Already in place, so left as they were and not recorded: {string.Join("; ", _editor.Kept.Distinct(StringComparer.Ordinal))}.");
+            }
         }
 
-        if (Preconditions(root, spec, output, run) is { } refusal)
-        {
-            error.WriteLine($"error: {refusal}");
-            error.WriteLine("Nothing was written.");
+        protected override int Finish() => NewFeature.Finish(Root, spec, Output, Error, run, resumed: false);
 
-            return 1;
-        }
-
-        try
-        {
-            TextEdits.Commit(
-                root,
-                [.. plan.Select(Created), .. page is null ? Array.Empty<(string, byte[])>() : [Created(page)], Created(manifest)],
-                [.. TextEdits.Replacements(editor)]);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
-
-            return 1;
-        }
-
-        Report(output, root, spec, plan, manifest.Path, skipped, Mode.Applied);
-        ReportPage(output, spec, page, unwritten, Mode.Applied);
-
-        if (editor.Kept.Count > 0)
-        {
-            output.WriteLine();
-            output.WriteLine($"Already in place, so left as they were and not recorded: {string.Join("; ", editor.Kept.Distinct(StringComparer.Ordinal))}.");
-        }
-
-        return Finish(root, spec, output, error, run, resumed: false);
     }
 
-    internal enum Mode
-    {
-        Applied,
-        DryRun,
-        Refused,
-    }
-
-    private static (string Path, byte[] Bytes) Created(Emission emission) => (emission.Path, emission.Bytes());
+    private static (string Path, byte[] Bytes) Written(Emission emission) => (emission.Path, emission.Bytes());
 
     private static bool AlreadyGenerated(string root, Spec spec)
     {
@@ -1505,7 +1496,7 @@ internal static partial class NewFeature
         return written;
     }
 
-    internal static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped, Mode mode)
+    internal static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string manifest, List<string> skipped, ReportMode mode)
     {
         string p = spec.Prefix;
         string f = spec.Features;
@@ -1517,7 +1508,7 @@ internal static partial class NewFeature
         string[] hosts = ComposingHosts(root, spec);
 
         output.WriteLine(
-            (mode == Mode.Applied ? "Wrote" : "Would write")
+            (mode == ReportMode.Applied ? "Wrote" : "Would write")
             + $" {plan.Count} files for {f}/{a} "
             + $"(access {spec.Access}, model {spec.Model}, operations {string.Join(',', spec.Operations)}, "
             + $"concurrency {spec.Concurrency}"
@@ -1530,7 +1521,7 @@ internal static partial class NewFeature
         }
 
         output.WriteLine();
-        output.WriteLine(mode == Mode.Applied
+        output.WriteLine(mode == ReportMode.Applied
             ? $"Manifest: {manifest} (the options, the SHA-256 of each file above, and each edit below with the line it is placed beside)."
             : $"Manifest: {manifest} (the options, the SHA-256 of each file above, and each edit below with the line it is placed beside), not written.");
 
@@ -1542,8 +1533,8 @@ internal static partial class NewFeature
         output.WriteLine();
         output.WriteLine(mode switch
         {
-            Mode.Applied => "The feature composes through these edits, each placed beside a line it found and recorded in the manifest.",
-            Mode.DryRun => "A run without --dry-run makes these edits, each placed beside a line it finds, or none when a line is missing.",
+            ReportMode.Applied => "The feature composes through these edits, each placed beside a line it found and recorded in the manifest.",
+            ReportMode.DryRun => "A run without --dry-run makes these edits, each placed beside a line it finds, or none when a line is missing.",
             _ => "None of these edits was made: the solution does not compile until edit 1 is made, nor the feature compose until all are.",
         });
         output.WriteLine(spec.Reaction is null
@@ -1706,9 +1697,9 @@ internal static partial class NewFeature
 
         output.WriteLine();
 
-        if (mode != Mode.Applied)
+        if (mode != ReportMode.Applied)
         {
-            output.WriteLine(mode == Mode.DryRun
+            output.WriteLine(mode == ReportMode.DryRun
                 ? "Then a run without --dry-run runs, in this order, and stops at the first that fails:"
                 : "Then, once the edits are made:");
 
@@ -1775,10 +1766,10 @@ internal static partial class NewFeature
         }
     }
 
-    internal static void ReportPage(TextWriter output, Spec spec, Emission? page, string? unwritten, Mode mode)
+    internal static void ReportPage(TextWriter output, Spec spec, Emission? page, string? unwritten, ReportMode mode)
     {
         string path = PagePath(spec.Features);
-        bool applied = mode == Mode.Applied;
+        bool applied = mode == ReportMode.Applied;
 
         output.WriteLine();
 

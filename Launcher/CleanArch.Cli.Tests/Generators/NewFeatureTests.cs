@@ -2090,8 +2090,8 @@ public sealed partial class NewFeatureTests
                     var manifest = ManifestOf(spec, plan, null, editor, Version);
 
                     using var report = new StringWriter();
-                    Report(report, root, spec, plan, manifest.Path, skipped, Mode.DryRun);
-                    ReportPage(report, spec, null, "no page", Mode.DryRun);
+                    Report(report, root, spec, plan, manifest.Path, skipped, ReportMode.DryRun);
+                    ReportPage(report, spec, null, "no page", ReportMode.DryRun);
 
                     Feed($"{string.Join(',', subset)} {concurrency}");
 

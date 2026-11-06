@@ -1,6 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Help;
 using System.CommandLine.Invocation;
+using System.Runtime.CompilerServices;
 
 namespace CleanArch.Cli;
 
@@ -9,6 +10,8 @@ public static class CleanArchCommand
     public const int Succeeded = 0;
     public const int Failed = 1;
     public const string Name = "dotnet cleanarch";
+
+    private static readonly ConditionalWeakTable<Command, string> _refusals = [];
 
     private const string _description = "Describe this project, or run one of its commands.";
 
@@ -84,6 +87,7 @@ public static class CleanArchCommand
             argument.Arity = new ArgumentArity(0, argument.Arity.MaximumNumberOfValues);
         }
 
+        _refusals.AddOrUpdate(command, refusal);
         command.SetAction(parseResult => Refuse(parseResult, refusal));
         foreach (Command subcommand in command.Subcommands)
         {
@@ -111,6 +115,8 @@ public static class CleanArchCommand
         return Succeeded;
     }
 
+    internal static string? RefusalOf(Command command) => _refusals.TryGetValue(command, out string? refusal) ? refusal : null;
+
     private static int Refuse(ParseResult parseResult, string refusal)
     {
         parseResult.InvocationConfiguration.Error.WriteLine(refusal);
@@ -122,6 +128,12 @@ internal sealed class UsageNamedAfterTheDotnetCommand(HelpAction help) : Synchro
 {
     public override int Invoke(ParseResult parseResult)
     {
+        if (CleanArchCommand.RefusalOf(parseResult.CommandResult.Command) is { } refusal)
+        {
+            parseResult.InvocationConfiguration.Error.WriteLine(refusal);
+            return CleanArchCommand.Failed;
+        }
+
         TextWriter output = parseResult.InvocationConfiguration.Output;
         using var written = new StringWriter();
         parseResult.InvocationConfiguration.Output = written;

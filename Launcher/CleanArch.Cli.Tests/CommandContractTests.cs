@@ -102,10 +102,13 @@ public sealed class CommandContractTests : IDisposable
 
         foreach ((string name, string? refusal) in commands.Where(command => command.Refusal is not null))
         {
-            Clear();
-            Run([name], project.Root).ShouldBe(CleanArchCommand.Failed, name);
-            _error.ToString().ShouldBe(refusal + Environment.NewLine, name);
-            _output.ToString().ShouldBeEmpty(name);
+            foreach (string[] invocation in new[] { [name], new[] { name, "--help" } })
+            {
+                Clear();
+                Run(invocation, project.Root).ShouldBe(CleanArchCommand.Failed, string.Join(' ', invocation));
+                _error.ToString().ShouldBe(refusal + Environment.NewLine, string.Join(' ', invocation));
+                _output.ToString().ShouldBeEmpty(string.Join(' ', invocation));
+            }
         }
 
         _calls.ShouldBeEmpty();

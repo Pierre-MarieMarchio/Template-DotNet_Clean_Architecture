@@ -60,102 +60,142 @@ internal static class FeatureRemoval
     internal static Analysis Analyze(string root, string features, IExecutor executor)
     {
         var blockers = new List<string>();
-        string manifestPath = FeatureManifest.PathOf(features);
+        var manifest = ManifestOf(root, features, blockers);
+        var (owned, modified, missing) = Inventory(root, manifest);
+        var shared = manifest?.Shared ?? [];
+        var folders = Folders(root, features, manifest, owned, shared);
+        string? page = manifest?.Page;
+        var listed = owned.Append(page).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var undone = new Dictionary<string, (byte[] Original, byte[] After)>(StringComparer.Ordinal);
+        var dropped = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+        var undos = manifest is null ? [] : RemovalUndos.PlanUndos(root, manifest.Edits, RemovalUndos.ForeignLines(root, features), undone, dropped);
+        var lines = new LineReader(root, dropped);
+        var hits = RemovalScan.ScanCode(root, features, manifest?.Type, manifest is null ? [] : RemovalScan.DeclaredTypes(root, manifest, manifest.Type), folders, listed, lines.Read);
+        var notes = manifest is null ? [] : RemovalScan.ScanNotes(root, features, manifest.Type, RemovalScan.Sections(root, manifest), folders, listed, lines.Read);
+        var dependents = new List<Dependent>();
+        var uses = new List<Hit>();
 
-        Manifest? manifest = null;
+        blockers.AddRange(Displaced(undos));
+        blockers.AddRange(CodeBlockers(features, hits));
+
+        if (features == "Auth")
+        {
+            blockers.Add("Auth is a module with its own projects, database context and host composition; it is never removed by this command.");
+        }
+
+        if (shared.Count > 0)
+        {
+            SharedDependents(root, features, listed, dependents, uses, blockers, lines.Read);
+        }
+
+        var analysis = new Analysis(
+            features, manifest?.Type, manifest is not null, folders, owned, modified, missing, Extra(root, folders, listed), undos, undone, hits, notes, blockers, shared, dependents, uses,
+            page, page is not null && !File.Exists(Path.Combine(root, page)), manifest is null ? null : MigrationOf(root, features, manifest), manifest?.AddedFields ?? []);
+
+        if (manifest is not null && blockers.Count == 0)
+        {
+            blockers.AddRange(GitProblems(root, [.. analysis.Deleted, .. undone.Keys], executor));
+        }
+
+        return analysis;
+    }
+
+    private static Manifest? ManifestOf(string root, string features, List<string> blockers)
+    {
+        string manifestPath = FeatureManifest.PathOf(features);
 
         if (File.Exists(Path.Combine(root, manifestPath)))
         {
-            manifest = RemovalManifest.ReadManifest(root, features, blockers);
-        }
-        else
-        {
-            blockers.Add($"'{manifestPath}' does not exist: the generator did not write {features} here, or the manifest was deleted. Only a manifest says what is the feature's to remove.");
+            return RemovalManifest.ReadManifest(root, features, blockers);
         }
 
-        var owned = new List<string>();
+        blockers.Add($"'{manifestPath}' does not exist: the generator did not write {features} here, or the manifest was deleted. Only a manifest says what is the feature's to remove.");
+
+        return null;
+    }
+
+    private static (List<string> Owned, List<string> Modified, List<string> Missing) Inventory(string root, Manifest? manifest)
+    {
+        if (manifest is null)
+        {
+            return ([], [], []);
+        }
+
         var modified = new List<string>();
         var missing = new List<string>();
 
-        if (manifest is not null)
+        foreach (var entry in manifest.Files)
         {
-            foreach (var entry in manifest.Files)
+            string full = Path.Combine(root, entry.Path);
+
+            if (!File.Exists(full))
             {
-                string full = Path.Combine(root, entry.Path);
-
-                if (!File.Exists(full))
-                {
-                    missing.Add(entry.Path);
-                }
-                else if (!string.Equals(FeatureManifest.Sha256(File.ReadAllBytes(full)), entry.Sha256, StringComparison.OrdinalIgnoreCase))
-                {
-                    modified.Add(entry.Path);
-                }
+                missing.Add(entry.Path);
             }
-
-            owned.AddRange(manifest.Files.Select(entry => entry.Path));
+            else if (!string.Equals(FeatureManifest.Sha256(File.ReadAllBytes(full)), entry.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                modified.Add(entry.Path);
+            }
         }
 
-        var shared = manifest?.Shared ?? [];
+        return ([.. manifest.Files.Select(entry => entry.Path)], modified, missing);
+    }
 
+    private static List<string> Folders(string root, string features, Manifest? manifest, List<string> owned, List<string> shared)
+    {
         var folders = manifest is not null
             ? RemovalScan.FeatureFolders([.. owned.Except(shared, StringComparer.Ordinal).Except(manifest.Consumers, StringComparer.Ordinal)], features)
             : RemovalScan.DiscoverFolders(root, features);
 
-        foreach (string path in shared)
+        foreach (string folder in shared.Select(path => _sharedFolder.Match(path)).Where(match => match.Success).Select(match => match.Groups[1].Value))
         {
-            var match = _sharedFolder.Match(path);
-
-            if (match.Success && !folders.Contains(match.Groups[1].Value, StringComparer.Ordinal))
+            if (!folders.Contains(folder, StringComparer.Ordinal))
             {
-                folders.Add(match.Groups[1].Value);
+                folders.Add(folder);
             }
         }
 
-        string? page = manifest?.Page;
-        var listed = owned.ToHashSet(StringComparer.Ordinal);
+        return folders;
+    }
 
-        if (page is not null)
-        {
-            listed.Add(page);
-        }
-
-        var extra = new List<string>();
-
-        foreach (string folder in folders)
-        {
-            string full = Path.Combine(root, folder);
-
-            if (!Directory.Exists(full))
-            {
-                continue;
-            }
-
-            foreach (string file in Directory.EnumerateFiles(full, "*", SearchOption.AllDirectories))
-            {
-                string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-
-                if (!listed.Contains(relative))
-                {
-                    extra.Add(relative);
-                }
-            }
-        }
+    private static List<string> Extra(string root, List<string> folders, HashSet<string> listed)
+    {
+        var extra = folders
+            .Select(folder => Path.Combine(root, folder))
+            .Where(Directory.Exists)
+            .SelectMany(full => Directory.EnumerateFiles(full, "*", SearchOption.AllDirectories))
+            .Select(file => Path.GetRelativePath(root, file).Replace('\\', '/'))
+            .Where(relative => !listed.Contains(relative))
+            .ToList();
 
         extra.Sort(StringComparer.Ordinal);
 
-        var undone = new Dictionary<string, (byte[] Original, byte[] After)>(StringComparer.Ordinal);
-        var dropped = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
-        var undos = manifest is null ? [] : RemovalUndos.PlanUndos(root, manifest.Edits, RemovalUndos.ForeignLines(root, features), undone, dropped);
+        return extra;
+    }
 
-        foreach (var undo in undos.Where(undo => undo.State == UndoState.Displaced))
+    private static IEnumerable<string> Displaced(List<Undo> undos) =>
+        undos.Where(undo => undo.State == UndoState.Displaced).Select(undo =>
+            $"{undo.Edit.Path}: the {undo.Edit.Lines.Length} line(s) recorded {undo.Edit.Position} '{undo.Edit.Anchor.Trim()}' are no longer there as they were written, "
+            + "so they cannot be undone exactly. Put them back as the manifest lists them, or remove them by hand and commit, then run this again.");
+
+    private static IEnumerable<string> CodeBlockers(string features, List<Hit> hits)
+    {
+        if (hits.Count == 0)
         {
-            blockers.Add(
-                $"{undo.Edit.Path}: the {undo.Edit.Lines.Length} line(s) recorded {undo.Edit.Position} '{undo.Edit.Anchor.Trim()}' are no longer there as they were written, "
-                + "so they cannot be undone exactly. Put them back as the manifest lists them, or remove them by hand and commit, then run this again.");
+            yield break;
         }
 
-        string?[]? Lines(string relative)
+        string[] others = [.. hits.Select(hit => FeatureOf(hit.Path)).OfType<string>().Where(other => other != features).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+
+        yield return
+            $"{hits.Count} line(s) of code outside the feature, which no manifest records, still use its types, its namespace or its registration"
+            + (others.Length > 0 ? $", in {string.Join(", ", others)}, which depend(s) on it" : string.Empty)
+            + ": the build breaks once the feature is gone. Remove those uses, or remove those features first, and commit.";
+    }
+
+    private sealed class LineReader(string root, Dictionary<string, HashSet<int>> dropped)
+    {
+        internal string?[]? Read(string relative)
         {
             string full = Path.Combine(root, relative);
 
@@ -173,45 +213,6 @@ internal static class FeatureRemoval
 
             return lines;
         }
-
-        var declared = manifest is null ? [] : RemovalScan.DeclaredTypes(root, manifest, manifest.Type);
-        var sections = manifest is null ? [] : RemovalScan.Sections(root, manifest);
-        var hits = RemovalScan.ScanCode(root, features, manifest?.Type, declared, folders, listed, Lines);
-        var notes = manifest is null ? [] : RemovalScan.ScanNotes(root, features, manifest.Type, sections, folders, listed, Lines);
-
-        if (hits.Count > 0)
-        {
-            string[] others = [.. hits.Select(hit => FeatureOf(hit.Path)).OfType<string>().Where(other => other != features).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
-
-            blockers.Add(
-                $"{hits.Count} line(s) of code outside the feature, which no manifest records, still use its types, its namespace or its registration"
-                + (others.Length > 0 ? $", in {string.Join(", ", others)}, which depend(s) on it" : string.Empty)
-                + ": the build breaks once the feature is gone. Remove those uses, or remove those features first, and commit.");
-        }
-
-        if (features == "Auth")
-        {
-            blockers.Add("Auth is a module with its own projects, database context and host composition; it is never removed by this command.");
-        }
-
-        var dependents = new List<Dependent>();
-        var uses = new List<Hit>();
-
-        if (shared.Count > 0)
-        {
-            SharedDependents(root, features, listed, dependents, uses, blockers, Lines);
-        }
-
-        var analysis = new Analysis(
-            features, manifest?.Type, manifest is not null, folders, owned, modified, missing, extra, undos, undone, hits, notes, blockers, shared, dependents, uses,
-            page, page is not null && !File.Exists(Path.Combine(root, page)), manifest is null ? null : MigrationOf(root, features, manifest), manifest?.AddedFields ?? []);
-
-        if (manifest is not null && blockers.Count == 0)
-        {
-            blockers.AddRange(GitProblems(root, [.. analysis.Deleted, .. undone.Keys], executor));
-        }
-
-        return analysis;
     }
 
     internal static string? FeatureOf(string path)
@@ -302,75 +303,8 @@ internal static class FeatureRemoval
 
     internal static void SharedDependents(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, List<string> blockers, Func<string, string?[]?> read)
     {
-        string manifests = Path.Combine(root, FeatureManifest.Folder);
-
-        if (Directory.Exists(manifests))
-        {
-            foreach (string file in Directory.EnumerateFiles(manifests, "*.json").Order(StringComparer.Ordinal))
-            {
-                string other = Path.GetFileNameWithoutExtension(file);
-
-                if (other == features)
-                {
-                    continue;
-                }
-
-                var manifest = FeatureManifest.Read(root, other, out string? problem);
-                string? access = manifest?.Options?["access"] is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
-
-                if (access == "owner")
-                {
-                    dependents.Add(new Dependent(other, "generated, --access owner"));
-                }
-                else if (access is null)
-                {
-                    string reason = problem ?? "it records no access";
-
-                    blockers.Add($"'{FeatureManifest.PathOf(other)}' cannot be read ({reason}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
-                }
-            }
-        }
-
-        foreach (string top in new[] { "Src", "Tests" })
-        {
-            string start = Path.Combine(root, top);
-
-            if (!Directory.Exists(start))
-            {
-                continue;
-            }
-
-            foreach (string file in RemovalScan.Walk(root, start, "*.cs"))
-            {
-                string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-
-                if (own.Contains(relative) || read(relative) is not { } lines)
-                {
-                    continue;
-                }
-
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    string text = lines[i]?.Trim() ?? string.Empty;
-
-                    if (text.StartsWith("//", StringComparison.Ordinal) || !_sharedUse.IsMatch(text))
-                    {
-                        continue;
-                    }
-
-                    string? folder = FeatureOf(relative);
-
-                    if (folder is null || _sharedHosts.Contains(folder))
-                    {
-                        uses.Add(new Hit(HitKind.Composition, relative, i + 1, text));
-                    }
-                    else if (folder != features && !dependents.Any(dependent => dependent.Name == folder))
-                    {
-                        dependents.Add(new Dependent(folder, "no manifest"));
-                    }
-                }
-            }
-        }
+        ManifestDependents(root, features, dependents, blockers);
+        SharedUses(root, features, own, dependents, uses, read);
 
         if (dependents.Count > 0)
         {
@@ -386,6 +320,68 @@ internal static class FeatureRemoval
             blockers.Add(
                 $"{uses.Count} line(s) no manifest records still register the account-deletion files this manifest brought "
                 + "(AddDeletedAccountSweep, AddDeletedAccountSweepJobs, the IUserAccountDirectory adapter, the architecture tests' double): undo them first.");
+        }
+    }
+
+    private static void ManifestDependents(string root, string features, List<Dependent> dependents, List<string> blockers)
+    {
+        string manifests = Path.Combine(root, FeatureManifest.Folder);
+
+        if (!Directory.Exists(manifests))
+        {
+            return;
+        }
+
+        foreach (string other in Directory.EnumerateFiles(manifests, "*.json").Order(StringComparer.Ordinal).Select(Path.GetFileNameWithoutExtension).OfType<string>().Where(other => other != features))
+        {
+            var manifest = FeatureManifest.Read(root, other, out string? problem);
+            string? access = manifest?.Options?["access"] is JsonValue value && value.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : null;
+
+            if (access == "owner")
+            {
+                dependents.Add(new Dependent(other, "generated, --access owner"));
+            }
+            else if (access is null)
+            {
+                blockers.Add($"'{FeatureManifest.PathOf(other)}' cannot be read ({problem ?? "it records no access"}), so nothing can tell whether {other} depends on the account-deletion files this manifest brought.");
+            }
+        }
+    }
+
+    private static void SharedUses(string root, string features, HashSet<string> own, List<Dependent> dependents, List<Hit> uses, Func<string, string?[]?> read)
+    {
+        foreach (string file in RemovalScan.CodeFiles(root))
+        {
+            string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+
+            if (own.Contains(relative) || read(relative) is not { } lines)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string text = lines[i]?.Trim() ?? string.Empty;
+
+                if (!text.StartsWith("//", StringComparison.Ordinal) && _sharedUse.IsMatch(text))
+                {
+                    SharedUse(relative, i + 1, text, features, dependents, uses);
+                }
+            }
+        }
+    }
+
+    private static void SharedUse(string relative, int line, string text, string features, List<Dependent> dependents, List<Hit> uses)
+    {
+        string? folder = FeatureOf(relative);
+
+        if (folder is null || _sharedHosts.Contains(folder))
+        {
+            uses.Add(new Hit(HitKind.Composition, relative, line, text));
+        }
+        else if (folder != features && !dependents.Any(dependent => dependent.Name == folder))
+        {
+            dependents.Add(new Dependent(folder, "no manifest"));
         }
     }
 

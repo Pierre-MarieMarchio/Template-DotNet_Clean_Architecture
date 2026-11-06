@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>CleanArch.Cli</RootNamespace>
+    <RootNamespace>CleanArch.Cli.Commands</RootNamespace>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

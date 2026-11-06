@@ -2,6 +2,7 @@
 using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json.Nodes;
+using CleanArch.Cli.Commands.Format;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -135,7 +136,7 @@ public sealed class EjectCommandTests : IDisposable
 
         CommandSource.Shipped.Keys.Order(StringComparer.Ordinal).ShouldBe(sources);
         CommandSource.Shipped["FormatCommand.cs"].ShouldBe(
-            File.ReadAllText(Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli.Commands", "FormatCommand.cs")).TrimStart('﻿'));
+            File.ReadAllText(Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli.Commands", "Format", "FormatCommand.cs")).TrimStart('﻿'));
     }
 
     [Fact]

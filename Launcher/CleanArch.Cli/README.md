@@ -28,8 +28,10 @@ dotnet cleanarch add presentation --name Portal --framework blazor-server
 dotnet cleanarch add web-app --dry-run
                              # print the commands it would run, write nothing
 dotnet cleanarch migrations add AddTodoItemPriority            # dotnet ef migrations add, at the project root
-dotnet cleanarch migrations add AddTodoItemPriority --check    # dotnet ef migrations has-pending-model-changes
+dotnet cleanarch migrations add AddTodoItemPriority --no-build # the same, from the context's last build
+dotnet cleanarch migrations add --check                        # dotnet ef migrations has-pending-model-changes
 dotnet cleanarch migrations bundle                             # dotnet ef migrations bundle, for each context
+dotnet cleanarch migrations bundle -c Release                  # the same, built in Release
 dotnet cleanarch database update                               # dotnet ef database update, at the project root
 dotnet cleanarch openapi     # write the OpenAPI reference, then the .NET client and the web schema the project holds
 dotnet cleanarch openapi --no-build # write the reference from the API's last build
@@ -75,6 +77,14 @@ that targets Windows alone where they run elsewhere, and say so.
 
 A command that runs an external tool prints the exact line it runs, runs it at the project root
 and forwards its exit code.
+
+`migrations add`, `migrations bundle` and `database update` refuse, running nothing, where a
+context they target has no initial migration yet, and name `bootstrap`, which creates it.
+`migrations add` needs the migration's name, but with `--check`, which writes nothing and takes
+none; `--no-build` is forwarded to `dotnet ef`. When the migration `dotnet ef` writes is empty,
+since the model has not changed since the context's last migration, `migrations add` deletes the
+files it wrote, restores the model snapshot as it was and fails, so nothing is written.
+`migrations bundle` takes `--configuration` (Debug by default).
 
 `verify` chains its steps and stops at the first failing one, forwarding its exit code; its steps
 follow the project file: the client check runs where the file records `client`, the web

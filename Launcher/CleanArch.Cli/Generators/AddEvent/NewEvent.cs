@@ -61,70 +61,21 @@ internal static class NewEvent
         string root = Path.GetFullPath(request.Root);
         var spec = problems.Count == 0 ? Check(request, root, problems) : null;
 
-        if (spec is null)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
+        return spec is null
+            ? Refusal.Write(error, problems, _usage)
+            : new EventGeneration(spec, new GenerationContext(root, request.DryRun, output, error)).Generate();
+    }
 
-        var emissions = Emissions(spec, root);
-        string[] existing = [.. emissions.Select(emission => emission.Path).Where(path => File.Exists(Path.Combine(root, path)))];
+    private sealed class EventGeneration(Spec spec, GenerationContext context) : FileGeneration(context, spec.Features, spec.Manifest)
+    {
+        protected override string Usage => _usage;
 
-        if (existing.Length > 0)
-        {
-            problems.Add($"{existing.Length} of the files to write already exist, and none is ever overwritten:\n" + string.Join("\n", existing.Select(path => $"  {path}")));
+        protected override IReadOnlyList<Emission> Plan() => NewEvent.Emissions(spec, Root);
 
-            return Refusal.Write(error, problems, _usage);
-        }
+        protected override TextEdits.Editor Edit(List<string> problems) => Edits(spec, Root, problems);
 
-        var editor = Edits(spec, root, problems);
-
-        if (problems.Count > 0)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        problems.AddRange(editor.Failures.Select(failure => $"{failure} Fix that file, or make this edit by hand."));
-
-        if (problems.Count > 0)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        var replaced = TextEdits.Replacements(editor).ToList();
-
-        if (spec.Manifest is not null)
-        {
-            try
-            {
-                replaced.Add(ManifestWith(root, spec.Features, emissions, editor));
-            }
-            catch (InvalidOperationException exception)
-            {
-                problems.Add(
-                    $"{exception.Message} {spec.Manifest} records each edit for remove-feature to undo with the feature: "
-                    + "give the file the ending this project writes (format-fix), or make this edit by hand, then run this again.");
-
-                return Refusal.Write(error, problems, _usage);
-            }
-        }
-
-        if (!request.DryRun)
-        {
-            try
-            {
-                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, emission.Bytes()))], replaced);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
-
-                return 1;
-            }
-        }
-
-        Report(output, spec, emissions, editor.Changed.Select(sheet => sheet.Path), request.DryRun);
-
-        return 0;
+        protected override void Report(ReportMode mode) =>
+            NewEvent.Report(Output, spec, Emissions, Editor.Changed.Select(sheet => sheet.Path), mode == ReportMode.DryRun);
     }
 
     private static Request Parse(string[] args, List<string> problems)
@@ -621,7 +572,7 @@ internal static class NewEvent
         return text.Insert(close + 1, $"        // {spec.Unconsumed}\n        \"{spec.Name}\",\n");
     }
 
-    private static void Report(TextWriter output, Spec spec, List<Emission> emissions, IEnumerable<string> edited, bool dryRun)
+    private static void Report(TextWriter output, Spec spec, IReadOnlyList<Emission> emissions, IEnumerable<string> edited, bool dryRun)
     {
         output.WriteLine(dryRun ? "Dry run: nothing was written." : $"Wrote the event {spec.Name} of {spec.Features}.");
         output.WriteLine();
@@ -655,20 +606,6 @@ internal static class NewEvent
         {
             output.WriteLine("  - The reason nothing listens is in DomainEventTests beside the name; when a consumer is written later, delete that entry (NoEventIsListedAsUnconsumed_WhileSomethingConsumesIt fails until you do).");
         }
-    }
-
-    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> plan, TextEdits.Editor editor)
-    {
-        var manifest = FeatureManifest.Read(root, features, out _)!;
-
-        foreach (var emission in plan)
-        {
-            manifest.Record(emission.Path, emission.Bytes());
-        }
-
-        manifest.Record(editor);
-
-        return manifest.Replacement;
     }
 
 }

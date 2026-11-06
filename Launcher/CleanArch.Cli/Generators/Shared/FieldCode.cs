@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using CleanArch.Cli.Generators.AddFeature;
 using Microsoft.CodeAnalysis;
 
 namespace CleanArch.Cli.Generators.Shared;
@@ -71,7 +70,7 @@ internal static class FieldCode
     internal static string IndexName(string features, Field field, bool owner) =>
         owner ? $"IX_{features}_OwnerId_{field.Name}_Id" : $"IX_{features}_{field.Name}_Id";
 
-    internal static string Label(Field field) => NewFeature.Separated(field.Name, ' ');
+    internal static string Label(Field field) => CSharpNames.Separated(field.Name, ' ');
 
     internal static string Parameter(Field field) => CSharpNames.Lower(field.Name);
 

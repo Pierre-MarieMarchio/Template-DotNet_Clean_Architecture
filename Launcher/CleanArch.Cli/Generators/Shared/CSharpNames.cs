@@ -19,4 +19,16 @@ internal static class CSharpNames
     internal static readonly Regex PascalCase = new(@"^[A-Z][A-Za-z0-9]*$", RegexOptions.None, TimeSpan.FromSeconds(1));
 
     internal static string Lower(string name) => char.ToLowerInvariant(name[0]) + name[1..];
+
+    internal static string Kebab(string pascal) => Separated(pascal, '-');
+
+    internal static string Snake(string pascal) => Separated(pascal, '_');
+
+    internal static string Separated(string pascal, char separator) =>
+        string.Concat(pascal.Select((character, index) =>
+            char.IsUpper(character) && index > 0
+                ? separator + char.ToLowerInvariant(character).ToString()
+                : char.ToLowerInvariant(character).ToString()));
+
+    internal static bool IsVowel(char letter) => "aeiou".Contains(char.ToLowerInvariant(letter), StringComparison.Ordinal);
 }

@@ -7,6 +7,7 @@ using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Xunit;
 using static CleanArch.Cli.Generators.AddFeature.NewFeature;
+using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Tests.Generators;
 
@@ -2157,7 +2158,7 @@ public sealed partial class NewFeatureTests
 
         string[] segments = relative.Replace('\\', '/').Split('/');
         int projectIndex = Array.FindIndex(segments, segment => segment.Contains('.', StringComparison.Ordinal));
-        segments[projectIndex] = ProjectInFolder(ProductPrefix(root), segments[projectIndex]);
+        segments[projectIndex] = ProjectInFolder(ProductName(root), segments[projectIndex]);
         string expected = string.Join('.', segments[projectIndex..^1]);
 
         if (!text.Contains($"namespace {expected};", StringComparison.Ordinal))

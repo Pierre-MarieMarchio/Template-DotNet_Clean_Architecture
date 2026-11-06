@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.AddUseCase.NewUseCase;
+using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Tests.Generators;
 
@@ -702,7 +703,7 @@ public sealed class NewUseCaseTests
         string root = NewTree(scratch);
         string manifest = Path.Combine(root, FeatureManifest.Folder, "Invoices.json");
         const string generated = "Src/Application/A.Application/Features/Invoices/UseCases/Commands/CreateInvoice/CreateInvoice.cs";
-        string page = $"docs/features/{Kebab("Invoices")}.md";
+        string page = $"docs/features/{CSharpNames.Kebab("Invoices")}.md";
         string original =
             "{\n  \"schemaVersion\": 1,\n  \"generator\": \"Tools/NewFeature.cs\",\n  \"feature\": \"Invoices\",\n  \"type\": \"Invoice\",\n"
             + "  \"options\": {\n    \"access\": \"shared\"\n  },\n"
@@ -877,7 +878,7 @@ public sealed class NewUseCaseTests
 
         string[] segments = relative.Split('/');
         int project = Array.FindIndex(segments, segment => segment.Contains('.', StringComparison.Ordinal));
-        string prefix = ProductPrefix(root);
+        string prefix = ProductName(root);
         segments[project] = prefix + "." + segments[project][FolderOf(prefix, string.Empty).Length..];
 
         if (!text.Contains($"namespace {string.Join('.', segments[project..^1])};", StringComparison.Ordinal))

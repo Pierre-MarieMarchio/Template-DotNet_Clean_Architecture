@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.AddEvent.NewEvent;
+using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Tests.Generators;
 

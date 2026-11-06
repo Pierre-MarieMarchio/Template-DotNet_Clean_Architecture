@@ -1,7 +1,7 @@
-﻿using System.Text;
-using System.Text.Json;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.Shared;
+using static CleanArch.Cli.Generators.Shared.ProjectFolders;
+using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Generators.AddEvent;
 
@@ -31,8 +31,6 @@ internal static class NewEvent
         + "  --dry-run     print what would be written, and write nothing.";
 
     private static readonly string[] _optionNames = ["--consumer", "--unconsumed", "--fields", "--root", "--dry-run"];
-
-    private sealed record Emission(string Path, string Content);
 
     private sealed record Request(string? Features, string? Name, string? Consumer, string? Unconsumed, string? Fields, string Root, bool DryRun);
 
@@ -65,7 +63,7 @@ internal static class NewEvent
 
         if (spec is null)
         {
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         var emissions = Emissions(spec, root);
@@ -75,21 +73,21 @@ internal static class NewEvent
         {
             problems.Add($"{existing.Length} of the files to write already exist, and none is ever overwritten:\n" + string.Join("\n", existing.Select(path => $"  {path}")));
 
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         var editor = Edits(spec, root, problems);
 
         if (problems.Count > 0)
         {
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         problems.AddRange(editor.Failures.Select(failure => $"{failure} Fix that file, or make this edit by hand."));
 
         if (problems.Count > 0)
         {
-            return Refuse(error, problems);
+            return Refusal.Write(error, problems, _usage);
         }
 
         var replaced = TextEdits.Replacements(editor).ToList();
@@ -106,7 +104,7 @@ internal static class NewEvent
                     $"{exception.Message} {spec.Manifest} records each edit for remove-feature to undo with the feature: "
                     + "give the file the ending this project writes (format-fix), or make this edit by hand, then run this again.");
 
-                return Refuse(error, problems);
+                return Refusal.Write(error, problems, _usage);
             }
         }
 
@@ -114,7 +112,7 @@ internal static class NewEvent
         {
             try
             {
-                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, TextEdits.Encode(emission.Path, emission.Content)))], replaced);
+                TextEdits.Commit(root, [.. emissions.Select(emission => (emission.Path, emission.Bytes()))], replaced);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -270,7 +268,7 @@ internal static class NewEvent
 
         try
         {
-            prefix = ProductPrefix(root);
+            prefix = ProductName(root);
         }
         catch (InvalidOperationException exception)
         {
@@ -279,12 +277,12 @@ internal static class NewEvent
             return null;
         }
 
-        string domain = Path.Combine(root, "Src", "Domain", FolderOf(prefix, "Domain"), "Features", features);
+        string domain = Full(root, $"{SourceProject(prefix, "Domain")}/Features/{features}");
 
         if (!Directory.Exists(domain))
         {
             problems.Add(
-                $"{features} has no domain folder 'Src/Domain/{FolderOf(prefix, "Domain")}/Features/{features}', so it is a service over a store and raises no domain event. "
+                $"{features} has no domain folder '{SourceProject(prefix, "Domain")}/Features/{features}', so it is a service over a store and raises no domain event. "
                 + "Promote it to an aggregate first (docs/architecture/feature-shapes.md, From simple to rich).");
 
             return null;
@@ -297,7 +295,7 @@ internal static class NewEvent
             return null;
         }
 
-        if (SourceFiles(Path.Combine(root, "Src"), "*.cs").Any(file => Regex.IsMatch(File.ReadAllText(file), $@"\b(?:record|class) {name}\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
+        if (SourceFiles(Path.Combine(root, Src), "*.cs").Any(file => Regex.IsMatch(File.ReadAllText(file), $@"\b(?:record|class) {name}\b", RegexOptions.None, TimeSpan.FromSeconds(2))))
         {
             problems.Add($"A type called {name} already exists under Src. An event is written once; after that it is edited.");
 
@@ -308,11 +306,11 @@ internal static class NewEvent
 
         if (consumerFeatures is not null)
         {
-            string application = Path.Combine(root, "Src", "Application", FolderOf(prefix, "Application"));
+            string application = Full(root, SourceProject(prefix, "Application"));
 
             if (!Directory.Exists(Path.Combine(application, "Features", consumerFeatures)))
             {
-                problems.Add($"No feature called {consumerFeatures} to react: 'Src/Application/{FolderOf(prefix, "Application")}/Features/{consumerFeatures}' does not exist.");
+                problems.Add($"No feature called {consumerFeatures} to react: '{SourceProject(prefix, "Application")}/Features/{consumerFeatures}' does not exist.");
 
                 return null;
             }
@@ -396,7 +394,7 @@ internal static class NewEvent
 
     private static List<Emission> Emissions(Spec spec, string root)
     {
-        string domain = $"Src/Domain/{FolderOf(spec.Prefix, "Domain")}/Features/{spec.Features}/Model/Events";
+        string domain = $"{SourceProject(spec.Prefix, "Domain")}/Features/{spec.Features}/Model/Events";
         var emissions = new List<Emission> { new($"{domain}/{spec.Name}.cs", EventRecord(spec)) };
         string domainTests = $"Tests/Domain/{FolderOf(spec.Prefix, "Domain.UnitTests")}";
 
@@ -407,7 +405,7 @@ internal static class NewEvent
 
         if (spec.ConsumerFeatures is not null)
         {
-            string application = $"Src/Application/{FolderOf(spec.Prefix, "Application")}/Features/{spec.ConsumerFeatures}/Services/Consumers/{spec.Base}";
+            string application = $"{SourceProject(spec.Prefix, "Application")}/Features/{spec.ConsumerFeatures}/Services/Consumers/{spec.Base}";
 
             emissions.Add(new Emission($"{application}/{spec.ConsumerName}.cs", ConsumerClass(spec)));
 
@@ -546,7 +544,7 @@ internal static class NewEvent
 
         if (spec.ConsumerFeatures is not null)
         {
-            string module = $"Src/Application/{FolderOf(spec.Prefix, "Application")}/ApplicationModule.cs";
+            string module = $"{SourceProject(spec.Prefix, "Application")}/ApplicationModule.cs";
             string moduleText = Load(module);
 
             if (moduleText.Contains(spec.ConsumerName!, StringComparison.Ordinal))
@@ -659,56 +657,13 @@ internal static class NewEvent
         }
     }
 
-    private static int Refuse(TextWriter error, List<string> problems)
-    {
-        foreach (string problem in problems)
-        {
-            error.WriteLine($"error: {problem}");
-        }
-
-        error.WriteLine();
-        error.WriteLine(_usage);
-        error.WriteLine();
-        error.WriteLine("Nothing was written.");
-
-        return 1;
-    }
-
-    private static string ProductPrefix(string root)
-    {
-        string projectFile = Path.Combine(root, "cleanarch.json");
-
-        if (!File.Exists(projectFile))
-        {
-            throw new InvalidOperationException(
-                $"No cleanarch.json in '{root}', the file that records the project's name. Run this from the root of a tree generated by this template, or name that root with --root.");
-        }
-
-        using var document = JsonDocument.Parse(File.ReadAllText(projectFile));
-
-        return document.RootElement.TryGetProperty("name", out JsonElement name) && name.GetString() is { Length: > 0 } prefix
-            ? prefix
-            : throw new InvalidOperationException($"'{projectFile}' records no name.");
-    }
-
-    private static string FolderOf(string prefix, string project) =>
-        string.Concat(prefix.Split('.').Select(SegmentInitials)) + "." + project;
-
-    private static string SegmentInitials(string segment) =>
-        segment.Any(char.IsAsciiLetterUpper)
-            ? string.Concat(segment.Where(char.IsAsciiLetterUpper))
-            : string.Concat(segment.Where(char.IsAsciiLetter).Take(1).Select(char.ToUpperInvariant));
-
-    internal static string Decode(byte[] bytes) =>
-        Encoding.UTF8.GetString(bytes, bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0, bytes.Length - (bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0));
-
     private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> plan, TextEdits.Editor editor)
     {
         var manifest = FeatureManifest.Read(root, features, out _)!;
 
         foreach (var emission in plan)
         {
-            manifest.Record(emission.Path, TextEdits.Encode(emission.Path, emission.Content));
+            manifest.Record(emission.Path, emission.Bytes());
         }
 
         manifest.Record(editor);
@@ -716,23 +671,4 @@ internal static class NewEvent
         return manifest.Replacement;
     }
 
-    private static string Sorted(string source)
-    {
-        string[] lines = source.ReplaceLineEndings("\n").Split('\n');
-        int usings = lines.TakeWhile(line => line.StartsWith("using ", StringComparison.Ordinal)).Count();
-
-        string[] sorted = [.. lines[..usings].Distinct(StringComparer.Ordinal).OrderBy(UsingKey, StringComparer.Ordinal)];
-
-        return string.Join('\n', [.. sorted, .. lines[usings..]]).TrimEnd('\n') + "\n";
-    }
-
-    internal static string UsingKey(string line) => (line.StartsWith("using System", StringComparison.Ordinal) ? "0" : "1") + line.TrimEnd(';').ToUpperInvariant();
-
-    private static IEnumerable<string> SourceFiles(string folder, string pattern) =>
-        Directory.Exists(folder)
-            ? Directory.EnumerateFiles(folder, pattern, SearchOption.AllDirectories)
-                .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                    && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                    && !file.Contains($"{Path.DirectorySeparatorChar}node_modules{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            : [];
 }

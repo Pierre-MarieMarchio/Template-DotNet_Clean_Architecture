@@ -105,20 +105,31 @@ internal static class TextEdits
                 }
 
                 int nextSource = index < _lines.Count ? _origin[index] : _source.Length;
-                string[] added = [.. _lines.Skip(previous + 1).Take(index - previous - 1)];
-                string[] replaced = _source[(previousSource + 1)..nextSource];
 
-                if (added.Length > 0 || replaced.Length > 0)
+                if (EditBetween(previous, index, previousSource, nextSource) is { } edit)
                 {
-                    int next = index < _lines.Count ? index : -1;
-                    bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
-
-                    yield return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", added, replaced);
+                    yield return edit;
                 }
 
                 previous = index;
                 previousSource = nextSource;
             }
+        }
+
+        private Edit? EditBetween(int previous, int index, int previousSource, int nextSource)
+        {
+            string[] added = [.. _lines.Skip(previous + 1).Take(index - previous - 1)];
+            string[] replaced = _source[(previousSource + 1)..nextSource];
+
+            if (added.Length == 0 && replaced.Length == 0)
+            {
+                return null;
+            }
+
+            int next = index < _lines.Count ? index : -1;
+            bool before = next >= 0 && (_lines[next].Trim().Length > 0 || previous < 0 || _lines[previous].Trim().Length == 0);
+
+            return new Edit(Path, _lines[before ? next : previous], before ? "before" : "after", added, replaced);
         }
 
         internal byte[] Bytes()
@@ -250,27 +261,16 @@ internal static class TextEdits
             }
 
             int found = 0;
+            int index = 0;
 
-            for (int index = 0; index < sheet.Lines.Count; index++)
+            while (index < sheet.Lines.Count)
             {
-                if (sheet.Lines[index].Trim() != anchor)
+                if (sheet.Lines[index].Trim() == anchor)
                 {
-                    continue;
+                    found++;
+                    index += PlaceInMethod(sheet, index, before, line);
                 }
 
-                found++;
-
-                int start = FindLast(sheet, candidate => candidate == "    {", index);
-                int end = Find(sheet, candidate => candidate == "    }", index);
-
-                if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
-                {
-                    Kept.Add(Step);
-
-                    continue;
-                }
-
-                Insert(sheet, index, before, [line]);
                 index++;
             }
 
@@ -278,6 +278,23 @@ internal static class TextEdits
             {
                 Fail($"no line reads '{anchor}', the line the edit is placed beside in each method.");
             }
+        }
+
+        private int PlaceInMethod(Sheet sheet, int anchor, bool before, string line)
+        {
+            int start = FindLast(sheet, candidate => candidate == "    {", anchor);
+            int end = Find(sheet, candidate => candidate == "    }", anchor);
+
+            if (Find(sheet, candidate => candidate.Trim() == line.Trim(), start, end) >= 0)
+            {
+                Kept.Add(Step);
+
+                return 0;
+            }
+
+            Insert(sheet, anchor, before, [line]);
+
+            return 1;
         }
 
         internal void AppendToMethod(string path, string method, string prefix, string line)
@@ -337,7 +354,7 @@ internal static class TextEdits
                 return;
             }
 
-            int following = usings.FirstOrDefault(index => Order(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
+            int following = usings.FirstOrDefault(index => UsingOrder.Compare(space, sheet.Lines[index].Trim()["using ".Length..].TrimEnd(';')) < 0, -1);
 
             if (following >= 0)
             {
@@ -421,17 +438,6 @@ internal static class TextEdits
 
         private static bool IsHeader(string line) =>
             line.Trim().Length == 0 || line.TrimStart().StartsWith("//", StringComparison.Ordinal) || IsUsing(line);
-
-        private static int Order(string left, string right)
-        {
-            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
-
-            int system = IsSystem(right).CompareTo(IsSystem(left));
-
-            return system != 0 ? system
-                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
-                : StringComparer.Ordinal.Compare(left, right);
-        }
     }
 
     internal static void Commit(string root, IReadOnlyList<(string Path, byte[] Bytes)> created, IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> replaced, IReadOnlyList<string>? deleted = null)
@@ -515,12 +521,9 @@ internal static class TextEdits
                 File.Delete(full);
             }
 
-            foreach (string directory in Enumerable.Reverse(directories))
+            foreach (string directory in Enumerable.Reverse(directories).Where(directory => Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any()))
             {
-                if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
-                {
-                    Directory.Delete(directory);
-                }
+                Directory.Delete(directory);
             }
 
             throw;
@@ -534,15 +537,14 @@ internal static class TextEdits
 
     internal static string Spare(string full)
     {
-        for (int number = 1; ; number++)
-        {
-            string name = $"{full}.~{number}";
+        int number = 1;
 
-            if (!File.Exists(name) && !Directory.Exists(name))
-            {
-                return name;
-            }
+        while (File.Exists($"{full}.~{number}") || Directory.Exists($"{full}.~{number}"))
+        {
+            number++;
         }
+
+        return $"{full}.~{number}";
     }
 
     internal static byte[] Encode(string path, string content)

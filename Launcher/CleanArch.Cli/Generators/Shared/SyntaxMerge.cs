@@ -47,10 +47,14 @@ internal static class SyntaxMerge
 
     internal static string Normalized(SyntaxNode node) => node.NormalizeWhitespace("    ", "\n").ToFullString().Trim();
 
-    private static bool Same(SyntaxNode left, SyntaxNode right) => Normalized(left) == Normalized(right);
-
     private sealed class Merger(string path, List<string> changes, List<string> problems)
     {
+        private string Source => path;
+
+        private List<string> Changes => changes;
+
+        private List<string> Problems => problems;
+
         internal CompilationUnitSyntax? Unit(CompilationUnitSyntax old, CompilationUnitSyntax @new, CompilationUnitSyntax disk)
         {
             var withUsings = Usings(old, @new, disk);
@@ -84,7 +88,7 @@ internal static class SyntaxMerge
                     continue;
                 }
 
-                int following = usings.FindIndex(present => Order(directive.NamespaceOrType?.ToString() ?? string.Empty, present.NamespaceOrType?.ToString() ?? string.Empty) < 0);
+                int following = usings.FindIndex(present => UsingOrder.Compare(directive.NamespaceOrType?.ToString() ?? string.Empty, present.NamespaceOrType?.ToString() ?? string.Empty) < 0);
 
                 usings.Insert(following < 0 ? usings.Count : following, directive.WithLeadingTrivia().WithTrailingTrivia(SyntaxFactory.EndOfLine("\n")));
                 changes.Add($"added {Key(directive)}");
@@ -100,105 +104,20 @@ internal static class SyntaxMerge
             return updated;
         }
 
-        private static int Order(string left, string right)
-        {
-            static bool IsSystem(string space) => space == "System" || space.StartsWith("System.", StringComparison.Ordinal);
-
-            int system = IsSystem(right).CompareTo(IsSystem(left));
-
-            return system != 0 ? system
-                : StringComparer.OrdinalIgnoreCase.Compare(left, right) is var ignoringCase and not 0 ? ignoringCase
-                : StringComparer.Ordinal.Compare(left, right);
-        }
-
         private SyntaxList<MemberDeclarationSyntax>? Members(
             string container,
             SyntaxList<MemberDeclarationSyntax> old,
             SyntaxList<MemberDeclarationSyntax> @new,
             SyntaxList<MemberDeclarationSyntax> disk)
         {
-            var oldKeys = Keys(old);
-            var newKeys = Keys(@new);
-            var result = disk.ToList();
-            var resultKeys = Keys(disk);
             int before = problems.Count;
+            var merge = new MemberMerge(this, container, old, @new, disk);
 
-            for (int index = 0; index < old.Count; index++)
-            {
-                if (newKeys.Contains(oldKeys[index]) || resultKeys.IndexOf(oldKeys[index]) is not (var at and >= 0))
-                {
-                    continue;
-                }
+            merge.RemoveDropped();
+            merge.ChangeKept();
+            merge.AddDeclared();
 
-                if (Same(result[at], old[index]))
-                {
-                    result.RemoveAt(at);
-                    resultKeys.RemoveAt(at);
-                    changes.Add($"removed {Name(container, old[index])}");
-                }
-                else
-                {
-                    problems.Add($"{path}: {Name(container, old[index])} was changed by hand, and these fields remove it. Remove it by hand.");
-                }
-            }
-
-            for (int index = 0; index < @new.Count; index++)
-            {
-                int earlier = oldKeys.IndexOf(newKeys[index]);
-
-                if (earlier < 0 || (Same(old[earlier], @new[index]) && old[earlier] is not BaseNamespaceDeclarationSyntax))
-                {
-                    continue;
-                }
-
-                int at = resultKeys.IndexOf(newKeys[index]);
-
-                if (at < 0)
-                {
-                    problems.Add(
-                        $"{path}: {Name(container, @new[index])}, which new-feature wrote, is not in the file, and these fields change it. Put it "
-                        + $"back, or make the change by hand:\n{Indented(@new[index])}");
-
-                    continue;
-                }
-
-                if (Member(container, old[earlier], @new[index], result[at]) is { } merged)
-                {
-                    result[at] = merged;
-                }
-            }
-
-            for (int index = 0; index < @new.Count; index++)
-            {
-                if (oldKeys.Contains(newKeys[index]))
-                {
-                    continue;
-                }
-
-                if (resultKeys.Contains(newKeys[index]))
-                {
-                    problems.Add(
-                        $"{path}: {Name(container, @new[index])} is declared already, and these fields declare it: rename that member first.");
-
-                    continue;
-                }
-
-                int previous = Enumerable.Range(0, index).Reverse().Select(candidate => resultKeys.IndexOf(newKeys[candidate])).FirstOrDefault(found => found >= 0, -1);
-                int next = Enumerable.Range(index + 1, @new.Count - index - 1).Select(candidate => resultKeys.IndexOf(newKeys[candidate])).FirstOrDefault(found => found >= 0, -1);
-                int position = previous >= 0 ? previous + 1 : next >= 0 ? next : result.Count;
-
-                if (position == 0 && result.Count > 0 && newKeys.IndexOf(resultKeys[0]) is var shifted and >= 0
-                    && result[0].GetLeadingTrivia().All(trivia => trivia.IsKind(SyntaxKind.WhitespaceTrivia) || trivia.IsKind(SyntaxKind.EndOfLineTrivia)))
-                {
-                    result[0] = result[0].WithLeadingTrivia(@new[shifted].GetLeadingTrivia());
-                }
-
-                result.Insert(position, @new[index]);
-                resultKeys.Insert(position, newKeys[index]);
-                changes.Add($"added {Name(container, @new[index])}");
-            }
-
-            return problems.Count > before ? null : SyntaxFactory.List(result);
+            return problems.Count > before ? null : SyntaxFactory.List(merge.Result);
         }
 
         private MemberDeclarationSyntax? Member(string container, MemberDeclarationSyntax old, MemberDeclarationSyntax @new, MemberDeclarationSyntax disk)
@@ -257,20 +176,7 @@ internal static class SyntaxMerge
 
         private static TypeDeclarationSyntax Header(TypeDeclarationSyntax type) => type.WithMembers(default);
 
-        private static List<string> Keys(SyntaxList<MemberDeclarationSyntax> members)
-        {
-            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
-
-            return [.. members.Select(member =>
-            {
-                string key = Key(member);
-                int count = seen.TryGetValue(key, out int earlier) ? earlier + 1 : 0;
-
-                seen[key] = count;
-
-                return count == 0 ? key : $"{key}#{count}";
-            })];
-        }
+        private static bool Same(SyntaxNode left, SyntaxNode right) => Normalized(left) == Normalized(right);
 
         private static string Key(MemberDeclarationSyntax member) => member switch
         {
@@ -298,9 +204,6 @@ internal static class SyntaxMerge
         };
 
         private static string Qualified(string container, string name) => container.Length == 0 ? name : $"{container}.{name}";
-
-        private static string Indented(SyntaxNode node) =>
-            string.Join('\n', node.ToFullString().Trim('\n', '\r').Split('\n').Select(line => "    " + line.TrimEnd('\r')));
 
         private static string Difference(SyntaxNode old, SyntaxNode @new)
         {
@@ -337,6 +240,144 @@ internal static class SyntaxMerge
             }
 
             return string.Join('\n', lines);
+        }
+
+        private sealed class MemberMerge(
+            Merger merger,
+            string container,
+            SyntaxList<MemberDeclarationSyntax> old,
+            SyntaxList<MemberDeclarationSyntax> @new,
+            SyntaxList<MemberDeclarationSyntax> disk)
+        {
+            private readonly List<string> _oldKeys = Keys(old);
+
+            private readonly List<string> _newKeys = Keys(@new);
+
+            private readonly List<string> _resultKeys = Keys(disk);
+
+            internal List<MemberDeclarationSyntax> Result { get; } = [.. disk];
+
+            internal void RemoveDropped()
+            {
+                for (int index = 0; index < old.Count; index++)
+                {
+                    if (!_newKeys.Contains(_oldKeys[index]) && _resultKeys.IndexOf(_oldKeys[index]) is var at and >= 0)
+                    {
+                        Remove(old[index], at);
+                    }
+                }
+            }
+
+            internal void ChangeKept()
+            {
+                for (int index = 0; index < @new.Count; index++)
+                {
+                    int earlier = _oldKeys.IndexOf(_newKeys[index]);
+
+                    if (earlier >= 0 && (!Same(old[earlier], @new[index]) || old[earlier] is BaseNamespaceDeclarationSyntax))
+                    {
+                        Change(old[earlier], @new[index], _newKeys[index]);
+                    }
+                }
+            }
+
+            internal void AddDeclared()
+            {
+                for (int index = 0; index < @new.Count; index++)
+                {
+                    if (_oldKeys.Contains(_newKeys[index]))
+                    {
+                        continue;
+                    }
+
+                    if (_resultKeys.Contains(_newKeys[index]))
+                    {
+                        merger.Problems.Add(
+                            $"{merger.Source}: {Name(container, @new[index])} is declared already, and these fields declare it: rename that member first.");
+                    }
+                    else
+                    {
+                        Add(index);
+                    }
+                }
+            }
+
+            private void Remove(MemberDeclarationSyntax member, int at)
+            {
+                if (Same(Result[at], member))
+                {
+                    Result.RemoveAt(at);
+                    _resultKeys.RemoveAt(at);
+                    merger.Changes.Add($"removed {Name(container, member)}");
+                }
+                else
+                {
+                    merger.Problems.Add($"{merger.Source}: {Name(container, member)} was changed by hand, and these fields remove it. Remove it by hand.");
+                }
+            }
+
+            private void Change(MemberDeclarationSyntax was, MemberDeclarationSyntax becomes, string key)
+            {
+                int at = _resultKeys.IndexOf(key);
+
+                if (at < 0)
+                {
+                    merger.Problems.Add(
+                        $"{merger.Source}: {Name(container, becomes)}, which new-feature wrote, is not in the file, and these fields change it. Put it "
+                        + $"back, or make the change by hand:\n{Indented(becomes)}");
+                }
+                else if (merger.Member(container, was, becomes, Result[at]) is { } merged)
+                {
+                    Result[at] = merged;
+                }
+            }
+
+            private void Add(int index)
+            {
+                int position = Position(index);
+
+                if (position == 0 && Result.Count > 0 && _newKeys.IndexOf(_resultKeys[0]) is var shifted and >= 0
+                    && Result[0].GetLeadingTrivia().All(trivia => trivia.IsKind(SyntaxKind.WhitespaceTrivia) || trivia.IsKind(SyntaxKind.EndOfLineTrivia)))
+                {
+                    Result[0] = Result[0].WithLeadingTrivia(@new[shifted].GetLeadingTrivia());
+                }
+
+                Result.Insert(position, @new[index]);
+                _resultKeys.Insert(position, _newKeys[index]);
+                merger.Changes.Add($"added {Name(container, @new[index])}");
+            }
+
+            private int Position(int index)
+            {
+                int previous = Enumerable.Range(0, index).Reverse().Select(candidate => _resultKeys.IndexOf(_newKeys[candidate])).FirstOrDefault(found => found >= 0, -1);
+
+                if (previous >= 0)
+                {
+                    return previous + 1;
+                }
+
+                int next = Enumerable.Range(index + 1, @new.Count - index - 1).Select(candidate => _resultKeys.IndexOf(_newKeys[candidate])).FirstOrDefault(found => found >= 0, -1);
+
+                return next >= 0 ? next : Result.Count;
+            }
+
+            private static List<string> Keys(SyntaxList<MemberDeclarationSyntax> members)
+            {
+                var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+
+                return [.. members.Select(member =>
+                {
+                    string key = Key(member);
+                    int count = seen.TryGetValue(key, out int earlier) ? earlier + 1 : 0;
+
+                    seen[key] = count;
+
+                    return count == 0 ? key : $"{key}#{count}";
+                })];
+            }
+
+            private static string Indented(SyntaxNode node) =>
+                string.Join('\n', node.ToFullString().Trim('\n', '\r').Split('\n').Select(line => "    " + line.TrimEnd('\r')));
         }
     }
 }

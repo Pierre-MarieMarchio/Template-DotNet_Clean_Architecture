@@ -46,6 +46,9 @@ internal static class ProjectLayout
 
     public static string Client(LocatedProject project) => Path.Combine("Src", "Presentation", FolderOf(project, "Presentation.Client"));
 
+    public static string ArchitectureTests(LocatedProject project) =>
+        Path.Combine("Tests", "Architecture", FolderOf(project, "Architecture.Tests"), ProjectName(project, "Architecture.Tests") + ".csproj");
+
     public static string EndToEndTests(LocatedProject project) =>
         Path.Combine("Tests", "EndToEnd", FolderOf(project, "EndToEnd.Tests"), ProjectName(project, "EndToEnd.Tests") + ".csproj");
 

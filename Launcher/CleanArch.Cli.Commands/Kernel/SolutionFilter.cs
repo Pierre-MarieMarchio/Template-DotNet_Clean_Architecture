@@ -55,7 +55,7 @@ internal static partial class SolutionFilter
         }
     }
 
-    private static string[] ProjectPaths(string solution)
+    public static string[] ProjectPaths(string solution)
     {
         string text = File.ReadAllText(solution);
         IEnumerable<string> paths = solution.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)

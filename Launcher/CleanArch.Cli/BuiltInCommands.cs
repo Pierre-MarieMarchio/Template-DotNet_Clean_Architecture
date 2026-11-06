@@ -1,6 +1,7 @@
 ﻿using CleanArch.Cli.Adopt;
 using CleanArch.Cli.Commands.Bootstrap;
 using CleanArch.Cli.Commands.Build;
+using CleanArch.Cli.Commands.Check;
 using CleanArch.Cli.Commands.Compose;
 using CleanArch.Cli.Commands.Coverage;
 using CleanArch.Cli.Commands.Database;
@@ -26,6 +27,7 @@ internal static class BuiltInCommands
     [
         HelpCommand.Registration,
         FormatCommand.Registration,
+        CheckCommand.Registration,
         BuildCommand.Registration,
         TestCommand.Registration,
         CoverageCommand.Registration,

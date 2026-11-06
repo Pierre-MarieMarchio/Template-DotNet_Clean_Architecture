@@ -160,6 +160,35 @@ public sealed class AcceptanceSelectionTests
     }
 
     [Fact]
+    public void EveryPathARuleNames_ExistsInTheCheckout_UnlessGitIgnoresIt()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+        var ignored = File.ReadAllLines(Path.Combine(root, ".gitignore")).Select(line => line.Trim()).ToHashSet(StringComparer.Ordinal);
+        string[] paths = [.. Rules().SelectMany(rule => rule.Paths).Distinct(StringComparer.Ordinal)];
+
+        paths.Length.ShouldBeGreaterThan(30, "Far fewer paths than rules.json names were read.");
+        paths.Where(path => !ignored.Contains(path.Replace("/**", "/", StringComparison.Ordinal)) && !ignored.Contains(path))
+            .Where(path => !Exists(root, path))
+            .ShouldBeEmpty("rules.json names paths the checkout does not hold, so a rule selects nothing: drop each, or fix its spelling.");
+    }
+
+    [Fact]
+    public void ThePathReader_IsSensitive_AndSeesAFolderAndAFileMissing()
+    {
+        string root = ProjectReferenceGraph.RepositoryRoot;
+
+        Exists(root, ".template.config/acceptance/**").ShouldBeTrue();
+        Exists(root, ".template.config/acceptance/rules.json").ShouldBeTrue();
+        Exists(root, ".template.config/variants/never-existed/**").ShouldBeFalse();
+        Exists(root, ".template.config/acceptance/never-existed.json").ShouldBeFalse();
+    }
+
+    private static bool Exists(string root, string path) =>
+        path.EndsWith("/**", StringComparison.Ordinal)
+            ? Directory.Exists(Path.Combine(root, path[..^3]))
+            : File.Exists(Path.Combine(root, path));
+
+    [Fact]
     public void EveryTagARuleNames_IsCarriedByALeg_AndEveryLegTag_ByARule()
     {
         var named = Rules().SelectMany(rule => rule.Tags).Where(tag => tag is not _everyLeg and not _noLeg).ToHashSet(StringComparer.Ordinal);

@@ -56,11 +56,15 @@ Each group comes in no fixed order:
   ([#163](https://github.com/Pierre-MarieMarchio/cleanarch-dotnet/issues/163)):
   `Tools/Tasks.cs` and its generators leave the generated tree for `dotnet cleanarch`, pinned
   beside `dotnet-ef`, which also takes over the launcher's additions, so that `dnx CleanArch.Create`
-  only creates; a team changes the tool through its configuration, its code templates, its local
-  commands or the ejection of one command, as
-  [ADR 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
-  [ADR 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) decide. A project
-  already records its generation in `cleanarch.json`, which `Tools/Tasks.cs` reads.
+  only creates, as [ADR 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md)
+  and [ADR 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md) decide. The tool
+  holds the build, the tests, the coverage, the gate, the formatting, the migrations, the OpenAPI
+  reference and its clients, the stack, the five generators and `remove feature`, the additions,
+  `bootstrap`, `adopt`, the project's own commands and the ejection of one, as
+  [the project tool](../reference/cli.md) lists. What remains: `templates copy` and the code
+  templates a generator writes from, the steps the project file adds to a command, the commands for
+  `check`, `docs-index`, `hygiene` and `upgrade-report`, then `Tools/Tasks.cs` and the generators'
+  scripts leaving the generated tree, with every page, workflow and test that cites them.
 
 ## Not planned
 

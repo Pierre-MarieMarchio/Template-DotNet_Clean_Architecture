@@ -47,16 +47,10 @@ public sealed class ProjectFolderTests
         _trees
             .Select(tree => Path.Combine(ProjectReferenceGraph.RepositoryRoot, tree))
             .Where(Directory.Exists)
-            .SelectMany(ProjectFilesUnder)
-            .Select(path => Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, path).Replace('\\', '/'))
+            .SelectMany(tree => RepositoryTree.SourceFiles(tree, "*.csproj", _skippedFolders))
+            .Select(path => RepositoryTree.Relative(path))
             .Where(relative => !relative.StartsWith(_webWorkspace, StringComparison.Ordinal))
             .Order(StringComparer.Ordinal);
-
-    private static IEnumerable<string> ProjectFilesUnder(string directory) =>
-        Directory.EnumerateFiles(directory, "*.csproj")
-            .Concat(Directory.EnumerateDirectories(directory)
-                .Where(child => !_skippedFolders.Contains(Path.GetFileName(child)))
-                .SelectMany(ProjectFilesUnder));
 
     [Fact]
     public void TheRule_IsSensitive_AndSeesAMisplacedAndAMisnamedProject()

@@ -313,7 +313,7 @@ public sealed class LocalStackParityTests
         $"{FromTheRoot(context)} with {FromTheRoot(Path.Combine(context, dockerfile))}";
 
     private static string FromTheRoot(string path) =>
-        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, Path.GetFullPath(path)).Replace('\\', '/');
+        RepositoryTree.Relative(Path.GetFullPath(path));
 
     private static string ProjectRecordingAWebAssemblyApp(string root)
     {

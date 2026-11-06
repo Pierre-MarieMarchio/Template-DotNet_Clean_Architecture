@@ -17,7 +17,7 @@ public sealed class MarkdownEncodingTests
 
         string[] refused = [.. MarkdownFiles(root)
             .Where(file => Problem(File.ReadAllBytes(file)) is not null)
-            .Select(file => $"{Path.GetRelativePath(root, file).Replace('\\', '/')}: {Problem(File.ReadAllBytes(file))}")
+            .Select(file => $"{RepositoryTree.Relative(root, file)}: {Problem(File.ReadAllBytes(file))}")
             .Order(StringComparer.Ordinal)];
 
         refused.ShouldBeEmpty(

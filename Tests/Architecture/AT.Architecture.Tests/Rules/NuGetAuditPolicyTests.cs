@@ -72,11 +72,8 @@ public sealed partial class NuGetAuditPolicyTests
             .SelectMany(element => AuditCode().Matches(element.Value).Select(match => match.Value))];
 
     private static IEnumerable<string> BuildFiles() =>
-        Directory.EnumerateFiles(_root, "*.*", SearchOption.AllDirectories)
-            .Where(path => Path.GetExtension(path) is ".csproj" or ".props" or ".targets")
-            .Where(path => !Path.GetRelativePath(_root, path)
-                .Split(Path.DirectorySeparatorChar)
-                .Any(_scratchFolders.Contains));
+        RepositoryTree.SourceFiles(_root, "*.*", _scratchFolders)
+            .Where(path => Path.GetExtension(path) is ".csproj" or ".props" or ".targets");
 
     [GeneratedRegex(@"NU190[1-4]")]
     private static partial Regex AuditCode();

@@ -115,9 +115,8 @@ public sealed class TestProjectMirrorTests
 
         return
         [
-            .. Directory.EnumerateFiles(Path.Combine(root, "Tests"), "*.csproj", SearchOption.AllDirectories)
-                .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
-                .Where(path => !path.Contains("/node_modules/", StringComparison.Ordinal)),
+            .. RepositoryTree.SourceFiles(Path.Combine(root, "Tests"), "*.csproj", ["node_modules"])
+                .Select(path => RepositoryTree.Relative(root, path)),
         ];
     }
 

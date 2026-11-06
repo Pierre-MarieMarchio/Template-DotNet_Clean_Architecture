@@ -48,13 +48,13 @@ public sealed class WindowsTestProjectTests
     [Fact]
     public void NoBuildFile_SetsAWindowsTargetFramework()
     {
-        string[] buildFiles = [.. Walk(ProjectReferenceGraph.RepositoryRoot)
+        string[] buildFiles = [.. RepositoryTree.SourceFiles(ProjectReferenceGraph.RepositoryRoot, "*", _skippedFolders)
             .Where(file => Path.GetExtension(file) is ".props" or ".targets")];
 
         buildFiles.ShouldNotBeEmpty("Directory.Build.props sets the target framework of every project; a search that finds no build file is broken.");
         buildFiles
             .Where(file => _windowsFrameworkInBuildFile.IsMatch(File.ReadAllText(file)) || _severalFrameworks.IsMatch(File.ReadAllText(file)))
-            .Select(Relative)
+            .Select(RepositoryTree.Relative)
             .ShouldBeEmpty(
                 "A Windows target framework set by a .props or .targets file is one the tasks cannot see when they read a test project's own "
                 + "file: set it in the project file of the Windows project and of its tests.");
@@ -89,7 +89,7 @@ public sealed class WindowsTestProjectTests
 
     private static IEnumerable<TestProject> TestProjects() =>
         TestRoots()
-            .SelectMany(root => Walk(root))
+            .SelectMany(root => RepositoryTree.SourceFiles(root, "*", _skippedFolders))
             .Where(file => file.EndsWith(".csproj", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal)
             .Select(file =>
@@ -101,7 +101,7 @@ public sealed class WindowsTestProjectTests
                     .OfType<string>()
                     .Select(include => Path.GetFullPath(Path.Combine(folder, include.Replace('\\', '/'))))];
 
-                return new TestProject(Relative(file), text, references);
+                return new TestProject(RepositoryTree.Relative(file), text, references);
             });
 
     private static IEnumerable<string> TestRoots()
@@ -117,13 +117,4 @@ public sealed class WindowsTestProjectTests
 
     private static bool IsWindowsProject(string projectFile) =>
         File.Exists(projectFile) && _namesWindows.IsMatch(File.ReadAllText(projectFile));
-
-    private static string Relative(string file) =>
-        Path.GetRelativePath(ProjectReferenceGraph.RepositoryRoot, file).Replace('\\', '/');
-
-    private static IEnumerable<string> Walk(string folder) =>
-        Directory.EnumerateFiles(folder)
-            .Concat(Directory.EnumerateDirectories(folder)
-                .Where(child => !_skippedFolders.Contains(Path.GetFileName(child)))
-                .SelectMany(Walk));
 }

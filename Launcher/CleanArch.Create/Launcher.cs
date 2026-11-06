@@ -1,10 +1,13 @@
 ﻿using System.Text.RegularExpressions;
 using CleanArch.Create.Projects;
-using CleanArch.Tooling;
 using CleanArch.Tooling.Additions;
+using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Output;
+using CleanArch.Tooling.Processes;
 using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
+using CleanArch.Tooling.Templates;
 using Spectre.Console;
 
 namespace CleanArch.Create;
@@ -217,7 +220,7 @@ public sealed partial class Launcher
         return string.Join(Environment.NewLine, lines.Prepend($"{char.ToUpperInvariant(subject[0])}{subject[1..]} options, asked one by one when you don't pass them ({manifest.ShortName})"));
     }
 
-    internal static string? MarkdownSection(string path, string heading) => CleanArch.Tooling.MarkdownSection.Of(path, heading);
+    internal static string? MarkdownSection(string path, string heading) => Tooling.Markdown.MarkdownSection.Of(path, heading);
 
     private static ProjectFacts Required(ProjectFacts? project, string command) =>
         project ?? throw new LauncherException(

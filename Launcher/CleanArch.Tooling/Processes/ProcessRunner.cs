@@ -1,8 +1,9 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using CleanArch.Tooling.Failures;
 
-namespace CleanArch.Tooling;
+namespace CleanArch.Tooling.Processes;
 
 public sealed record ProcessCall(string FileName, string WorkingDirectory, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Environment);
 

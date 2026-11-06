@@ -1,8 +1,11 @@
 ﻿using System.CommandLine;
-using CleanArch.Tooling;
 using CleanArch.Tooling.Additions;
+using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
+using CleanArch.Tooling.Output;
+using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
+using CleanArch.Tooling.Templates;
 using Spectre.Console;
 
 namespace CleanArch.Cli;

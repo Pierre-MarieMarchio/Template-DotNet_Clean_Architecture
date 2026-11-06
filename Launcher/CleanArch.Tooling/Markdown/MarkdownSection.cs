@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Tooling;
+﻿namespace CleanArch.Tooling.Markdown;
 
 public static class MarkdownSection
 {

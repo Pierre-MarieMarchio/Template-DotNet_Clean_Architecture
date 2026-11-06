@@ -1,6 +1,7 @@
 ﻿using System.IO.Compression;
 using System.Reflection;
 using System.Text;
+using CleanArch.Tooling.Failures;
 
 namespace CleanArch.Tooling.Manifests;
 

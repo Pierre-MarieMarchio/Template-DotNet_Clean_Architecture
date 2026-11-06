@@ -1,5 +1,5 @@
 ﻿using CleanArch.Create;
-using CleanArch.Tooling;
+using CleanArch.Tooling.Output;
 using Spectre.Console;
 
 IAnsiConsole console = Terminal.Open();

@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using Spectre.Console;
 
-namespace CleanArch.Tooling;
+namespace CleanArch.Tooling.Output;
 
 public static class Terminal
 {

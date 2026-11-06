@@ -1,4 +1,4 @@
-﻿using CleanArch.Tooling;
+﻿using CleanArch.Tooling.Output;
 using Shouldly;
 using Spectre.Console.Testing;
 using Xunit;

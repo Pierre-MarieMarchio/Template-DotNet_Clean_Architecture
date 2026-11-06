@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace CleanArch.Tooling;
+namespace CleanArch.Tooling.Processes;
 
 public static partial class ProcessFailure
 {

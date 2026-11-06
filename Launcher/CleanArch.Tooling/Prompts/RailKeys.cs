@@ -1,4 +1,5 @@
-﻿using Spectre.Console;
+﻿using CleanArch.Tooling.Failures;
+using Spectre.Console;
 
 namespace CleanArch.Tooling.Prompts;
 

@@ -81,6 +81,20 @@ internal abstract class Generation(GenerationContext context)
 
     protected virtual int RefuseEdits(IReadOnlyList<string> failures) => Refuse(failures.Select(failure => $"{failure} {EditAdvice}"));
 
+    protected int RefuseAfterReport(IEnumerable<string> failures, string unwritten)
+    {
+        Report(ReportMode.Refused);
+
+        foreach (string failure in failures)
+        {
+            Error.WriteLine($"error: {failure}");
+        }
+
+        Error.WriteLine(unwritten);
+
+        return Failed;
+    }
+
     protected static string? ExistingFiles(string root, IEnumerable<Emission> emissions)
     {
         string[] existing = [.. emissions.Select(emission => emission.Path).Where(path => File.Exists(Path.Combine(root, path)))];

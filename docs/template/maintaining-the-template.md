@@ -772,13 +772,13 @@ the options there rather than through markers.
 | Facet | Where |
 |---|---|
 | Values | one generated symbol per recorded value, whose `replaces` names the key with the checkout's value, such as `"auth": "local"`, so that no other file holds the token; the name, the version, the scope and the part names follow the tokens the rest of the tree uses |
-| Parts | `.template.config/variants/project-file-web`, `.template.config/variants/project-file-presentation` and `.template.config/variants/project-file-web-presentation`, each the checkout's file plus its parts, copied in its place by `anyWeb` and `anyPresentation` |
+| Parts | `.template.config/variants/project-file-web`, the checkout's file plus the web workspace, copied in its place by `anyWeb` |
 | Additions | `presentation-join` and `web-join` record the part they join, `client` with it, and `web-join` a package of the workspace; every writer keeps the key order and any key it does not know |
 | Tests | `ProjectFileTests` holds the file to the tree in every project; `TemplatePackagingTests` holds the checkout's file to the defaults, each variant to it, and every value to a symbol that replaces it; `CheckProjectFile.cs` holds each leg's file to its options |
 
 In this checkout `Src/Web`, `Src/Presentation/AT.Presentation.Client` and the API's external-identity mapping are the sources of
 shapes the defaults leave out, so `ProjectFileTests` reads them as absent, in a `templateMaintenance`
-block. A new option that is not a part gets its key in `cleanarch.json` and in the three variants,
+block. A new option that is not a part gets its key in `cleanarch.json` and in the variant,
 a generated symbol that replaces it, its place in the list of `.template.config/acceptance/CheckProjectFile.cs`, and a check in
 `ProjectFileTests` when the tree shows it.
 

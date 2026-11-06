@@ -46,9 +46,7 @@
     },
     {
       "paths": [
-        ".template.config/variants/project-file-web/**",
-        ".template.config/variants/project-file-presentation/**",
-        ".template.config/variants/project-file-web-presentation/**"
+        ".template.config/variants/project-file-web/**"
       ],
       "tags": ["web", "presentation-avalonia", "presentation-blazor-server", "presentation-mcp", "presentation-wpf"]
     },

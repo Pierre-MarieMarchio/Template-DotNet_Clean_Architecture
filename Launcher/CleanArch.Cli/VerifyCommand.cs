@@ -60,7 +60,7 @@ internal static class VerifyCommand
         {
             error.WriteLine(
                 $"'verify' needs the initial migration of {missing}, and there is none yet. "
-                + "Run `dotnet run Tools/Tasks.cs bootstrap`, which creates it with migration-initial, then commit it (docs/guides/migrations.md).");
+                + $"Run `{CleanArchCommand.Name} {BootstrapCommand.Name}`, which creates it, then commit it (docs/guides/migrations.md).");
             return CleanArchCommand.Failed;
         }
 
@@ -196,7 +196,7 @@ internal static class VerifyCommand
         string reference = ProjectLayout.OpenApiReference(project);
         if (!File.Exists(Path.Combine(root, reference)))
         {
-            error.WriteLine($"{reference} is missing: run `dotnet run Tools/Tasks.cs openapi` first.");
+            error.WriteLine($"{reference} is missing: run `{CleanArchCommand.Name} {OpenApiCommand.Name}` first.");
             return CleanArchCommand.Failed;
         }
 
@@ -228,7 +228,7 @@ internal static class VerifyCommand
 
         if (!File.Exists(Path.Combine(root, reference)))
         {
-            error.WriteLine($"{reference} is missing: run `dotnet run Tools/Tasks.cs openapi` first.");
+            error.WriteLine($"{reference} is missing: run `{CleanArchCommand.Name} {OpenApiCommand.Name}` first.");
             return CleanArchCommand.Failed;
         }
 
@@ -271,7 +271,7 @@ internal static class VerifyCommand
                 error.WriteLine(
                     $"{generated.Replace('\\', '/')} differs from what Kiota writes from the OpenAPI reference:" + Environment.NewLine
                     + string.Join(Environment.NewLine, drifted.Select(path => "  " + path)) + Environment.NewLine
-                    + "Run `dotnet run Tools/Tasks.cs api-client` and commit what it writes.");
+                    + $"Run `{CleanArchCommand.Name} {OpenApiCommand.Name}` and commit what it writes.");
                 return CleanArchCommand.Failed;
             }
 

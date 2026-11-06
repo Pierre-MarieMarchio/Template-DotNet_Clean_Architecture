@@ -50,6 +50,9 @@ public sealed class NewUseCaseTests
     [Fact]
     public void Routing() => Expectations.Hold(RoutingCases);
 
+    [Fact]
+    public void Output() => Expectations.Hold(OutputCases);
+
     private static string NewTree(string scratch, params string[] repositories)
     {
         string root = Path.Combine(scratch, Guid.CreateVersion7().ToString("N"));
@@ -304,6 +307,52 @@ public sealed class NewUseCaseTests
             expect(result.Code == 1 && Same(before, Snapshot(root)), $"[{label}] a root-routed controller without a resource path to read did not stop the use case before it wrote.");
             expect(result.Error.Contains(fragment, StringComparison.Ordinal), $"[{label}] the refusal does not say '{fragment}': {result.Error}");
         }
+    }
+
+    private const string _outputDigest = "59500638cf42cafe496b4700494bc490670b8468071c4721f11c18acd3f6b884";
+
+    private static void OutputCases(string scratch, Action<bool, string> expect)
+    {
+        string digest = OutputDigest(scratch);
+
+        expect(
+            digest == _outputDigest,
+            $"The files, the edits and the report of add use-case are no longer those it wrote when this digest was recorded: digest {digest}, "
+            + $"recorded {_outputDigest}. A change to that output is a change for every project that runs add use-case: make it on purpose, then record the new digest.");
+    }
+
+    private static string OutputDigest(string scratch)
+    {
+        string[][] runs =
+        [
+            ["Invoices", "ApproveInvoice", "--kind", "command", "--input", "id, Reason:string"],
+            ["Invoices", "FindByCustomer", "--kind", "query", "--input", "id, Customer:string"],
+            ["Invoices", "GetInvoiceTotals", "--kind", "query"],
+        ];
+
+        string root = NewTree(scratch);
+        using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
+        void Feed(string text) => digest.AppendData(Encoding.UTF8.GetBytes(text.ReplaceLineEndings("\n") + "\u0000"));
+
+        foreach (string[] run in runs)
+        {
+            var before = Snapshot(root);
+            var result = Invoke(root, run);
+
+            Feed(string.Join(' ', run));
+            Feed($"{result.Code}");
+            Feed(result.Output);
+            Feed(result.Error);
+
+            foreach (var (path, hash) in Snapshot(root).Where(entry => !before.TryGetValue(entry.Key, out string? earlier) || earlier != entry.Value).OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            {
+                Feed(path);
+                Feed(hash == "<directory>" ? hash : File.ReadAllText(Path.Combine(root, path)));
+            }
+        }
+
+        return Convert.ToHexStringLower(digest.GetHashAndReset());
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>

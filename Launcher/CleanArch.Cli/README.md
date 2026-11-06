@@ -17,6 +17,8 @@ dotnet cleanarch test        # dotnet test of the solution at the project root
 dotnet cleanarch test --no-integration
                             # build every test project, run only the ones that need no Docker daemon
 dotnet cleanarch coverage    # dotnet test with coverage, then the floor coverage.minimum states
+dotnet cleanarch verify      # the whole gate: the repository checks, the build, every test,
+                             # the pending-model-changes checks and the vulnerable-packages audit
 ```
 
 `format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
@@ -26,6 +28,11 @@ first. It prints each file it saves; `--check` prints them on stderr and fails i
 writing.
 
 `build`, `test` and `coverage` each print the exact `dotnet ...` line they run, then forward its exit code.
+
+`verify` prints each line it runs and runs it at the project root. It chains its steps and stops at the first failing one, forwarding its exit code; its steps
+follow the project file: the client check runs where the file records `client`, the web workspace's
+install, audit, lint, test and build where it records a `web` workspace, and the identity context's
+pending-model-changes check where it records `auth: local`.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

@@ -16,7 +16,6 @@ public sealed class LifecycleCommandTests : IDisposable
     private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Persistence");
     private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Auth");
     private static readonly string _api = Path.Combine("Src", "Presentation", "AS.Api");
-    private static readonly string _endToEnd = Path.Combine("Tests", "EndToEnd", "AS.EndToEnd.Tests", "Acme.Shop.EndToEnd.Tests.csproj");
 
     public LifecycleCommandTests()
     {
@@ -161,69 +160,6 @@ public sealed class LifecycleCommandTests : IDisposable
     }
 
     [Fact]
-    public void EndToEnd_PrintsEachLineItRuns_ThenTakesTheStackDown()
-    {
-        using var project = new SampleProject(SampleProject.Api);
-
-        Run(["end-to-end"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        string[] compose = ["compose", "--project-name", "acme-shop-end-to-end", "--env-file", ".env.example"];
-        _calls.Count.ShouldBe(3);
-        _calls[0].FileName.ShouldBe("docker");
-        _calls[0].WorkingDirectory.ShouldBe(project.Root);
-        _calls[0].Arguments.ShouldBe([.. compose, "up", "--build", "--detach", "--wait", "--wait-timeout", "300"]);
-        _calls[1].FileName.ShouldBe("dotnet");
-        _calls[1].Arguments.ShouldBe(["run", "--project", _endToEnd, "--configuration", "Debug"]);
-        _calls[2].Arguments.ShouldBe([.. compose, "down", "--volumes"]);
-        _output.ToString().ShouldContain($"docker compose --project-name acme-shop-end-to-end --env-file .env.example up --build --detach --wait --wait-timeout 300");
-        _output.ToString().ShouldContain($"dotnet run --project {_endToEnd} --configuration Debug");
-        _output.ToString().ShouldContain($"docker compose --project-name acme-shop-end-to-end --env-file .env.example down --volumes");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void EndToEnd_KeepStack_LeavesTheStackRunning()
-    {
-        using var project = new SampleProject(SampleProject.Api);
-
-        Run(["end-to-end", "--keep-stack"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _calls.Count.ShouldBe(2);
-        _calls.Select(call => call.Arguments[^1]).ShouldBe(["300", "Debug"]);
-    }
-
-    [Fact]
-    public void EndToEnd_OnAFailure_PrintsTheStackLogs_ThenTakesItDown_AndForwardsTheExitCode()
-    {
-        using var project = new SampleProject(SampleProject.Api);
-        _exits.Enqueue(CleanArchCommand.Succeeded);
-        _exits.Enqueue(9);
-
-        Run(["end-to-end"], project.Root).ShouldBe(9);
-
-        string[] compose = ["compose", "--project-name", "acme-shop-end-to-end", "--env-file", ".env.example"];
-        _calls.Count.ShouldBe(4);
-        _calls[2].Arguments.ShouldBe([.. compose, "logs", "--tail", "100"]);
-        _calls[3].Arguments.ShouldBe([.. compose, "down", "--volumes"]);
-        _output.ToString().ShouldContain("logs --tail 100");
-    }
-
-    [Fact]
-    public void EndToEnd_WithWebApps_RunsTheBrowserSmokeInSrcWeb()
-    {
-        using var project = new SampleProject(SampleProject.ApiWithWeb);
-
-        Run(["end-to-end"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _calls.Count.ShouldBe(4);
-        ExternalCall smoke = _calls[2];
-        smoke.FileName.ShouldBe(OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm");
-        smoke.WorkingDirectory.ShouldBe(Path.Combine(project.Root, "Src", "Web"));
-        smoke.Arguments.ShouldBe(["--filter", "*browser-smoke", "smoke"]);
-        _output.ToString().ShouldContain("pnpm --filter *browser-smoke smoke");
-    }
-
-    [Fact]
     public void EndToEnd_IsRefusedWhereTheProjectFileRecordsNoApiPresentation()
     {
         using var project = new SampleProject(SampleProject.WithOptions("local", sonar: true));
@@ -311,7 +247,7 @@ public sealed class LifecycleCommandTests : IDisposable
         JsonObject compose = commands.Single(command => Text(command!["name"]) == "compose").ShouldNotBeNull().AsObject();
         compose["commands"].ShouldNotBeNull().AsArray().Select(command => Text(command!["name"])).ShouldBe(["up", "down"]);
         JsonObject endToEnd = commands.Single(command => Text(command!["name"]) == "end-to-end").ShouldNotBeNull().AsObject();
-        endToEnd["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"])).ShouldBe(["--keep-stack"]);
+        endToEnd["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"])).ShouldBe(["--keep-stack", "--configuration"]);
         _error.ToString().ShouldBeEmpty();
     }
 

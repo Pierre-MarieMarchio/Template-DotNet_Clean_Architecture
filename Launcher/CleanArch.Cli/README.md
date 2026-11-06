@@ -40,6 +40,7 @@ dotnet cleanarch compose up  # docker compose up -d --wait
 dotnet cleanarch compose down # docker compose down
 dotnet cleanarch end-to-end  # the stack from .env.example, the end-to-end tests, then down --volumes
 dotnet cleanarch end-to-end --keep-stack # the same, leaving the stack running
+dotnet cleanarch end-to-end --configuration Release # the tests' configuration, Debug by default
 dotnet cleanarch sonar       # SonarCloud, where the project file records sonar true
 dotnet cleanarch add feature Widgets Widget --access owner --deletion delete # a feature in every layer, composed
 dotnet cleanarch add field Widgets "Code:string(20)='none'"                  # fields added to a feature add feature wrote
@@ -91,6 +92,14 @@ and writes nothing. `add web-package` exists only where the project file records
 
 `run` and `end-to-end` exist only where the project file records a presentation of framework
 `api`; `sonar` only where it records `sonar` true.
+
+`end-to-end` gives the stack, the tests and the browser smoke the variables the task gives them,
+each only where it is unset: with external auth `EXTERNAL_AUTH_AUTHORITY` and
+`EXTERNAL_AUTH_AUDIENCE`, plus `EXTERNAL_AUTH_INTERACTIVE_CLIENT_ID` where a web app renders on the
+server and `EXTERNAL_AUTH_BROWSER_CLIENT_ID` where one runs on WebAssembly; with files
+`JOBS_FILES_INSPECT_INTERVAL`. The smoke reads `SMOKE_ENV_FILE=.env.example`, and a failing smoke
+says to install the packages and Chromium. A failing step prints the stack's logs, and the stack
+comes down unless `--keep-stack`.
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.

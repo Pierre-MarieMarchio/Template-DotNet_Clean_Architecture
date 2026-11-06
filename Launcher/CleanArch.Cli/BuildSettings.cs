@@ -10,11 +10,7 @@ internal sealed record BuildSettings(string Configuration, int? MaxCpuCount)
 
     public static Options Add(Command command)
     {
-        Option<string> configuration = new("--configuration", "-c")
-        {
-            Description = "The build configuration, Debug or Release.",
-            DefaultValueFactory = _ => "Debug",
-        };
+        Option<string> configuration = AddConfiguration(command);
         Option<int?> maxCpuCount = new("-m", "-maxcpucount")
         {
             Description = "Cap the build's nodes and the test modules run at once, as in -m:2, on a machine short of memory.",
@@ -26,9 +22,19 @@ internal sealed record BuildSettings(string Configuration, int? MaxCpuCount)
                 result.AddError("-m needs a whole number of at least 1, as in -m:2.");
             }
         });
-        command.Options.Add(configuration);
         command.Options.Add(maxCpuCount);
         return new Options(configuration, maxCpuCount);
+    }
+
+    public static Option<string> AddConfiguration(Command command)
+    {
+        Option<string> configuration = new("--configuration", "-c")
+        {
+            Description = "The build configuration, Debug or Release.",
+            DefaultValueFactory = _ => "Debug",
+        };
+        command.Options.Add(configuration);
+        return configuration;
     }
 
     public sealed record Options(Option<string> Configuration, Option<int?> MaxCpuCount)

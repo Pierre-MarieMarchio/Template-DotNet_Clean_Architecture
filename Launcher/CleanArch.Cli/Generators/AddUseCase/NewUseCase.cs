@@ -137,81 +137,68 @@ internal static class NewUseCase
         string root = Path.GetFullPath(request.Root);
         var spec = problems.Count == 0 ? Check(request, root, problems) : null;
 
-        if (spec is null)
-        {
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        spec = spec with { Routing = ReadRouting(root, spec) };
-
-        var plan = Plan(spec, root, out string? skipped);
-        var editor = new TextEdits.Editor(root);
-        List<Emission> contracts = Http(editor, root, spec);
-        string[] existing = [.. plan.Concat(contracts).Select(emission => emission.Path).Where(path => File.Exists(Path.Combine(root, path)))];
-
-        if (existing.Length > 0)
-        {
-            problems.Add(
-                $"{existing.Length} of the files to write already exist, and none is ever overwritten:\n"
-                + string.Join("\n", existing.Select(path => $"  {path}")));
-
-            return Refusal.Write(error, problems, _usage);
-        }
-
-        if (editor.Failures.Count > 0)
-        {
-            Report(output, root, spec, plan, skipped, Mode.Refused);
-
-            foreach (string failure in editor.Failures)
-            {
-                error.WriteLine($"error: {failure}");
-            }
-
-            error.WriteLine("Nothing was written: every edit is made or none is. Put back the line the failed edit is placed beside, or make the edit above by hand.");
-
-            return 1;
-        }
-
-        if (request.DryRun)
-        {
-            Report(output, root, spec, plan, skipped, Mode.DryRun);
-            output.WriteLine();
-            output.WriteLine("--dry-run: nothing was written and nothing was run.");
-
-            return 0;
-        }
-
-        var replaced = TextEdits.Replacements(editor).ToList();
-
-        if (spec.Manifest is not null)
-        {
-            replaced.Add(ManifestWith(root, spec.Features, [.. plan, .. contracts], editor));
-        }
-
-        try
-        {
-            TextEdits.Commit(root, [.. plan.Concat(contracts).Select(emission => (emission.Path, emission.Bytes()))], replaced);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            error.WriteLine($"error: nothing was left behind, but the write failed: {exception.Message}");
-
-            return 1;
-        }
-
-        Report(output, root, spec, plan, skipped, Mode.Applied);
-
-        return contracts.Count == 0 && editor.Applied.Count == 0
-            || TextEdits.RunAll(TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), run, output, error, "the use case's files, its action, its contracts and its route's row")
-                ? 0
-                : 1;
+        return spec is null
+            ? Refusal.Write(error, problems, _usage)
+            : new UseCaseGeneration(spec with { Routing = ReadRouting(root, spec) }, new GenerationContext(root, request.DryRun, output, error), run).Generate();
     }
 
-    private enum Mode
+    private sealed class UseCaseGeneration(Spec spec, GenerationContext context, Func<TextEdits.Command, int> run) : Generation(context)
     {
-        Applied,
-        DryRun,
-        Refused,
+        private readonly TextEdits.Editor _editor = new(context.Root);
+
+        private readonly List<(string Path, byte[] Original, byte[] Bytes)> _replaced = [];
+
+        private List<Emission> _plan = [];
+
+        private List<Emission> _contracts = [];
+
+        private string? _skipped;
+
+        protected override string Usage => _usage;
+
+        protected override bool StopsAtDryRun => true;
+
+        protected override IReadOnlyList<string> EditFailures => _editor.Failures;
+
+        protected override IReadOnlyList<(string Path, byte[] Bytes)> Created => [.. _plan.Concat(_contracts).Select(emission => (emission.Path, emission.Bytes()))];
+
+        protected override IReadOnlyList<(string Path, byte[] Original, byte[] Bytes)> Replaced => _replaced;
+
+        protected override bool Draft(List<string> problems)
+        {
+            _plan = NewUseCase.Plan(spec, Root, out _skipped);
+            _contracts = Http(_editor, Root, spec);
+
+            if (ExistingFiles(Root, _plan.Concat(_contracts)) is { } existing)
+            {
+                problems.Add(existing);
+            }
+
+            return problems.Count == 0;
+        }
+
+        protected override int RefuseEdits(IReadOnlyList<string> failures) =>
+            RefuseAfterReport(failures, "Nothing was written: every edit is made or none is. Put back the line the failed edit is placed beside, or make the edit above by hand.");
+
+        protected override bool Record(List<string> problems)
+        {
+            _replaced.AddRange(TextEdits.Replacements(_editor));
+
+            if (spec.Manifest is not null)
+            {
+                _replaced.Add(ManifestWith(Root, spec.Features, [.. _plan, .. _contracts], _editor));
+            }
+
+            return true;
+        }
+
+        protected override void Report(ReportMode mode) => NewUseCase.Report(Output, Root, spec, _plan, _skipped, mode);
+
+        protected override int Finish() =>
+            _contracts.Count == 0 && _editor.Applied.Count == 0
+            || TextEdits.RunAll(TextEdits.ContractSteps(Root, FolderOf(spec.Prefix, "Presentation.Client"), built: false), run, Output, Error, "the use case's files, its action, its contracts and its route's row")
+                ? Succeeded
+                : Failed;
     }
 
     private static Request Parse(string[] args, List<string> problems)
@@ -909,21 +896,7 @@ internal static class NewUseCase
         return emissions;
     }
 
-    private static (string Path, byte[] Original, byte[] Bytes) ManifestWith(string root, string features, List<Emission> written, TextEdits.Editor editor)
-    {
-        var manifest = FeatureManifest.Read(root, features, out _)!;
-
-        foreach (var emission in written)
-        {
-            manifest.Record(emission.Path, emission.Bytes());
-        }
-
-        manifest.Record(editor);
-
-        return manifest.Replacement;
-    }
-
-    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string? skipped, Mode mode)
+    private static void Report(TextWriter output, string root, Spec spec, List<Emission> plan, string? skipped, ReportMode mode)
     {
         string p = spec.Prefix;
         string f = spec.Features;
@@ -935,7 +908,7 @@ internal static class NewUseCase
         string api = $"{Presentation}/{FolderOf(p, "Api")}";
         bool hasApi = Directory.Exists(Path.Combine(root, api));
 
-        output.WriteLine($"{(mode == Mode.Applied ? "Wrote" : "Would write")} {plan.Count} files for the {spec.Kind} {u} in {f}:");
+        output.WriteLine($"{(mode == ReportMode.Applied ? "Wrote" : "Would write")} {plan.Count} files for the {spec.Kind} {u} in {f}:");
 
         foreach (var emission in plan)
         {
@@ -1052,8 +1025,8 @@ internal static class NewUseCase
         output.WriteLine();
         output.WriteLine(mode switch
         {
-            Mode.Applied => $"To serve it over HTTP, the edit made in {where}:",
-            Mode.DryRun => $"To serve it over HTTP, the edit a run without --dry-run makes in {where}:",
+            ReportMode.Applied => $"To serve it over HTTP, the edit made in {where}:",
+            ReportMode.DryRun => $"To serve it over HTTP, the edit a run without --dry-run makes in {where}:",
             _ => $"To serve it over HTTP, the edit by hand in {where}:",
         });
         output.WriteLine($"  the usings it lacks  {ControllerUsings(spec)[0]};");
@@ -1091,10 +1064,10 @@ internal static class NewUseCase
             }
         }
 
-        if (mode != Mode.Applied)
+        if (mode != ReportMode.Applied)
         {
             output.WriteLine();
-            output.WriteLine(mode == Mode.DryRun
+            output.WriteLine(mode == ReportMode.DryRun
                 ? "Then a run without --dry-run rewrites what the contract feeds, in this order:"
                 : "Then rewrite what the contract feeds, once the edit is made:");
 
@@ -1108,7 +1081,7 @@ internal static class NewUseCase
             ? "written in full, from /api"
             : "relative to that table's 'Under' prefix";
 
-        output.WriteLine(mode == Mode.Applied
+        output.WriteLine(mode == ReportMode.Applied
             ? $"and its row, added to the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, {written}:"
             : $"and its row in the table of {spec.Features} under ## Routes in docs/reference/api.md, which ApiRouteTableTests reads, {written}:");
         output.WriteLine("  " + RouteRow(spec));

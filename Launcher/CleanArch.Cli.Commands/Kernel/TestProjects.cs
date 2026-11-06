@@ -42,7 +42,7 @@ internal static class TestProjects
     public static string SkipLine(string root, string test) =>
         $"Skipped {FolderOf(root, test)}: it targets {WindowsFramework(test)} and runs on Windows alone.";
 
-    private static string? WindowsFramework(string test) =>
+    public static string? WindowsFramework(string test) =>
         _windowsTargetFramework.Match(File.ReadAllText(test)) is { Success: true } match ? match.Groups["framework"].Value : null;
 
     private static string FolderOf(string root, string test) => ProjectPath.Relative(root, Path.GetDirectoryName(test)!);

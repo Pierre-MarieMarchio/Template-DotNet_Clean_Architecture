@@ -2,12 +2,12 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.AddFeature;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Xunit;
 using static CleanArch.Cli.Generators.AddFeature.NewFeature;
 using static CleanArch.Cli.Generators.Shared.FeatureCode;
-using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Tests.Generators;
 
@@ -349,12 +349,9 @@ public sealed partial class NewFeatureTests
 
     private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args)
     {
-        using var output = new StringWriter();
-        using var error = new StringWriter();
+        var (code, output, error) = GeneratorRun.Invoke(AddFeatureCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(run), Version), args);
 
-        int code = Run([.. args, "--root", root], output, error, new FakeExecutor(run), Version);
-
-        return (code, output.ToString().ReplaceLineEndings("\n"), error.ToString().ReplaceLineEndings("\n"));
+        return (code, output.ReplaceLineEndings("\n"), error.ReplaceLineEndings("\n"));
     }
 
     private static Dictionary<string, string> Snapshot(string root) =>
@@ -373,17 +370,9 @@ public sealed partial class NewFeatureTests
 
         (string[] Args, string Fragment)[] refusals =
         [
-            (["Widgets", "Widget"], "--access is required"),
             (["Widgets", "Widget", "--access", "owner"], "--deletion is required"),
-            (["Widgets", "Widget", "--access", "owner", "--deletion"], "'--deletion' needs a value"),
             (["Widgets", "Widget", "--access", "owner", "--deletion", "keep"], "--deletion 'keep' is not a choice"),
             (["Widgets", "Widget", "--access", "shared", "--deletion", "delete"], "Leave --deletion out"),
-            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--bogus", "x"], "'--bogus' is not an option"),
-            (["Widgets", "Widget", "--access", "owner", "--deletion", "delete", "--deletion", "anonymise"], "is given twice"),
-            (["Widgets", "Widget", "--access"], "'--access' needs a value"),
-            (["Widgets", "Widget", "--access", "owner", "--access", "shared"], "is given twice"),
-            (["Widgets", "--access", "owner"], "Expected two names"),
-            (["Widgets", "Widget", "Extra", "--access", "owner"], "Expected two names"),
             (["Widgets", "Widget", "--access", "everyone"], "is not a choice"),
             (["Widgets", "Widget", "--access", "owner", "--operations", "get,fetch"], "'fetch' is not an operation"),
             (["Widgets", "Widget", "--access", "owner", "--operations", "get,,list"], "empty entry"),
@@ -417,14 +406,6 @@ public sealed partial class NewFeatureTests
         expect(
             several.Error.Split('\n').Count(line => line.StartsWith("error:", StringComparison.Ordinal)) >= 4,
             "Several mistakes in one command were not all reported.");
-
-        string stranger = System.IO.Path.Combine(scratch, "stranger");
-        Directory.CreateDirectory(stranger);
-
-        var elsewhere = Invoke(stranger, "Widgets", "Widget", "--access", "owner", "--deletion", "delete");
-
-        expect(elsewhere.Code == 1 && elsewhere.Error.Contains("No cleanarch.json", StringComparison.Ordinal), "A tree without a project file was not refused for it.");
-        expect(!Directory.EnumerateFileSystemEntries(stranger).Any(), "A refused tree was written to.");
     }
 
     private static void CombinationCases(string scratch, Action<bool, string> expect)
@@ -2036,6 +2017,8 @@ public sealed partial class NewFeatureTests
         }
     }
 
+    private static string? Option(string[] options, string name) => Array.IndexOf(options, name) is >= 0 and var at ? options[at + 1] : null;
+
     private static IEnumerable<(string Group, string Digest)> WithoutFieldsDigests(string scratch)
     {
         string[][] subsets =
@@ -2076,11 +2059,10 @@ public sealed partial class NewFeatureTests
                 foreach (string concurrency in new[] { "none", "etag" })
                 {
                     var problems = new List<string>();
-                    var request = Parse(
-                        ["Widgets", "Widget", .. options, "--operations", string.Join(',', subset), "--concurrency", concurrency, "--root", root],
-                        problems);
+                    var request = new AddFeatureRequest(
+                        "Widgets", "Widget", options[Array.IndexOf(options, "--access") + 1], Option(options, "--deletion"), string.Join(',', subset), Option(options, "--model"), concurrency, Fields: null);
 
-                    if (problems.Count > 0 || Check(request, System.IO.Path.GetFullPath(root), problems) is not { } spec)
+                    if (Check(request, System.IO.Path.GetFullPath(root), GeneratorRun.Project(root), problems) is not { } spec)
                     {
                         continue;
                     }
@@ -2158,7 +2140,7 @@ public sealed partial class NewFeatureTests
 
         string[] segments = relative.Replace('\\', '/').Split('/');
         int projectIndex = Array.FindIndex(segments, segment => segment.Contains('.', StringComparison.Ordinal));
-        segments[projectIndex] = ProjectInFolder(ProductName(root), segments[projectIndex]);
+        segments[projectIndex] = ProjectInFolder(GeneratorRun.Project(root).File.Name, segments[projectIndex]);
         string expected = string.Join('.', segments[projectIndex..^1]);
 
         if (!text.Contains($"namespace {expected};", StringComparison.Ordinal))

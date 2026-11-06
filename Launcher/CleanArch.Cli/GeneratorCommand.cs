@@ -12,16 +12,44 @@ internal static class GeneratorCommand
 
     public static Option<bool> DryRun(string description) => new("--dry-run") { Description = description };
 
-    public static Option<string?> Text(string name, string description, bool required = false) =>
-        new(name) { Description = description, Required = required };
+    public static Option<string?> Text(string name, string description) => new(name) { Description = description };
 
-    public static IEnumerable<string> Forwarded(ParseResult parseResult, params Option<string?>[] options) =>
-        options.SelectMany(option => parseResult.GetValue(option) is { } value ? [option.Name, value] : Array.Empty<string>());
+    public static Option<string> RequiredText(string name, string description) => new(name) { Description = description, Required = true };
 
-    public static IEnumerable<string> Flag(ParseResult parseResult, Option<bool> option) =>
-        parseResult.GetValue(option) ? [option.Name] : [];
+    public static void SetGeneration(
+        Command command,
+        LocatedProject? project,
+        Func<ParseResult, bool> dryRun,
+        Func<ParseResult, IExecutor> executor,
+        Func<ParseResult, GenerationContext, int> generate)
+    {
+        if (project is null)
+        {
+            return;
+        }
 
-    public static IEnumerable<string> Root(LocatedProject project) => ["--root", project.Root];
+        command.SetAction(parseResult => generate(
+            parseResult,
+            new GenerationContext(
+                project,
+                dryRun(parseResult),
+                parseResult.InvocationConfiguration.Output,
+                parseResult.InvocationConfiguration.Error,
+                executor(parseResult))));
+    }
+
+    public static void RefuseWithoutAuthentication(CommandContext context, Command command)
+    {
+        if (context.Project?.File.Options.Auth == "none")
+        {
+            CleanArchCommand.Refuse(
+                command,
+                $"This project has no add {command.Name} command: its {ProjectLocator.FileName} records auth none, so it authenticates nobody, "
+                + "and every feature add feature writes (--access owner or shared), and so every feature add field extends, needs an "
+                + "authenticated caller. Add an authentication scheme and an ICurrentUser that reads it before scaffolding a feature, "
+                + "or write a public feature by hand.");
+        }
+    }
 
     public static Func<TextEdits.Command, int> Runner(ParseResult parseResult) =>
         command => ExternalCommand.RunAnnounced(

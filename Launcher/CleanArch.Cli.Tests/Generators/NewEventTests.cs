@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.AddEvent;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.AddEvent.NewEvent;
@@ -102,15 +103,8 @@ public sealed class NewEventTests
         return root;
     }
 
-    private static (int Code, string Output, string Error) Invoke(string root, params string[] args)
-    {
-        using var output = new StringWriter();
-        using var error = new StringWriter();
-
-        int code = Run([.. args, "--root", root], output, error);
-
-        return (code, output.ToString(), error.ToString());
-    }
+    private static (int Code, string Output, string Error) Invoke(string root, params string[] args) =>
+        GeneratorRun.Invoke(AddEventCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(_ => 0)), args);
 
     private static void RecordedEditsUndo(string root, Dictionary<string, string> before, Action<bool, string> expect)
     {
@@ -196,10 +190,6 @@ public sealed class NewEventTests
         [
             (["Invoices", "InvoicePaidDomainEvent"], "Say who listens"),
             (["Invoices", "InvoicePaidDomainEvent", .. consumed, "--unconsumed", "Nobody reacts for now"], "exclude each other"),
-            (["Invoices", "InvoicePaidDomainEvent", "--consumer"], "'--consumer' needs a value"),
-            (["Invoices", "InvoicePaidDomainEvent", .. consumed, "--consumer", "Files:Do"], "is given twice"),
-            (["Invoices", "InvoicePaidDomainEvent", .. consumed, "--force"], "'--force' is not an option"),
-            (["Invoices", .. consumed], "Expected two names"),
             (["invoices", "InvoicePaidDomainEvent", .. consumed], "is not a feature folder"),
             (["Invoices", "invoicePaid", .. consumed], "is not an event name"),
             (["Invoices", "InvoicePaid", .. consumed], "does not end in DomainEvent"),
@@ -447,14 +437,6 @@ public sealed class NewEventTests
 
     private static void TreeCases(string scratch, Action<bool, string> expect)
     {
-        string stranger = Path.Combine(scratch, "stranger");
-        Directory.CreateDirectory(stranger);
-
-        var elsewhere = Invoke(stranger, "Invoices", "InvoicePaidDomainEvent", "--unconsumed", "Nothing reacts to it yet");
-
-        expect(elsewhere.Code == 1 && elsewhere.Error.Contains("No cleanarch.json", StringComparison.Ordinal), "A tree without a project file was not refused for it.");
-        expect(!Directory.EnumerateFileSystemEntries(stranger).Any(), "A refused tree was written to.");
-
         string template = NewTree(scratch);
         string module = Path.Combine(template, _module);
 

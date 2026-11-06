@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using static CleanArch.Cli.Generators.Shared.CSharpNames;
 using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
@@ -65,26 +64,15 @@ internal static class FeatureCode
         return Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Any();
     }
 
-    internal static bool TablePrefixes(string root)
-    {
-        string projectFile = System.IO.Path.Combine(root, "cleanarch.json");
-
-        using var document = JsonDocument.Parse(File.ReadAllText(projectFile));
-
-        string? database = document.RootElement.TryGetProperty("options", out JsonElement options)
-            && options.TryGetProperty("database", out JsonElement recorded)
-                ? recorded.GetString()
-                : null;
-
-        return database switch
+    internal static bool TablePrefixes(LocatedProject project) =>
+        project.File.Options.Database switch
         {
             "postgresql" or "sqlserver" => false,
             "sqlite" => true,
             _ => throw new InvalidOperationException(
-                $"'{projectFile}' records no options.database the generator knows (postgresql, sqlserver or sqlite), "
+                $"'{Path.Combine(project.Root, ProjectLocator.FileName)}' records no options.database the generator knows (postgresql, sqlserver or sqlite), "
                 + "and the feature's table test depends on it: the provider decides whether a schema holds the table or prefixes its name."),
         };
-    }
 
     internal static IEnumerable<string> PresentationHosts(string root, string prefix)
     {

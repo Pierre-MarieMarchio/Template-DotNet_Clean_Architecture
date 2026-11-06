@@ -94,8 +94,8 @@ public sealed class GeneratorCommandTests : IDisposable
         string root = RemoveFeatureTests.Tree(_scratch, tree =>
         {
             Project(tree, auth: "local");
-            NewFeature.Run(["Widgets", "Widget", "--access", "shared", "--root", tree], TextWriter.Null, TextWriter.Null, new FakeExecutor(_ => 0), NewFeatureTests.Version)
-                .ShouldBe(CleanArchCommand.Succeeded);
+            GeneratorRun.Invoke(AddFeatureCommand.Build(GeneratorRun.Project(tree), _ => new FakeExecutor(_ => 0), NewFeatureTests.Version), "Widgets", "Widget", "--access", "shared")
+                .Code.ShouldBe(CleanArchCommand.Succeeded);
         });
         Dictionary<string, string> generated = Snapshot(root);
 

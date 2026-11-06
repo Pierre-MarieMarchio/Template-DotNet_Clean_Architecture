@@ -30,10 +30,6 @@ internal static class NewEvent
         + "                default the id of the feature's aggregate, when it has exactly one repository.\n"
         + "  --dry-run     print what would be written, and write nothing.";
 
-    private static readonly string[] _optionNames = ["--consumer", "--unconsumed", "--fields", "--root", "--dry-run"];
-
-    private sealed record Request(string? Features, string? Name, string? Consumer, string? Unconsumed, string? Fields, string Root, bool DryRun);
-
     private sealed record Spec(
         string Prefix,
         string Features,
@@ -54,16 +50,14 @@ internal static class NewEvent
         internal string ConsumerNamespace => $"{Prefix}.Application.Features.{ConsumerFeatures}.Services.Consumers.{Base}";
     }
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error)
+    internal static int Run(AddEventRequest request, GenerationContext context)
     {
         var problems = new List<string>();
-        var request = Parse(args, problems);
-        string root = Path.GetFullPath(request.Root);
-        var spec = problems.Count == 0 ? Check(request, root, problems) : null;
+        var spec = Check(request, context.Root, context.Product, problems);
 
         return spec is null
-            ? Refusal.Write(error, problems, _usage)
-            : new EventGeneration(spec, new GenerationContext(root, request.DryRun, output, error)).Generate();
+            ? Refusal.Write(context.Error, problems, _usage)
+            : new EventGeneration(spec, context).Generate();
     }
 
     private sealed class EventGeneration(Spec spec, GenerationContext context) : FileGeneration(context, spec.Features, spec.Manifest)
@@ -78,84 +72,10 @@ internal static class NewEvent
             NewEvent.Report(Output, spec, Emissions, Editor.Changed.Select(sheet => sheet.Path), mode == ReportMode.DryRun);
     }
 
-    private static Request Parse(string[] args, List<string> problems)
+    private static Spec? Check(AddEventRequest request, string root, string product, List<string> problems)
     {
-        var positional = new List<string>();
-        var options = new Dictionary<string, string>(StringComparer.Ordinal);
-        bool dryRun = false;
-
-        for (int index = 0; index < args.Length; index++)
-        {
-            string argument = args[index];
-
-            if (!argument.StartsWith('-'))
-            {
-                positional.Add(argument);
-
-                continue;
-            }
-
-            string name = argument;
-            string? value = null;
-            int equals = argument.IndexOf('=', StringComparison.Ordinal);
-
-            if (equals > 0)
-            {
-                name = argument[..equals];
-                value = argument[(equals + 1)..];
-            }
-
-            if (!_optionNames.Contains(name, StringComparer.Ordinal))
-            {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames)}.");
-
-                continue;
-            }
-
-            if (name == "--dry-run")
-            {
-                dryRun = true;
-
-                continue;
-            }
-
-            if (value is null)
-            {
-                if (index + 1 >= args.Length || args[index + 1].StartsWith("--", StringComparison.Ordinal))
-                {
-                    problems.Add($"'{name}' needs a value.");
-
-                    continue;
-                }
-
-                value = args[++index];
-            }
-
-            if (!options.TryAdd(name, value))
-            {
-                problems.Add($"'{name}' is given twice; it takes one value.");
-            }
-        }
-
-        if (positional.Count != 2)
-        {
-            problems.Add($"Expected two names, <Features> and <Event>, and found {positional.Count}. The feature's folder, then the event: Invoices InvoicePaidDomainEvent.");
-        }
-
-        return new Request(
-            positional.Count > 0 ? positional[0] : null,
-            positional.Count > 1 ? positional[1] : null,
-            options.GetValueOrDefault("--consumer"),
-            options.GetValueOrDefault("--unconsumed"),
-            options.GetValueOrDefault("--fields"),
-            options.GetValueOrDefault("--root") ?? ".",
-            dryRun);
-    }
-
-    private static Spec? Check(Request request, string root, List<string> problems)
-    {
-        string features = request.Features ?? string.Empty;
-        string name = request.Name ?? string.Empty;
+        string features = request.Features;
+        string name = request.Name;
 
         if (!CSharpNames.PascalCase.IsMatch(features))
         {
@@ -215,18 +135,7 @@ internal static class NewEvent
             return null;
         }
 
-        string prefix;
-
-        try
-        {
-            prefix = ProductName(root);
-        }
-        catch (InvalidOperationException exception)
-        {
-            problems.Add(exception.Message);
-
-            return null;
-        }
+        string prefix = product;
 
         string domain = Full(root, $"{SourceProject(prefix, "Domain")}/Features/{features}");
 

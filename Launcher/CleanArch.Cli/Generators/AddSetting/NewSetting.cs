@@ -33,8 +33,6 @@ internal static class NewSetting
         + "              At least one key is validated, so a section is never all bool.\n"
         + "  --dry-run   print what would be written, and write nothing.";
 
-    private static readonly string[] _optionNames = ["--keys", "--root", "--dry-run"];
-
     private static readonly string[] _reservedSections =
     [
         "AllowedHosts", "ConfigurationGuide", "ConnectionStrings", "Kestrel", "Logging", "Serilog",
@@ -60,8 +58,6 @@ internal static class NewSetting
         Text,
         Secret,
     }
-
-    private sealed record Request(string? Features, string? Section, string? Keys, string Root, bool DryRun);
 
     private sealed record Key(string Name, Kind Kind, long Min, long Max, string? Default)
     {
@@ -136,16 +132,14 @@ internal static class NewSetting
         internal string Variable(Key key) => $"{UpperSnake(Section)}_{UpperSnake(key.Name)}";
     }
 
-    internal static int Run(string[] args, TextWriter output, TextWriter error)
+    internal static int Run(AddSettingRequest request, GenerationContext context)
     {
         var problems = new List<string>();
-        var request = Parse(args, problems);
-        string root = Path.GetFullPath(request.Root);
-        var spec = problems.Count == 0 ? Check(request, root, problems) : null;
+        var spec = Check(request, context.Root, context.Product, problems);
 
         return spec is null
-            ? Refusal.Write(error, problems, _usage)
-            : new SettingGeneration(spec, new GenerationContext(root, request.DryRun, output, error)).Generate();
+            ? Refusal.Write(context.Error, problems, _usage)
+            : new SettingGeneration(spec, context).Generate();
     }
 
     private sealed class SettingGeneration(Spec spec, GenerationContext context) : FileGeneration(context, spec.Features, spec.Manifest)
@@ -169,82 +163,10 @@ internal static class NewSetting
             NewSetting.Report(Output, spec, Emissions, Editor.Changed.Select(sheet => sheet.Path), _hosts, mode == ReportMode.DryRun);
     }
 
-    private static Request Parse(string[] args, List<string> problems)
+    private static Spec? Check(AddSettingRequest request, string root, string product, List<string> problems)
     {
-        var positional = new List<string>();
-        var options = new Dictionary<string, string>(StringComparer.Ordinal);
-        bool dryRun = false;
-
-        for (int index = 0; index < args.Length; index++)
-        {
-            string argument = args[index];
-
-            if (!argument.StartsWith('-'))
-            {
-                positional.Add(argument);
-
-                continue;
-            }
-
-            string name = argument;
-            string? value = null;
-            int equals = argument.IndexOf('=', StringComparison.Ordinal);
-
-            if (equals > 0)
-            {
-                name = argument[..equals];
-                value = argument[(equals + 1)..];
-            }
-
-            if (!_optionNames.Contains(name, StringComparer.Ordinal))
-            {
-                problems.Add($"'{name}' is not an option. The options are {string.Join(", ", _optionNames)}.");
-
-                continue;
-            }
-
-            if (name == "--dry-run")
-            {
-                dryRun = true;
-
-                continue;
-            }
-
-            if (value is null)
-            {
-                if (index + 1 >= args.Length || args[index + 1].StartsWith("--", StringComparison.Ordinal))
-                {
-                    problems.Add($"'{name}' needs a value.");
-
-                    continue;
-                }
-
-                value = args[++index];
-            }
-
-            if (!options.TryAdd(name, value))
-            {
-                problems.Add($"'{name}' is given twice; it takes one value.");
-            }
-        }
-
-        if (positional.Count != 2)
-        {
-            problems.Add($"Expected two names, <Features> and <Section>, and found {positional.Count}. The feature's folder, then the section: Invoices InvoiceReminders.");
-        }
-
-        return new Request(
-            positional.Count > 0 ? positional[0] : null,
-            positional.Count > 1 ? positional[1] : null,
-            options.GetValueOrDefault("--keys"),
-            options.GetValueOrDefault("--root") ?? ".",
-            dryRun);
-    }
-
-    private static Spec? Check(Request request, string root, List<string> problems)
-    {
-        string features = request.Features ?? string.Empty;
-        string section = request.Section ?? string.Empty;
+        string features = request.Features;
+        string section = request.Section;
 
         if (!CSharpNames.PascalCase.IsMatch(features))
         {
@@ -260,13 +182,9 @@ internal static class NewSetting
             problems.AddRange(SectionProblems(section));
         }
 
-        var keys = request.Keys is null ? [] : ReadKeys(request.Keys, problems);
+        var keys = ReadKeys(request.Keys, problems);
 
-        if (request.Keys is null)
-        {
-            problems.Add("--keys is required and has no default. List what the section holds: --keys \"MaxItems:int(1..100)=10\".");
-        }
-        else if (problems.Count == 0 && keys.All(key => !key.IsValidated))
+        if (problems.Count == 0 && keys.All(key => !key.IsValidated))
         {
             problems.Add("--keys holds only bool keys, so the section validates nothing and the host would start with any value. Add a bounded key, or leave the setting to a constant.");
         }
@@ -276,18 +194,7 @@ internal static class NewSetting
             return null;
         }
 
-        string prefix;
-
-        try
-        {
-            prefix = ProductName(root);
-        }
-        catch (InvalidOperationException exception)
-        {
-            problems.Add(exception.Message);
-
-            return null;
-        }
+        string prefix = product;
 
         string application = Full(root, SourceProject(prefix, "Application"));
 

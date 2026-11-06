@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using CleanArch.Cli.Generators.AddFeature;
+using CleanArch.Cli.Generators.RemoveFeature;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
 using static CleanArch.Cli.Generators.RemoveFeature.FeatureRemoval;
@@ -44,15 +45,8 @@ public sealed class RemoveFeatureTests
 
     private static (int Code, string Output, string Error) Invoke(string root, params string[] args) => Invoke(root, Recording([]), args);
 
-    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args)
-    {
-        using var output = new StringWriter();
-        using var error = new StringWriter();
-
-        int code = Run([.. args, "--root", root], output, error, new FakeExecutor(run));
-
-        return (code, output.ToString(), error.ToString());
-    }
+    private static (int Code, string Output, string Error) Invoke(string root, Func<TextEdits.Command, int> run, params string[] args) =>
+        GeneratorRun.Invoke(RemoveFeatureCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(run)), args);
 
     private const string _removeMigration =
         "namespace Acme.Infrastructure.Persistence.Migrations\n{\n    public partial class {0} : Migration\n    {\n"
@@ -449,7 +443,7 @@ public sealed class RemoveFeatureTests
     }
 
     private static int Generate(string root, params string[] args) =>
-        NewFeature.Run([.. args, "--root", root], TextWriter.Null, TextWriter.Null, new FakeExecutor(_ => 0), NewFeatureTests.Version);
+        GeneratorRun.Invoke(AddFeatureCommand.Build(GeneratorRun.Project(root), _ => new FakeExecutor(_ => 0), NewFeatureTests.Version), args).Code;
 
     private static void Projects(string root)
     {

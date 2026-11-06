@@ -63,8 +63,8 @@ dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth
 ```
 
 <!--#endif-->
-`dnx CleanArch.Create -- presentation` runs the three
-commands in turn, reading the options from the project's files. The edits, to make by hand where the
+`dotnet cleanarch add presentation` runs the three
+commands in turn, reading the options from `cleanarch.json`. The edits, to make by hand where the
 task stops:
 
 <!--#if (localAuth)-->

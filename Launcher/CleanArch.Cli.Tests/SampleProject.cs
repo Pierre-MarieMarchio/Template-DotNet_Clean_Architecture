@@ -107,6 +107,16 @@ internal sealed class SampleProject : IDisposable
         }
         """;
 
+    public static string Named(string name) => $$"""
+        {
+          "template": { "package": "CleanArch.WebApi.Templates", "version": "1.2.3" },
+          "name": "{{name}}",
+          "options": { "auth": "local" },
+          "client": true,
+          "presentation": [ { "name": "Api", "framework": "api" } ]
+        }
+        """;
+
     public SampleProject(string json)
     {
         Root = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;

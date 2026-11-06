@@ -3,7 +3,6 @@ using CleanArch.Create.Commands;
 using CleanArch.Create.Hosting;
 using CleanArch.Create.Setup;
 using CleanArch.Tooling.Additions;
-using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Processes;
 using CleanArch.Tooling.Prompts;
 using CleanArch.Tooling.Templates;
@@ -18,9 +17,6 @@ public sealed partial class GuidedFlowTests : IDisposable
 {
     private const string _created = "The template was created successfully.";
     private const string _bootstrapInstruction = "Manual instructions: run dotnet run Tools/Tasks.cs bootstrap.";
-    private const string _presentationInstruction = "Manual instructions: run presentation-join, then presentation-scaffold.";
-    private const string _joinInstruction = "Manual instructions: run web-join.";
-    private const string _scaffoldInstruction = "Manual instructions: run web-scaffold.";
     private const string _runIt =
         """
         ## Run it
@@ -44,7 +40,6 @@ public sealed partial class GuidedFlowTests : IDisposable
     private bool _initialised;
     private ProcessResult _bootstrap = new(0, string.Empty);
     private Action? _duringBootstrap;
-    private string? _failingTask;
 
     public GuidedFlowTests()
     {
@@ -142,7 +137,6 @@ public sealed partial class GuidedFlowTests : IDisposable
         string printed = Regex.Match(Plain(console), @"^.*(?<command>dnx CleanArch\.Create -- new .*--yes.*)$", RegexOptions.Multiline).Groups["command"].Value.Trim();
         Arguments replayed = Arguments.Parse(printed[(LauncherCommands.InvocationWithArguments.Length + 1)..].Split(' '));
 
-        replayed.Command.ShouldBe("new");
         replayed.Name.ShouldBe("Demo");
         replayed.Yes.ShouldBeTrue();
     }
@@ -362,241 +356,6 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
-    public void AnAppNameTaken_IsRefusedAtItsQuestion()
-    {
-        AGeneratedProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps", "BackOffice"));
-        TestConsole console = Terminal();
-        console.Input.PushTextWithEnter("BackOffice");
-        console.Input.PushTextWithEnter("2");
-        PushEnters(console, 5);
-
-        Run(console, "web-app");
-
-        Order(Plain(console), "There's already an app with that name.", "◊  App name\n│  BackOffice2\n");
-        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapp -n BackOffice2", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void AWebApp_ReadsTheProject_AndOffersAPublicApiNoAdministrators()
-    {
-        AGeneratedProject();
-        TestConsole console = Terminal();
-        console.Input.PushTextWithEnter("BackOffice");
-        PushEnters(console, 4);
-
-        Run(console, "web-app");
-
-        string output = Plain(console);
-        output.ShouldContain("┌  Add a web app to Acme.Shop");
-        output.ShouldContain("●  Taken from Acme.Shop: --workspace true");
-        output.ShouldContain("◊  Audience\n│  public · the only option when Project authentication is none\n");
-        output.ShouldNotContain("Set up the project now?");
-        Order(output, "◊  App name", "◊  Framework", "Summary", "◊  Added BackOffice", "└  All set. A few things to do by hand, from Src/Web/apps/BackOffice/README.md:");
-        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapp -n BackOffice", StringComparison.Ordinal));
-    }
-
-    [Theory]
-    [InlineData("--setup")]
-    [InlineData("--overwrite")]
-    public void AWebApp_TakesNoOptionOnlyNewTakes(string option)
-    {
-        AGeneratedProject();
-        var console = new TestConsole();
-
-        new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "BackOffice", "--framework", "vite-react", "--yes", option]).ShouldBe(1);
-
-        console.Output.ShouldContain($"web-app takes no {option}.");
-        _processes.Calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void ASecondBlazorWebAssemblyApp_IsRefusedBeforeAnythingIsInstalled()
-    {
-        AGeneratedProject();
-        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps", "Wasm"));
-        File.WriteAllText(Path.Combine(_root, "Src", "Web", "apps", "Wasm", "Acme.Shop.Wasm.csproj"), string.Empty);
-        var console = new TestConsole();
-        console.Profile.Width = 240;
-
-        new Launcher(console, _root, interactive: false, _processes).Run(["web-app", "-n", "Second", "--framework", "blazor-wasm", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
-
-        console.Output.ShouldContain("Acme.Shop already has a Blazor WebAssembly app, Src/Web/apps/Wasm. This version adds only one per project.");
-        _processes.CommandLines.ShouldNotContain(line => line.StartsWith("dotnet new cleanarch-webapp", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void APresentationProject_ReadsTheProject_AsksItsName_ThenJoinsAndCreatesIt()
-    {
-        AGeneratedProject();
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-        PushEnters(console, 4);
-
-        Run(console, "presentation");
-
-        string output = Plain(console);
-        output.ShouldContain("┌  Add a presentation project to Acme.Shop");
-        output.ShouldContain("●  Taken from Acme.Shop: --project-name Acme.Shop, --auth none, --examples none, --files false, --database postgresql, --agent-files false, --has-client false, --has-api true, --ci false");
-        output.ShouldContain("◊  Framework\n│  blazor-server\n");
-        Order(output, "◊  Presentation name\n│  Portal", "Summary", "◊  Added Portal", "◊  Join done", "◊  Scaffold done", "Next time, skip the questions with", "└  All set.");
-        output.ShouldNotContain("Now run:");
-        Closing(output).ShouldContain("Commit Src/Presentation/AS.Portal and its tests");
-        _processes.CommandLines.Where(line => !line.StartsWith("dotnet new uninstall", StringComparison.Ordinal) && !line.StartsWith("dotnet new install", StringComparison.Ordinal)).ShouldBe(
-        [
-            "dotnet new cleanarch-presentation -n Portal --framework blazor-server --project-name Acme.Shop --auth none --examples none --files false --agent-files false --ci false",
-            "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal",
-            "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal",
-        ]);
-    }
-
-    [Fact]
-    public void APresentationProject_WhoseJoinFails_IsNotCreated_AndItsEditsAreLeftByHand()
-    {
-        AGeneratedProject();
-        _failingTask = "presentation-join";
-        TestConsole console = Terminal();
-        PushEnters(console, 3);
-
-        Run(console, "presentation");
-
-        string output = Plain(console);
-        Order(output, "▲  Join failed", "occur 2 times", "dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Portal", "▲  Scaffold skipped", "Skipped because the join step didn't go through.", "└  Almost there. A few things to do by hand, from Src/Presentation/AS.Portal/README.md:");
-        Closing(output).ShouldContain("- in .dockerignore, after the line:");
-        _processes.CommandLines.ShouldNotContain(line => line.Contains("presentation-scaffold", StringComparison.Ordinal) && line.StartsWith("dotnet run", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void APresentationProject_WhosePagesFail_SaysWhatToRunAgain()
-    {
-        AGeneratedProject();
-        _failingTask = "presentation-scaffold";
-        TestConsole console = Terminal();
-        PushEnters(console, 3);
-
-        Run(console, "presentation");
-
-        string output = Plain(console);
-        Order(output, "◊  Join done", "▲  Scaffold failed", "dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal", "└  Almost there. A few things to do by hand, from Src/Presentation/AS.Portal/README.md:");
-        Closing(output).ShouldContain("Commit the project");
-    }
-
-    [Theory]
-    [InlineData("Api", "names a project the template already writes")]
-    [InlineData("portal", "use PascalCase, like Portal.")]
-    [InlineData("Portal", "there's already a presentation project with that name.")]
-    public void APresentationName_TheProjectCannotTake_IsRefusedBeforeAnythingIsInstalled(string name, string refusal)
-    {
-        AGeneratedProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Portal"));
-        var console = new TestConsole();
-        console.Profile.Width = 240;
-
-        new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "-n", name, "--yes", "--template-source", Repository.Root]).ShouldBe(1);
-
-        console.Output.ShouldContain(refusal);
-        _processes.Calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void APresentationProject_IsProposedItsFrameworksName()
-    {
-        AGeneratedProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-
-        Run(console, "presentation", "--framework", "mcp", "--yes");
-
-        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Mcp --framework mcp ", StringComparison.Ordinal));
-        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Mcp");
-    }
-
-    [Fact]
-    public void AnMcpPresentationProject_ListsTheIdentityMigration_UnderNext()
-    {
-        AGeneratedProject();
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-
-        Run(console, "presentation", "--framework", "mcp", "--yes");
-
-        Order(Plain(console), "Next:", "dotnet run Tools/Tasks.cs migration-add AddAccessKeys --context auth");
-    }
-
-    [Fact]
-    public void APresentationProject_WithoutTheAccessKeys_ListsNoIdentityMigration()
-    {
-        AGeneratedProject();
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-
-        Run(console, "presentation", "--framework", "blazor-server", "--yes");
-
-        Plain(console).ShouldNotContain("migration-add");
-    }
-
-    [Fact]
-    public void AProjectWithoutTheApi_IsOfferedOnlyThePresentationThatDoesNotCallIt()
-    {
-        AGeneratedProject();
-        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-
-        Run(console, "presentation", "--yes");
-
-        Plain(console).ShouldContain("Framework: blazor-server (the only option when Project authentication is local and Project holds the API is No)");
-        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Portal --framework blazor-server ", StringComparison.Ordinal) && line.Contains(" --has-api false", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void AClientOfTheApi_IsRefused_InAProjectWithoutIt_BeforeAnythingIsInstalled()
-    {
-        AGeneratedProject();
-        Directory.Delete(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
-        var console = new TestConsole();
-        console.Profile.Width = 240;
-
-        new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "--framework", "avalonia", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
-
-        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Presentation);
-        console.Output.ShouldContain(manifest.Refusals.Single(refusal => refusal.Symbol == "presentationNeedsTheApi").Explanation);
-        _processes.Calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void TheWorker_IsNamedWorker_AndJoinedUnderThatName()
-    {
-        AGeneratedProject();
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-
-        Run(console, "presentation", "--framework", "worker", "--yes");
-
-        _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-presentation -n Worker --framework worker ", StringComparison.Ordinal));
-        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs presentation-join Acme.Shop.Worker");
-    }
-
-    [Fact]
-    public void TheWorker_UnderAnotherName_IsRefused_BeforeAnythingIsInstalled()
-    {
-        AGeneratedProject();
-        var console = new TestConsole();
-        console.Profile.Width = 240;
-
-        new Launcher(console, _root, interactive: false, _processes).Run(["presentation", "--framework", "worker", "-n", "Jobs", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
-
-        TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Presentation);
-        console.Output.ShouldContain(manifest.Refusals.Single(refusal => refusal.Symbol == "workerIsNamedWorker").Explanation);
-        _processes.Calls.ShouldBeEmpty();
-    }
-
-    [Fact]
     public void WithYes_TheApi_IsAddedForTheMcpServerUnderLocalAccounts_AndPassed()
     {
         TestConsole console = Terminal();
@@ -693,67 +452,15 @@ public sealed partial class GuidedFlowTests : IDisposable
     }
 
     [Fact]
-    public void WithYes_APresentationProject_LeavesOutTheInstructionsToRunTheTasksItRuns()
+    public void InsideAProject_TheLauncherSaysItCreatesProjects_AndNamesTheToolThatAdds()
     {
         AGeneratedProject();
-        TestConsole console = Terminal();
-
-        Run(console, "presentation", "--framework", "blazor-server", "--yes");
-
-        string output = Plain(console);
-        Order(output, _created, "Join done.", "Scaffold done.");
-        output.ShouldNotContain(_presentationInstruction, customMessage: "The template engine's instruction to run presentation-join and presentation-scaffold is relayed while the launcher runs them.");
-    }
-
-    [Fact]
-    public void WithYes_AWebAppItJoins_LeavesOutOnlyTheInstructionToJoinIt()
-    {
-        AGeneratedProject();
-        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps"));
-        File.WriteAllText(Path.Combine(_root, "Src", "Web", "package.json"), "{}");
         TestConsole console = Terminal();
         console.Profile.Width = 240;
 
-        Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm", "--yes");
+        Run(console, "new", "-n", "Demo", "--yes");
 
-        string output = Plain(console);
-        Order(output, _created, TemplateEngine.PostActionsHeading, _scaffoldInstruction, "Join done.");
-        output.ShouldNotContain(_joinInstruction, customMessage: "The template engine's instruction to run web-join is relayed while the launcher runs it.");
-        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm --web blazor-wasm --web-audience public --web-rendering spa");
-    }
-
-    [Fact]
-    public void AWebAppGivenAPort_HasItPassedToTheJoin()
-    {
-        AGeneratedProject();
-        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps"));
-        File.WriteAllText(Path.Combine(_root, "Src", "Web", "package.json"), "{}");
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-
-        Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm", "--port", "8085", "--yes");
-
-        _processes.CommandLines.ShouldContain("dotnet run Tools/Tasks.cs web-join Wasm --web blazor-wasm --web-audience public --web-rendering spa --web-port 8085");
-    }
-
-    [Fact]
-    public void AWebAppWhoseJoinFails_IsAlmostThere_WithTheJoiningSectionLeftByHand()
-    {
-        AGeneratedProject();
-        File.WriteAllText(Path.Combine(_root, "Directory.Packages.props"), """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
-        Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps"));
-        File.WriteAllText(Path.Combine(_root, "Src", "Web", "package.json"), "{}");
-        _failingTask = "web-join";
-        TestConsole console = Terminal();
-        console.Profile.Width = 240;
-        PushEnters(console, 6);
-
-        Run(console, "web-app", "-n", "Wasm", "--framework", "blazor-wasm");
-
-        string output = Plain(console);
-        Order(output, "▲  Join failed", "dotnet run Tools/Tasks.cs web-join Wasm --web blazor-wasm --web-audience public --web-rendering spa", "└  Almost there. A few things to do by hand, from Src/Web/apps/Wasm/README.md:");
+        Plain(console).ShouldContain("You're inside Acme.Shop. The launcher creates projects; to add a web app, a web package or a presentation project, run dotnet cleanarch add <item>.");
     }
 
     private static TestConsole Terminal()
@@ -821,32 +528,6 @@ public sealed partial class GuidedFlowTests : IDisposable
         Directory.CreateDirectory(Path.Combine(_root, "Src", "Presentation", "AS.Api"));
     }
 
-    private static void APresentationReadme(ProcessCall call)
-    {
-        string folder = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Presentation", $"AS.{call.Arguments[3]}")).FullName;
-        File.WriteAllText(
-            Path.Combine(folder, "README.md"),
-            """
-            # Portal
-
-            ## Create the project
-
-            ```bash
-            dotnet run Tools/Tasks.cs presentation-scaffold Acme.Shop.Portal
-            ```
-
-            Commit the project.
-
-            ## Joining a project generated without one
-
-            - in `.dockerignore`, after the line:
-
-              ```text
-              !Src/Presentation/AS.Api/appsettings.json
-              ```
-            """);
-    }
-
     private ProcessResult Answer(ProcessCall call)
     {
         if (call.FileName == "git")
@@ -863,20 +544,7 @@ public sealed partial class GuidedFlowTests : IDisposable
 
         if (call.Arguments[0] == "run")
         {
-            return _failingTask is not null && call.Arguments.Contains(_failingTask)
-                ? new ProcessResult(1, ".dockerignore: the lines to place the edit by occur 2 times, not once, so no file was changed:")
-                : Bootstrapped();
-        }
-
-        if (call.Arguments[1] == "cleanarch-presentation")
-        {
-            APresentationReadme(call);
-        }
-
-        if (call.Arguments[1] == "cleanarch-webapp")
-        {
-            string app = Directory.CreateDirectory(Path.Combine(call.WorkingDirectory, "Src", "Web", "apps", call.Arguments[3])).FullName;
-            File.WriteAllText(Path.Combine(app, "README.md"), "# App\n\n## Join the stack\n\nInclude it.\n\n" + ItemAdditions.JoiningSection + "\n\n- an edit\n");
+            return Bootstrapped();
         }
 
         int output = call.Arguments.ToList().IndexOf("-o");
@@ -888,13 +556,7 @@ public sealed partial class GuidedFlowTests : IDisposable
             return new ProcessResult(0, $"{_created}\nProcessing post-creation actions...\nDescription: Bootstrap the project.\n{_bootstrapInstruction}\n");
         }
 
-        string[] instructions = call.Arguments[1] switch
-        {
-            "cleanarch-webapi" => ["Description: Bootstrap the project.", _bootstrapInstruction],
-            "cleanarch-presentation" => ["Description: Join the project.", _presentationInstruction],
-            "cleanarch-webapp" => ["Description: Join the app.", _joinInstruction, string.Empty, "Description: Create the app.", _scaffoldInstruction],
-            _ => [],
-        };
+        string[] instructions = call.Arguments[1] == "cleanarch-webapi" ? ["Description: Bootstrap the project.", _bootstrapInstruction] : [];
         return new ProcessResult(0, string.Join('\n', [_created, string.Empty, .. instructions.Length > 0 ? [TemplateEngine.PostActionsHeading, .. instructions] : Array.Empty<string>()]));
     }
 }

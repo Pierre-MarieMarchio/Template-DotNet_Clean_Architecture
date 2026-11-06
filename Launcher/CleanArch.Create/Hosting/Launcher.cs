@@ -1,4 +1,5 @@
 ﻿using CleanArch.Create.Commands;
+using CleanArch.Create.Commands.NewProject;
 using CleanArch.Create.Setup;
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
@@ -42,14 +43,14 @@ public sealed class Launcher
                 : TemplateSource.Embedded(typeof(Launcher).Assembly);
             if (parsed.Help)
             {
-                _machine.Console.Verbatim(LauncherCommands.Named(parsed.Command).Help(source));
+                _machine.Console.Verbatim(NewCommand.Help(source));
                 return 0;
             }
 
             var questionnaire = new Questionnaire(_machine.Console, _interactive, parsed.Yes);
             conversation = questionnaire.Conversation;
             Session session = Open(parsed, source, questionnaire);
-            Chosen(session).Run(session);
+            NewCommand.Run(session);
             return _machine.Interruption.Stopped ? StoppedExitCode : 0;
         }
         catch (LauncherException error)
@@ -68,32 +69,5 @@ public sealed class Launcher
             _machine.Processes);
         string? version = source.Manifest(TemplateKind.Project).Version;
         return new Session(_machine, parsed, source, questionnaire, dotnet, version, GeneratedProject.Find(_machine.WorkingDirectory));
-    }
-
-    private static ILauncherCommand Chosen(Session session)
-    {
-        if (session.Parsed.Command is { } named)
-        {
-            return LauncherCommands.Named(named);
-        }
-
-        if (session.Project is not { } project || !session.Questionnaire.Asks)
-        {
-            return LauncherCommands.Default;
-        }
-
-        OptionChoice[] offered =
-        [
-            .. LauncherCommands.InsideAProject.Append(LauncherCommands.Default)
-                .Select(command => (command.Name, Description: command.Offer(project)))
-                .Where(command => command.Description is not null)
-                .Select(command => new OptionChoice(command.Name, command.Description!)),
-        ];
-        session.Conversation.Begin(project.Name, session.Version);
-        return LauncherCommands.Named(session.Conversation.Choose(
-            "What do you want to do?",
-            $"You're inside {project.Name}, a project made with this template.",
-            offered,
-            null));
     }
 }

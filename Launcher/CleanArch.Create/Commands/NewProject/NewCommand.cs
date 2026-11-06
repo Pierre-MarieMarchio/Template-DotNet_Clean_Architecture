@@ -3,13 +3,12 @@ using CleanArch.Tooling.Additions;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Markdown;
 using CleanArch.Tooling.Output;
-using CleanArch.Tooling.Projects;
 using CleanArch.Tooling.Prompts;
 using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Create.Commands.NewProject;
 
-public sealed class NewCommand : ILauncherCommand
+public static class NewCommand
 {
     public static readonly IReadOnlyDictionary<string, Condition> ProjectAskedWhen = new Dictionary<string, Condition>(StringComparer.Ordinal)
     {
@@ -18,19 +17,20 @@ public sealed class NewCommand : ILauncherCommand
         ["webRendering"] = Condition.Parse("(web != \"none\")"),
     };
 
-    public string Name => "new";
+    public const string Name = "new";
 
-    public IReadOnlyList<string> Summary => ["create a project (what runs when you're not inside one)"];
-
-    public string Help(TemplateSource source) =>
+    public static string Help(TemplateSource source) =>
         LauncherUsage.Text() + Environment.NewLine + Environment.NewLine + LauncherUsage.TemplateOptions(source.Manifest(TemplateKind.Project), "project", ProjectAskedWhen);
 
-    public string? Offer(ProjectFacts project) => "start a new project somewhere else";
-
-    public void Run(Session session)
+    public static void Run(Session session)
     {
         TemplateManifest manifest = session.Source.Manifest(TemplateKind.Project);
         session.Conversation.Begin("Create a project", session.Version);
+        if (session.Project is { } inside)
+        {
+            session.Conversation.Note($"You're inside {inside.Name}. The launcher creates projects; to add a web app, a web package or a presentation project, run {LauncherCommands.ToolInvocation} add <item>.");
+        }
+
         NewAnswers asked = NewQuestions.Ask(session, manifest, ProjectAskedWhen);
 
         string workingDirectory = session.Machine.WorkingDirectory;

@@ -48,32 +48,16 @@ output. The commands printed at the end are only those left to run. When it runs
 bootstrap, it leaves out the instructions `dotnet new` ends with, which ask for it. Without
 questions, `--setup` runs every step.
 
-At the root of a generated project, or in any folder under it, it adds a web app or a package to the
-workspace: the project's authentication, workflows and scope are read from its files, and the first
-app also creates the workspace. It then runs `web-join`, which makes the lines the app's `README.md`
-lists outside its folder, with those of `Src/Web/README.md` for a first app, and records the app,
-and leaves out the instruction that asks for it.
-
 The presentation projects are one multi-select, the API among them; when a web app, a desktop client
 or the MCP server under local accounts calls the API, it shows the API as answered for you and says
 which one calls it. When the hosts chosen hold neither the API nor the worker, it shows the worker
 as answered for you, since the jobs run in it, and passes `--presentation worker`.
 
-It adds a presentation project to a project generated without it the same way: the project's name,
-authentication, example features, Files module, database, workflows, agent files and whether it
-holds the API are read from its files, so it asks only the framework and the presentation name,
-proposing the framework's own (`Portal`, `Mcp`, `Desktop`, `Worker`). After
-`dotnet new cleanarch-presentation` it runs the project's `presentation-join` task, which makes the
-lines the new `README.md` lists outside the project's folders, and for the worker first moves the
-API's jobs into it on a committed tree, then `presentation-scaffold`, which
-needs the network; a step that fails says why and what to run again. It leaves out the instructions
-`dotnet new` ends with, which ask for those two tasks.
-
-```bash
-dnx CleanArch.Create -- web-app
-dnx CleanArch.Create -- web-package
-dnx CleanArch.Create -- presentation
-```
+The launcher creates projects and nothing else. Run in a project, it says so and names the tool
+that adds: `dotnet cleanarch add web-app`, `add web-package` or `add presentation`, which reads the
+project's facts from its `cleanarch.json` and runs the item template at the version the project
+records, as [template decision 0019](decisions/0019-the-launcher-creates-and-the-project-tool-adds.md)
+says.
 
 Each question is also a flag named like the option, and `--yes` takes the default of each one not
 given, or the only value the template leaves it: `--auth none --yes` generates with
@@ -81,12 +65,10 @@ given, or the only value the template leaves it: `--auth none --yes` generates w
 `Tests/Application/<Initials>.Application.UnitTests`, holds no test and reports "Zero tests ran"
 when run alone, which is expected. Without a terminal, every answer is a flag or `--yes` is passed.
 `dnx` takes `--yes`, `--help` and `--version` for itself, so every argument of the launcher follows
-`--`, `--help` of a command included (`-- web-app --help` lists the options of a web app, not of a project):
+`--`:
 
 ```bash
 dnx CleanArch.Create -- new -n Acme.Shop --auth external --examples notes --yes
-dnx CleanArch.Create -- web-app -n BackOffice --framework vite-react --audience admin --yes
-dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 ```
 
 `--template-source <path>` installs the templates from a checkout or a `.nupkg` instead of the

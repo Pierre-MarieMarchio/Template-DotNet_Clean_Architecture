@@ -247,12 +247,12 @@ To change a value, remove the part by hand or add it:
 - `dotnet new cleanarch-webapp` adds another web app; [the web front end](../features/web-frontend.md) says how.
 <!--#endif-->
 <!--#if (!anyWeb)-->
-- `dnx CleanArch.Create -- web-app` and `dnx CleanArch.Create -- presentation`, run at the project's
+- `dotnet cleanarch add web-app` and `dotnet cleanarch add presentation`, run at the project's
   root, ask for the same parts and add them to this project.
 <!--#endif-->
 <!--#if (anyWeb)-->
-- `dnx CleanArch.Create -- web-app`, `dnx CleanArch.Create -- web-package` and
-  `dnx CleanArch.Create -- presentation`, run at the project's root, ask for the same parts and add
+- `dotnet cleanarch add web-app`, `dotnet cleanarch add web-package` and
+  `dotnet cleanarch add presentation`, run at the project's root, ask for the same parts and add
   them to this project.
 <!--#endif-->
 - `dotnet new cleanarch-presentation -n <Name> --framework blazor-server --project-name AppTemplate`

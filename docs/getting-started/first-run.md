@@ -455,16 +455,15 @@ the feature among it.
 ## Add a part
 
 <!--#if (!anyWeb)-->
-To add a web app or a presentation project later, run `dnx CleanArch.Create -- web-app` or
-`dnx CleanArch.Create -- presentation` at the project's root.
+To add a web app or a presentation project later, run `dotnet cleanarch add web-app` or
+`dotnet cleanarch add presentation` at the project's root.
 <!--#endif-->
 <!--#if (anyWeb)-->
 To add a web app, a shared web package or a presentation project later, run
-`dnx CleanArch.Create -- web-app`, `dnx CleanArch.Create -- web-package` or
-`dnx CleanArch.Create -- presentation` at the project's root.
+`dotnet cleanarch add web-app`, `dotnet cleanarch add web-package` or
+`dotnet cleanarch add presentation` at the project's root.
 <!--#endif-->
-The `--` hands the rest to the tool, as `dnx` keeps `--yes` and `--help` for itself;
-[the overview](overview.md#how-this-project-was-generated) says what each part is.
+[The overview](overview.md#how-this-project-was-generated) says what each part is.
 
 ## Next
 

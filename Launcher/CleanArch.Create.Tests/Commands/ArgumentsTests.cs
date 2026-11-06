@@ -13,7 +13,6 @@ public sealed class ArgumentsTests
         Arguments parsed = Arguments.Parse(
             ["new", "-n", "Acme.Shop", "--output=out", "--auth", "none", "--files", "--yes", "--setup", "--web-audience=admin", "--template-source", "pkg.nupkg", "--hive", "hive"]);
 
-        parsed.Command.ShouldBe("new");
         parsed.Name.ShouldBe("Acme.Shop");
         parsed.Output.ShouldBe("out");
         parsed.Yes.ShouldBeTrue();
@@ -30,7 +29,6 @@ public sealed class ArgumentsTests
     {
         Arguments parsed = Arguments.Parse(["--", "new", "-n", "Acme.Shop", "--yes"]);
 
-        parsed.Command.ShouldBe("new");
         parsed.Name.ShouldBe("Acme.Shop");
         parsed.Yes.ShouldBeTrue();
         Arguments.Parse(["--", "--help"]).Help.ShouldBeTrue();
@@ -40,9 +38,12 @@ public sealed class ArgumentsTests
     public void Parse_KeepsEveryValueOfARepeatedTemplateOption() =>
         Arguments.Parse(["--presentation", "api", "--presentation=mcp", "--presentation", "worker"]).TemplateOptions["presentation"].ShouldBe("api|mcp|worker");
 
-    [Fact]
-    public void Parse_LeavesTheCommandToTheLauncher_WhenNoneIsGiven() =>
-        Arguments.Parse(["--yes"]).Command.ShouldBeNull();
+    [Theory]
+    [InlineData("web-app")]
+    [InlineData("web-package")]
+    [InlineData("presentation")]
+    public void Parse_SendsAnAdditionToTheProjectsTool(string addition) =>
+        Should.Throw<LauncherException>(() => Arguments.Parse([addition])).Message.ShouldContain($"dotnet cleanarch add {addition}");
 
     [Theory]
     [InlineData("create")]

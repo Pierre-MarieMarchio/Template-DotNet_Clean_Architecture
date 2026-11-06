@@ -891,15 +891,14 @@ reasons.
 ## The launcher
 
 `Launcher/CleanArch.Create` is the .NET tool `dnx CleanArch.Create` runs, with its tests in
-`Launcher/CleanArch.Create.Tests`. Its `Hosting` folder starts it, `Commands` holds one folder per
-command, each listed once in `LauncherCommands`, and `Setup` one class per step of a new project's setup. The folder is its own solution, `Launcher/CleanArch.Create.slnx`,
+`Launcher/CleanArch.Create.Tests`. Its `Hosting` folder starts it, `Commands` holds its arguments, its usage and the one command it has, `new`, in `Commands/NewProject`, and `Setup` one class per step of a new project's setup. The folder is its own solution, `Launcher/CleanArch.Create.slnx`,
 which holds five more projects. Generation and the template package leave the folder out, and
 `TemplatePackagingTests` holds both.
 
 | Project | What it is |
 |---|---|
 | `Launcher/CleanArch.Tooling` | the library both tools share, never packed on its own: running a process and its verbatim output, the terminal, the templates' manifests with the evaluation of their refusals, and the questions asked from them; its tests are in `Launcher/CleanArch.Tooling.Tests` |
-| `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `Launcher/CleanArch.Cli/Eject` with the source it ships. `Launcher/CleanArch.Cli/Generators` holds one folder per generator, its command, request, plan, edits, report and templates, over `Launcher/CleanArch.Cli/Generators/Shared`, the pipeline every generator runs and the code they share, which references no generator; its tests are in `Launcher/CleanArch.Cli.Tests`, whose `Launcher/CleanArch.Cli.Tests/Architecture` holds the launcher's boundaries: no command, generator or launcher command references another, `Kernel` and `Shared` reference none, `CleanArch.Cli.Commands` references System.CommandLine alone, and only the two process launchers call `Process.Start` |
+| `Launcher/CleanArch.Cli` | the .NET tool `dotnet cleanarch`, packed as `CleanArch.Cli` at the same `templateVersion`, which finds a project by the project file at its root: `BuiltInCommands.cs` lists every command, and the ones that stay the tool's each have a folder, `Launcher/CleanArch.Cli/Eject` with the source it ships. `Launcher/CleanArch.Cli/Generators` holds one folder per generator, its command, request, plan, edits, report and templates, over `Launcher/CleanArch.Cli/Generators/Shared`, the pipeline every generator runs and the code they share, which references no generator; its tests are in `Launcher/CleanArch.Cli.Tests`, whose `Launcher/CleanArch.Cli.Tests/Architecture` holds the launcher's boundaries: no command or generator references another, `Kernel` and `Shared` reference none, `CleanArch.Cli.Commands` references System.CommandLine alone, and only the two process launchers call `Process.Start` |
 | `Launcher/CleanArch.Cli.Commands` | the commands `eject` can copy into a project, never packed on its own: it references System.CommandLine alone, since an ejected command is a file-based app that declares nothing else. Each command has a folder and a namespace of its own and references no other; `Launcher/CleanArch.Cli.Commands/Hosting` holds the root command, the registration and the context, and `Launcher/CleanArch.Cli.Commands/Kernel` what the commands share, the process launcher the context carries and every external call among it, referencing neither the commands nor `Hosting`. `CleanArch.Cli` composes them with the ones that stay the tool's, and ships the source of every folder, which eject merges into one namespace |
 
 [Template decision 0017](decisions/0017-a-project-runs-its-tasks-from-a-pinned-dotnet-tool.md) and
@@ -917,8 +916,7 @@ The tests that read the manifests through the launcher's own settings stay in
 | Gate | `verify` restores, formats, builds and tests the launcher's solution, all seven projects, after the project's gate; CI's `launcher` job does the same |
 | Release | `template-release.yml` packs it beside the template package, with its symbol package, installs it as a tool, generates the defaults with it, and publishes it with the template package |
 
-Inside a generated project its item commands read the options the project was generated with from
-its files rather than asking them; `GeneratedProjectTests` holds each reading on a tree of its own:
+`dotnet cleanarch adopt` writes the project file of a project generated before the tool by reading the options the project was generated with from its files, and the launcher reads a project's name from them to say it is inside one; `GeneratedProjectTests` holds each reading on a tree of its own:
 
 | Option | Read from |
 |---|---|
@@ -931,22 +929,12 @@ its files rather than asking them; `GeneratedProjectTests` holds each reading on
 | `--has-api` | the `Src/Presentation/<Initials>.Api` folder |
 | `--scope`, `--workspace` | the name in `Src/Web/package.json`, the project's name in kebab case without one; `Src/Web` |
 
-`presentation` runs `cleanarch-presentation`, then the project's `presentation-join` and
-`presentation-scaffold` tasks, and stops before the second when the first fails. `web-app` and
-`web-package` run the project's `web-join` after the item template, with the framework, audience
-and rendering asked, so the lines a web app's `README.md` lists are made and `cleanarch.json`
-records every part the launcher adds.
-
 Its tests read this checkout's manifests: the options are the visible ones, each refusal fires for
 some combination, the launcher refuses exactly where `refusedOptions` does, and answering only what
 it offers never ends in a refusal. The terminal thread is tested on Spectre's `TestConsole`, by its
 markers and their order rather than its colours, with the processes it starts replaced. One test packs the
-templates, runs the launcher without a terminal for a project, its first web app, a package and a
-presentation project, and compares the tree with what `dotnet new` writes from the same answers with
-`--presentation api --presentation blazor-server`: the lines `presentation-join` places by the
-anchors of the starter's `README.md` land where the project template writes them, so an anchor
-moved, or a block of the project template moved away from its anchor, fails it. It stops before
-`presentation-scaffold`, which fetches Microsoft's template package from NuGet. Another generates a
+templates, runs the launcher without a terminal for a project and compares the tree with what
+`dotnet new` writes from the same answers. Another generates a
 project with `--web`, once as a React single-page app and once as an Angular app rendered on the
 server under an external provider, and the same project without it, to which `cleanarch-webapp
 --workspace` and `web-join` add the app: the two trees must match but for the options the overview
@@ -966,8 +954,7 @@ local accounts calls the API, the launcher shows the API as answered for you, na
 and passes it; `TheCallersTheLauncherNames_AreExactlyWhatMakesTheTemplateAddTheApi` holds the
 callers against `needsApi`. When the hosts chosen hold neither the API nor the worker, it shows the
 worker as answered for you and passes it; `TheWorkerTheLauncherAdds_IsExactlyWhatMakesTheTemplateAddIt`
-holds that rule against `needsWorker`. Inside a project, `presentation` asks the framework, then the name,
-proposing the framework's own (`Portal`, `Mcp`, `Desktop`, `Worker`).
+holds that rule against `needsWorker`.
 
 ```bash
 dotnet run --project Launcher/CleanArch.Create -- --template-source . --hive /tmp/cleanarch-hive

@@ -90,8 +90,8 @@ exactly once:
 dotnet run Tools/Tasks.cs presentation-join AppTemplate.PresentationAppDesktop
 ```
 
-Then create the project as above and commit it. `dnx CleanArch.Create -- presentation` runs the three
-commands in turn, reading the options from the project's files. The edits, to make by hand where the
+Then create the project as above and commit it. `dotnet cleanarch add presentation` runs the three
+commands in turn, reading the options from `cleanarch.json`. The edits, to make by hand where the
 task stops:
 
 <!--#if (!hasClient)-->

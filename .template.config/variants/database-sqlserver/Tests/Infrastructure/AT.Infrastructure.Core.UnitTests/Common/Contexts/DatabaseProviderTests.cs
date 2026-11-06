@@ -137,7 +137,7 @@ public sealed class DatabaseProviderTests
             .Invoke(null, [errors, "16.0"])!;
     }
 
-    private sealed class ProbeRow
+    internal sealed class ProbeRow
     {
         public Guid Id { get; set; }
 

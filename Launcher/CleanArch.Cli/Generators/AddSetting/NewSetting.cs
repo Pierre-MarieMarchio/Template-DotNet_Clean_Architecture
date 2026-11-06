@@ -2,8 +2,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.Shared;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.AddSetting;
 
 internal static class NewSetting
 {

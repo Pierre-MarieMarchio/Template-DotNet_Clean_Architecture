@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using Microsoft.CodeAnalysis;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.Shared;
 
 internal static class TextEdits
 {

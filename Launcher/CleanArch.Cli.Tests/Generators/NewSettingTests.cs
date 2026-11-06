@@ -1,9 +1,9 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.Shared;
 using Xunit;
-using static CleanArch.Cli.Generators.NewSetting;
+using static CleanArch.Cli.Generators.AddSetting.NewSetting;
 
 namespace CleanArch.Cli.Tests.Generators;
 

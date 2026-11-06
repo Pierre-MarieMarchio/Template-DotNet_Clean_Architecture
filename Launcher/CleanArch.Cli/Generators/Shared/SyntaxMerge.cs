@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.Shared;
 
 internal static class SyntaxMerge
 {

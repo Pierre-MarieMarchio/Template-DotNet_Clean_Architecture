@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.Shared;
 
 internal static class CSharpNames
 {

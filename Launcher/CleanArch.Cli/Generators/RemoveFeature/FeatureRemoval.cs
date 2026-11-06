@@ -3,10 +3,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using CleanArch.Cli.Generators.Shared;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.RemoveFeature;
 
-internal static class RemoveFeature
+internal static class FeatureRemoval
 {
     private const string _usage =
         "Usage: dotnet cleanarch remove feature <Features> [--apply]\n"

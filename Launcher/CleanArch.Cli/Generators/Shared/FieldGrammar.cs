@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.Shared;
 
 internal static class FieldGrammar
 {

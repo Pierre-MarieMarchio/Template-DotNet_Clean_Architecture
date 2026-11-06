@@ -1,7 +1,8 @@
 ﻿using System.Globalization;
+using CleanArch.Cli.Generators.AddFeature;
 using Microsoft.CodeAnalysis;
 
-namespace CleanArch.Cli.Generators;
+namespace CleanArch.Cli.Generators.Shared;
 
 internal static class FieldCode
 {

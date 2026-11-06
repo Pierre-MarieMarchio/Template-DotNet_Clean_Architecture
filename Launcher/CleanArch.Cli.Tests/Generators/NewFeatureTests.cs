@@ -2,10 +2,11 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.AddFeature;
+using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Xunit;
-using static CleanArch.Cli.Generators.NewFeature;
+using static CleanArch.Cli.Generators.AddFeature.NewFeature;
 
 namespace CleanArch.Cli.Tests.Generators;
 

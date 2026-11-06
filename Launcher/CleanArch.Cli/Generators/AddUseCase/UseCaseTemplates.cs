@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Cli.Generators;
+﻿namespace CleanArch.Cli.Generators.AddUseCase;
 
 internal static class UseCaseTemplates
 {

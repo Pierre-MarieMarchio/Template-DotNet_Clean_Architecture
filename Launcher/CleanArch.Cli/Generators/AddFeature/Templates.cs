@@ -1,4 +1,4 @@
-﻿namespace CleanArch.Cli.Generators;
+﻿namespace CleanArch.Cli.Generators.AddFeature;
 
 internal static class Templates
 {

@@ -3,9 +3,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.AddFeature;
+using CleanArch.Cli.Generators.Shared;
 using Xunit;
-using static CleanArch.Cli.Generators.RemoveFeature;
+using static CleanArch.Cli.Generators.RemoveFeature.FeatureRemoval;
 
 namespace CleanArch.Cli.Tests.Generators;
 

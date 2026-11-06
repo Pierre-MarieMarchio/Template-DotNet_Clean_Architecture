@@ -2,9 +2,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using CleanArch.Cli.Generators;
+using CleanArch.Cli.Generators.Shared;
 using Xunit;
-using static CleanArch.Cli.Generators.NewUseCase;
+using static CleanArch.Cli.Generators.AddUseCase.NewUseCase;
 
 namespace CleanArch.Cli.Tests.Generators;
 

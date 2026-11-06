@@ -25,8 +25,6 @@ internal static class VerifyCommand
         "UpgradeReport.cs",
     ];
 
-    private static readonly string[] _styleRulesTheBuildLacks = ["IDE0003", "IDE0049"];
-
     private static readonly string[] _webScripts = ["lint", "test", "build"];
 
     private const string _webNote = "Src/Web";
@@ -113,7 +111,7 @@ internal static class VerifyCommand
 
         string solution = ProjectLayout.Solution(project);
         yield return () => ExternalCommand.Run(Dotnet(["restore", solution, .. settings.Nodes], project.Root), output, error);
-        yield return () => ExternalCommand.Run(Dotnet(["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
+        yield return () => ExternalCommand.Run(Dotnet(["format", solution, "--diagnostics", .. FormatCommand.StyleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
         yield return () => ExternalCommand.Run(Dotnet(["build", solution, "--configuration", settings.Configuration, "--no-restore", .. settings.Nodes], project.Root), output, error);
         yield return () => TestCommand.RunBuilt(project, parseResult, settings);
 
@@ -130,7 +128,7 @@ internal static class VerifyCommand
         if (LauncherSolution(project) is { } launcher)
         {
             yield return () => ExternalCommand.Run(Dotnet(["restore", launcher], project.Root), output, error);
-            yield return () => ExternalCommand.Run(Dotnet(["format", launcher, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
+            yield return () => ExternalCommand.Run(Dotnet(["format", launcher, "--diagnostics", .. FormatCommand.StyleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
             yield return () => ExternalCommand.Run(Dotnet(["build", launcher, "--configuration", settings.Configuration, "--no-restore"], project.Root), output, error);
             yield return () => ExternalCommand.Run(Dotnet(["test", "--solution", launcher, "--configuration", settings.Configuration, "--no-build"], project.Root), output, error);
         }

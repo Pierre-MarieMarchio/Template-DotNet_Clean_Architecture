@@ -1,8 +1,9 @@
-﻿using CleanArch.Tooling.Failures;
+﻿using CleanArch.Create.Hosting;
+using CleanArch.Tooling.Failures;
 using Shouldly;
 using Xunit;
 
-namespace CleanArch.Create.Tests;
+namespace CleanArch.Create.Tests.Hosting;
 
 public sealed class ArgumentsTests
 {

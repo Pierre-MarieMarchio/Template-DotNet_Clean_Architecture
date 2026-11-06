@@ -2,7 +2,7 @@
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Processes;
 
-namespace CleanArch.Create.Projects;
+namespace CleanArch.Create.Setup;
 
 public enum SetupStatus
 {

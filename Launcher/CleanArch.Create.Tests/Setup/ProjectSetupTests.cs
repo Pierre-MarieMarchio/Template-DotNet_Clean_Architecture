@@ -1,11 +1,11 @@
-﻿using CleanArch.Create.Projects;
+﻿using CleanArch.Create.Setup;
 using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Processes;
 using Shouldly;
 using Xunit;
 
-namespace CleanArch.Create.Tests.Projects;
+namespace CleanArch.Create.Tests.Setup;
 
 public sealed class ProjectSetupTests : IDisposable
 {

@@ -1,9 +1,10 @@
-﻿using CleanArch.Tooling.Output;
+﻿using CleanArch.Create.Hosting;
+using CleanArch.Tooling.Output;
 using Shouldly;
 using Spectre.Console.Testing;
 using Xunit;
 
-namespace CleanArch.Create.Tests;
+namespace CleanArch.Create.Tests.Hosting;
 
 public sealed class LauncherTests : IDisposable
 {

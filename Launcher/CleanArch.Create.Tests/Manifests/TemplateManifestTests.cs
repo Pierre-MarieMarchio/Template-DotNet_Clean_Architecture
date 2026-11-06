@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
+using CleanArch.Create.Hosting;
 using CleanArch.Tooling.Manifests;
 using Shouldly;
 using Xunit;

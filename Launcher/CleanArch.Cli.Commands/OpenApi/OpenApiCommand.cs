@@ -200,6 +200,12 @@ internal static class OpenApiCommand
                 return exit;
             }
 
+            if (checking && !Directory.Exists(target))
+            {
+                error.WriteLine($"kiota wrote nothing to {target}.");
+                return CleanArchCommand.Failed;
+            }
+
             Normalize(target, generated, reference);
 
             if (!checking)
@@ -241,6 +247,11 @@ internal static class OpenApiCommand
         }
 
         string lockFile = Path.Combine(target, "kiota-lock.json");
+        if (!File.Exists(lockFile))
+        {
+            return;
+        }
+
         JsonNode settings = JsonNode.Parse(File.ReadAllText(lockFile))!;
         settings["descriptionLocation"] = Path.GetRelativePath(generated, reference).Replace('\\', '/');
         File.WriteAllText(

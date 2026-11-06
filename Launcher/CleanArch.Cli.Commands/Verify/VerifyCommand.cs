@@ -198,7 +198,7 @@ internal static class VerifyCommand
         string reference = ProjectLayout.OpenApiReference(project);
         if (!File.Exists(Path.Combine(root, reference)))
         {
-            error.WriteLine($"{reference} is missing: run `{CleanArchCommand.Name} {OpenApiCommand.Name}` first.");
+            error.WriteLine($"{reference.Replace('\\', '/')} is missing: run `{CleanArchCommand.Name} {OpenApiCommand.Name}` first.");
             return CleanArchCommand.Failed;
         }
 
@@ -223,13 +223,13 @@ internal static class VerifyCommand
 
         if (!Directory.Exists(Path.Combine(root, client)))
         {
-            error.WriteLine($"{client} does not exist, so there is no client to check: a presentation that calls the API through it brings it.");
+            error.WriteLine($"{client.Replace('\\', '/')} does not exist, so there is no client to check: a presentation that calls the API through it brings it.");
             return CleanArchCommand.Failed;
         }
 
         if (!File.Exists(Path.Combine(root, reference)))
         {
-            error.WriteLine($"{reference} is missing: run `{CleanArchCommand.Name} {OpenApiCommand.Name}` first.");
+            error.WriteLine($"{reference.Replace('\\', '/')} is missing: run `{CleanArchCommand.Name} {OpenApiCommand.Name}` first.");
             return CleanArchCommand.Failed;
         }
 

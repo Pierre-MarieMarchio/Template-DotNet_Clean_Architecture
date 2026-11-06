@@ -38,19 +38,19 @@ public sealed class RedundantCascadePathsConventionTests
             .Single(foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(TPrincipal))
             .DeleteBehavior;
 
-    private sealed class User
+    internal sealed class User
     {
         public Guid Id { get; set; }
     }
 
-    private sealed class Family
+    internal sealed class Family
     {
         public Guid Id { get; set; }
 
         public Guid UserId { get; set; }
     }
 
-    private sealed class Token
+    internal sealed class Token
     {
         public Guid Id { get; set; }
 
@@ -59,12 +59,12 @@ public sealed class RedundantCascadePathsConventionTests
         public Guid FamilyId { get; set; }
     }
 
-    private sealed class Customer
+    internal sealed class Customer
     {
         public Guid Id { get; set; }
     }
 
-    private sealed class Order
+    internal sealed class Order
     {
         public Guid Id { get; set; }
 

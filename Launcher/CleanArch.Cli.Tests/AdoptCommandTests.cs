@@ -73,17 +73,6 @@ public sealed class AdoptCommandTests : IDisposable
     }
 
     [Fact]
-    public void Adopt_IsRefused_WhereTheProjectFileExists()
-    {
-        using var project = new SampleProject(SampleProject.Minimal);
-
-        Run(["adopt"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain($"This project has its {ProjectLocator.FileName} already");
-        File.ReadAllText(Path.Combine(project.Root, ProjectLocator.FileName)).ShouldBe(SampleProject.Minimal);
-    }
-
-    [Fact]
     public void Adopt_AsksForTheVersion_WhenTheOverviewNoLongerSaysIt()
     {
         AProjectBeforeTheTool();

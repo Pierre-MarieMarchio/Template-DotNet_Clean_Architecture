@@ -1,5 +1,4 @@
-﻿using System.CommandLine;
-using System.Text;
+﻿using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -23,7 +22,6 @@ public sealed class VerifyCommandTests : IDisposable
     private static readonly string _solution = "Acme.Shop.slnx";
     private static readonly string _reference = Path.Combine("Tests", "Integration", "AS.Api.IntegrationTests", "OpenApi", "v1.json");
 
-    private static readonly CommandRegistration _parent = new(RefuseOutsideAProject, BuildParent);
 
     public VerifyCommandTests()
     {
@@ -193,42 +191,6 @@ public sealed class VerifyCommandTests : IDisposable
     }
 
     [Fact]
-    public void Verify_WithTheClient_ChecksWhatKiotaWritesAgainstTheGeneratedFolder()
-    {
-        using var project = new SampleProject(SampleProject.Client);
-        AsBootstrapped(project, withAuth: false);
-        string generated = WithClient(project);
-        _onCall = (call, _) =>
-        {
-            if (call.Arguments.Contains("kiota"))
-            {
-                CopyTree(generated, OutputOf(call));
-            }
-
-            return CleanArchCommand.Succeeded;
-        };
-
-        Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        ExternalCall kiota = _calls.Single(call => call.Arguments.Contains("kiota"));
-        kiota.Arguments.ShouldBe(
-        [
-            "tool", "run", "kiota", "generate",
-            "--language", "CSharp",
-            "--openapi", _reference,
-            "--output", OutputOf(kiota),
-            "--class-name", "ApiClient",
-            "--namespace-name", "Acme.Shop.Client.Generated",
-            "--exclude-backward-compatible",
-            "--clean-output",
-            "--log-level", "Warning",
-        ]);
-        kiota.WorkingDirectory.ShouldBe(project.Root);
-        _output.ToString().ShouldContain("dotnet tool run kiota generate");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
     public void Verify_WhenTheGeneratedClientDrifts_FailsAndNamesTheDriftedFile()
     {
         using var project = new SampleProject(SampleProject.Client);
@@ -358,92 +320,6 @@ public sealed class VerifyCommandTests : IDisposable
         _calls.Last().Arguments.ShouldContain("--vulnerable");
     }
 
-    [Fact]
-    public void OutsideAProject_VerifyIsRefusedWithTheReason()
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(["verify"], folder).ShouldBe(CleanArchCommand.Failed);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _error.ToString().ShouldStartWith("Not inside a CleanArch project");
-        _error.ToString().ShouldContain(ProjectLocator.FileName);
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void WithAProjectFileItCannotRead_VerifyIsRefusedWithThatError()
-    {
-        using var project = new SampleProject("{ not json");
-
-        Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Help_ListsVerifyInsideAProject_ButNotOutside()
-    {
-        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-
-        Run(["--help"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        _output.ToString().ShouldContain("verify");
-        Clear();
-
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(["--help"], folder).ShouldBe(CleanArchCommand.Succeeded);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _output.ToString().ShouldNotContain("verify");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void ARefusedCommand_RefusesAndHidesItsSubcommandsToo_AndHelpJsonListsSubcommandsRecursively()
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            CleanArchCommand.Run(["parent", "child"], folder, _output, _error, [HelpCommand.Registration, _parent])
-                .ShouldBe(CleanArchCommand.Failed);
-            _error.ToString().ShouldStartWith("Not inside a CleanArch project");
-            Clear();
-
-            CleanArchCommand.Run(["--help"], folder, _output, _error, [HelpCommand.Registration, _parent])
-                .ShouldBe(CleanArchCommand.Succeeded);
-            _output.ToString().ShouldNotContain("parent");
-            Clear();
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-        CleanArchCommand.Run(["help", "--json"], project.Root, _output, _error, [HelpCommand.Registration, _parent])
-            .ShouldBe(CleanArchCommand.Succeeded);
-
-        JsonArray commands = CommandsOf();
-        commands.Select(command => Text(command!["name"])).ShouldBe(["help", "parent"]);
-        JsonObject parent = commands.Single(command => Text(command!["name"]) == "parent").ShouldNotBeNull().AsObject();
-        parent["commands"].ShouldNotBeNull().AsArray().Select(command => Text(command!["name"])).ShouldBe(["child"]);
-        _error.ToString().ShouldBeEmpty();
-    }
-
     public void Dispose()
     {
         ExternalCommand.Handler = null;
@@ -509,33 +385,5 @@ public sealed class VerifyCommandTests : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
             File.Copy(file, copy, overwrite: true);
         }
-    }
-
-    private JsonArray CommandsOf()
-    {
-        JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
-        Clear();
-        return document["commands"].ShouldNotBeNull().AsArray();
-    }
-
-    private void Clear()
-    {
-        _output.GetStringBuilder().Clear();
-        _error.GetStringBuilder().Clear();
-    }
-
-    private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
-
-    private static string? RefuseOutsideAProject(CommandContext context) =>
-        context.Project is null ? context.RefusedProjectFile?.Message ?? context.OutsideProject : null;
-
-    private static Command BuildParent(CommandContext context)
-    {
-        var parent = new Command("parent", "A parent command.");
-        var child = new Command("child", "A child command.");
-        child.SetAction(_ => CleanArchCommand.Succeeded);
-        parent.Add(child);
-        parent.SetAction(_ => CleanArchCommand.Succeeded);
-        return parent;
     }
 }

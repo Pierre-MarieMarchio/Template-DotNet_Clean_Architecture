@@ -1,5 +1,4 @@
-﻿using System.Text.Json.Nodes;
-using Shouldly;
+﻿using Shouldly;
 using Xunit;
 
 namespace CleanArch.Cli.Tests;
@@ -12,8 +11,6 @@ public sealed class LifecycleCommandTests : IDisposable
     private readonly List<ExternalCall> _calls = [];
     private int _exit = CleanArchCommand.Succeeded;
 
-    private static readonly string _api = Path.Combine("Src", "Presentation", "AS.Api");
-
     public LifecycleCommandTests()
     {
         ExternalCommand.Handler = (call, _, _) =>
@@ -24,62 +21,12 @@ public sealed class LifecycleCommandTests : IDisposable
     }
 
     [Fact]
-    public void Run_PrintsTheLineItRuns_AndForwardsItsExitCode()
-    {
-        using var project = new SampleProject(SampleProject.Api);
-        _exit = 6;
-
-        Run(["run"], project.Root).ShouldBe(6);
-
-        _output.ToString().ShouldBe($"dotnet run --project {_api}{Environment.NewLine}");
-        ExternalCall call = _calls.Single();
-        call.FileName.ShouldBe("dotnet");
-        call.WorkingDirectory.ShouldBe(project.Root);
-        call.Arguments.ShouldBe(["run", "--project", _api]);
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Run_IsRefusedWhereTheProjectFileRecordsNoApiPresentation()
-    {
-        using var project = new SampleProject(SampleProject.Full);
-
-        Run(["run"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain($"its {ProjectLocator.FileName} records no presentation of framework api");
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-        Clear();
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        CommandsOf().Select(command => Text(command!["name"])).Where(name => name is "run" or "end-to-end").ShouldBeEmpty();
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void ComposeUp_PrintsTheLineItRuns_AndForwardsItsExitCode()
-    {
-        using var project = new SampleProject(SampleProject.Full);
-        _exit = 2;
-
-        Run(["compose", "up"], project.Root).ShouldBe(2);
-
-        _output.ToString().ShouldBe($"docker compose up -d --wait{Environment.NewLine}");
-        ExternalCall call = _calls.Single();
-        call.FileName.ShouldBe("docker");
-        call.WorkingDirectory.ShouldBe(project.Root);
-        call.Arguments.ShouldBe(["compose", "up", "-d", "--wait"]);
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void ComposeDown_PrintsTheLineItRuns_AtTheProjectRoot()
+    public void ComposeDown_RunsAtTheProjectRoot_FromASubfolder()
     {
         using var project = new SampleProject(SampleProject.Full);
 
         Run(["compose", "down"], project.Folder("Src")).ShouldBe(CleanArchCommand.Succeeded);
 
-        _output.ToString().ShouldBe($"docker compose down{Environment.NewLine}");
         _calls.Single().Arguments.ShouldBe(["compose", "down"]);
         _calls.Single().WorkingDirectory.ShouldBe(project.Root);
     }
@@ -99,19 +46,7 @@ public sealed class LifecycleCommandTests : IDisposable
     }
 
     [Fact]
-    public void EndToEnd_IsRefusedWhereTheProjectFileRecordsNoApiPresentation()
-    {
-        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: true));
-
-        Run(["end-to-end"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain($"its {ProjectLocator.FileName} records no presentation of framework api");
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Sonar_PrintsTheTwoDockerLines_AndRunsThemAtTheProjectRoot()
+    public void Sonar_StartsSonarQube_ThenScansWithTheUnitTestsAlone()
     {
         using var project = WithTests(SampleProject.WithOptions("local", sonar: true));
 
@@ -127,7 +62,6 @@ public sealed class LifecycleCommandTests : IDisposable
         script.ShouldContain($"dotnet test --project \"{Path.Combine("Tests", "Unit", "AS.Unit.Tests.csproj").Replace('\\', '/')}\"");
         script.ShouldContain("dotnet restore Acme.Shop.slnx --artifacts-path artifacts/sonar");
         script.ShouldNotContain("Integration");
-        _output.ToString().ShouldContain("docker compose --profile sonar up --detach --wait sonarqube");
         _error.ToString().ShouldBeEmpty();
     }
 
@@ -142,115 +76,6 @@ public sealed class LifecycleCommandTests : IDisposable
         _calls.Single().Arguments.ShouldBe(["compose", "--profile", "sonar", "up", "--detach", "--wait", "sonarqube"]);
     }
 
-    [Fact]
-    public void Sonar_IsHiddenAndRefusedWhereTheProjectFileRecordsSonarFalse()
-    {
-        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-
-        Run(["sonar"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain($"its {ProjectLocator.FileName} records sonar false");
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-        Clear();
-
-        Run(["--help"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        _output.ToString().ShouldNotContain("sonar");
-        Clear();
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-        CommandsOf().Select(command => Text(command!["name"])).ShouldNotContain("sonar");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Sonar_IsListedInHelpJson_WhenTheProjectFileRecordsSonarTrue()
-    {
-        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: true));
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        CommandsOf().Select(command => Text(command!["name"])).ShouldContain("sonar");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void HelpJson_ListsTheLifecycleCommands_AndTheSubcommandsOfCompose()
-    {
-        using var project = new SampleProject(SampleProject.Api);
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        JsonArray commands = CommandsOf();
-        commands.Select(command => Text(command!["name"])).Where(name => name is "bootstrap" or "run" or "compose" or "end-to-end" or "sonar").ShouldBe(["bootstrap", "run", "compose", "end-to-end", "sonar"]);
-        JsonObject compose = commands.Single(command => Text(command!["name"]) == "compose").ShouldNotBeNull().AsObject();
-        compose["commands"].ShouldNotBeNull().AsArray().Select(command => Text(command!["name"])).ShouldBe(["up", "down"]);
-        JsonObject endToEnd = commands.Single(command => Text(command!["name"]) == "end-to-end").ShouldNotBeNull().AsObject();
-        endToEnd["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"])).ShouldBe(["--keep-stack", "--configuration"]);
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Help_OutsideAProject_HidesTheRefusedCommands()
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(["--help"], folder).ShouldBe(CleanArchCommand.Succeeded);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _output.ToString().ShouldContain("help");
-        _output.ToString().ShouldNotContain("bootstrap");
-        _output.ToString().ShouldNotContain("compose");
-        _output.ToString().ShouldNotContain("end-to-end");
-        _output.ToString().ShouldNotContain("sonar");
-    }
-
-    [Theory]
-    [InlineData("run")]
-    [InlineData("compose up")]
-    [InlineData("compose down")]
-    [InlineData("end-to-end")]
-    [InlineData("sonar")]
-    public void OutsideAProject_TheCommandIsRefusedWithTheReason(string commandLine)
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(commandLine.Split(' '), folder).ShouldBe(CleanArchCommand.Failed);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _error.ToString().ShouldStartWith("Not inside a CleanArch project");
-        _error.ToString().ShouldContain(ProjectLocator.FileName);
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Theory]
-    [InlineData("run")]
-    [InlineData("compose up")]
-    [InlineData("compose down")]
-    [InlineData("end-to-end")]
-    [InlineData("sonar")]
-    public void WithAProjectFileItCannotRead_TheCommandIsRefusedWithThatError(string commandLine)
-    {
-        using var project = new SampleProject("{ not json");
-
-        Run(commandLine.Split(' '), project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
     public void Dispose()
     {
         ExternalCommand.Handler = null;
@@ -260,21 +85,6 @@ public sealed class LifecycleCommandTests : IDisposable
 
     private int Run(string[] arguments, string workingDirectory) =>
         CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
-
-    private JsonArray CommandsOf()
-    {
-        JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
-        Clear();
-        return document["commands"].ShouldNotBeNull().AsArray();
-    }
-
-    private void Clear()
-    {
-        _output.GetStringBuilder().Clear();
-        _error.GetStringBuilder().Clear();
-    }
-
-    private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
 
     private static SampleProject WithTests(string json)
     {

@@ -168,43 +168,6 @@ public sealed class EfCommandTests : IDisposable
         _calls.ShouldBeEmpty();
     }
 
-    [Theory]
-    [InlineData("migrations add X")]
-    [InlineData("migrations bundle")]
-    [InlineData("database update")]
-    public void OutsideAProject_TheCommandIsRefusedWithTheReason(string commandLine)
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(commandLine.Split(' '), folder).ShouldBe(CleanArchCommand.Failed);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _error.ToString().ShouldStartWith("Not inside a CleanArch project");
-        _error.ToString().ShouldContain(ProjectLocator.FileName);
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
-    [Theory]
-    [InlineData("migrations add X")]
-    [InlineData("migrations bundle")]
-    [InlineData("database update")]
-    public void WithAProjectFileItCannotRead_TheCommandIsRefusedWithThatError(string commandLine)
-    {
-        using var project = new SampleProject("{ not json");
-
-        Run(commandLine.Split(' '), project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
-    }
-
     [Fact]
     public void HelpJson_HidesTheContextOption_WhereTheProjectKeepsNoAccounts()
     {

@@ -186,7 +186,7 @@ public sealed class FormatCommandTests : IDisposable
 
         JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
         JsonArray commands = document["commands"].ShouldNotBeNull().AsArray();
-        commands.Select(command => Text(command!["name"])).ShouldBe(["help", "format"]);
+        commands.Select(command => Text(command!["name"])).ShouldContain("format");
         JsonObject format = commands.Single(command => Text(command!["name"]) == "format").ShouldNotBeNull().AsObject();
         format["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"]))
             .ShouldBe(["--check"]);

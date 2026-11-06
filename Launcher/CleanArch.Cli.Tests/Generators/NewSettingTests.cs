@@ -4,7 +4,6 @@ using System.Text.Json;
 using CleanArch.Cli.Generators.AddSetting;
 using CleanArch.Cli.Generators.Shared;
 using Xunit;
-using static CleanArch.Cli.Generators.AddSetting.NewSetting;
 using static CleanArch.Cli.Generators.Shared.SourceText;
 
 namespace CleanArch.Cli.Tests.Generators;
@@ -553,7 +552,7 @@ public sealed class NewSettingTests
         string template = NewTree(scratch);
         string module = Path.Combine(template, _module);
 
-        File.WriteAllText(module, "//" + _conditionOpen + "files)\n" + File.ReadAllText(module).Replace("\uFEFF", string.Empty, StringComparison.Ordinal) + "//" + _conditionClose + "\n");
+        File.WriteAllText(module, "//" + ProjectDocuments.ConditionOpen + "files)\n" + File.ReadAllText(module).Replace("\uFEFF", string.Empty, StringComparison.Ordinal) + "//" + ProjectDocuments.ConditionClose + "\n");
         ExpectRefusal(template, ["Invoices", "Limits", "--keys", "Max:int(1..9)=1"], "template's own tree", expect);
 
         string withoutTests = NewTree(scratch);

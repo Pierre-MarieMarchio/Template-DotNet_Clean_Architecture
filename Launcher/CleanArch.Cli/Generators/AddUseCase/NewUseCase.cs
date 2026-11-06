@@ -261,15 +261,7 @@ internal static class NewUseCase
 
         string? aggregate = null;
 
-        string repositories = Path.Combine(domain, "Repositories");
-        string[] found = Directory.Exists(repositories)
-            ? [.. Directory.EnumerateFiles(repositories, "I*Repository.cs")
-                .Select(Path.GetFileNameWithoutExtension)
-                .OfType<string>()
-                .Select(file => file[1..^"Repository".Length])
-                .Where(type => CSharpNames.PascalCase.IsMatch(type))
-                .Order(StringComparer.Ordinal)]
-            : [];
+        string[] found = DomainFolders.Aggregates(domain);
 
         if (hasId)
         {

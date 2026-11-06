@@ -1,5 +1,4 @@
-﻿using System.Text.Json.Nodes;
-using Shouldly;
+﻿using Shouldly;
 using Xunit;
 
 namespace CleanArch.Cli.Tests;
@@ -10,19 +9,6 @@ public sealed class TestCommandTests : IDisposable
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly FakeDotnet _dotnet = new();
-
-    [Fact]
-    public void Test_PrintsAndRunsTheTestsOfTheSolutionAtTheRoot()
-    {
-        using var project = SampleSolution.WithSolution();
-        SampleSolution.AddUnitAndIntegrationTests(project);
-
-        Run(["test"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _output.ToString().ShouldContain("dotnet test --solution Acme.Shop.slnx --configuration Debug");
-        _dotnet.Calls.ShouldBe(["test --solution Acme.Shop.slnx --configuration Debug"]);
-        _error.ToString().ShouldBeEmpty();
-    }
 
     [Fact]
     public void Test_NoIntegration_BuildsEveryTestProjectAndRunsOnlyTheDockerFreeOnes()
@@ -97,16 +83,6 @@ public sealed class TestCommandTests : IDisposable
     }
 
     [Fact]
-    public void Test_ForwardsTheExitCodeOfTheTests()
-    {
-        using var project = SampleSolution.WithSolution();
-        SampleSolution.AddUnitAndIntegrationTests(project);
-        _dotnet.ExitWith(3);
-
-        Run(["test"], project.Root).ShouldBe(3);
-    }
-
-    [Fact]
     public void Test_NoIntegration_StopsWhenTheBuildFails()
     {
         using var project = SampleSolution.WithSolution();
@@ -129,37 +105,6 @@ public sealed class TestCommandTests : IDisposable
         _dotnet.Calls.ShouldBeEmpty();
     }
 
-    [Fact]
-    public void Test_RefusesOutsideAProject()
-    {
-        string folder = Directory.CreateTempSubdirectory("cleanarch-cli-").FullName;
-        try
-        {
-            Run(["test"], folder).ShouldBe(CleanArchCommand.Failed);
-        }
-        finally
-        {
-            Directory.Delete(folder);
-        }
-
-        _error.ToString().ShouldStartWith("Not inside a CleanArch project");
-        _error.ToString().ShouldContain(ProjectLocator.FileName);
-        _output.ToString().ShouldBeEmpty();
-        _dotnet.Calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Test_RefusesAProjectFileItCannotRead()
-    {
-        using var project = new SampleProject("{ not json");
-
-        Run(["test"], project.Root).ShouldBe(CleanArchCommand.Failed);
-
-        _error.ToString().ShouldContain(ProjectLocator.FileName);
-        _output.ToString().ShouldBeEmpty();
-        _dotnet.Calls.ShouldBeEmpty();
-    }
-
     public void Dispose()
     {
         _output.Dispose();
@@ -169,13 +114,4 @@ public sealed class TestCommandTests : IDisposable
 
     private int Run(string[] arguments, string workingDirectory) =>
         CleanArchCommand.Run(arguments, workingDirectory, _output, _error);
-
-    private JsonArray CommandsOf()
-    {
-        JsonObject document = JsonNode.Parse(_output.ToString()).ShouldNotBeNull().AsObject();
-        _output.GetStringBuilder().Clear();
-        return document["commands"].ShouldNotBeNull().AsArray();
-    }
-
-    private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
 }

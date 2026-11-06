@@ -44,15 +44,16 @@ internal static class VerifyCommand
             Name,
             "Run this project's whole gate: the repository checks, the client and web checks its project file makes true, "
             + "the build, every test, the pending-model-changes checks and the vulnerable-packages audit.");
+        BuildSettings.Options settings = BuildSettings.Add(verify);
         if (context.Project is { } project)
         {
-            verify.SetAction(parseResult => Run(project, parseResult));
+            verify.SetAction(parseResult => Run(project, parseResult, settings.Of(parseResult)));
         }
 
         return verify;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult)
+    private static int Run(LocatedProject project, ParseResult parseResult, BuildSettings settings)
     {
         TextWriter output = parseResult.InvocationConfiguration.Output;
         TextWriter error = parseResult.InvocationConfiguration.Error;
@@ -65,7 +66,7 @@ internal static class VerifyCommand
             return CleanArchCommand.Failed;
         }
 
-        foreach (Func<int> step in Steps(project, output, error))
+        foreach (Func<int> step in Steps(project, parseResult, settings, output, error))
         {
             int exit = step();
             if (exit != CleanArchCommand.Succeeded)
@@ -77,7 +78,7 @@ internal static class VerifyCommand
         return CleanArchCommand.Succeeded;
     }
 
-    private static IEnumerable<Func<int>> Steps(LocatedProject project, TextWriter output, TextWriter error)
+    private static IEnumerable<Func<int>> Steps(LocatedProject project, ParseResult parseResult, BuildSettings settings, TextWriter output, TextWriter error)
     {
         foreach (ExternalCall call in GateCalls(project))
         {
@@ -111,10 +112,10 @@ internal static class VerifyCommand
         }
 
         string solution = ProjectLayout.Solution(project);
-        yield return () => ExternalCommand.Run(Dotnet(["restore", solution], project.Root), output, error);
+        yield return () => ExternalCommand.Run(Dotnet(["restore", solution, .. settings.Nodes], project.Root), output, error);
         yield return () => ExternalCommand.Run(Dotnet(["format", solution, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
-        yield return () => ExternalCommand.Run(Dotnet(["build", solution, "--configuration", "Debug", "--no-restore"], project.Root), output, error);
-        yield return () => ExternalCommand.Run(Dotnet(["test", "--solution", solution, "--configuration", "Debug", "--no-build"], project.Root), output, error);
+        yield return () => ExternalCommand.Run(Dotnet(["build", solution, "--configuration", settings.Configuration, "--no-restore", .. settings.Nodes], project.Root), output, error);
+        yield return () => TestCommand.RunBuilt(project, parseResult, settings);
 
         foreach (string context in ProjectLayout.Contexts(project))
         {
@@ -130,8 +131,8 @@ internal static class VerifyCommand
         {
             yield return () => ExternalCommand.Run(Dotnet(["restore", launcher], project.Root), output, error);
             yield return () => ExternalCommand.Run(Dotnet(["format", launcher, "--diagnostics", .. _styleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
-            yield return () => ExternalCommand.Run(Dotnet(["build", launcher, "--configuration", "Debug", "--no-restore"], project.Root), output, error);
-            yield return () => ExternalCommand.Run(Dotnet(["test", "--solution", launcher, "--configuration", "Debug", "--no-build"], project.Root), output, error);
+            yield return () => ExternalCommand.Run(Dotnet(["build", launcher, "--configuration", settings.Configuration, "--no-restore"], project.Root), output, error);
+            yield return () => ExternalCommand.Run(Dotnet(["test", "--solution", launcher, "--configuration", settings.Configuration, "--no-build"], project.Root), output, error);
         }
     }
 

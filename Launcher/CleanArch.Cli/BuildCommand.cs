@@ -11,18 +11,18 @@ internal static class BuildCommand
     private static Command Build(CommandContext context)
     {
         var command = new Command(Name, "Build this project's solution.");
-        command.SetAction(parseResult => Run(context, parseResult));
+        BuildSettings.Options settings = BuildSettings.Add(command);
+        command.SetAction(parseResult => Run(context, parseResult, settings.Of(parseResult)));
         return command;
     }
 
-    private static int Run(CommandContext context, ParseResult parseResult)
+    private static int Run(CommandContext context, ParseResult parseResult, BuildSettings settings)
     {
         if (context.Project is not { } project)
         {
             return CleanArchCommand.Failed;
         }
 
-        string solution = Path.Combine(project.Root, ProjectLayout.Solution(project));
-        return Dotnet.Run(parseResult, project.Root, ["build", SolutionLocator.Relative(project.Root, solution), "--configuration", "Debug"]);
+        return Dotnet.Run(parseResult, project.Root, ["build", ProjectLayout.Solution(project), "--configuration", settings.Configuration, .. settings.Nodes]);
     }
 }

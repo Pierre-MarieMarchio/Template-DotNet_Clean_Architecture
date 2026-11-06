@@ -84,20 +84,6 @@ public sealed class BuildCommandTests : IDisposable
         _dotnet.Calls.ShouldBeEmpty();
     }
 
-    [Fact]
-    public void HelpJson_ListsTheCommandsOfTheProject()
-    {
-        using var project = SampleSolution.WithSolution();
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        JsonArray commands = CommandsOf();
-        commands.Select(command => Text(command!["name"])).Where(name => name is "build" or "test" or "coverage").ShouldBe(["build", "test", "coverage"]);
-        JsonObject build = commands.Single(command => Text(command!["name"]) == "build").ShouldNotBeNull().AsObject();
-        build["options"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
-        _error.ToString().ShouldBeEmpty();
-    }
-
     public void Dispose()
     {
         _output.Dispose();

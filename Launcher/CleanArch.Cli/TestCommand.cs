@@ -17,38 +17,49 @@ internal static class TestCommand
                 + "Testcontainers nor Aspire.Hosting.Testing, so no Docker daemon is needed; it names each project it built and did not run.",
         };
         command.Options.Add(noIntegration);
-        command.SetAction(parseResult => Run(context, parseResult, noIntegration));
+        BuildSettings.Options settings = BuildSettings.Add(command);
+        command.SetAction(parseResult => Run(context, parseResult, parseResult.GetValue(noIntegration), settings.Of(parseResult)));
         return command;
     }
 
-    private static int Run(CommandContext context, ParseResult parseResult, Option<bool> noIntegration)
+    public static int RunBuilt(LocatedProject project, ParseResult parseResult, BuildSettings settings) =>
+        Guarded(parseResult, () =>
+        {
+            string root = project.Root;
+            string solution = Path.Combine(root, ProjectLayout.Solution(project));
+            string[] skipped = Skipped(root, parseResult);
+            string? run = skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
+            try
+            {
+                return Dotnet.Run(parseResult, root, ["test", "--solution", SolutionLocator.Relative(root, run ?? solution), "--configuration", settings.Configuration, "--no-build", .. settings.Modules]);
+            }
+            finally
+            {
+                SolutionFilter.Delete(run);
+            }
+        });
+
+    private static int Run(CommandContext context, ParseResult parseResult, bool dockerFreeOnly, BuildSettings settings)
     {
         if (context.Project is not { } project)
         {
             return CleanArchCommand.Failed;
         }
 
-        string root = project.Root;
-        string solution = Path.Combine(project.Root, ProjectLayout.Solution(project));
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        bool dockerFreeOnly = parseResult.GetValue(noIntegration);
-        try
+        return Guarded(parseResult, () =>
         {
+            string root = project.Root;
+            string solution = Path.Combine(root, ProjectLayout.Solution(project));
+            TextWriter output = parseResult.InvocationConfiguration.Output;
             string[] tests = TestProjects.All(root);
             string[] dockerFree = [.. tests.Where(path => TestProjects.IsDockerFree(File.ReadAllText(path)))];
-            string[] skipped = TestProjects.SkippedHere(tests);
             string[] notRun = dockerFreeOnly ? [.. tests.Except(dockerFree, StringComparer.Ordinal)] : [];
-
             foreach (string test in notRun)
             {
                 output.WriteLine(TestProjects.NotRunLine(root, test));
             }
 
-            foreach (string test in skipped)
-            {
-                output.WriteLine(TestProjects.SkipLine(root, test));
-            }
-
+            string[] skipped = Skipped(root, parseResult);
             string? run = dockerFreeOnly
                 ? SolutionFilter.Write(root, solution, "docker-free.slnf", dockerFree.Except(skipped, StringComparer.Ordinal))
                 : skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null;
@@ -57,24 +68,41 @@ internal static class TestCommand
                 : null;
             try
             {
-                if (skipped.Length == 0 && notRun.Length == 0)
+                string target = SolutionLocator.Relative(root, run ?? solution);
+                if (settings.MaxCpuCount is null && skipped.Length == 0 && notRun.Length == 0)
                 {
-                    return Dotnet.Run(parseResult, root, ["test", "--solution", SolutionLocator.Relative(root, run ?? solution), "--configuration", "Debug"]);
+                    return Dotnet.Run(parseResult, root, ["test", "--solution", target, "--configuration", settings.Configuration]);
                 }
 
-                int exit = Dotnet.Run(parseResult, root, ["build", SolutionLocator.Relative(root, build ?? run ?? solution), "--configuration", "Debug"]);
-                if (exit != CleanArchCommand.Succeeded)
-                {
-                    return exit;
-                }
-
-                return Dotnet.Run(parseResult, root, ["test", "--solution", SolutionLocator.Relative(root, run ?? solution), "--configuration", "Debug", "--no-build"]);
+                int exit = Dotnet.Run(parseResult, root, ["build", SolutionLocator.Relative(root, build ?? run ?? solution), "--configuration", settings.Configuration, .. settings.Nodes]);
+                return exit != CleanArchCommand.Succeeded
+                    ? exit
+                    : Dotnet.Run(parseResult, root, ["test", "--solution", target, "--configuration", settings.Configuration, "--no-build", .. settings.Modules]);
             }
             finally
             {
                 SolutionFilter.Delete(run);
                 SolutionFilter.Delete(build);
             }
+        });
+    }
+
+    private static string[] Skipped(string root, ParseResult parseResult)
+    {
+        string[] skipped = TestProjects.SkippedHere(TestProjects.All(root));
+        foreach (string test in skipped)
+        {
+            parseResult.InvocationConfiguration.Output.WriteLine(TestProjects.SkipLine(root, test));
+        }
+
+        return skipped;
+    }
+
+    private static int Guarded(ParseResult parseResult, Func<int> run)
+    {
+        try
+        {
+            return run();
         }
         catch (Exception error) when (error is InvalidOperationException or IOException)
         {

@@ -40,10 +40,40 @@ public sealed class VerifyCommandTests : IDisposable
     }
 
     [Fact]
+    public void Verify_LeavesOutTheTestsThatRunOnWindowsAlone_WhereItRunsElsewhere()
+    {
+        using var project = SampleSolution.WithSolution(SampleProject.WithOptions("local", sonar: false));
+        AsBootstrapped(project, withAuth: true);
+        SampleSolution.AddTestProject(project, "Tests/Windows", "A.Windows.csproj", SampleSolution.WindowsProject);
+        string? runnable = null;
+        _onCall = (call, _) =>
+        {
+            if (call.Arguments is ["test", "--solution", var filter, ..] && filter.EndsWith(".slnf", StringComparison.Ordinal))
+            {
+                runnable = File.ReadAllText(Path.Combine(call.WorkingDirectory, filter));
+            }
+
+            return CleanArchCommand.Succeeded;
+        };
+
+        Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        if (OperatingSystem.IsWindows())
+        {
+            runnable.ShouldBeNull();
+            return;
+        }
+
+        _output.ToString().ShouldContain("Skipped Tests/Windows: it targets net10.0-windows and runs on Windows alone.");
+        runnable.ShouldNotBeNull().ShouldContain("A.Unit.csproj");
+        runnable.ShouldNotContain("A.Windows.csproj");
+    }
+
+    [Fact]
     public void Verify_PrintsEveryCommandItRuns_AndRunsEachAtTheProjectRoot()
     {
         using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-        WithInitialMigrations(project, withAuth: true);
+        AsBootstrapped(project, withAuth: true);
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
@@ -68,7 +98,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_StopsAtTheFirstFailingStep_AndForwardsItsExitCode()
     {
         using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-        WithInitialMigrations(project, withAuth: true);
+        AsBootstrapped(project, withAuth: true);
         _onCall = (call, _) => call.Arguments is ["build", ..] ? 7 : CleanArchCommand.Succeeded;
 
         Run(["verify"], project.Root).ShouldBe(7);
@@ -84,7 +114,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WithoutLocalAccounts_ChecksOnlyTheBusinessContext()
     {
         using var project = new SampleProject(SampleProject.WithOptions("none", sonar: false));
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
@@ -111,7 +141,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WithAWebWorkspace_RunsThePnpmStepsInSrcWeb()
     {
         using var project = new SampleProject(SampleProject.Web);
-        WithInitialMigrations(project, withAuth: true);
+        AsBootstrapped(project, withAuth: true);
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
 
@@ -137,7 +167,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WithTheApiClientWebPackage_ChecksTheSchemaAgainstTheOpenApiReference()
     {
         using var project = new SampleProject(SampleProject.Web);
-        WithInitialMigrations(project, withAuth: true);
+        AsBootstrapped(project, withAuth: true);
         string scripts = project.Folder(Path.Combine("Src", "Web", "packages", "api-client", "scripts"));
         File.WriteAllText(Path.Combine(scripts, "generate.mjs"), string.Empty);
         Directory.CreateDirectory(Path.Combine(project.Root, Path.GetDirectoryName(_reference)!));
@@ -166,7 +196,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WithTheClient_ChecksWhatKiotaWritesAgainstTheGeneratedFolder()
     {
         using var project = new SampleProject(SampleProject.Client);
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
         string generated = WithClient(project);
         _onCall = (call, _) =>
         {
@@ -202,7 +232,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WhenTheGeneratedClientDrifts_FailsAndNamesTheDriftedFile()
     {
         using var project = new SampleProject(SampleProject.Client);
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
         string generated = WithClient(project);
         _onCall = (call, _) =>
         {
@@ -228,7 +258,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_ForwardsTheExitCodeOfTheClientCheck_AndRunsNothingAfterIt()
     {
         using var project = new SampleProject(SampleProject.Client);
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
         WithClient(project);
         _onCall = (call, _) => call.Arguments.Contains("kiota") ? 9 : CleanArchCommand.Succeeded;
 
@@ -244,7 +274,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WithTheClientButNoOpenApiReference_FailsSayingToRunOpenapiFirst()
     {
         using var project = new SampleProject(SampleProject.Client);
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
         Directory.CreateDirectory(Path.Combine(project.Root, "Src", "Presentation", "AS.Presentation.Client", "Generated"));
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
@@ -257,7 +287,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WithTheClientButNoClientFolder_FailsSayingSo()
     {
         using var project = new SampleProject(SampleProject.Client);
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
 
         Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
@@ -270,7 +300,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_InTheTemplateCheckout_RunsTheOptionalGatesTheLockfilesAndTheLauncherGate()
     {
         using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-        WithInitialMigrations(project, withAuth: true);
+        AsBootstrapped(project, withAuth: true);
         string tools = project.Folder("Tools");
         File.WriteAllText(Path.Combine(tools, "CheckDocPaths.cs"), string.Empty);
         File.WriteAllText(Path.Combine(tools, "CheckWorkflows.cs"), string.Empty);
@@ -301,7 +331,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_ForwardsTheExitCodeOfTheVulnerablePackagesListing()
     {
         using var project = new SampleProject(SampleProject.WithOptions("none", sonar: false));
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
         _onCall = (call, _) => call.Arguments.Contains("--vulnerable") ? 4 : CleanArchCommand.Succeeded;
 
         Run(["verify"], project.Root).ShouldBe(4);
@@ -311,7 +341,7 @@ public sealed class VerifyCommandTests : IDisposable
     public void Verify_WhenTheListingNamesAVulnerablePackage_FailsEvenWithExitZero()
     {
         using var project = new SampleProject(SampleProject.WithOptions("none", sonar: false));
-        WithInitialMigrations(project, withAuth: false);
+        AsBootstrapped(project, withAuth: false);
         _onCall = (call, output) =>
         {
             if (call.Arguments.Contains("--vulnerable"))
@@ -357,21 +387,6 @@ public sealed class VerifyCommandTests : IDisposable
         _error.ToString().ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
         _output.ToString().ShouldBeEmpty();
         _calls.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void HelpJson_ListsVerifyWithNoOptions()
-    {
-        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
-
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        JsonArray commands = CommandsOf();
-        commands.Select(command => Text(command!["name"])).ShouldContain("verify");
-        JsonObject verify = commands.Single(command => Text(command!["name"]) == "verify").ShouldNotBeNull().AsObject();
-        verify["options"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
-        verify["commands"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
-        _error.ToString().ShouldBeEmpty();
     }
 
     [Fact]
@@ -450,8 +465,9 @@ public sealed class VerifyCommandTests : IDisposable
         $"dotnet run {Path.Combine("Tools", "Tasks.cs")} docs-index --check",
     ];
 
-    private static void WithInitialMigrations(SampleProject project, bool withAuth)
+    private static void AsBootstrapped(SampleProject project, bool withAuth)
     {
+        SampleSolution.AddTestProject(project, "Tests/Unit", "A.Unit.csproj", SampleSolution.UnitProject);
         Snapshot(Path.Combine(project.Root, _persistence));
         if (withAuth)
         {

@@ -32,9 +32,9 @@ internal static class SampleSolution
         </Project>
         """;
 
-    public static SampleProject WithSolution()
+    public static SampleProject WithSolution(string projectFile = SampleProject.Full)
     {
-        var project = new SampleProject(SampleProject.Full);
+        var project = new SampleProject(projectFile);
         File.WriteAllText(Path.Combine(project.Root, Name + ".slnx"), """
             <Solution>
               <Folder Name="/Tests/">

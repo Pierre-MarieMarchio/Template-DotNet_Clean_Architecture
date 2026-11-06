@@ -59,6 +59,11 @@ Markdown file without one, both with LF endings, and orders the usings of each C
 first. It prints each file it saves; `--check` prints them on stderr and fails instead of
 writing.
 
+`build`, `test`, `coverage` and `verify` take `--configuration` (Debug by default) and `-m:<N>`,
+which caps the build's nodes and the test modules run at once on a machine short of memory; with
+it, `test` builds first, then runs the tests it built. `test` and `verify` leave out a test project
+that targets Windows alone where they run elsewhere, and say so.
+
 A command that runs an external tool prints the exact line it runs, runs it at the project root
 and forwards its exit code.
 

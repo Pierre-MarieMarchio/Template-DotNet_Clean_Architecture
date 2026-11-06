@@ -519,7 +519,7 @@ public sealed partial class NewFeatureTests
                 "pnpm api --no-build",
             ]),
             $"The check, the one build, then the migration, the OpenAPI reference, the client and the web schema from that build were not run in that order: {string.Join(" | ", Launched(ran))}");
-        expect(ran.Last().WorkingDirectory == System.IO.Path.Combine(contractRoot, "Src", "Web"), "pnpm api did not run in Src/Web.");
+        expect(ran[^1].WorkingDirectory == System.IO.Path.Combine(contractRoot, "Src", "Web"), "pnpm api did not run in Src/Web.");
         expect(contract.Output.Contains("Running cd Src/Web && pnpm api --no-build", StringComparison.Ordinal), "The web step was not announced.");
 
         string vowelRoot = NewTree(scratch);
@@ -760,7 +760,8 @@ public sealed partial class NewFeatureTests
             expect(Occurrences(root, "Src/Presentation/A.Api/Program.cs", line) == 1, $"'{line}' is in Program.cs other than once after two runs.");
         }
 
-        var dry = Invoke(root, Recording(ran = []), "Widgets", "Widget", "--access", "shared", "--dry-run");
+        ran = [];
+        var dry = Invoke(root, Recording(ran), "Widgets", "Widget", "--access", "shared", "--dry-run");
 
         expect(dry.Code == 0 && ran.Count == 0 && Same(afterAgain, Snapshot(root)), "A dry run over a feature already written ran or wrote something.");
     }
@@ -803,7 +804,8 @@ public sealed partial class NewFeatureTests
         Directory.Delete(System.IO.Path.Combine(unmigrated, "Src/Infrastructure/A.Infrastructure.Persistence/Migrations"), recursive: true);
 
         var bare = Snapshot(unmigrated);
-        var none = Invoke(unmigrated, Recording(ran = []), "Widgets", "Widget", "--access", "shared");
+        ran = [];
+        var none = Invoke(unmigrated, Recording(ran), "Widgets", "Widget", "--access", "shared");
 
         expect(none.Code == 1 && Same(bare, Snapshot(unmigrated)) && ran.Count == 0, "A context without its initial migration did not stop the run before it wrote or ran.");
         expect(none.Error.Contains("has no initial migration", StringComparison.Ordinal) && none.Error.Contains("bootstrap", StringComparison.Ordinal), "The refusal for a missing initial migration does not say what to do.");
@@ -2260,9 +2262,7 @@ public sealed partial class NewFeatureTests
 
                 if (current == '/' && At(1) is '/' or '*')
                 {
-                    int end = At(1) == '/'
-                        ? text.IndexOf('\n', position) is var newline and >= 0 ? newline : text.Length
-                        : text.IndexOf("*/", position + 2, StringComparison.Ordinal) is var close and >= 0 ? close + 2 : text.Length;
+                    int end = At(1) == '/' ? LineEnd(text, position) : CommentEnd(text, position);
 
                     comments.Add((LineOf(position), text[position..end].Split('\n')[0].TrimEnd()));
                     position = end;
@@ -2413,4 +2413,9 @@ public sealed partial class NewFeatureTests
 
         return comments;
     }
+
+    private static int LineEnd(string text, int position) => text.IndexOf('\n', position) is var newline and >= 0 ? newline : text.Length;
+
+    private static int CommentEnd(string text, int position) =>
+        text.IndexOf("*/", position + 2, StringComparison.Ordinal) is var close and >= 0 ? close + 2 : text.Length;
 }

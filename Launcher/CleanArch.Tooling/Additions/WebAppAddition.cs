@@ -18,15 +18,15 @@ internal sealed partial class WebAppAddition(AdditionFlow flow)
         flow.Conversation.Begin($"Add a web app to {project.Name}", flow.Context.Version);
         var detected = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["workspace"] = AdditionFlow.Flag(!project.HasWorkspace),
+            ["workspace"] = Condition.Of(!project.HasWorkspace),
             ["scope"] = project.Scope,
             ["projectName"] = project.Name,
             ["auth"] = project.Auth,
             ["examples"] = project.Examples,
-            ["files"] = AdditionFlow.Flag(project.Files),
-            ["hasClient"] = AdditionFlow.Flag(project.HasClient),
-            ["ci"] = AdditionFlow.Flag(project.Ci),
-            ["agentFiles"] = AdditionFlow.Flag(project.AgentFiles),
+            ["files"] = Condition.Of(project.Files),
+            ["hasClient"] = Condition.Of(project.HasClient),
+            ["ci"] = Condition.Of(project.Ci),
+            ["agentFiles"] = Condition.Of(project.AgentFiles),
         };
         flow.Detected(project, manifest, detected);
 

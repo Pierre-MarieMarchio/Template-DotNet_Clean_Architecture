@@ -126,11 +126,11 @@ public sealed record Offer(IReadOnlyList<string> Values, IReadOnlyList<Refusal> 
         Dictionary<string, string> answers,
         IReadOnlyDictionary<string, Condition> askedWhen)
     {
-        foreach (Range range in open)
+        foreach (string symbol in open.Select(range => range.Option.Symbol))
         {
-            if (askedWhen.TryGetValue(range.Option.Symbol, out Condition? when) && !manifest.Holds(when, answers))
+            if (askedWhen.TryGetValue(symbol, out Condition? when) && !manifest.Holds(when, answers))
             {
-                answers.Remove(range.Option.Symbol);
+                answers.Remove(symbol);
             }
         }
 

@@ -85,9 +85,9 @@ public sealed partial class EndToEndTests : IDisposable
 
         DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", generated, "--presentation", "api", "--presentation", "worker", "--debug:custom-hive", hive]);
         DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", added, "--debug:custom-hive", hive]);
-        Run(added, "git", ["init", "--quiet"]);
-        Run(added, "git", ["add", "--all"]);
-        Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
+        Execute(added, "git", ["init", "--quiet"]);
+        Execute(added, "git", ["add", "--all"]);
+        Execute(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
         DotNet(added, ["new", "cleanarch-presentation", "-n", "Worker", "--framework", "worker", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
         DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Worker"]);
         DotNet(generated, ["run", "Tools/Tasks.cs", "docs-index"]);
@@ -118,9 +118,9 @@ public sealed partial class EndToEndTests : IDisposable
 
         DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", generated, "--presentation", "api", "--presentation", "mcp", "--debug:custom-hive", hive]);
         DotNet(_root, ["new", "cleanarch-webapi", "-n", "Acme.Shop", "-o", added, "--debug:custom-hive", hive]);
-        Run(added, "git", ["init", "--quiet"]);
-        Run(added, "git", ["add", "--all"]);
-        Run(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
+        Execute(added, "git", ["init", "--quiet"]);
+        Execute(added, "git", ["add", "--all"]);
+        Execute(added, "git", ["-c", "user.name=Launcher tests", "-c", "user.email=launcher-tests@example.invalid", "commit", "--quiet", "--message", "The project as generated"]);
         DotNet(added, ["new", "cleanarch-presentation", "-n", "Mcp", "--framework", "mcp", "--project-name", "Acme.Shop", "--debug:custom-hive", hive]);
         DotNet(added, ["run", "Tools/Tasks.cs", "presentation-join", "Acme.Shop.Mcp"]);
         DotNet(generated, ["run", "Tools/Tasks.cs", "docs-index"]);
@@ -195,9 +195,9 @@ public sealed partial class EndToEndTests : IDisposable
         return Directory.EnumerateFiles(output, "*.nupkg").Single();
     }
 
-    private static void DotNet(string workingDirectory, string[] arguments) => Run(workingDirectory, "dotnet", arguments);
+    private static void DotNet(string workingDirectory, string[] arguments) => Execute(workingDirectory, "dotnet", arguments);
 
-    private static void Run(string workingDirectory, string executable, string[] arguments)
+    private static void Execute(string workingDirectory, string executable, string[] arguments)
     {
         var start = new ProcessStartInfo(executable)
         {

@@ -39,56 +39,64 @@ public sealed class Arguments
         for (int index = 0; index < arguments.Count; index++)
         {
             string argument = arguments[index];
-
             if (index == 0 && !argument.StartsWith('-'))
             {
-                parsed.Command = LauncherCommands.Names.Contains(argument, StringComparer.Ordinal)
-                    ? argument
-                    : throw new LauncherException($"'{argument}' isn't a command. Use {string.Join(", ", LauncherCommands.Names)}, or leave it out.");
-                continue;
+                parsed.Command = KnownCommand(argument);
             }
-
-            string key = argument;
-            string? inline = null;
-            int equals = argument.IndexOf('=', StringComparison.Ordinal);
-            if (argument.StartsWith("--", StringComparison.Ordinal) && equals > 0)
+            else
             {
-                key = argument[..equals];
-                inline = argument[(equals + 1)..];
-            }
-
-            switch (key)
-            {
-                case "-h" or "--help" or "-?":
-                    parsed.Help = true;
-                    break;
-                case "-y" or "--yes":
-                    parsed.Yes = true;
-                    break;
-                case "--setup":
-                    parsed.Setup = true;
-                    break;
-                case "-n" or "--name":
-                    parsed.Name = inline ?? Value(arguments, ref index, key);
-                    break;
-                case "-o" or "--output":
-                    parsed.Output = inline ?? Value(arguments, ref index, key);
-                    break;
-                case "--template-source":
-                    parsed.TemplateSource = inline ?? Value(arguments, ref index, key);
-                    break;
-                case "--hive":
-                    parsed.Hive = inline ?? Value(arguments, ref index, key);
-                    break;
-                case not null when key.StartsWith("--", StringComparison.Ordinal) && key.Length > 2:
-                    parsed.AddTemplateOption(key[2..], inline ?? OptionalValue(arguments, ref index));
-                    break;
-                default:
-                    throw new LauncherException($"Unknown option '{argument}'. --help lists them all.");
+                parsed.Read(argument, arguments, ref index);
             }
         }
 
         return parsed;
+    }
+
+    private static string KnownCommand(string argument) =>
+        LauncherCommands.Names.Contains(argument, StringComparer.Ordinal)
+            ? argument
+            : throw new LauncherException($"'{argument}' isn't a command. Use {string.Join(", ", LauncherCommands.Names)}, or leave it out.");
+
+    private static (string Key, string? Inline) Split(string argument)
+    {
+        int equals = argument.IndexOf('=', StringComparison.Ordinal);
+        return argument.StartsWith("--", StringComparison.Ordinal) && equals > 0
+            ? (argument[..equals], argument[(equals + 1)..])
+            : (argument, null);
+    }
+
+    private void Read(string argument, IReadOnlyList<string> arguments, ref int index)
+    {
+        (string key, string? inline) = Split(argument);
+        switch (key)
+        {
+            case "-h" or "--help" or "-?":
+                Help = true;
+                break;
+            case "-y" or "--yes":
+                Yes = true;
+                break;
+            case "--setup":
+                Setup = true;
+                break;
+            case "-n" or "--name":
+                Name = inline ?? Value(arguments, ref index, key);
+                break;
+            case "-o" or "--output":
+                Output = inline ?? Value(arguments, ref index, key);
+                break;
+            case "--template-source":
+                TemplateSource = inline ?? Value(arguments, ref index, key);
+                break;
+            case "--hive":
+                Hive = inline ?? Value(arguments, ref index, key);
+                break;
+            case not null when key.StartsWith("--", StringComparison.Ordinal) && key.Length > 2:
+                AddTemplateOption(key[2..], inline ?? OptionalValue(arguments, ref index));
+                break;
+            default:
+                throw new LauncherException($"Unknown option '{argument}'. --help lists them all.");
+        }
     }
 
     private void AddTemplateOption(string name, string value) =>

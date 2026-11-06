@@ -20,12 +20,12 @@ internal sealed partial class PresentationAddition(AdditionFlow flow)
             ["projectName"] = project.Name,
             ["auth"] = project.Auth,
             ["examples"] = project.Examples,
-            ["files"] = AdditionFlow.Flag(project.Files),
-            ["hasClient"] = AdditionFlow.Flag(project.HasClient),
+            ["files"] = Condition.Of(project.Files),
+            ["hasClient"] = Condition.Of(project.HasClient),
             ["database"] = project.Database,
-            ["agentFiles"] = AdditionFlow.Flag(project.AgentFiles),
-            ["hasApi"] = AdditionFlow.Flag(project.HasApi),
-            ["ci"] = AdditionFlow.Flag(project.Ci),
+            ["agentFiles"] = Condition.Of(project.AgentFiles),
+            ["hasApi"] = Condition.Of(project.HasApi),
+            ["ci"] = Condition.Of(project.Ci),
         };
         flow.Detected(project, manifest, detected);
 

@@ -45,10 +45,7 @@ public static class AddedHosts
     public static Question Question(Conversation conversation, TemplateManifest manifest) =>
         new(_hostsAddedKey, (answers, _) =>
         {
-            string? why = CallersOfTheApiAdded(manifest, answers) is { Count: > 0 } callers
-                ? $"the API added for you: {string.Join(" and ", callers)} {(callers.Count == 1 ? "calls" : "call")} it"
-                : WorkerAdded(manifest, answers) ? "the worker added for you: the jobs run in it" : null;
-            if (why is not null)
+            if (WhyAdded(manifest, answers) is { } why)
             {
                 TemplateOption presentation = PresentationOption(manifest);
                 conversation.Answered(presentation.Label, Questionnaire.Shown(presentation, WithTheHostsAdded(manifest, answers)[_presentationSymbol]), why);
@@ -56,6 +53,16 @@ public static class AddedHosts
 
             return Reply.Passed(null);
         });
+
+    private static string? WhyAdded(TemplateManifest manifest, IReadOnlyDictionary<string, string> answers)
+    {
+        if (CallersOfTheApiAdded(manifest, answers) is { Count: > 0 } callers)
+        {
+            return $"the API added for you: {string.Join(" and ", callers)} {(callers.Count == 1 ? "calls" : "call")} it";
+        }
+
+        return WorkerAdded(manifest, answers) ? "the worker added for you: the jobs run in it" : null;
+    }
 
     private static TemplateOption PresentationOption(TemplateManifest manifest) =>
         manifest.Options.Single(option => option.Symbol == _presentationSymbol);

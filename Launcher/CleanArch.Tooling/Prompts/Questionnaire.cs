@@ -349,7 +349,7 @@ public sealed class Questionnaire
 
             case OptionKind.Bool:
                 bool? confirmed = Conversation.Confirm(option.Label, option.Description, Condition.IsTruthy(defaultValue));
-                return confirmed is { } flag ? Reply.Answer(flag ? Condition.True : Condition.False) : Reply.Backward;
+                return confirmed is { } flag ? Reply.Answer(Condition.Of(flag)) : Reply.Backward;
 
             default:
                 bool required = option.RequiredWhen is { } requiredWhen && manifest.Holds(requiredWhen, answers);

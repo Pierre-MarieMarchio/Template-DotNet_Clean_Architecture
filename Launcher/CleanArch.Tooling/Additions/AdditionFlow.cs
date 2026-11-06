@@ -21,8 +21,6 @@ internal sealed class AdditionFlow(AdditionContext context)
 
     public Conversation Conversation => context.Questionnaire.Conversation;
 
-    public static string Flag(bool value) => value ? Condition.True : Condition.False;
-
     public static string[] TaskRun(params string[] task) => ["run", "Tools/Tasks.cs", .. task];
 
     public void Detected(ProjectFacts project, TemplateManifest manifest, Dictionary<string, string> detected)

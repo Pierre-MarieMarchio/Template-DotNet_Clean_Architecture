@@ -1,5 +1,5 @@
 ﻿using System.CommandLine;
-using System.Text;
+using System.Text.RegularExpressions;
 
 namespace CleanArch.Cli;
 
@@ -9,9 +9,16 @@ internal static class FormatCommand
 
     public static readonly CommandRegistration Registration = new(Refuse, Create);
 
+    internal static readonly string[] StyleRulesTheBuildLacks = ["IDE0003", "IDE0049"];
+
     private static readonly string[] _skippedDirectories = ["bin", "obj", "node_modules", "plans"];
 
     private static readonly string[] _keptDotDirectories = [".github", ".template.config"];
+
+    private static readonly Regex _namingViolation = new(
+        @"^(?<file>.+?)\((?<line>\d+),\d+\): (?:error|warning) IDE1006: (?<message>.+?) \[[^\]]+\]\s*$",
+        RegexOptions.Multiline | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(5));
 
     private static string? Refuse(CommandContext context) =>
         context.Project is null
@@ -20,8 +27,8 @@ internal static class FormatCommand
 
     private static Command Create(CommandContext context)
     {
-        var command = new Command(Name, "Repair the tree at the project root: UTF-8 BOM rules, LF endings, usings ordering.");
-        Option<bool> check = new("--check") { Description = "Fail where the command would write instead of writing." };
+        var command = new Command(Name, "dotnet format over the solution, Markdown saved as UTF-8 without a BOM with LF endings, then the names no formatter can fix.");
+        Option<bool> check = new("--check") { Description = "Fail where the command would write instead of writing: dotnet format --verify-no-changes over what the build does not check, and the Markdown." };
         command.Options.Add(check);
         command.SetAction(parseResult => Run(context, parseResult, check));
         return command;
@@ -37,71 +44,103 @@ internal static class FormatCommand
             return CleanArchCommand.Failed;
         }
 
-        bool asCheck = parseResult.GetValue(check);
-        int toWrite = 0;
-        foreach (string file in RepairableFiles(project.Root))
-        {
-            byte[] content = File.ReadAllBytes(file);
-            bool csharp = file.EndsWith(".cs", StringComparison.Ordinal);
-            byte[] repaired = Repaired(content, csharp, out bool usingsOrdered);
-            if (repaired.AsSpan().SequenceEqual(content))
-            {
-                continue;
-            }
+        return parseResult.GetValue(check)
+            ? Check(project, output, error)
+            : Fix(project, output, error);
+    }
 
-            string relative = Path.GetRelativePath(project.Root, file).Replace('\\', '/');
-            string saved = $"saved as UTF-8 {(csharp ? "with" : "without")} a BOM, with LF endings{(usingsOrdered ? ", usings ordered, System first" : "")}";
-            if (asCheck)
-            {
-                error.WriteLine($"{relative}: would be {saved}.");
-                toWrite++;
-            }
-            else
-            {
-                File.WriteAllBytes(file, repaired);
-                output.WriteLine($"{relative}: {saved}.");
-            }
+    private static int Fix(LocatedProject project, TextWriter output, TextWriter error)
+    {
+        string solution = ProjectLayout.Solution(project);
+        int formatted = ExternalCommand.Run(Dotnet(project, ["format", solution]), output, error);
+        if (formatted != CleanArchCommand.Succeeded)
+        {
+            return formatted;
         }
 
-        if (asCheck && toWrite > 0)
+        foreach (string file in MarkdownToNormalise(project.Root))
         {
-            error.WriteLine($"{CleanArchCommand.Name} {Name} would write {toWrite} file(s); run it without --check to repair them.");
+            File.WriteAllBytes(file, NormalisedMarkdown(File.ReadAllBytes(file)));
+            output.WriteLine($"{Relative(project.Root, file)}: saved as UTF-8 without a BOM, with LF endings.");
+        }
+
+        return RequireNamingStyle(project, solution, output, error);
+    }
+
+    private static int Check(LocatedProject project, TextWriter output, TextWriter error)
+    {
+        string[] arguments = ["format", ProjectLayout.Solution(project), "--diagnostics", .. StyleRulesTheBuildLacks, "--verify-no-changes", "--verbosity", "normal"];
+        int verified = ExternalCommand.Run(Dotnet(project, arguments), output, error);
+        if (verified != CleanArchCommand.Succeeded)
+        {
+            return verified;
+        }
+
+        string[] markdown = [.. MarkdownToNormalise(project.Root)];
+        foreach (string file in markdown)
+        {
+            error.WriteLine($"{Relative(project.Root, file)}: would be saved as UTF-8 without a BOM, with LF endings.");
+        }
+
+        if (markdown.Length == 0)
+        {
+            return CleanArchCommand.Succeeded;
+        }
+
+        error.WriteLine($"{CleanArchCommand.Name} {Name} would write {markdown.Length} Markdown file(s); run it without --check to repair them.");
+        return CleanArchCommand.Failed;
+    }
+
+    private static int RequireNamingStyle(LocatedProject project, string solution, TextWriter output, TextWriter error)
+    {
+        ExternalCall call = Dotnet(project, ["format", solution, "--diagnostics", "IDE1006", "--verify-no-changes", "--no-restore"]);
+        using var captured = new StringWriter();
+        int exit = ExternalCommand.Run(call, output, captured, captured);
+        string[] violations = NamingViolations(project.Root, captured.ToString());
+        if (violations.Length > 0)
+        {
+            error.WriteLine("dotnet format cannot rename a symbol, so these names break a naming rule of .editorconfig (IDE1006) and are left as they are:");
+            foreach (string violation in violations)
+            {
+                error.WriteLine("  " + violation);
+            }
+
+            error.WriteLine($"Rename each one, with the IDE's rename or by hand, then run {CleanArchCommand.Name} {Name} again.");
             return CleanArchCommand.Failed;
+        }
+
+        if (exit != CleanArchCommand.Succeeded)
+        {
+            error.Write(captured.ToString());
+            error.WriteLine($"dotnet format exited with {exit} and named no naming violation: its output is above.");
+            return exit;
         }
 
         return CleanArchCommand.Succeeded;
     }
 
-    private static IEnumerable<string> RepairableFiles(string root) =>
-        TextFiles(root, "*.cs").Concat(TextFiles(root, "*.md")).Order(StringComparer.Ordinal);
+    private static string[] NamingViolations(string root, string output) =>
+        [.. _namingViolation.Matches(output)
+            .Select(match => $"{Relative(root, match.Groups["file"].Value)}:{match.Groups["line"].Value}: {match.Groups["message"].Value}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
 
-    private static IEnumerable<string> TextFiles(string directory, string pattern) =>
-        Directory.EnumerateFiles(directory, pattern)
+    private static IEnumerable<string> MarkdownToNormalise(string root) =>
+        MarkdownFiles(root)
+            .Where(file => File.ReadAllBytes(file) is var content && !NormalisedMarkdown(content).AsSpan().SequenceEqual(content))
+            .Order(StringComparer.Ordinal);
+
+    private static IEnumerable<string> MarkdownFiles(string directory) =>
+        Directory.EnumerateFiles(directory, "*.md")
             .Concat(Directory.EnumerateDirectories(directory)
                 .Where(child => Path.GetFileName(child) is var name
                     && !_skippedDirectories.Contains(name, StringComparer.Ordinal)
                     && (!name.StartsWith('.') || _keptDotDirectories.Contains(name, StringComparer.Ordinal)))
-                .SelectMany(child => TextFiles(child, pattern)));
+                .SelectMany(MarkdownFiles));
 
-    private static byte[] Repaired(byte[] content, bool csharp, out bool usingsOrdered)
+    private static byte[] NormalisedMarkdown(byte[] content)
     {
-        bool hasBom = content is [0xEF, 0xBB, 0xBF, ..];
-        byte[] withoutCr = WithoutCarriageReturns(content.AsSpan(hasBom ? 3 : 0));
-        usingsOrdered = false;
-        byte[] body = withoutCr;
-        if (csharp)
-        {
-            string source = Encoding.UTF8.GetString(withoutCr);
-            string ordered = OrderedUsings(source);
-            usingsOrdered = !string.Equals(ordered, source, StringComparison.Ordinal);
-            body = Encoding.UTF8.GetBytes(ordered);
-        }
-
-        return csharp ? [0xEF, 0xBB, 0xBF, .. body] : body;
-    }
-
-    private static byte[] WithoutCarriageReturns(ReadOnlySpan<byte> text)
-    {
+        ReadOnlySpan<byte> text = content.AsSpan(content is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0);
         var normalised = new List<byte>(text.Length);
         for (int index = 0; index < text.Length; index++)
         {
@@ -118,61 +157,8 @@ internal static class FormatCommand
         return [.. normalised];
     }
 
-    private static string OrderedUsings(string source)
-    {
-        string[] lines = source.Split('\n');
-        int end = 0;
-        while (end < lines.Length && (IsUsing(lines[end]) || lines[end].Length == 0))
-        {
-            end++;
-        }
+    private static string Relative(string root, string file) => Path.GetRelativePath(root, file).Replace('\\', '/');
 
-        List<string> usings = [.. lines[..end].Where(IsUsing).Select(line => line.Trim())];
-        if (usings.Count == 0)
-        {
-            return source;
-        }
-
-        usings.Sort(CompareUsings);
-        int trailingBlanks = 0;
-        for (int index = end - 1; index >= 0 && lines[index].Length == 0; index--)
-        {
-            trailingBlanks++;
-        }
-
-        var rebuilt = new List<string>(lines.Length);
-        rebuilt.AddRange(usings);
-        for (int index = 0; index < trailingBlanks; index++)
-        {
-            rebuilt.Add(string.Empty);
-        }
-
-        rebuilt.AddRange(lines[end..]);
-        return string.Join('\n', rebuilt);
-    }
-
-    private static bool IsUsing(string line)
-    {
-        string trimmed = line.Trim();
-        return trimmed.StartsWith("using ", StringComparison.Ordinal) && trimmed.EndsWith(';');
-    }
-
-    private static int CompareUsings(string left, string right)
-    {
-        string a = NameOf(left);
-        string b = NameOf(right);
-        bool aSystem = IsSystem(a);
-        bool bSystem = IsSystem(b);
-        if (aSystem != bSystem)
-        {
-            return aSystem ? -1 : 1;
-        }
-
-        return string.CompareOrdinal(a, b);
-    }
-
-    private static string NameOf(string usingDirective) => usingDirective["using ".Length..^1].Trim();
-
-    private static bool IsSystem(string name) =>
-        name == "System" || name.StartsWith("System.", StringComparison.Ordinal);
+    private static ExternalCall Dotnet(LocatedProject project, IReadOnlyList<string> arguments) =>
+        new("dotnet", arguments, project.Root);
 }

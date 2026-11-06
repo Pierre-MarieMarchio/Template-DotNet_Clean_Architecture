@@ -13,6 +13,8 @@ public sealed class DocumentationFrontmatterTests
 
     private const string _markerClose = "<!--" + "#" + "endif-->";
 
+    private static readonly string[] _requiredFields = ["type", "title", "description"];
+
     private static readonly string[] _types = ["decision", "guide", "reference", "concept", "feature", "template"];
 
     private static readonly (string Folder, string Type)[] _typeOfFolder =
@@ -116,10 +118,26 @@ public sealed class DocumentationFrontmatterTests
             return ["opens a frontmatter that no '---' line closes."];
         }
 
-        var problems = new List<string>();
-        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        (var fields, var lineProblems) = ReadFrontmatter(lines[1..closing]);
+        string type = fields.GetValueOrDefault("type", string.Empty);
+        string[] body = lines[(closing + 1)..];
 
-        foreach (string line in lines[1..closing])
+        return
+        [
+            .. lineProblems,
+            .. MissingFields(fields),
+            .. TypeProblems(page, type),
+            .. HeadingProblems(body, fields),
+            .. StatusProblems(type, fields, string.Join('\n', body)),
+        ];
+    }
+
+    private static (Dictionary<string, string> Fields, List<string> Problems) ReadFrontmatter(string[] lines)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        var problems = new List<string>();
+
+        foreach (string line in lines)
         {
             if (_marker.IsMatch(line))
             {
@@ -135,59 +153,66 @@ public sealed class DocumentationFrontmatterTests
             }
         }
 
-        foreach (string required in new[] { "type", "title", "description" })
+        return (fields, problems);
+    }
+
+    private static IEnumerable<string> MissingFields(Dictionary<string, string> fields) =>
+        _requiredFields
+            .Where(required => string.IsNullOrEmpty(fields.GetValueOrDefault(required)))
+            .Select(required => $"its frontmatter has no {required}.");
+
+    private static IEnumerable<string> TypeProblems(string page, string type)
+    {
+        if (type.Length == 0)
         {
-            if (!fields.TryGetValue(required, out string? value) || value.Length == 0)
-            {
-                problems.Add($"its frontmatter has no {required}.");
-            }
+            yield break;
         }
 
-        string type = fields.GetValueOrDefault("type", string.Empty);
-
-        if (type.Length > 0 && !_types.Contains(type, StringComparer.Ordinal))
+        if (!_types.Contains(type, StringComparer.Ordinal))
         {
-            problems.Add($"its type '{type}' is not one of {string.Join(", ", _types)}.");
+            yield return $"its type '{type}' is not one of {string.Join(", ", _types)}.";
         }
         else if (Path.GetFileName(page) != "README.md"
             && _typeOfFolder.FirstOrDefault(entry => page.StartsWith(entry.Folder, StringComparison.Ordinal)) is { Type: not null } folder
-            && type.Length > 0
             && type != folder.Type)
         {
-            problems.Add($"its type is '{type}', where every page under docs/{folder.Folder} is a {folder.Type}.");
+            yield return $"its type is '{type}', where every page under docs/{folder.Folder} is a {folder.Type}.";
         }
+    }
 
-        string? heading = lines[(closing + 1)..].FirstOrDefault(line => line.Trim().Length > 0);
+    private static IEnumerable<string> HeadingProblems(string[] body, Dictionary<string, string> fields)
+    {
+        string? heading = body.FirstOrDefault(line => line.Trim().Length > 0);
 
         if (heading is null || !heading.StartsWith("# ", StringComparison.Ordinal))
         {
-            problems.Add($"the first line after its frontmatter is not its '# ' heading ('{heading}').");
+            yield return $"the first line after its frontmatter is not its '# ' heading ('{heading}').";
         }
         else if (fields.TryGetValue("title", out string? title) && title.Length > 0 && heading[2..] != title)
         {
-            problems.Add($"its title '{title}' is not its heading '{heading[2..]}'.");
+            yield return $"its title '{title}' is not its heading '{heading[2..]}'.";
         }
+    }
 
-        string body = string.Join('\n', lines[(closing + 1)..]);
+    private static IEnumerable<string> StatusProblems(string type, Dictionary<string, string> fields, string body)
+    {
         string? state = _statusLine.Match(body) is { Success: true } status ? status.Groups["state"].Value : null;
         bool stated = fields.TryGetValue("status", out string? declared);
 
         if (type == "decision" && !stated)
         {
-            problems.Add("is a decision whose frontmatter has no status.");
+            yield return "is a decision whose frontmatter has no status.";
         }
 
         if (type == "decision" && state is null)
         {
-            problems.Add("is a decision whose body has no 'Status: ' line.");
+            yield return "is a decision whose body has no 'Status: ' line.";
         }
 
         if (stated && state is not null && declared != state)
         {
-            problems.Add($"its status '{declared}' is not the state its 'Status: ' line opens with, '{state}'.");
+            yield return $"its status '{declared}' is not the state its 'Status: ' line opens with, '{state}'.";
         }
-
-        return problems;
     }
 
     private static string Unquoted(string value) =>

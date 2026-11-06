@@ -8,15 +8,18 @@ internal static class EndToEndCommand
 {
     public const string Name = "end-to-end";
 
-    public static readonly CommandRegistration Registration = new(Refusal, Build);
+    public static readonly CommandRegistration Registration = new(ProjectCommand.Requiring(project => Refusals.WithoutApi(project, Name)), Create);
 
-    private static string? Refusal(CommandContext context) =>
-        ProjectCommand.Refusal(context)
-        ?? (context.Project is { } project && !ProjectLayout.HoldsTheApi(project)
-            ? $"This project has no end-to-end command: its {ProjectLocator.FileName} records no presentation of framework api."
-            : null);
+    private sealed record Stack(LocatedProject Project, IReadOnlyDictionary<string, string> Environment)
+    {
+        public ExternalCall Compose(params IReadOnlyList<string> arguments)
+        {
+            ExternalCall compose = Docker.Compose(Project.Root, ["--project-name", ProjectLayout.EndToEndComposeProject(Project), "--env-file", ".env.example", .. arguments]);
+            return compose with { Environment = Environment };
+        }
+    }
 
-    private static Command Build(CommandContext context)
+    private static Command Create(CommandContext context)
     {
         var endToEnd = new Command(Name, "Start the Compose stack from .env.example under a project name of its own, run the end-to-end tests against it, then remove the stack and its volumes.");
         Option<bool> keepStack = new("--keep-stack")
@@ -25,73 +28,64 @@ internal static class EndToEndCommand
         };
         endToEnd.Options.Add(keepStack);
         Option<string> configuration = BuildSettings.AddConfiguration(endToEnd);
-        if (context.Project is { } project && ProjectLayout.HoldsTheApi(project))
+        if (context.Project is { } project)
         {
-            endToEnd.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult, keepStack, configuration));
+            endToEnd.SetAction(parseResult => Run(
+                new Stack(project, Unset(Defaults(project))),
+                context.Shell(parseResult),
+                parseResult.GetValue(keepStack),
+                parseResult.GetRequiredValue(configuration)));
         }
 
         return endToEnd;
     }
 
-    private static int Run(LocatedProject project, Shell shell, ParseResult parseResult, Option<bool> keepStack, Option<string> configuration)
+    private static int Run(Stack stack, Shell shell, bool keepStack, string configuration)
     {
-        TextWriter output = shell.Output;
-        TextWriter error = shell.Error;
-        string[] compose = ["compose", "--project-name", ProjectLayout.EndToEndComposeProject(project), "--env-file", ".env.example"];
-        IReadOnlyDictionary<string, string> environment = Unset(Defaults(project));
-        int exit = CleanArchCommand.Failed;
-
+        int exit = ExitCode.Failed;
         try
         {
-            exit = shell.Run(new ExternalCall("docker", [.. compose, "up", "--build", "--detach", "--wait", "--wait-timeout", "300"], project.Root, environment));
-            if (exit == CleanArchCommand.Succeeded)
-            {
-                exit = shell.Run(new ExternalCall(
-                        "dotnet",
-                        ["run", "--project", ProjectLayout.EndToEndTests(project), "--configuration", parseResult.GetRequiredValue(configuration)],
-                        project.Root,
-                        environment));
-            }
-
-            if (exit == CleanArchCommand.Succeeded && ProjectLayout.HasWebApps(project))
-            {
-                exit = BrowserSmoke(project, environment, shell);
-            }
+            exit = ExitCode.FirstFailureOf(
+            [
+                () => shell.Run(stack.Compose("up", "--build", "--detach", "--wait", "--wait-timeout", "300")),
+                () => shell.Run(Dotnet.Call(stack.Project.Root, "run", "--project", ProjectLayout.EndToEndTests(stack.Project), "--configuration", configuration) with { Environment = stack.Environment }),
+                .. ProjectLayout.HasWebApps(stack.Project) ? [() => BrowserSmoke(stack, shell)] : Array.Empty<Func<int>>(),
+            ]);
         }
         finally
         {
-            if (exit != CleanArchCommand.Succeeded)
-            {
-                shell.Run(new ExternalCall("docker", [.. compose, "logs", "--tail", "100"], project.Root, environment));
-            }
-
-            if (!parseResult.GetValue(keepStack))
-            {
-                int down = shell.Run(new ExternalCall("docker", [.. compose, "down", "--volumes"], project.Root, environment));
-                if (exit == CleanArchCommand.Succeeded)
-                {
-                    exit = down;
-                }
-            }
+            exit = TearDown(stack, shell, keepStack, exit);
         }
 
         return exit;
     }
 
-    private static int BrowserSmoke(LocatedProject project, IReadOnlyDictionary<string, string> environment, Shell shell)
+    private static int TearDown(Stack stack, Shell shell, bool keepStack, int exit)
     {
-        TextWriter error = shell.Error;
-        var smoke = new Dictionary<string, string>(environment, StringComparer.Ordinal) { ["SMOKE_ENV_FILE"] = ".env.example" };
-        int exit = shell.Run(new ExternalCall(
-                OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm",
-                ["--filter", "*browser-smoke", "smoke"],
-                Path.Combine(project.Root, "Src", "Web"),
-                smoke));
-        if (exit != CleanArchCommand.Succeeded)
+        if (exit != ExitCode.Succeeded)
         {
-            error.WriteLine(
-                "The browser smoke needs `pnpm install --frozen-lockfile` in Src/Web and Chromium: install it with "
-                + "`pnpm --filter *browser-smoke exec playwright install --only-shell chromium` in Src/Web, adding `--with-deps` on Linux "
+            shell.Run(stack.Compose("logs", "--tail", "100"));
+        }
+
+        if (keepStack)
+        {
+            return exit;
+        }
+
+        int down = shell.Run(stack.Compose("down", "--volumes"));
+        return exit == ExitCode.Succeeded ? down : exit;
+    }
+
+    private static int BrowserSmoke(Stack stack, Shell shell)
+    {
+        var smoke = new Dictionary<string, string>(stack.Environment, StringComparer.Ordinal) { ["SMOKE_ENV_FILE"] = ".env.example" };
+        string web = ProjectPath.Shown(ProjectLayout.Web);
+        int exit = shell.Run(Pnpm.Call(Path.Combine(stack.Project.Root, ProjectLayout.Web), "--filter", "*browser-smoke", "smoke") with { Environment = smoke });
+        if (exit != ExitCode.Succeeded)
+        {
+            shell.Error.WriteLine(
+                $"The browser smoke needs `pnpm install --frozen-lockfile` in {web} and Chromium: install it with "
+                + $"`pnpm --filter *browser-smoke exec playwright install --only-shell chromium` in {web}, adding `--with-deps` on Linux "
                 + "for the system libraries it loads.");
         }
 

@@ -14,4 +14,10 @@ internal sealed class Shell(IProcessLauncher processes, TextWriter output, TextW
         output.Flush();
         return processes.Launch(call, callOutput, callError);
     }
+
+    public int Fail(string message)
+    {
+        error.WriteLine(message);
+        return ExitCode.Failed;
+    }
 }

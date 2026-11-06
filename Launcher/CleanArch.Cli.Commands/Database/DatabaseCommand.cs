@@ -8,46 +8,30 @@ internal static class DatabaseCommand
 {
     public const string Name = "database";
 
-    public static readonly CommandRegistration Registration = new(Refusal, Build);
+    public static readonly CommandRegistration Registration = new(ProjectCommand.Refusal, Create);
 
-    private static string? Refusal(CommandContext context) =>
-        context.Project is null ? context.RefusedProjectFile?.Message ?? context.OutsideProject : null;
+    private static Command Create(CommandContext context) =>
+        CommandGroup.Of(Name, "Apply the project's migrations to its database, as dotnet ef does.", UpdateSubcommand(context));
 
-    private static Command Build(CommandContext context)
-    {
-        var database = new Command(Name, "Apply the project's migrations to its database, as dotnet ef does.");
-        database.Add(UpdateCommand(context));
-        database.SetAction(parseResult =>
-        {
-            parseResult.CommandResult.Command.Parse(["--help"]).Invoke(parseResult.InvocationConfiguration);
-            return CleanArchCommand.Succeeded;
-        });
-        return database;
-    }
-
-    private static Command UpdateCommand(CommandContext context)
+    private static Command UpdateSubcommand(CommandContext context)
     {
         var update = new Command("update", "Apply the pending migrations of the business context, or of the identity context with --context auth.");
-        Option<string?> contextOption = PersistenceContexts.ContextOption(context);
+        Option<string?> contextOption = PersistenceContexts.ContextOption(context.Project);
         update.Options.Add(contextOption);
         if (context.Project is { } project)
         {
-            update.SetAction(parseResult => RunUpdate(project, context.Shell(parseResult), parseResult, contextOption));
+            update.SetAction(parseResult => RunUpdate(project, context.Shell(parseResult), parseResult.GetValue(contextOption)));
         }
 
         return update;
     }
 
-    private static int RunUpdate(LocatedProject project, Shell shell, ParseResult parseResult, Option<string?> contextOption)
+    private static int RunUpdate(LocatedProject project, Shell shell, string? requested)
     {
-        string target = PersistenceContexts.Target(project, parseResult.GetValue(contextOption), out string? refusal);
-        refusal ??= PersistenceContexts.WithoutInitialMigration(project, $"{Name} update", [target]);
-        if (refusal is not null)
-        {
-            shell.Error.WriteLine(refusal);
-            return CleanArchCommand.Failed;
-        }
-
-        return shell.Run(new ExternalCall("dotnet", ["ef", "database", "update", "--project", target, "--startup-project", target], project.Root));
+        string target = PersistenceContexts.Target(project, requested, out string? refusal);
+        refusal ??= PersistenceContexts.WithoutInitialMigration(project, $"{Tool.Name} {Name} update", [target]);
+        return refusal is null
+            ? shell.Run(Dotnet.Ef(project.Root, target, ["database", "update"]))
+            : shell.Fail(refusal);
     }
 }

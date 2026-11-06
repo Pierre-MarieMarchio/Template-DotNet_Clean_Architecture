@@ -79,6 +79,7 @@ public sealed class VerifyCommandTests : IDisposable
         string[] expected =
         [
             .. GateLines(),
+            "The 0 index files under docs/ list their folders' pages as their frontmatter says.",
             $"dotnet restore {_solution}",
             $"dotnet format {_solution} --diagnostics IDE0003 IDE0049 --verify-no-changes --no-restore",
             $"dotnet build {_solution} --configuration Debug --no-restore",
@@ -88,7 +89,7 @@ public sealed class VerifyCommandTests : IDisposable
             $"dotnet list {_solution} package --vulnerable --include-transitive",
         ];
         _output.ToString().ShouldBe(string.Join(Environment.NewLine, expected) + Environment.NewLine);
-        _calls.Count.ShouldBe(expected.Length);
+        _calls.Count.ShouldBe(expected.Length - 1);
         _calls.ShouldAllBe(call => call.FileName == "dotnet" && call.WorkingDirectory == project.Root);
         _error.ToString().ShouldBeEmpty();
     }
@@ -291,6 +292,21 @@ public sealed class VerifyCommandTests : IDisposable
     }
 
     [Fact]
+    public void Verify_WhenADocumentationIndexDiffers_StopsBeforeTheBuild()
+    {
+        using var project = new SampleProject(SampleProject.WithOptions("local", sonar: false));
+        AsBootstrapped(project, withAuth: true);
+        string docs = project.Folder("docs");
+        File.WriteAllText(Path.Combine(docs, "page.md"), "---\ntitle: Page\ndescription: A page.\n---\n");
+        File.WriteAllText(Path.Combine(docs, "index.md"), "stale");
+
+        Run(["verify"], project.Root).ShouldBe(CleanArchCommand.Failed);
+
+        _error.ToString().ShouldContain("docs/index.md differs from what it writes");
+        _calls.ShouldNotContain(call => call.Arguments.Contains("build"));
+    }
+
+    [Fact]
     public void Verify_ForwardsTheExitCodeOfTheVulnerablePackagesListing()
     {
         using var project = new SampleProject(SampleProject.WithOptions("none", sonar: false));
@@ -336,10 +352,7 @@ public sealed class VerifyCommandTests : IDisposable
     ];
 
     private static string[] GateLines() =>
-    [
-        .. _gateFiles.Select(gate => $"dotnet run {Path.Combine("Tools", gate)} --self-test"),
-        $"dotnet run {Path.Combine("Tools", "Tasks.cs")} docs-index --check",
-    ];
+        [.. _gateFiles.Select(gate => $"dotnet run {Path.Combine("Tools", gate)} --self-test")];
 
     private static void AsBootstrapped(SampleProject project, bool withAuth)
     {

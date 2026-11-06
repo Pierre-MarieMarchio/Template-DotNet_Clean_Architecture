@@ -1,0 +1,35 @@
+using %P%.Application.Core.Common.Collections;
+using %P%.Application.Core.Common.Policies;
+
+namespace %P%.Application.Features.%F%.Model.Policies;
+
+public sealed class %A%CollectionPolicy : ICollectionPolicy
+{
+%if fields%
+%FPolicyFields%
+%else%
+    public const string NameField = "name";
+%end%
+
+    public const string CreatedAtField = "createdAt";
+
+    public static readonly %A%CollectionPolicy Instance = new();
+
+    public IReadOnlyList<SortableField> SortableFields { get; } =
+    [
+%if fields%
+%FSortables%
+%else%
+        SortableField.Keyset(NameField),
+%end%
+        SortableField.Keyset(CreatedAtField),
+    ];
+
+    public string DefaultSort => "createdAt:desc";
+
+    public int MaxSortTerms => 2;
+
+    public int MaxPageSize => 100;
+
+    public int DefaultPageSize => 20;
+}

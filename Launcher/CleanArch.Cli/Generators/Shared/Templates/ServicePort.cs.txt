@@ -1,0 +1,46 @@
+using %P%.Application.Core.Common.Concurrency; //?Versioned|VersionPrecondition|ConcurrencyErrors
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto|%A%Dto|%A%SummaryDto|%A%ListQueryDto
+using %P%.Application.Features.%F%.Model.Errors; //?%A%Errors
+
+namespace %P%.Application.Features.%F%.Services;
+
+public interface I%A%Service
+{
+%if list%
+    Task<Result<PagedResult<%A%SummaryDto>>> ListAsync(
+        %A%ListQueryDto query,
+        CancellationToken cancellationToken = default);
+
+%end%
+%if get%
+    Task<Result<%ReadDto%>> GetAsync(
+        Guid %L%Id,
+        CancellationToken cancellationToken = default);
+
+%end%
+%if create%
+    Task<Result<%ReadDto%>> CreateAsync(
+        %A%ContentDto content,
+        CancellationToken cancellationToken = default);
+
+%end%
+%if update%
+    Task<Result<%ReadDto%>> UpdateAsync(
+        Guid %L%Id,
+        %A%ContentDto content,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default);
+
+%end%
+%if delete%
+    Task<Result> DeleteAsync(
+        Guid %L%Id,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default);
+%end%
+}

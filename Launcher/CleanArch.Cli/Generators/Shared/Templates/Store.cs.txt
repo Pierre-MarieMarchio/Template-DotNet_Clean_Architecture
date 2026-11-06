@@ -1,0 +1,195 @@
+using %P%.Application.Core.Common.Concurrency; //?VersionPrecondition
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%ContentDto
+using %P%.Application.Features.%F%.Ports.%A%Store;
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Infrastructure.Persistence.Common.Contexts;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+using Microsoft.EntityFrameworkCore; //?SingleOrDefaultAsync|ToListAsync
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Stores;
+
+internal sealed class %A%Store(AppDbContext context) : I%A%Store
+{
+%if create%
+    public void Add(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        %A%ContentDto content,
+        DateTimeOffset createdAt)
+    {
+%if owner%
+        ArgumentNullException.ThrowIfNull(ownerId);
+%end%
+        ArgumentNullException.ThrowIfNull(content);
+
+        context.%F%.Add(new %A%Record
+        {
+            Id = %L%Id,
+%if owner%
+            OwnerId = ownerId.Value,
+%end%
+%if fields%
+%FStoreAssign%
+%else%
+            Name = content.Name,
+            Description = content.Description,
+%end%
+            CreatedAt = createdAt,
+        });
+    }
+
+%end%
+%if update%
+    public async Task<%A%ChangeStatus> StageReplacementAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        %A%ContentDto content,
+        DateTimeOffset modifiedAt,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default)
+    {
+%if owner%
+        ArgumentNullException.ThrowIfNull(ownerId);
+%end%
+        ArgumentNullException.ThrowIfNull(content);
+
+        var (status, record) = await LoadForChangeAsync(
+%if owner%
+            ownerId,
+%end%
+            %L%Id,
+%if etag%
+            precondition,
+%end%
+            cancellationToken);
+
+        if (record is not null)
+        {
+%if fields%
+%FStoreUpdate%
+%else%
+            record.Name = content.Name;
+            record.Description = content.Description;
+%end%
+            record.LastModifiedAt = modifiedAt;
+        }
+
+        return status;
+    }
+
+%end%
+%if delete%
+    public async Task<%A%ChangeStatus> StageRemovalAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken = default)
+    {
+%if owner%
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+%end%
+        var (status, record) = await LoadForChangeAsync(
+%if owner%
+            ownerId,
+%end%
+            %L%Id,
+%if etag%
+            precondition,
+%end%
+            cancellationToken);
+
+        if (record is not null)
+        {
+            context.%F%.Remove(record);
+        }
+
+        return status;
+    }
+
+%end%
+%if change%
+    private async Task<(%A%ChangeStatus Status, %A%Record? Record)> LoadForChangeAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+%if etag%
+        VersionPrecondition? precondition,
+%end%
+        CancellationToken cancellationToken)
+    {
+        var tracked = await context.%F%
+            .SingleOrDefaultAsync(record => record.Id == %L%Id%OwnerClause%, cancellationToken);
+
+        if (tracked is null)
+        {
+            return (%A%ChangeStatus.NotFound, null);
+        }
+
+%if etag%
+        return precondition is not null && !precondition.IsSatisfiedBy(tracked.Version)
+            ? (%A%ChangeStatus.VersionMismatch, null)
+            : (%A%ChangeStatus.Staged, tracked);
+%else%
+        return (%A%ChangeStatus.Staged, tracked);
+%end%
+    }
+%end%
+%if purge%
+
+    public async Task<int> StageRemovalForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        var records = await context.%F%
+            .Where(record => record.OwnerId == ownerId.Value)
+            .ToListAsync(cancellationToken);
+
+        context.%F%.RemoveRange(records);
+
+        return records.Count;
+    }
+%end%
+%if anon%
+
+    public async Task<int> StageAnonymisationForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        var records = await context.%F%
+            .Where(record => record.OwnerId == ownerId.Value)
+            .ToListAsync(cancellationToken);
+
+        foreach (var record in records)
+        {
+%if fields%
+%FStoreAnonymise%
+%else%
+            record.Name = AnonymisedText;
+            record.Description = string.Empty;
+%end%
+        }
+
+        return records.Count;
+    }
+%if anontext%
+
+    private const string AnonymisedText = "[deleted account]";
+%end%
+%end%
+}

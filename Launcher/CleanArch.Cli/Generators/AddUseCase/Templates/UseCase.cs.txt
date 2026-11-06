@@ -1,0 +1,15 @@
+using %P%.Application.Core.Common.Results;
+using %Concurrency%;
+using %Dtos%;
+using Mediator;
+
+namespace %P%.Application.Features.%F%.UseCases.%K%.%U%;
+
+%Message%
+
+public sealed class %In%Handler : I%Kind%Handler<%In%, %Out%>
+{
+    public ValueTask<%Out%> Handle(%In% %in%, CancellationToken cancellationToken) =>
+        throw new NotImplementedException(
+            %Unwritten%);
+}

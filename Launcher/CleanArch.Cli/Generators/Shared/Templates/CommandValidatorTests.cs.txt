@@ -1,0 +1,33 @@
+using %P%.Application.Features.%F%.UseCases.Commands.%Op%%A%;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Application.UnitTests.Features.%F%.UseCases.Commands.%Op%%A%;
+
+public sealed class %Op%%A%CommandValidatorTests
+{
+    private static readonly %Op%%A%CommandValidator _validator = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    private static %Op%%A%Command ACommand(string? name, string? description) => %CommandNew%;
+
+    [Fact]
+    public async Task ANameAndADescription_AreAccepted() =>
+        (await _validator.ValidateAsync(ACommand("Groceries", "Milk"), TestToken)).IsValid.ShouldBeTrue();
+
+    [Fact]
+    public async Task AnEmptyDescription_IsAccepted() =>
+        (await _validator.ValidateAsync(ACommand("Groceries", string.Empty), TestToken)).IsValid.ShouldBeTrue();
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task ABlankOrMissingName_IsRejected(string? name) =>
+        (await _validator.ValidateAsync(ACommand(name, "Milk"), TestToken)).IsValid.ShouldBeFalse();
+
+    [Fact]
+    public async Task AMissingDescription_IsRejected() =>
+        (await _validator.ValidateAsync(ACommand("Groceries", null), TestToken)).IsValid.ShouldBeFalse();
+}

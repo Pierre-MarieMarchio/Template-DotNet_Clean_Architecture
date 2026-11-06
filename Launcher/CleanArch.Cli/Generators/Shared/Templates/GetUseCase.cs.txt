@@ -1,0 +1,36 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Errors;
+using %P%.Application.Features.%F%.Ports.%A%Queries;
+using Mediator;
+
+namespace %P%.Application.Features.%F%.UseCases.Queries.Get%A%;
+
+public sealed record Get%A%Query(Guid %A%Id) : IQuery<Result<Versioned<%A%Dto>>>;
+
+public sealed class Get%A%QueryHandler(
+    I%A%Queries queries,
+    ICurrentUser currentUser) : IQueryHandler<Get%A%Query, Result<Versioned<%A%Dto>>>
+{
+    public async ValueTask<Result<Versioned<%A%Dto>>> Handle(
+        Get%A%Query query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<Versioned<%A%Dto>>();
+        }
+
+        var found = await queries.GetAsync(%SvcOwner%query.%A%Id, cancellationToken);
+
+        return found is null
+            ? Result.Failure<Versioned<%A%Dto>>(%A%Errors.%A%NotFound(query.%A%Id))
+            : found;
+    }
+}

@@ -1,0 +1,16 @@
+using %P%.Domain.Core.Common.Exceptions;
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Domain.Features.%F%.Model.Entities;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Domain.UnitTests.Features.%F%.Model.Entities;
+
+public sealed class %A%Tests
+{
+%if owner%
+    private static readonly UserId _ownerId = UserId.Create(Guid.CreateVersion7());
+
+%end%
+%FAggregateTests%
+}

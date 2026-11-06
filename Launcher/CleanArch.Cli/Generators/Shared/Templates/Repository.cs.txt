@@ -1,0 +1,110 @@
+using %P%.Domain.Core.Common.Primitives; //?UserId
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Domain.Features.%F%.Repositories;
+using %P%.Infrastructure.Persistence.Common.Contexts;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models; //?%A%Record
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Tracking;
+using Microsoft.EntityFrameworkCore; //?FirstOrDefaultAsync|ToListAsync
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Access.Repositories;
+
+internal sealed class %A%Repository(
+    AppDbContext context,
+    I%A%Mapper mapper,
+    I%A%Tracker tracker) : I%A%Repository
+{
+%if change%
+%if owner%
+    public async Task<%A%?> GetAsync(UserId ownerId, Guid id, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        if (tracker.Find(id) is { } alreadyLoaded)
+        {
+            return alreadyLoaded.OwnerId == ownerId ? alreadyLoaded : null;
+        }
+
+        var record = await context.%F%.FirstOrDefaultAsync(
+            candidate => candidate.Id == id && candidate.OwnerId == ownerId.Value,
+            cancellationToken);
+
+        return record is null ? null : LoadOrTrack(record);
+    }
+%else%
+    public async Task<%A%?> GetAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (tracker.Find(id) is { } alreadyLoaded)
+        {
+            return alreadyLoaded;
+        }
+
+        var record = await context.%F%.FirstOrDefaultAsync(
+            candidate => candidate.Id == id,
+            cancellationToken);
+
+        return record is null ? null : LoadOrTrack(record);
+    }
+%end%
+
+%end%
+%if owner%
+    public async Task<IReadOnlyList<%A%>> GetForOwnerAsync(
+        UserId ownerId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        var records = await context.%F%
+            .Where(record => record.OwnerId == ownerId.Value)
+            .ToListAsync(cancellationToken);
+
+        var aggregates = new List<%A%>(records.Count);
+
+        foreach (var record in records)
+        {
+            aggregates.Add(LoadOrTrack(record));
+        }
+
+        return aggregates;
+    }
+
+%end%
+%if create%
+    public void Add(%A% aggregate)
+    {
+        ArgumentNullException.ThrowIfNull(aggregate);
+
+        var record = mapper.ToNewRecord(aggregate);
+
+        context.%F%.Add(record);
+        tracker.Track(aggregate, record);
+    }
+
+%end%
+%if delete|owner%
+    public void Remove(%A% aggregate)
+    {
+        ArgumentNullException.ThrowIfNull(aggregate);
+
+        if (tracker.FindRecord(aggregate.Id) is not { } record)
+        {
+            return;
+        }
+
+        context.%F%.Remove(record);
+        tracker.MarkRemoved(aggregate, record);
+    }
+
+%end%
+%if change|owner%
+    private %A% LoadOrTrack(%A%Record record)
+    {
+        var aggregate = mapper.ToAggregate(record);
+
+        tracker.Track(aggregate, record);
+
+        return aggregate;
+    }
+%end%
+}

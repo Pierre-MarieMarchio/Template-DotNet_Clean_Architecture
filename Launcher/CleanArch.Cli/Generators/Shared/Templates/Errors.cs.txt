@@ -1,0 +1,10 @@
+using %P%.Application.Core.Common.Results;
+
+namespace %P%.Application.Features.%F%.Model.Errors;
+
+public static class %A%Errors
+{
+    public static Error %A%NotFound(Guid %L%Id) => Error.NotFound(
+        "%L%.notFound",
+        $"No %L% with id '{%L%Id}' was found.");
+}

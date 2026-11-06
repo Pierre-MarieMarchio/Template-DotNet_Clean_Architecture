@@ -1,0 +1,26 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Domain.Features.%F%.Model.Entities;
+
+namespace %P%.Application.Features.%F%.Model.Mapping;
+
+internal static class %A%DtoMapping
+{
+    public static Versioned<%A%Dto> Detail(%A% %L%)
+    {
+        ArgumentNullException.ThrowIfNull(%L%);
+
+        var detail = new %A%Dto(
+            %L%.Id,
+%if fields%
+%FDetailArgs%
+%else%
+            %L%.Name,
+            %L%.Description,
+%end%
+            %L%.CreatedAt,
+            %L%.LastModifiedAt);
+
+        return new Versioned<%A%Dto>(detail, %L%.Version);
+    }
+}

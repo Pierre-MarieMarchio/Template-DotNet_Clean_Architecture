@@ -1,0 +1,11 @@
+using FluentValidation;
+
+namespace %P%.Application.Features.%F%.UseCases.%K%.%U%;
+
+public sealed class %In%Validator : AbstractValidator<%In%>
+{
+    public %In%Validator()
+    {
+%Rules%
+    }
+}

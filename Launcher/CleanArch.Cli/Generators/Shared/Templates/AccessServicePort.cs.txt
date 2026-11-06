@@ -1,0 +1,13 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Core.Common.Results;
+using %P%.Domain.Features.%F%.Model.Entities;
+
+namespace %P%.Application.Features.%F%.Services;
+
+public interface I%A%Service
+{
+    Task<Result<%A%>> %Load%(
+        Guid %L%Id,
+        VersionPrecondition? precondition,
+        CancellationToken cancellationToken = default);
+}

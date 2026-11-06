@@ -1,0 +1,85 @@
+%if rec%
+using %P%.Application.Features.%F%.Model.Policies; //?%A%InputPolicy
+%else%
+using %P%.Domain.Features.%F%.Model.Entities; //?%A%
+%end%
+using %P%.Infrastructure.Core.Common.Contexts; //?IsVersion
+using %P%.Infrastructure.Persistence.Common.Contexts;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Configurations;
+
+internal sealed class %A%RecordConfiguration : IEntityTypeConfiguration<%A%Record>
+{
+    public void Configure(EntityTypeBuilder<%A%Record> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("%F%", AppDbContext.%F%Schema);
+
+        builder.HasKey(record => record.Id);
+
+        builder.Property(record => record.Id).ValueGeneratedNever();
+
+%if owner%
+        builder.Property(record => record.OwnerId).IsRequired();
+
+%end%
+%if list%
+%if owner%
+%if fields%
+%FIndexes%
+%else%
+        builder.HasIndex(record => new { record.OwnerId, record.Name, record.Id })
+            .HasDatabaseName("IX_%F%_OwnerId_Name_Id");
+%end%
+
+        builder.HasIndex(record => new { record.OwnerId, record.CreatedAt, record.Id })
+            .HasDatabaseName("IX_%F%_OwnerId_CreatedAt_Id");
+%else%
+%if fields%
+%FIndexes%
+%else%
+        builder.HasIndex(record => new { record.Name, record.Id })
+            .HasDatabaseName("IX_%F%_Name_Id");
+%end%
+
+        builder.HasIndex(record => new { record.CreatedAt, record.Id })
+            .HasDatabaseName("IX_%F%_CreatedAt_Id");
+%end%
+
+%else%
+%if owner%
+        builder.HasIndex(record => record.OwnerId)
+            .HasDatabaseName("IX_%F%_OwnerId");
+
+%end%
+%end%
+%if fields%
+%FConfiguration%
+%else%
+        builder.Property(record => record.Name)
+            .HasMaxLength(%Limits%.NameMaxLength)
+            .IsRequired();
+
+        builder.Property(record => record.Description)
+            .HasMaxLength(%Limits%.DescriptionMaxLength)
+            .IsRequired();
+%end%
+
+        builder.Property(record => record.CreatedAt).IsRequired();
+%if agg%
+        builder.Property(record => record.CreatedBy);
+%end%
+        builder.Property(record => record.LastModifiedAt);
+%if agg%
+        builder.Property(record => record.LastModifiedBy);
+%end%
+%if etag%
+
+        builder.Property(record => record.Version).IsVersion();
+%end%
+    }
+}

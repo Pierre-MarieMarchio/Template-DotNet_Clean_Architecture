@@ -1,0 +1,17 @@
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Infrastructure.Core.Common.Saving.DomainEvents;
+using %P%.Infrastructure.Core.Common.Saving.Tracking;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Tracking;
+
+internal interface I%A%Tracker : IAggregateFlusher, IDomainEventSource
+{
+    %A%? Find(Guid id);
+
+    void Track(%A% aggregate, %A%Record record);
+
+    %A%Record? FindRecord(Guid id);
+
+    void MarkRemoved(%A% aggregate, %A%Record record);
+}

@@ -1,0 +1,44 @@
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Policies;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Application.UnitTests.Features.%F%.Model.Dtos;
+
+public sealed class %A%ContentDtoValidatorTests
+{
+    private static readonly %A%ContentDtoValidator _validator = new();
+
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task ANameAndADescription_AreAccepted() =>
+        (await _validator.ValidateAsync(new %A%ContentDto("Groceries", "Milk"), TestToken)).IsValid.ShouldBeTrue();
+
+    [Fact]
+    public async Task AnEmptyDescription_IsAccepted() =>
+        (await _validator.ValidateAsync(new %A%ContentDto("Groceries", string.Empty), TestToken)).IsValid.ShouldBeTrue();
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ABlankName_IsRejected(string name) =>
+        (await _validator.ValidateAsync(new %A%ContentDto(name, "Milk"), TestToken)).IsValid.ShouldBeFalse();
+
+    [Fact]
+    public async Task ANullName_IsRejected_NotDereferenced() =>
+        (await _validator.ValidateAsync(new %A%ContentDto(null!, "Milk"), TestToken)).IsValid.ShouldBeFalse();
+
+    [Fact]
+    public async Task ANullDescription_IsRejected() =>
+        (await _validator.ValidateAsync(new %A%ContentDto("Groceries", null!), TestToken)).IsValid.ShouldBeFalse();
+
+    [Fact]
+    public async Task ANameMeasuredAfterTrimming_MayFillTheLimitExactly()
+    {
+        string name = new('a', %Limits%.NameMaxLength);
+
+        (await _validator.ValidateAsync(new %A%ContentDto($"  {name}  ", "Milk"), TestToken)).IsValid.ShouldBeTrue();
+        (await _validator.ValidateAsync(new %A%ContentDto(name + "a", "Milk"), TestToken)).IsValid.ShouldBeFalse();
+    }
+}

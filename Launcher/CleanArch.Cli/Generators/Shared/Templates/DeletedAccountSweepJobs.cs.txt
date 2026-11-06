@@ -1,0 +1,28 @@
+using %J%.Features.Maintenance.Jobs;
+using %P%.Application.Core.Features.DeletedAccounts.UseCases.Commands.SweepDeletedAccountData;
+using Microsoft.Extensions.Options;
+
+namespace %J%.Features.BackgroundJobs.Jobs;
+
+internal static class DeletedAccountSweepJobsExtensions
+{
+    internal static IServiceCollection AddDeletedAccountSweepJobs(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddOptions<DeletedAccountSweepOptions>()
+            .Bind(configuration.GetSection(JobsMaintenanceOptions.SectionName));
+
+        services.AddMaintenanceTask<SweepDeletedAccountDataCommand>(
+            "data of deleted accounts",
+            "Rows owned by an id that names no account stay where they are: the deletion event is "
+            + "the fast path, and this sweep is what makes it certain.",
+            provider => provider.GetRequiredService<IOptions<DeletedAccountSweepOptions>>()
+                .Value.SweepDeletedAccountsDataEnabled);
+
+        return services;
+    }
+}

@@ -1,0 +1,8 @@
+namespace %P%.Application.Features.%F%.Model.Dtos;
+
+%if fields%
+public sealed record %A%ContentDto(
+%FParamList%);
+%else%
+public sealed record %A%ContentDto(string Name, string Description);
+%end%

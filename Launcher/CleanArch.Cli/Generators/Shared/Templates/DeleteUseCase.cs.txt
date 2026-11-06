@@ -1,0 +1,35 @@
+using %P%.Application.Core.Common.Concurrency;
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.Services;
+using %P%.Domain.Features.%F%.Repositories;
+using Mediator;
+
+namespace %P%.Application.Features.%F%.UseCases.Commands.Delete%A%;
+
+public sealed record Delete%A%Command(Guid %A%Id, VersionPrecondition? Precondition = null) : ICommand<Result>;
+
+public sealed class Delete%A%CommandHandler(
+    I%A%Service service,
+    I%A%Repository repository,
+    IUnitOfWork unitOfWork) : ICommandHandler<Delete%A%Command, Result>
+{
+    public async ValueTask<Result> Handle(
+        Delete%A%Command command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var loaded = await service.%Load%(command.%A%Id, command.Precondition, cancellationToken);
+
+        if (loaded.IsFailure)
+        {
+            return loaded;
+        }
+
+        repository.Remove(loaded.Value);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+}

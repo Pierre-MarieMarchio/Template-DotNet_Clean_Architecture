@@ -1,0 +1,32 @@
+using %P%.Application.Core.Common.Collections; //?FeaturePageRequest
+using %P%.Application.Core.Common.Concurrency; //?Versioned
+using %P%.Application.Core.Common.Results; //?PagedResult
+using %P%.Application.Features.%F%.Model.Dtos; //?%A%SummaryDto|%A%Dto
+using %P%.Domain.Core.Common.Primitives; //?UserId
+
+namespace %P%.Application.Features.%F%.Ports.%A%Queries;
+
+public interface I%A%Queries
+{
+%if list%
+    Task<PagedResult<%A%SummaryDto>> %ListQuery%(
+%if owner%
+        UserId ownerId,
+%end%
+        FeaturePageRequest<%A%Filter> request,
+        CancellationToken cancellationToken = default);
+
+%end%
+%if single%
+    Task<%ReadDto%?> GetAsync(
+%if owner%
+        UserId ownerId,
+%end%
+        Guid %L%Id,
+        CancellationToken cancellationToken = default);
+%end%
+%if owner%
+
+    Task<IReadOnlyList<UserId>> ListDataOwnerIdsAsync(CancellationToken cancellationToken = default);
+%end%
+}

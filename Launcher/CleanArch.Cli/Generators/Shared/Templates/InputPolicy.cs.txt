@@ -1,0 +1,12 @@
+namespace %P%.Application.Features.%F%.Model.Policies;
+
+public static class %A%InputPolicy
+{
+%if fields%
+%FPolicyConstants%
+%else%
+    public const int NameMaxLength = 200;
+
+    public const int DescriptionMaxLength = 2_000;
+%end%
+}

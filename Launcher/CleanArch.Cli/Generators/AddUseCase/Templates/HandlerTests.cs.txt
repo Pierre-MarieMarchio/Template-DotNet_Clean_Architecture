@@ -1,0 +1,27 @@
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.UseCases.%K%.%U%;
+using %P%.Application.UnitTests.TestDoubles;
+using %Dtos%;
+using Shouldly;
+using Xunit;
+
+namespace %P%.Application.UnitTests.Features.%F%.UseCases.%K%.%U%;
+
+public sealed class %U%Tests
+{
+    private static CancellationToken TestToken => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task AMalformed%Kind%_NeverReachesTheHandler()
+    {
+        var malformed = %In%ValidatorTests.AWellFormed%Kind%() with { %Malformed% };
+
+        var result = await UseCase().Handle(malformed, TestToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Type.ShouldBe(ErrorType.Validation);
+    }
+
+    private static ValidatedHandler<%In%, %Out%> UseCase() =>
+        new(new %In%Handler().Handle, new %In%Validator());
+}

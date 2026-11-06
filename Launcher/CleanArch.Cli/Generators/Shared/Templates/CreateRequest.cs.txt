@@ -1,0 +1,18 @@
+using System.Text.Json.Serialization; //?JsonRequired
+
+namespace %P%.Api.Features.%F%.Contracts.Requests;
+
+%if owner%
+/// <summary>The %L% to create, whose owner is the authenticated caller.</summary>
+%else%
+/// <summary>The %L% to create.</summary>
+%end%
+%if fields%
+%FRequestDocs%
+public sealed record Create%A%Request(
+%FRequestParams%);
+%else%
+/// <param name="Name">Required, at most 200 characters once trimmed.</param>
+/// <param name="Description">Required but may be empty, at most 2000 characters.</param>
+public sealed record Create%A%Request(string Name, string Description);
+%end%

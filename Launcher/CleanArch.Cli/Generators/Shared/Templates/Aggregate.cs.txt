@@ -1,0 +1,178 @@
+using %P%.Domain.Core.Common.Abstractions; //?IOwnedAggregate
+using %P%.Domain.Core.Common.Exceptions; //?DomainException
+using %P%.Domain.Core.Common.Primitives;
+
+namespace %P%.Domain.Features.%F%.Model.Entities;
+
+public sealed class %A% : AuditableAggregateRoot<Guid>%Implements%
+{
+%if fields%
+%FConstants%
+%else%
+    public const int NameMaxLength = 200;
+
+    public const int DescriptionMaxLength = 2_000;
+%end%
+%if anontext%
+
+    public const string AnonymisedText = "[deleted account]";
+%end%
+
+    private %A%(
+        Guid id,
+%if owner%
+        UserId ownerId,
+%end%
+%if fields%
+%FCtorParams%
+%else%
+        string name,
+        string description) : base(id)
+%end%
+    {
+%if owner%
+        ArgumentNullException.ThrowIfNull(ownerId);
+
+        OwnerId = ownerId;
+%end%
+%if fields%
+%FAssign%
+%else%
+        Name = name;
+        Description = description;
+%end%
+    }
+
+%if owner%
+    public UserId OwnerId { get; }
+
+%end%
+%if fields%
+%FProperties%
+%else%
+%if update|anon%
+    public string Name { get; private set; }
+
+    public string Description { get; private set; }
+%else%
+    public string Name { get; }
+
+    public string Description { get; }
+%end%
+%end%
+
+%if create%
+    public static %A% Create(
+%if owner%
+        UserId ownerId,
+%end%
+%if fields%
+%FCreateParams%
+%else%
+        string name,
+        string description) =>
+%end%
+        new(
+            Guid.CreateVersion7(),
+%if owner%
+            ownerId,
+%end%
+%if fields%
+%FCreateArgs%
+%else%
+            RequireName(name),
+            RequireDescription(description));
+%end%
+
+%end%
+    public static %A% Rehydrate(
+        Guid id,
+%if owner%
+        UserId ownerId,
+%end%
+%if fields%
+%FRehydrateParams%
+%else%
+        string name,
+        string description)
+%end%
+    {
+        if (id == Guid.Empty)
+        {
+            throw new DomainException("A stored %L% must have an id.");
+        }
+
+        return new(
+            id,
+%if owner%
+            ownerId,
+%end%
+%if fields%
+%FRehydrateArgs%
+%else%
+            name,
+            description);
+%end%
+    }
+
+%if update%
+%if fields%
+    public void Update(%FUpdateParams%)
+    {
+%FUpdateBody%
+    }
+%else%
+    public void Update(string name, string description)
+    {
+        string validName = RequireName(name);
+        string validDescription = RequireDescription(description);
+
+        Name = validName;
+        Description = validDescription;
+    }
+%end%
+
+%end%
+%if anon%
+    public void Anonymise()
+    {
+%if fields%
+%FAnonymise%
+%else%
+        Name = AnonymisedText;
+        Description = string.Empty;
+%end%
+    }
+
+%end%
+%if content&fields%
+%FRequire%
+%end%
+%if content&!fields%
+    private static string RequireName(string name)
+    {
+        string trimmed = name?.Trim() ?? string.Empty;
+
+        if (trimmed.Length == 0)
+        {
+            throw new DomainException("%An% %L% name is required.");
+        }
+
+        return trimmed.Length <= NameMaxLength
+            ? trimmed
+            : throw new DomainException($"%An% %L% name cannot exceed {NameMaxLength} characters.");
+    }
+
+    private static string RequireDescription(string description)
+    {
+        if (description is null)
+        {
+            throw new DomainException("%An% %L% description is required; it may be empty.");
+        }
+
+        return description.Length <= DescriptionMaxLength
+            ? description
+            : throw new DomainException($"%An% %L% description cannot exceed {DescriptionMaxLength} characters.");
+    }
+%end%
+}

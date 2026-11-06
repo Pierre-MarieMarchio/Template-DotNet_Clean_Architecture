@@ -1,0 +1,50 @@
+using %P%.Application.Core.Common.Collections;
+using %P%.Application.Core.Common.Ports;
+using %P%.Application.Core.Common.Results;
+using %P%.Application.Features.%F%.Model.Dtos;
+using %P%.Application.Features.%F%.Model.Policies;
+using %P%.Application.Features.%F%.Ports.%A%Queries;
+using Mediator;
+
+namespace %P%.Application.Features.%F%.UseCases.Queries.Get%F%;
+
+public sealed record Get%F%Query(
+    string? Paging,
+    int? Page,
+    int? PageSize,
+    string? Cursor,
+    string? Sort) : ICollectionQuery, IQuery<Result<PagedResult<%A%SummaryDto>>>
+{
+    public static Get%F%Query Offset(int? page, int? pageSize) => new(null, page, pageSize, null, null);
+}
+
+public sealed class Get%F%QueryHandler(I%A%Queries queries, ICurrentUser currentUser)
+    : IQueryHandler<Get%F%Query, Result<PagedResult<%A%SummaryDto>>>
+{
+    public async ValueTask<Result<PagedResult<%A%SummaryDto>>> Handle(
+        Get%F%Query query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var userId = currentUser.RequireUserId();
+
+        if (userId.IsFailure)
+        {
+            return userId.To<PagedResult<%A%SummaryDto>>();
+        }
+
+        var bound = CollectionBinding.Bind(
+            query,
+            %A%CollectionPolicy.Instance,
+            () => Result.Success(%A%Filter.None),
+            %DateKeys%);
+
+        if (bound.IsFailure)
+        {
+            return bound.To<PagedResult<%A%SummaryDto>>();
+        }
+
+        return await queries.%ListQuery%(%SvcOwner%bound.Value, cancellationToken);
+    }
+}

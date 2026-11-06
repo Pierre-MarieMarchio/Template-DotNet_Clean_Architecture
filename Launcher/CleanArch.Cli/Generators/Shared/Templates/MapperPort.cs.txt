@@ -1,0 +1,13 @@
+using %P%.Domain.Features.%F%.Model.Entities;
+using %P%.Infrastructure.Persistence.Features.%F%.Rows.Models;
+
+namespace %P%.Infrastructure.Persistence.Features.%F%.Rows.Mapping;
+
+internal interface I%A%Mapper
+{
+    %A% ToAggregate(%A%Record record);
+
+    %A%Record ToNewRecord(%A% aggregate);
+
+    void WriteTo(%A% aggregate, %A%Record record);
+}

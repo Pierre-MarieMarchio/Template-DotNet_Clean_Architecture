@@ -1,0 +1,12 @@
+namespace %P%.Api.Features.%F%.Contracts.Responses;
+
+/// <summary>The wire shape of one %L% inside a page%SummaryDoc%.</summary>
+public sealed record %A%SummaryResponse(
+    Guid Id,
+%if fields%
+%FSummaryParams%
+%else%
+    string Name,
+%end%
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastModifiedAt);

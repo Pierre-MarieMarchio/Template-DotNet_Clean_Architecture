@@ -31,7 +31,8 @@ dotnet cleanarch migrations add AddTodoItemPriority            # dotnet ef migra
 dotnet cleanarch migrations add AddTodoItemPriority --check    # dotnet ef migrations has-pending-model-changes
 dotnet cleanarch migrations bundle                             # dotnet ef migrations bundle, for each context
 dotnet cleanarch database update                               # dotnet ef database update, at the project root
-dotnet cleanarch openapi     # write the OpenAPI reference, then regenerate the .NET client with the pinned Kiota
+dotnet cleanarch openapi     # write the OpenAPI reference, then the .NET client and the web schema the project holds
+dotnet cleanarch openapi --no-build # write the reference from the API's last build
 dotnet cleanarch openapi --check # fail where it would write, instead of writing
 dotnet cleanarch bootstrap   # format the solution, restore the local tools, create each context's initial migration
 dotnet cleanarch run         # dotnet run --project Src/Presentation/<Initials>.Api

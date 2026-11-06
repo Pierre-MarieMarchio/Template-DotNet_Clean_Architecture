@@ -283,38 +283,54 @@ public sealed class OpenApiCommandTests : IDisposable
     }
 
     [Fact]
-    public void WhereTheProjectFileRecordsClientFalse_TheCommandIsRefusedWithTheReason()
+    public void OpenApi_WithoutADotnetClient_WritesTheReference_AndRunsNoKiota()
     {
         using var project = new SampleProject(SampleProject.ApiWith("local", client: false));
 
-        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Failed);
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
 
-        _error.ToString().ShouldContain("records client false");
-        _output.ToString().ShouldBeEmpty();
-        _calls.ShouldBeEmpty();
+        File.ReadAllText(Path.Combine(project.Root, _referencePath)).ShouldBe(_referenceJson);
+        _calls.ShouldNotContain(call => call.Arguments.Contains("kiota"));
     }
 
     [Fact]
-    public void HelpJson_ListsOpenapiWithItsCheckOption_InsideAProjectWithAnApiAndAClient()
+    public void OpenApi_WithTheWebApiClientPackage_RegeneratesTheWebSchema_OrChecksItWithCheck()
     {
-        using var project = new SampleProject(SampleProject.Api);
+        using var project = new SampleProject(SampleProject.ApiWith("local", client: false));
+        string package = project.Folder(Path.Combine("Src", "Web", "packages", "api-client"));
+        Directory.CreateDirectory(Path.Combine(package, "scripts"));
+        File.WriteAllText(Path.Combine(package, "scripts", "generate.mjs"), "");
 
-        Run(["help", "--json"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+        Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
+        _calls[^1].Arguments.ShouldBe(["api", "--no-build"]);
+        _calls[^1].WorkingDirectory.ShouldBe(Path.Combine(project.Root, "Src", "Web"));
+        _calls.Clear();
 
-        JsonArray commands = CommandsOf();
-        commands.Select(command => Text(command!["name"])).ShouldContain("openapi");
-        JsonObject openapi = commands.Single(command => Text(command!["name"]) == "openapi").ShouldNotBeNull().AsObject();
-        openapi["options"].ShouldNotBeNull().AsArray().Select(option => Text(option!["name"])).ShouldBe(["--check"]);
-        openapi["arguments"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
-        openapi["commands"].ShouldNotBeNull().AsArray().ShouldBeEmpty();
-        _error.ToString().ShouldBeEmpty();
+        Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Succeeded, _error.ToString());
+        _calls[^1].Arguments.ShouldBe(["exec", "node", "scripts/generate.mjs", "--check", Path.Combine(project.Root, _referencePath)]);
+        _calls[^1].WorkingDirectory.ShouldBe(package);
+    }
+
+    [Fact]
+    public void OpenApi_NoBuild_WritesFromTheApisLastBuild_AndRefusesWhereThereIsNone()
+    {
+        using var project = new SampleProject(SampleProject.ApiWith("local", client: false));
+
+        Run(["openapi", "--no-build"], project.Root).ShouldBe(CleanArchCommand.Failed);
+        _error.ToString().ShouldContain("has none");
+        _calls.ShouldBeEmpty();
+
+        File.WriteAllText(Path.Combine(project.Folder(Path.Combine(_apiFolder, "bin", "Debug", "net10.0")), "Acme.Shop.Api.dll"), "");
+        Run(["openapi", "--no-build"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
+
+        _calls.Single().Arguments.Take(3).ShouldBe(["msbuild", Path.Combine(project.Root, _apiProject), "-target:GenerateOpenApiDocuments"]);
+        File.ReadAllText(Path.Combine(project.Root, _referencePath)).ShouldBe(_referenceJson);
     }
 
     [Fact]
     public void Help_HidesOpenapi_WhereTheProjectFileMakesItFalse()
     {
         using var noApi = new SampleProject(SampleProject.NoApi);
-        using var noClient = new SampleProject(SampleProject.ApiWith("local", client: false));
 
         Run(["--help"], noApi.Root).ShouldBe(CleanArchCommand.Succeeded);
         _output.ToString().ShouldContain("help");
@@ -322,10 +338,6 @@ public sealed class OpenApiCommandTests : IDisposable
         Clear();
 
         Run(["help", "--json"], noApi.Root).ShouldBe(CleanArchCommand.Succeeded);
-        CommandsOf().Select(command => Text(command!["name"])).ShouldNotContain("openapi");
-        Clear();
-
-        Run(["help", "--json"], noClient.Root).ShouldBe(CleanArchCommand.Succeeded);
         CommandsOf().Select(command => Text(command!["name"])).ShouldNotContain("openapi");
     }
 
@@ -350,7 +362,7 @@ public sealed class OpenApiCommandTests : IDisposable
 
     private int Fake(ExternalCall call)
     {
-        if (call.Arguments[0] == "build")
+        if (call.Arguments[0] is "build" or "msbuild")
         {
             string prefix = "-p:OpenApiDocumentsDirectory=";
             string documents = call.Arguments.Single(argument => argument.StartsWith(prefix, StringComparison.Ordinal))[prefix.Length..];

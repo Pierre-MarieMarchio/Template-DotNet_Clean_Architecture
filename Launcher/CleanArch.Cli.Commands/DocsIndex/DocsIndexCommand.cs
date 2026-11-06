@@ -27,17 +27,5 @@ internal static class DocsIndexCommand
     }
 
     private static int Run(LocatedProject project, Shell shell, bool checking) =>
-        TestRuns.Guarded(shell, () =>
-        {
-            if (checking)
-            {
-                DocumentationIndex.Check(project.Root, shell.Output);
-            }
-            else
-            {
-                DocumentationIndex.Write(project.Root, shell.Output);
-            }
-
-            return ExitCode.Succeeded;
-        });
+        checking ? DocumentationIndex.Checked(project, shell) : DocumentationIndex.Written(project, shell);
 }

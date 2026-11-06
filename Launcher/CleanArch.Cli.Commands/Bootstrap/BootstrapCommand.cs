@@ -55,9 +55,9 @@ internal static class BootstrapCommand
         bool holdsTheApi = ProjectLayout.HoldsTheApi(project);
         return
         [
-            new("the presentation projects' pages", () => shell.Run(Dotnet.RunFile(root, ProjectLayout.Tasks, "presentation-scaffold"))),
+            new("the presentation projects' pages", () => Scaffolds.Presentations(project, shell, null)),
             new("the formatting", () => shell.Run(Dotnet.Call(root, "format", ProjectLayout.Solution(project), "--diagnostics", "IDE0055", "IDE0005"))),
-            new("the documentation index", () => shell.Run(Dotnet.RunFile(root, ProjectLayout.Tasks, "docs-index"))),
+            new("the documentation index", () => DocumentationIndex.Written(project, shell)),
             .. holdsTheApi ? [new Step("the OpenAPI reference", () => OpenApiReference.Write(project, shell, noBuild: false))] : Array.Empty<Step>(),
             new(
                 "the local tools' restore",
@@ -66,7 +66,7 @@ internal static class BootstrapCommand
                 + $"{Tool.Name} migrations add, database update, migrations bundle and verify."),
             new("each context's initial migration", () => ExitCode.FirstFailureOf(ProjectLayout.Contexts(project).Select(context => (Func<int>)(() => InitialMigration(project, shell, context))))),
             .. holdsTheApi && project.File.Client ? [new Step("the .NET client", () => ApiClient.Write(project, shell))] : Array.Empty<Step>(),
-            .. ProjectLayout.HasWebApps(project) ? [new Step("the web apps' pages", () => shell.Run(Dotnet.RunFile(root, ProjectLayout.Tasks, "web-scaffold")))] : Array.Empty<Step>(),
+            .. ProjectLayout.HasWebApps(project) ? [new Step("the web apps' pages", () => Scaffolds.WebApps(project, shell, null))] : Array.Empty<Step>(),
         ];
     }
 

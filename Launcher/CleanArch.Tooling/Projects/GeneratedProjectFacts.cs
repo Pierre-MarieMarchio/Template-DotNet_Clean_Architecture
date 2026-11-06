@@ -129,7 +129,7 @@ public static partial class GeneratedProjectFacts
             : "public";
     }
 
-    private static int? WebPort(string folder)
+    public static int? WebPort(string folder)
     {
         string compose = Path.Combine(folder, "compose.yml");
         Match port = File.Exists(compose) ? HostPort().Match(File.ReadAllText(compose)) : Match.Empty;

@@ -5,6 +5,7 @@ using CleanArch.Cli.Commands.Check;
 using CleanArch.Cli.Commands.Compose;
 using CleanArch.Cli.Commands.Coverage;
 using CleanArch.Cli.Commands.Database;
+using CleanArch.Cli.Commands.DocsIndex;
 using CleanArch.Cli.Commands.EndToEnd;
 using CleanArch.Cli.Commands.Format;
 using CleanArch.Cli.Commands.Migration;
@@ -37,6 +38,7 @@ internal static class BuiltInCommands
         MigrationsCommand.Registration,
         DatabaseCommand.Registration,
         OpenApiCommand.Registration,
+        DocsIndexCommand.Registration,
         BootstrapCommand.Registration,
         RunCommand.Registration,
         ComposeCommand.Registration,

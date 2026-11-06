@@ -6,6 +6,10 @@ using CleanArch.Cli.Generators.AddFeature;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Xunit;
+using static CleanArch.Cli.Generators.AddFeature.FeatureEdits;
+using static CleanArch.Cli.Generators.AddFeature.FeatureGeneration;
+using static CleanArch.Cli.Generators.AddFeature.FeaturePage;
+using static CleanArch.Cli.Generators.AddFeature.FeatureReport;
 using static CleanArch.Cli.Generators.AddFeature.NewFeature;
 using static CleanArch.Cli.Generators.Shared.FeatureCode;
 

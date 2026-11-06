@@ -32,25 +32,22 @@ internal static class DatabaseCommand
         update.Options.Add(contextOption);
         if (context.Project is { } project)
         {
-            update.SetAction(parseResult => RunUpdate(project, parseResult, contextOption));
+            update.SetAction(parseResult => RunUpdate(project, context.Shell(parseResult), parseResult, contextOption));
         }
 
         return update;
     }
 
-    private static int RunUpdate(LocatedProject project, ParseResult parseResult, Option<string?> contextOption)
+    private static int RunUpdate(LocatedProject project, Shell shell, ParseResult parseResult, Option<string?> contextOption)
     {
         string target = PersistenceContexts.Target(project, parseResult.GetValue(contextOption), out string? refusal);
         refusal ??= PersistenceContexts.WithoutInitialMigration(project, $"{Name} update", [target]);
         if (refusal is not null)
         {
-            parseResult.InvocationConfiguration.Error.WriteLine(refusal);
+            shell.Error.WriteLine(refusal);
             return CleanArchCommand.Failed;
         }
 
-        return ExternalCommand.Run(
-            new ExternalCall("dotnet", ["ef", "database", "update", "--project", target, "--startup-project", target], project.Root),
-            parseResult.InvocationConfiguration.Output,
-            parseResult.InvocationConfiguration.Error);
+        return shell.Run(new ExternalCall("dotnet", ["ef", "database", "update", "--project", target, "--startup-project", target], project.Root));
     }
 }

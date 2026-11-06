@@ -2,6 +2,7 @@
 using System.CommandLine.Help;
 using System.CommandLine.Invocation;
 using System.Runtime.CompilerServices;
+using CleanArch.Cli.Commands.Kernel;
 
 namespace CleanArch.Cli.Commands.Hosting;
 
@@ -15,9 +16,9 @@ public static class CleanArchCommand
 
     private const string _description = "Describe this project, or run one of its commands.";
 
-    internal static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
+    internal static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations, IProcessLauncher processes)
     {
-        CommandContext context = CommandContext.Locate(workingDirectory);
+        CommandContext context = CommandContext.Locate(workingDirectory, processes);
         if (arguments.Count > 0 && context.LocalCommands.FirstOrDefault(local => local.Name == arguments[0]) is { } named)
         {
             return named.Run(context, arguments.Skip(1), output, error);
@@ -26,8 +27,8 @@ public static class CleanArchCommand
         return Invoke(arguments, context, output, error, registrations);
     }
 
-    internal static int RunBuiltIn(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations) =>
-        Invoke(arguments, CommandContext.Locate(workingDirectory) with { LocalCommands = [] }, output, error, registrations);
+    internal static int RunBuiltIn(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations, IProcessLauncher processes) =>
+        Invoke(arguments, CommandContext.Locate(workingDirectory, processes) with { LocalCommands = [] }, output, error, registrations);
 
     private static int Invoke(IReadOnlyList<string> arguments, CommandContext context, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
     {

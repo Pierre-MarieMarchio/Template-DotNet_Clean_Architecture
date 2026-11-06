@@ -10,9 +10,8 @@ internal sealed class ExternalProcessRunner : IProcessRunner
         var captured = new StringBuilder();
         using var announce = line is null ? TextWriter.Null : new LineWriter(line, null);
         using var output = new LineWriter(line, captured);
-        int exitCode = ExternalCommand.Run(
+        int exitCode = new Shell(ExternalCommand.Launcher, announce, output).Run(
             new ExternalCall(command.FileName, command.Arguments, command.WorkingDirectory, command.Environment),
-            announce,
             output,
             output);
         output.Flush();

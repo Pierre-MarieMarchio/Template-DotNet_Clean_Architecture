@@ -5,7 +5,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class CommandContractTests : IDisposable
 {
     private static readonly Dictionary<string, string> _projectFiles = new(StringComparer.Ordinal)
@@ -23,12 +22,14 @@ public sealed class CommandContractTests : IDisposable
     private readonly StringWriter _error = new();
     private readonly List<ExternalCall> _calls = [];
 
+    private readonly FakeProcesses _processes;
+
     public CommandContractTests() =>
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             return CleanArchCommand.Succeeded;
-        };
+        });
 
     public static TheoryData<string> ProjectFiles => [.. _projectFiles.Keys];
 
@@ -38,7 +39,7 @@ public sealed class CommandContractTests : IDisposable
         string folder = Directory.CreateTempSubdirectory("cleanarch-contract-").FullName;
         try
         {
-            CommandContext context = CommandContext.Locate(folder);
+            CommandContext context = CommandContext.Locate(folder, _processes);
             foreach (string[] path in BuiltIns(context).Where(command => !_runOutsideAProject.Contains(command.Name)).SelectMany(command => PathsOf(command, [])))
             {
                 Clear();
@@ -63,7 +64,7 @@ public sealed class CommandContractTests : IDisposable
     public void WithAProjectFileItCannotRead_EveryCommandButHelp_IsHiddenAndRefusedWithThatError_AndRunsNothing()
     {
         using var project = new SampleProject("{ not json");
-        CommandContext context = CommandContext.Locate(project.Root);
+        CommandContext context = CommandContext.Locate(project.Root, _processes);
         string unreadable = context.RefusedProjectFile.ShouldNotBeNull().Message;
         unreadable.ShouldContain(Path.Combine(project.Root, ProjectLocator.FileName));
         Dictionary<string, string> before = Snapshot(project.Root);
@@ -88,7 +89,7 @@ public sealed class CommandContractTests : IDisposable
     public void ACommandTheProjectFileRefuses_IsHiddenAndRefusedWithItsReason_AndRunsNothing_WhileTheOthersAreListed(string projectFile)
     {
         using var project = new SampleProject(_projectFiles[projectFile]);
-        CommandContext context = CommandContext.Locate(project.Root);
+        CommandContext context = CommandContext.Locate(project.Root, _processes);
         (string Name, string? Refusal)[] commands = [.. BuiltInCommands.All.Select(registration => (registration.Build(context).Name, registration.Refusal(context)))];
         string[] applying = [.. commands.Where(command => command.Refusal is null).Select(command => command.Name)];
         Dictionary<string, string> before = Snapshot(project.Root);
@@ -124,7 +125,7 @@ public sealed class CommandContractTests : IDisposable
     public void EachRefusalCondition_HoldsAgainstTheProjectFiles(string projectFile, string refused)
     {
         using var project = new SampleProject(_projectFiles[projectFile]);
-        CommandContext context = CommandContext.Locate(project.Root);
+        CommandContext context = CommandContext.Locate(project.Root, _processes);
 
         BuiltInCommands.All.Where(registration => registration.Refusal(context) is not null).Select(registration => registration.Build(context).Name)
             .ShouldBe(refused.Split(' '), ignoreOrder: true);
@@ -135,7 +136,7 @@ public sealed class CommandContractTests : IDisposable
     public void TheHelpOfEveryCommandThatApplies_ReadsDotnetCleanarch(string projectFile)
     {
         using var project = new SampleProject(_projectFiles[projectFile]);
-        CommandContext context = CommandContext.Locate(project.Root);
+        CommandContext context = CommandContext.Locate(project.Root, _processes);
         IEnumerable<Command> applying = BuiltInCommands.All.Where(registration => registration.Refusal(context) is null).Select(registration => registration.Build(context));
 
         foreach (string[] path in applying.SelectMany(command => ListedPathsOf(command, [])).Prepend([]))
@@ -150,13 +151,12 @@ public sealed class CommandContractTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
     private void Clear()
     {

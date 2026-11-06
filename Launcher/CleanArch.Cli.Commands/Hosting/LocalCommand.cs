@@ -30,7 +30,7 @@ internal sealed partial record LocalCommand(string Name, string Source)
         string file = Path.GetRelativePath(context.WorkingDirectory, Source).Replace('\\', '/');
         string[] forwarded = [.. arguments];
         string[] dotnetRun = forwarded.Length == 0 ? ["run", file] : ["run", file, "--", .. forwarded];
-        return ExternalCommand.Run(new ExternalCall("dotnet", dotnetRun, context.WorkingDirectory), output, error);
+        return context.Shell(output, error).Run(new ExternalCall("dotnet", dotnetRun, context.WorkingDirectory));
     }
 
     [GeneratedRegex("^[a-z][a-z0-9]*(-[a-z0-9]+)*$")]

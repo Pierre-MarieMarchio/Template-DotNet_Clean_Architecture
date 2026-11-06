@@ -23,17 +23,17 @@ internal static class BootstrapCommand
             + "restore the local tools and create each context's initial migration. Commit what it writes before anything else.");
         if (context.Project is { } project)
         {
-            bootstrap.SetAction(parseResult => Run(project, parseResult));
+            bootstrap.SetAction(parseResult => Run(project, context.Shell(parseResult)));
         }
 
         return bootstrap;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult)
+    private static int Run(LocatedProject project, Shell shell)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
-        Step[] steps = [.. Steps(project, output, error)];
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
+        Step[] steps = [.. Steps(project, shell)];
 
         for (int index = 0; index < steps.Length; index++)
         {
@@ -53,9 +53,10 @@ internal static class BootstrapCommand
         return CleanArchCommand.Succeeded;
     }
 
-    private static IEnumerable<Step> Steps(LocatedProject project, TextWriter output, TextWriter error)
+    private static IEnumerable<Step> Steps(LocatedProject project, Shell shell)
     {
-        int Dotnet(params string[] arguments) => ExternalCommand.Run(new ExternalCall("dotnet", arguments, project.Root), output, error);
+        TextWriter output = shell.Output;
+        int Dotnet(params string[] arguments) => shell.Run(new ExternalCall("dotnet", arguments, project.Root));
 
         yield return new("the presentation projects' pages", () => Dotnet("run", ProjectLayout.Tasks, "presentation-scaffold"));
         yield return new("the formatting", () => Dotnet("format", ProjectLayout.Solution(project), "--diagnostics", "IDE0055", "IDE0005"));
@@ -64,7 +65,7 @@ internal static class BootstrapCommand
         bool holdsTheApi = ProjectLayout.HoldsTheApi(project);
         if (holdsTheApi)
         {
-            yield return new("the OpenAPI reference", () => OpenApiCommand.WriteReference(project, checking: false, noBuild: false, output, error));
+            yield return new("the OpenAPI reference", () => OpenApiCommand.WriteReference(project, checking: false, noBuild: false, shell));
         }
 
         yield return new(
@@ -72,11 +73,11 @@ internal static class BootstrapCommand
             () => Dotnet("tool", "restore"),
             "The local tools are not restored, so the initial migrations are not created and the commands that run dotnet ef cannot work yet: "
             + $"{CleanArchCommand.Name} migrations add, database update, migrations bundle and verify.");
-        yield return new("each context's initial migration", () => InitialMigrations(project, output, error));
+        yield return new("each context's initial migration", () => InitialMigrations(project, shell));
 
         if (holdsTheApi && project.File.Client)
         {
-            yield return new("the .NET client", () => OpenApiCommand.RegenerateClient(project, checking: false, output, error));
+            yield return new("the .NET client", () => OpenApiCommand.RegenerateClient(project, checking: false, shell));
         }
 
         if (ProjectLayout.HasWebApps(project))
@@ -85,8 +86,9 @@ internal static class BootstrapCommand
         }
     }
 
-    private static int InitialMigrations(LocatedProject project, TextWriter output, TextWriter error)
+    private static int InitialMigrations(LocatedProject project, Shell shell)
     {
+        TextWriter output = shell.Output;
         foreach (string context in ProjectLayout.Contexts(project))
         {
             if (PersistenceContexts.HasInitialMigration(project, context))
@@ -95,13 +97,10 @@ internal static class BootstrapCommand
                 continue;
             }
 
-            int exit = ExternalCommand.Run(
-                new ExternalCall(
+            int exit = shell.Run(new ExternalCall(
                     "dotnet",
                     ["ef", "migrations", "add", _initialMigrationName, "--project", context, "--startup-project", context],
-                    project.Root),
-                output,
-                error);
+                    project.Root));
             if (exit != CleanArchCommand.Succeeded)
             {
                 return exit;

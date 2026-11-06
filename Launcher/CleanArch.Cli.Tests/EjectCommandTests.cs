@@ -24,6 +24,7 @@ public sealed class EjectCommandTests : IDisposable
         global using System.Threading.Tasks;
         """;
 
+    private readonly SystemProcessLauncher _processes = new();
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
 
@@ -237,5 +238,5 @@ public sealed class EjectCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 }

@@ -3,7 +3,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class LifecycleCommandTests : IDisposable
 {
     private readonly StringWriter _output = new();
@@ -11,13 +10,15 @@ public sealed class LifecycleCommandTests : IDisposable
     private readonly List<ExternalCall> _calls = [];
     private int _exit = CleanArchCommand.Succeeded;
 
+    private readonly FakeProcesses _processes;
+
     public LifecycleCommandTests()
     {
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             return _exit;
-        };
+        });
     }
 
     [Fact]
@@ -78,13 +79,12 @@ public sealed class LifecycleCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
     private static SampleProject WithTests(string json)
     {

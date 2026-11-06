@@ -47,37 +47,39 @@ internal static class OpenApiCommand
         command.Options.Add(noBuild);
         if (context.Project is { } project)
         {
-            command.SetAction(parseResult => Run(project, parseResult, parseResult.GetValue(check), parseResult.GetValue(noBuild)));
+            command.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult.GetValue(check), parseResult.GetValue(noBuild)));
         }
 
         return command;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult, bool checking, bool noBuild)
+    private static int Run(LocatedProject project, Shell shell, bool checking, bool noBuild)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         string root = project.Root;
         string reference = Path.Combine(root, ProjectLayout.OpenApiReference(project));
 
-        int exit = WriteReference(project, checking, noBuild, output, error);
+        int exit = WriteReference(project, checking, noBuild, shell);
         if (exit == CleanArchCommand.Succeeded && project.File.Client)
         {
-            exit = RegenerateClient(project, checking, output, error);
+            exit = RegenerateClient(project, checking, shell);
         }
 
         if (exit == CleanArchCommand.Succeeded && File.Exists(Path.Combine(root, _webSchemaScript)))
         {
             exit = checking
-                ? ExternalCommand.Run(new ExternalCall(_pnpm, ["exec", "node", "scripts/generate.mjs", "--check", reference], Path.Combine(root, _apiClientPackage), DirectoryNote: _apiClientPackage), output, error)
-                : ExternalCommand.Run(new ExternalCall(_pnpm, ["api", "--no-build"], Path.Combine(root, "Src", "Web"), DirectoryNote: "Src/Web"), output, error);
+                ? shell.Run(new ExternalCall(_pnpm, ["exec", "node", "scripts/generate.mjs", "--check", reference], Path.Combine(root, _apiClientPackage), DirectoryNote: _apiClientPackage))
+                : shell.Run(new ExternalCall(_pnpm, ["api", "--no-build"], Path.Combine(root, "Src", "Web"), DirectoryNote: "Src/Web"));
         }
 
         return exit;
     }
 
-    internal static int WriteReference(LocatedProject project, bool checking, bool noBuild, TextWriter output, TextWriter error)
+    internal static int WriteReference(LocatedProject project, bool checking, bool noBuild, Shell shell)
     {
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         string apiFolder = Path.Combine(project.Root, ProjectLayout.Api(project));
         string apiProject = Path.Combine(project.Root, ProjectLayout.ApiProject(project));
         string reference = Path.Combine(project.Root, ProjectLayout.OpenApiReference(project));
@@ -104,16 +106,13 @@ internal static class OpenApiCommand
             return CleanArchCommand.Failed;
         }
 
-        int exit = ExternalCommand.Run(
-            new ExternalCall(
+        int exit = shell.Run(new ExternalCall(
                 "dotnet",
                 noBuild
                     ? ["msbuild", apiProject, "-target:GenerateOpenApiDocuments", .. document]
                     : ["build", apiProject, "-p:OpenApiGenerateDocumentsOnBuild=true", .. document],
                 project.Root,
-                environment),
-            output,
-            error);
+                environment));
         if (exit != CleanArchCommand.Succeeded)
         {
             return exit;
@@ -157,8 +156,10 @@ internal static class OpenApiCommand
         }
     }
 
-    internal static int RegenerateClient(LocatedProject project, bool checking, TextWriter output, TextWriter error)
+    internal static int RegenerateClient(LocatedProject project, bool checking, Shell shell)
     {
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         string root = project.Root;
         string reference = Path.Combine(root, ProjectLayout.OpenApiReference(project));
         string generated = Path.Combine(root, ProjectLayout.Client(project), "Generated");
@@ -180,8 +181,7 @@ internal static class OpenApiCommand
             : generated;
         try
         {
-            int exit = ExternalCommand.Run(
-                new ExternalCall(
+            int exit = shell.Run(new ExternalCall(
                     "dotnet",
                     [
                         "tool", "run", "kiota", "generate",
@@ -194,9 +194,7 @@ internal static class OpenApiCommand
                         "--clean-output",
                         "--log-level", "Warning",
                     ],
-                    root),
-                output,
-                error);
+                    root));
             if (exit != CleanArchCommand.Succeeded)
             {
                 return exit;

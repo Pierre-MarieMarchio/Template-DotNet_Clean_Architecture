@@ -4,25 +4,25 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class LocalCommandTests : IDisposable
 {
     private readonly List<ExternalCall> _calls = [];
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
 
+    private readonly FakeProcesses _processes;
+
     public LocalCommandTests()
     {
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             return CleanArchCommand.Succeeded;
-        };
+        });
     }
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
@@ -131,5 +131,5 @@ public sealed class LocalCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 }

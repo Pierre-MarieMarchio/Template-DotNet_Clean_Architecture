@@ -27,53 +27,47 @@ internal static class EndToEndCommand
         Option<string> configuration = BuildSettings.AddConfiguration(endToEnd);
         if (context.Project is { } project && ProjectLayout.HoldsTheApi(project))
         {
-            endToEnd.SetAction(parseResult => Run(project, parseResult, keepStack, configuration));
+            endToEnd.SetAction(parseResult => Run(project, context.Shell(parseResult), parseResult, keepStack, configuration));
         }
 
         return endToEnd;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult, Option<bool> keepStack, Option<string> configuration)
+    private static int Run(LocatedProject project, Shell shell, ParseResult parseResult, Option<bool> keepStack, Option<string> configuration)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         string[] compose = ["compose", "--project-name", ProjectLayout.EndToEndComposeProject(project), "--env-file", ".env.example"];
         IReadOnlyDictionary<string, string> environment = Unset(Defaults(project));
         int exit = CleanArchCommand.Failed;
 
         try
         {
-            exit = ExternalCommand.Run(
-                new ExternalCall("docker", [.. compose, "up", "--build", "--detach", "--wait", "--wait-timeout", "300"], project.Root, environment),
-                output,
-                error);
+            exit = shell.Run(new ExternalCall("docker", [.. compose, "up", "--build", "--detach", "--wait", "--wait-timeout", "300"], project.Root, environment));
             if (exit == CleanArchCommand.Succeeded)
             {
-                exit = ExternalCommand.Run(
-                    new ExternalCall(
+                exit = shell.Run(new ExternalCall(
                         "dotnet",
                         ["run", "--project", ProjectLayout.EndToEndTests(project), "--configuration", parseResult.GetRequiredValue(configuration)],
                         project.Root,
-                        environment),
-                    output,
-                    error);
+                        environment));
             }
 
             if (exit == CleanArchCommand.Succeeded && ProjectLayout.HasWebApps(project))
             {
-                exit = BrowserSmoke(project, environment, output, error);
+                exit = BrowserSmoke(project, environment, shell);
             }
         }
         finally
         {
             if (exit != CleanArchCommand.Succeeded)
             {
-                ExternalCommand.Run(new ExternalCall("docker", [.. compose, "logs", "--tail", "100"], project.Root, environment), output, error);
+                shell.Run(new ExternalCall("docker", [.. compose, "logs", "--tail", "100"], project.Root, environment));
             }
 
             if (!parseResult.GetValue(keepStack))
             {
-                int down = ExternalCommand.Run(new ExternalCall("docker", [.. compose, "down", "--volumes"], project.Root, environment), output, error);
+                int down = shell.Run(new ExternalCall("docker", [.. compose, "down", "--volumes"], project.Root, environment));
                 if (exit == CleanArchCommand.Succeeded)
                 {
                     exit = down;
@@ -84,17 +78,15 @@ internal static class EndToEndCommand
         return exit;
     }
 
-    private static int BrowserSmoke(LocatedProject project, IReadOnlyDictionary<string, string> environment, TextWriter output, TextWriter error)
+    private static int BrowserSmoke(LocatedProject project, IReadOnlyDictionary<string, string> environment, Shell shell)
     {
+        TextWriter error = shell.Error;
         var smoke = new Dictionary<string, string>(environment, StringComparer.Ordinal) { ["SMOKE_ENV_FILE"] = ".env.example" };
-        int exit = ExternalCommand.Run(
-            new ExternalCall(
+        int exit = shell.Run(new ExternalCall(
                 OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm",
                 ["--filter", "*browser-smoke", "smoke"],
                 Path.Combine(project.Root, "Src", "Web"),
-                smoke),
-            output,
-            error);
+                smoke));
         if (exit != CleanArchCommand.Succeeded)
         {
             error.WriteLine(

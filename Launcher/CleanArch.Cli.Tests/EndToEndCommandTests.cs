@@ -21,6 +21,8 @@ public sealed class EndToEndCommandTests : IDisposable
     private readonly Dictionary<string, int> _exitOf = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _saved = [];
 
+    private readonly FakeProcesses _processes;
+
     public EndToEndCommandTests()
     {
         foreach (string variable in _variables)
@@ -29,11 +31,11 @@ public sealed class EndToEndCommandTests : IDisposable
             Environment.SetEnvironmentVariable(variable, null);
         }
 
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             return _exitOf.GetValueOrDefault(StepOf(call), CleanArchCommand.Succeeded);
-        };
+        });
     }
 
     [Fact]
@@ -153,7 +155,6 @@ public sealed class EndToEndCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         foreach ((string variable, string? value) in _saved)
         {
             Environment.SetEnvironmentVariable(variable, value);
@@ -164,7 +165,7 @@ public sealed class EndToEndCommandTests : IDisposable
     }
 
     private int Run(SampleProject project, params string[] options) =>
-        BuiltInCommands.Run(["end-to-end", .. options], project.Root, _output, _error);
+        BuiltInCommands.Run(["end-to-end", .. options], project.Root, _output, _error, _processes);
 
     private static string[] Named(ExternalCall call) =>
         StepOf(call) == "smoke"

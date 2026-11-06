@@ -38,23 +38,22 @@ internal static class FormatCommand
 
     private static int Run(CommandContext context, ParseResult parseResult, Option<bool> check)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
+        Shell shell = context.Shell(parseResult);
         if (context.Project is not { } project)
         {
-            error.WriteLine(context.RefusedProjectFile?.Message ?? context.OutsideProject);
+            shell.Error.WriteLine(context.RefusedProjectFile?.Message ?? context.OutsideProject);
             return CleanArchCommand.Failed;
         }
 
         return parseResult.GetValue(check)
-            ? Check(project, output, error)
-            : Fix(project, output, error);
+            ? Check(project, shell)
+            : Fix(project, shell);
     }
 
-    private static int Fix(LocatedProject project, TextWriter output, TextWriter error)
+    private static int Fix(LocatedProject project, Shell shell)
     {
         string solution = ProjectLayout.Solution(project);
-        int formatted = ExternalCommand.Run(Dotnet(project, ["format", solution]), output, error);
+        int formatted = shell.Run(Dotnet(project, ["format", solution]));
         if (formatted != CleanArchCommand.Succeeded)
         {
             return formatted;
@@ -63,16 +62,17 @@ internal static class FormatCommand
         foreach (string file in MarkdownToNormalise(project.Root))
         {
             File.WriteAllBytes(file, NormalisedMarkdown(File.ReadAllBytes(file)));
-            output.WriteLine($"{Relative(project.Root, file)}: saved as UTF-8 without a BOM, with LF endings.");
+            shell.Output.WriteLine($"{Relative(project.Root, file)}: saved as UTF-8 without a BOM, with LF endings.");
         }
 
-        return RequireNamingStyle(project, solution, output, error);
+        return RequireNamingStyle(project, solution, shell);
     }
 
-    private static int Check(LocatedProject project, TextWriter output, TextWriter error)
+    private static int Check(LocatedProject project, Shell shell)
     {
+        TextWriter error = shell.Error;
         string[] arguments = ["format", ProjectLayout.Solution(project), "--diagnostics", .. StyleRulesTheBuildLacks, "--verify-no-changes", "--verbosity", "normal"];
-        int verified = ExternalCommand.Run(Dotnet(project, arguments), output, error);
+        int verified = shell.Run(Dotnet(project, arguments));
         if (verified != CleanArchCommand.Succeeded)
         {
             return verified;
@@ -93,11 +93,12 @@ internal static class FormatCommand
         return CleanArchCommand.Failed;
     }
 
-    private static int RequireNamingStyle(LocatedProject project, string solution, TextWriter output, TextWriter error)
+    private static int RequireNamingStyle(LocatedProject project, string solution, Shell shell)
     {
+        TextWriter error = shell.Error;
         ExternalCall call = Dotnet(project, ["format", solution, "--diagnostics", "IDE1006", "--verify-no-changes", "--no-restore"]);
         using var captured = new StringWriter();
-        int exit = ExternalCommand.Run(call, output, captured, captured);
+        int exit = shell.Run(call, captured, captured);
         string[] violations = NamingViolations(project.Root, captured.ToString());
         if (violations.Length > 0)
         {

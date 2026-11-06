@@ -7,7 +7,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class VerifyCommandTests : IDisposable
 {
     private readonly StringWriter _output = new();
@@ -23,9 +22,11 @@ public sealed class VerifyCommandTests : IDisposable
     private static readonly string _reference = Path.Combine("Tests", "Integration", "AS.Api.IntegrationTests", "OpenApi", "v1.json");
 
 
+    private readonly FakeProcesses _processes;
+
     public VerifyCommandTests()
     {
-        ExternalCommand.Handler = (call, output, _) =>
+        _processes = new FakeProcesses((call, output, _) =>
         {
             _calls.Add(call);
             if (call.Arguments.Contains("kiota"))
@@ -34,7 +35,7 @@ public sealed class VerifyCommandTests : IDisposable
             }
 
             return _onCall?.Invoke(call, output) ?? CleanArchCommand.Succeeded;
-        };
+        });
     }
 
     [Fact]
@@ -322,13 +323,12 @@ public sealed class VerifyCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
     private static readonly string[] _gateFiles =
     [

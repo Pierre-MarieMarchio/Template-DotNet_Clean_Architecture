@@ -26,10 +26,11 @@ internal static class CoverageCommand
             return CleanArchCommand.Failed;
         }
 
+        Shell shell = context.Shell(parseResult);
         string root = project.Root;
         string solution = Path.Combine(project.Root, ProjectLayout.Solution(project));
         string results = Path.Combine(root, "TestResults");
-        TextWriter output = parseResult.InvocationConfiguration.Output;
+        TextWriter output = shell.Output;
         try
         {
             if (Directory.Exists(results))
@@ -46,7 +47,7 @@ internal static class CoverageCommand
             string[] built = [];
             if (settings.MaxCpuCount is not null || skipped.Length > 0)
             {
-                int exit = Dotnet.Run(parseResult, root, ["build", SolutionLocator.Relative(root, solution), "--configuration", settings.Configuration, .. settings.Nodes]);
+                int exit = Dotnet.Run(shell, root, ["build", SolutionLocator.Relative(root, solution), "--configuration", settings.Configuration, .. settings.Nodes]);
                 if (exit != CleanArchCommand.Succeeded)
                 {
                     return exit;
@@ -59,7 +60,7 @@ internal static class CoverageCommand
             try
             {
                 int exit = Dotnet.Run(
-                    parseResult,
+                    shell,
                     root,
                     [
                         "test", "--solution", SolutionLocator.Relative(root, filter ?? solution),
@@ -78,7 +79,7 @@ internal static class CoverageCommand
 
                 string minimum = CoverageMinimum(Path.Combine(root, "coverage.minimum"));
                 return Dotnet.Run(
-                    parseResult,
+                    shell,
                     root,
                     [
                         "run", SolutionLocator.Relative(root, Path.Combine(root, "Tools", "CoverageGate.cs")),
@@ -93,7 +94,7 @@ internal static class CoverageCommand
         }
         catch (Exception error) when (error is InvalidOperationException or IOException)
         {
-            parseResult.InvocationConfiguration.Error.WriteLine(error.Message);
+            shell.Error.WriteLine(error.Message);
             return CleanArchCommand.Failed;
         }
     }

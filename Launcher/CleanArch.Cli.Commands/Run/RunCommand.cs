@@ -21,10 +21,7 @@ internal static class RunCommand
         var run = new Command(Name, "Run the API, as dotnet run does.");
         if (context.Project is { } project && ProjectLayout.HoldsTheApi(project))
         {
-            run.SetAction(parseResult => ExternalCommand.Run(
-                new ExternalCall("dotnet", ["run", "--project", ProjectLayout.Api(project)], project.Root),
-                parseResult.InvocationConfiguration.Output,
-                parseResult.InvocationConfiguration.Error));
+            run.SetAction(parseResult => context.Shell(parseResult).Run(new ExternalCall("dotnet", ["run", "--project", ProjectLayout.Api(project)], project.Root)));
         }
 
         return run;

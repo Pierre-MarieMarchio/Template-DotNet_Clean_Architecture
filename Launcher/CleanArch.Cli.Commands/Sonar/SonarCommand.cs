@@ -27,20 +27,17 @@ internal static class SonarCommand
         var sonar = new Command(Name, "Send this project's code to SonarCloud: start the SonarQube service the Compose file holds, then scan from its scanner.");
         if (context.Project is { } project && project.File.Options.Sonar == true)
         {
-            sonar.SetAction(parseResult => Run(project, parseResult));
+            sonar.SetAction(parseResult => Run(project, context.Shell(parseResult)));
         }
 
         return sonar;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult)
+    private static int Run(LocatedProject project, Shell shell)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
-        int exit = ExternalCommand.Run(
-            new ExternalCall("docker", ["compose", "--profile", "sonar", "up", "--detach", "--wait", "sonarqube"], project.Root),
-            output,
-            error);
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
+        int exit = shell.Run(new ExternalCall("docker", ["compose", "--profile", "sonar", "up", "--detach", "--wait", "sonarqube"], project.Root));
         if (exit != CleanArchCommand.Succeeded)
         {
             return exit;
@@ -52,13 +49,10 @@ internal static class SonarCommand
             return CleanArchCommand.Failed;
         }
 
-        return ExternalCommand.Run(
-            new ExternalCall(
+        return shell.Run(new ExternalCall(
                 "docker",
                 ["compose", "--profile", "sonar", "run", "--rm", "--build", "sonar-scanner", "/bin/sh", "-c", ScanScriptOf(project, tests)],
-                project.Root),
-            output,
-            error);
+                project.Root));
     }
 
     private static string[]? DockerFreeTests(LocatedProject project, TextWriter error)

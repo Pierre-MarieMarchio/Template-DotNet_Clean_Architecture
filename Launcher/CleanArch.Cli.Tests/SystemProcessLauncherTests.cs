@@ -3,8 +3,7 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
-public sealed class ExternalCommandTests : IDisposable
+public sealed class SystemProcessLauncherTests : IDisposable
 {
     private readonly string _folder = Directory.CreateTempSubdirectory("cleanarch-external-").FullName;
 
@@ -22,7 +21,7 @@ public sealed class ExternalCommandTests : IDisposable
         var output = new ReleasingWriter(Path.Combine(_folder, "go"));
         var error = new StringWriter();
 
-        int exit = ExternalCommand.Run(new ExternalCall("sh", ["-c", script], _folder), output, error);
+        int exit = new Shell(new SystemProcessLauncher(), output, error).Run(new ExternalCall("sh", ["-c", script], _folder));
 
         exit.ShouldBe(3);
         output.Lines.ShouldBe(["sh -c " + "\"" + script + "\"", "first", "second"]);

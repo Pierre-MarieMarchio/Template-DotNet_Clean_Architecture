@@ -3,7 +3,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class BootstrapCommandTests : IDisposable
 {
     private const string _apiWithClientAndWeb = """
@@ -29,13 +28,15 @@ public sealed class BootstrapCommandTests : IDisposable
     private readonly List<ExternalCall> _calls = [];
     private string? _failing;
 
+    private readonly FakeProcesses _processes;
+
     public BootstrapCommandTests()
     {
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             return Fake(call);
-        };
+        });
     }
 
     public static TheoryData<string, string[]> ProjectFiles => new()
@@ -98,12 +99,11 @@ public sealed class BootstrapCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
 
-    private int Run(SampleProject project) => BuiltInCommands.Run(["bootstrap"], project.Root, _output, _error);
+    private int Run(SampleProject project) => BuiltInCommands.Run(["bootstrap"], project.Root, _output, _error, _processes);
 
     private int Fake(ExternalCall call)
     {

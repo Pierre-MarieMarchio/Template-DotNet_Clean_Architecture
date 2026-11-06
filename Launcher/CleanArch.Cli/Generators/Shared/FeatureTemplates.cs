@@ -1,6 +1,6 @@
-﻿namespace CleanArch.Cli.Generators.AddFeature;
+﻿namespace CleanArch.Cli.Generators.Shared;
 
-internal static class Templates
+internal static class FeatureTemplates
 {
     internal const string Aggregate = """
         using %P%.Domain.Core.Common.Abstractions; //?IOwnedAggregate

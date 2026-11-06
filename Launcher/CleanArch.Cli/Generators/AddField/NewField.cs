@@ -3,11 +3,12 @@ using System.Text.Json.Nodes;
 using CleanArch.Cli.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using static CleanArch.Cli.Generators.Shared.CSharpNames;
+using static CleanArch.Cli.Generators.Shared.FeatureCode;
 using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
-namespace CleanArch.Cli.Generators.AddFeature;
+namespace CleanArch.Cli.Generators.AddField;
 
-internal static partial class NewFeature
+internal static class NewField
 {
     private const string _fieldUsage =
         "Usage: dotnet cleanarch add field <Features> \"<Name:type>=<default>, ...\" [--dry-run]\n"
@@ -31,7 +32,7 @@ internal static partial class NewFeature
 
     private sealed record FieldChange(string Path, byte[]? Original, byte[] Bytes, List<string> Members);
 
-    internal static int RunField(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
+    internal static int Run(string[] args, TextWriter output, TextWriter error, Func<TextEdits.Command, int> run)
     {
         var problems = new List<string>();
         var request = ParseFieldRequest(args, problems);
@@ -95,7 +96,7 @@ internal static partial class NewFeature
         protected override int RefuseEdits(IReadOnlyList<string> failures) =>
             RefuseAfterReport(failures, "Nothing was written: every change is made or none is. Make the changes above by hand, or put back what new-feature wrote.");
 
-        protected override string? Preconditions() => NewFeature.Preconditions(Root, addition.After, Output, run);
+        protected override string? Preconditions() => FeatureCode.Preconditions(Root, addition.After, Output, run);
 
         protected override void Report(ReportMode mode) => ReportField(Output, Root, addition, _changes, mode);
 

@@ -104,9 +104,9 @@ internal static class CheckCommand
 
     private static string DockerFreeFilter(CheckPlan plan)
     {
-        string[] dockerFree = [.. TestProjects.All(plan.Root).Where(TestProjects.IsDockerFree)];
-        return dockerFree.Length > 0
-            ? SolutionFilter.Write(plan.Root, plan.Solution, "docker-free.slnf", dockerFree.Except(TestProjects.SkippedHere(dockerFree), StringComparer.Ordinal))
+        string[] tests = TestProjects.All(plan.Root);
+        return tests.Any(TestProjects.IsDockerFree)
+            ? SolutionFilter.WriteDockerFree(plan.Root, plan.Solution, tests, TestProjects.SkippedHere(tests))
             : throw new InvalidOperationException(TestProjects.NoneFound);
     }
 

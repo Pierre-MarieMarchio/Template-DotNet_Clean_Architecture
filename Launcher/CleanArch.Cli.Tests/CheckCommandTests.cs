@@ -146,6 +146,26 @@ public sealed class CheckCommandTests : IDisposable
         Directory.EnumerateFiles(Path.Combine(project.Root, "artifacts", "test")).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void Check_WhenAFileSetsTheBuildForEveryProject_BuildsTheSolutionAndRunsOnlyItsDockerFreeTests()
+    {
+        using SampleProject project = SampleTree();
+
+        Run(project, touched: "Directory.Build.props\0", untracked: "").ShouldBe(CleanArchCommand.Succeeded);
+
+        _dotnetCalls.ShouldBe(
+        [
+            "build Acme.Shop.slnx --configuration Debug",
+            "test --solution artifacts/test/docker-free.slnf --configuration Debug --no-build",
+        ]);
+        string tested = _filters["artifacts/test/docker-free.slnf"];
+        tested.ShouldContain(_domainTests);
+        tested.ShouldContain(_architecture);
+        tested.ShouldNotContain(_integration);
+        _output.ToString().ShouldContain("Built, not run Tests/Integration/AS.Integration: it needs Docker.");
+        Directory.EnumerateFiles(Path.Combine(project.Root, "artifacts", "test")).ShouldBeEmpty();
+    }
+
     public void Dispose()
     {
         _output.Dispose();

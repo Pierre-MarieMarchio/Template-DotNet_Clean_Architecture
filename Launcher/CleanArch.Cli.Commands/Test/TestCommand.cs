@@ -64,7 +64,7 @@ internal static class TestCommand
             return new Selection(skipped.Length > 0 ? SolutionFilter.WriteRunnable(root, solution, skipped) : null, null, leavesOut);
         }
 
-        string run = SolutionFilter.Write(root, solution, "docker-free.slnf", dockerFree.Except(skipped, StringComparer.Ordinal));
+        string run = SolutionFilter.WriteDockerFree(root, solution, tests, skipped);
         string? build = leavesOut ? SolutionFilter.Write(root, solution, "docker-free-build.slnf", tests) : null;
         return new Selection(run, build, leavesOut);
     }

@@ -9,6 +9,12 @@ internal static class ProjectLayout
 
     public static bool HasWebApps(LocatedProject project) => project.File.Web?.Apps is { Count: > 0 };
 
+    public static bool RendersAWebAppOnTheServer(LocatedProject project) =>
+        project.File.Web?.Apps.Any(app => app.Rendering == "ssr") == true;
+
+    public static bool HasAWebAppOnWebAssembly(LocatedProject project) =>
+        project.File.Web?.Apps.Any(app => app.Framework == "blazor-wasm") == true;
+
     public static string Solution(LocatedProject project) => project.File.Name + ".slnx";
 
     public static string Api(LocatedProject project) => Path.Combine("Src", "Presentation", FolderOf(project, "Api"));

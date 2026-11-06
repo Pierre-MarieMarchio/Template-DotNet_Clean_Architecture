@@ -12,6 +12,12 @@ internal static class OpenApiCommand
 
     public static readonly CommandRegistration Registration = new(Refusal, Build);
 
+    private const string _apiClientPackage = "Src/Web/packages/api-client";
+
+    private static readonly string _webSchemaScript = Path.Combine("Src", "Web", "packages", "api-client", "scripts", "generate.mjs");
+
+    private static readonly string _pnpm = OperatingSystem.IsWindows() ? "pnpm.cmd" : "pnpm";
+
     private static string? Refusal(CommandContext context)
     {
         if (context.Project is not { } project)
@@ -19,56 +25,59 @@ internal static class OpenApiCommand
             return context.RefusedProjectFile?.Message ?? context.OutsideProject;
         }
 
-        if (!project.File.Presentation?.Any(presentation => presentation.Framework == "api") ?? true)
-        {
-            return $"This project has no {Name} command: its {ProjectLocator.FileName} records no api presentation, so it holds no HTTP API to describe.";
-        }
-
-        if (!project.File.Client)
-        {
-            return $"This project has no {Name} command: its {ProjectLocator.FileName} records client false, so it holds no .NET client to regenerate.";
-        }
-
-        return null;
+        return ProjectLayout.HoldsTheApi(project)
+            ? null
+            : $"This project has no {Name} command: its {ProjectLocator.FileName} records no api presentation, so it holds no HTTP API to describe.";
     }
 
     private static Command Build(CommandContext context)
     {
-        var command = new Command(Name, "Write the OpenAPI reference the API describes itself with, then regenerate the .NET client from it.");
+        var command = new Command(Name, "Write the OpenAPI reference the API describes itself with, then regenerate every client from it: the .NET client where the project holds one, the web workspace's schema where it holds the api-client package.");
         Option<bool> check = new("--check")
         {
-            Description = "Fail where the command would write, instead of writing the OpenAPI reference and the client's Generated folder.",
+            Description = "Fail where the command would write, instead of writing the OpenAPI reference and what is generated from it.",
+        };
+        Option<bool> noBuild = new("--no-build")
+        {
+            Description = "Write the reference from the API's last build instead of building it again.",
         };
         command.Options.Add(check);
+        command.Options.Add(noBuild);
         if (context.Project is { } project)
         {
-            command.SetAction(parseResult => Run(project, parseResult, check));
+            command.SetAction(parseResult => Run(project, parseResult, parseResult.GetValue(check), parseResult.GetValue(noBuild)));
         }
 
         return command;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult, Option<bool> check)
+    private static int Run(LocatedProject project, ParseResult parseResult, bool checking, bool noBuild)
     {
         TextWriter output = parseResult.InvocationConfiguration.Output;
         TextWriter error = parseResult.InvocationConfiguration.Error;
-        bool checking = parseResult.GetValue(check);
         string root = project.Root;
         string apiFolder = Path.Combine(root, ProjectLayout.Api(project));
         string apiProject = Path.Combine(root, ProjectLayout.ApiProject(project));
         string reference = Path.Combine(root, ProjectLayout.OpenApiReference(project));
         string generated = Path.Combine(root, ProjectLayout.Client(project), "Generated");
 
-        int exit = WriteReference(project, apiFolder, apiProject, reference, checking, output, error);
-        if (exit != CleanArchCommand.Succeeded)
+        int exit = WriteReference(project, apiFolder, apiProject, reference, checking, noBuild, output, error);
+        if (exit == CleanArchCommand.Succeeded && project.File.Client)
         {
-            return exit;
+            exit = RegenerateClient(project, reference, generated, checking, output, error);
         }
 
-        return RegenerateClient(project, reference, generated, checking, output, error);
+        if (exit == CleanArchCommand.Succeeded && File.Exists(Path.Combine(root, _webSchemaScript)))
+        {
+            exit = checking
+                ? ExternalCommand.Run(new ExternalCall(_pnpm, ["exec", "node", "scripts/generate.mjs", "--check", reference], Path.Combine(root, _apiClientPackage), DirectoryNote: _apiClientPackage), output, error)
+                : ExternalCommand.Run(new ExternalCall(_pnpm, ["api", "--no-build"], Path.Combine(root, "Src", "Web"), DirectoryNote: "Src/Web"), output, error);
+        }
+
+        return exit;
     }
 
-    private static int WriteReference(LocatedProject project, string apiFolder, string apiProject, string reference, bool checking, TextWriter output, TextWriter error)
+    private static int WriteReference(LocatedProject project, string apiFolder, string apiProject, string reference, bool checking, bool noBuild, TextWriter output, TextWriter error)
     {
         var environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["ASPNETCORE_ENVIRONMENT"] = "Development" };
         if (project.File.Options.Auth == "external")
@@ -86,15 +95,19 @@ internal static class OpenApiCommand
         string documents = checking
             ? Path.Combine(Path.GetTempPath(), "cleanarch-openapi-" + Guid.NewGuid().ToString("N"))
             : Path.GetDirectoryName(reference)!;
+        string[] document = [$"-p:OpenApiDocumentsDirectory={documents}", "-p:OpenApiGenerateDocumentsOptions=--file-name v1"];
+        if (noBuild && !(Directory.Exists(apiFolder) && Directory.EnumerateFiles(apiFolder, Path.GetFileNameWithoutExtension(apiProject) + ".dll", SearchOption.AllDirectories).Any()))
+        {
+            error.WriteLine($"--no-build writes the reference from the API's last build, and {Path.GetFileNameWithoutExtension(apiProject)} has none: run `{CleanArchCommand.Name} build` first.");
+            return CleanArchCommand.Failed;
+        }
+
         int exit = ExternalCommand.Run(
             new ExternalCall(
                 "dotnet",
-                [
-                    "build", apiProject,
-                    "-p:OpenApiGenerateDocumentsOnBuild=true",
-                    $"-p:OpenApiDocumentsDirectory={documents}",
-                    "-p:OpenApiGenerateDocumentsOptions=--file-name v1",
-                ],
+                noBuild
+                    ? ["msbuild", apiProject, "-target:GenerateOpenApiDocuments", .. document]
+                    : ["build", apiProject, "-p:OpenApiGenerateDocumentsOnBuild=true", .. document],
                 project.Root,
                 environment),
             output,

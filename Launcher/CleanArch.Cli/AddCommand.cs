@@ -126,7 +126,7 @@ internal static class AddCommand
     {
         TextWriter output = parseResult.InvocationConfiguration.Output;
         TextWriter error = parseResult.InvocationConfiguration.Error;
-        IAnsiConsole console = ConsoleOver(output);
+        IAnsiConsole console = Terminal.Over(output);
         bool interactive = ReferenceEquals(output, Console.Out) && !Console.IsInputRedirected && console.Profile.Capabilities.Interactive;
         try
         {
@@ -177,22 +177,6 @@ internal static class AddCommand
         }
 
         return given;
-    }
-
-    private static IAnsiConsole ConsoleOver(TextWriter output)
-    {
-        if (ReferenceEquals(output, Console.Out))
-        {
-            return Terminal.Open();
-        }
-
-        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
-        {
-            Out = new AnsiConsoleOutput(output),
-            Interactive = InteractionSupport.No,
-        });
-        console.Profile.Width = Terminal.UnwrappedWidth;
-        return console;
     }
 
     private static ProjectFacts FactsOf(LocatedProject project)

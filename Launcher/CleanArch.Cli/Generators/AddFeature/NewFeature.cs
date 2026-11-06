@@ -63,7 +63,7 @@ internal static class NewFeature
             : new FeatureGeneration(spec, problems, context, version).Generate();
     }
 
-    internal static Spec? Check(AddFeatureRequest request, string root, LocatedProject project, List<string> problems)
+    internal static FeatureSpec? Check(AddFeatureRequest request, string root, LocatedProject project, List<string> problems)
     {
         string features = request.Features;
         string type = request.Type;
@@ -169,7 +169,7 @@ internal static class NewFeature
             }
         }
 
-        return new Spec(prefix, features, type, access, deletion, operations, model, concurrency, reaction, hasApi, fields, tablePrefixes);
+        return new FeatureSpec(prefix, features, type, access, deletion, operations, model, concurrency, reaction, hasApi, fields, tablePrefixes);
     }
 
     private static string? IdentityFeature(string root, string host)
@@ -312,7 +312,7 @@ internal static class NewFeature
         return problems;
     }
 
-    internal static List<string> Conflicts(string root, Spec spec, List<Emission> plan)
+    internal static List<string> Conflicts(string root, FeatureSpec spec, List<Emission> plan)
     {
         var problems = new List<string>();
 

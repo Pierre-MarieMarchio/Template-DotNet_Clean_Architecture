@@ -8,7 +8,7 @@ using static CleanArch.Cli.Generators.Shared.ProjectFolders;
 
 namespace CleanArch.Cli.Generators.AddFeature;
 
-internal sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, string version) : Generation(context)
+internal sealed class FeatureGeneration(FeatureSpec spec, IReadOnlyList<string> checkedProblems, GenerationContext context, string version) : Generation(context)
 {
     private List<Emission> _plan = [];
 
@@ -90,7 +90,7 @@ internal sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checked
 
     private static (string Path, byte[] Bytes) Written(Emission emission) => (emission.Path, emission.Bytes());
 
-    private static bool AlreadyGenerated(string root, Spec spec)
+    private static bool AlreadyGenerated(string root, FeatureSpec spec)
     {
         if (FeatureManifest.Read(root, spec.Features, out _) is not { Options: { } options } manifest)
         {
@@ -111,7 +111,7 @@ internal sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checked
                 : spec.Fields is null);
     }
 
-    private static int Finish(string root, Spec spec, TextWriter output, TextWriter error, IExecutor executor, bool resumed)
+    private static int Finish(string root, FeatureSpec spec, TextWriter output, TextWriter error, IExecutor executor, bool resumed)
     {
         string migrations = System.IO.Path.Combine(root, PersistenceProject(spec), "Migrations");
         bool migrated = resumed
@@ -125,7 +125,7 @@ internal sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checked
         return TextEdits.RunAll(Steps(root, spec, migrated), executor.Run, output, error, done) ? 0 : 1;
     }
 
-    internal static List<TextEdits.Command> Steps(string root, Spec spec, bool migrated = false) =>
+    internal static List<TextEdits.Command> Steps(string root, FeatureSpec spec, bool migrated = false) =>
     [
         TextEdits.Task(root, "docs-index"),
         TextEdits.Task(root, "build"),
@@ -133,7 +133,7 @@ internal sealed class FeatureGeneration(Spec spec, IReadOnlyList<string> checked
         .. spec.HasApi ? TextEdits.ContractSteps(root, FolderOf(spec.Prefix, "Presentation.Client"), built: true) : [],
     ];
 
-    internal static Emission ManifestOf(Spec spec, List<Emission> plan, Emission? page, TextEdits.Editor editor, string version)
+    internal static Emission ManifestOf(FeatureSpec spec, List<Emission> plan, Emission? page, TextEdits.Editor editor, string version)
     {
         var options = new JsonObject
         {

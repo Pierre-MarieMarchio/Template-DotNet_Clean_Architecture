@@ -35,7 +35,7 @@ internal static class FeatureEdits
                 ? match.Groups[1].Value
                 : throw new InvalidOperationException($"No file of the plan declares {type}, which an edit names.");
 
-    internal static TextEdits.Editor Edits(string root, Spec spec, List<Emission> plan)
+    internal static TextEdits.Editor Edits(string root, FeatureSpec spec, List<Emission> plan)
     {
         var editor = new TextEdits.Editor(root);
         string p = spec.Prefix;
@@ -185,7 +185,7 @@ internal static class FeatureEdits
         return editor;
     }
 
-    internal static void Reaction(TextEdits.Editor editor, string root, Spec spec, string[] hosts, string adapter, string composition)
+    internal static void Reaction(TextEdits.Editor editor, string root, FeatureSpec spec, string[] hosts, string adapter, string composition)
     {
         string p = spec.Prefix;
         string jobsHost = JobsHost(root, p);
@@ -243,7 +243,7 @@ internal static class FeatureEdits
             "internal sealed class ArchitectureTestUserAccountDirectory");
     }
 
-    internal static List<string> RouteSection(Spec spec)
+    internal static List<string> RouteSection(FeatureSpec spec)
     {
         string item = $"/{{{CSharpNames.Lower(spec.Type)}Id}}";
 

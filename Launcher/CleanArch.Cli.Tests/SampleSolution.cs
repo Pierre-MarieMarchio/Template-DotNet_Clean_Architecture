@@ -59,6 +59,5 @@ internal static class SampleSolution
     {
         File.WriteAllText(Path.Combine(project.Root, "coverage.minimum"), $"# Line-coverage floor in percent.\n{floor}\n");
         File.WriteAllText(Path.Combine(project.Root, "coverage.runsettings"), "<RunSettings />\n");
-        File.WriteAllText(Path.Combine(project.Folder("Tools"), "CoverageGate.cs"), "return 0;\n");
     }
 }

@@ -66,7 +66,7 @@ internal static partial class NewFeature
                 (ManifestPath(addition.After), File.ReadAllBytes(System.IO.Path.Combine(Root, ManifestPath(addition.After))), _manifest),
             ];
 
-        protected override int? Resume()
+        protected override int? Concluded()
         {
             if (!addition.Pending)
             {

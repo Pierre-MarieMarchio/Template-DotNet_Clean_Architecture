@@ -379,31 +379,39 @@ public sealed class SilencedDiagnosticTests
         pattern.Append(glob.Contains('/', StringComparison.Ordinal) ? string.Empty : "(?:.*/)?");
         glob = glob.TrimStart('/');
 
-        for (int index = 0; index < glob.Length; index++)
-        {
-            char character = glob[index];
+        int next = 0;
 
-            if (character == '*' && index + 1 < glob.Length && glob[index + 1] == '*')
-            {
-                bool directories = index + 2 < glob.Length && glob[index + 2] == '/';
-                pattern.Append(directories ? "(?:.*/)?" : ".*");
-                index += directories ? 2 : 1;
-            }
-            else
-            {
-                pattern.Append(character switch
-                {
-                    '*' => "[^/]*",
-                    '?' => "[^/]",
-                    '{' => "(?:",
-                    '}' => ")",
-                    ',' => "|",
-                    _ => Regex.Escape(new string(character, 1)),
-                });
-            }
+        while (next < glob.Length)
+        {
+            next = AppendGlobToken(pattern, glob, next);
         }
 
         return new Regex(pattern.Append('$').ToString(), RegexOptions.None, _timeout);
+    }
+
+    private static int AppendGlobToken(System.Text.StringBuilder pattern, string glob, int index)
+    {
+        char character = glob[index];
+
+        if (character == '*' && index + 1 < glob.Length && glob[index + 1] == '*')
+        {
+            bool directories = index + 2 < glob.Length && glob[index + 2] == '/';
+            pattern.Append(directories ? "(?:.*/)?" : ".*");
+
+            return index + (directories ? 3 : 2);
+        }
+
+        pattern.Append(character switch
+        {
+            '*' => "[^/]*",
+            '?' => "[^/]",
+            '{' => "(?:",
+            '}' => ")",
+            ',' => "|",
+            _ => Regex.Escape(new string(character, 1)),
+        });
+
+        return index + 1;
     }
 
     private static string Relative(string path) => Path.GetRelativePath(_root, path).Replace('\\', '/');

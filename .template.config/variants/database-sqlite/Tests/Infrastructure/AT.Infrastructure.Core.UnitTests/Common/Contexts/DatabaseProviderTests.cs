@@ -210,7 +210,7 @@ public sealed class DatabaseProviderTests
         }
     }
 
-    private sealed class ProbeRow
+    internal sealed class ProbeRow
     {
         public Guid Id { get; set; }
 

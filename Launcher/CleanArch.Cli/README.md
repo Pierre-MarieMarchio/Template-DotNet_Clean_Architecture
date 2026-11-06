@@ -10,8 +10,8 @@ dotnet cleanarch --help
 dotnet cleanarch --version
 dotnet cleanarch help        # what this project's commands are
 dotnet cleanarch help --json # the commands and options that apply to this project, as JSON
-dotnet cleanarch format      # repair the tree: UTF-8 BOM rules, LF endings, usings ordering
-dotnet cleanarch format --check # fail where format would write instead of writing
+dotnet cleanarch format      # dotnet format of the solution, the Markdown normalised, then the naming check
+dotnet cleanarch format --check # dotnet format --verify-no-changes over what the build does not check, and the Markdown
 dotnet cleanarch build       # dotnet build of the solution at the project root
 dotnet cleanarch test        # dotnet test of the solution at the project root
 dotnet cleanarch test --no-integration
@@ -54,11 +54,18 @@ dotnet cleanarch eject verify # copy the verify command's source into Tools/veri
 dotnet cleanarch eject verify --dry-run # say what it would write, and write nothing
 ```
 
-`format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
-folders but `.github` and `.template.config`), saves each C# file as UTF-8 with a BOM and each
-Markdown file without one, both with LF endings, and orders the usings of each C# file, System
-first. It prints each file it saves; `--check` prints them on stderr and fails instead of
-writing.
+`format` runs `dotnet format` over the solution, which applies `.editorconfig` (C# files as UTF-8
+with a BOM, LF endings, the usings' order) and leaves the code it marks as generated, the
+migrations and the generated .NET client among it. It then saves each Markdown file as UTF-8
+without a BOM, with LF endings, walking the project root but `bin`, `obj`, `node_modules`, `plans`
+and the dot folders other than `.github` and `.template.config`, and prints each file it saves.
+Last, it runs `dotnet format --diagnostics IDE1006 --verify-no-changes`: `dotnet format` cannot
+rename a symbol, so `format` names each file, line and name that breaks a naming rule and fails
+while one is left. It stops at the first step that fails.
+
+`format --check` writes nothing: it runs `dotnet format --verify-no-changes` over the style rules
+the build does not enforce (IDE0003, IDE0049), then names on stderr each Markdown file `format`
+would save and fails while one is left.
 
 `build`, `test`, `coverage` and `verify` take `--configuration` (Debug by default) and `-m:<N>`,
 which caps the build's nodes and the test modules run at once on a machine short of memory; with

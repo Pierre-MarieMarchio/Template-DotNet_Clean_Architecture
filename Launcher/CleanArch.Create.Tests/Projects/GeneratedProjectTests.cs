@@ -1,4 +1,5 @@
 ﻿using CleanArch.Create.Projects;
+using CleanArch.Tooling;
 using Shouldly;
 using Xunit;
 
@@ -20,7 +21,7 @@ public sealed class GeneratedProjectTests : IDisposable
         Directory.CreateDirectory(Path.Combine(_root, "Src", "Application", "AS.Application.Auth"));
         string inside = Directory.CreateDirectory(Path.Combine(_root, "Src", "Web", "apps")).FullName;
 
-        GeneratedProject project = GeneratedProject.Find(inside).ShouldNotBeNull();
+        ProjectFacts project = GeneratedProject.Find(inside).ShouldNotBeNull();
 
         project.Root.ShouldBe(_root);
         project.Name.ShouldBe("Acme.Shop");
@@ -37,7 +38,7 @@ public sealed class GeneratedProjectTests : IDisposable
         Write("Tools/Tasks.cs", string.Empty);
         Write("Directory.Packages.props", """<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />""");
 
-        GeneratedProject project = GeneratedProject.Find(_root).ShouldNotBeNull();
+        ProjectFacts project = GeneratedProject.Find(_root).ShouldNotBeNull();
 
         project.HasWorkspace.ShouldBeFalse();
         project.Scope.ShouldBe("acme-shop");

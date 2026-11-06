@@ -20,6 +20,7 @@ public static class CleanArchCommand
         TestCommand.Registration,
         CoverageCommand.Registration,
         VerifyCommand.Registration,
+        AddCommand.Registration,
         MigrationsCommand.Registration,
         DatabaseCommand.Registration,
         OpenApiCommand.Registration,
@@ -62,9 +63,10 @@ public static class CleanArchCommand
         return root;
     }
 
-    private static void Refuse(Command command, string refusal)
+    internal static void Refuse(Command command, string refusal)
     {
         command.Hidden = true;
+        command.TreatUnmatchedTokensAsErrors = false;
         command.SetAction(parseResult => Refuse(parseResult, refusal));
         foreach (Command subcommand in command.Subcommands)
         {

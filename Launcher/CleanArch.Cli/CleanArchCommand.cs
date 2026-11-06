@@ -16,6 +16,9 @@ public static class CleanArchCommand
     [
         HelpCommand.Registration,
         FormatCommand.Registration,
+        BuildCommand.Registration,
+        TestCommand.Registration,
+        CoverageCommand.Registration,
     ];
 
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>

@@ -12,14 +12,21 @@ You need a .NET 10 SDK (10.0.100 or later), which runs a tool without installing
 dnx CleanArch.Create
 ```
 
-The launcher asks for the name, the folder and each option, with the template's own choices,
-defaults and descriptions. It offers only what the template generates with the answers given so far:
+The launcher asks for the name, then each option, with the template's own choices, defaults and
+descriptions. The name it offers is the current folder's, made a valid project name (`my-shop`
+becomes `MyShop`, `acme.shop` becomes `Acme.Shop`), or the template's default when that fails.
+Taking it with `enter` generates the project in the current folder; another name generates it in a
+folder of that name under the current one. When the target folder already holds files, `.git`
+aside, it asks, as `create-vite` does: `Cancel operation`, the default; `Remove existing files and continue`, which
+deletes everything but `.git` once the summary is accepted; or `Ignore files and continue`, which
+generates over them with `dotnet new --force`, the template's files replacing those of the same name
+and the others staying. `--overwrite` answers `Remove` without asking. It offers only what the template generates with the answers given so far:
 a choice the template refuses whatever follows is never offered, and a
 question left with a single answer, as `--examples none` after `--auth none`, is answered with it and
 the answer that leaves it. A combination of flags the template refuses is explained before anything
 is written, and its options are asked again. A project name the template refuses, one under two
 characters or one that does not start with a letter from A to Z, a project name with a character other than the letters
-A to Z, digits and dots, such as an underscore, an output folder that already holds files, or an app name already taken, is refused at
+A to Z, digits and dots, such as an underscore, or an app name already taken, is refused at
 its own question; an item command in a project whose name an item template refuses stops before
 asking anything. It installs the `CleanArch.WebApi.Templates`
 package at its own version when another one or none is installed, generates the project, then prints
@@ -127,8 +134,9 @@ dnx CleanArch.Create -- presentation -n Portal --framework blazor-server --yes
 
 | Option | Meaning |
 |---|---|
-| `-n`, `--name` | the project, app, package or presentation name |
-| `-o`, `--output` | where `new` writes the project, `./<name>` by default |
+| `-n`, `--name` | the project, app, package or presentation name; for `new`, the current folder's by default |
+| `-o`, `--output` | where `new` writes the project: `./<name>` when `-n` is given, the current folder otherwise; a folder that holds files is refused without questions, unless `--overwrite` is given |
+| `--overwrite` | for `new`, empties a target folder that holds files, `.git` excepted, without asking, then generates in it |
 | `-y`, `--yes` | the default of every option not given, or the only value the template leaves it |
 | `--setup` | after `new`, every step of "Set the project up" above, without asking |
 | `--template-source <path>` | a checkout of the template or its `.nupkg`, installed instead of the published package |

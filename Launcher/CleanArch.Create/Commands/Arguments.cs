@@ -21,6 +21,8 @@ public sealed class Arguments
 
     public bool Setup { get; private set; }
 
+    public bool Overwrite { get; private set; }
+
     public string? TemplateSource { get; private set; }
 
     public string? Hive { get; private set; }
@@ -78,6 +80,9 @@ public sealed class Arguments
                 break;
             case "--setup":
                 Setup = true;
+                break;
+            case "--overwrite":
+                Overwrite = true;
                 break;
             case "-n" or "--name":
                 Name = inline ?? Value(arguments, ref index, key);

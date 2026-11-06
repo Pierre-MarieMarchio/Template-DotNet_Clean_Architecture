@@ -21,11 +21,15 @@ descriptions: first what the project holds, its presentation projects, the API a
 them, and its web app, then how callers sign in, then its data, and last its tooling. It
 offers only the choices the template generates with the answers given so far, answers a question
 left with one choice and says which answer leaves it, explains a refused combination of flags
-before writing anything and asks its options again, refuses an output folder that holds files at its
-own question, installs `CleanArch.WebApi.Templates` at its own version when another one or none is
+before writing anything and asks its options again, installs `CleanArch.WebApi.Templates` at its own version when another one or none is
 installed, runs `dotnet new cleanarch-webapi`, and prints the commands that do the same and the
 first steps: after questions its own command and `dotnet new`'s, without questions `dotnet new`'s
-alone. `--help` lists the options with the values the template generates. In a
+alone. The name it offers is the current folder's, made a valid project name, or the template's
+default when that fails: taking it generates the project in the current folder, another name in a
+folder of that name. A target folder that already holds files other than `.git` is asked about, as `create-vite`
+does: cancel, the default; remove everything in it but `.git`; or generate over the files, the
+template's replacing those of the same name. `--overwrite` removes them without asking; without it
+and without questions, such a folder is refused. `--help` lists the options with the values the template generates. In a
 terminal the questions follow one another on a thread under a banner, each with a line naming its
 keys; `esc` goes back to the previous question, whose answer it keeps selected, and the questions
 after it are asked again. A summary of every option comes before anything is written, and answering

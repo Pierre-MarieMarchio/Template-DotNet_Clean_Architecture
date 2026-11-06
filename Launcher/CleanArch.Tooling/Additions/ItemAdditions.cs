@@ -13,6 +13,7 @@ public sealed class ItemAdditions
     public const string PresentationScaffoldTask = "presentation-scaffold";
     public const string JoiningSection = "## Joining a project generated without one";
     public const string PresentationCreateSection = "## Create the project";
+    public const string Stopped = "Stopped. Nothing was written.";
 
     public static readonly IReadOnlyDictionary<string, string> PresentationNames = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -49,7 +50,7 @@ public sealed class ItemAdditions
 
             return conversation.CanGoBack
                 ? Reply.Backward
-                : throw new LauncherException("Stopped. Nothing was written.");
+                : throw new LauncherException(Stopped);
         });
 
     public static void Install(Conversation conversation, TemplateEngine engine, TemplateSource source, string? templateVersion, string workingDirectory)

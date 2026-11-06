@@ -17,8 +17,9 @@ public static class LauncherUsage
         {string.Join('\n', LauncherCommands.All.SelectMany(Summary))}
 
         Options
-          -n, --name <name>            the project, app, package or presentation name
-          -o, --output <folder>        where to create the project (default: ./<name>)
+          -n, --name <name>            the project, app, package or presentation name (new: the current folder's by default)
+          -o, --output <folder>        where to create the project (default: ./<name> with --name, else the current folder)
+          --overwrite                  new: empty a target folder that has files in it, but .git, without asking
           -y, --yes                    use the default for every option you don't pass
           --setup                      after new, run every setup step without asking: commit, bootstrap, commit, copy .env
           --template-source <path>     use a checkout of the template or a .nupkg instead of the published package

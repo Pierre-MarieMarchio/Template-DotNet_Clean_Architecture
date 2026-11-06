@@ -25,11 +25,17 @@ public abstract class JoinCommand : ILauncherCommand
     public string Help(TemplateSource source) =>
         Usage() + Environment.NewLine + Environment.NewLine + LauncherUsage.TemplateOptions(source.Manifest(Kind), Subject, ReadOnlyDictionary<string, Condition>.Empty);
 
+    private static readonly NewOnlyOption[] _newOnly =
+    [
+        new("--setup", "sets up a project new generates", parsed => parsed.Setup),
+        new("--overwrite", "empties the folder new generates in", parsed => parsed.Overwrite),
+    ];
+
     public void Run(Session session)
     {
-        if (session.Parsed.Setup)
+        if (_newOnly.FirstOrDefault(option => option.Given(session.Parsed)) is { } given)
         {
-            throw new LauncherException($"--setup sets up a project new generates; {Name} takes no --setup.");
+            throw new LauncherException($"{given.Flag} {given.Purpose}; {Name} takes no {given.Flag}.");
         }
 
         ProjectFacts project = session.Project ?? throw new LauncherException(
@@ -63,4 +69,6 @@ public abstract class JoinCommand : ILauncherCommand
           --hive <folder>              keep the template engine's settings in this folder (dotnet new --debug:custom-hive)
           -h, --help                   show this help
         """;
+
+    private sealed record NewOnlyOption(string Flag, string Purpose, Func<Arguments, bool> Given);
 }

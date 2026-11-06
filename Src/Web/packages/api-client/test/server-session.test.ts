@@ -64,7 +64,7 @@ function api(): Promise<string> {
           response.end(value === undefined ? undefined : JSON.stringify(value));
         };
 
-        if (path === '/api/v1/auth/login') {
+        if (path === '/api/v1/auth/login' && request.method === 'POST') {
           const { password } = JSON.parse(body) as { password: string };
           answer(200, password === 'second-factor' ? { status: 'twoFactorRequired', challengeToken: 'challenge' } : { status: 'authenticated', tokens: tokens() });
         } else if (path === '/api/v1/auth/refresh') {
@@ -102,6 +102,15 @@ async function signedIn(base: string): Promise<string> {
   });
 
   return (answer.headers.getSetCookie()[0] ?? '').split(';', 1)[0] ?? '';
+}
+
+async function closedOrigin(): Promise<string> {
+  const server = createServer();
+  const origin = await listen(server);
+  servers.splice(servers.indexOf(server), 1);
+  await new Promise((resolve) => server.close(resolve));
+
+  return origin;
 }
 
 async function stack(): Promise<string> {
@@ -144,6 +153,30 @@ describe('serverSessions', () => {
 
     expect(answer.status).toBe(200);
     expect(received.map((request) => request.path)).toEqual(['/api/v1/auth/login']);
+  });
+
+  it('relays a sign-in route called with another method than POST to the API, opening no session', async () => {
+    const base = await stack();
+
+    const answer = await fetch(`${base}/api/v1/auth/login`);
+
+    expect(answer.status).toBe(200);
+    expect(answer.headers.getSetCookie()).toEqual([]);
+    expect(received.map((request) => [request.method, request.path])).toEqual([['GET', '/api/v1/auth/login']]);
+  });
+
+  it('answers 502, never cached, when the API cannot be reached at sign-in', async () => {
+    const base = await site(serverSessions(await closedOrigin()));
+
+    const answer = await fetch(`${base}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF': '1' },
+      body: JSON.stringify({ email: 'ada@example.com', password: 'secret' }),
+    });
+
+    expect(answer.status).toBe(502);
+    expect(answer.headers.get('cache-control')).toBe('no-store');
+    expect(answer.headers.getSetCookie()).toEqual([]);
   });
 
   it('opens no session on a two-factor challenge, which it passes through', async () => {
@@ -228,6 +261,7 @@ describe('serverSessions', () => {
 
     const logout = received.find((call) => call.path === '/api/v1/auth/logout');
     expect(answer.status).toBe(204);
+    expect(answer.headers.get('cache-control')).toBe('no-store');
     expect(answer.headers.getSetCookie()).toEqual(['__Host-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0']);
     expect(logout?.body).toBe('{"refreshToken":"refresh-1"}');
     expect(logout?.headers.authorization).toBe('Bearer access-1');

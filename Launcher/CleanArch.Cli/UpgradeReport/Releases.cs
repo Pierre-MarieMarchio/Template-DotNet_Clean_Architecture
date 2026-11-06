@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using CleanArch.Tooling.Failures;
+using CleanArch.Tooling.Manifests;
 
 namespace CleanArch.Cli.UpgradeReport;
 
@@ -14,11 +15,11 @@ internal static class Releases
         {
             foreach (string file in PackagesIn(source))
             {
-                (string id, string version) = TemplatePackage.Identify(file);
+                NuGetPackage found = NuGetPackage.Open(file);
 
-                if (string.Equals(id, package, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(found.Id, package, StringComparison.OrdinalIgnoreCase))
                 {
-                    releases.Add(new Release(version, file));
+                    releases.Add(new Release(found.Version, file));
                 }
             }
         }

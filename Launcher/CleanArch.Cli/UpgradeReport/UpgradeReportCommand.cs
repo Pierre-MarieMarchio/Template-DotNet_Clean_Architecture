@@ -54,7 +54,7 @@ internal static class UpgradeReportCommand
     {
         try
         {
-            Report report = new ReportBuilder(new ReportProcesses(context.Processes, shell)).Build(project.Root, Provenance.Of(project), request);
+            Report report = new ReportBuilder(new ReportProcesses(context.Processes, shell.Output)).Build(project.Root, Provenance.Of(project), request);
             ReportWriter.Print(report, shell.Output);
             return ExitCode.Succeeded;
         }

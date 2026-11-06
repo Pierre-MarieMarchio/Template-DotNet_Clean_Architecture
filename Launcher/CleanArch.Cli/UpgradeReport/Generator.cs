@@ -1,19 +1,21 @@
-﻿using System.Text.Json.Nodes;
-using CleanArch.Tooling.Failures;
+﻿using CleanArch.Tooling.Failures;
+using CleanArch.Tooling.Templates;
 
 namespace CleanArch.Cli.UpgradeReport;
 
-internal sealed class Generator(ReportProcesses processes, string root, Provenance project, string scratch)
+internal sealed class Generator(Func<string, TemplateEngine> engineIn, string root, Provenance project, string scratch)
 {
     private const string _manualInstructions = "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C";
+
+    private const string _withoutSdkTemplates = "--debug:disable-sdk-templates";
 
     public Generation Generate(Release release)
     {
         string hive = Path.Combine(scratch, "hive-" + release.Version);
         string tree = Path.Combine(scratch, release.Version);
-        string[] hiveArguments = ["--debug:custom-hive", hive, "--debug:disable-sdk-templates"];
+        TemplateEngine engine = engineIn(hive);
 
-        Install(release, hiveArguments);
+        Install(engine, release);
         TemplatePackage content = TemplatePackage.Read(release.File ?? InstalledPackage(hive, release));
         RefuseRunningPostActions(content, release.Version);
 
@@ -21,13 +23,13 @@ internal sealed class Generator(ReportProcesses processes, string root, Provenan
         var notes = new List<string>();
         PackagedTemplate main = content.Require(PackagedTemplate.Main, release.Version);
         Directory.CreateDirectory(tree);
-        processes.Step(scratch, "dotnet", ["new", main.ShortName, "-n", project.Name, "-o", tree, .. Arguments(main, plan.Generation, release.Version, notes), .. hiveArguments]);
+        engine.Run(scratch, [main.ShortName, "-n", project.Name, "-o", tree, .. Arguments(main, plan.Generation, release.Version, notes), _withoutSdkTemplates]);
 
         foreach (Replay replay in plan.Replays)
         {
             PackagedTemplate item = content.Require(replay.Template, release.Version);
             (string, string)[] values = [.. replay.Values, .. replay.ProjectOptions.Concat(StateOf(tree)).Where(value => item.Declares(value.Item1))];
-            processes.Step(tree, "dotnet", ["new", item.ShortName, "-n", replay.Name, .. Arguments(item, values, release.Version, notes), .. hiveArguments]);
+            engine.Run(tree, [item.ShortName, "-n", replay.Name, .. Arguments(item, values, release.Version, notes), _withoutSdkTemplates]);
         }
 
         return new Generation(tree, content, notes);
@@ -36,7 +38,7 @@ internal sealed class Generator(ReportProcesses processes, string root, Provenan
     public static void RefuseRunningPostActions(TemplatePackage content, string version)
     {
         string[] running = [.. content.Templates.Values
-            .SelectMany(template => template.PostActions.OfType<JsonObject>().Select(action => (template.ShortName, Id: action["actionId"]?.GetValue<string>() ?? string.Empty)))
+            .SelectMany(template => template.Manifest.PostActionIds.Select(id => (template.ShortName, Id: id)))
             .Where(action => !string.Equals(action.Id, _manualInstructions, StringComparison.OrdinalIgnoreCase))
             .Select(action => $"{action.ShortName} {action.Id}")];
 
@@ -76,11 +78,11 @@ internal sealed class Generator(ReportProcesses processes, string root, Provenan
         return [.. arguments];
     }
 
-    private void Install(Release release, string[] hiveArguments)
+    private void Install(TemplateEngine engine, Release release)
     {
         try
         {
-            processes.Step(root, "dotnet", ["new", "install", release.File ?? $"{project.Package}::{release.Version}", .. hiveArguments]);
+            engine.Run(root, ["install", release.File ?? $"{project.Package}::{release.Version}", _withoutSdkTemplates]);
         }
         catch (LauncherException error)
         {

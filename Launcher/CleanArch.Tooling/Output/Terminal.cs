@@ -18,4 +18,20 @@ public static class Terminal
 
         return console;
     }
+
+    public static IAnsiConsole Over(TextWriter output)
+    {
+        if (ReferenceEquals(output, Console.Out))
+        {
+            return Open();
+        }
+
+        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Out = new AnsiConsoleOutput(output),
+            Interactive = InteractionSupport.No,
+        });
+        console.Profile.Width = UnwrappedWidth;
+        return console;
+    }
 }

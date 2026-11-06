@@ -17,6 +17,8 @@ internal static class ProjectLayout
 
     public static string Solution(LocatedProject project) => project.File.Name + ".slnx";
 
+    public static string Tasks => Path.Combine("Tools", "Tasks.cs");
+
     public static string Api(LocatedProject project) => Path.Combine("Src", "Presentation", FolderOf(project, "Api"));
 
     public static string ApiProject(LocatedProject project) => Path.Combine(Api(project), ProjectName(project, "Api") + ".csproj");

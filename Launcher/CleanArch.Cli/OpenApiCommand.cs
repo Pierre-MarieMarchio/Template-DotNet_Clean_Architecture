@@ -56,15 +56,12 @@ internal static class OpenApiCommand
         TextWriter output = parseResult.InvocationConfiguration.Output;
         TextWriter error = parseResult.InvocationConfiguration.Error;
         string root = project.Root;
-        string apiFolder = Path.Combine(root, ProjectLayout.Api(project));
-        string apiProject = Path.Combine(root, ProjectLayout.ApiProject(project));
         string reference = Path.Combine(root, ProjectLayout.OpenApiReference(project));
-        string generated = Path.Combine(root, ProjectLayout.Client(project), "Generated");
 
-        int exit = WriteReference(project, apiFolder, apiProject, reference, checking, noBuild, output, error);
+        int exit = WriteReference(project, checking, noBuild, output, error);
         if (exit == CleanArchCommand.Succeeded && project.File.Client)
         {
-            exit = RegenerateClient(project, reference, generated, checking, output, error);
+            exit = RegenerateClient(project, checking, output, error);
         }
 
         if (exit == CleanArchCommand.Succeeded && File.Exists(Path.Combine(root, _webSchemaScript)))
@@ -77,8 +74,11 @@ internal static class OpenApiCommand
         return exit;
     }
 
-    private static int WriteReference(LocatedProject project, string apiFolder, string apiProject, string reference, bool checking, bool noBuild, TextWriter output, TextWriter error)
+    internal static int WriteReference(LocatedProject project, bool checking, bool noBuild, TextWriter output, TextWriter error)
     {
+        string apiFolder = Path.Combine(project.Root, ProjectLayout.Api(project));
+        string apiProject = Path.Combine(project.Root, ProjectLayout.ApiProject(project));
+        string reference = Path.Combine(project.Root, ProjectLayout.OpenApiReference(project));
         var environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["ASPNETCORE_ENVIRONMENT"] = "Development" };
         if (project.File.Options.Auth == "external")
         {
@@ -155,9 +155,11 @@ internal static class OpenApiCommand
         }
     }
 
-    private static int RegenerateClient(LocatedProject project, string reference, string generated, bool checking, TextWriter output, TextWriter error)
+    internal static int RegenerateClient(LocatedProject project, bool checking, TextWriter output, TextWriter error)
     {
         string root = project.Root;
+        string reference = Path.Combine(root, ProjectLayout.OpenApiReference(project));
+        string generated = Path.Combine(root, ProjectLayout.Client(project), "Generated");
         string clientFolder = Path.GetDirectoryName(generated)!;
         if (!Directory.Exists(clientFolder))
         {

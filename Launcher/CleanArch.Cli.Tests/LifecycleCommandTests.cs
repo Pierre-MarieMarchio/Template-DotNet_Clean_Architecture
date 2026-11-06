@@ -10,11 +10,8 @@ public sealed class LifecycleCommandTests : IDisposable
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
     private readonly List<ExternalCall> _calls = [];
-    private readonly Queue<int> _exits = new();
     private int _exit = CleanArchCommand.Succeeded;
 
-    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Persistence");
-    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Auth");
     private static readonly string _api = Path.Combine("Src", "Presentation", "AS.Api");
 
     public LifecycleCommandTests()
@@ -22,66 +19,8 @@ public sealed class LifecycleCommandTests : IDisposable
         ExternalCommand.Handler = (call, _, _) =>
         {
             _calls.Add(call);
-            return _exits.Count > 0 ? _exits.Dequeue() : _exit;
+            return _exit;
         };
-    }
-
-    [Fact]
-    public void Bootstrap_PrintsEachLineItRuns_AndRunsThemAtTheProjectRoot()
-    {
-        using var project = WithSolution(SampleProject.WithOptions("local", sonar: false));
-
-        Run(["bootstrap"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _output.ToString().ShouldBe(
-            $"dotnet format Acme.Shop.slnx --diagnostics IDE0055 IDE0005{Environment.NewLine}" +
-            $"dotnet tool restore{Environment.NewLine}" +
-            $"dotnet ef migrations add InitialCreate --project {_auth} --startup-project {_auth}{Environment.NewLine}" +
-            $"dotnet ef migrations add InitialCreate --project {_persistence} --startup-project {_persistence}{Environment.NewLine}");
-        _calls.Select(call => call.FileName).ShouldBe(["dotnet", "dotnet", "dotnet", "dotnet"]);
-        _calls.Select(call => call.WorkingDirectory).ShouldBe([project.Root, project.Root, project.Root, project.Root]);
-        _calls[2].Arguments.ShouldBe(["ef", "migrations", "add", "InitialCreate", "--project", _auth, "--startup-project", _auth]);
-        _calls[3].Arguments.ShouldBe(["ef", "migrations", "add", "InitialCreate", "--project", _persistence, "--startup-project", _persistence]);
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Bootstrap_SkipsAContextThatAlreadyHasItsMigrations()
-    {
-        using var project = WithSolution(SampleProject.WithOptions("local", sonar: false));
-        string migrations = project.Folder(Path.Combine(_persistence, "Migrations"));
-        File.WriteAllText(Path.Combine(migrations, "Acme.Shop.PersistenceModelSnapshot.cs"), string.Empty);
-
-        Run(["bootstrap"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _calls.Count.ShouldBe(3);
-        _calls[2].Arguments.ShouldContain(_auth);
-        _output.ToString().ShouldContain($"AS.Infrastructure.Persistence already has its migrations");
-        _error.ToString().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void Bootstrap_WithoutLocalAuth_CreatesOnlyTheBusinessContextInitialMigration()
-    {
-        using var project = WithSolution(SampleProject.WithOptions("none", sonar: false));
-
-        Run(["bootstrap"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
-
-        _calls.Count.ShouldBe(3);
-        _calls[2].Arguments.ShouldBe(["ef", "migrations", "add", "InitialCreate", "--project", _persistence, "--startup-project", _persistence]);
-    }
-
-    [Fact]
-    public void Bootstrap_StopsAtTheFirstFailure_AndForwardsItsExitCode()
-    {
-        using var project = WithSolution(SampleProject.WithOptions("local", sonar: false));
-        _exits.Enqueue(CleanArchCommand.Succeeded);
-        _exits.Enqueue(5);
-
-        Run(["bootstrap"], project.Root).ShouldBe(5);
-
-        _calls.Count.ShouldBe(2);
-        _output.ToString().ShouldContain("dotnet tool restore");
     }
 
     [Fact]
@@ -272,7 +211,6 @@ public sealed class LifecycleCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData("bootstrap")]
     [InlineData("run")]
     [InlineData("compose up")]
     [InlineData("compose down")]
@@ -297,7 +235,6 @@ public sealed class LifecycleCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData("bootstrap")]
     [InlineData("run")]
     [InlineData("compose up")]
     [InlineData("compose down")]
@@ -338,13 +275,6 @@ public sealed class LifecycleCommandTests : IDisposable
     }
 
     private static string Text(JsonNode? node) => node.ShouldNotBeNull().GetValue<string>();
-
-    private static SampleProject WithSolution(string json)
-    {
-        var project = new SampleProject(json);
-        File.WriteAllText(Path.Combine(project.Root, "Acme.Shop.slnx"), string.Empty);
-        return project;
-    }
 
     private static SampleProject WithTests(string json)
     {

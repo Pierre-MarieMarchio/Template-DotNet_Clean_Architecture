@@ -93,8 +93,8 @@ public sealed partial class GuidedFlowTests : IDisposable
         string left = Closing(output);
         left.ShouldContain("     cd ./Demo");
         left.ShouldContain("     docker compose up -d --build --wait");
-        left.ShouldNotContain(ProjectSetup.BootstrapCommand);
-        left.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        left.ShouldNotContain(BootstrapStep.Command);
+        left.ShouldNotContain(EnvironmentFileStep.Command);
         left.ShouldNotContain("```");
         output.ShouldNotContain(_created);
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal));
@@ -205,7 +205,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain("◊  Bootstrap done");
         _processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n Demo -o ", StringComparison.Ordinal) && line.Contains("--auth external", StringComparison.Ordinal));
         _processes.CommandLines.ShouldNotContain("dotnet run Tools/Tasks.cs bootstrap");
-        Closing(output).ShouldContain(ProjectSetup.BootstrapCommand);
+        Closing(output).ShouldContain(BootstrapStep.Command);
     }
 
     [Fact]
@@ -244,8 +244,8 @@ public sealed partial class GuidedFlowTests : IDisposable
         string output = Plain(console);
         Order(output, "◊  First commit done", "▲  Bootstrap failed", "exited with code 1", "NU1301", "▲  Bootstrap commit skipped", "◊  Copy .env done", "└  Almost there. Now run:");
         string left = Closing(output);
-        Order(left, "cd ./Demo", ProjectSetup.BootstrapCommand, "git add -A", "git commit -m \"chore: bootstrap\"", "docker compose up -d --build --wait");
-        left.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        Order(left, "cd ./Demo", BootstrapStep.Command, "git add -A", "git commit -m \"chore: bootstrap\"", "docker compose up -d --build --wait");
+        left.ShouldNotContain(EnvironmentFileStep.Command);
     }
 
     [Fact]
@@ -262,7 +262,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         string output = Plain(console);
         Order(output, "◊  First commit done", "◊  Bootstrap done", "▲  Bootstrap commit skipped", "Skipped because the setup was stopped.", "▲  Copy .env skipped", "└  Almost there. Now run:");
         string left = Closing(output);
-        Order(left, "cd ./Demo", "git add -A", "git commit -m \"chore: bootstrap\"", ProjectSetup.EnvironmentCommand);
+        Order(left, "cd ./Demo", "git add -A", "git commit -m \"chore: bootstrap\"", EnvironmentFileStep.Command);
         left.ShouldNotContain("git init");
         _processes.CommandLines.ShouldNotContain(line => line.StartsWith("git commit -q -m chore: bootstrap", StringComparison.Ordinal));
     }
@@ -284,7 +284,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         launcher.Run(["new", "--template-source", Repository.Root]).ShouldBe(Launcher.StoppedExitCode);
 
         string left = Closing(Plain(console));
-        Order(left, "git commit -m \"chore: bootstrap\"", ProjectSetup.EnvironmentCommand);
+        Order(left, "git commit -m \"chore: bootstrap\"", EnvironmentFileStep.Command);
         left.Contains("git init", StringComparison.Ordinal).ShouldBe(!insideARepository);
     }
 
@@ -615,7 +615,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         output.ShouldNotContain(Banner.Tagline);
         output.ShouldNotContain(Rail.Bar);
         output.ShouldNotContain(Rail.Answered);
-        Order(output, _created, _bootstrapInstruction, "Done. The same with dotnet new:", "Next:", "cd Demo", ProjectSetup.BootstrapCommand);
+        Order(output, _created, _bootstrapInstruction, "Done. The same with dotnet new:", "Next:", "cd Demo", BootstrapStep.Command);
         output.ShouldNotContain("```");
         output.ShouldNotContain(LauncherCommands.Invocation);
         _processes.Calls.ShouldNotContain(call => call.FileName == "git");
@@ -632,7 +632,7 @@ public sealed partial class GuidedFlowTests : IDisposable
         string output = Plain(console);
         output.ShouldNotContain(Rail.Answered);
         Order(output, "First commit done.", "Bootstrap done.", "Bootstrap commit done.", "Copy .env done.", "Done. The same with dotnet new:", "Next", "cd Demo", "docker compose up -d --build --wait");
-        output.ShouldNotContain(ProjectSetup.EnvironmentCommand);
+        output.ShouldNotContain(EnvironmentFileStep.Command);
         output.ShouldContain(_created);
         output.ShouldNotContain(_bootstrapInstruction, customMessage: "The template engine's instruction to run bootstrap is relayed while the launcher runs it.");
         output.ShouldNotContain(TemplateEngine.PostActionsHeading);

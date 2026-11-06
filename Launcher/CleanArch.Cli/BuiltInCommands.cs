@@ -16,6 +16,7 @@ using CleanArch.Cli.Commands.Test;
 using CleanArch.Cli.Commands.Verify;
 using CleanArch.Cli.Eject;
 using CleanArch.Cli.Help;
+using CleanArch.Cli.UpgradeReport;
 
 namespace CleanArch.Cli;
 
@@ -45,6 +46,7 @@ internal static class BuiltInCommands
         EndToEndCommand.Registration,
         SonarCommand.Registration,
         AdoptCommand.Registration,
+        UpgradeReportCommand.Registration,
         EjectCommand.Registration,
     ];
 }

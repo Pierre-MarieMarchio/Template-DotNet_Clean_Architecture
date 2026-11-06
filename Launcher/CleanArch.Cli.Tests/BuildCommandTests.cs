@@ -48,7 +48,7 @@ public sealed class BuildCommandTests : IDisposable
     public void Build_ForwardsTheExitCodeOfTheBuild()
     {
         using var project = SampleSolution.WithSolution();
-        FakeDotnet.ExitWith(7);
+        _dotnet.ExitWith(7);
 
         Run(["build"], project.Root).ShouldBe(7);
     }

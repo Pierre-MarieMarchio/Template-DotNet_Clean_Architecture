@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
+import sonarjs from 'eslint-plugin-sonarjs';
 import tseslint from 'typescript-eslint';
 
 export function typescriptConfig(tsconfigRootDir) {
@@ -15,6 +16,12 @@ export function typescriptConfig(tsconfigRootDir) {
           projectService: true,
           tsconfigRootDir,
         },
+      },
+    },
+    {
+      plugins: { sonarjs },
+      rules: {
+        'sonarjs/cognitive-complexity': ['error', 15],
       },
     },
     {

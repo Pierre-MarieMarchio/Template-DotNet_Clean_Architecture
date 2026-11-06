@@ -22,6 +22,16 @@ pnpm --filter "*browser-smoke" smoke   # drive every app in Chromium; needs the 
 holds its scaffold.json, with its framework's official CLI, then installs and runs `pnpm api`;
 `bootstrap` runs the same step.
 
+## Lint
+
+`packages/eslint-config` holds the lint rules of the workspace's own packages, those
+`dotnet new cleanarch-webpackage` adds among them, and `pnpm lint` runs them; a web app keeps the
+lint its framework's CLI gave it. The rules are typescript-eslint's type-checked ones and one rule of
+`eslint-plugin-sonarjs`, `sonarjs/cognitive-complexity`, which fails on a function whose cognitive
+complexity is over 15. It is the measure of Sonar's S3776 for C#, with the same ceiling: each break
+in the linear flow costs, more when nested, and length costs nothing, so a function that nests deeply
+is split while a long flat one stays whole. A finding is fixed in the code, never silenced.
+
 ## The browser smoke
 
 `packages/browser-smoke` drives every app `cleanarch.json` records in Chromium, against the running

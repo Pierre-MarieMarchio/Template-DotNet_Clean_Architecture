@@ -197,45 +197,49 @@ public sealed class ApiRouteTableTests
         return "/" + unconstrained.Trim('/');
     }
 
-    private static SortedSet<string> DocumentedRoutes(string reference)
-    {
-        var routes = new SortedSet<string>(StringComparer.Ordinal);
+    private static SortedSet<string> DocumentedRoutes(string reference) =>
+        new(
+            _sectionStart.Split(RoutesSection(reference)).Skip(1).SelectMany(RoutesOfBlock),
+            StringComparer.Ordinal);
 
+    private static string RoutesSection(string reference)
+    {
         int start = reference.IndexOf(_routesHeading, StringComparison.Ordinal);
         start.ShouldBeGreaterThanOrEqualTo(0, "docs/reference/api.md has no '## Routes' section to read.");
 
         int end = reference.IndexOf("\n## ", start + _routesHeading.Length, StringComparison.Ordinal);
-        string section = end < 0 ? reference[start..] : reference[start..end];
 
-        foreach (string block in _sectionStart.Split(section).Skip(1))
+        return end < 0 ? reference[start..] : reference[start..end];
+    }
+
+    private static IEnumerable<string> RoutesOfBlock(string block)
+    {
+        string prefix = _sectionPrefix.Match(block) is { Success: true } under ? under.Groups["prefix"].Value : string.Empty;
+
+        foreach (string[] cells in block.Split('\n').Where(line => line.StartsWith("| ", StringComparison.Ordinal)).Select(line => line.Split('|')))
         {
-            string prefix = _sectionPrefix.Match(block) is { Success: true } under ? under.Groups["prefix"].Value : string.Empty;
+            string cited = CitedPath(cells);
 
-            foreach (string line in block.Split('\n').Where(line => line.StartsWith("| ", StringComparison.Ordinal)))
+            if (!cited.StartsWith('/') || cited.StartsWith("/health", StringComparison.Ordinal))
             {
-                string[] cells = line.Split('|');
-                string cited = cells.Length > 2
-                    ? cells[2].Replace("†", string.Empty, StringComparison.Ordinal).Trim().Trim('`')
-                    : string.Empty;
+                continue;
+            }
 
-                if (!cited.StartsWith('/') || cited.StartsWith("/health", StringComparison.Ordinal))
-                {
-                    continue;
-                }
+            string route = cited.StartsWith("/api/", StringComparison.Ordinal) ? cited : prefix + RelativeToPrefix(cited);
 
-                string route = cited.StartsWith("/api/", StringComparison.Ordinal)
-                    ? cited
-                    : prefix + (cited == "/" ? string.Empty : cited);
-
-                foreach (string method in cells[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
-                {
-                    routes.Add($"{method} {Normalised(route)}");
-                }
+            foreach (string method in cells[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                yield return $"{method} {Normalised(route)}";
             }
         }
-
-        return routes;
     }
+
+    private static string RelativeToPrefix(string cited) => cited == "/" ? string.Empty : cited;
+
+    private static string CitedPath(string[] cells) =>
+        cells.Length > 2
+            ? cells[2].Replace("†", string.Empty, StringComparison.Ordinal).Trim().Trim('`')
+            : string.Empty;
 
     [Route("api/v{version:apiVersion}/gadgets")]
     private sealed class DeliberateController : ControllerBase

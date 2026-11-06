@@ -26,11 +26,12 @@ internal static partial class CommandSource
         return type.Name;
     }
 
+    public static IEnumerable<(string Type, string File)> Declared =>
+        Shipped.SelectMany(file => DeclaredTypes().Matches(file.Value).Select(match => (Type: match.Groups["type"].Value, File: file.Key)));
+
     public static IReadOnlyList<string> FilesOf(string commandType)
     {
-        Dictionary<string, string> declaringFiles = Shipped
-            .SelectMany(file => DeclaredTypes().Matches(file.Value).Select(match => (Type: match.Groups["type"].Value, File: file.Key)))
-            .ToDictionary(declared => declared.Type, declared => declared.File, StringComparer.Ordinal);
+        Dictionary<string, string> declaringFiles = Declared.ToDictionary(declared => declared.Type, declared => declared.File, StringComparer.Ordinal);
 
         string seed = declaringFiles.GetValueOrDefault(commandType)
             ?? throw new InvalidOperationException($"The tool ships no source declaring {commandType}.");
@@ -52,7 +53,7 @@ internal static partial class CommandSource
     public static string FileBasedApp(string commandName, string commandType, string commandLineVersion)
     {
         IReadOnlyList<string> files = FilesOf(commandType);
-        string[] merged = [.. files.Select(file => FileScopedNamespace().Match(Shipped[file]).Groups["namespace"].Value)];
+        string[] merged = [.. Shipped.Values.Select(source => FileScopedNamespace().Match(source).Groups["namespace"].Value)];
         string[] usings = [.. files
             .SelectMany(file => Usings().Matches(Shipped[file]).Select(match => match.Groups["namespace"].Value))
             .Except(merged, StringComparer.Ordinal)

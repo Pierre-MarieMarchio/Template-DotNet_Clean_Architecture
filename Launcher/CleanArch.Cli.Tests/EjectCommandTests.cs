@@ -127,7 +127,8 @@ public sealed class EjectCommandTests : IDisposable
             .Descendants("Compile")
             .Select(compile => compile.Attribute("Link")?.Value)
             .OfType<string>();
-        string[] sources = [.. Directory.EnumerateFiles(commands, "*.cs")
+        string[] sources = [.. Directory.EnumerateFiles(commands, "*.cs", SearchOption.AllDirectories)
+            .Where(path => Path.GetRelativePath(commands, path).Split(Path.DirectorySeparatorChar)[0] is not ("bin" or "obj"))
             .Select(Path.GetFileName).OfType<string>()
             .Concat(linked)
             .Order(StringComparer.Ordinal)];
@@ -135,6 +136,16 @@ public sealed class EjectCommandTests : IDisposable
         CommandSource.Shipped.Keys.Order(StringComparer.Ordinal).ShouldBe(sources);
         CommandSource.Shipped["FormatCommand.cs"].ShouldBe(
             File.ReadAllText(Path.Combine(Repository.Root, "Launcher", "CleanArch.Cli.Commands", "FormatCommand.cs")).TrimStart('﻿'));
+    }
+
+    [Fact]
+    public void TheShippedSourcesDeclareEachTypeOnce_SinceEjectMergesThemIntoOneNamespace()
+    {
+        CommandSource.Declared
+            .GroupBy(declared => declared.Type, StringComparer.Ordinal)
+            .Where(declarations => declarations.Count() > 1)
+            .Select(declarations => $"{declarations.Key}: {string.Join(", ", declarations.Select(declared => declared.File))}")
+            .ShouldBeEmpty();
     }
 
     [Fact]

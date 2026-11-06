@@ -57,7 +57,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../CleanArch.Cli.Commands/*.cs;../CleanArch.Tooling/ProjectNames.cs" LogicalName="source/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../CleanArch.Cli.Commands/**/*.cs;../CleanArch.Tooling/ProjectNames.cs" Exclude="../CleanArch.Cli.Commands/bin/**;../CleanArch.Cli.Commands/obj/**" LogicalName="source/%(Filename)%(Extension)" />
     <AssemblyMetadata Include="System.CommandLine" Value="@(PackageVersion->WithMetadataValue('Identity', 'System.CommandLine')->'%(Version)')" />
   </ItemGroup>
 

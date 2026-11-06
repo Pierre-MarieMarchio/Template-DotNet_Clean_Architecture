@@ -66,45 +66,51 @@ public sealed class ContainerImagePinningTests
 
         dockerfiles.ShouldNotBeEmpty("the API's Dockerfile exists; a search that finds none is broken.");
 
-        var offenders = new List<string>();
-
-        foreach (string dockerfile in dockerfiles)
-        {
-            var stages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            string[] lines = File.ReadAllLines(dockerfile);
-
-            if (lines.Length > 0 && _syntax.Match(lines[0]) is { Success: true } syntax
-                && !_pinned.IsMatch(syntax.Groups["ref"].Value))
-            {
-                offenders.Add($"{Relative(dockerfile)}: {lines[0]}");
-            }
-
-            foreach (string line in lines)
-            {
-                var match = _from.Match(line);
-
-                if (!match.Success)
-                {
-                    continue;
-                }
-
-                string reference = match.Groups["ref"].Value;
-
-                if (!stages.Contains(reference) && !_pinned.IsMatch(reference))
-                {
-                    offenders.Add($"{Relative(dockerfile)}: {line.Trim()}");
-                }
-
-                if (match.Groups["alias"].Success)
-                {
-                    stages.Add(match.Groups["alias"].Value);
-                }
-            }
-        }
+        var offenders = dockerfiles.SelectMany(UnpinnedReferences).ToList();
 
         offenders.ShouldBeEmpty(
             "Write each FROM, and the `# syntax=` frontend, as name:tag@sha256:<digest>, literally: "
             + "Dependabot rewrites a literal FROM and skips one built from an ARG.");
+    }
+
+    private static IEnumerable<string> UnpinnedReferences(string dockerfile)
+    {
+        string[] lines = File.ReadAllLines(dockerfile);
+        string path = Relative(dockerfile);
+
+        return UnpinnedFrontend(lines).Concat(UnpinnedStages(lines)).Select(line => $"{path}: {line}");
+    }
+
+    private static IEnumerable<string> UnpinnedFrontend(string[] lines) =>
+        lines.Length > 0 && _syntax.Match(lines[0]) is { Success: true } syntax && !_pinned.IsMatch(syntax.Groups["ref"].Value)
+            ? [lines[0]]
+            : [];
+
+    private static IEnumerable<string> UnpinnedStages(string[] lines)
+    {
+        var stages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string line in lines)
+        {
+            var match = _from.Match(line);
+
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            string reference = match.Groups["ref"].Value;
+
+            if (!stages.Contains(reference) && !_pinned.IsMatch(reference))
+            {
+                yield return line.Trim();
+            }
+
+            if (match.Groups["alias"].Success)
+            {
+                stages.Add(match.Groups["alias"].Value);
+            }
+        }
     }
 
     [Fact]

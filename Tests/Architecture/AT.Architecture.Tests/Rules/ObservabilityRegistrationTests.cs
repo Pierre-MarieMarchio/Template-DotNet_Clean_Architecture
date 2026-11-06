@@ -41,15 +41,9 @@ public sealed class ObservabilityRegistrationTests
                 Path.GetDirectoryName(host.RelativePath)!);
 
             string registrations = ReadObservabilitySource(directory);
+            var instruments = InstrumentsOf(directory);
 
-            bool declaresAnything = SourceFilesUnder(directory).Any(file =>
-            {
-                string text = File.ReadAllText(file);
-
-                return _meterField.IsMatch(text) || _activitySourceField.IsMatch(text);
-            });
-
-            if (declaresAnything && registrations.Length == 0)
+            if (instruments.Count > 0 && registrations.Length == 0)
             {
                 offenders.Add(
                     $"{host.Name}: declares an instrument and has no 'Common/Observability/' or " +
@@ -59,53 +53,8 @@ public sealed class ObservabilityRegistrationTests
                 continue;
             }
 
-            foreach (string file in SourceFilesUnder(directory))
-            {
-                string text = File.ReadAllText(file);
-                bool declaresMeter = _meterField.IsMatch(text);
-                bool declaresSource = _activitySourceField.IsMatch(text);
-
-                if (!declaresMeter && !declaresSource)
-                {
-                    continue;
-                }
-
-                string owner = Path.GetFileNameWithoutExtension(file);
-                var name = _nameConstant.Match(text);
-
-                if (!name.Success)
-                {
-                    offenders.Add(
-                        $"{host.Name}: '{owner}' declares an instrument whose name is not a " +
-                        "'const string Name', so nothing can hold the declaration and the " +
-                        "registration to one string.");
-                    continue;
-                }
-
-                if (declaresMeter)
-                {
-                    checkedInstruments++;
-
-                    if (!IsRegistered(registrations, "AddMeter", owner, name.Groups[1].Value))
-                    {
-                        offenders.Add(
-                            $"{host.Name}: '{owner}' declares a Meter named " +
-                            $"'{name.Groups[1].Value}' that no AddMeter call names.");
-                    }
-                }
-
-                if (declaresSource)
-                {
-                    checkedInstruments++;
-
-                    if (!IsRegistered(registrations, "AddSource", owner, name.Groups[1].Value))
-                    {
-                        offenders.Add(
-                            $"{host.Name}: '{owner}' declares an ActivitySource named " +
-                            $"'{name.Groups[1].Value}' that no AddSource call names.");
-                    }
-                }
-            }
+            checkedInstruments += instruments.Count(instrument => instrument.Name is not null);
+            offenders.AddRange(RegistrationProblems(host.Name, instruments, registrations));
         }
 
         checkedInstruments.ShouldBeGreaterThanOrEqualTo(
@@ -186,6 +135,50 @@ public sealed class ObservabilityRegistrationTests
             RegexOptions.None,
             TimeSpan.FromSeconds(5));
 
+    private static List<Instrument> InstrumentsOf(string hostDirectory) =>
+        [.. SourceFilesUnder(hostDirectory).SelectMany(InstrumentsIn)];
+
+    private static IEnumerable<Instrument> InstrumentsIn(string file)
+    {
+        string text = File.ReadAllText(file);
+        string owner = Path.GetFileNameWithoutExtension(file);
+        var name = _nameConstant.Match(text);
+        string? value = name.Success ? name.Groups[1].Value : null;
+
+        if (_meterField.IsMatch(text))
+        {
+            yield return new Instrument(owner, value, "a Meter", "AddMeter");
+        }
+
+        if (_activitySourceField.IsMatch(text))
+        {
+            yield return new Instrument(owner, value, "an ActivitySource", "AddSource");
+        }
+    }
+
+    private static IEnumerable<string> RegistrationProblems(
+        string host,
+        IReadOnlyCollection<Instrument> instruments,
+        string registrations)
+    {
+        var unnamed = instruments
+            .Where(instrument => instrument.Name is null)
+            .Select(instrument => instrument.Owner)
+            .Distinct(StringComparer.Ordinal)
+            .Select(owner =>
+                $"{host}: '{owner}' declares an instrument whose name is not a " +
+                "'const string Name', so nothing can hold the declaration and the " +
+                "registration to one string.");
+
+        var unregistered = instruments
+            .Where(instrument => instrument.Name is { } name && !IsRegistered(registrations, instrument.Call, instrument.Owner, name))
+            .Select(instrument =>
+                $"{host}: '{instrument.Owner}' declares {instrument.Kind} named " +
+                $"'{instrument.Name}' that no {instrument.Call} call names.");
+
+        return unnamed.Concat(unregistered);
+    }
+
     private static string ReadObservabilitySource(string hostDirectory)
     {
         string folder = Path.Combine(hostDirectory, "Common", "Observability");
@@ -209,4 +202,6 @@ public sealed class ObservabilityRegistrationTests
                 !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
                 && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal);
+
+    private sealed record Instrument(string Owner, string? Name, string Kind, string Call);
 }

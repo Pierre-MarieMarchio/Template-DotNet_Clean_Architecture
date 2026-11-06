@@ -11,7 +11,7 @@ internal static class TextEdits
 
     internal sealed record Command(string Display, string WorkingDirectory, string FileName, string[] Arguments)
     {
-        internal bool FromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
+        internal bool RunsFromLastBuild => Arguments.Contains(_noBuild, StringComparer.Ordinal);
     }
 
     private const string _noBuild = "--no-build";
@@ -597,7 +597,7 @@ internal static class TextEdits
                 error.WriteLine($"  {remaining.Display}");
             }
 
-            if (steps.Skip(index).Any(remaining => remaining.FromLastBuild))
+            if (steps.Skip(index).Any(remaining => remaining.RunsFromLastBuild))
             {
                 error.WriteLine(
                     $"A command with {_noBuild} works from the build this command made: when the fix changes the code, run "

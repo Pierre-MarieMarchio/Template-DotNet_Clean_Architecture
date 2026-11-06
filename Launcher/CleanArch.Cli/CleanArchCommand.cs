@@ -12,32 +12,26 @@ public static class CleanArchCommand
 
     private const string _description = "Describe this project, or run one of its commands.";
 
-    private static readonly IReadOnlyList<CommandRegistration> _registrations =
-    [
-        HelpCommand.Registration,
-        FormatCommand.Registration,
-        BuildCommand.Registration,
-        TestCommand.Registration,
-        CoverageCommand.Registration,
-        VerifyCommand.Registration,
-        AddCommand.Registration,
-        RemoveCommand.Registration,
-        MigrationsCommand.Registration,
-        DatabaseCommand.Registration,
-        OpenApiCommand.Registration,
-        BootstrapCommand.Registration,
-        RunCommand.Registration,
-        ComposeCommand.Registration,
-        EndToEndCommand.Registration,
-        SonarCommand.Registration,
-    ];
-
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
-        Run(arguments, workingDirectory, output, error, _registrations);
+        Run(arguments, workingDirectory, output, error, BuiltInCommands.All);
 
     internal static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
     {
-        RootCommand root = CreateRoot(CommandContext.Locate(workingDirectory), registrations);
+        CommandContext context = CommandContext.Locate(workingDirectory);
+        if (arguments.Count > 0 && context.LocalCommands.FirstOrDefault(local => local.Name == arguments[0]) is { } named)
+        {
+            return named.Run(context, arguments.Skip(1), output, error);
+        }
+
+        return Invoke(arguments, context, output, error, registrations);
+    }
+
+    internal static int RunBuiltIn(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations) =>
+        Invoke(arguments, CommandContext.Locate(workingDirectory) with { LocalCommands = [] }, output, error, registrations);
+
+    private static int Invoke(IReadOnlyList<string> arguments, CommandContext context, TextWriter output, TextWriter error, IReadOnlyList<CommandRegistration> registrations)
+    {
+        RootCommand root = CreateRoot(context, registrations);
         HelpOption help = root.Options.OfType<HelpOption>().Single();
         help.Action = new UsageNamedAfterTheDotnetCommand((HelpAction)help.Action!);
 
@@ -49,9 +43,16 @@ public static class CleanArchCommand
         var root = new RootCommand(_description);
         root.SetAction(parseResult => Describe(context, parseResult));
 
+        HashSet<string> builtIns = [];
         foreach (CommandRegistration registration in registrations)
         {
             Command command = registration.Build(context);
+            builtIns.Add(command.Name);
+            if (context.LocalCommands.Any(local => local.Name == command.Name))
+            {
+                continue;
+            }
+
             string? refusal = registration.Refusal(context);
             if (refusal is not null)
             {
@@ -59,6 +60,11 @@ public static class CleanArchCommand
             }
 
             root.Add(command);
+        }
+
+        foreach (LocalCommand local in context.LocalCommands)
+        {
+            root.Add(new LocalCommandLine(local, context, builtIns.Contains(local.Name)));
         }
 
         return root;

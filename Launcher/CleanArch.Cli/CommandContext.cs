@@ -2,11 +2,14 @@
 
 internal sealed record CommandContext(string WorkingDirectory, LocatedProject? Project, ProjectFileException? RefusedProjectFile)
 {
+    public IReadOnlyList<LocalCommand> LocalCommands { get; init; } = [];
+
     public static CommandContext Locate(string workingDirectory)
     {
         try
         {
-            return new CommandContext(workingDirectory, ProjectLocator.Find(workingDirectory), null);
+            LocatedProject? project = ProjectLocator.Find(workingDirectory);
+            return new CommandContext(workingDirectory, project, null) { LocalCommands = LocalCommand.In(project) };
         }
         catch (ProjectFileException refused)
         {

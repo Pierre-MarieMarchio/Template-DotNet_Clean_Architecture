@@ -47,6 +47,10 @@ dotnet cleanarch add setting Invoices InvoiceLimits --keys "MaxItems:int(1..100)
 dotnet cleanarch add event Invoices InvoicePaidDomainEvent --unconsumed "Nothing reacts to it yet"
 dotnet cleanarch remove feature Widgets          # report what removing it involves, writing nothing
 dotnet cleanarch remove feature Widgets --apply  # remove it, as its manifest records it
+dotnet cleanarch adopt       # write cleanarch.json for a project generated before the tool
+dotnet cleanarch adopt --dry-run # print the file it would write, and write nothing
+dotnet cleanarch eject verify # copy the verify command's source into Tools/verify.cs, which then runs it
+dotnet cleanarch eject verify --dry-run # say what it would write, and write nothing
 ```
 
 `format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
@@ -86,3 +90,38 @@ build and the migration. `remove feature`
 only reports unless given `--apply`. `add feature` and `add field` do not apply where the
 project file records `auth: none`, since every feature they write needs an authenticated
 caller, and are refused with that reason.
+
+`adopt` is for a project generated before the tool, which has no project file yet: it finds the
+folder that holds one solution beside `Tools/Tasks.cs`, reads the options, the web workspace and
+the presentation projects from the files, and the template's version from the provenance sentence
+of `docs/getting-started/overview.md` (or `--template-version` where that sentence is gone), then
+writes `cleanarch.json` and prints it. It writes nothing where a fact cannot be read from the files,
+naming each one, and it is refused where `cleanarch.json` exists. It creates a file once rather
+than keeping one in step, so it takes `--dry-run`, as a generator does, and no `--check`.
+
+## This project's own commands
+
+A file-based app `Tools/<name>.cs` runs as `dotnet cleanarch <name>`, through
+`dotnet run Tools/<name>.cs -- <arguments>`, which the tool prints before running it from the
+working directory; the app receives every argument after its name, `--help` among them, and the
+tool forwards its exit code. A new name adds a command; a built-in name replaces the built-in
+command, even one the project file refuses. `help` describes each of them as this project's own
+command, and `help --json` gives each a `local` key naming its file, with `replacesBuiltIn` true
+for one that replaces a built-in command.
+
+Only a file named as a command is one: lower-case words joined by hyphens, as `end-to-end` is.
+`Tools/Tasks.cs`, the generators such as `Tools/NewFeature.cs` and every other file named in
+PascalCase stay scripts run with `dotnet run`, and a file named `help` is no command: `help` stays
+the tool's, since it says which commands are this project's own.
+
+## Ejecting a command
+
+`eject <command>` copies a built-in command's source into `Tools/<command>.cs`, a file-based app
+that the project then owns and that runs in place of the built-in command, as the section above
+says; that command stops following the tool's releases. The tool ships the source it is built
+from, and the app holds the command's file with every file of the tool it needs, in the tool's
+namespace, under a list of built-in commands that holds that one command alone; it pins
+System.CommandLine at the version the tool is built with. The commands it offers are the ones this
+project's file makes true: `help`, `eject` and `adopt` stay the tool's, a command the project file
+refuses has nothing to eject, and a `Tools/<command>.cs` already there is never overwritten. It is
+a generator, so it takes `--dry-run`.

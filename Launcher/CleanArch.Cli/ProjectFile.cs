@@ -17,12 +17,11 @@ public sealed record ProjectOptions(
     bool? Files = null,
     bool? Ci = null,
     bool? Sonar = null,
-    bool? AgentFiles = null);
+    bool? AgentFiles = null,
+    bool? Aspire = null);
 
-public sealed record WebWorkspace(string Scope, IReadOnlyList<WebApp> Apps, IReadOnlyList<WebPackage> Packages);
+public sealed record WebWorkspace(string Scope, IReadOnlyList<WebApp> Apps, IReadOnlyList<string> Packages);
 
-public sealed record WebApp(string Name, string Framework, string Audience, string Rendering);
-
-public sealed record WebPackage(string Name);
+public sealed record WebApp(string Name, string Framework, string Audience, string Rendering, int? Port = null);
 
 public sealed record PresentationProject(string Name, string Framework);

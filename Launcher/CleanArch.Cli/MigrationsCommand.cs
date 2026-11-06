@@ -14,8 +14,8 @@ internal static class MigrationsCommand
     private static Command Build(CommandContext context)
     {
         var migrations = new Command(Name, "Add a migration to a persistence context, or bundle the migrations to run them on their own.");
-        migrations.Add(AddCommand(context));
-        migrations.Add(BundleCommand(context));
+        migrations.Add(AddSubcommand(context));
+        migrations.Add(BundleSubcommand(context));
         migrations.SetAction(parseResult =>
         {
             parseResult.CommandResult.Command.Parse(["--help"]).Invoke(parseResult.InvocationConfiguration);
@@ -24,7 +24,7 @@ internal static class MigrationsCommand
         return migrations;
     }
 
-    private static Command AddCommand(CommandContext context)
+    private static Command AddSubcommand(CommandContext context)
     {
         var add = new Command("add", "Add a migration to the business context, or to the identity context with --context auth.");
         Argument<string> name = new("name") { Description = "The migration's name, as dotnet ef names it, e.g. AddTodoItemPriority." };
@@ -60,7 +60,7 @@ internal static class MigrationsCommand
         return ExternalCommand.Run(new ExternalCall("dotnet", arguments, project.Root), parseResult.InvocationConfiguration.Output, parseResult.InvocationConfiguration.Error);
     }
 
-    private static Command BundleCommand(CommandContext context)
+    private static Command BundleSubcommand(CommandContext context)
     {
         var bundle = new Command("bundle", "Bundle each context's migrations into a self-contained executable under artifacts/migrate.");
         if (context.Project is { } project)

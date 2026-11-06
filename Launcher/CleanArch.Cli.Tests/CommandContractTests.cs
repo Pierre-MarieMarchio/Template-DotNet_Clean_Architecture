@@ -118,7 +118,7 @@ public sealed class CommandContractTests : IDisposable
     [InlineData("auth local, api, sonar true, client", "adopt")]
     [InlineData("auth local, api, sonar true, web", "adopt")]
     [InlineData("auth external, api, no client", "sonar adopt")]
-    public void EachProjectFile_RefusesTheCommandsItRecordsNoNeedFor(string projectFile, string refused)
+    public void EachRefusalCondition_HoldsAgainstTheProjectFiles(string projectFile, string refused)
     {
         using var project = new SampleProject(_projectFiles[projectFile]);
         CommandContext context = CommandContext.Locate(project.Root);

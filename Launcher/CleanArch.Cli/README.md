@@ -40,6 +40,13 @@ dotnet cleanarch compose down # docker compose down
 dotnet cleanarch end-to-end  # the stack from .env.example, the end-to-end tests, then down --volumes
 dotnet cleanarch end-to-end --keep-stack # the same, leaving the stack running
 dotnet cleanarch sonar       # SonarCloud, where the project file records sonar true
+dotnet cleanarch add feature Widgets Widget --access owner --deletion delete # a feature in every layer, composed
+dotnet cleanarch add field Widgets "Code:string(20)='none'"                  # fields added to a feature add feature wrote
+dotnet cleanarch add use-case Invoices ApproveInvoice --kind command         # one operation on a rich feature
+dotnet cleanarch add setting Invoices InvoiceLimits --keys "MaxItems:int(1..100)=10"
+dotnet cleanarch add event Invoices InvoicePaidDomainEvent --unconsumed "Nothing reacts to it yet"
+dotnet cleanarch remove feature Widgets          # report what removing it involves, writing nothing
+dotnet cleanarch remove feature Widgets --apply  # remove it, as its manifest records it
 ```
 
 `format` walks the project root (skipping `bin`, `obj`, `node_modules`, `plans` and the dot
@@ -70,3 +77,12 @@ and writes nothing. `add web-package` exists only where the project file records
 
 `help --json` lists only what the project file makes true: a command or an option the file
 makes false does not appear, and a command that does not apply is refused with the reason.
+
+Each `add` command takes `--dry-run`, which prints the files and the edits it would make and
+writes and runs nothing; without it, it writes every file and edit or none, records them in
+the feature's manifest under `.feature-manifest/` where it has one (`add feature` writes it,
+naming the tool and its version), then prints and runs each step that follows, such as the
+build and the migration. `remove feature`
+only reports unless given `--apply`. `add feature` and `add field` do not apply where the
+project file records `auth: none`, since every feature they write needs an authenticated
+caller, and are refused with that reason.

@@ -113,9 +113,11 @@ public sealed class DesktopSessionTests
         await session.SignInAsync(Cancellation);
         signedIn = true;
 
-        var first = session.AccessTokenAsync(Cancellation).AsTask();
+        async Task<string?> TokenAsync() => await session.AccessTokenAsync(Cancellation);
+
+        var first = TokenAsync();
         refreshArrived.Wait(Cancellation);
-        var second = session.AccessTokenAsync(Cancellation).AsTask();
+        var second = TokenAsync();
         releaseRefresh.Set();
 
         (await first).ShouldBe("a2");

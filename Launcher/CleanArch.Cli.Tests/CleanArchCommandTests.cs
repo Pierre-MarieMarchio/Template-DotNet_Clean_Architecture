@@ -5,6 +5,7 @@ namespace CleanArch.Cli.Tests;
 
 public sealed class CleanArchCommandTests : IDisposable
 {
+    private readonly FakeProcesses _processes = new();
     private readonly StringWriter _output = new();
     private readonly StringWriter _error = new();
 
@@ -76,5 +77,5 @@ public sealed class CleanArchCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 }

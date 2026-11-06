@@ -5,7 +5,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class EfCommandTests : IDisposable
 {
     private readonly StringWriter _output = new();
@@ -17,14 +16,16 @@ public sealed class EfCommandTests : IDisposable
     private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Persistence");
     private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Auth");
 
+    private readonly FakeProcesses _processes;
+
     public EfCommandTests()
     {
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             _sideEffect(call);
             return _exit;
-        };
+        });
     }
 
     [Fact]
@@ -184,13 +185,12 @@ public sealed class EfCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
     private static string WriteSnapshot(SampleProject project, string context)
     {

@@ -25,6 +25,6 @@ internal static class BuildCommand
             return CleanArchCommand.Failed;
         }
 
-        return Dotnet.Run(parseResult, project.Root, ["build", ProjectLayout.Solution(project), "--configuration", settings.Configuration, .. settings.Nodes]);
+        return Dotnet.Run(context.Shell(parseResult), project.Root, ["build", ProjectLayout.Solution(project), "--configuration", settings.Configuration, .. settings.Nodes]);
     }
 }

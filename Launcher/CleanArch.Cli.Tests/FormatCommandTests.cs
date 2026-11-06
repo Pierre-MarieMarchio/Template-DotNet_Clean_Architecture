@@ -3,7 +3,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class FormatCommandTests : IDisposable
 {
     private static readonly byte[] _unnormalised = [0xEF, 0xBB, 0xBF, .. "# Hi\r\n"u8.ToArray()];
@@ -14,13 +13,15 @@ public sealed class FormatCommandTests : IDisposable
     private readonly SampleProject _project = new(SampleProject.Minimal);
     private Func<string, TextWriter, int> _dotnet = (_, _) => CleanArchCommand.Succeeded;
 
+    private readonly FakeProcesses _processes;
+
     public FormatCommandTests() =>
-        ExternalCommand.Handler = (call, output, _) =>
+        _processes = new FakeProcesses((call, output, _) =>
         {
             string line = string.Join(' ', call.Arguments);
             _calls.Add(line);
             return _dotnet(line, output);
-        };
+        });
 
     [Fact]
     public void Format_NormalisesMarkdownOutsideTheSkippedFolders_AndLeavesCSharpToDotnetFormat()
@@ -131,7 +132,6 @@ public sealed class FormatCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _project.Dispose();
         _output.Dispose();
         _error.Dispose();
@@ -146,5 +146,5 @@ public sealed class FormatCommandTests : IDisposable
     }
 
     private int Run(params string[] arguments) =>
-        BuiltInCommands.Run(arguments, _project.Root, _output, _error);
+        BuiltInCommands.Run(arguments, _project.Root, _output, _error, _processes);
 }

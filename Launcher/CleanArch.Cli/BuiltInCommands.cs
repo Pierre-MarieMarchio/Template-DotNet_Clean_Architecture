@@ -17,7 +17,10 @@ namespace CleanArch.Cli;
 internal static class BuiltInCommands
 {
     public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error) =>
-        CleanArchCommand.Run(arguments, workingDirectory, output, error, All);
+        Run(arguments, workingDirectory, output, error, ExternalCommand.Launcher);
+
+    public static int Run(IReadOnlyList<string> arguments, string workingDirectory, TextWriter output, TextWriter error, IProcessLauncher processes) =>
+        CleanArchCommand.Run(arguments, workingDirectory, output, error, All, processes);
 
     public static IReadOnlyList<CommandRegistration> All { get; } =
     [

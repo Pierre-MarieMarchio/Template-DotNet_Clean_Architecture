@@ -51,26 +51,23 @@ internal static class VerifyCommand
         BuildSettings.Options settings = BuildSettings.Add(verify);
         if (context.Project is { } project)
         {
-            verify.SetAction(parseResult => Run(project, parseResult, settings.Of(parseResult)));
+            verify.SetAction(parseResult => Run(project, context.Shell(parseResult), settings.Of(parseResult)));
         }
 
         return verify;
     }
 
-    private static int Run(LocatedProject project, ParseResult parseResult, BuildSettings settings)
+    private static int Run(LocatedProject project, Shell shell, BuildSettings settings)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
-
         if (MissingInitialMigration(project) is { } missing)
         {
-            error.WriteLine(
+            shell.Error.WriteLine(
                 $"'verify' needs the initial migration of {missing}, and there is none yet. "
                 + $"Run `{CleanArchCommand.Name} {BootstrapCommand.Name}`, which creates it, then commit it (docs/guides/migrations.md).");
             return CleanArchCommand.Failed;
         }
 
-        foreach (Func<int> step in Steps(project, parseResult, settings, output, error))
+        foreach (Func<int> step in Steps(project, settings, shell))
         {
             int exit = step();
             if (exit != CleanArchCommand.Succeeded)
@@ -82,61 +79,58 @@ internal static class VerifyCommand
         return CleanArchCommand.Succeeded;
     }
 
-    private static IEnumerable<Func<int>> Steps(LocatedProject project, ParseResult parseResult, BuildSettings settings, TextWriter output, TextWriter error)
+    private static IEnumerable<Func<int>> Steps(LocatedProject project, BuildSettings settings, Shell shell)
     {
         foreach (ExternalCall call in GateCalls(project))
         {
-            yield return () => ExternalCommand.Run(call, output, error);
+            yield return () => shell.Run(call);
         }
 
         if (project.File.Web is not null)
         {
-            yield return () => ExternalCommand.Run(Pnpm(["--version"], project.Root), output, error);
+            yield return () => shell.Run(Pnpm(["--version"], project.Root));
         }
 
         if (project.File.Client)
         {
-            yield return () => ApiClientCheck(project, output, error);
+            yield return () => ApiClientCheck(project, shell);
         }
 
         if (project.File.Web is not null)
         {
-            yield return () => WebSchema(project, output, error);
-            yield return () => ExternalCommand.Run(Pnpm(["audit"], WebFolder(project), _webNote), output, error);
-            yield return () => ExternalCommand.Run(Pnpm(["install", "--frozen-lockfile"], WebFolder(project), _webNote), output, error);
+            yield return () => WebSchema(project, shell);
+            yield return () => shell.Run(Pnpm(["audit"], WebFolder(project), _webNote));
+            yield return () => shell.Run(Pnpm(["install", "--frozen-lockfile"], WebFolder(project), _webNote));
             foreach (string script in _webScripts)
             {
-                yield return () => ExternalCommand.Run(Pnpm([script], WebFolder(project), _webNote), output, error);
+                yield return () => shell.Run(Pnpm([script], WebFolder(project), _webNote));
             }
         }
 
         if (TemplateMaintenance(project))
         {
-            yield return () => ExternalCommand.Run(Dotnet(["run", Tool("Tasks.cs"), "web-lockfiles", "--check"], project.Root), output, error);
+            yield return () => shell.Run(Dotnet(["run", Tool("Tasks.cs"), "web-lockfiles", "--check"], project.Root));
         }
 
         string solution = ProjectLayout.Solution(project);
-        yield return () => ExternalCommand.Run(Dotnet(["restore", solution, .. settings.Nodes], project.Root), output, error);
-        yield return () => ExternalCommand.Run(Dotnet(["format", solution, "--diagnostics", .. FormatCommand.StyleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
-        yield return () => ExternalCommand.Run(Dotnet(["build", solution, "--configuration", settings.Configuration, "--no-restore", .. settings.Nodes], project.Root), output, error);
-        yield return () => TestCommand.RunBuilt(project, parseResult, settings);
+        yield return () => shell.Run(Dotnet(["restore", solution, .. settings.Nodes], project.Root));
+        yield return () => shell.Run(Dotnet(["format", solution, "--diagnostics", .. FormatCommand.StyleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root));
+        yield return () => shell.Run(Dotnet(["build", solution, "--configuration", settings.Configuration, "--no-restore", .. settings.Nodes], project.Root));
+        yield return () => TestCommand.RunBuilt(project, shell, settings);
 
         foreach (string context in ProjectLayout.Contexts(project))
         {
-            yield return () => ExternalCommand.Run(
-                Dotnet(["ef", "migrations", "has-pending-model-changes", "--project", context, "--startup-project", context, "--no-build"], project.Root),
-                output,
-                error);
+            yield return () => shell.Run(Dotnet(["ef", "migrations", "has-pending-model-changes", "--project", context, "--startup-project", context, "--no-build"], project.Root));
         }
 
-        yield return () => VulnerablePackages(project, solution, output, error);
+        yield return () => VulnerablePackages(project, solution, shell);
 
         if (LauncherSolution(project) is { } launcher)
         {
-            yield return () => ExternalCommand.Run(Dotnet(["restore", launcher], project.Root), output, error);
-            yield return () => ExternalCommand.Run(Dotnet(["format", launcher, "--diagnostics", .. FormatCommand.StyleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root), output, error);
-            yield return () => ExternalCommand.Run(Dotnet(["build", launcher, "--configuration", settings.Configuration, "--no-restore"], project.Root), output, error);
-            yield return () => ExternalCommand.Run(Dotnet(["test", "--solution", launcher, "--configuration", settings.Configuration, "--no-build"], project.Root), output, error);
+            yield return () => shell.Run(Dotnet(["restore", launcher], project.Root));
+            yield return () => shell.Run(Dotnet(["format", launcher, "--diagnostics", .. FormatCommand.StyleRulesTheBuildLacks, "--verify-no-changes", "--no-restore"], project.Root));
+            yield return () => shell.Run(Dotnet(["build", launcher, "--configuration", settings.Configuration, "--no-restore"], project.Root));
+            yield return () => shell.Run(Dotnet(["test", "--solution", launcher, "--configuration", settings.Configuration, "--no-build"], project.Root));
         }
     }
 
@@ -190,8 +184,10 @@ internal static class VerifyCommand
         }
     }
 
-    private static int WebSchema(LocatedProject project, TextWriter output, TextWriter error)
+    private static int WebSchema(LocatedProject project, Shell shell)
     {
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         string root = project.Root;
         if (!File.Exists(Path.Combine(root, "Src", "Web", "packages", "api-client", "scripts", "generate.mjs")))
         {
@@ -206,21 +202,20 @@ internal static class VerifyCommand
             return CleanArchCommand.Failed;
         }
 
-        int installed = ExternalCommand.Run(Pnpm(["install", "--frozen-lockfile"], WebFolder(project), _webNote), output, error);
+        int installed = shell.Run(Pnpm(["install", "--frozen-lockfile"], WebFolder(project), _webNote));
         if (installed != CleanArchCommand.Succeeded)
         {
             return installed;
         }
 
         string package = Path.Combine(root, "Src", "Web", "packages", "api-client");
-        return ExternalCommand.Run(
-            Pnpm(["exec", "node", "scripts/generate.mjs", "--check", reference], package, _apiClientPackageNote),
-            output,
-            error);
+        return shell.Run(Pnpm(["exec", "node", "scripts/generate.mjs", "--check", reference], package, _apiClientPackageNote));
     }
 
-    private static int ApiClientCheck(LocatedProject project, TextWriter output, TextWriter error)
+    private static int ApiClientCheck(LocatedProject project, Shell shell)
     {
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         string root = project.Root;
         string reference = ProjectLayout.OpenApiReference(project);
         string client = ProjectLayout.Client(project);
@@ -241,8 +236,7 @@ internal static class VerifyCommand
         string written = Path.Combine(Path.GetTempPath(), "api-client-" + Guid.NewGuid().ToString("N"));
         try
         {
-            int exit = ExternalCommand.Run(
-                Dotnet(
+            int exit = shell.Run(Dotnet(
                     [
                         "tool", "run", "kiota", "generate",
                         "--language", "CSharp",
@@ -254,9 +248,7 @@ internal static class VerifyCommand
                         "--clean-output",
                         "--log-level", "Warning",
                     ],
-                    root),
-                output,
-                error);
+                    root));
             if (exit != CleanArchCommand.Succeeded)
             {
                 return exit;
@@ -340,10 +332,12 @@ internal static class VerifyCommand
             .Order(StringComparer.Ordinal)];
     }
 
-    private static int VulnerablePackages(LocatedProject project, string solution, TextWriter output, TextWriter error)
+    private static int VulnerablePackages(LocatedProject project, string solution, Shell shell)
     {
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         var listed = new StringWriter();
-        int exit = ExternalCommand.Run(
+        int exit = shell.Run(
             Dotnet(["list", solution, "package", "--vulnerable", "--include-transitive"], project.Root),
             new TeeWriter(output, listed),
             error);

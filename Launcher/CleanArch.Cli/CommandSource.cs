@@ -10,6 +10,8 @@ internal static partial class CommandSource
 
     private const string _entryType = "BuiltInCommands";
 
+    private static readonly string[] _entryNeeds = ["CleanArchCommand", "SystemProcessLauncher"];
+
     private const string _namespace = "CleanArch.Cli";
 
     public static IReadOnlyDictionary<string, string> Shipped { get; } = ReadShipped();
@@ -35,7 +37,7 @@ internal static partial class CommandSource
 
         string seed = declaringFiles.GetValueOrDefault(commandType)
             ?? throw new InvalidOperationException($"The tool ships no source declaring {commandType}.");
-        var files = new List<string> { seed };
+        List<string> files = [.. _entryNeeds.Select(type => declaringFiles[type]).Prepend(seed).Distinct(StringComparer.Ordinal)];
         for (int next = 0; next < files.Count; next++)
         {
             foreach (Match identifier in Identifiers().Matches(Shipped[files[next]]))
@@ -74,7 +76,7 @@ internal static partial class CommandSource
         }
 
         app.Append('\n');
-        app.Append($"return CleanArchCommand.RunBuiltIn([\"{commandName}\", .. args], Environment.CurrentDirectory, Console.Out, Console.Error, {_entryType}.All);\n\n");
+        app.Append($"return CleanArchCommand.RunBuiltIn([\"{commandName}\", .. args], Environment.CurrentDirectory, Console.Out, Console.Error, {_entryType}.All, new SystemProcessLauncher());\n\n");
         app.Append($"namespace {_namespace}\n{{\n");
         app.Append(Indented($"internal static class {_entryType}\n{{\n    public static IReadOnlyList<CommandRegistration> All {{ get; }} = [{commandType}.Registration];\n}}\n"));
         foreach (string file in files)

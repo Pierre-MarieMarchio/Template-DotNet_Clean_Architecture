@@ -50,7 +50,7 @@ internal static partial class MigrationsCommand
         add.Options.Add(contextOption);
         if (context.Project is { } project)
         {
-            add.SetAction(parseResult => RunAdd(project, parseResult, new AddOptions(name, check, noBuild, contextOption)));
+            add.SetAction(parseResult => RunAdd(project, context.Shell(parseResult), parseResult, new AddOptions(name, check, noBuild, contextOption)));
         }
 
         return add;
@@ -58,10 +58,10 @@ internal static partial class MigrationsCommand
 
     private sealed record AddOptions(Argument<string?> Name, Option<bool> Check, Option<bool> NoBuild, Option<string?> Context);
 
-    private static int RunAdd(LocatedProject project, ParseResult parseResult, AddOptions options)
+    private static int RunAdd(LocatedProject project, Shell shell, ParseResult parseResult, AddOptions options)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         bool check = parseResult.GetValue(options.Check);
         string? migration = parseResult.GetValue(options.Name);
         string target = PersistenceContexts.Target(project, parseResult.GetValue(options.Context), out string? refusal);
@@ -80,20 +80,14 @@ internal static partial class MigrationsCommand
         string[] noBuild = parseResult.GetValue(options.NoBuild) ? ["--no-build"] : [];
         if (check)
         {
-            return ExternalCommand.Run(
-                new ExternalCall("dotnet", ["ef", "migrations", "has-pending-model-changes", "--project", target, "--startup-project", target, .. noBuild], project.Root),
-                output,
-                error);
+            return shell.Run(new ExternalCall("dotnet", ["ef", "migrations", "has-pending-model-changes", "--project", target, "--startup-project", target, .. noBuild], project.Root));
         }
 
         string folder = ProjectLayout.Migrations(project, target);
         string snapshotPath = Directory.EnumerateFiles(folder, "*ModelSnapshot.cs").Single();
         byte[] snapshot = File.ReadAllBytes(snapshotPath);
         HashSet<string> before = [.. Directory.EnumerateFiles(folder, "*.cs")];
-        int exit = ExternalCommand.Run(
-            new ExternalCall("dotnet", ["ef", "migrations", "add", migration!, "--project", target, "--startup-project", target, .. noBuild], project.Root),
-            output,
-            error);
+        int exit = shell.Run(new ExternalCall("dotnet", ["ef", "migrations", "add", migration!, "--project", target, "--startup-project", target, .. noBuild], project.Root));
         if (exit != CleanArchCommand.Succeeded)
         {
             return exit;
@@ -129,16 +123,16 @@ internal static partial class MigrationsCommand
         Option<string> configuration = BuildSettings.AddConfiguration(bundle);
         if (context.Project is { } project)
         {
-            bundle.SetAction(parseResult => RunBundle(project, parseResult, configuration));
+            bundle.SetAction(parseResult => RunBundle(project, context.Shell(parseResult), parseResult, configuration));
         }
 
         return bundle;
     }
 
-    private static int RunBundle(LocatedProject project, ParseResult parseResult, Option<string> configuration)
+    private static int RunBundle(LocatedProject project, Shell shell, ParseResult parseResult, Option<string> configuration)
     {
-        TextWriter output = parseResult.InvocationConfiguration.Output;
-        TextWriter error = parseResult.InvocationConfiguration.Error;
+        TextWriter output = shell.Output;
+        TextWriter error = shell.Error;
         if (PersistenceContexts.WithoutInitialMigration(project, $"{Name} bundle", ProjectLayout.Contexts(project)) is { } refusal)
         {
             error.WriteLine(refusal);
@@ -149,8 +143,7 @@ internal static partial class MigrationsCommand
         foreach (string context in ProjectLayout.Contexts(project))
         {
             string executable = context == auth ? "efbundle-identity" : "efbundle";
-            int exit = ExternalCommand.Run(
-                new ExternalCall(
+            int exit = shell.Run(new ExternalCall(
                     "dotnet",
                     [
                         "ef", "migrations", "bundle",
@@ -161,9 +154,7 @@ internal static partial class MigrationsCommand
                         "--force",
                         "--output", Path.Combine("artifacts", "migrate", executable),
                     ],
-                    project.Root),
-                output,
-                error);
+                    project.Root));
             if (exit != CleanArchCommand.Succeeded)
             {
                 return exit;

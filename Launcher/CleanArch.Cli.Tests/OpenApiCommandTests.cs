@@ -4,7 +4,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class OpenApiCommandTests : IDisposable
 {
     private const string _referenceJson = """{"openapi":"3.1.0"}""";
@@ -22,13 +21,15 @@ public sealed class OpenApiCommandTests : IDisposable
     private int _exit = CleanArchCommand.Succeeded;
     private int _kiotaExit = CleanArchCommand.Succeeded;
 
+    private readonly FakeProcesses _processes;
+
     public OpenApiCommandTests()
     {
-        ExternalCommand.Handler = (call, _, _) =>
+        _processes = new FakeProcesses((call, _, _) =>
         {
             _calls.Add(call);
             return Fake(call);
-        };
+        });
     }
 
     [Fact]
@@ -271,7 +272,6 @@ public sealed class OpenApiCommandTests : IDisposable
 
     public void Dispose()
     {
-        ExternalCommand.Handler = null;
         _output.Dispose();
         _error.Dispose();
     }
@@ -300,7 +300,7 @@ public sealed class OpenApiCommandTests : IDisposable
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _processes);
 
     private void Clear()
     {

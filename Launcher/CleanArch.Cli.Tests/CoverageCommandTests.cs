@@ -3,7 +3,6 @@ using Xunit;
 
 namespace CleanArch.Cli.Tests;
 
-[Collection(ProcessWideState.Name)]
 public sealed class CoverageCommandTests : IDisposable
 {
     private readonly StringWriter _output = new();
@@ -84,9 +83,8 @@ public sealed class CoverageCommandTests : IDisposable
     {
         _output.Dispose();
         _error.Dispose();
-        _dotnet.Dispose();
     }
 
     private int Run(string[] arguments, string workingDirectory) =>
-        BuiltInCommands.Run(arguments, workingDirectory, _output, _error);
+        BuiltInCommands.Run(arguments, workingDirectory, _output, _error, _dotnet);
 }

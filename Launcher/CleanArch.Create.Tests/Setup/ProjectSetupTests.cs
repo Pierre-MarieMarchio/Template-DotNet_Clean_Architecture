@@ -36,8 +36,8 @@ public sealed class ProjectSetupTests : IDisposable
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
         var answers = new Dictionary<string, string>(StringComparer.Ordinal) { ["web"] = web, ["presentation"] = presentation };
 
-        ProjectSetup.BootstrapDescription(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers))).ShouldBe(
-            "Runs " + ProjectSetup.BootstrapCommand + ": formatting, OpenAPI document, tools and first migrations"
+        BootstrapStep.DescriptionFor(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers))).ShouldBe(
+            "Runs " + BootstrapStep.Command + ": formatting, OpenAPI document, tools and first migrations"
             + writes + ". Needs internet.");
     }
 
@@ -46,7 +46,7 @@ public sealed class ProjectSetupTests : IDisposable
     {
         TemplateManifest manifest = Repository.Source.Manifest(TemplateKind.Project);
 
-        ProjectSetup.BootstrapWritesWhen.Select(fact => fact.Symbol).ShouldAllBe(
+        BootstrapStep.WritesWhen.Select(fact => fact.Symbol).ShouldAllBe(
             symbol => manifest.Computed.ContainsKey(symbol),
             "The bootstrap step reads a symbol the project template no longer computes, so it would never say what bootstrap writes.");
     }
@@ -110,7 +110,7 @@ public sealed class ProjectSetupTests : IDisposable
         string why = outcomes[1].Why.ShouldNotBeNull();
         why.ShouldContain("exited with code 1");
         why.ShouldContain("NU1301");
-        outcomes[1].Rerun.ShouldBe([ProjectSetup.BootstrapCommand]);
+        outcomes[1].Rerun.ShouldBe([BootstrapStep.Command]);
         outcomes[2].Status.ShouldBe(SetupStatus.Skipped);
         outcomes[2].Rerun.ShouldContain("git commit -m \"chore: bootstrap\"");
         outcomes[3].Status.ShouldBe(SetupStatus.Done);
@@ -132,7 +132,7 @@ public sealed class ProjectSetupTests : IDisposable
         why.ShouldContain("The full output is in " + journal);
         File.ReadAllText(journal).ShouldContain("line 1");
         File.ReadAllText(journal).ShouldContain("error CS0246");
-        outcome.Rerun.ShouldBe([ProjectSetup.BootstrapCommand]);
+        outcome.Rerun.ShouldBe([BootstrapStep.Command]);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public sealed class ProjectSetupTests : IDisposable
         why.ShouldContain("CleanArch.Cli 1.2.3, the tool this project pins, isn't on a NuGet source this machine uses");
         why.ShouldContain("CleanArch.Cli.1.2.3.nupkg");
         why.ShouldContain("then run bootstrap again");
-        outcome.Rerun.ShouldBe(["dotnet tool install CleanArch.Cli --local --version 1.2.3 --add-source <folder holding CleanArch.Cli.1.2.3.nupkg>", ProjectSetup.BootstrapCommand]);
+        outcome.Rerun.ShouldBe(["dotnet tool install CleanArch.Cli --local --version 1.2.3 --add-source <folder holding CleanArch.Cli.1.2.3.nupkg>", BootstrapStep.Command]);
     }
 
     [Theory]
@@ -156,7 +156,7 @@ public sealed class ProjectSetupTests : IDisposable
     [InlineData("error NU1101: Unable to find package Some.Other.Tool", false)]
     [InlineData("error NU1301: Unable to load the service index for source https://api.nuget.org/v3/index.json.", false)]
     public void TheProjectToolNoSourceHolds_IsToldApartFromOtherRestoreFailures(string output, bool expected) =>
-        ProjectSetup.ProjectToolNotFound(output).ShouldBe(expected);
+        BootstrapStep.ProjectToolNotFound(output).ShouldBe(expected);
 
     [Theory]
     [InlineData("GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL", true)]
@@ -204,7 +204,7 @@ public sealed class ProjectSetupTests : IDisposable
 
         left.Count(command => command == "git add -A").ShouldBe(2);
         left.Count(command => command == "git config --global user.name \"<your name>\"").ShouldBe(1);
-        left.IndexOf(ProjectSetup.BootstrapCommand).ShouldBeLessThan(left.LastIndexOf("git add -A"));
+        left.IndexOf(BootstrapStep.Command).ShouldBeLessThan(left.LastIndexOf("git add -A"));
     }
 
     [Fact]

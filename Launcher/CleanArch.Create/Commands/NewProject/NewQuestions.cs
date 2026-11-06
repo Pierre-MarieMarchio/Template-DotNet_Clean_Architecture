@@ -87,7 +87,7 @@ internal static partial class NewQuestions
     private static string BootstrapDescription(Session session, IReadOnlyDictionary<string, string> answers)
     {
         TemplateManifest manifest = session.Source.Manifest(TemplateKind.Project);
-        return ProjectSetup.BootstrapDescription(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers)));
+        return BootstrapStep.DescriptionFor(symbol => Condition.IsTruthy(manifest.Resolve(symbol, answers)));
     }
 
     private static string[] Steps(string? chosen) => chosen?.Split(_setupSeparator, StringSplitOptions.RemoveEmptyEntries) ?? [];

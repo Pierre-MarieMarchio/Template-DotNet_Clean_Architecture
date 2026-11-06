@@ -46,7 +46,7 @@ public sealed class NewCommand : ILauncherCommand
         session.Conversation.Perform($"Generating {asked.Name}", $"Generated {asked.Name}", () => session.Dotnet.Run(
                 workingDirectory,
                 [manifest.ShortName, "-n", asked.Name, "-o", target, .. options],
-                asked.Setup.Contains(ProjectSetup.Bootstrap.Title) ? [ProjectSetup.BootstrapTask] : null));
+                asked.Setup.Contains(ProjectSetup.Bootstrap.Title) ? [BootstrapStep.Task] : null));
         List<SetupOutcome> outcomes = SetUp(session, target, asked.Setup);
 
         ItemAdditions.Equivalents(

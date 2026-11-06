@@ -5,26 +5,6 @@ namespace CleanArch.Cli;
 
 internal static class SolutionLocator
 {
-    public static string Find(LocatedProject project)
-    {
-        string byName = Path.Combine(project.Root, project.File.Name + ".sln");
-        if (File.Exists(byName))
-        {
-            return byName;
-        }
-
-        string byNameXml = Path.Combine(project.Root, project.File.Name + ".slnx");
-        if (File.Exists(byNameXml))
-        {
-            return byNameXml;
-        }
-
-        string[] any = [.. Directory.EnumerateFiles(project.Root, "*.sln")
-            .Concat(Directory.EnumerateFiles(project.Root, "*.slnx"))
-            .Order(StringComparer.Ordinal)];
-        return any.Length > 0 ? any[0] : byName;
-    }
-
     public static string[] ProjectPaths(string root, string solution)
     {
         string text = File.ReadAllText(solution);

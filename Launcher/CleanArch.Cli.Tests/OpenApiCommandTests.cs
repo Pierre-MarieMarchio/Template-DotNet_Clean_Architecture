@@ -13,7 +13,7 @@ public sealed class OpenApiCommandTests : IDisposable
     private static readonly string _apiProject = Path.Combine(_apiFolder, "Acme.Shop.Api.csproj");
     private static readonly string _referencePath = Path.Combine("Tests", "Integration", "AS.Api.IntegrationTests", "OpenApi", "v1.json");
     private static readonly string _referenceDirectory = Path.GetDirectoryName(_referencePath)!;
-    private static readonly string _clientFolder = Path.Combine("Src", "Clients", "AS.Client");
+    private static readonly string _clientFolder = Path.Combine("Src", "Presentation", "AS.Presentation.Client");
     private static readonly string _generated = Path.Combine(_clientFolder, "Generated");
 
     private readonly StringWriter _output = new();
@@ -153,7 +153,7 @@ public sealed class OpenApiCommandTests : IDisposable
         Run(["openapi"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
         _calls.Count.ShouldBe(1);
-        _error.ToString().ShouldContain("Src/Clients/AS.Client does not exist, so there is no client to write");
+        _error.ToString().ShouldContain("Src/Presentation/AS.Presentation.Client does not exist, so there is no client to write");
         _output.ToString().ShouldNotContain("kiota");
     }
 
@@ -229,7 +229,7 @@ public sealed class OpenApiCommandTests : IDisposable
         Run(["openapi", "--check"], project.Root).ShouldBe(CleanArchCommand.Failed);
 
         _calls.Count.ShouldBe(2);
-        _error.ToString().ShouldContain("Src/Clients/AS.Client/Generated differs from what Kiota writes from the OpenAPI reference:");
+        _error.ToString().ShouldContain("Src/Presentation/AS.Presentation.Client/Generated differs from what Kiota writes from the OpenAPI reference:");
         _error.ToString().ShouldContain("  ApiClient.cs");
         _error.ToString().ShouldContain("Run `dotnet cleanarch openapi` and commit what it writes.");
         File.ReadAllText(clientFile).ShouldContain("// drifted");

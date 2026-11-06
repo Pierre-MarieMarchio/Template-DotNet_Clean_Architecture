@@ -12,8 +12,8 @@ public sealed class EfCommandTests : IDisposable
     private readonly List<ExternalCall> _calls = [];
     private int _exit = CleanArchCommand.Succeeded;
 
-    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Persistence");
-    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Auth");
+    private static readonly string _persistence = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Persistence");
+    private static readonly string _auth = Path.Combine("Src", "Infrastructure", "AS.Infrastructure.Auth");
 
     public EfCommandTests()
     {

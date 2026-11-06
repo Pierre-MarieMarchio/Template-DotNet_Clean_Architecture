@@ -12,7 +12,7 @@ public sealed class CoverageCommandTests : IDisposable
     private readonly FakeDotnet _dotnet = new();
 
     private const string _coveredRun =
-        "test --solution Acme.Shop.sln --configuration Debug --results-directory TestResults --coverage"
+        "test --solution Acme.Shop.slnx --configuration Debug --results-directory TestResults --coverage"
         + " --coverage-settings coverage.runsettings --coverage-output-format cobertura";
 
     [Fact]

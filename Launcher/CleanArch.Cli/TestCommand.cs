@@ -29,7 +29,7 @@ internal static class TestCommand
         }
 
         string root = project.Root;
-        string solution = SolutionLocator.Find(project);
+        string solution = Path.Combine(project.Root, ProjectLayout.Solution(project));
         TextWriter output = parseResult.InvocationConfiguration.Output;
         bool dockerFreeOnly = parseResult.GetValue(noIntegration);
         try

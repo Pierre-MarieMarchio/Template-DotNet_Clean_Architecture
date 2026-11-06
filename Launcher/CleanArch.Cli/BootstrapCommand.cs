@@ -27,7 +27,7 @@ internal static class BootstrapCommand
         TextWriter error = parseResult.InvocationConfiguration.Error;
 
         int exit = ExternalCommand.Run(
-            new ExternalCall("dotnet", ["format", ProjectLayout.SolutionName(project), "--diagnostics", "IDE0055", "IDE0005"], project.Root),
+            new ExternalCall("dotnet", ["format", ProjectLayout.Solution(project), "--diagnostics", "IDE0055", "IDE0005"], project.Root),
             output,
             error);
         if (exit != CleanArchCommand.Succeeded)

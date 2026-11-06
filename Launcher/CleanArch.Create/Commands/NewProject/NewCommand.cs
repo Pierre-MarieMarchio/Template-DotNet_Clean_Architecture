@@ -1,6 +1,5 @@
 ﻿using CleanArch.Create.Setup;
 using CleanArch.Tooling.Additions;
-using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Markdown;
 using CleanArch.Tooling.Output;
@@ -36,17 +35,9 @@ public sealed class NewCommand : ILauncherCommand
 
         string workingDirectory = session.Machine.WorkingDirectory;
         string target = Path.GetFullPath(asked.Output, workingDirectory);
-        if (Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any())
-        {
-            throw new LauncherException($"'{target}' already has files in it. Pick another folder with --output.");
-        }
-
         IReadOnlyList<string> options = manifest.CommandArguments(asked.Options);
         ItemAdditions.Install(session.Conversation, session.Dotnet, session.Source, session.Version, workingDirectory);
-        session.Conversation.Perform($"Generating {asked.Name}", $"Generated {asked.Name}", () => session.Dotnet.Run(
-                workingDirectory,
-                [manifest.ShortName, "-n", asked.Name, "-o", target, .. options],
-                asked.Setup.Contains(ProjectSetup.Bootstrap.Title) ? [BootstrapStep.Task] : null));
+        Generate(session, [manifest.ShortName, "-n", asked.Name, "-o", target, .. options, .. ExistingFiles.Forced(asked.ExistingFiles)], asked, target);
         List<SetupOutcome> outcomes = SetUp(session, target, asked.Setup);
 
         ItemAdditions.Equivalents(
@@ -61,15 +52,29 @@ public sealed class NewCommand : ILauncherCommand
         Close(session, target, asked.Output, outcomes);
     }
 
+    private static void Generate(Session session, IReadOnlyList<string> arguments, NewAnswers asked, string target)
+    {
+        if (asked.ExistingFiles == ExistingFiles.Remove)
+        {
+            session.Conversation.Perform($"Removing the files in {target}", $"Removed the files in {target}", () => ExistingFiles.Empty(target));
+        }
+
+        session.Conversation.Perform($"Generating {asked.Name}", $"Generated {asked.Name}", () => session.Dotnet.Run(
+                session.Machine.WorkingDirectory,
+                arguments,
+                asked.Setup.Contains(ProjectSetup.Bootstrap.Title) ? [BootstrapStep.Task] : null));
+    }
+
     private static void Close(Session session, string target, string output, List<SetupOutcome> outcomes)
     {
         string[] left = [.. ProjectSetup.Left(outcomes)];
         string? section = Without(
             MarkdownSection.Of(Path.Combine(target, "README.md"), "## Run it"),
             [.. outcomes.Where(outcome => outcome.Status == SetupStatus.Done && outcome.Step.Replaces is not null).Select(outcome => outcome.Step.Replaces!), .. left]);
+        string[] moveInto = SameFolder(target, session.Machine.WorkingDirectory) ? [] : [TemplateEngine.CommandLine("cd", [output])];
         session.Conversation.Close(new Closing(
             null,
-            [TemplateEngine.CommandLine("cd", [output]), .. left],
+            [.. moveInto, .. left],
             section ?? "Read the project's README.md.",
             outcomes.Any(outcome => outcome.Status != SetupStatus.Done)));
     }
@@ -95,6 +100,9 @@ public sealed class NewCommand : ILauncherCommand
 
         return outcomes;
     }
+
+    private static bool SameFolder(string one, string other) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(one)) == Path.TrimEndingDirectorySeparator(Path.GetFullPath(other));
 
     private static string? Without(string? section, IReadOnlyCollection<string> commands) =>
         section is null

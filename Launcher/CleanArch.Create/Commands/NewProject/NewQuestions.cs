@@ -1,18 +1,20 @@
 ﻿using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using CleanArch.Create.Setup;
 using CleanArch.Tooling.Additions;
+using CleanArch.Tooling.Failures;
 using CleanArch.Tooling.Manifests;
 using CleanArch.Tooling.Prompts;
 
 namespace CleanArch.Create.Commands.NewProject;
 
-public sealed record NewAnswers(string Name, string Output, Dictionary<string, string> Options, IReadOnlyList<string> Setup);
+public sealed record NewAnswers(string Name, string Output, string? ExistingFiles, Dictionary<string, string> Options, IReadOnlyList<string> Setup);
 
-internal static partial class NewQuestions
+internal static class NewQuestions
 {
     private const string _nameKey = "--name";
     private const string _outputKey = "--output";
+    private const string _existingFilesKey = "--existing-files";
+    private const string _currentFolder = ".";
     private const string _setupKey = "--setup";
     private const char _setupSeparator = '|';
 
@@ -21,28 +23,59 @@ internal static partial class NewQuestions
         Dictionary<string, string> answers = AddedHosts.WithTheHostsAdded(
             manifest,
             session.Questionnaire.Answer(manifest, session.Parsed.TemplateOptions, ReadOnlyDictionary<string, string>.Empty, askedWhen, Before(session, manifest), After(session, manifest)));
-        return new NewAnswers(answers.GetValueOrDefault(_nameKey)!, answers.GetValueOrDefault(_outputKey)!, answers, Steps(answers.GetValueOrDefault(_setupKey)));
+        return new NewAnswers(answers.GetValueOrDefault(_nameKey)!, answers.GetValueOrDefault(_outputKey)!, answers.GetValueOrDefault(_existingFilesKey), answers, Steps(answers.GetValueOrDefault(_setupKey)));
     }
 
     private static Question[] Before(Session session, TemplateManifest manifest)
     {
-        Questionnaire questionnaire = session.Questionnaire;
         Arguments parsed = session.Parsed;
+        string? proposed = ProjectNaming.Proposed(manifest, session.Machine.WorkingDirectory);
         return
         [
-            new(_nameKey, (_, remembered) => questionnaire.Text("--name", "Project name", parsed.Name, remembered ?? manifest.DefaultName, name => ProjectNameProblem(manifest, name))),
-            new(_outputKey, (answers, _) =>
-            {
-                string? named = answers.GetValueOrDefault(_nameKey);
-                if (parsed.Output is not null || !questionnaire.Asks || named is null)
-                {
-                    return Reply.Passed(parsed.Output ?? named);
-                }
-
-                return questionnaire.Text("--output", "Output folder", null, "./" + named, folder => OutputProblem(session.Machine.WorkingDirectory, folder));
-            }),
+            new(_nameKey, (_, remembered) => session.Questionnaire.Text("--name", "Project name", parsed.Name, remembered ?? proposed, name => ProjectNaming.Problem(manifest, name))),
+            new(_outputKey, (answers, _) => Reply.Passed(parsed.Output ?? parsed.Name ?? Folder(answers.GetValueOrDefault(_nameKey), proposed))),
+            ExistingFilesQuestion(session),
         ];
     }
+
+    private static string? Folder(string? named, string? proposed)
+    {
+        if (named is null)
+        {
+            return null;
+        }
+
+        return named == proposed ? _currentFolder : "./" + named;
+    }
+
+    private static Question ExistingFilesQuestion(Session session) =>
+        new(_existingFilesKey, (answers, _) =>
+        {
+            string? output = answers.GetValueOrDefault(_outputKey);
+            string target = Path.GetFullPath(output ?? _currentFolder, session.Machine.WorkingDirectory);
+            if (output is null || !ExistingFiles.In(target))
+            {
+                return Reply.Passed(null);
+            }
+
+            if (session.Parsed.Overwrite)
+            {
+                return Reply.Passed(ExistingFiles.Remove);
+            }
+
+            if (!session.Questionnaire.Asks)
+            {
+                throw new LauncherException(ExistingFiles.Refusal(target));
+            }
+
+            string? chosen = session.Conversation.Choose($"{target} already has files in it", string.Empty, ExistingFiles.Choices, ExistingFiles.Cancel);
+            if (chosen == ExistingFiles.Cancel)
+            {
+                throw new LauncherException(ItemAdditions.Stopped);
+            }
+
+            return chosen is null ? Reply.Backward : Reply.Answer(chosen);
+        });
 
     private static Question[] After(Session session, TemplateManifest manifest) =>
     [
@@ -54,6 +87,7 @@ internal static partial class NewQuestions
             [
                 KeyValuePair.Create("Project name", given.GetValueOrDefault(_nameKey) ?? string.Empty),
                 KeyValuePair.Create("Output folder", given.GetValueOrDefault(_outputKey) ?? string.Empty),
+                .. ExistingFilesRow(given),
                 .. Questionnaire.Recap(manifest, AddedHosts.WithTheHostsAdded(manifest, given)),
                 KeyValuePair.Create("Setup steps", Recalled(Steps(given.GetValueOrDefault(_setupKey)))),
             ],
@@ -93,15 +127,6 @@ internal static partial class NewQuestions
 
     private static string Recalled(string[] setup) => setup.Length == 0 ? "Nothing" : string.Join(", ", setup);
 
-    private static string? OutputProblem(string workingDirectory, string folder)
-    {
-        string target = Path.GetFullPath(folder, workingDirectory);
-        return Directory.Exists(target) && Directory.EnumerateFileSystemEntries(target).Any() ? "that folder already has files in it." : null;
-    }
-
-    private static string? ProjectNameProblem(TemplateManifest manifest, string name) =>
-        ProjectName().IsMatch(name) ? ItemAdditions.NameRefusal(manifest, ReadOnlyDictionary<string, string>.Empty, name) : "use the letters A to Z, digits and dots, with each part starting with a letter, like Acme.Shop.";
-
-    [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$")]
-    private static partial Regex ProjectName();
+    private static IEnumerable<KeyValuePair<string, string>> ExistingFilesRow(IReadOnlyDictionary<string, string> given) =>
+        given.TryGetValue(_existingFilesKey, out string? chosen) ? [KeyValuePair.Create("Existing files", chosen)] : [];
 }

@@ -280,15 +280,54 @@ public sealed class LauncherTests : IDisposable
         processes.Calls.ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData("Acme.Shop", "Acme.Shop")]
+    [InlineData("my-shop", "MyShop")]
+    [InlineData("acme.online_shop", "Acme.OnlineShop")]
+    [InlineData("2024 tests", "MyCompany.MyProject")]
+    public void WithoutAName_TheProjectIsNamedAfterItsFolder_AndGeneratedInIt_EvenWhenItHoldsGit(string folder, string name)
+    {
+        string current = Directory.CreateDirectory(Path.Combine(_root, folder)).FullName;
+        Directory.CreateDirectory(Path.Combine(current, ".git"));
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        new Launcher(console, current, interactive: false, processes).Run(["new", "--yes", "--template-source", Repository.Root]).ShouldBe(0, console.Output);
+
+        console.Output.ShouldContain($"dotnet new cleanarch-webapi -n {name} -o .");
+        processes.CommandLines.ShouldContain(line => line.StartsWith($"dotnet new cleanarch-webapi -n {name} -o {current}", StringComparison.Ordinal));
+    }
+
     [Fact]
-    public void AnExistingOutputFolder_WithFiles_IsRefusedBeforeAnythingIsInstalled()
+    public void AFolderWithFiles_IsRefusedWithoutQuestions_BeforeAnythingIsInstalled()
     {
         File.WriteAllText(Path.Combine(_root, "kept.txt"), string.Empty);
         var console = new TestConsole();
         console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
 
-        new Launcher(console, _root, interactive: false).Run(["new", "-n", "Acme.Shop", "-o", ".", "--yes"]).ShouldBe(1);
+        new Launcher(console, _root, interactive: false, processes).Run(["new", "--yes", "--template-source", Repository.Root]).ShouldBe(1);
 
-        console.Output.ShouldContain("already has files in it");
+        console.Output.ShouldContain($"'{_root}' already has files in it. Pick another folder with --output, or remove them, .git excepted, with --overwrite.");
+        processes.Calls.ShouldBeEmpty();
+        File.Exists(Path.Combine(_root, "kept.txt")).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Overwrite_EmptiesAFolderWithFilesButGit_ThenGeneratesInIt_WithoutQuestions()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, ".git"));
+        File.WriteAllText(Path.Combine(_root, ".git", "HEAD"), "ref: refs/heads/main");
+        File.WriteAllText(Path.Combine(_root, "notes.txt"), string.Empty);
+        var console = new TestConsole();
+        console.Profile.Width = Terminal.UnwrappedWidth;
+        var processes = new FakeProcesses();
+
+        new Launcher(console, _root, interactive: false, processes).Run(["new", "--yes", "--overwrite", "--template-source", Repository.Root]).ShouldBe(0, console.Output);
+
+        File.Exists(Path.Combine(_root, ".git", "HEAD")).ShouldBeTrue();
+        File.Exists(Path.Combine(_root, "notes.txt")).ShouldBeFalse();
+        processes.CommandLines.ShouldContain(line => line.StartsWith("dotnet new cleanarch-webapi -n ", StringComparison.Ordinal) && line.Contains($" -o {_root}", StringComparison.Ordinal));
     }
 }

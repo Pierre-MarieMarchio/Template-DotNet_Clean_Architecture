@@ -23,8 +23,8 @@ product does not need.
 ## Quick start
 
 ```bash
-dnx CleanArch.Create                    # asks for the name and each option, then generates
-cd <Company.Product>
+mkdir acme-shop && cd acme-shop
+dnx CleanArch.Create                    # names it AcmeShop, asks each option, generates here
 dotnet run Tools/Tasks.cs bootstrap     # required once: commit what it changes
 cp .env.example .env
 docker compose up -d --build --wait

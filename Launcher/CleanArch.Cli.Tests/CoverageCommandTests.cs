@@ -49,7 +49,7 @@ public sealed class CoverageCommandTests : IDisposable
         using var project = SampleSolution.WithSolution();
         SampleSolution.AddUnitAndIntegrationTests(project);
         SampleSolution.WithCoverageFloor(project);
-        FakeDotnet.ExitWith(5);
+        _dotnet.ExitWith(5);
 
         Run(["coverage"], project.Root).ShouldBe(5);
 
@@ -62,7 +62,7 @@ public sealed class CoverageCommandTests : IDisposable
         using var project = SampleSolution.WithSolution();
         SampleSolution.AddUnitAndIntegrationTests(project);
         SampleSolution.WithCoverageFloor(project, floor: "89.5");
-        FakeDotnet.ExitWith(0);
+        _dotnet.ExitWith(0);
 
         Run(["coverage"], project.Root).ShouldBe(CleanArchCommand.Succeeded);
         _dotnet.Calls.ShouldBe([_coveredRun, "run Tools/CoverageGate.cs --root TestResults --minimum 89.5"]);
